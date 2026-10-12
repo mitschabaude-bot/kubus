@@ -1,0 +1,2 @@
+-- expect: goal: A
+def f (A : U) (x : A) : A := ?

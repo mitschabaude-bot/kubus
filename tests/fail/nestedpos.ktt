@@ -1,0 +1,3 @@
+-- expect: strictly positively
+data List (A : U) : U := nil | cons (x : A) (xs : List A)
+data Rose : U := node (cs : List Rose)

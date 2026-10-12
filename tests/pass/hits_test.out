@@ -1,0 +1,10 @@
+hcomp k (Susp Bool) [] south
+  : Susp Bool
+λ i → hcomp k (Susp Bool) [] (merid false i)
+  : (i : I) → Susp Bool
+hcomp k (Trunc Bool) [] (inc true)
+  : Trunc Bool
+λ i → hcomp k (Trunc Bool) [] (squash (inc false) (inc true) i)
+  : (i : I) → Trunc Bool
+hcomp k (Trunc Bool) [] (inc false)
+  : Trunc Bool

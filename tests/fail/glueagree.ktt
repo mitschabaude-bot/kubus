@@ -1,0 +1,4 @@
+-- expect: does not agree with the base element
+import equiv
+data Bool : U := false | true
+def g (i : I) : Glue Bool [i = 0 -> (Bool, idEquiv Bool)] := glue [i = 0 -> true] false

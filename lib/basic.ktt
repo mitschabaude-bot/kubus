@@ -1,0 +1,31 @@
+-- Basic path algebra
+
+def id (A : U) (x : A) : A := x
+
+def refl (A : U) (a : A) : Path A a a := \i -> a
+
+def sym (A : U) (a b : A) (p : Path A a b) : Path A b a := \i -> p (~i)
+
+def cong (A B : U) (f : A -> B) (a b : A) (p : Path A a b) : Path B (f a) (f b) :=
+  \i -> f (p i)
+
+def funext (A B : U) (f g : A -> B) (h : (x : A) -> Path B (f x) (g x)) : Path (A -> B) f g :=
+  \i x -> h x i
+
+def trans (A : U) (a b c : A) (p : Path A a b) (q : Path A b c) : Path A a c :=
+  \i -> hcomp j A [i = 0 -> a, i = 1 -> q j] (p i)
+
+def transport (A B : U) (p : Path U A B) (a : A) : B := comp i (p i) [] a
+
+def symInv (A : U) (a b : A) (p : Path A a b) : Path (Path A a b) (sym A b a (sym A a b p)) p :=
+  \i -> p
+
+-- contractibility of singletons
+def singl (A : U) (a : A) : U := (x : A) × Path A a x
+
+def contrSingl (A : U) (a b : A) (p : Path A a b) : Path (singl A a) (a, refl A a) (b, p) :=
+  \i -> (p i, \j -> p (i /\ j))
+
+def J (A : U) (a : A) (C : (x : A) -> Path A a x -> U) (d : C a (refl A a)) (x : A) (p : Path A a x) : C x p :=
+  transport (C a (refl A a)) (C x p) (\i -> C (contrSingl A a x p i).1 (contrSingl A a x p i).2) d
+

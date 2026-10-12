@@ -1,0 +1,2 @@
+-- expect: lives in universe 1
+data Big : U := mk (A : U)

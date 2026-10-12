@@ -1,0 +1,2 @@
+-- expect: type mismatch
+def t : U := U

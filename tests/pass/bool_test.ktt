@@ -1,0 +1,4 @@
+import bool
+
+#eval transport Bool Bool notPath true
+#eval transport Bool Bool (\i -> notPath (~i)) false

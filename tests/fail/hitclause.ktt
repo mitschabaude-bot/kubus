@@ -1,0 +1,6 @@
+-- expect: does not agree with its boundary
+import int
+data S1 : U := base | loop (i : I) [i = 0 -> base, i = 1 -> base]
+def h : S1 -> Int
+  | base => pos zero
+  | loop i => pos (suc zero)

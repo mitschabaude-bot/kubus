@@ -1,0 +1,45 @@
+import basic
+
+def isContr (A : U) : U := (x : A) × ((y : A) -> Path A x y)
+def fiber (A B : U) (f : A -> B) (y : B) : U := (x : A) × Path B (f x) y
+def isEquiv (A B : U) (f : A -> B) : U := (y : B) -> isContr (fiber A B f y)
+def Equiv (A B : U) : U := (f : A -> B) × isEquiv A B f
+
+def idIsEquiv (A : U) : isEquiv A A (id A) :=
+  \y -> ((y, refl A y), \z i -> (z.2 (~i), \j -> z.2 (~i \/ j)))
+
+def idEquiv (A : U) : Equiv A A := (id A, idIsEquiv A)
+
+def ua (A B : U) (e : Equiv A B) : Path U A B :=
+  \i -> Glue B [i = 0 -> (A, e), i = 1 -> (B, idEquiv B)]
+
+def uaβ (A B : U) (e : Equiv A B) (x : A) : Path B (transport A B (ua A B e) x) (comp i B [] (comp i B [] (e.1 x))) :=
+  \i -> transport A B (ua A B e) x
+
+-- isomorphisms are equivalences
+def section (A B : U) (f : A -> B) (g : B -> A) : U := (b : B) -> Path B (f (g b)) b
+def retract (A B : U) (f : A -> B) (g : B -> A) : U := (a : A) -> Path A (g (f a)) a
+
+def lemIso (A B : U) (f : A -> B) (g : B -> A) (s : section A B f g) (t : retract A B f g)
+    (y : B) (x0 x1 : A) (p0 : Path B (f x0) y) (p1 : Path B (f x1) y)
+    : Path (fiber A B f y) (x0, p0) (x1, p1) :=
+  let fill0 : (i : I) -> (k : I) -> A :=
+    \i k -> fill k A [i = 1 -> t x0 k, i = 0 -> g y] (g (p0 (~i))) k in
+  let fill1 : (i : I) -> (k : I) -> A :=
+    \i k -> fill k A [i = 1 -> t x1 k, i = 0 -> g y] (g (p1 (~i))) k in
+  let fill2 : (i : I) -> (k : I) -> A :=
+    \i k -> fill k A [i = 1 -> fill1 k 1, i = 0 -> fill0 k 1] (g y) k in
+  let p : Path A x0 x1 := \i -> fill2 i 1 in
+  let sq : (i : I) -> (j : I) -> A :=
+    \i j -> hcomp k A [i = 1 -> fill1 j (~k), i = 0 -> fill0 j (~k),
+                       j = 1 -> t (fill2 i 1) (~k), j = 0 -> g y] (fill2 i j) in
+  let sq1 : (i : I) -> (j : I) -> B :=
+    \i j -> hcomp k B [i = 1 -> s (p1 (~j)) k, i = 0 -> s (p0 (~j)) k,
+                       j = 1 -> s (f (p i)) k, j = 0 -> s y k] (f (sq i j)) in
+  \i -> (p i, \j -> sq1 i (~j))
+
+def isoToEquiv (A B : U) (f : A -> B) (g : B -> A) (s : section A B f g) (t : retract A B f g) : Equiv A B :=
+  (f, \y -> ((g y, s y), \z -> lemIso A B f g s t y (g y) z.1 (s y) z.2))
+
+def isoToPath (A B : U) (f : A -> B) (g : B -> A) (s : section A B f g) (t : retract A B f g) : Path U A B :=
+  ua A B (isoToEquiv A B f g s t)

@@ -1,0 +1,4 @@
+-- expect: missing clause
+data Bool : U := false | true
+def f : Bool -> Bool
+  | false => true

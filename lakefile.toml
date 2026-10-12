@@ -1,0 +1,9 @@
+name = "kubus"
+defaultTargets = ["kubus"]
+
+[[lean_lib]]
+name = "Kubus"
+
+[[lean_exe]]
+name = "kubus"
+root = "Main"

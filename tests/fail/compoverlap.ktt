@@ -1,0 +1,2 @@
+-- expect: do not agree on their overlap
+def bad (A : U) (a b : A) (p : Path A a a) (i : I) : A := hcomp j A [i = 0 -> p j, i = 0 -> a] a

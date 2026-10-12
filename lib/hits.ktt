@@ -1,0 +1,33 @@
+import bool
+
+-- Propositional truncation
+data Trunc (A : U) : U :=
+  | inc (a : A)
+  | squash (x y : Trunc A) (i : I) [i = 0 -> x, i = 1 -> y]
+
+def isProp (A : U) : U := (x y : A) -> Path A x y
+
+def truncIsProp (A : U) : isProp (Trunc A) := \x y i -> squash x y i
+
+def truncRec (A B : U) (h : isProp B) (f : A -> B) : Trunc A -> B
+  | inc a => f a
+  | squash x y i => h (truncRec A B h f x) (truncRec A B h f y) i
+
+-- Suspension
+data Susp (A : U) : U :=
+  | north
+  | south
+  | merid (a : A) (i : I) [i = 0 -> north, i = 1 -> south]
+
+def meridP (A : U) (a : A) : Path (Susp A) north south := \i -> merid a i
+
+def suspMap (A B : U) (f : A -> B) : Susp A -> Susp B
+  | north => north
+  | south => south
+  | merid a i => merid (f a) i
+
+-- transport in a family of suspensions
+def suspNot : Path U (Susp Bool) (Susp Bool) := \i -> Susp (notPath i)
+
+
+def t2 (i : I) : Trunc Bool := transport (Trunc Bool) (Trunc Bool) (\i -> Trunc (notPath i)) (squash (inc true) (inc false) i)

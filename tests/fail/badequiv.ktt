@@ -1,0 +1,4 @@
+-- expect: path boundary mismatch
+import equiv
+data Bool : U := false | true
+def e : Equiv Bool Bool := (\b -> true, \y -> ((true, \i -> y), \z i -> z))

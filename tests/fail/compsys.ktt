@@ -1,0 +1,3 @@
+-- expect: does not agree with the base
+data Bool : U := false | true
+def bad (A : U) (a b : A) (p : Path A a b) : A := hcomp j A [0 = 0 -> b] a

@@ -1,0 +1,2 @@
+-- expect: does not agree with the base
+def bad (A : U) (a b : A) (p : Path A a b) : A := hcomp j A [1 = 1 -> p j] b

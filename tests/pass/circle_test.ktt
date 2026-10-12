@@ -1,0 +1,7 @@
+import circle
+
+#eval winding loopP
+#eval winding (compS1 loopP loopP)
+#eval winding (compS1 loopP (compS1 loopP loopP))
+#eval winding invLoop
+#eval winding (compS1 invLoop (compS1 loopP invLoop))

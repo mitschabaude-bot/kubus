@@ -1,0 +1,47 @@
+import equiv
+
+data Nat : U := zero | suc (n : Nat)
+
+def add (m : Nat) : Nat -> Nat
+  | zero => m
+  | suc n => suc (add m n)
+
+def addZero : (n : Nat) -> Path Nat (add zero n) n
+  | zero => \i -> zero
+  | suc n => \i -> suc (addZero n i)
+
+data Int : U := pos (n : Nat) | negsuc (n : Nat)
+
+def predPos : Nat -> Int
+  | zero => negsuc zero
+  | suc n => pos n
+
+def sucNegsuc : Nat -> Int
+  | zero => pos zero
+  | suc n => negsuc n
+
+def sucInt : Int -> Int
+  | pos n => pos (suc n)
+  | negsuc n => sucNegsuc n
+
+def predInt : Int -> Int
+  | pos n => predPos n
+  | negsuc n => negsuc (suc n)
+
+def sucPredPos : (n : Nat) -> Path Int (sucInt (predPos n)) (pos n)
+  | zero => \i -> pos zero
+  | suc n => \i -> pos (suc n)
+
+def sucPred : (z : Int) -> Path Int (sucInt (predInt z)) z
+  | pos n => sucPredPos n
+  | negsuc n => \i -> negsuc n
+
+def predSucNegsuc : (n : Nat) -> Path Int (predInt (sucNegsuc n)) (negsuc n)
+  | zero => \i -> negsuc zero
+  | suc n => \i -> negsuc (suc n)
+
+def predSuc : (z : Int) -> Path Int (predInt (sucInt z)) z
+  | pos n => \i -> pos n
+  | negsuc n => predSucNegsuc n
+
+def sucPathInt : Path U Int Int := isoToPath Int Int sucInt predInt sucPred predSuc

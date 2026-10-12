@@ -1,0 +1,191 @@
+import Kubus.Conv
+
+/-! # Read-back of values into normal forms, and pretty printing -/
+
+namespace Kubus
+
+inductive QE
+  | tv (lvl : Nat)
+  | dim (a : Atom)
+  | other
+  deriving BEq, Inhabited
+
+/-- Read-back context: entries for de Bruijn indices, and the next fresh level. -/
+structure QCtx where
+  es : List QE
+  next : Nat
+
+def QCtx.pushV (q : QCtx) : QCtx × Val := ({ es := .tv q.next :: q.es, next := q.next + 1 }, .var q.next (.univ 0))
+def QCtx.pushD (q : QCtx) (a : Atom) : QCtx := { q with es := .dim a :: q.es }
+
+def quoteAtom (q : QCtx) (a : Atom) : Nat := (q.es.findIdx? (· == .dim a)).getD (1000000 + a)
+
+def quoteF (q : QCtx) (r : Formula) : ITm :=
+  let lit (l : Lit) : ITm := if l.pos then .var (quoteAtom q l.atom) else .neg (.var (quoteAtom q l.atom))
+  let clause (c : Clause) : ITm := match c with
+    | [] => .one
+    | l :: ls => ls.foldl (fun acc l => .and acc (lit l)) (lit l)
+  match r.dnf with
+  | [] => .zero
+  | c :: cs => cs.foldl (fun acc c => .or acc (clause c)) (clause c)
+
+def quoteFace (q : QCtx) (α : Face) : ITm :=
+  match α with
+  | [] => .one
+  | (i, d) :: rest =>
+    let lit := fun (i : Atom) (d : Dir) => match d with
+      | .one => ITm.var (quoteAtom q i)
+      | .zero => ITm.neg (.var (quoteAtom q i))
+    rest.foldl (fun acc (i, d) => .and acc (lit i d)) (lit i d)
+
+mutual
+
+partial def quote (q : QCtx) (v : Val) : M Tm := do
+  match v with
+  | .univ l => pure (.univ l)
+  | .pi x a env b =>
+    let (q', xv) := q.pushV
+    return .pi x (← quote q a) (← quote q' (← inst env b xv))
+  | .lam x env b =>
+    let (q', xv) := q.pushV
+    return .lam x (← quote q' (← inst env b xv))
+  | .sigma x a env b =>
+    let (q', xv) := q.pushV
+    return .sigma x (← quote q a) (← quote q' (← inst env b xv))
+  | .pair a b => return .pair (← quote q a) (← quote q b)
+  | .piI line =>
+    let k ← freshAtom
+    return .piI "i" (← quote (q.pushD k) (← papp line (atomF k)))
+  | .pathP line a b => return .pathP (← quote q line) (← quote q a) (← quote q b)
+  | .plam i b => return .plam "i" (← quote (q.pushD i) b)
+  | .data d ps => return .data d (← ps.mapM (quote q))
+  | .con c as => return .con c (← as.mapM (quote q)) []
+  | .pcon c as ds => return .con c (← as.mapM (quote q)) (ds.map (quoteF q))
+  | .hcompF ty u sys => return .hcomp "k" (← quote q ty) (← quoteLines q sys) (← quote q u)
+  | .glueTy b sys => return .glueTy (← quote q b) (← quoteSys q sys)
+  | .glue a sys => return .glue (← quoteSys q sys) (← quote q a)
+  | .compU b es => return .compU (← quote q b) (← quoteSys q es)
+  | .split f env => quoteSpine q (.glob f) env
+  | .var lvl _ =>
+    match q.es.findIdx? (· == .tv lvl) with
+    | some i => pure (.var i)
+    | none => pure (.glob s!"?x{lvl}")
+  | .gvar n _ => pure (.glob n)
+  | .app f a => return .app (← quote q f) (← quote q a)
+  | .fst p => return .fst (← quote q p)
+  | .snd p => return .snd (← quote q p)
+  | .papp p r => return .papp (← quote q p) (quoteF q r)
+  | .splitApp f env a => return .app (← quoteSpine q (.glob f) env) (← quote q a)
+  | .comp line u sys =>
+    let k ← freshAtom
+    return .comp "i" (← quote (q.pushD k) (← papp line (atomF k))) (← quoteLines q sys) (← quote q u)
+  | .unglue u b sys => return .unglue (← quote q u) (← quote q b) (← quoteSys q sys)
+  | .unglueU u b sys => return .unglueU (← quote q u) (← quote q b) (← quoteSys q sys)
+
+partial def quoteSpine (q : QCtx) (h : Tm) (env : Env) : M Tm := do
+  let mut t := h
+  for e in env.reverse do
+    match e with
+    | .v v => t := .app t (← quote q v)
+    | .d r => t := .papp t (quoteF q r)
+  return t
+
+partial def quoteSys (q : QCtx) (sys : System Val) : M (List (ITm × Tm)) :=
+  sys.mapM fun (α, v) => return (quoteFace q α, ← quote q v)
+
+partial def quoteLines (q : QCtx) (sys : System Val) : M (List (ITm × Tm)) :=
+  sys.mapM fun (α, l) => do
+    let k ← freshAtom
+    return (quoteFace q α, ← quote (q.pushD k) (← papp l (atomF k)))
+
+end
+
+/-! ## Pretty printing -/
+
+def freshName (names : List String) (x : String) : String :=
+  if x == "_" then "_" else
+  if !names.contains x then x else
+  let rec go (n : Nat) (fuel : Nat) : String :=
+    match fuel with
+    | 0 => x ++ "'"
+    | fuel + 1 => let c := x ++ toString n; if names.contains c then go (n + 1) fuel else c
+  go 1 1000
+
+def nameAt (names : List String) (i : Nat) : String :=
+  match names[i]? with
+  | some x => x
+  | none => if i ≥ 1000000 then s!"?i{i - 1000000}" else s!"#{i}"
+
+partial def ppI (names : List String) (p : Nat) : ITm → String
+  | .zero => "0"
+  | .one => "1"
+  | .var i => nameAt names i
+  | .neg r => "~" ++ ppI names 3 r
+  | .and r s => let str := ppI names 2 r ++ " /\\ " ++ ppI names 2 s; if p > 2 then s!"({str})" else str
+  | .or r s => let str := ppI names 1 r ++ " \\/ " ++ ppI names 1 s; if p > 1 then s!"({str})" else str
+
+def paren (b : Bool) (s : String) : String := if b then s!"({s})" else s
+
+mutual
+/-- Precedences: 0 binders, 1 arrows, 2 application, 3 atoms. -/
+partial def pp (names : List String) (p : Nat) (t : Tm) : String :=
+  match t with
+  | .var i => nameAt names i
+  | .glob n => n
+  | .univ 0 => "U"
+  | .univ l => paren (p > 2) s!"U {l}"
+  | .pi x a b =>
+    if b.occurs 0 then
+      let x' := freshName names x
+      paren (p > 1) s!"({x'} : {pp names 0 a}) → {pp (x' :: names) 1 b}"
+    else paren (p > 1) s!"{pp names 2 a} → {pp ("_" :: names) 1 b}"
+  | .sigma x a b =>
+    if b.occurs 0 then
+      let x' := freshName names x
+      paren (p > 1) s!"({x'} : {pp names 0 a}) × {pp (x' :: names) 1 b}"
+    else paren (p > 1) s!"{pp names 2 a} × {pp ("_" :: names) 1 b}"
+  | .lam x b | .plam x b =>
+    let x' := freshName names x
+    paren (p > 0) s!"λ {x'} → {pp (x' :: names) 0 b}"
+  | .piI i a =>
+    let i' := freshName names i
+    paren (p > 1) s!"({i'} : I) → {pp (i' :: names) 1 a}"
+  | .app f a => paren (p > 2) s!"{pp names 2 f} {pp names 3 a}"
+  | .papp f r => paren (p > 2) s!"{pp names 2 f} {ppI names 3 r}"
+  | .pair a b => s!"({pp names 0 a}, {pp names 0 b})"
+  | .fst t => s!"{pp names 3 t}.1"
+  | .snd t => s!"{pp names 3 t}.2"
+  | .pathP (.plam i a) u v =>
+    if a.occurs 0 then
+      let i' := freshName names i
+      paren (p > 2) s!"PathP (λ {i'} → {pp (i' :: names) 0 a}) {pp names 3 u} {pp names 3 v}"
+    else paren (p > 2) s!"Path {pp ("_" :: names) 3 a} {pp names 3 u} {pp names 3 v}"
+  | .pathP a u v => paren (p > 2) s!"PathP {pp names 3 a} {pp names 3 u} {pp names 3 v}"
+  | .comp i a sys u0 =>
+    let i' := freshName names i
+    paren (p > 2) s!"comp {i'} {pp (i' :: names) 3 a} {ppSys names (i' :: names) sys} {pp names 3 u0}"
+  | .hcomp i a sys u0 =>
+    let i' := freshName names i
+    paren (p > 2) s!"hcomp {i'} {pp names 3 a} {ppSys names (i' :: names) sys} {pp names 3 u0}"
+  | .fill i a sys u0 =>
+    let i' := freshName names i
+    paren (p > 2) s!"fill {i'} {pp (i' :: names) 3 a} {ppSys names (i' :: names) sys} {pp names 3 u0}"
+  | .glueTy a sys => paren (p > 2) s!"Glue {pp names 3 a} {ppSys names names sys}"
+  | .glue sys a => paren (p > 2) s!"glue {ppSys names names sys} {pp names 3 a}"
+  | .unglue u _ _ => paren (p > 2) s!"unglue {pp names 3 u}"
+  | .compU a sys => paren (p > 2) s!"compU {pp names 3 a} {ppSys names names sys}"
+  | .unglueU u _ _ => paren (p > 2) s!"unglueU {pp names 3 u}"
+  | .data d [] => d
+  | .data d ps => paren (p > 2) (" ".intercalate (d :: ps.map (pp names 3)))
+  | .con c [] [] => c
+  | .con c as ds => paren (p > 2) (" ".intercalate (c :: as.map (pp names 3) ++ ds.map (ppI names 3)))
+  | .split f => s!"<split {f}>"
+  | .letE x t b =>
+    let x' := freshName names x
+    paren (p > 0) s!"let {x'} := {pp names 0 t} in {pp (x' :: names) 0 b}"
+
+partial def ppSys (keyNames elemNames : List String) (sys : List (ITm × Tm)) : String :=
+  "[" ++ ", ".intercalate (sys.map fun (r, t) => s!"{ppI keyNames 0 r} -> {pp elemNames 0 t}") ++ "]"
+end
+
+end Kubus

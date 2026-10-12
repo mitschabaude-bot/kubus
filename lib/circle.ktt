@@ -1,0 +1,15 @@
+import int
+
+data S1 : U := base | loop (i : I) [i = 0 -> base, i = 1 -> base]
+
+def loopP : Path S1 base base := \i -> loop i
+
+def helix : S1 -> U
+  | base => Int
+  | loop i => sucPathInt i
+
+def winding (p : Path S1 base base) : Int := transport Int Int (\i -> helix (p i)) (pos zero)
+
+def compS1 (p q : Path S1 base base) : Path S1 base base := trans S1 base base base p q
+
+def invLoop : Path S1 base base := sym S1 base base loopP

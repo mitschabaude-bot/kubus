@@ -1,0 +1,4 @@
+-- expect: path boundary mismatch
+import basic
+data Bool : U := false | true
+def bad : Path Bool true false := \i -> true

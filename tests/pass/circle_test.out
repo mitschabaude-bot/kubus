@@ -1,0 +1,10 @@
+pos (suc zero)
+  : Int
+pos (suc (suc zero))
+  : Int
+pos (suc (suc (suc zero)))
+  : Int
+negsuc zero
+  : Int
+negsuc zero
+  : Int

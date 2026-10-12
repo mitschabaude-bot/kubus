@@ -1,0 +1,2 @@
+-- expect: I is not a type
+def f (i : I) : I := i

@@ -1,0 +1,2 @@
+-- expect: unknown identifier Foo
+def f : U := Foo
