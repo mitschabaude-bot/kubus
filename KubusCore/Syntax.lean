@@ -170,6 +170,8 @@ inductive Tm where
   | path (A a b : Tm)
   | plam (t : Tm)
   | papp (p : Tm) (r : I)
+  /-- `(i : I) → A`; `A` binds an interval variable. Elements are `plam`s. -/
+  | ipi (A : Tm)
   /-- the system `[φ ↦ t, ψ ↦ u]` -/
   | split (φ : I) (t : Tm) (ψ : I) (u : Tm)
   /-- the empty system -/
@@ -206,6 +208,7 @@ def ren (ρ δ : Nat → Nat) : Tm → Tm
   | path A a b => path (A.ren ρ (upRen δ)) (a.ren ρ δ) (b.ren ρ δ)
   | plam t => plam (t.ren ρ (upRen δ))
   | papp p r => papp (p.ren ρ δ) (r.ren δ)
+  | ipi A => ipi (A.ren ρ (upRen δ))
   | split φ t ψ u => split (φ.ren δ) (t.ren ρ δ) (ψ.ren δ) (u.ren ρ δ)
   | abort => abort
   | transp A φ a => transp (A.ren ρ (upRen δ)) (φ.ren δ) (a.ren ρ δ)
@@ -239,6 +242,7 @@ def subst (σ : Nat → Tm) (τ : Nat → I) : Tm → Tm
   | path A a b => path (A.subst (fun n => (σ n).dshift) (I.up τ)) (a.subst σ τ) (b.subst σ τ)
   | plam t => plam (t.subst (fun n => (σ n).dshift) (I.up τ))
   | papp p r => papp (p.subst σ τ) (r.subst τ)
+  | ipi A => ipi (A.subst (fun n => (σ n).dshift) (I.up τ))
   | split φ t ψ u => split (φ.subst τ) (t.subst σ τ) (ψ.subst τ) (u.subst σ τ)
   | abort => abort
   | transp A φ a => transp (A.subst (fun n => (σ n).dshift) (I.up τ)) (φ.subst τ) (a.subst σ τ)
@@ -329,6 +333,16 @@ def transpPath (A a b : Tm) (φ : I) (p0 : Tm) : Tm :=
   let sys := split φ.shift.shift (papp p0.dshift.dshift (.var 1)) (.or (.neg (.var 1)) (.var 1))
     (split (.neg (.var 1)) (a.dsubst ins1) (.var 1) (b.dsubst ins1))
   plam (comp C (.or φ.shift (.or (.neg (.var 0)) (.var 0))) sys (papp p0.dshift (.var 0)))
+
+/-- `transp (i. (j : I) → A) φ u0 = ⟨j⟩ transp (i. A) φ (u0 j)`; `A` has `j` (0) and `i` (1). -/
+def transpIPi (A : Tm) (φ : I) (u0 : Tm) : Tm :=
+  plam (transp (A.dsubst fun | 0 => .var 1 | 1 => .var 0 | n + 2 => .var (n + 2)) φ.shift
+    (papp u0.dshift (.var 0)))
+
+/-- `hcomp ((j : I) → A) [φ ↦ u] u0 = ⟨j⟩ hcomp A [φ ↦ u j] (u0 j)` -/
+def hcompIPi (A : Tm) (φ : I) (u u0 : Tm) : Tm :=
+  plam (hcomp A φ.shift (papp (u.dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)) (.var 1))
+    (papp u0.dshift (.var 0)))
 
 /-- `hcomp (Π A B) [φ ↦ u] u0 = λ v. hcomp B [φ ↦ u v] (u0 v)` -/
 def hcompPi (B : Tm) (φ : I) (u u0 : Tm) : Tm :=

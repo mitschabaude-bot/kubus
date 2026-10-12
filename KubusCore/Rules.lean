@@ -88,6 +88,12 @@ inductive HasTy (S : Sig) : Nat → I → Ctx → Tm → Tm → Prop
       HasTy S Ψ Φ Γ (plam t) (path A a b)
   | papp {Ψ Φ Γ A a b p r} : HasTy S Ψ Φ Γ p (path A a b) → r.Scoped Ψ →
       HasTy S Ψ Φ Γ (papp p r) (A.dinst r)
+  | ipi {Ψ Φ Γ A l} : HasTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l) → HasTy S Ψ Φ Γ (ipi A) (univ l)
+  | ilam {Ψ Φ Γ A t l} : HasTy S Ψ Φ Γ (ipi A) (univ l) → HasTy S (Ψ + 1) Φ.shift Γ.dshift t A →
+      HasTy S Ψ Φ Γ (plam t) (ipi A)
+  | iapp {Ψ Φ Γ A p r} : HasTy S Ψ Φ Γ p (ipi A) → r.Scoped Ψ → HasTy S Ψ Φ Γ (papp p r) (A.dinst r)
+  | ipiLine {Ψ Φ Γ A l} : HasTy S Ψ Φ Γ (ipi A) (univ l) →
+      HasTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)
   /- systems -/
   | split {Ψ Φ Γ A φ ψ t u l} : φ.Scoped Ψ → ψ.Scoped Ψ → I.Entails Φ (.or φ ψ) →
       HasTy S Ψ Φ Γ A (univ l) →
@@ -186,6 +192,12 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | unglue {Ψ Φ Γ A φ φ' T e g g'} : HasTy S Ψ Φ Γ (unglue φ g) A → HasTy S Ψ Φ Γ (unglue φ' g') A →
       I.Entails φ φ' → I.Entails φ' φ →
       EqTm S Ψ Φ Γ g g' (glue A φ T e) → EqTm S Ψ Φ Γ (unglue φ g) (unglue φ' g') A
+  | ipi {Ψ Φ Γ A A' l} : EqTm S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l) →
+      EqTm S Ψ Φ Γ (ipi A) (ipi A') (univ l)
+  | ilam {Ψ Φ Γ A t t' l} : HasTy S Ψ Φ Γ (ipi A) (univ l) →
+      EqTm S (Ψ + 1) Φ.shift Γ.dshift t t' A → EqTm S Ψ Φ Γ (plam t) (plam t') (ipi A)
+  | iapp {Ψ Φ Γ A p p' r r'} : EqTm S Ψ Φ Γ p p' (ipi A) → r.Scoped Ψ → r'.Scoped Ψ →
+      I.Eq r r' → EqTm S Ψ Φ Γ (papp p r) (papp p' r') (A.dinst r)
   /- β and η -/
   | piBeta {Ψ Φ Γ t a T} : HasTy S Ψ Φ Γ (app (lam t) a) T → EqTm S Ψ Φ Γ (app (lam t) a) (t.inst a) T
   | piEta {Ψ Φ Γ A B f} : HasTy S Ψ Φ Γ f (pi A B) →
@@ -198,6 +210,8 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (papp (plam t) r) (t.dinst r) T
   | pathEta {Ψ Φ Γ A a b p} : HasTy S Ψ Φ Γ p (path A a b) →
       EqTm S Ψ Φ Γ p (plam (papp p.dshift (.var 0))) (path A a b)
+  | ipiEta {Ψ Φ Γ A p} : HasTy S Ψ Φ Γ p (ipi A) →
+      EqTm S Ψ Φ Γ p (plam (papp p.dshift (.var 0))) (ipi A)
   | pathZero {Ψ Φ Γ A a b p} : HasTy S Ψ Φ Γ p (path A a b) →
       EqTm S Ψ Φ Γ (papp p .zero) a (A.dinst .zero)
   | pathOne {Ψ Φ Γ A a b p} : HasTy S Ψ Φ Γ p (path A a b) →
@@ -223,6 +237,10 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (transp (path A a b) φ p0) (transpPath A a b φ p0) T
   | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T} : HasTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
       EqTm S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlue A φ T' e ψ u0) T
+  | transpIPi {Ψ Φ Γ A φ u0 T} : HasTy S Ψ Φ Γ (transp (ipi A) φ u0) T →
+      EqTm S Ψ Φ Γ (transp (ipi A) φ u0) (transpIPi A φ u0) T
+  | hcompIPi {Ψ Φ Γ A φ u u0 T} : HasTy S Ψ Φ Γ (hcomp (ipi A) φ u u0) T →
+      EqTm S Ψ Φ Γ (hcomp (ipi A) φ u u0) (hcompIPi A φ u u0) T
   | hcompPi {Ψ Φ Γ A B φ u u0 T} : HasTy S Ψ Φ Γ (hcomp (pi A B) φ u u0) T →
       EqTm S Ψ Φ Γ (hcomp (pi A B) φ u u0) (hcompPi B φ u u0) T
   | hcompSigma {Ψ Φ Γ A B φ u u0 T} : HasTy S Ψ Φ Γ (hcomp (sigma A B) φ u u0) T →
