@@ -5,7 +5,6 @@ data Trunc (A : U) : U :=
   | inc (a : A)
   | squash (x y : Trunc A) (i : I) [i = 0 -> x, i = 1 -> y]
 
-def isProp (A : U) : U := (x y : A) -> Path A x y
 
 def truncIsProp (A : U) : isProp (Trunc A) := \x y i -> squash x y i
 

@@ -35,3 +35,31 @@ data Empty : U
 def absurd (A : U) : Empty -> A
 
 data Unit : U := tt
+
+-- transport along refl is the identity, up to a path
+def transportRefl (A : U) (x : A) : Path A (transport A A (\i -> A) x) x :=
+  \i -> comp j A [i = 1 -> x] x
+
+def JRefl (A : U) (a : A) (C : (x : A) -> Path A a x -> U) (d : C a (refl A a))
+  : Path (C a (refl A a)) (J A a C d a (refl A a)) d :=
+  transportRefl (C a (refl A a)) d
+
+-- the right unit law for path composition
+def rUnit (A : U) (a b : A) (p : Path A a b) : Path (Path A a b) p (trans A a b b p (refl A b)) :=
+  \j i -> fill k A [i = 0 -> a, i = 1 -> b] (p i) j
+
+def lUnit (A : U) (a b : A) (p : Path A a b) : Path (Path A a b) p (trans A a a b (refl A a) p) :=
+  \j i -> hcomp k A [i = 0 -> a, i = 1 -> p k, j = 0 -> p (i /\ k)] a
+
+def isProp (A : U) : U := (x y : A) -> Path A x y
+def isSet (A : U) : U := (x y : A) -> isProp (Path A x y)
+
+-- paths in Σ-types
+def sigmaPath (A : U) (B : A -> U) (u v : (x : A) × B x)
+    (p : Path A u.1 v.1) (q : PathP (\i -> B (p i)) u.2 v.2) : Path ((x : A) × B x) u v :=
+  \i -> (p i, q i)
+
+-- dependent function extensionality
+def funextDep (A : U) (B : A -> U) (f g : (x : A) -> B x) (h : (x : A) -> Path (B x) (f x) (g x))
+  : Path ((x : A) -> B x) f g :=
+  \i x -> h x i
