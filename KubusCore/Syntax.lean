@@ -155,6 +155,8 @@ end I
 
 inductive Tm where
   | var (x : Nat)
+  /-- a global definition from the signature -/
+  | const (k : Nat)
   | univ (l : Nat)
   /-- `B` binds a term variable -/
   | pi (A B : Tm)
@@ -192,6 +194,7 @@ def upRen (ρ : Nat → Nat) : Nat → Nat
 /-- Rename term variables by `ρ` and interval variables by `δ`. -/
 def ren (ρ δ : Nat → Nat) : Tm → Tm
   | var x => var (ρ x)
+  | const k => const k
   | univ l => univ l
   | pi A B => pi (A.ren ρ δ) (B.ren (upRen ρ) δ)
   | lam t => lam (t.ren (upRen ρ) δ)
@@ -224,6 +227,7 @@ def up (σ : Nat → Tm) : Nat → Tm
 /-- Simultaneous substitution of term variables by `σ` and interval variables by `τ`. -/
 def subst (σ : Nat → Tm) (τ : Nat → I) : Tm → Tm
   | var x => σ x
+  | const k => const k
   | univ l => univ l
   | pi A B => pi (A.subst σ τ) (B.subst (up σ) τ)
   | lam t => lam (t.subst (up σ) τ)
@@ -385,6 +389,10 @@ def transpGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm :=
   glueEl φ1 (fst ext) a1
 
 end Tm
+
+/-- A signature of global definitions `(body, type)`; constant `k` refers to entry `k`.
+Bodies and types are closed. -/
+abbrev Sig := List (Tm × Tm)
 
 /-- Contexts: types of term variables, the most recent first. -/
 abbrev Ctx := List Tm

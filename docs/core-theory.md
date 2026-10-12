@@ -59,6 +59,14 @@ The judgments use a face rule: if `Φ ⊨ (i = d)` for an endpoint `d`, then `t 
 - `PathP (i. A) a b`, where `a : A(0/i)` and `b : A(1/i)`. The introduction `⟨i⟩ t` requires `t(0/i) ≡ a` and `t(1/i) ≡ b`. Application `p r` reduces: `p 0 ≡ a`, `p 1 ≡ b`, β, and η.
 - `Glue A [φ ↦ (T, e)]` with `T` and `e : Equiv T A` under `φ`. Under `φ`, `Glue … ≡ T`, `glue [φ ↦ t] a ≡ t` and `unglue φ g ≡ e.1 g`. There are β and η rules for glue/unglue. `Equiv` is the contractible-fibers definition, built from `Π`, `Σ` and `PathP`.
 
+### Structural rules, presupposition and inversion
+
+Weakening (by a term or interval variable), single substitution (of a term or an interval term), presupposition (both sides of an equation are well-typed) and inversion of type formers (`Π A B : U_l` gives `A : U_l` and `B : U_l`; similarly for `Σ`, `PathP`, `Glue`) are rules, not metatheorems. They hold in the intended model, a partial interpretation indexed by universe level, and they let the certified kernel construct derivations without first proving metatheory. Each one is an obligation for the model.
+
+### Global definitions
+
+Judgments are parameterized by a signature `S` of closed definitions `(t, A)`. `const k` has type `A` and unfolds to `t`. A signature is well-formed when each definition checks against the ones before it. The consistency statement: for every well-formed `S`, no closed term has type `(A : U₀) → A`.
+
 ### Kan operations
 
 - `transp (i. A) φ a : A(1/i)` for `a : A(0/i)`, provided `A ≡ A(0/i)` under `Φ ∧ φ`. Under `φ` it equals `a`.
