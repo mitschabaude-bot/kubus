@@ -7,3 +7,6 @@ name = "Kubus"
 [[lean_exe]]
 name = "kubus"
 root = "Main"
+
+[[lean_lib]]
+name = "KubusCore"
