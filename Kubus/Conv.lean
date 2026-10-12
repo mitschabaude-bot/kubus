@@ -29,23 +29,23 @@ partial def conv (l : Nat) (ty u v : Val) : M Bool := do
   | .compU b es =>
     if !(← conv l b (← unglueUV u b es) (← unglueUV v b es)) then return false
     es.allM fun (α, e) => do conv l (← papp e Formula.one) (← faceV u α) (← faceV v α)
-  | .data d ps => convData l d ps u v
+  | .data d k ps => convData l d k ps u v
   | _ => convNeB l u v
 
 partial def convNeB (l : Nat) (u v : Val) : M Bool := do
   if u.isNeutral && v.isNeutral then return (← convNe l u v).isSome
   return false
 
-partial def convData (l : Nat) (d : String) (ps : List Val) (u v : Val) : M Bool := do
+partial def convData (l : Nat) (d : String) (k : Nat) (ps : List Val) (u v : Val) : M Bool := do
   match u, v with
   | .con c as, .con c' bs =>
     if c != c' then return false
     let ctor ← lookupCtor c
-    convTele l ctor.tele (ps.reverse.map .v) as bs
+    convTele l (ctor.tele.map fun (x, t) => (x, t.lift k)) (ps.reverse.map .v) as bs
   | .pcon c as ds, .pcon c' bs ds' =>
     if c != c' || ds != ds' then return false
     let ctor ← lookupCtor c
-    convTele l ctor.tele (ps.reverse.map .v) as bs
+    convTele l (ctor.tele.map fun (x, t) => (x, t.lift k)) (ps.reverse.map .v) as bs
   | .hcompF ty u0 s, .hcompF _ u0' s' =>
     if !(← conv l ty u0 u0') then return false
     convSysWith (fun α x y => do
@@ -89,10 +89,10 @@ partial def convTy (l : Nat) (a b : Val) : M Bool := do
     if !(← convTy l (← papp l1 (atomF k)) (← papp l2 (atomF k))) then return false
     if !(← conv l (← papp l1 Formula.zero) u1 u2) then return false
     conv l (← papp l1 Formula.one) v1 v2
-  | .data d ps, .data d' qs =>
-    if d != d' then return false
+  | .data d k ps, .data d' k' qs =>
+    if d != d' || k != k' then return false
     let info ← lookupData d
-    convTele l info.params [] ps qs
+    convTele l (info.params.map fun (x, t) => (x, t.lift k)) [] ps qs
   | .glueTy b1 s1, .glueTy b2 s2 =>
     if !(← convTy l b1 b2) then return false
     convSysWith (fun α x y => do conv l (← equivPairTy 0 (← faceV b1 α)) x y) s1 s2
@@ -126,10 +126,11 @@ partial def convNe (l : Nat) (u v : Val) : M (Option Val) := do
     match ← convNe l p q with
     | some (.pathP line _ _) | some (.piI line) => return some (← papp line r)
     | _ => pure none
-  | .splitApp f env a, .splitApp g env' b =>
-    if f != g then return none
+  | .splitApp f k env a, .splitApp g k' env' b =>
+    if f != g || k != k' then return none
     let info ← lookupDef f
-    let mut ty := info.ty
+    let ty0 ← if k == 0 then pure info.ty else eval [] (info.tyTm.lift k)
+    let mut ty := ty0
     for (e, e') in env.reverse.zip env'.reverse do
       match ty, e, e' with
       | .pi _ dom envB cod, .v p, .v q =>

@@ -14,7 +14,7 @@ def Tm.children : Tm → List (Nat × Tm)
   | .hcomp _ a sys u0 => (0, a) :: (0, u0) :: sys.map fun (_, t) => (1, t)
   | .glueTy a sys | .glue sys a | .compU a sys => (0, a) :: sys.map fun (_, t) => (0, t)
   | .unglue u b sys | .unglueU u b sys => (0, u) :: (0, b) :: sys.map fun (_, t) => (0, t)
-  | .data _ ps => ps.map (0, ·)
+  | .data _ _ ps => ps.map (0, ·)
   | .con _ as _ => as.map (0, ·)
   | .letE _ t b => [(0, t), (1, b)]
   | _ => []
@@ -30,7 +30,7 @@ structurally smaller argument: a recursive pattern variable, possibly applied (i
 partial def termCheck (f : String) (k : Nat) (rec : List Nat) (depth : Nat) (t : Tm) : Except String Unit := do
   let (h, args) := t.spine
   match h with
-  | .glob g =>
+  | .glob g _ =>
     if g == f then
       match args[k]? with
       | some a =>
@@ -49,13 +49,13 @@ partial def termCheck (f : String) (k : Nat) (rec : List Nat) (depth : Nat) (t :
 
 partial def Tm.mentionsData (d : String) (t : Tm) : Bool :=
   match t with
-  | .data d' ps => d == d' || ps.any (·.mentionsData d)
+  | .data d' _ ps => d == d' || ps.any (·.mentionsData d)
   | _ => t.children.any fun (_, c) => c.mentionsData d
 
 /-- Strict positivity of `d` in an argument type, at context depth `depth` with `np` parameters. -/
 partial def strictPos (d : String) (np depth : Nat) (t : Tm) : Bool :=
   match t with
-  | .data d' ps =>
+  | .data d' _ ps =>
     if d' == d then
       ps.length == np && (ps.zip (List.range np)).all fun (p, j) => match p with
         | .var i => i == depth - 1 - j
@@ -74,7 +74,7 @@ partial def simpleBoundary (np na nd : Nat) (t : Tm) : Bool :=
   | _ => false
 
 def isRecArg (d : String) : Tm → Bool
-  | .data d' _ => d == d'
+  | .data d' _ _ => d == d'
   | .pi _ _ b => isRecArg d b
   | _ => false
 
@@ -129,8 +129,8 @@ def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Cla
   if tele.any (·.2.isNone) then err ctx0 "pattern-matching definitions cannot have interval parameters"
   let (tty, _) ← inferType ctx ty
   let vty ← eval ctx.env tty
-  let (dName, dps, envB, motive) ← match vty with
-    | .pi _ (.data d dps) envB b => pure (d, dps, envB, b)
+  let (dName, dk, dps, envB, motive) ← match vty with
+    | .pi _ (.data d dk dps) envB b => pure (d, dk, dps, envB, b)
     | _ => err ctx s!"a pattern-matching definition must have a type of the form (x : D) → B with D a data type"
   let fullTy := teleType tele tty
   let k := tele.length
@@ -156,7 +156,7 @@ def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Cla
     let mut env : Env := dps.reverse.map .v
     let mut argVals : Array Val := #[]
     for ((_, aTy), x) in ctor.tele.zip (cl.vars.take nargs) do
-      let a ← eval env aTy
+      let a ← eval env (aTy.lift dk)
       let (c, xv) := bctx.bindVar x a
       bctx := c
       env := .v xv :: env
@@ -176,7 +176,7 @@ def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Cla
     | .error e => err cctx e
     branches := branches.push { ctor := ctor.name, nArgs := nargs, nDims := ndims, body := tbody }
     if ndims > 0 then pending := pending.push (bctx, tbody, expected, ctor, argVals.toList, dims.toList)
-  addDef { name, ty := ← eval [] fullTy, tyTm := fullTy, body := some (teleLam tele (.split name)),
+  addDef { name, ty := ← eval [] fullTy, tyTm := fullTy, body := some (teleLam tele (.split name 0)),
            value := none, nParams := k, branches := branches.toList }
   -- clauses for path constructors must agree with the clauses for their boundary
   for (bctx, tbody, expected, ctor, args, dims) in pending do
@@ -186,7 +186,7 @@ def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Cla
       let ctxα ← bctx.face α
       let lhs ← eval ctxα.env tbody
       let penv ← faceEnv ctx.env α
-      let rhs ← splitApp name penv bv
+      let rhs ← splitApp name 0 penv bv
       if !(← conv ctxα.lvl (← faceV expected α) lhs rhs) then
         err bctx s!"clause for {ctor.name} does not agree with its boundary:\n  clause gives: {← ppVal ctxα lhs}\n  boundary:     {← ppVal ctxα rhs}"
 
@@ -222,7 +222,7 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
         let (c, _) := bctx.bindVar b.name (← eval bctx.env ta)
         bctx := c
     if dims.isEmpty && !cd.boundary.isEmpty then err cctx "only constructors with interval arguments can have a boundary"
-    let dataV := Val.data name (← (List.range np).mapM fun j => do
+    let dataV := Val.data name 0 (← (List.range np).mapM fun j => do
       match ← envGet ctx.env (np - 1 - j) with
       | .v v => pure v
       | _ => err cctx "internal")
@@ -233,7 +233,7 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
                              dims := dims.toList, boundary := tsys }
     let g ← getGlobals
     let fo := dims.isEmpty && ctele.all fun (_, t) => match t with
-      | .data d' [] => d' == name || (g.datas[d']?.map (·.firstOrder)).getD false
+      | .data d' _ [] => d' == name || (g.datas[d']?.map (·.firstOrder)).getD false
       | _ => false
     let upd (d : DataInfo) : DataInfo :=
       { d with ctors := d.ctors ++ [info], isHIT := d.isHIT || !info.dims.isEmpty, firstOrder := d.firstOrder && fo }

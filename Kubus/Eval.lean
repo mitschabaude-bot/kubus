@@ -65,7 +65,7 @@ partial def eval (env : Env) : Tm → M Val
     match ← envGet env i with
     | .v v => pure v
     | .d _ => throw "internal: expected a term variable"
-  | .glob n => evalGlob n
+  | .glob n k => evalGlob n k
   | .univ l => pure (.univ l)
   | .pi x a b => return .pi x (← eval env a) env b
   | .lam x b => pure (.lam x env b)
@@ -101,23 +101,25 @@ partial def eval (env : Env) : Tm → M Val
   | .unglue u b sys => do unglueV (← eval env u) (← eval env b) (← evalSys env sys)
   | .compU a sys => do mkCompU (← eval env a) (← evalSys env sys)
   | .unglueU u b sys => do unglueUV (← eval env u) (← eval env b) (← evalSys env sys)
-  | .data d ps => return .data d (← ps.mapM (eval env))
+  | .data d k ps => return .data d k (← ps.mapM (eval env))
   | .con c args dims => do
     let as ← args.mapM (eval env)
     if dims.isEmpty then pure (.con c as) else mkPCon c as (← dims.mapM (evalI env))
-  | .split f => pure (.split f env)
+  | .split f k => pure (.split f k env)
   | .letE _ t b => do eval (.v (← eval env t) :: env) b
 
-partial def evalGlob (n : String) : M Val := do
+partial def evalGlob (n : String) (k : Nat) : M Val := do
   let info ← lookupDef n
-  match info.value with
+  let cached := if k == 0 then info.value else info.lifted.lookup k
+  match cached with
   | some v => pure v
   | none =>
     match info.body with
     | none => pure (.gvar n info.ty)
     | some body =>
-      let v ← eval [] body
-      modify fun s => { s with globals.defs := s.globals.defs.insert n { info with value := some v } }
+      let v ← eval [] (body.lift k)
+      let info' := if k == 0 then { info with value := some v } else { info with lifted := (k, v) :: info.lifted }
+      modify fun s => { s with globals.defs := s.globals.defs.insert n info' }
       pure v
 
 partial def evalSys (env : Env) (sys : TSys Tm) : M (System Val) := do
@@ -142,7 +144,7 @@ partial def inst (env : Env) (b : Tm) (v : Val) : M Val := eval (.v v :: env) b
 partial def app (f a : Val) : M Val := do
   match f with
   | .lam _ env b => eval (.v a :: env) b
-  | .split fn env => splitApp fn env a
+  | .split fn k env => splitApp fn k env a
   | .comp line u0 sys => appComp line u0 sys a
   | _ =>
     if f.isNeutral then pure (.app f a)
@@ -189,8 +191,8 @@ partial def inferNe (v : Val) : M (Option Val) := do
     match ← inferNe p with
     | some (.pathP l _ _) | some (.piI l) => return some (← papp l r)
     | _ => pure none
-  | .splitApp f env a =>
-    match ← splitFnType f env with
+  | .splitApp f k env a =>
+    match ← splitFnType f k env with
     | .pi _ _ env' b => return some (← inst env' b a)
     | _ => pure none
   | .comp l _ _ => return some (← papp l Formula.one)
@@ -198,36 +200,37 @@ partial def inferNe (v : Val) : M (Option Val) := do
   | _ => pure none
 
 /-- The type `(x : D) → B x` of the split of `f`, with `f`'s parameters instantiated. -/
-partial def splitFnType (f : String) (env : Env) : M Val := do
+partial def splitFnType (f : String) (k : Nat) (env : Env) : M Val := do
   let info ← lookupDef f
-  let mut ty := info.ty
+  let ty0 ← if k == 0 then pure info.ty else eval [] (info.tyTm.lift k)
+  let mut ty := ty0
   for e in env.reverse do
     match ty, e with
     | .pi _ _ env' b, .v p => ty ← inst env' b p
     | _, _ => throw "internal: bad split type"
   return ty
 
-partial def splitApp (f : String) (env : Env) (a : Val) : M Val := do
+partial def splitApp (f : String) (k : Nat) (env : Env) (a : Val) : M Val := do
   match a with
   | .con c args =>
     let br ← findBranch f c
-    eval (args.reverse.map .v ++ env) br.body
+    eval (args.reverse.map .v ++ env) (br.body.lift k)
   | .pcon c args dims =>
     let br ← findBranch f c
-    eval (dims.reverse.map .d ++ args.reverse.map .v ++ env) br.body
+    eval (dims.reverse.map .d ++ args.reverse.map .v ++ env) (br.body.lift k)
   | .hcompF d u0 sys => do
-    match ← splitFnType f env with
+    match ← splitFnType f k env with
     | .pi _ _ envB b =>
       let j ← freshAtom
       let wsj ← sys.mapM fun (α, l) => return (α, ← papp l (atomF j))
       let fl ← fill j d u0 wsj
       let motive ← inst envB b fl
-      let u0' ← splitApp f env u0
-      let us' ← wsj.mapM fun (α, w) => do return (α, ← app (← faceV (.split f env) α) w)
+      let u0' ← splitApp f k env u0
+      let us' ← wsj.mapM fun (α, w) => do return (α, ← app (← faceV (.split f k env) α) w)
       comp j motive u0' us'
     | _ => throw "internal: bad split type"
   | _ =>
-    if a.isNeutral then pure (.splitApp f env a)
+    if a.isNeutral then pure (.splitApp f k env a)
     else throw s!"internal: pattern matching on a non-constructor in {f}"
 
 partial def findBranch (f c : String) : M Branch := do
@@ -267,21 +270,21 @@ partial def act (i : Atom) (r : Formula) (v : Val) : M Val := do
       let b' ← act j (atomF k) b
       return .plam k (← act i r b')
     else return .plam j (← act i r b)
-  | .data d ps => return .data d (← ps.mapM (act i r))
+  | .data d k ps => return .data d k (← ps.mapM (act i r))
   | .con c as => return .con c (← as.mapM (act i r))
   | .pcon c as ds => do mkPCon c (← as.mapM (act i r)) (ds.map (·.subst i r))
   | .hcompF ty u sys => do mkHCompF (← act i r ty) (← act i r u) (← actSys i r sys)
   | .glueTy b sys => do mkGlueTy (← act i r b) (← actSys i r sys)
   | .glue a sys => do mkGlue (← act i r a) (← actSys i r sys)
   | .compU b sys => do mkCompU (← act i r b) (← actSys i r sys)
-  | .split f env => return .split f (← actEnv i r env)
+  | .split f k env => return .split f k (← actEnv i r env)
   | .var l ty => return .var l (← act i r ty)
   | .gvar n ty => return .gvar n (← act i r ty)
   | .app f a => do app (← act i r f) (← act i r a)
   | .fst p => do fstV (← act i r p)
   | .snd p => do sndV (← act i r p)
   | .papp p s => do papp (← act i r p) (s.subst i r)
-  | .splitApp f env a => do splitApp f (← actEnv i r env) (← act i r a)
+  | .splitApp f k env a => do splitApp f k (← actEnv i r env) (← act i r a)
   | .comp l u sys => do compLine (← act i r l) (← act i r u) (← actSys i r sys)
   | .unglue u b sys => do unglueV (← act i r u) (← act i r b) (← actSys i r sys)
   | .unglueU u b sys => do unglueUV (← act i r u) (← act i r b) (← actSys i r sys)
@@ -404,7 +407,7 @@ partial def comp (i : Atom) (a u : Val) (us : System Val) : M Val := do
   | .univ _ => mkCompU u (lines i us)
   | .compU b es => compGlue true i b es u us
   | .glueTy b es => compGlue false i b es u us
-  | .data d ps =>
+  | .data d k ps =>
     let info ← lookupData d
     if info.isHIT then
       if ps.isEmpty then mkHCompF a u (lines i us) else compHIT i a u us
@@ -421,7 +424,7 @@ partial def comp (i : Atom) (a u : Val) (us : System Val) : M Val := do
         match sysArgs? with
         | some cols =>
           let ctor ← lookupCtor c
-          return .con c (← comps i ctor.tele (ps.reverse.map .v) args cols)
+          return .con c (← comps i (ctor.tele.map fun (x, t) => (x, t.lift k)) (ps.reverse.map .v) args cols)
         | none => stuck
       | _ => stuck
   | _ => stuck
@@ -447,12 +450,12 @@ partial def compHIT (i : Atom) (a u : Val) (us : System Val) : M Val := do
 (`face` must not mention `j`). Returns `none` on neutral elements. -/
 partial def hitPush (j : Atom) (a v : Val) (face : Option Face) : M (Option Val) := do
   match a with
-  | .data d ps =>
+  | .data d dk ps =>
     let pushArgs (c : String) (args : List Val) : M (Option (List Val)) := do
       let ctor ← lookupCtor c
       let mut env : Env := ps.reverse.map .v
       let mut out : Array Val := #[]
-      let mut rest := ctor.tele
+      let mut rest := ctor.tele.map fun (x, t) => (x, t.lift dk)
       for arg in args do
         let (ty, later) := match rest with
           | (_, ty) :: later => (ty, later)
@@ -463,7 +466,7 @@ partial def hitPush (j : Atom) (a v : Val) (face : Option Face) : M (Option Val)
           | some f => [(f, arg)]
           | none => []
         let r ← match A with
-          | .data d' _ => if d' == d then hitPush j A arg face else some <$> comp j A arg sysK
+          | .data d' _ _ => if d' == d then hitPush j A arg face else some <$> comp j A arg sysK
           | _ => some <$> comp j A arg sysK
         match r with
         | some r => out := out.push r

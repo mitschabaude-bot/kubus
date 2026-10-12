@@ -24,7 +24,7 @@ def TokK.show : TokK → String
 
 def symbols : List String :=
   [":=", "->", "=>", "/\\", "\\/", ".1", ".2", "(", ")", "[", "]", ",", ":", "\\", "~", "=", "|", "?",
-   "*", "→", "λ", "×", "↦", "∧", "∨", "≡"]
+   "*", "→", "λ", "×", "↦", "∧", "∨", "≡", "^"]
 
 def unicodeSyms : List Char := ['→', 'λ', '×', '↦', '∧', '∨', '≡']
 
@@ -292,7 +292,14 @@ partial def primary : P Raw := do
   match ← peek with
   | .ident "U" => advance; return .univ 0
   | .ident "I" => advance; return .intervalTy
-  | .ident _ => return .var (← ident)
+  | .ident _ =>
+    let x ← ident
+    if ← isSym "^" then
+      advance
+      match ← peek with
+      | .num k => advance; return .lift x k
+      | _ => perr "expected a number after '^'"
+    return .var x
   | .num 0 => advance; return .izero
   | .num 1 => advance; return .ione
   | .num _ => perr "only 0 and 1 are numerals"

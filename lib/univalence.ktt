@@ -1,0 +1,35 @@
+import equiv
+
+-- Univalence, in the form: the type of types equivalent to A is contractible.
+-- The proof glues A along the given equivalence; unglue is an equivalence.
+
+def equivCtr (A B : U) (e : Equiv A B) (y : B) : fiber A B e.1 y := (e.2 y).1
+
+def equivCtrPath (A B : U) (e : Equiv A B) (y : B) (v : fiber A B e.1 y)
+  : Path (fiber A B e.1 y) (equivCtr A B e y) v := (e.2 y).2 v
+
+def GlueI (A : U) (w : (T : U) × Equiv T A) (i : I) : U :=
+  Glue A [i = 0 -> (A, idEquiv A), i = 1 -> w]
+
+def unglueI (A : U) (w : (T : U) × Equiv T A) (i : I) (g : GlueI A w i) : A := unglue g
+
+def unglueIsEquivI (A : U) (w : (T : U) × Equiv T A) (i : I) : isEquiv (GlueI A w i) A (unglueI A w i) :=
+  \b ->
+    let c0 : fiber A A (idEquiv A).1 b := equivCtr A A (idEquiv A) b in
+    let c1 : fiber w.1 A w.2.1 b := equivCtr w.1 A w.2 b in
+    let ctr : fiber (GlueI A w i) A (unglueI A w i) b :=
+      (glue [i = 0 -> c0.1, i = 1 -> c1.1] (hcomp j A [i = 0 -> c0.2 (~j), i = 1 -> c1.2 (~j)] b),
+       \j -> fill k A [i = 0 -> c0.2 (~k), i = 1 -> c1.2 (~k)] b (~j)) in
+    (ctr, \v l ->
+      (glue [i = 0 -> (equivCtrPath A A (idEquiv A) b v l).1, i = 1 -> (equivCtrPath w.1 A w.2 b v l).1]
+         (hcomp j A [i = 0 -> (equivCtrPath A A (idEquiv A) b v l).2 (~j),
+                     i = 1 -> (equivCtrPath w.1 A w.2 b v l).2 (~j),
+                     l = 0 -> fill k A [i = 0 -> c0.2 (~k), i = 1 -> c1.2 (~k)] b j,
+                     l = 1 -> v.2 (~j)] b),
+       \j -> fill k A [i = 0 -> (equivCtrPath A A (idEquiv A) b v l).2 (~k),
+                       i = 1 -> (equivCtrPath w.1 A w.2 b v l).2 (~k),
+                       l = 0 -> fill m A [i = 0 -> c0.2 (~m), i = 1 -> c1.2 (~m)] b k,
+                       l = 1 -> v.2 (~k)] b (~j)))
+
+def EquivContr (A : U) : isContr^1 ((T : U) × Equiv T A) :=
+  ((A, idEquiv A), \w i -> (GlueI A w i, (unglueI A w i, unglueIsEquivI A w i)))

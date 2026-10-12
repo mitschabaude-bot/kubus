@@ -17,7 +17,8 @@ abbrev TSys (α : Type) := List (ITm × α)
 
 inductive Tm
   | var (i : Nat)
-  | glob (n : String)
+  /-- a global definition, with all universe levels displaced by `k` -/
+  | glob (n : String) (k : Nat)
   | univ (l : Nat)
   | pi (x : String) (a b : Tm)
   | lam (x : String) (b : Tm)
@@ -44,10 +45,10 @@ inductive Tm
   /-- Composition in the universe; only produced by read-back. -/
   | compU (a : Tm) (sys : List (ITm × Tm))
   | unglueU (u : Tm) (base : Tm) (sys : List (ITm × Tm))
-  | data (d : String) (ps : List Tm)
+  | data (d : String) (k : Nat) (ps : List Tm)
   | con (c : String) (args : List Tm) (dims : List ITm)
   /-- The pattern-matching function body of the global `f`; its environment holds `f`'s parameters. -/
-  | split (f : String)
+  | split (f : String) (k : Nat)
   | letE (x : String) (t b : Tm)
   deriving Inhabited, Repr
 
@@ -70,7 +71,7 @@ partial def Tm.occurs (k : Nat) : Tm → Bool
   | .hcomp _ a sys u0 => a.occurs k || sysOccurs (k + 1) k sys || u0.occurs k
   | .glueTy a sys | .glue sys a | .compU a sys => a.occurs k || sysOccurs k k sys
   | .unglue u b sys | .unglueU u b sys => u.occurs k || b.occurs k || sysOccurs k k sys
-  | .data _ ps => ps.any (·.occurs k)
+  | .data _ _ ps => ps.any (·.occurs k)
   | .con _ as ds => as.any (·.occurs k) || ds.any (·.occurs k)
   | .letE _ t b => t.occurs k || b.occurs (k + 1)
   | _ => false
@@ -78,6 +79,39 @@ partial def Tm.occurs (k : Nat) : Tm → Bool
 partial def sysOccurs (kElem kKey : Nat) (sys : List (ITm × Tm)) : Bool :=
   sys.any fun (r, t) => r.occurs kKey || t.occurs kElem
 end
+
+/-- Displace all universe levels by `k`. -/
+partial def Tm.lift (k : Nat) (t : Tm) : Tm :=
+  if k == 0 then t else
+  let l := Tm.lift k
+  let ls := fun (sys : List (ITm × Tm)) => sys.map fun (r, t) => (r, l t)
+  match t with
+  | .univ n => .univ (n + k)
+  | .glob n j => .glob n (j + k)
+  | .data d j ps => .data d (j + k) (ps.map l)
+  | .split f j => .split f (j + k)
+  | .var i => .var i
+  | .pi x a b => .pi x (l a) (l b)
+  | .lam x b => .lam x (l b)
+  | .app f a => .app (l f) (l a)
+  | .sigma x a b => .sigma x (l a) (l b)
+  | .pair a b => .pair (l a) (l b)
+  | .fst t => .fst (l t)
+  | .snd t => .snd (l t)
+  | .piI i a => .piI i (l a)
+  | .pathP a u v => .pathP (l a) (l u) (l v)
+  | .plam i b => .plam i (l b)
+  | .papp t r => .papp (l t) r
+  | .comp i a sys u0 => .comp i (l a) (ls sys) (l u0)
+  | .hcomp i a sys u0 => .hcomp i (l a) (ls sys) (l u0)
+  | .fill i a sys u0 => .fill i (l a) (ls sys) (l u0)
+  | .glueTy a sys => .glueTy (l a) (ls sys)
+  | .glue sys a => .glue (ls sys) (l a)
+  | .unglue u b sys => .unglue (l u) (l b) (ls sys)
+  | .compU a sys => .compU (l a) (ls sys)
+  | .unglueU u b sys => .unglueU (l u) (l b) (ls sys)
+  | .con c as ds => .con c (as.map l) ds
+  | .letE x t b => .letE x (l t) (l b)
 
 /-! ## Surface syntax -/
 
@@ -88,6 +122,8 @@ structure Pos where
 
 inductive Raw
   | var (x : String)
+  /-- `x^k`: a global with universe levels displaced by `k` -/
+  | lift (x : String) (k : Nat)
   | univ (l : Nat)
   | intervalTy
   | pi (x : String) (a b : Raw)

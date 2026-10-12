@@ -58,24 +58,24 @@ partial def quote (q : QCtx) (v : Val) : M Tm := do
     return .piI "i" (← quote (q.pushD k) (← papp line (atomF k)))
   | .pathP line a b => return .pathP (← quote q line) (← quote q a) (← quote q b)
   | .plam i b => return .plam "i" (← quote (q.pushD i) b)
-  | .data d ps => return .data d (← ps.mapM (quote q))
+  | .data d k ps => return .data d k (← ps.mapM (quote q))
   | .con c as => return .con c (← as.mapM (quote q)) []
   | .pcon c as ds => return .con c (← as.mapM (quote q)) (ds.map (quoteF q))
   | .hcompF ty u sys => return .hcomp "k" (← quote q ty) (← quoteLines q sys) (← quote q u)
   | .glueTy b sys => return .glueTy (← quote q b) (← quoteSys q sys)
   | .glue a sys => return .glue (← quoteSys q sys) (← quote q a)
   | .compU b es => return .compU (← quote q b) (← quoteSys q es)
-  | .split f env => quoteSpine q (.glob f) env
+  | .split f k env => quoteSpine q (.glob f k) env
   | .var lvl _ =>
     match q.es.findIdx? (· == .tv lvl) with
     | some i => pure (.var i)
-    | none => pure (.glob s!"?x{lvl}")
-  | .gvar n _ => pure (.glob n)
+    | none => pure (.glob s!"?x{lvl}" 0)
+  | .gvar n _ => pure (.glob n 0)
   | .app f a => return .app (← quote q f) (← quote q a)
   | .fst p => return .fst (← quote q p)
   | .snd p => return .snd (← quote q p)
   | .papp p r => return .papp (← quote q p) (quoteF q r)
-  | .splitApp f env a => return .app (← quoteSpine q (.glob f) env) (← quote q a)
+  | .splitApp f k env a => return .app (← quoteSpine q (.glob f k) env) (← quote q a)
   | .comp line u sys =>
     let k ← freshAtom
     return .comp "i" (← quote (q.pushD k) (← papp line (atomF k))) (← quoteLines q sys) (← quote q u)
@@ -131,7 +131,8 @@ mutual
 partial def pp (names : List String) (p : Nat) (t : Tm) : String :=
   match t with
   | .var i => nameAt names i
-  | .glob n => n
+  | .glob n 0 => n
+  | .glob n k => s!"{n}^{k}"
   | .univ 0 => "U"
   | .univ l => paren (p > 2) s!"U {l}"
   | .pi x a b =>
@@ -175,17 +176,28 @@ partial def pp (names : List String) (p : Nat) (t : Tm) : String :=
   | .unglue u _ _ => paren (p > 2) s!"unglue {pp names 3 u}"
   | .compU a sys => paren (p > 2) s!"compU {pp names 3 a} {ppSys names names sys}"
   | .unglueU u _ _ => paren (p > 2) s!"unglueU {pp names 3 u}"
-  | .data d [] => d
-  | .data d ps => paren (p > 2) (" ".intercalate (d :: ps.map (pp names 3)))
+  | .data d k [] => if k == 0 then d else s!"{d}^{k}"
+  | .data d k ps => paren (p > 2) (" ".intercalate ((if k == 0 then d else s!"{d}^{k}") :: ps.map (pp names 3)))
   | .con c [] [] => c
   | .con c as ds => paren (p > 2) (" ".intercalate (c :: as.map (pp names 3) ++ ds.map (ppI names 3)))
-  | .split f => s!"<split {f}>"
+  | .split f _ => s!"<split {f}>"
   | .letE x t b =>
     let x' := freshName names x
     paren (p > 0) s!"let {x'} := {pp names 0 t} in {pp (x' :: names) 0 b}"
 
 partial def ppSys (keyNames elemNames : List String) (sys : List (ITm × Tm)) : String :=
-  "[" ++ ", ".intercalate (sys.map fun (r, t) => s!"{ppI keyNames 0 r} -> {pp elemNames 0 t}") ++ "]"
+  "[" ++ ", ".intercalate (sys.map fun (r, t) => s!"{ppKey keyNames r} -> {pp elemNames 0 t}") ++ "]"
+
+/-- System keys are printed as faces `i = 0 /\ j = 1` when possible. -/
+partial def ppKey (names : List String) (r : ITm) : String :=
+  let rec lits : ITm → Option (List String)
+    | .var i => some [s!"{nameAt names i} = 1"]
+    | .neg (.var i) => some [s!"{nameAt names i} = 0"]
+    | .and a b => do return (← lits a) ++ (← lits b)
+    | _ => none
+  match lits r with
+  | some ls => " /\\ ".intercalate ls
+  | none => ppI names 0 r
 end
 
 end Kubus

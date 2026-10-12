@@ -21,7 +21,7 @@ inductive Val
   | piI (line : Val)
   | pathP (line : Val) (u v : Val)
   | plam (i : Atom) (b : Val)
-  | data (d : String) (ps : List Val)
+  | data (d : String) (k : Nat) (ps : List Val)
   | con (c : String) (args : List Val)
   | pcon (c : String) (args : List Val) (dims : List Formula)
   /-- formal homogeneous composition in a higher inductive type; `sys` holds lines -/
@@ -33,7 +33,7 @@ inductive Val
   /-- composition in the universe; `sys` holds lines of types -/
   | compU (base : Val) (sys : List (Face × Val))
   /-- pattern-matching function `f` with parameters `env` -/
-  | split (f : String) (env : List EnvE)
+  | split (f : String) (k : Nat) (env : List EnvE)
   -- neutrals
   | var (lvl : Nat) (ty : Val)
   | gvar (n : String) (ty : Val)
@@ -41,7 +41,7 @@ inductive Val
   | fst (p : Val)
   | snd (p : Val)
   | papp (p : Val) (r : Formula)
-  | splitApp (f : String) (env : List EnvE) (arg : Val)
+  | splitApp (f : String) (k : Nat) (env : List EnvE) (arg : Val)
   /-- stuck composition; `line` and `sys` hold lines -/
   | comp (line : Val) (u0 : Val) (sys : List (Face × Val))
   | unglue (u : Val) (base : Val) (sys : List (Face × Val))
@@ -101,6 +101,8 @@ structure DefInfo where
   /-- `none` while the definition is being checked: then it is an opaque constant -/
   body : Option Tm
   value : Option Val
+  /-- values of displaced copies -/
+  lifted : List (Nat × Val) := []
   nParams : Nat
   branches : List Branch
   deriving Inhabited

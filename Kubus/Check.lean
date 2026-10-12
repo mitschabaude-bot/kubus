@@ -95,6 +95,16 @@ def headVar? (t : Raw) : Option String :=
   | .var x => some x
   | _ => none
 
+/-- Head of a spine that may be a displaced global. -/
+def headGlobal? (t : Raw) : Option (String × Nat) :=
+  match stripLoc t with
+  | .var x => some (x, 0)
+  | .lift x k => some (x, k)
+  | _ => none
+
+def defType (info : DefInfo) (k : Nat) : M Val :=
+  if k == 0 then pure info.ty else eval [] (info.tyTm.lift k)
+
 def headPos (ctx : Ctx) : Raw → Pos
   | .loc p _ => p
   | _ => ctx.pos
@@ -108,7 +118,7 @@ partial def levelOf (l : Nat) (v : Val) : M Nat := do
   | .piI line | .pathP line _ _ => do
     let k ← freshAtom
     levelOf l (← papp line (atomF k))
-  | .data d _ => return (← lookupData d).level
+  | .data d k _ => return (← lookupData d).level + k
   | .glueTy b _ | .compU b _ => levelOf l b
   | _ =>
     match ← inferNe v with
@@ -190,9 +200,9 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
   | _ =>
     let (h, args) := unspine t
     match headVar? h, ty with
-    | some c, .data d ps =>
+    | some c, .data d k ps =>
       if (ctx.lookup c).isNone && (← getGlobals).ctors.contains c then
-        let (tm, _) ← elabCon { ctx with pos := headPos ctx h } c args (some (d, ps))
+        let (tm, _) ← elabCon { ctx with pos := headPos ctx h } c args (some (d, k, ps))
         return tm
       else checkInfer ctx t ty
     | _, _ => checkInfer ctx t ty
@@ -277,29 +287,29 @@ partial def checkBase (ctx : Ctx) (elems : List (Face × Tm)) (a0 u0 : Val) : M 
     if !(← conv ctxα.lvl (← faceV a0 α) v (← faceV u0 α)) then
       err ctx s!"the system does not agree with the base:\n  base:   {← ppVal ctxα (← faceV u0 α)}\n  system: {← ppVal ctxα v}"
 
-partial def elabCon (ctx : Ctx) (c : String) (args : List Raw) (expected : Option (String × List Val)) :
+partial def elabCon (ctx : Ctx) (c : String) (args : List Raw) (expected : Option (String × Nat × List Val)) :
     M (Tm × Val) := do
   let ctor ← lookupCtor c
   let info ← lookupData ctor.data
-  let ps ← match expected with
-    | some (d, ps) =>
+  let (k, ps) ← match expected with
+    | some (d, k, ps) =>
       if d != ctor.data then err ctx s!"constructor {c} does not belong to {d}"
-      pure ps
+      pure (k, ps)
     | none =>
       if !info.params.isEmpty then err ctx s!"cannot infer the parameters of {c}; add a type annotation"
-      pure []
+      pure (0, [])
   let n := ctor.tele.length
   if args.length != n + ctor.dims.length then
     err ctx s!"constructor {c} expects {n + ctor.dims.length} arguments, got {args.length}"
   let mut env : Env := ps.reverse.map .v
   let mut targs : Array Tm := #[]
   for ((_, aTy), arg) in ctor.tele.zip (args.take n) do
-    let a ← eval env aTy
+    let a ← eval env (aTy.lift k)
     let ta ← check ctx arg a
     targs := targs.push ta
     env := .v (← eval ctx.env ta) :: env
   let tdims ← (args.drop n).mapM (elabI ctx)
-  return (.con c targs.toList tdims, .data ctor.data ps)
+  return (.con c targs.toList tdims, .data ctor.data k ps)
 
 partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
   match t with
@@ -310,12 +320,20 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
     | some _ => err ctx s!"{x} is an interval variable, not a term"
     | none =>
       let g ← getGlobals
-      if let some info := g.defs[x]? then return (.glob x, info.ty)
+      if let some info := g.defs[x]? then return (.glob x 0, info.ty)
       if g.ctors.contains x then return ← elabCon ctx x [] none
       if let some info := g.datas[x]? then
-        if info.params.isEmpty then return (.data x [], .univ info.level)
+        if info.params.isEmpty then return (.data x 0 [], .univ info.level)
         err ctx s!"data type {x} expects {info.params.length} parameters"
       err ctx s!"unknown identifier {x}"
+  | .lift x k =>
+    if (ctx.lookup x).isSome then err ctx s!"only global definitions and data types can be displaced"
+    let g ← getGlobals
+    if let some info := g.defs[x]? then return (.glob x k, ← defType info k)
+    if let some info := g.datas[x]? then
+      if info.params.isEmpty then return (.data x k [], .univ (info.level + k))
+      err ctx s!"data type {x} expects {info.params.length} parameters"
+    err ctx s!"unknown global {x}"
   | .univ l => pure (.univ l, .univ (l + 1))
   | .intervalTy => err ctx "the interval I is not a type; it may only appear in binders"
   | .pi x a b =>
@@ -335,12 +353,12 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
   | .app .. =>
     let (h, args) := unspine t
     let g ← getGlobals
-    match headVar? h with
-    | some c =>
-      if (ctx.lookup c).isNone && g.ctors.contains c then
+    match headGlobal? h with
+    | some (c, k) =>
+      if (ctx.lookup c).isNone && g.ctors.contains c && k == 0 then
         return ← elabCon { ctx with pos := headPos ctx h } c args none
       if (ctx.lookup c).isNone && g.datas.contains c then
-        return ← elabData { ctx with pos := headPos ctx h } c args
+        return ← elabData { ctx with pos := headPos ctx h } c k args
       inferApp ctx h args
     | none => inferApp ctx h args
   | .fst p =>
@@ -477,18 +495,18 @@ partial def inferApp (ctx : Ctx) (h : Raw) (args : List Raw) : M (Tm × Val) := 
     | _ => err ctx s!"too many arguments: a term of type {← ppVal ctx tyf} is not a function"
   return (tf, tyf)
 
-partial def elabData (ctx : Ctx) (d : String) (args : List Raw) : M (Tm × Val) := do
+partial def elabData (ctx : Ctx) (d : String) (k : Nat) (args : List Raw) : M (Tm × Val) := do
   let info ← lookupData d
   if args.length != info.params.length then
     err ctx s!"data type {d} expects {info.params.length} parameters, got {args.length}"
   let mut env : Env := []
   let mut tps : Array Tm := #[]
   for ((_, pTy), arg) in info.params.zip args do
-    let a ← eval env pTy
+    let a ← eval env (pTy.lift k)
     let ta ← check ctx arg a
     tps := tps.push ta
     env := .v (← eval ctx.env ta) :: env
-  return (.data d tps.toList, .univ info.level)
+  return (.data d k tps.toList, .univ (info.level + k))
 
 end
 
