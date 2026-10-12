@@ -91,14 +91,6 @@ The plan is the Orton–Pitts route. Their paper proves that CCHM's rules hold i
 
 Then a closed proof of `Empty` in the specification gives a global section of the empty presheaf, which is `False`.
 
-## Plan and honest scope
+## Order of work
 
-| step | deliverable | rough effort |
-|---|---|---|
-| 1 | separate kernel (~1.5k lines) for Kubus Core; the elaborator emits core terms; pattern matching compiled to eliminators | days |
-| 2 | normal-form re-checking, substitution-stability checks, random well-typed terms in CI | days |
-| 3a | the rules above as Lean inductive judgments | 1–2 weeks |
-| 3b | kernel soundness proof: a total, fuel-based checker with a proof that acceptance implies derivability | weeks |
-| 4 | the model, as above | months; there is no mechanization in Lean to build on |
-
-Steps 1–3 work on the core fragment first; inductive types and HITs come after it is closed end to end.
+Steps 1–3 cover the core fragment first: Π, Σ, paths, universes and Glue. Inductive types and HITs follow once the fragment is closed end to end.
