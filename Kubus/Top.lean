@@ -73,6 +73,15 @@ partial def simpleBoundary (np na nd : Nat) (t : Tm) : Bool :=
   | .con _ as _ => as.all (simpleBoundary np na nd)
   | _ => false
 
+/-- Whether a type mentions universes, globals, or data types that are not lift-invariant
+(other than `self`). -/
+partial def Tm.liftInvariant (g : Globals) (self : String) (t : Tm) : Bool :=
+  match t with
+  | .univ _ | .glob .. | .split .. => false
+  | .data d _ ps => (d == self || (g.datas[d]?.map (·.liftInvariant)).getD false) &&
+      ps.all (·.liftInvariant g self)
+  | _ => t.children.all fun (_, c) => c.liftInvariant g self
+
 def isRecArg (d : String) : Tm → Bool
   | .data d' _ _ => d == d'
   | .pi _ _ b => isRecArg d b
@@ -197,7 +206,10 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
   if tele.any (·.2.isNone) then err ctx0 "data types cannot have interval parameters"
   let params := tele.map fun (x, a) => (x, a.get!)
   let np := params.length
-  let dinfo : DataInfo := { name, params, level := lvl, ctors := [], isHIT := false, firstOrder := params.isEmpty }
+  let g0 ← getGlobals
+  let li0 := params.all fun (_, t) => t.liftInvariant g0 name
+  let dinfo : DataInfo := { name, params, level := lvl, ctors := [], isHIT := false, firstOrder := params.isEmpty,
+                            liftInvariant := li0 }
   modify fun s => { s with globals.datas := s.globals.datas.insert name dinfo }
   for cd in ctors do
     let cctx := { ctx with pos := cd.pos }
@@ -235,8 +247,11 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
     let fo := dims.isEmpty && ctele.all fun (_, t) => match t with
       | .data d' _ [] => d' == name || (g.datas[d']?.map (·.firstOrder)).getD false
       | _ => false
+    let li := (ctele.toList.all fun (_, t) => t.liftInvariant g name) &&
+      tsys.all fun (_, t) => t.liftInvariant g name
     let upd (d : DataInfo) : DataInfo :=
-      { d with ctors := d.ctors ++ [info], isHIT := d.isHIT || !info.dims.isEmpty, firstOrder := d.firstOrder && fo }
+      { d with ctors := d.ctors ++ [info], isHIT := d.isHIT || !info.dims.isEmpty, firstOrder := d.firstOrder && fo,
+               liftInvariant := d.liftInvariant && li }
     modify fun s => { s with globals.ctors := s.globals.ctors.insert cd.name info,
                              globals.datas := s.globals.datas.modify name upd }
 

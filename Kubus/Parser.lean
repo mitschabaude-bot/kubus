@@ -356,7 +356,7 @@ partial def decl : P Decl := do
       while !(← isMapsto) do vs := vs.push (← ident)
       advance
       cls := cls.push ⟨c, vs.toList, ← expr, cpos⟩
-    if cls.isEmpty then perr "expected ':=' or pattern-matching clauses"
+    if cls.isEmpty && !(← isDeclStart) then perr "expected ':=' or pattern-matching clauses"
     return .defSplit name ps ty cls.toList pos
   | .ident "data" =>
     advance
@@ -366,7 +366,10 @@ partial def decl : P Decl := do
     let lvl ← match ← expr with
       | .univ l | .loc _ (.univ l) => pure l
       | _ => perr "the type of a data type must be a universe"
+    -- a data type without constructors may omit `:=`
+    if ← isDeclStart then return .data name ps lvl [] pos
     expectSym ":="
+    if ← isDeclStart then return .data name ps lvl [] pos
     if ← isSym "|" then advance
     let mut cs : Array CtorDecl := #[]
     repeat

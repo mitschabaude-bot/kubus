@@ -29,3 +29,9 @@ def contrSingl (A : U) (a b : A) (p : Path A a b) : Path (singl A a) (a, refl A 
 def J (A : U) (a : A) (C : (x : A) -> Path A a x -> U) (d : C a (refl A a)) (x : A) (p : Path A a x) : C x p :=
   transport (C a (refl A a)) (C x p) (\i -> C (contrSingl A a x p i).1 (contrSingl A a x p i).2) d
 
+
+data Empty : U
+
+def absurd (A : U) : Empty -> A
+
+data Unit : U := tt

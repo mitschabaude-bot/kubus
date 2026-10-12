@@ -85,6 +85,8 @@ structure DataInfo where
   /-- closed, no path constructors, and all fields are again closed first-order data:
   then transport along a constant line is the identity (regularity) -/
   firstOrder : Bool
+  /-- the declaration mentions no universes, so displacing it changes nothing -/
+  liftInvariant : Bool
   deriving Inhabited
 
 structure Branch where

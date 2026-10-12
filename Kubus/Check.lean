@@ -331,6 +331,7 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
     let g ← getGlobals
     if let some info := g.defs[x]? then return (.glob x k, ← defType info k)
     if let some info := g.datas[x]? then
+      let k := if info.liftInvariant then 0 else k
       if info.params.isEmpty then return (.data x k [], .univ (info.level + k))
       err ctx s!"data type {x} expects {info.params.length} parameters"
     err ctx s!"unknown global {x}"
@@ -497,6 +498,7 @@ partial def inferApp (ctx : Ctx) (h : Raw) (args : List Raw) : M (Tm × Val) := 
 
 partial def elabData (ctx : Ctx) (d : String) (k : Nat) (args : List Raw) : M (Tm × Val) := do
   let info ← lookupData d
+  let k := if info.liftInvariant then 0 else k
   if args.length != info.params.length then
     err ctx s!"data type {d} expects {info.params.length} parameters, got {args.length}"
   let mut env : Env := []

@@ -101,7 +101,9 @@ partial def eval (env : Env) : Tm → M Val
   | .unglue u b sys => do unglueV (← eval env u) (← eval env b) (← evalSys env sys)
   | .compU a sys => do mkCompU (← eval env a) (← evalSys env sys)
   | .unglueU u b sys => do unglueUV (← eval env u) (← eval env b) (← evalSys env sys)
-  | .data d k ps => return .data d k (← ps.mapM (eval env))
+  | .data d k ps => do
+    let k := if k == 0 || (← lookupData d).liftInvariant then 0 else k
+    return .data d k (← ps.mapM (eval env))
   | .con c args dims => do
     let as ← args.mapM (eval env)
     if dims.isEmpty then pure (.con c as) else mkPCon c as (← dims.mapM (evalI env))
