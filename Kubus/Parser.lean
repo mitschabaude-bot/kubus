@@ -400,4 +400,14 @@ def parseFile (src : String) : Except String (List Decl) := do
   let (ds, _) ← (decls.run toks).run 0
   return ds
 
+/-- Parse a single term (used by the self-checks to re-check printed normal forms). -/
+def parseTerm (src : String) : Except String Raw := do
+  let toks ← lex src
+  let p : P Raw := do
+    let t ← expr
+    if (← peek) != .eof then perr "unexpected token after term"
+    pure t
+  let (t, _) ← (p.run toks).run 0
+  return t
+
 end Kubus

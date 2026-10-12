@@ -146,10 +146,10 @@ partial def pp (names : List String) (p : Nat) (t : Tm) : String :=
       paren (p > 1) s!"({x'} : {pp names 0 a}) × {pp (x' :: names) 1 b}"
     else paren (p > 1) s!"{pp names 2 a} × {pp ("_" :: names) 1 b}"
   | .lam x b | .plam x b =>
-    let x' := freshName names x
+    let x' := freshName names (if x == "_" && b.occurs 0 then "x" else x)
     paren (p > 0) s!"λ {x'} → {pp (x' :: names) 0 b}"
   | .piI i a =>
-    let i' := freshName names i
+    let i' := freshName names (if i == "_" && a.occurs 0 then "i" else i)
     paren (p > 1) s!"({i'} : I) → {pp (i' :: names) 1 a}"
   | .app f a => paren (p > 2) s!"{pp names 2 f} {pp names 3 a}"
   | .papp f r => paren (p > 2) s!"{pp names 2 f} {ppI names 3 r}"

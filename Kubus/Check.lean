@@ -4,16 +4,6 @@ import Kubus.Quote
 
 namespace Kubus
 
-structure CEntry where
-  name : String
-  /-- `none` for interval variables -/
-  ty : Option Val
-  val : EnvE
-
-structure Ctx where
-  entries : List CEntry := []
-  pos : Pos := ⟨0, 0⟩
-
 namespace Ctx
 
 def env (c : Ctx) : Env := c.entries.map (·.val)
@@ -62,6 +52,25 @@ def err {α} (ctx : Ctx) (msg : String) : M α :=
 
 def ppVal (ctx : Ctx) (v : Val) : M String := do
   return pp ctx.names 0 (← quote ctx.qctx v)
+
+/-- Conversion; in self-check mode also checks that it is symmetric. -/
+def convC (ctx : Ctx) (ty u v : Val) : M Bool := do
+  let r ← conv ctx.lvl ty u v
+  if (← get).selfcheck then
+    let r' ← try conv ctx.lvl ty v u catch e => do
+      recordViolation s!"{ctx.pos.line}:{ctx.pos.col}: [conv-symmetry] conv v u raised: {e}"; pure r
+    if r != r' then
+      recordViolation s!"{ctx.pos.line}:{ctx.pos.col}: [conv-symmetry] conv u v = {r} but conv v u = {r'}\n  u = {← ppVal ctx u}\n  v = {← ppVal ctx v}\n  at type {← ppVal ctx ty}"
+  return r
+
+def convTyC (ctx : Ctx) (a b : Val) : M Bool := do
+  let r ← convTy ctx.lvl a b
+  if (← get).selfcheck then
+    let r' ← try convTy ctx.lvl b a catch e => do
+      recordViolation s!"{ctx.pos.line}:{ctx.pos.col}: [conv-symmetry] convTy b a raised: {e}"; pure r
+    if r != r' then
+      recordViolation s!"{ctx.pos.line}:{ctx.pos.col}: [conv-symmetry] convTy a b = {r} but convTy b a = {r'}\n  a = {← ppVal ctx a}\n  b = {← ppVal ctx b}"
+  return r
 
 def ppCtx (ctx : Ctx) : M String := do
   let mut lines : Array String := #[]
@@ -136,7 +145,7 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
       match ty, isI with
       | .pi _ a _ _, false =>
         let (ta, _) ← inferType ctx tyR
-        if !(← convTy ctx.lvl (← eval ctx.env ta) a) then
+        if !(← convTyC ctx (← eval ctx.env ta) a) then
           err ctx s!"lambda binder type does not match the expected domain {← ppVal ctx a}"
       | .pi .., true => err ctx "lambda binder of type I, but a function was expected"
       | _, false => err ctx s!"a lambda over a type cannot have type {← ppVal ctx ty}"
@@ -147,15 +156,20 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
       return .lam x (← check ctx' b (← inst env bTy xv))
     | .piI line =>
       let (ctx', k) ← ctx.bindDim x
-      return .plam x (← check ctx' b (← papp line (atomF k)))
+      let lk ← papp line (atomF k)
+      let tb ← check ctx' b lk
+      scPush ctx' tb lk "body of an interval lambda"
+      return .plam x tb
     | .pathP line a0 a1 =>
       let (ctx', k) ← ctx.bindDim x
-      let tb ← check ctx' b (← papp line (atomF k))
+      let lk ← papp line (atomF k)
+      let tb ← check ctx' b lk
+      scPush ctx' tb lk "body of a path lambda"
       let v ← eval ctx'.env tb
       for (d, e) in [(Dir.zero, a0), (Dir.one, a1)] do
         let vd ← act k (Formula.ofDir d) v
         let tyd ← papp line (Formula.ofDir d)
-        if !(← conv ctx.lvl tyd vd e) then
+        if !(← convC ctx tyd vd e) then
           let ds := if d == .zero then "0" else "1"
           err ctx s!"path boundary mismatch at {x} = {ds}:\n  expected {← ppVal ctx e}\n  but got  {← ppVal ctx vd}"
       return .plam x tb
@@ -186,7 +200,7 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
         match (← faceSys esys α).eps? with
         | some te =>
           let fv ← app (← fstV (← sndV te)) vt
-          if !(← conv ctxα.lvl (← faceV base α) fv (← faceV va α)) then
+          if !(← convC ctxα (← faceV base α) fv (← faceV va α)) then
             err ctx "glue: the system does not agree with the base element"
         | none => err ctx "glue: internal face error"
       return .glue tsys ta
@@ -256,7 +270,9 @@ partial def checkSys (ctx : Ctx) (binder : Option String) (sys : List (Raw × Ra
     let faces := rv.faces
     for α in faces do
       let (ctxα, k?) ← restrict ctx α binder
-      let tm ← check ctxα t (← elemTy ctxα α k?)
+      let ety ← elemTy ctxα α k?
+      let tm ← check ctxα t ety
+      scPush ctxα tm ety "system element"
       elems := elems.push (α, tm)
       -- elaboration may depend on the face, so each face gets its own core term
       out := out.push (if faces.length == 1 then r else quoteFace ctx.qctx α, tm)
@@ -267,7 +283,7 @@ partial def checkSys (ctx : Ctx) (binder : Option String) (sys : List (Raw × Ra
       if let some γ := Face.meet? α β then
         let (ctxγ, k?) ← restrict ctx γ binder
         let ety ← elemTy ctxγ γ k?
-        if !(← conv ctxγ.lvl ety (← eval ctxγ.env ta) (← eval ctxγ.env tb)) then
+        if !(← convC ctxγ ety (← eval ctxγ.env ta) (← eval ctxγ.env tb)) then
           err ctx "system elements do not agree on their overlap"
   return (out.toList, elems.toList)
 
@@ -284,7 +300,7 @@ partial def checkBase (ctx : Ctx) (elems : List (Face × Tm)) (a0 u0 : Val) : M 
   for (α, tα) in elems do
     let ctxα ← ctx.face α
     let v ← eval (.d Formula.zero :: ctxα.env) tα
-    if !(← conv ctxα.lvl (← faceV a0 α) v (← faceV u0 α)) then
+    if !(← convC ctxα (← faceV a0 α) v (← faceV u0 α)) then
       err ctx s!"the system does not agree with the base:\n  base:   {← ppVal ctxα (← faceV u0 α)}\n  system: {← ppVal ctxα v}"
 
 partial def elabCon (ctx : Ctx) (c : String) (args : List Raw) (expected : Option (String × Nat × List Val)) :
@@ -471,6 +487,7 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
     if let .intervalTy := stripLoc tyR then
       let (ctx', k) ← ctx.bindDim x
       let (tb, bTy) ← infer ctx' b
+      scPush ctx' tb bTy "body of an interval lambda"
       return (.plam x tb, .piI (.plam k bTy))
     let (ta, _) ← inferType ctx tyR
     let a ← eval ctx.env ta

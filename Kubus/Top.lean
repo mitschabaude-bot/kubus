@@ -1,4 +1,4 @@
-import Kubus.Check
+import Kubus.SelfCheck
 
 /-! # Declarations: definitions, data types, termination and positivity checks -/
 
@@ -130,6 +130,7 @@ def checkDefn (name : String) (ps : List Binder) (ty body : Raw) (pos : Pos) : M
   let fullTy := teleType tele tty
   addDef { name, ty := ← eval [] fullTy, tyTm := fullTy, body := some (teleLam tele tbody),
            value := none, nParams := 0, branches := [] }
+  if (← get).selfcheck then scTerm ctx tbody (← eval ctx.env tty) s!"definition {name}"
 
 def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Clause') (pos : Pos) : M Unit := do
   let ctx0 : Ctx := { pos }
@@ -153,6 +154,7 @@ def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Cla
       err { ctx with pos := cl.pos } s!"duplicate clause for {cl.ctor}"
   let mut branches : Array Branch := #[]
   let mut pending : Array (Ctx × Tm × Val × CtorInfo × List Val × List Formula) := #[]
+  let mut clauseItems : Array SCItem := #[]
   for ctor in info.ctors do
     let some cl := clauses.find? (·.ctor == ctor.name)
       | err ctx s!"missing clause for constructor {ctor.name}"
@@ -185,8 +187,11 @@ def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Cla
     | .error e => err cctx e
     branches := branches.push { ctor := ctor.name, nArgs := nargs, nDims := ndims, body := tbody }
     if ndims > 0 then pending := pending.push (bctx, tbody, expected, ctor, argVals.toList, dims.toList)
+    clauseItems := clauseItems.push ⟨bctx, tbody, expected, s!"clause {ctor.name} of {name}"⟩
   addDef { name, ty := ← eval [] fullTy, tyTm := fullTy, body := some (teleLam tele (.split name 0)),
            value := none, nParams := k, branches := branches.toList }
+  if (← get).selfcheck then
+    for it in clauseItems do scTerm it.ctx it.tm it.ty it.label
   -- clauses for path constructors must agree with the clauses for their boundary
   for (bctx, tbody, expected, ctor, args, dims) in pending do
     let benv := dims.reverse.map EnvE.d ++ args.reverse.map EnvE.v
@@ -196,7 +201,7 @@ def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Cla
       let lhs ← eval ctxα.env tbody
       let penv ← faceEnv ctx.env α
       let rhs ← splitApp name 0 penv bv
-      if !(← conv ctxα.lvl (← faceV expected α) lhs rhs) then
+      if !(← convC ctxα (← faceV expected α) lhs rhs) then
         err bctx s!"clause for {ctor.name} does not agree with its boundary:\n  clause gives: {← ppVal ctxα lhs}\n  boundary:     {← ppVal ctxα rhs}"
 
 def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorDecl) (pos : Pos) : M Unit := do
@@ -262,7 +267,7 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
   modify fun s => { s with globals.datas := s.globals.datas.modify name fin }
 
 /-- Process a declaration (other than imports); returns output to print. -/
-def checkDecl : Decl → M (Option String)
+def checkDecl' : Decl → M (Option String)
   | .defn n ps ty body pos => do checkDefn n ps ty body pos; pure none
   | .defSplit n ps ty cls pos => do checkSplit n ps ty cls pos; pure none
   | .data n ps l cs pos => do checkData n ps l cs pos; pure none
@@ -272,11 +277,19 @@ def checkDecl : Decl → M (Option String)
     let v ← eval [] tm
     let nf ← quote ctx.qctx v
     let tyNf ← quote ctx.qctx ty
+    if (← get).selfcheck then scTerm ctx tm ty "#eval" (checkTy := true)
     pure (some s!"{pp [] 0 nf}\n  : {pp [] 0 tyNf}")
   | .check t pos => do
     let ctx : Ctx := { pos }
-    let (_, ty) ← infer ctx t
+    let (tm, ty) ← infer ctx t
+    if (← get).selfcheck then scTerm ctx tm ty "#check" (checkTy := true)
     pure (some (pp [] 0 (← quote ctx.qctx ty)))
   | .importFile .. => pure none
+
+/-- Process a declaration, then self-check the terms recorded during elaboration. -/
+def checkDecl (d : Decl) : M (Option String) := do
+  let out ← checkDecl' d
+  if (← get).selfcheck then scDrain
+  return out
 
 end Kubus

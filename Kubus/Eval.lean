@@ -60,7 +60,9 @@ def fiberTm : Tm := (B.fiber (.var 0) (.var 1) (.var 2) (.var 3)) 4
 
 mutual
 
-partial def eval (env : Env) : Tm → M Val
+partial def eval (env : Env) (t : Tm) : M Val := do
+  tick
+  match t with
   | .var i => do
     match ← envGet env i with
     | .v v => pure v
@@ -257,6 +259,7 @@ partial def appComp (line u0 : Val) (sys : System Val) (v1 : Val) : M Val := do
 -- ### Nominal action: substitute formula `r` for atom `i`
 
 partial def act (i : Atom) (r : Formula) (v : Val) : M Val := do
+  tick
   match v with
   | .univ _ => pure v
   | .pi x a env b => return .pi x (← act i r a) (← actEnv i r env) b

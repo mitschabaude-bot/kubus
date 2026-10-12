@@ -115,13 +115,62 @@ structure Globals where
   ctors : Std.HashMap String CtorInfo := {}
   deriving Inhabited
 
+/-! ## Elaboration contexts -/
+
+structure CEntry where
+  name : String
+  /-- `none` for interval variables -/
+  ty : Option Val
+  val : EnvE
+
+structure Ctx where
+  entries : List CEntry := []
+  pos : Pos := ⟨0, 0⟩
+
+/-- A term recorded by the elaborator for self-checking (`--selfcheck`): context, core term,
+its type, and a description. -/
+structure SCItem where
+  ctx : Ctx
+  tm : Tm
+  ty : Val
+  label : String
+
 structure St where
   globals : Globals := {}
   fresh : Nat := 0
+  /-- self-check mode: the elaborator records terms in `pending` and checks conversions both ways -/
+  selfcheck : Bool := false
+  pending : Array SCItem := #[]
+  violations : Array String := #[]
+  /-- self-checks skipped for running out of budget -/
+  skips : Array String := #[]
+  /-- evaluation steps, and the step limit of the running self-check (0: no limit) -/
+  steps : Nat := 0
+  limit : Nat := 0
+  budget : Nat := 1000000
+  nChecks : Nat := 0
+  nSkipped : Nat := 0
+  nGaps : Nat := 0
 
 abbrev M := StateT St (Except String)
 
 def freshAtom : M Atom := modifyGet fun s => (s.fresh, { s with fresh := s.fresh + 1 })
+
+def budgetExceeded : String := "selfcheck: budget exceeded"
+
+/-- Count an evaluation step against the budget of the running self-check. -/
+@[inline] def tick : M Unit := do
+  let s ← get
+  if s.limit != 0 then
+    if s.steps ≥ s.limit then throw budgetExceeded
+    set { s with steps := s.steps + 1 }
+
+def recordViolation (msg : String) : M Unit :=
+  modify fun s => { s with violations := s.violations.push msg }
+
+/-- Record a term for self-checking, if enabled. -/
+def scPush (ctx : Ctx) (tm : Tm) (ty : Val) (label : String) : M Unit :=
+  modify fun s => if s.selfcheck then { s with pending := s.pending.push ⟨ctx, tm, ty, label⟩ } else s
 
 def getGlobals : M Globals := return (← get).globals
 
