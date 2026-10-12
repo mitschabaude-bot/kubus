@@ -1,0 +1,6 @@
+import bool
+def notE : Equiv Bool Bool := isoToEquiv Bool Bool not not notnot notnot
+def test (i j : I) (g : Glue Bool [i = 1 /\ j = 1 -> (Bool, notE)]) : Bool :=
+  hcomp k Bool [j = 1 \/ i = 1 -> unglue g] (unglue g)
+def bad (i : I) : Bool := test i 1 (glue [i = 1 -> true] false)
+#eval bad

@@ -1,0 +1,7 @@
+-- expect: PathP expects a path of types
+import bool
+def L : Path (U 1) U U := \i -> Glue U [i = 0 -> (U, idEquiv^1 U), i = 1 -> (U, idEquiv^1 U)]
+def p : PathP (\i -> L i) Bool Bool := \i -> glue [i = 0 -> Bool, i = 1 -> Bool] (notPath i)
+def T : U := PathP p true true
+#check T
+def x (i : I) : p i := true

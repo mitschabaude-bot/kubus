@@ -253,13 +253,13 @@ partial def checkSys (ctx : Ctx) (binder : Option String) (sys : List (Raw × Ra
   for (key, t) in sys do
     let r ← elabI ctx key
     let rv ← evalI ctx.env r
-    let mut tm? : Option Tm := none
-    for α in rv.faces do
+    let faces := rv.faces
+    for α in faces do
       let (ctxα, k?) ← restrict ctx α binder
       let tm ← check ctxα t (← elemTy ctxα α k?)
-      if tm?.isNone then tm? := some tm
       elems := elems.push (α, tm)
-    if let some tm := tm? then out := out.push (r, tm)
+      -- elaboration may depend on the face, so each face gets its own core term
+      out := out.push (if faces.length == 1 then r else quoteFace ctx.qctx α, tm)
   for h : a in [0:elems.size] do
     for h' : b in [a + 1:elems.size] do
       let (α, ta) := elems[a]
@@ -329,7 +329,9 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
   | .lift x k =>
     if (ctx.lookup x).isSome then err ctx s!"only global definitions and data types can be displaced"
     let g ← getGlobals
-    if let some info := g.defs[x]? then return (.glob x k, ← defType info k)
+    if let some info := g.defs[x]? then
+      if info.body.isNone && k > 0 then err ctx s!"{x} cannot be displaced inside its own definition"
+      return (.glob x k, ← defType info k)
     if let some info := g.datas[x]? then
       let k := if info.liftInvariant then 0 else k
       if info.params.isEmpty then return (.data x k [], .univ (info.level + k))
@@ -401,7 +403,8 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
       let (tp, tyP) ← infer ctx p
       match tyP with
       | .pathP lineU _ _ =>
-        match ← papp lineU Formula.zero with
+        let k ← freshAtom
+        match ← papp lineU (atomF k) with
         | .univ l =>
           let line ← eval ctx.env tp
           let tu ← check ctx u (← papp line Formula.zero)

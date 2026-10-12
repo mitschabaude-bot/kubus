@@ -208,9 +208,12 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
   let np := params.length
   let g0 ← getGlobals
   let li0 := params.all fun (_, t) => t.liftInvariant g0 name
-  let dinfo : DataInfo := { name, params, level := lvl, ctors := [], isHIT := false, firstOrder := params.isEmpty,
+  -- Kan operations in the type during its own declaration must already use the right rules
+  let isHIT := ctors.any fun cd => cd.args.any fun b => match stripLoc b.ty with | .intervalTy => true | _ => false
+  let dinfo : DataInfo := { name, params, level := lvl, ctors := [], isHIT, firstOrder := false,
                             liftInvariant := li0 }
   modify fun s => { s with globals.datas := s.globals.datas.insert name dinfo }
+  let mut allFo := params.isEmpty && !isHIT
   for cd in ctors do
     let cctx := { ctx with pos := cd.pos }
     ensureFresh cctx cd.name
@@ -250,10 +253,13 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
     let li := (ctele.toList.all fun (_, t) => t.liftInvariant g name) &&
       tsys.all fun (_, t) => t.liftInvariant g name
     let upd (d : DataInfo) : DataInfo :=
-      { d with ctors := d.ctors ++ [info], isHIT := d.isHIT || !info.dims.isEmpty, firstOrder := d.firstOrder && fo,
+      { d with ctors := d.ctors ++ [info],
                liftInvariant := d.liftInvariant && li }
     modify fun s => { s with globals.ctors := s.globals.ctors.insert cd.name info,
                              globals.datas := s.globals.datas.modify name upd }
+    allFo := allFo && fo
+  let fin (d : DataInfo) : DataInfo := { d with firstOrder := allFo }
+  modify fun s => { s with globals.datas := s.globals.datas.modify name fin }
 
 /-- Process a declaration (other than imports); returns output to print. -/
 def checkDecl : Decl → M (Option String)

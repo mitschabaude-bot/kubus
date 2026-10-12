@@ -1,0 +1,9 @@
+-- expect: do not agree on their overlap
+data D : U := base | sq (i j : I) [i = 0 -> hcomp k D [] base, j = 0 -> base]
+#eval sq 0 0
+#eval \(j : I) -> sq 0 j
+#eval \(i : I) -> sq i 0
+data Bool : U := false | true
+def f : D -> Bool
+  | base => true
+  | sq i j => true

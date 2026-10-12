@@ -1,0 +1,6 @@
+-- expect: cannot be displaced inside its own definition
+data Nat : U := zero | suc (n : Nat)
+
+def K : (n : Nat) -> Path (U 3) (U 1) (U 1)
+  | zero => \i -> U 1
+  | suc n => let w : Path (U 6) (K^1 n 0) (U 1) := \i -> U 1 in K n
