@@ -86,3 +86,7 @@ tests/run.sh
 ## Limitations
 
 All arguments are explicit; there are no implicit arguments or unification. Pattern matching covers one argument, with no nested patterns and no mutual or indexed definitions. For higher inductive types with parameters, path-constructor boundaries must be built from the constructor's point arguments and constructors. The evaluator is strict, and some composite Kan operations can still blow up.
+
+## License
+
+MIT
