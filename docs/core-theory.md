@@ -36,7 +36,11 @@ with de Bruijn indices for both sorts of variable.
 
 ### Interval and cofibrations
 
-Interval terms are `r ::= 0 | 1 | i | ~r | r ∧ s | r ∨ s`, with equality given by the free De Morgan algebra. Cofibrations are interval terms read as `r = 1`, so `i = 0` is `~i`. Entailment `φ ⊨ ψ` holds when every assignment of `0/1` to the variables that makes `φ` equal to 1 also makes `ψ` equal to 1. This is the face lattice of CCHM: `i ∧ ~i` is a false cofibration even though it is not `0` as an interval term.
+Interval terms are `r ::= 0 | 1 | i | ~r | r ∧ s | r ∨ s`. Two interval terms are equal if they agree under every assignment of the variables into the four-element De Morgan algebra `{0, a, b, 1}`, where `~a = a` and `~b = b`. By Kalman's theorem every De Morgan algebra embeds into a power of this one, so this is exactly equality in the free De Morgan algebra.
+
+Cofibrations are interval terms read as `r = 1`, so `i = 0` is `~i`. They denote elements of the CCHM face lattice: put `r` in disjunctive normal form, read each literal `i` as the face `i = 1` and `~i` as `i = 0`, and drop clauses containing both. Then `φ ⊨ ψ` holds when every clause of `φ` contains some clause of `ψ`. In particular `i ∧ ~i` is false, but `i ∨ ~i` is *not* true. Checking entailment over 0/1 assignments would be unsound: it would make the system `[i=0 ↦ true, i=1 ↦ false]` total, and hence a path from `true` to `false`.
+
+The judgments use a face rule: if `Φ ⊨ (i = d)` for an endpoint `d`, then `t ≡ t[d/i]` under `Φ`.
 
 ### Structural rules for cofibrations
 
