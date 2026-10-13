@@ -134,3 +134,59 @@ theorem embedSet_subset_succ {x : ZFSet.{max (u + 2) v}} (hx : x ∈ embedSet.{u
     exact ZFSet.sound (PSet.lift_lift.{u, u + 1, max (u + 2) v} y).symm
 
 end Model
+
+/-! ### The concrete tower in `V = ZFSet.{5}` -/
+
+namespace Model
+
+/-- The Grothendieck universe for level `l ≤ 4` (empty above). -/
+def Vt : ℕ → V
+  | 0 => embedSet.{0, 5}
+  | 1 => embedSet.{1, 5}
+  | 2 => embedSet.{2, 5}
+  | 3 => embedSet.{3, 5}
+  | 4 => embedSet.{4, 5}
+  | _ => ∅
+
+theorem Vt_mem_succ : ∀ l, l < 4 → Vt l ∈ Vt (l + 1)
+  | 0, _ => embedSet_mem_succ.{0, 5}
+  | 1, _ => embedSet_mem_succ.{1, 5}
+  | 2, _ => embedSet_mem_succ.{2, 5}
+  | 3, _ => embedSet_mem_succ.{3, 5}
+  | l + 4, h => absurd h (by omega)
+
+theorem Vt_subset_succ : ∀ l, l < 4 → ∀ {x : V}, x ∈ Vt l → x ∈ Vt (l + 1)
+  | 0, _, _, hx => embedSet_subset_succ.{0, 5} hx
+  | 1, _, _, hx => embedSet_subset_succ.{1, 5} hx
+  | 2, _, _, hx => embedSet_subset_succ.{2, 5} hx
+  | 3, _, _, hx => embedSet_subset_succ.{3, 5} hx
+  | l + 4, h, _, _ => absurd h (by omega)
+
+theorem Vt_trans : ∀ l {x y : V}, x ∈ Vt l → y ∈ x → y ∈ Vt l
+  | 0, _, _, hx, hy => embedSet_trans.{0, 5} hx hy
+  | 1, _, _, hx, hy => embedSet_trans.{1, 5} hx hy
+  | 2, _, _, hx, hy => embedSet_trans.{2, 5} hx hy
+  | 3, _, _, hx, hy => embedSet_trans.{3, 5} hx hy
+  | 4, _, _, hx, hy => embedSet_trans.{4, 5} hx hy
+  | _ + 5, _, _, hx, _ => absurd hx (ZFSet.notMem_empty _)
+
+/-- `α` is small for level `l`. -/
+def IsSmallAt (l : ℕ) (α : Type) : Prop :=
+  match l with
+  | 0 => Small.{0} α
+  | 1 => Small.{1} α
+  | 2 => Small.{2} α
+  | 3 => Small.{3} α
+  | 4 => Small.{4} α
+  | _ => True
+
+theorem range_mem_Vt : ∀ (l : ℕ) {α : Type} (_ : IsSmallAt l α) (f : α → V), (∀ a, f a ∈ Vt l) →
+    l ≤ 4 → ZFSet.range f ∈ Vt l
+  | 0, _, h, f, hf, _ => @range_mem_embedSet.{0, 5, 0} _ h _ f hf
+  | 1, _, h, f, hf, _ => @range_mem_embedSet.{1, 5, 0} _ h _ f hf
+  | 2, _, h, f, hf, _ => @range_mem_embedSet.{2, 5, 0} _ h _ f hf
+  | 3, _, h, f, hf, _ => @range_mem_embedSet.{3, 5, 0} _ h _ f hf
+  | 4, _, h, f, hf, _ => @range_mem_embedSet.{4, 5, 0} _ h _ f hf
+  | _ + 5, _, _, _, _, hl => absurd hl (by omega)
+
+end Model
