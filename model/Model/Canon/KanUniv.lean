@@ -119,6 +119,7 @@ theorem RT_isEquiv (hl : l + 1 ≤ maxLevel) {T A f : Tm}
   rw [isEquiv_subst'] at h
   exact ((RE_univ_iff hW).1 h).2.2
 
+omit ih in
 /-- Instances of a type computable at all restrictions are computable. -/
 theorem re_univ_inst {n : ℕ} {B : Tm} (hB : HasTy S n .one [] B (.univ l)) (hR : ∀ k' (ρ : ISub k' n), RT S k' (B.isub ρ))
     (γ0 : ℕ → Tm) (τ0 : ℕ → I) (hτ : ∀ i, (τ0 i).Scoped k') : RE S k' (.univ l) (B.subst γ0 τ0) := by
@@ -160,12 +161,135 @@ theorem RE_lineEquiv (hl : l + 1 ≤ maxLevel) {B : Tm} (hB : HasTy S (k + 1) .o
   generalize ISub.ofFun (k + 1) (I.up τ) _ = ρ
   have hRT : RT S (k' + 1) ((Tm.isEquiv (B.dinst .zero).dshift B (Tm.lineFun B)).isub ρ) := by
     rw [Tm.isub, isEquiv_subst']
-    refine RT_isEquiv hW hGC hl ?_ (re_univ_inst hW ih hB hR _ _ ρ.scAll) ?_
+    refine RT_isEquiv hW hGC hl ?_ (re_univ_inst hW hB hR _ _ ρ.scAll) ?_
     · rw [Tm.dshift, ren_eq_subst, Tm.dinst, Tm.dsubst, subst_subst, subst_subst]
-      exact re_univ_inst hW ih hB hR _ _ (fun i => I.scoped_subst_all (fun j => I.scoped_subst_all ρ.scAll _) _)
+      exact re_univ_inst hW hB hR _ _ (fun i => I.scoped_subst_all (fun j => I.scoped_subst_all ρ.scAll _) _)
     · have := (RE_lineFun hW hGC ih hB hR).isub hW ρ
       rwa [Tm.isub, Tm.isub, arrow_subst'] at this
   exact ⟨hRT, kanT_of_ty hW ih (HasTy.isubS hW hL ρ) hRT⟩
+
+end
+
+section
+
+variable {S : Sig} {k k' m : ℕ}
+
+theorem lineEquiv_subst' (B : Tm) (σ : ℕ → Tm) (τ : ℕ → I) :
+    (Tm.lineEquiv B).subst σ τ = Tm.lineEquiv (B.subst (dupS σ) (I.up τ)) := by
+  simp only [Tm.lineEquiv, Tm.lineFun, Tm.idIsEquiv, Tm.isEquiv, Tm.isContr, Tm.fiber, Tm.pathC]; scalc
+
+/-- A face that holds stays true under further substitution. -/
+theorem holds_comp {φ : I} (hφ : φ.Scoped k) (σ : ISub k' k) (hh : (ival (idEnv k') (φ.subst σ.τ)).holds)
+    {k'' : ℕ} (σ2 : ISub k'' k) (τ3 : ℕ → I) (e : ∀ i < k, σ2.τ i = (σ.τ i).subst τ3) :
+    (ival (idEnv k'') (φ.subst σ2.τ)).holds := by
+  rw [holds_iff_entails (I.scoped_subst hφ σ2.sc), I_subst_congr_scoped e hφ, ← I_subst_subst]
+  exact ent_subst ((holds_iff_entails (I.scoped_subst hφ σ.sc)).1 hh) τ3
+
+theorem ISub.cons_tail {k'' : ℕ} (ρ : ISub k'' (k + 1)) : ISub.cons (ρ.τ 0) (ρ.sc 0 (by omega)) ρ.tail = ρ := by
+  ext i; rcases i with _ | i <;> rfl
+
+/-- A computable tube, at an arbitrary restriction of its line. -/
+theorem tube_all {A u : Tm} {φ : I} (hu : TubeC S k A φ u) {k'' : ℕ} (ρ : ISub k'' (k + 1))
+    (hh : (ival (idEnv k'') (φ.subst ρ.tail.τ)).holds) : RE S k'' (A.isub ρ.tail) (u.isub ρ) := by
+  have := hu k'' ρ.tail (ρ.τ 0) (ρ.sc 0 (by omega)) hh
+  rwa [isub_up_dinst _ _ _ (ρ.sc 0 (by omega)), ISub.cons_tail] at this
+
+/-- Composition in the universe. -/
+theorem kanH_univ (hW : WfSig S) (hGC : GlueCompat S) {l : ℕ} (ih : ∀ m' X, WF l m' X → KR S m' X ∧ KanP S m' X) :
+    KanH S k (.univ l) := by
+  intro φ u a hty hu ha
+  by_cases hφ : (ival (idEnv k) φ).holds
+  · exact RE_hcomp_face hW hty hu hφ
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l0, ⟨hU, hφs, hu0, -, hside⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
+  have hl := gen_univ hU rfl
+  have e := EqTm.hcompU hty
+  rw [hcompU_eq] at e
+  have hG := HasTy.eqR e
+  refine (RE_univ_of hW hG ?_).conv hW (TyEq.refl _) e.symm
+  have hucl : u.closedB 0 (k + 1) = true := closed_ty hu0
+  refine RT_glue_intro hW hG hφ (fun k' σ => ((RE_univ_iff hW).1 (ha.isub hW σ)).2.2) (fun k' σ hh => ?_)
+    (fun k' σ hh => ?_)
+  · have h1 := tube_all hu (ISub.cons .one trivial σ) hh
+    have e1 : (u.dinst .one).isub σ = u.isub (ISub.cons .one trivial σ) := by
+      simp only [Tm.isub, Tm.dinst, Tm.dsubst, subst_subst]; congr 1; funext i; cases i <;> rfl
+    rw [e1]; exact ((RE_univ_iff hW).1 h1).2.2
+  have hsc : ∀ i < k + 1, ((revI i).subst (I.up σ.τ)).Scoped (k' + 1) := fun i _ =>
+    I.scoped_subst_all (I.up_scoped_all σ.scAll) _
+  have eB : (u.dsubst revI).subst (dupS Tm.var) (I.up σ.τ) = u.isub (ISub.ofFun (k + 1) _ hsc) := by
+    rw [isub_ofFun hucl, Tm.dsubst, subst_subst]; rfl
+  have f1 : ∀ i < k, (ISub.ofFun (k + 1) _ hsc).τ (i + 1) = (σ.τ i).shift := fun i hi => by
+    simp only [ISub.ofFun, if_pos (show i + 1 < k + 1 by omega)]; rfl
+  generalize ISub.ofFun (k + 1) _ hsc = ρB at eB f1
+  have hent := entails_of_holds (I.scoped_subst hφs σ.sc) hh
+  -- the restricted tube `D` at stage `k' + 1`, typed in the empty face
+  have hDre := tube_all hu σ.up (holds_comp hφs σ hh σ.up.tail (fun j => .var (j + 1)) (fun i _ => rfl))
+  have hD0 := spec_to_minimal hW ((RE_univ_iff hW).1 hDre).1
+  have eqD : ∀ x1 x2 : I, x1.Scoped k' → x2.Scoped k' → I.Eq x1 x2 →
+      EqTm S k' .one [] ((u.isub σ.up).dinst x1) ((u.isub σ.up).dinst x2) (.univ l) := fun x1 x2 h1 h2 he => by
+    have sc : ∀ x : I, x.Scoped k' → ∀ i < k' + 1, ((I.inst0 x) i).Scoped k' := fun x hx i hi => by
+      rcases i with _ | i
+      · exact hx
+      · show i < k'; omega
+    exact ieq0 hW hD0 (sc x1 h1) (sc x2 h2) (fun i _ => by
+      rcases i with _ | i
+      · exact he
+      · exact I_eq_refl _)
+  have erev : ∀ x : I, ((u.dsubst revI).subst (dupS Tm.var) (I.up σ.τ)).dinst x = (u.isub σ.up).dinst (.neg x) := by
+    intro x
+    simp only [Tm.dinst, Tm.dsubst, Tm.isub, subst_subst]
+    congr 1
+    funext i; rcases i with _ | i
+    · rfl
+    · show ((σ.τ i).shift).subst _ = ((σ.τ i).shift).subst _; rw [I_shift_inst0, I_shift_inst0]
+  have eend : ∀ x : I, x = .zero ∨ x = .one → (u.dinst x).isub σ = (u.isub σ.up).dinst x := by
+    rintro x (rfl | rfl) <;>
+    · simp only [Tm.dinst, Tm.dsubst, Tm.isub, subst_subst]
+      congr 1
+      funext i; rcases i with _ | i
+      · rfl
+      · show σ.τ i = ((σ.τ i).shift).subst _; rw [I_shift_inst0]
+  have hRB : ∀ k'' (ρ : ISub k'' (k' + 1)), RE S k'' (.univ l) ((u.isub ρB).isub ρ) := fun k'' ρ => by
+    rw [Tm.isub_isub]
+    exact tube_all hu (ρB.comp ρ) (holds_comp hφs σ hh _ ρ.tail.τ (fun i hi => by
+      show (ρB.τ (i + 1)).subst ρ.τ = _; rw [f1 i hi, I.shift, I.ren, I_subst_subst]; rfl))
+  have hBt : HasTy S (k' + 1) .one [] (u.isub ρB) (.univ l) := by
+    have := ((RE_univ_iff hW).1 (hRB _ (ISub.id _))).1; rwa [Tm.isub_isub, ISub.comp_id] at this
+  have hLE := RE_lineEquiv hW hGC ih hl hBt (fun k'' ρ => ((RE_univ_iff hW).1 (hRB k'' ρ)).2.2)
+  rw [← eB, erev, erev] at hLE
+  show RE S k' _ ((Tm.lineEquiv _).subst Tm.var σ.τ)
+  rw [lineEquiv_subst', eend _ (.inr rfl)]
+  have hside' : EqTm S k' .one [] ((u.dinst .zero).isub σ) (a.isub σ) (.univ l) :=
+    EqTm.restrict trivial (ent_cof_one hW hent) (EqTm.isubF hW (show (cof .one φ).Scoped k from ⟨trivial, hφs⟩)
+      (minimal_to_spec_eq hside) σ)
+  rw [eend _ (.inl rfl)] at hside'
+  have e0 := eqD (.neg .zero) .one trivial trivial I_eq_neg_zero
+  have e1 := (eqD (.neg .one) .zero trivial trivial I_eq_neg_one).trans hside'
+  have hU' : HasTy0 S k' .one [] (.univ l) (.univ (l + 1)) := HasTy0.univ hl (Wf0.nil trivial)
+  have hX1 := spec_to_minimal hW (HasTy.eqL e1)
+  have hY0 := spec_to_minimal hW (HasTy.eqR e0)
+  have fam1 := minimal_to_spec (equiv_typed hS (HasTy0.var (x := 0) (Wf0.cons hU') rfl) (HasTy0.wk hS hU' hX1))
+  have step1 := EqTm.subst (EqTm.refl fam1) e0
+  rw [equiv_inst1, equiv_inst1] at step1
+  have fam2 := minimal_to_spec (equiv_typed hS (HasTy0.wk hS hU' hY0) (HasTy0.var (x := 0) (Wf0.cons hU') rfl))
+  have step2 := EqTm.subst (EqTm.refl fam2) e1
+  rw [equiv_inst2, equiv_inst2] at step2
+  exact hLE.conv_ty hW (.inr ⟨l, step1.trans step2⟩)
+
+
+/-- Transport in the universe is the identity. -/
+theorem kanT_univ (hW : WfSig S) {l : ℕ} : KanT S k (.univ l) := fun _ _ hty ha =>
+  ha.conv hW (TyEq.refl _) (EqTm.transpU hty).symm
+
+theorem kanP_univ (hW : WfSig S) (hGC : GlueCompat S) {l : ℕ} (ih : ∀ m' X, WF l m' X → KR S m' X ∧ KanP S m' X) :
+    KanP S m (univC m l) := by
+  refine ⟨fun k f T hT => ?_, fun k f T hT => ?_⟩
+  · rw [Comp_univC] at hT
+    exact kanH_retype hW hT.2 (kanH_univ hW hGC ih)
+  · rw [Comp_univC] at hT
+    rcases hT.2 with rfl | ⟨l', e⟩
+    · exact kanT_univ hW
+    · exact kanT_retype hW e (kanT_univ hW)
 
 end
 

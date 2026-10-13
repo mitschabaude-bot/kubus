@@ -1,4 +1,4 @@
-import Model.Canon.Fund
+import Model.Canon.KanUniv
 
 /-!
 # Canonicity: all codes are Kan
@@ -36,7 +36,8 @@ theorem kanP_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KanP S m X := by
   · intro l m L hL ihL
     exact ⟨kr_ipiC hW (WF.fib (show WF l m (ipiC m L) from WFI.ipi hL)) (IsKV.ne_empty hL.fib.kv),
       kanP_ipi hW m L (IsKV.ne_empty hL.fib.kv) ihL.1 ihL.2⟩
-  · sorry
+  · intro m l _ ih
+    exact ⟨kr_univC hW fun m' X h => (ih m' X h).1, kanP_univ hW hGC ih⟩
   · sorry
   · intro l m Θ hc hw ih
     have hΘ : Θ.Good := { hc with fib := fun c j n g pre hp => (hw c j n g pre hp).fib }
