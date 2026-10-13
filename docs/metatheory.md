@@ -38,7 +38,7 @@ The general theorems behind these:
 - **The face rule under substitution** (`SubFace.lean`): an instance `t ≡ t[d/i]` under `Φ ⊨ i = d` becomes `t[τ] ≡ t[τ[i:=d]]` under `Φ' ⊨ τ(i) = d`, which is not a face rule instance when `τ(i)` is compound. It is proven by splitting `Φ'` into its faces (`EqTm.local`), substituting each face's endpoints with the face rule, and then functionality, since on a face `τ(i)` and `d` are equal in the free De Morgan algebra.
 - **Inversion** by generation lemmas: a typing of `Π A B` comes from the formation rule followed by conversions at universes, along which typings transport. No injectivity is needed since inversion starts from a syntactic type former.
 - **Validity** (`Valid.lean`) and **presupposition** (`Presup.lean`): proven for all rules except the 21 computation rules in `ContractaTyped` (assumed: their contractum is typed whenever the redex is). Proven are the structural rules, all congruences, the η-rules, the face rules, the boundary rules of systems, `transp` and `hcomp`, `transpU`, `transpData0`, and the Glue face and η rules.
-- **Equivalence** (`Equiv.lean`, `Main.lean`): `spec_to_minimal`: `HasTy S ⊆ HasTy0 S` given `WfSig S`, `ContractaTyped S` and `SigTyped0 S` (the definitions are typed in the minimal judgments; follows from `WfSig` given the result for the prefixes). `minimal_to_spec`: `HasTy0 S ⊆ HasTy S` given that the spec derives M4 and M5.
+- **Equivalence** (`Equiv.lean`, `SigWk.lean`): `spec_to_minimal'`: `HasTy S ⊆ HasTy0 S` for `WfSig S`, given `ContractaTyped` for the prefixes of `S`. `minimal_to_spec`: `HasTy0 S ⊆ HasTy S` given that the spec derives M4 and M5.
 
 ## Spec issues
 
