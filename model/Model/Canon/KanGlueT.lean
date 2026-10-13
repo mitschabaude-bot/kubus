@@ -689,6 +689,90 @@ theorem L_fibK {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ)
     exact RE_app_fst hW (D1.eqv k'' (σ.comp ρ) (holds_isub hW (H.hφr (r := .one) trivial) hφ1 _)) haρ
   · rw [Tm.isub_isub, Tm.isub_isub]; exact L_a1'_isub hW hGC D (σ.comp ρ)
 
+theorem RE_contr {X c p : Tm} (hc : RE S k (Tm.isContr X) c) (hp : RE S k X p) :
+    RE S k (Tm.pathC X (.fst c) p) (.app (.snd c) p) := by
+  unfold Tm.isContr at hc
+  have h := (RE_sigma_elim hW hc).2
+  rw [K_inst] at h
+  have h2 := RE_pi_elim hW h hp
+  rwa [pathC_var0_inst] at h2
+
+theorem RE_pair_intro {A B a b : Tm} {l : ℕ} (hsig : HasTy S k .one [] (.sigma A B) (.univ l))
+    (hp : HasTy S k .one [] (.pair a b) (.sigma A B)) (ha : RE S k A a) (hb : RE S k (B.inst a) b) :
+    RE S k (.sigma A B) (.pair a b) := by
+  have hf := EqTm.fstBeta (HasTy.fst hp)
+  have hB := HasTy.sigmaCod hsig
+  have hBeq := EqTm.subst (EqTm.refl hB) (EqTm.symm hf)
+  exact RE_sigma_intro hW hsig hp (ha.conv hW (TyEq.refl _) (EqTm.symm hf))
+    (hb.conv hW (.inr ⟨l, hBeq⟩) (EqTm.symm (EqTm.sndBeta (HasTy.snd hp))))
+
+theorem TGD.ent1 {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ)
+    (hφ1 : (ival (idEnv k) (φ.subst (I.inst0 .one))).holds) {X : I} (hXs : X.Scoped k) (hX : (ival (idEnv k) X).holds) :
+    I.Entails .one (cof (cof .one (φ.subst (I.inst0 .one))) X) := by
+  obtain ⟨l, H⟩ := D.tg hW
+  exact ent_and_intro (ent_cof_one hW (entails_of_holds (H.hφr (r := .one) trivial) hφ1)) (entails_of_holds hXs hX)
+
+include hGC in
+theorem L_Pd {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ)
+    (hφ1 : (ival (idEnv k) (φ.subst (I.inst0 .one))).holds) (hδ : (ival (idEnv k) δ).holds) :
+    RE S k (Tm.pathC (tgFib A φ T e ψ u0) (.fst (tgC A φ e ψ u0)) (.pair (tgT1 T ψ u0) (tgOmega A φ T e ψ u0)))
+      (tgPd A φ T e ψ u0) := by
+  obtain ⟨l, H⟩ := D.tg hW
+  have hent := D.ent1 hW hφ1 D.hδs hδ
+  have hp := HasTy.restrict (Φ' := .one) trivial hent (minimal_to_spec H.hpd)
+  have hent1 : I.Entails .one (cof .one (φ.subst (I.inst0 .one))) :=
+    ent_cof_one hW (entails_of_holds (H.hφr (r := .one) trivial) hφ1)
+  have hfib := HasTy.restrict (Φ' := .one) trivial hent1 (minimal_to_spec H.hfib)
+  rw [tgFib_eq] at hp hfib
+  have hpair : RE S k (tgFib A φ T e ψ u0) (.pair (tgT1 T ψ u0) (tgOmega A φ T e ψ u0)) := by
+    rw [tgFib_eq]
+    refine RE_pair_intro hW hfib hp (L_t1' hW D hδ) ?_
+    rw [P_inst]; exact L_omega hW hGC D hδ
+  exact RE_contr hW (L_c hW hGC D hφ1) hpair
+
+include hGC in
+theorem L_Ppsi {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ)
+    (hφ1 : (ival (idEnv k) (φ.subst (I.inst0 .one))).holds) (hψ : (ival (idEnv k) ψ).holds) :
+    RE S k (Tm.pathC (tgFib A φ T e ψ u0) (.fst (tgC A φ e ψ u0)) (.pair u0 (.plam (tgA1' A φ e ψ u0).dshift)))
+      (tgPpsi A φ e ψ u0) := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l, H⟩ := D.tg hW
+  have hent := D.ent1 hW hφ1 H.hψ hψ
+  have hp := HasTy.restrict (Φ' := .one) trivial hent (minimal_to_spec H.hpψ)
+  have hent1 : I.Entails .one (cof .one (φ.subst (I.inst0 .one))) :=
+    ent_cof_one hW (entails_of_holds (H.hφr (r := .one) trivial) hφ1)
+  have hfib := HasTy.restrict (Φ' := .one) trivial hent1 (minimal_to_spec H.hfib)
+  rw [tgFib_eq] at hp hfib
+  -- `u0` lies in `T(1)`
+  have hu0 : RE S k (T.dinst .one) u0 := by
+    have hc := EqTm0.dsubst hS (Ψ := k) (Φ := cof .one ψ) (Γ := []) H.hconst (r := .one) trivial
+    rw [Meta.dshift_dinst] at hc
+    have hc' := EqTm.restrict (Φ' := .one) trivial (ent_cof_one hW (entails_of_holds H.hψ hψ))
+      (minimal_to_spec_eq hc)
+    obtain ⟨l1, hG1⟩ := (D.gl.slice hW .one trivial).ty
+    have hf := EqTm.glueFace (entails_of_holds (H.hφr (r := .one) trivial) hφ1) hG1
+    exact D.hu0.conv_ty hW ((TyEq.symm (.inr ⟨l, hc'⟩)).trans hW (.inr ⟨l1, hf⟩))
+  have hpl := HasTy.restrict (Φ' := .one) trivial hent (minimal_to_spec H.hpl)
+  have hpair : RE S k (tgFib A φ T e ψ u0) (.pair u0 (.plam (tgA1' A φ e ψ u0).dshift)) := by
+    rw [tgFib_eq]
+    refine RE_pair_intro hW hfib hp hu0 ?_
+    rw [P_inst]
+    obtain ⟨lp, hpT⟩ := ty_of_tyEq hW (isTyK_of_ty hW hpl) (TyEq.refl _) (fun l h => by cases h)
+    unfold Tm.pathC at hpl hpT ⊢
+    refine RE_path_intro hW hpT hpl (fun k' σ r hr => ?_)
+    have hσ := HasTy.isubS hW hpl σ
+    rw [isub_path] at hσ
+    have eβ := EqTm.pathBeta (HasTy.papp hσ hr)
+    have e1 : ((tgA1' A φ e ψ u0).dshift.subst (fun n => (Tm.var n).dshift) (I.up σ.τ)).dinst r =
+        (tgA1' A φ e ψ u0).isub σ := by
+      rw [dshift_subst_dup, Meta.dshift_dinst]; rfl
+    have e2 : ((A.dinst .one).dshift.isub σ.up).dinst r = (A.dinst .one).isub σ := by
+      rw [dshift_isub_up, Meta.dshift_dinst]
+    rw [e1, e2] at eβ
+    rw [e2]
+    exact (L_a1'_isub hW hGC D σ).conv hW (TyEq.refl _) eβ.symm
+  exact RE_contr hW (L_c hW hGC D hφ1) hpair
+
 end
 
 end Model.Canon
