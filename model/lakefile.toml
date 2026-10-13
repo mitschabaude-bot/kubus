@@ -1,0 +1,14 @@
+name = "model"
+defaultTargets = ["Model"]
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4"
+rev = "v4.30.0"
+
+[[require]]
+name = "kubus"
+path = ".."
+
+[[lean_lib]]
+name = "Model"
