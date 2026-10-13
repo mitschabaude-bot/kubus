@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+"""Generate KubusCore/Meta/Minimal.lean from the spec (KubusCore/Rules.lean).
+
+The minimal judgments are the spec's mutual block with the primitive structural,
+presupposition and inversion rules removed and the changes listed in CHANGES applied.
+Every edit is checked to apply exactly once, so a spec change that touches an edited rule
+makes this script fail instead of silently diverging. Run from the repository root:
+
+    python3 KubusCore/Meta/scripts/gen_minimal.py
+"""
+import re, sys
+
+SRC = "KubusCore/Rules.lean"
+DST = "KubusCore/Meta/Minimal.lean"
+
+src = open(SRC).read()
+start = src.index("\nmutual\n")
+end = src.index("\nend\n", start)
+block = src[start + 1:end + 5]
+
+# split into constructors: a constructor starts at a line "  | name" and extends to the next
+# constructor, comment line or inductive header
+lines = block.split("\n")
+out, removed = [], []
+DROP_TY = {"wk", "dwk", "subst", "dsubst", "eqL", "eqR", "piDom", "piCod", "sigmaDom",
+           "sigmaCod", "pathLine", "pathLeft", "pathRight", "glueFib", "ipiLine"}
+DROP_EQ = {"wk", "dwk", "subst", "dsubst"}
+current = None
+skipping = False
+for ln in lines:
+    m = re.match(r"inductive (\w+)", ln)
+    if m:
+        current = m.group(1)
+    m = re.match(r"  \| (\w+)", ln)
+    if m:
+        name = m.group(1)
+        drop = (current == "HasTy" and name in DROP_TY) or (current == "EqTm" and name in DROP_EQ)
+        skipping = drop
+        if drop:
+            removed.append(f"{current}.{name}")
+            continue
+    elif skipping and (ln.startswith("      ") or ln.strip() == ""):
+        if ln.strip() == "":
+            skipping = False
+            out.append(ln)
+        continue
+    else:
+        skipping = False
+    out.append(ln)
+block = "\n".join(out)
+assert len(removed) == len(DROP_TY) + len(DROP_EQ), removed
+
+# drop the comment headers of removed groups
+for hdr in ["  /- presupposition -/\n", "  /- inversion of type formers -/\n"]:
+    assert block.count(hdr) == 1, hdr
+    block = block.replace(hdr, "")
+
+for a, b in [("Wf", "Wf0"), ("HasTy", "HasTy0"), ("HasTele", "HasTele0"),
+             ("EqTele", "EqTele0"), ("EqTm", "EqTm0")]:
+    block = re.sub(r"\b%s\b" % a, b, block)
+
+def edit(old, new):
+    global block
+    n = block.count(old)
+    if n != 1:
+        sys.exit(f"edit does not apply exactly once ({n}):\n{old}")
+    block = block.replace(old, new)
+
+# (M1) `(i : I) → A` checks its context
+edit("""  | ipi {Ψ Φ Γ A l} : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) → HasTy0 S Ψ Φ Γ (ipi A) (univ l)""",
+     """  | ipi {Ψ Φ Γ A l} : Wf0 S Ψ Φ Γ → HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
+      HasTy0 S Ψ Φ Γ (ipi A) (univ l)""")
+edit("""  | ipi {Ψ Φ Γ A A' l} : EqTm0 S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l) →""",
+     """  | ipi {Ψ Φ Γ A A' l} : Wf0 S Ψ Φ Γ → EqTm0 S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l) →""")
+# (M2) `glue` elements: the equivalence is typed
+edit("""  | glueEl {Ψ Φ Γ A φ T e t a l} : HasTy0 S Ψ Φ Γ (glue A φ T e) (univ l) →
+      HasTy0 S Ψ (cof Φ φ) Γ t T →""",
+     """  | glueEl {Ψ Φ Γ A φ T e t a l} : HasTy0 S Ψ Φ Γ (glue A φ T e) (univ l) →
+      HasTy0 S Ψ (cof Φ φ) Γ e (equiv T A) → HasTy0 S Ψ (cof Φ φ) Γ t T →""")
+# (M3) the face rule: the type is a type (or a universe)
+edit("""  | face {Ψ Φ Γ t A i d} : i < Ψ → I.Entails Φ (I.lit i d) → HasTy0 S Ψ Φ Γ t A →
+      EqTm0 S Ψ Φ Γ t (t.dset i (I.ofDir d)) A""",
+     """  | face {Ψ Φ Γ t A i d l} : i < Ψ → I.Entails Φ (I.lit i d) → HasTy0 S Ψ Φ Γ A (univ l) →
+      HasTy0 S Ψ Φ Γ t A → EqTm0 S Ψ Φ Γ t (t.dset i (I.ofDir d)) A
+  | faceU {Ψ Φ Γ t i d l} : i < Ψ → I.Entails Φ (I.lit i d) → HasTy0 S Ψ Φ Γ t (univ l) →
+      EqTm0 S Ψ Φ Γ t (t.dset i (I.ofDir d)) (univ l)""")
+# (M4) congruence of `glue` elements and `unglue` in the equivalence
+edit("""  | glueEl {Ψ Φ Γ φ φ' t t' a a' A T e} : HasTy0 S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e) →
+      HasTy0 S Ψ Φ Γ (glueEl φ' e t' a') (glue A φ T e) →
+      I.Entails φ φ' → I.Entails φ' φ →
+      EqTm0 S Ψ (cof Φ φ) Γ t t' T → EqTm0 S Ψ Φ Γ a a' A →
+      EqTm0 S Ψ Φ Γ (glueEl φ e t a) (glueEl φ' e t' a') (glue A φ T e)""",
+     """  | glueEl {Ψ Φ Γ φ φ' t t' a a' A T e e'} : HasTy0 S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e) →
+      HasTy0 S Ψ Φ Γ (glueEl φ' e' t' a') (glue A φ T e) →
+      I.Entails φ φ' → I.Entails φ' φ → EqTm0 S Ψ (cof Φ φ) Γ e e' (equiv T A) →
+      EqTm0 S Ψ (cof Φ φ) Γ t t' T → EqTm0 S Ψ Φ Γ a a' A →
+      EqTm0 S Ψ Φ Γ (glueEl φ e t a) (glueEl φ' e' t' a') (glue A φ T e)""")
+edit("""  | unglue {Ψ Φ Γ A φ φ' T e g g'} : HasTy0 S Ψ Φ Γ (unglue φ e g) A → HasTy0 S Ψ Φ Γ (unglue φ' e g') A →
+      I.Entails φ φ' → I.Entails φ' φ →
+      EqTm0 S Ψ Φ Γ g g' (glue A φ T e) → EqTm0 S Ψ Φ Γ (unglue φ e g) (unglue φ' e g') A""",
+     """  | unglue {Ψ Φ Γ A φ φ' T e e' g g'} : HasTy0 S Ψ Φ Γ (unglue φ e g) A →
+      HasTy0 S Ψ Φ Γ (unglue φ' e' g') A →
+      I.Entails φ φ' → I.Entails φ' φ → EqTm0 S Ψ (cof Φ φ) Γ e e' (equiv T A) →
+      EqTm0 S Ψ Φ Γ g g' (glue A φ T e) → EqTm0 S Ψ Φ Γ (unglue φ e g) (unglue φ' e' g') A""")
+# (M5) transport in Glue types: `∀i. φ` up to equivalence
+edit("""  | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T l} : HasTy0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
+      HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
+      HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
+      EqTm0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlue A φ T' e ψ u0) T""",
+     """  | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T l δ} : HasTy0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
+      HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
+      HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
+      I.Entails δ φ.forall0 → I.Entails φ.forall0 δ →
+      EqTm0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlueWith δ A φ T' e ψ u0) T""")
+
+header = '''import KubusCore.Meta.Defs
+
+/-!
+# Metatheory: the minimal judgments
+
+GENERATED by `KubusCore/Meta/scripts/gen_minimal.py` from `KubusCore/Rules.lean`; do not edit.
+
+`Wf0`, `HasTy0`, `HasTele0`, `EqTele0`, `EqTm0` are the spec's judgments without the
+primitive structural rules (`wk`, `dwk`, `subst`, `dsubst`), presupposition (`eqL`, `eqR`)
+and inversion of type formers (`piDom`, `piCod`, `sigmaDom`, `sigmaCod`, `pathLine`,
+`pathLeft`, `pathRight`, `ipiLine`, `glueFib`). All other rules are copied literally, except
+for the changes M1–M5 documented in `docs/metatheory.md`:
+
+- M1 `HasTy0.ipi`, `EqTm0.ipi`: the context is well-formed (`Wf0` premise).
+- M2 `HasTy0.glueEl`: the equivalence is typed (premise).
+- M3 `EqTm0.face`: the type is a type (premise); `EqTm0.faceU` for the face rule at a universe.
+- M4 `EqTm0.glueEl`, `EqTm0.unglue`: congruence also in the equivalence.
+- M5 `EqTm0.transpGlue`: `∀i. φ` up to equivalence of cofibrations.
+-/
+
+namespace KubusCore.Meta
+
+open Tm
+
+'''
+open(DST, "w").write(header + block + "\n\nend KubusCore.Meta\n")
+print("removed:", ", ".join(removed))
