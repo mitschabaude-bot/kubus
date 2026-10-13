@@ -54,7 +54,7 @@ The infrastructure that carries over: the cube category, cofibrations and `Fib`-
 
 ## Milestones
 
-1. This statement (in `model/Canon/Statement.lean`) — for review.
+1. This statement (`model/Model/Canon/Statement.lean`, typechecks) — for review.
 2. Merge `metatheory`; derive the presheaf structure of closed syntax (interval substitution on derivations, compatibility with `Hom` composition).
 3. Computability structures for the non-Kan fragment (Π, Σ, paths, `(i : I) → A`, universes, data) and the fundamental lemma for their rules.
 4. Kan operations on witnesses: transp/hcomp per type former, then Glue and `hcomp` in universes (the hardest part, as in the model).
