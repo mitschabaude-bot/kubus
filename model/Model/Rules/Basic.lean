@@ -1043,7 +1043,13 @@ theorem interp_congr_closed (cst uc : ℕ → ℕ → V) (good : ℕ → V → P
   | transp A φ a iA ia =>
     intro n d hc m ρ ρ' γ γ' hρ hg
     simp only [Tm.closedB, Bool.and_eq_true] at hc
-    simp only [interp, iA n (d + 1) hc.1.1 (m + 1) _ _ _ _ (hE hρ) (gR (Hom.wk m) hg),
+    have e : ∀ k (g : Hom k (m + 1)), interp cst uc good A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+        interp cst uc good A k (ρ'.ext.restr g) (TEnv.restr (TEnv.restr γ' (Hom.wk m)) g) := fun k g =>
+      iA n (d + 1) hc.1.1 k _ _ _ _ (hR g (hE hρ)) (gR g (gR (Hom.wk m) hg))
+    have ea : ∀ k (f : Hom k m), interp cst uc good a k (ρ.restr f) (TEnv.restr γ f) =
+        interp cst uc good a k (ρ'.restr f) (TEnv.restr γ' f) := fun k f =>
+      ia n d hc.2 k _ _ _ _ (hR f hρ) (gR f hg)
+    simp only [interp, e, ea, iA n (d + 1) hc.1.1 (m + 1) _ _ _ _ (hE hρ) (gR (Hom.wk m) hg),
       ia n d hc.2 m ρ ρ' γ γ' hρ hg, iv hc.1.2 hρ]
   | hcomp A φ u a iA iu ia =>
     intro n d hc m ρ ρ' γ γ' hρ hg
@@ -1051,7 +1057,13 @@ theorem interp_congr_closed (cst uc : ℕ → ℕ → V) (good : ℕ → V → P
     have e : ∀ k (h : Hom k m) r, interp cst uc good u k ((ρ.restr h).cons r) (TEnv.restr γ h) =
         interp cst uc good u k ((ρ'.restr h).cons r) (TEnv.restr γ' h) := fun k h r =>
       iu n (d + 1) hc.1.2 k _ _ _ _ (hC r (hR h hρ)) (gR h hg)
-    simp only [interp, e, iA n d hc.1.1.1 m ρ ρ' γ γ' hρ hg, ia n d hc.2 m ρ ρ' γ γ' hρ hg,
+    have eA : ∀ k (f : Hom k m), interp cst uc good A k (ρ.restr f) (TEnv.restr γ f) =
+        interp cst uc good A k (ρ'.restr f) (TEnv.restr γ' f) := fun k f =>
+      iA n d hc.1.1.1 k _ _ _ _ (hR f hρ) (gR f hg)
+    have ea : ∀ k (f : Hom k m), interp cst uc good a k (ρ.restr f) (TEnv.restr γ f) =
+        interp cst uc good a k (ρ'.restr f) (TEnv.restr γ' f) := fun k f =>
+      ia n d hc.2 k _ _ _ _ (hR f hρ) (gR f hg)
+    simp only [interp, e, eA, ea, iA n d hc.1.1.1 m ρ ρ' γ γ' hρ hg, ia n d hc.2 m ρ ρ' γ γ' hρ hg,
       iv hc.1.1.2 hρ]
   | glue A φ T e iA iT ie =>
     intro n d hc m ρ ρ' γ γ' hρ hg

@@ -28,8 +28,9 @@ hence a redex with a value in a type satisfies the checks. Concretely:
 * `app f a` requires the argument to be natural (for the substitution in `piBeta`);
 * `plam t` requires the body to be natural (for `pathBeta`);
 * `transp`/`hcomp` require the type to be a good code (`good`, instantiated by the well-formed
-  codes and universes), the line to be constant on the face, and the tube and base to be typed
-  (for `transpFace`, `hcompFace` and the Kan computation rules).
+  codes and universes), the line to be constant on the face, the tube and base to be typed, and
+  the type (line) and base to be natural (for `transpFace`, `hcompFace` and the Kan computation
+  rules, whose contracta evaluate the components at restricted points).
 -/
 
 set_option autoImplicit false
@@ -110,14 +111,19 @@ def interp (cst : ℕ → ℕ → V) (uc : ℕ → ℕ → V) (good : (m : ℕ) 
     if good (m + 1) (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) ∧
         ConstOn (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) (Hom.id (m + 1)) (ival ρ φ).face ∧
         interp cst uc good a m ρ γ ∈
-          El (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) ((Hom.id (m + 1)).comp (Hom.endpt m (DM.zero m)))
+          El (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) ((Hom.id (m + 1)).comp (Hom.endpt m (DM.zero m))) ∧
+        (∀ k (g : Hom k (m + 1)), interp cst uc good A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+          res g (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)))) ∧
+        (∀ k (g : Hom k m), interp cst uc good a k (ρ.restr g) (TEnv.restr γ g) = res g (interp cst uc good a m ρ γ))
     then transpAt (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) (Hom.id (m + 1))
       (ival ρ φ).face (interp cst uc good a m ρ γ) else ∅
   | .hcomp A φ u a, m, ρ, γ =>
     if good m (interp cst uc good A m ρ γ) ∧
         TubeOK (interp cst uc good A m ρ γ) (Hom.id m) (ival ρ φ).face
           (fun n h r => interp cst uc good u n ((ρ.restr h).cons r) (TEnv.restr γ h)) (interp cst uc good a m ρ γ) ∧
-        interp cst uc good a m ρ γ ∈ El (interp cst uc good A m ρ γ) (Hom.id m)
+        interp cst uc good a m ρ γ ∈ El (interp cst uc good A m ρ γ) (Hom.id m) ∧
+        (∀ k (g : Hom k m), interp cst uc good A k (ρ.restr g) (TEnv.restr γ g) = res g (interp cst uc good A m ρ γ)) ∧
+        (∀ k (g : Hom k m), interp cst uc good a k (ρ.restr g) (TEnv.restr γ g) = res g (interp cst uc good a m ρ γ))
     then hcompAt (interp cst uc good A m ρ γ) (Hom.id m) (ival ρ φ).face
       (fun n h r => interp cst uc good u n ((ρ.restr h).cons r) (TEnv.restr γ h)) (interp cst uc good a m ρ γ)
     else ∅

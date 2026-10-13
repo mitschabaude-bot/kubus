@@ -108,7 +108,7 @@ theorem sem_ren (S : Sig) : ∀ (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V
   | transp A φ a ihA iha =>
     intro m ρ γ ρ' δ
     simp only [sem, interp, Tm.ren] at *
-    simp only [ihA, iha, ival_ren, IEnv.ext_comp_upRen]; rfl
+    simp only [ihA, iha, ival_ren, IEnv.ext_comp_upRen, restr_ext_comp_upRen]; rfl
   | hcomp A φ u a ihA ihu iha =>
     intro m ρ γ ρ' δ
     simp only [sem, interp, Tm.ren] at *
@@ -313,7 +313,21 @@ theorem sem_subst (S : Sig) : ∀ (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ →
           (TEnv.restr (fun x => sem S (σ x) m ρ γ) (Hom.wk m)) := by
       rw [ihA _ _ _ _ _ (fun x => (hσ x).dshift), ival_up_ext]
       congr 1; funext x; exact (sem_dshift S _ _ _).trans ((hσ x) _ _)
-    simp only [hA', iha _ _ _ _ _ hσ, ival.subst]
+    have hres : ∀ k (g : Hom k (m + 1)), interp (cstFn S) univC TyCode (A.subst (fun n => (σ n).dshift) (I.up τ)) k
+        (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+        interp (cstFn S) univC TyCode A k ((IEnv.ext (fun i => ival ρ (τ i))).restr g)
+          (TEnv.restr (TEnv.restr (fun x => sem S (σ x) m ρ γ) (Hom.wk m)) g) := by
+      intro k g
+      rw [ihA _ _ _ _ _ (fun x => ((hσ x).dshift).restr g)]
+      have e1 : (fun i => ival (ρ.ext.restr g) (I.up τ i)) = (IEnv.ext (fun i => ival ρ (τ i))).restr g := by
+        rw [← ival_up_ext]; rfl
+      rw [e1]; congr 1; funext x
+      exact ((hσ x).dshift k g).trans (by rw [sem_dshift, (hσ x) _ (Hom.wk m)]; rfl)
+    have ha' : ∀ k (g : Hom k m), interp (cstFn S) univC TyCode (a.subst σ τ) k (ρ.restr g) (TEnv.restr γ g) =
+        interp (cstFn S) univC TyCode a k (IEnv.restr (fun i => ival ρ (τ i)) g)
+          (TEnv.restr (fun x => sem S (σ x) m ρ γ) g) := by
+      intro k g; rw [iha _ _ _ _ _ (fun x => (hσ x).restr g)]; congr 1; funext x; exact (hσ x) k g
+    simp only [hA', hres, ha', iha _ _ _ _ _ hσ, ival.subst]
   | hcomp A φ u a ihA ihu iha =>
     intro m ρ γ σ τ hσ
     simp only [sem, interp, Tm.subst] at *
@@ -323,7 +337,15 @@ theorem sem_subst (S : Sig) : ∀ (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ →
       intro n h r
       rw [ihu _ _ _ _ _ (fun x => (hσ x).dshift_cons h r), ival_up_cons]
       congr 1; funext x; exact (sem_dshift_cons S _ _ _ _).trans ((hσ x) _ _)
-    simp only [ihA _ _ _ _ _ hσ, iha _ _ _ _ _ hσ, ival.subst, hu']
+    have hA' : ∀ k (g : Hom k m), interp (cstFn S) univC TyCode (A.subst σ τ) k (ρ.restr g) (TEnv.restr γ g) =
+        interp (cstFn S) univC TyCode A k (IEnv.restr (fun i => ival ρ (τ i)) g)
+          (TEnv.restr (fun x => sem S (σ x) m ρ γ) g) := by
+      intro k g; rw [ihA _ _ _ _ _ (fun x => (hσ x).restr g)]; congr 1; funext x; exact (hσ x) k g
+    have ha' : ∀ k (g : Hom k m), interp (cstFn S) univC TyCode (a.subst σ τ) k (ρ.restr g) (TEnv.restr γ g) =
+        interp (cstFn S) univC TyCode a k (IEnv.restr (fun i => ival ρ (τ i)) g)
+          (TEnv.restr (fun x => sem S (σ x) m ρ γ) g) := by
+      intro k g; rw [iha _ _ _ _ _ (fun x => (hσ x).restr g)]; congr 1; funext x; exact (hσ x) k g
+    simp only [hA', ha', ihA _ _ _ _ _ hσ, iha _ _ _ _ _ hσ, ival.subst, hu']
   | glue A φ T e ihA ihT ihe =>
     intro m ρ γ σ τ hσ
     simp only [sem, interp, Tm.subst] at *

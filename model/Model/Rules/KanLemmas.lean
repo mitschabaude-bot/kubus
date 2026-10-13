@@ -46,7 +46,8 @@ def tubeV (S : Sig) (u : Tm) (ρ : IEnv m) (γ : ℕ → V) : Tube m :=
 /-- The side conditions of `transp A φ a` at a point. -/
 def TranspCond (S : Sig) (A : Tm) (φ : I) (a : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : Prop :=
   TyCode (m + 1) (lineV S A m ρ γ) ∧ ConstOn (lineV S A m ρ γ) (Hom.id (m + 1)) (ival ρ φ).face ∧
-    sem S a m ρ γ ∈ El (lineV S A m ρ γ) ((Hom.id (m + 1)).comp (Hom.endpt m (DM.zero m)))
+    sem S a m ρ γ ∈ El (lineV S A m ρ γ) ((Hom.id (m + 1)).comp (Hom.endpt m (DM.zero m))) ∧
+    Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) ∧ Natural S a m ρ γ
 
 theorem sem_transp {A a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (h : TranspCond S A φ a m ρ γ) :
     sem S (.transp A φ a) m ρ γ = transpAt (lineV S A m ρ γ) (Hom.id (m + 1)) (ival ρ φ).face (sem S a m ρ γ) := by
@@ -80,9 +81,9 @@ theorem transp_cond {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A a : Tm} {φ : I} {l : ℕ}
       rw [← hN n' (Hom.snoc h r), IEnv.ext_restr_snoc, TEnv.restr_wk_snoc,
         h2.2.2 n' _ _ ((isPoint_dshift_iff (ρ := (ρ.restr h).cons r)).2 hpr), sem_dshift_cons]
     rw [Hom.id_comp, Hom.id_comp, key, key]
-  · obtain ⟨hamem, -, -, -⟩ := h3.2.2.2 m ρ γ hp
+  · obtain ⟨hamem, hanat, -, -⟩ := h3.2.2.2 m ρ γ hp
     rw [sem_dinst, ival_zero, line_endpt hp.kv hN, El_res, Hom.comp_id] at hamem
-    rw [Hom.id_comp]; exact hamem
+    exact ⟨by rw [Hom.id_comp]; exact hamem, hN, hanat⟩
 
 /-! ### hcomp -/
 
@@ -90,7 +91,7 @@ theorem transp_cond {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A a : Tm} {φ : I} {l : ℕ}
 def HcompCond (S : Sig) (A : Tm) (φ : I) (u a : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : Prop :=
   TyCode m (sem S A m ρ γ) ∧
     TubeOK (sem S A m ρ γ) (Hom.id m) (ival ρ φ).face (tubeV S u ρ γ) (sem S a m ρ γ) ∧
-    sem S a m ρ γ ∈ El (sem S A m ρ γ) (Hom.id m)
+    sem S a m ρ γ ∈ El (sem S A m ρ γ) (Hom.id m) ∧ Natural S A m ρ γ ∧ Natural S a m ρ γ
 
 theorem sem_hcomp {A u a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (h : HcompCond S A φ u a m ρ γ) :
     sem S (.hcomp A φ u a) m ρ γ =
@@ -115,7 +116,7 @@ theorem hcomp_cond {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A u a : Tm} {φ : I}
     intro n h r hh
     rw [holds_face_restr_iff] at hh
     exact isPoint_dshift_iff.2 (isPoint_cof_iff.2 ⟨hp.restr hwf h, hh⟩)
-  refine ⟨hAty, ⟨fun n h r hh => ?_, fun n h r hh n' g => ?_, fun n h hh => ?_⟩, hamem⟩
+  refine ⟨hAty, ⟨fun n h r hh => ?_, fun n h r hh n' g => ?_, fun n h hh => ?_⟩, hamem, hAnat, hanat⟩
   · have := (h2.2.2.2 n _ _ (hpt n h r hh)).1
     rw [sem_dshift_cons, hAnat n h, El_res, Hom.comp_id] at this
     rw [Hom.id_comp]; exact this

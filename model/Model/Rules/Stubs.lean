@@ -505,10 +505,10 @@ theorem sem_HasTy_transp {S : Sig} {Ψ Φ Γ A φ a l}
   have hfib := hW.fib
   refine ⟨?_, fun k f => ?_, ?_, Natural.dinst (by rw [ival_one]; exact line_endpt_nat hp.kv hN _)⟩
   · rw [sem_transp hc, sem_dinst, ival_one, line_endpt hp.kv hN, El_res, Hom.comp_id]
-    have := hfib.trMem m (Hom.id (m + 1)) _ _ (isCof_ival_face ρ φ) hc.2.1 hc.2.2
+    have := hfib.trMem m (Hom.id (m + 1)) _ _ (isCof_ival_face ρ φ) hc.2.1 hc.2.2.1
     rwa [Hom.id_comp] at this
   · obtain ⟨hc', -⟩ := transp_cond h0 h2 h3 (hp.restr h3.1 f)
-    rw [sem_transp hc', sem_transp hc, hfib.trRes m _ _ _ (isCof_ival_face ρ φ) hc.2.1 hc.2.2 k f,
+    rw [sem_transp hc', sem_transp hc, hfib.trRes m _ _ _ (isCof_ival_face ρ φ) hc.2.1 hc.2.2.1 k f,
       line_restr hN f, transpAt_res, ival.restr, DM.face_restr, (h3.2.2.2 m ρ γ hp).2.1 k f]
     simp only [Hom.comp_id, Hom.id_comp]
   · unfold TyOK; rw [sem_dinst, ival_one, line_endpt hp.kv hN]
@@ -522,9 +522,9 @@ theorem sem_HasTy_hcomp {S : Sig} {Ψ Φ Γ A φ u a l}
   obtain ⟨hamem, hanat, hAty, hAnat⟩ := h3.2.2.2 m ρ γ hp
   have hfib := hAty.fib
   refine ⟨?_, fun k f => ?_, hAty, hAnat⟩
-  · rw [sem_hcomp hc]; exact hfib.hcMem m (Hom.id m) _ _ _ (isCof_ival_face ρ φ) hc.2.2 hc.2.1
+  · rw [sem_hcomp hc]; exact hfib.hcMem m (Hom.id m) _ _ _ (isCof_ival_face ρ φ) hc.2.2.1 hc.2.1
   · have hc' := hcomp_cond h2 h3 h4 (hp.restr h3.1 f)
-    rw [sem_hcomp hc', sem_hcomp hc, hfib.hcRes m _ _ _ _ (isCof_ival_face ρ φ) hc.2.2 hc.2.1 k f,
+    rw [sem_hcomp hc', sem_hcomp hc, hfib.hcRes m _ _ _ _ (isCof_ival_face ρ φ) hc.2.2.1 hc.2.1 k f,
       hAnat k f, hcompAt_res_id', hanat k f, ival.restr, DM.face_restr, Hom.id_comp]
     congr 1; funext n h r; simp only [tubeV, Tube.restr, IEnv.restr_restr, TEnv.restr_restr]
 
@@ -774,7 +774,14 @@ theorem sem_EqTm_transp {S : Sig} {Ψ Φ Γ A A' φ φ' a a' l}
       interp (cstFn S) univC TyCode A' (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) :=
     h2.2.2 _ _ _ (hp.dext h0.1)
   have ea : interp (cstFn S) univC TyCode a m ρ γ = interp (cstFn S) univC TyCode a' m ρ γ := h5.2.2 m ρ γ hp
-  simp only [sem, interp, eL, ea, face_eq_of_entails h3 h4 ρ]
+  have eA : ∀ k (g : Hom k (m + 1)),
+      interp (cstFn S) univC TyCode A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+      interp (cstFn S) univC TyCode A' k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) :=
+    fun k g => h2.2.2 k _ _ ((hp.dext h0.1).restr h2.1.1 g)
+  have ea' : ∀ k (g : Hom k m), interp (cstFn S) univC TyCode a k (ρ.restr g) (TEnv.restr γ g) =
+      interp (cstFn S) univC TyCode a' k (ρ.restr g) (TEnv.restr γ g) :=
+    fun k g => h5.2.2 k _ _ (hp.restr h0.1 g)
+  simp only [sem, interp, eL, ea, eA, ea', face_eq_of_entails h3 h4 ρ]
 
 theorem sem_EqTm_hcomp {S : Sig} {Ψ Φ Γ A A' φ φ' u u' a a' l}
     (h0 : SemTy S Ψ Φ Γ (hcomp A φ u a) A) (h1 : SemTy S Ψ Φ Γ (hcomp A' φ' u' a') A) (h2 : SemEq S Ψ Φ Γ A A' (univ l)) (h3 : I.Entails φ φ') (h4 : I.Entails φ' φ) (h5 : SemEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift u u' A.dshift) (h6 : SemEq S Ψ Φ Γ a a' A) :
@@ -1027,7 +1034,7 @@ theorem sem_EqTm_transpFace {S : Sig} {Ψ Φ Γ A φ a T}
     obtain ⟨hmem, -, hty, -⟩ := h1.2.2.2 m ρ γ hp
     have hc := cond_of_sem_transp (hty.ne_empty hmem)
     rw [sem_transp hc]
-    exact (hc.1.fib.trFace m _ _ _ (isCof_ival_face ρ φ) hc.2.1 hc.2.2
+    exact (hc.1.fib.trFace m _ _ _ (isCof_ival_face ρ φ) hc.2.1 hc.2.2.1
       ((DM.holds_iff_face_holds _).1 (entails_holds h0 hp.cof))).symm
   exact ⟨h1, h1.of_eq h1.2.1.2 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
@@ -1039,7 +1046,7 @@ theorem sem_EqTm_hcompFace {S : Sig} {Ψ Φ Γ A φ u a T}
     intro m ρ γ hp
     obtain ⟨hmem, -, hty, -⟩ := h1.2.2.2 m ρ γ hp
     have hc := cond_of_sem_hcomp (hty.ne_empty hmem)
-    rw [sem_hcomp hc, hc.1.fib.hcFace m _ _ _ _ (isCof_ival_face ρ φ) hc.2.2 hc.2.1
+    rw [sem_hcomp hc, hc.1.fib.hcFace m _ _ _ _ (isCof_ival_face ρ φ) hc.2.2.1 hc.2.1
       ((DM.holds_iff_face_holds _).1 (entails_holds h0 hp.cof))]
     simp only [tubeV, IEnv.restr_id, TEnv.restr_id_of_kv hp.kv, sem_dinst, ival_one]
   exact ⟨h1, h1.of_eq (h1.2.1.2.1.dinst _) he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
@@ -1052,7 +1059,7 @@ theorem sem_EqTm_transpU {S : Sig} {Ψ Φ Γ l φ a T}
     obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
     have hc := cond_of_sem_transp (hty.ne_empty hmem)
     rw [sem_transp hc]
-    have ha := hc.2.2
+    have ha := hc.2.2.1
     simp only [lineV, sem_univ, El_univC] at ha
     simp only [lineV, sem_univ, transpAt, trG, univC, univCode, dat_mkKV, univDatum, π1π2π2_quad, univTr]
     rw [apZ_trGraph _ ha]
