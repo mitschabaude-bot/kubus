@@ -56,7 +56,7 @@ end
 
 /-- The code `Equiv T A` (the spec's `Tm.equiv`) for codes `T`, `A` at stage `m`. -/
 def equivCode (m : ℕ) (T A : V) : V :=
-  interp (fun _ _ => ∅) (fun _ _ => ∅) (fun _ _ => True) (Tm.equiv (.var 1) (.var 0)) m (fun _ => DM.zero m)
+  interp SigV.empty (fun _ _ => ∅) (fun _ _ => True) (Tm.equiv (.var 1) (.var 0)) m (fun _ => DM.zero m)
     (TEnv.cons (TEnv.cons (fun _ => ∅) T) A)
 
 /-! ### Universes -/

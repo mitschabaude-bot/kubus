@@ -24,7 +24,9 @@ variable {k m n : ℕ}
 /-- Terms without constants, universes and Kan operations. -/
 def _root_.KubusCore.Tm.pureB : Tm → Bool
   | .var _ | .abort => true
-  | .const _ | .univ _ | .transp _ _ _ | .hcomp _ _ _ _ => false
+  | .const _ | .univ _ | .transp _ _ _ | .hcomp _ _ _ _ | .data _ _ | .con _ _ _ _ _ | .elim _ _ _ _ _ => false
+  | .tnil => true
+  | .tcons t ts => t.pureB && ts.pureB
   | .pi A B | .sigma A B | .lam A B | .app A B | .pair A B => A.pureB && B.pureB
   | .fst p | .snd p | .plam p | .ipi p | .papp p _ => p.pureB
   | .unglue _ e g => e.pureB && g.pureB
@@ -34,12 +36,16 @@ def _root_.KubusCore.Tm.pureB : Tm → Bool
   | .glueEl _ e t a => e.pureB && t.pureB && a.pureB
 
 /-- The denotation of a pure term does not depend on constants, universes and good codes. -/
-theorem interp_congr_pure (cst cst' uc uc' : ℕ → ℕ → V) (good good' : ℕ → V → Prop) :
+theorem interp_congr_pure (cst cst' : SigV) (uc uc' : ℕ → ℕ → V) (good good' : ℕ → V → Prop) :
     ∀ (t : Tm), t.pureB = true → interp cst uc good t = interp cst' uc' good' t := by
   intro t
   induction t with
   | var _ | abort => intro _; rfl
-  | const _ | univ _ => intro h; simp [Tm.pureB] at h
+  | const _ | univ _ | data _ _ | con _ _ _ _ _ | elim _ _ _ _ _ => intro h; simp [Tm.pureB] at h
+  | tnil => intro _; rfl
+  | tcons _ _ it its =>
+    intro h; simp only [Tm.pureB, Bool.and_eq_true] at h
+    funext m ρ γ; simp only [interp]; rw [it h.1, its h.2]
   | transp _ _ _ _ _ => intro h; simp [Tm.pureB] at h
   | hcomp _ _ _ _ _ _ _ => intro h; simp [Tm.pureB] at h
   | pi _ _ iA iB | sigma _ _ iA iB | lam _ _ iA iB | app _ _ iA iB | pair _ _ iA iB =>
@@ -70,7 +76,7 @@ theorem famV_congr {A : V} {F G : (n : ℕ) → Hom n m → V → V}
 
 section interp
 
-variable (cst uc : ℕ → ℕ → V) (good : ℕ → V → Prop)
+variable (cst : SigV) (uc : ℕ → ℕ → V) (good : ℕ → V → Prop)
 
 theorem interp_sigma_kv {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (hA : IsKV m (interp cst uc good A m ρ γ)) :
     interp cst uc good (.sigma A B) m ρ γ = sigmaC m (interp cst uc good A m ρ γ)
@@ -266,7 +272,7 @@ end sem
 /-- For fibrant `T`, `A`, the code `Equiv T A` is the model code `equivM`. -/
 theorem equivCode_eq_equivM {T A : V} (hT : Fib T m) (hA : Fib A m) : equivCode m T A = equivM m T A := by
   unfold equivCode
-  rw [interp_congr_pure (fun _ _ => ∅) (cstFn []) (fun _ _ => ∅) univC (fun _ _ => True) TyCode _ (by decide)]
+  rw [interp_congr_pure SigV.empty (sigV []) (fun _ _ => ∅) univC (fun _ _ => True) TyCode _ (by decide)]
   exact sem_equivT (S := []) (natural_var _ 1 _ _) (natural_var _ 0 _ _) hT hA
 
 

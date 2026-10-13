@@ -61,6 +61,21 @@ theorem sound_ty {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t A : 
   | .glue h0 h1 h2 h3 => sem_HasTy_glue (sound_ty hS h0) h1 (sound_ty hS h2) (sound_ty hS h3)
   | .glueEl h0 h1 h2 h3 => sem_HasTy_glueEl (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2) (sound_eq hS h3)
   | .unglue h0 h1 h2 h3 => sem_HasTy_unglue (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2) (sound_ty hS h3)
+  | .data h0 h1 h2 => sem_HasTy_data hS h0 h1 (sound_tele hS h2)
+  | .con h0 h1 h2 h3 h4 h5 => sem_HasTy_con hS h0 h1 (sound_ty hS h2) (sound_tele hS h3) h4 h5
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 => sem_HasTy_elim hS h0 (sound_ty hS h1) (sound_ty hS h2) h3 h4
+      (fun c C b e1 e2 => sound_ty hS (h5 c C b e1 e2)) (fun c C b k ψ e e1 e2 e3 => sound_eq hS (h6 c C b k ψ e e1 e2 e3))
+      (sound_ty hS h7)
+
+theorem sound_tele {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {as : Tm} {Δ prev : List Tm} :
+    HasTele S Ψ Φ Γ as Δ prev → SemTele S Ψ Φ Γ as Δ prev
+  | .nil h0 => sem_HasTele_nil (sound_wf hS h0)
+  | .cons h0 h1 => sem_HasTele_cons (sound_ty hS h0) (sound_tele hS h1)
+
+theorem sound_eqtele {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {as as' : Tm} {Δ prev : List Tm} :
+    EqTele S Ψ Φ Γ as as' Δ prev → SemEqTele S Ψ Φ Γ as as' Δ prev
+  | .nil h0 => sem_EqTele_nil (sound_wf hS h0)
+  | .cons h0 h1 => sem_EqTele_cons (sound_eq hS h0) (sound_eqtele hS h1)
 
 theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A : Tm} : EqTm S Ψ Φ Γ t u A → SemEq S Ψ Φ Γ t u A
   | .refl h0 => sem_EqTm_refl (sound_ty hS h0)
@@ -127,6 +142,17 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
   | .unglueFace h0 h1 h2 h3 => sem_EqTm_unglueFace h0 (sound_ty hS h1) (sound_ty hS h2) (sound_ty hS h3)
   | .glueBeta h0 => sem_EqTm_glueBeta (sound_ty hS h0)
   | .glueEta h0 => sem_EqTm_glueEta (sound_ty hS h0)
+  | .data h0 h1 h2 h3 => sem_EqTm_data hS h0 (sound_ty hS h1) (sound_ty hS h2) (sound_eqtele hS h3)
+  | .con h0 h1 h2 h3 h4 h5 h6 h7 => sem_EqTm_con hS h0 h1 (sound_ty hS h2) (sound_ty hS h3)
+      (sound_eqtele hS h4) (sound_eqtele hS h5) h6 h7
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 => sem_EqTm_elim hS h0 (sound_ty hS h1) (sound_ty hS h2) (sound_eqtele hS h3)
+      (sound_eq hS h4) h5 (fun c C b b' e1 e2 e3 => sound_eq hS (h6 c C b b' e1 e2 e3)) (sound_eq hS h7)
+  | .conBnd h0 h1 h2 h3 h4 => sem_EqTm_conBnd hS h0 h1 h2 h3 (sound_ty hS h4)
+  | .elimCon h0 h1 h2 h3 => sem_EqTm_elimCon hS h0 h1 h2 (sound_ty hS h3)
+  | .elimHcomp h0 => sem_EqTm_elimHcomp hS (sound_ty hS h0)
+  | .transpData0 h0 h1 h2 => sem_EqTm_transpData0 hS h0 h1 (sound_ty hS h2)
+  | .transpCon h0 h1 h2 h3 => sem_EqTm_transpCon hS h0 h1 h2 (sound_ty hS h3)
+  | .transpHcomp h0 h1 h2 => sem_EqTm_transpHcomp hS h0 h1 (sound_ty hS h2)
 
 end
 
@@ -145,17 +171,24 @@ theorem sigOK_of_wfSig : ∀ (n : ℕ) (S : Sig), S.length = n → WfSig S → S
   intro n
   induction n using Nat.strong_induction_on with
   | _ n ih =>
-    intro S hn hS k t A hk
+    intro S hn hS
+    refine ⟨fun k t A hk => ?_, fun k D hk => trivial⟩
     have hklt : k < S.length := (List.getElem?_eq_some_iff.1 hk).1
-    have hwf := hS k t A hk
+    have hwf := hS.1 k t A hk
     have htake : WfSig (S.take k) := by
-      intro j t' A' hj
-      have hjk : j < k := by
-        have := (List.getElem?_eq_some_iff.1 hj).1
-        simpa [List.length_take, hklt.le] using this
-      rw [List.getElem?_take_of_lt hjk] at hj
-      have := hS j t' A' hj
-      rwa [take_take_eq hjk.le]
+      refine ⟨fun j t' A' hj => ?_, fun j D' hj => ?_⟩
+      · have hjk : j < k := by
+          have := (List.getElem?_eq_some_iff.1 hj).1
+          simpa [List.length_take, hklt.le] using this
+        rw [List.getElem?_take_of_lt hjk] at hj
+        have := hS.1 j t' A' hj
+        rwa [take_take_eq hjk.le]
+      · have hjk : j < k := by
+          have := (List.getElem?_eq_some_iff.1 hj).1
+          simpa [List.length_take, hklt.le] using this
+        rw [List.getElem?_take_of_lt hjk] at hj
+        have := hS.2 j D' hj
+        rwa [take_take_eq (by omega)]
     have hok : SigOK (S.take k) := ih _ (by rw [← hn, List.length_take]; omega) _ rfl htake
     exact ⟨hwf.1, hwf.2.1, sound_ty hok hwf.2.2.2⟩
 

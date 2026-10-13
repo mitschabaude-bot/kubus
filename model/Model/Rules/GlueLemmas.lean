@@ -39,8 +39,8 @@ theorem sem_equiv {T A : Tm} {ρ : IEnv m} {γ : ℕ → V} (hT : Natural S T m 
   rw [e1]
   unfold equivCode
   rw [show (fun i => ival ρ (I.var i)) = ρ from rfl]
-  show interp (cstFn S) univC TyCode _ m ρ _ = _
-  rw [interp_congr_pure (cstFn S) (fun _ _ => ∅) univC (fun _ _ => ∅) TyCode (fun _ _ => True) _ (by decide)]
+  show interp (sigV S) univC TyCode _ m ρ _ = _
+  rw [interp_congr_pure (sigV S) SigV.empty univC (fun _ _ => ∅) TyCode (fun _ _ => True) _ (by decide)]
   refine interp_congr_closed _ _ _ _ 2 0 (by decide) m _ _ _ _ (by simp) ?_
   intro x hx
   rcases x with _ | _ | x

@@ -58,10 +58,24 @@ def TEnv.cons (γ : ℕ → V) (a : V) : ℕ → V := fun
 @[simp] theorem TEnv.cons_zero (γ : ℕ → V) (a : V) : TEnv.cons γ a 0 = a := rfl
 @[simp] theorem TEnv.cons_succ (γ : ℕ → V) (a : V) (x : ℕ) : TEnv.cons γ a (x + 1) = γ x := rfl
 
-def interp (cst : ℕ → ℕ → V) (uc : ℕ → ℕ → V) (good : (m : ℕ) → V → Prop) :
+/-- A value given at all restrictions of a stage (a term evaluated at the restricted points). -/
+abbrev RV (m : ℕ) := (k : ℕ) → Hom k m → V
+
+/-- The semantics of the entries of a signature: constants, and for inductive types the type
+former, the constructors and the eliminator (arguments given at all restrictions). -/
+structure SigV where
+  cst : ℕ → ℕ → V
+  dat : (m : ℕ) → ℕ → RV m → V
+  con : (m : ℕ) → ℕ → ℕ → RV m → RV m → List (DM m) → V
+  elim : (m : ℕ) → ℕ → RV m → ((k : ℕ) → Hom k m → V → V) → RV m → RV m → V
+
+/-- The empty signature semantics. -/
+def SigV.empty : SigV := ⟨fun _ _ => ∅, fun _ _ _ => ∅, fun _ _ _ _ _ _ => ∅, fun _ _ _ _ _ _ => ∅⟩
+
+def interp (cst : SigV) (uc : ℕ → ℕ → V) (good : (m : ℕ) → V → Prop) :
     Tm → (m : ℕ) → IEnv m → (ℕ → V) → V
   | .var x, _, _, γ => γ x
-  | .const c, m, _, _ => cst m c
+  | .const c, m, _, _ => cst.cst m c
   | .univ l, m, _, _ => uc m l
   | .pi A B, m, ρ, γ =>
     if IsKV m (interp cst uc good A m ρ γ) then
@@ -148,6 +162,17 @@ def interp (cst : ℕ → ℕ → V) (uc : ℕ → ℕ → V) (good : (m : ℕ) 
       (interp cst uc good a m ρ γ) else ∅
   | .unglue φ e g, m, ρ, γ =>
     ungAt m (ival ρ φ).face (interp cst uc good e m ρ γ) (interp cst uc good g m ρ γ)
+  | .tnil, _, _, _ => ∅
+  | .tcons t ts, m, ρ, γ => ZFSet.pair (interp cst uc good t m ρ γ) (interp cst uc good ts m ρ γ)
+  | .data d ps, m, ρ, γ => cst.dat m d fun k f => interp cst uc good ps k (ρ.restr f) (TEnv.restr γ f)
+  | .con d c ps args rs, m, ρ, γ =>
+    cst.con m d c (fun k f => interp cst uc good ps k (ρ.restr f) (TEnv.restr γ f))
+      (fun k f => interp cst uc good args k (ρ.restr f) (TEnv.restr γ f)) (rs.map (ival ρ))
+  | .elim d ps P bs t, m, ρ, γ =>
+    cst.elim m d (fun k f => interp cst uc good ps k (ρ.restr f) (TEnv.restr γ f))
+      (fun k f a => interp cst uc good P k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a))
+      (fun k f => interp cst uc good bs k (ρ.restr f) (TEnv.restr γ f))
+      (fun k f => interp cst uc good t k (ρ.restr f) (TEnv.restr γ f))
 
 end
 

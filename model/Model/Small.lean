@@ -554,8 +554,17 @@ theorem TEnv.cons_mem_Vt {γ : ℕ → V} (hγ : ∀ x, γ x ∈ Vt l) {a : V} (
   | 0 => ha
   | x + 1 => hγ x
 
-theorem interp_mem_Vt (hl : l ≤ 4) {cst uc : ℕ → ℕ → V} {good : (m : ℕ) → V → Prop}
-    (hcst : ∀ m c, cst m c ∈ Vt l) (huc : ∀ m l', uc m l' ∈ Vt l) :
+/-- All values of the signature semantics are small. -/
+def SigV.Small (l : ℕ) (σ : SigV) : Prop :=
+  (∀ m c, σ.cst m c ∈ Vt l) ∧ (∀ m d ps, σ.dat m d ps ∈ Vt l) ∧
+  (∀ m d c ps args rs, σ.con m d c ps args rs ∈ Vt l) ∧ (∀ m d ps P bs t, σ.elim m d ps P bs t ∈ Vt l)
+
+theorem SigV.small_empty (hl : l ≤ 4) : SigV.Small l SigV.empty :=
+  ⟨fun _ _ => empty_mem_Vt hl, fun _ _ _ => empty_mem_Vt hl, fun _ _ _ _ _ _ => empty_mem_Vt hl,
+    fun _ _ _ _ _ _ => empty_mem_Vt hl⟩
+
+theorem interp_mem_Vt (hl : l ≤ 4) {cst : SigV} {uc : ℕ → ℕ → V} {good : (m : ℕ) → V → Prop}
+    (hcst : SigV.Small l cst) (huc : ∀ m l', uc m l' ∈ Vt l) :
     ∀ (t : KubusCore.Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V), (∀ x, γ x ∈ Vt l) →
       interp cst uc good t m ρ γ ∈ Vt l := by
   have hr : ∀ {m k : ℕ} {γ : ℕ → V}, (∀ x, γ x ∈ Vt l) → ∀ (f : Hom k m), ∀ x, TEnv.restr γ f x ∈ Vt l :=
@@ -563,7 +572,12 @@ theorem interp_mem_Vt (hl : l ≤ 4) {cst uc : ℕ → ℕ → V} {good : (m : �
   intro t
   induction t with
   | var x => intro m ρ γ hγ; exact hγ x
-  | const c => intro m ρ γ hγ; exact hcst m c
+  | const c => intro m ρ γ hγ; exact hcst.1 m c
+  | tnil => intro m ρ γ hγ; exact empty_mem_Vt hl
+  | tcons t ts iht ihts => intro m ρ γ hγ; exact pair_mem_Vt (iht m ρ γ hγ) (ihts m ρ γ hγ)
+  | data d ps _ => intro m ρ γ hγ; exact hcst.2.1 _ _ _
+  | con d c ps args rs _ _ => intro m ρ γ hγ; exact hcst.2.2.1 _ _ _ _ _ _
+  | elim d ps P bs t _ _ _ _ => intro m ρ γ hγ; exact hcst.2.2.2 _ _ _ _ _ _
   | univ l' => intro m ρ γ hγ; exact huc m l'
   | pi A B ihA ihB =>
     intro m ρ γ hγ; simp only [interp]; split_ifs
@@ -630,7 +644,7 @@ theorem interp_mem_Vt (hl : l ≤ 4) {cst uc : ℕ → ℕ → V} {good : (m : �
 
 theorem equivCode_mem_Vt' {T A : V} (hT : T ∈ Vt l) (hA : A ∈ Vt l) : equivCode m T A ∈ Vt l := by
   have hl := le_of_mem_Vt hT
-  exact interp_mem_Vt hl (fun _ _ => empty_mem_Vt hl) (fun _ _ => empty_mem_Vt hl) _ _ _ _
+  exact interp_mem_Vt hl (SigV.small_empty hl) (fun _ _ => empty_mem_Vt hl) _ _ _ _
     (TEnv.cons_mem_Vt (TEnv.cons_mem_Vt (fun _ => empty_mem_Vt hl) hT) hA)
 
 end

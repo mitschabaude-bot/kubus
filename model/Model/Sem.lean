@@ -29,20 +29,39 @@ attribute [local instance] Classical.propDecidable
 /-- Good codes: well-formed codes of some level `≤ maxLevel`, and universes. -/
 def TyCode (m : ℕ) (c : V) : Prop := ∃ l ≤ maxLevel, (WF l m c ∧ c ∈ Vt l) ∨ c = univC m l
 
-/-! ### Constants -/
+/-! ### The signature -/
 
-/-- The value of constant `k` of the signature `S` at stage `m`: its body, interpreted with the
-constants before `k`. -/
-def cstFn (S : Sig) (m : ℕ) (k : ℕ) : V :=
-  if h : k < S.length then
-    interp (fun m' j => if j < k then cstFn S m' j else ∅) univC TyCode (S[k]'h).1 m (fun _ => DM.zero m)
-      (fun _ => emptyC m)
-  else ∅
-termination_by k
-decreasing_by assumption
+/-- The semantics of the inductive type `d` with declaration `D`, given the semantics `σ` of the
+entries before it. (Placeholder: the model of inductive types is in progress.) -/
+def dataSem (_σ : SigV) (_D : DataDecl) (_d : ℕ) : SigV := SigV.empty
+
+/-- `σ` with the entry `k` taken from `τ`. -/
+def SigV.set (σ τ : SigV) (k : ℕ) : SigV where
+  cst m j := if j = k then τ.cst m j else σ.cst m j
+  dat m j ps := if j = k then τ.dat m j ps else σ.dat m j ps
+  con m j c ps args rs := if j = k then τ.con m j c ps args rs else σ.con m j c ps args rs
+  elim m j ps P bs t := if j = k then τ.elim m j ps P bs t else σ.elim m j ps P bs t
+
+/-- The semantics of entry `k`, given the semantics of the entries before it. -/
+def entrySem (σ : SigV) (k : ℕ) : Option Entry → SigV
+  | some (.defn t _) =>
+    { SigV.empty with cst := fun m _ => interp σ univC TyCode t m (fun _ => DM.zero m) (fun _ => emptyC m) }
+  | some (.data D) => dataSem σ D k
+  | none => SigV.empty
+
+/-- The semantics of the entries before `k`. -/
+def sigUpTo (S : Sig) : ℕ → SigV
+  | 0 => SigV.empty
+  | k + 1 => (sigUpTo S k).set (entrySem (sigUpTo S k) k S[k]?) k
+
+/-- The semantics of the signature. -/
+def sigV (S : Sig) : SigV := sigUpTo S S.length
+
+/-- The value of constant `k` at stage `m`. -/
+abbrev cstFn (S : Sig) (m : ℕ) (k : ℕ) : V := (sigV S).cst m k
 
 /-- The interpretation of raw terms in the signature `S`. -/
-abbrev sem (S : Sig) (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : V := interp (cstFn S) univC TyCode t m ρ γ
+abbrev sem (S : Sig) (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : V := interp (sigV S) univC TyCode t m ρ γ
 
 /-- All constants of a term are below `n`. -/
 def _root_.KubusCore.Tm.ConstsLt (n : ℕ) : Tm → Prop
@@ -57,6 +76,11 @@ def _root_.KubusCore.Tm.ConstsLt (n : ℕ) : Tm → Prop
   | .hcomp A _ u a => A.ConstsLt n ∧ u.ConstsLt n ∧ a.ConstsLt n
   | .glue A _ T e => A.ConstsLt n ∧ T.ConstsLt n ∧ e.ConstsLt n
   | .glueEl _ e t a => e.ConstsLt n ∧ t.ConstsLt n ∧ a.ConstsLt n
+  | .tnil => True
+  | .tcons t ts => t.ConstsLt n ∧ ts.ConstsLt n
+  | .data d ps => d < n ∧ ps.ConstsLt n
+  | .con d _ ps args _ => d < n ∧ ps.ConstsLt n ∧ args.ConstsLt n
+  | .elim d ps P bs t => d < n ∧ ps.ConstsLt n ∧ P.ConstsLt n ∧ bs.ConstsLt n ∧ t.ConstsLt n
 
 /-! ### Points, naturality, well-formed types -/
 
@@ -95,9 +119,27 @@ def SemEq (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (t u A : Tm) : Prop :=
   SemTy S Ψ Φ Γ t A ∧ SemTy S Ψ Φ Γ u A ∧
   ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S t m ρ γ = sem S u m ρ γ
 
-/-- The signature is semantically valid: every definition is well-typed in the model. -/
+/-- Semantic telescope typing: `as : Δ`, the telescope's types instantiated by `prev`. -/
+def SemTele (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) : Tm → List Tm → List Tm → Prop
+  | .tnil, [], _ => SemWf S Ψ Φ Γ
+  | .tcons a as, A :: Δ, prev => SemTy S Ψ Φ Γ a (A.substList prev) ∧ SemTele S Ψ Φ Γ as Δ (a :: prev)
+  | _, _, _ => False
+
+/-- Semantic equality of telescopes. -/
+def SemEqTele (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) : Tm → Tm → List Tm → List Tm → Prop
+  | .tnil, .tnil, [], _ => SemWf S Ψ Φ Γ
+  | .tcons a as, .tcons a' as', A :: Δ, prev =>
+    SemEq S Ψ Φ Γ a a' (A.substList prev) ∧ SemEqTele S Ψ Φ Γ as as' Δ (a :: prev)
+  | _, _, _, _ => False
+
+/-- The inductive type `k` with declaration `D` is semantically valid. (Placeholder.) -/
+def DataOK (_S : Sig) (_k : ℕ) (_D : DataDecl) : Prop := True
+
+/-- The signature is semantically valid: every definition is well-typed in the model, and every
+inductive type is valid. -/
 def SigOK (S : Sig) : Prop :=
-  ∀ k t A, S[k]? = some (t, A) → t.closedB 0 0 ∧ A.closedB 0 0 ∧ SemTy (S.take k) 0 .one [] t A
+  (∀ k t A, S[k]? = some (.defn t A) → t.closedB 0 0 ∧ A.closedB 0 0 ∧ SemTy (S.take k) 0 .one [] t A) ∧
+  ∀ k D, S[k]? = some (.data D) → DataOK S k D
 
 end
 
