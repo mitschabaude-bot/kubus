@@ -23,3 +23,22 @@ jobs:
         with:
           name: fuzz-out
           path: fuzz-out
+
+  model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: model
+          use-mathlib-cache: true
+          build-args: Model
+          test: false
+          lint: false
+      - name: Axioms of the consistency theorems
+        working-directory: model
+        run: |
+          lake env lean ci/Axioms.lean > axioms.out
+          cat axioms.out
+          diff axioms.out ci/axioms.expected
