@@ -84,6 +84,12 @@ theorem ieq0 {n : ℕ} {t T : Tm} (h : HasTy0 S n .one [] t T) {τ1 τ2 : ℕ �
   minimal_to_spec_eq (HasTy0.ieq (Γ := []) (Φ' := .one) (sigClosed_of_wfSig hW) h hb1 hb2 (ent_refl _) (ent_refl _)
     heq rfl (Wf0.nil trivial))
 
+theorem tyEq_eq {A B : Tm} (h : TyEq S k A B) (hB : ∃ l, HasTy S k .one [] B (.univ l)) :
+    ∃ l, EqTm S k .one [] A B (.univ l) := by
+  rcases h with rfl | h
+  · obtain ⟨l, hB⟩ := hB; exact ⟨l, EqTm.refl hB⟩
+  · exact h
+
 theorem ent_cof_one {φ : I} (h : I.Entails .one φ) : I.Entails .one (cof .one φ) :=
   entails_iff.2 fun ρ hρ hs => by
     have := (entails_iff.1 h) ρ hρ hs

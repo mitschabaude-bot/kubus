@@ -27,12 +27,6 @@ def KanP (S : Sig) (m : ℕ) (X : V) : Prop :=
 variable (hW : WfSig S)
 include hW
 
-theorem tyEq_eq {A B : Tm} (h : TyEq S k A B) (hB : ∃ l, HasTy S k .one [] B (.univ l)) :
-    ∃ l, EqTm S k .one [] A B (.univ l) := by
-  rcases h with rfl | h
-  · obtain ⟨l, hB⟩ := hB; exact ⟨l, EqTm.refl hB⟩
-  · exact h
-
 theorem kanP_pi (l m : ℕ) (A B : V) (hA : WF l m A) (ihA : KanP S m A)
     (ihB : ∀ k (f : Hom k m), ∀ a ∈ El A f, KanP S k (apZ (dat B k f) a)) : KanP S m (piC m A B) := by
   have hAne : A ≠ ∅ := IsKV.ne_empty hA.fib.kv
