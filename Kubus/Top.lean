@@ -103,7 +103,7 @@ def elabTele (ctx : Ctx) (bs : List Binder) : M (Ctx × List (String × Option T
       out := out.push (b.name, none)
     else
       let (ta, _) ← inferType ctx b.ty
-      let (c, _) := ctx.bindVar b.name (← eval ctx.env ta)
+      let (c, _) := ctx.bindVar (plainName b.name) (← eval ctx.env ta)
       ctx := c
       out := out.push (b.name, some ta)
   return (ctx, out.toList)
@@ -118,6 +118,9 @@ def teleLam (tele : List (String × Option Tm)) (body : Tm) : Tm :=
     | some _ => .lam x b
     | none => .plam x b) body
 
+def zonkTele (tele : List (String × Option Tm)) : M (List (String × Option Tm)) :=
+  tele.mapM fun (x, a?) => return (x, ← a?.mapM zonk)
+
 def addDef (info : DefInfo) : M Unit :=
   modify fun s => { s with globals.defs := s.globals.defs.insert info.name info }
 
@@ -125,8 +128,17 @@ def checkDefn (name : String) (ps : List Binder) (ty body : Raw) (pos : Pos) : M
   let ctx0 : Ctx := { pos }
   ensureFresh ctx0 name
   let (ctx, tele) ← elabTele ctx0 ps
-  let (tty, _) ← inferType ctx ty
-  let tbody ← check ctx body (← eval ctx.env tty)
+  let (tty, tbody) ← match ty with
+    | .hole => do
+      let (tbody, vty) ← inferIns ctx body
+      pure (← quote ctx.qctx vty, tbody)
+    | _ => do
+      let (tty, _) ← inferType ctx ty
+      pure (tty, ← check ctx body (← eval ctx.env tty))
+  checkMetas
+  let tele ← zonkTele tele
+  let tty ← zonk tty
+  let tbody ← zonk tbody
   let fullTy := teleType tele tty
   addDef { name, ty := ← eval [] fullTy, tyTm := fullTy, body := some (teleLam tele tbody),
            value := none, nParams := 0, branches := [] }
@@ -138,6 +150,9 @@ def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Cla
   let (ctx, tele) ← elabTele ctx0 ps
   if tele.any (·.2.isNone) then err ctx0 "pattern-matching definitions cannot have interval parameters"
   let (tty, _) ← inferType ctx ty
+  checkMetas
+  let tele ← zonkTele tele
+  let tty ← zonk tty
   let vty ← eval ctx.env tty
   let (dName, dk, dps, envB, motive) ← match vty with
     | .pi _ (.data d dk dps) envB b => pure (d, dk, dps, envB, b)
@@ -181,6 +196,8 @@ def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Cla
       else mkPCon ctor.name argVals.toList dims.toList
     let expected ← inst envB motive cval
     let tbody ← check bctx cl.body expected
+    checkMetas
+    let tbody ← zonk tbody
     let rec_ := (List.range nargs).filter (ctor.recArgs[·]!) |>.map fun j => ndims + (nargs - 1 - j)
     match termCheck name k rec_ 0 tbody with
     | .ok () => pure ()
@@ -209,6 +226,8 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
   ensureFresh ctx0 name
   let (ctx, tele) ← elabTele ctx0 ps
   if tele.any (·.2.isNone) then err ctx0 "data types cannot have interval parameters"
+  checkMetas
+  let tele ← zonkTele tele
   let params := tele.map fun (x, a) => (x, a.get!)
   let np := params.length
   let g0 ← getGlobals
@@ -234,6 +253,8 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
       else
         if !dims.isEmpty then err cctx "interval arguments of a constructor must come last"
         let (ta, la) ← inferType bctx b.ty
+        checkMetas
+        let ta ← zonk ta
         if la > lvl then err cctx s!"argument {b.name} of {cd.name} lives in universe {la}, but {name} is in universe {lvl}"
         if !strictPos name np bctx.lvl ta then
           err cctx s!"{name} does not occur strictly positively in the type of argument {b.name} of {cd.name}"
@@ -247,6 +268,8 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
       | .v v => pure v
       | _ => err cctx "internal")
     let (tsys, _) ← checkSys bctx none cd.boundary fun _ α _ => faceV dataV α
+    checkMetas
+    let tsys ← tsys.mapM fun (r, t) => return (r, ← zonk t)
     if !dims.isEmpty && np > 0 && !(tsys.all fun (_, t) => simpleBoundary np ctele.size dims.size t) then
       err cctx "the boundary of a path constructor of a parameterised type may only use the constructor's point arguments and other constructors"
     let info : CtorInfo := { name := cd.name, data := name, tele := ctele.toList, recArgs := recArgs.toList,
@@ -274,20 +297,25 @@ def checkDecl' : Decl → M (Option String)
   | .eval t pos => do
     let ctx : Ctx := { pos }
     let (tm, ty) ← infer ctx t
+    checkMetas
+    let tm ← zonk tm
     let v ← eval [] tm
     let nf ← quote ctx.qctx v
     let tyNf ← quote ctx.qctx ty
     if (← get).selfcheck then scTerm ctx tm ty "#eval" (checkTy := true)
-    pure (some s!"{pp [] 0 nf}\n  : {pp [] 0 tyNf}")
+    pure (some s!"{← ppTm ctx nf}\n  : {← ppTm ctx tyNf}")
   | .check t pos => do
     let ctx : Ctx := { pos }
     let (tm, ty) ← infer ctx t
+    checkMetas
+    let tm ← zonk tm
     if (← get).selfcheck then scTerm ctx tm ty "#check" (checkTy := true)
-    pure (some (pp [] 0 (← quote ctx.qctx ty)))
+    pure (some (← ppVal ctx ty))
   | .importFile .. => pure none
 
 /-- Process a declaration, then self-check the terms recorded during elaboration. -/
 def checkDecl (d : Decl) : M (Option String) := do
+  modify fun s => { s with metas := #[] }
   let out ← checkDecl' d
   if (← get).selfcheck then scDrain
   return out

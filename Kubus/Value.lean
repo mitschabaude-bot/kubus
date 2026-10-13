@@ -135,8 +135,20 @@ structure SCItem where
   ty : Val
   label : String
 
+/-- A metavariable: a closed term of type `ty`, a Π-type over the variables of the context it was
+created in (interval variables become `(i : I) →`). Its solution is a closed term too. -/
+structure MetaInfo where
+  ty : Val
+  /-- the context of creation and the type there, for error messages -/
+  ctx : Ctx
+  ctxTy : Val
+  desc : String
+  sol : Option Tm := none
+  solV : Option Val := none
+
 structure St where
   globals : Globals := {}
+  metas : Array MetaInfo := #[]
   fresh : Nat := 0
   /-- self-check mode: the elaborator records terms in `pending` and checks conversions both ways -/
   selfcheck : Bool := false

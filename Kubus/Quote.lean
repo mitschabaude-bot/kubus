@@ -1,4 +1,4 @@
-import Kubus.Conv
+import Kubus.Eval
 
 /-! # Read-back of values into normal forms, and pretty printing -/
 
@@ -41,7 +41,7 @@ def quoteFace (q : QCtx) (α : Face) : ITm :=
 mutual
 
 partial def quote (q : QCtx) (v : Val) : M Tm := do
-  match v with
+  match ← force v with
   | .univ l => pure (.univ l)
   | .pi x a env b =>
     let (q', xv) := q.pushV
@@ -126,9 +126,16 @@ partial def ppI (names : List String) (p : Nat) : ITm → String
 
 def paren (b : Bool) (s : String) : String := if b then s!"({s})" else s
 
+/-- Printing options: which binders of each global's type are implicit (printed as `{a}`). -/
+structure PPI where
+  mask : String → List Bool := fun _ => []
+  deriving Inhabited
+
 mutual
 /-- Precedences: 0 binders, 1 arrows, 2 application, 3 atoms. -/
-partial def pp (names : List String) (p : Nat) (t : Tm) : String :=
+partial def pp (names : List String) (p : Nat) (t : Tm) (im : PPI := {}) : String :=
+  let pp := fun names p t => pp names p t im
+  let ppSys := fun kn en sys => ppSys kn en sys im
   match t with
   | .var i => nameAt names i
   | .glob n 0 => n
@@ -136,7 +143,10 @@ partial def pp (names : List String) (p : Nat) (t : Tm) : String :=
   | .univ 0 => "U"
   | .univ l => paren (p > 2) s!"U {l}"
   | .pi x a b =>
-    if b.occurs 0 then
+    if isImplName x then
+      let x' := freshName names (plainName x)
+      paren (p > 1) s!"\{{x'} : {pp names 0 a}} → {pp (x' :: names) 1 b}"
+    else if b.occurs 0 then
       let x' := freshName names x
       paren (p > 1) s!"({x'} : {pp names 0 a}) → {pp (x' :: names) 1 b}"
     else paren (p > 1) s!"{pp names 2 a} → {pp ("_" :: names) 1 b}"
@@ -146,13 +156,19 @@ partial def pp (names : List String) (p : Nat) (t : Tm) : String :=
       paren (p > 1) s!"({x'} : {pp names 0 a}) × {pp (x' :: names) 1 b}"
     else paren (p > 1) s!"{pp names 2 a} × {pp ("_" :: names) 1 b}"
   | .lam x b | .plam x b =>
-    let x' := freshName names (if x == "_" && b.occurs 0 then "x" else x)
-    paren (p > 0) s!"λ {x'} → {pp (x' :: names) 0 b}"
+    let impl := isImplName x
+    let x := plainName x
+    let x' := freshName names (if x == "_" && (b.occurs 0 || impl) then "x" else x)
+    let bx := if impl then "{" ++ x' ++ "}" else x'
+    paren (p > 0) s!"λ {bx} → {pp (x' :: names) 0 b}"
   | .piI i a =>
     let i' := freshName names (if i == "_" && a.occurs 0 then "i" else i)
     paren (p > 1) s!"({i'} : I) → {pp (i' :: names) 1 a}"
-  | .app f a => paren (p > 2) s!"{pp names 2 f} {pp names 3 a}"
-  | .papp f r => paren (p > 2) s!"{pp names 2 f} {ppI names 3 r}"
+  | .app .. | .papp .. =>
+    let (h, args) := t.sargs
+    match h with
+    | .glob n _ => if (metaId? n).isSome then n else ppApp names p h args
+    | _ => ppApp names p h args
   | .pair a b => s!"({pp names 0 a}, {pp names 0 b})"
   | .fst t => s!"{pp names 3 t}.1"
   | .snd t => s!"{pp names 3 t}.2"
@@ -185,10 +201,20 @@ partial def pp (names : List String) (p : Nat) (t : Tm) : String :=
     let x' := freshName names x
     paren (p > 0) s!"let {x'} := {pp names 0 t} in {pp (x' :: names) 0 b}"
 
-partial def ppSys (keyNames elemNames : List String) (sys : List (ITm × Tm)) : String :=
-  "[" ++ ", ".intercalate (sys.map fun (r, t) => s!"{ppKey keyNames r} -> {pp elemNames 0 t}") ++ "]"
+/-- An application; arguments for implicit binders of a global are printed as `{a}`. -/
+partial def ppApp (names : List String) (p : Nat) (h : Tm) (args : Array SArg) (im : PPI := {}) : String :=
+  let mask := match h with
+    | .glob f _ => im.mask f
+    | _ => []
+  let parts := (List.range args.size).zip args.toList |>.map fun (i, a) => match a with
+    | .tm a => if mask[i]?.getD false then "{" ++ pp names 0 a im ++ "}" else pp names 3 a im
+    | .dim r => ppI names 3 r
+  paren (p > 2) (" ".intercalate (pp names 2 h im :: parts))
 
-/-- System keys are printed as faces `i = 0 /\ j = 1` when possible. -/
+partial def ppSys (keyNames elemNames : List String) (sys : List (ITm × Tm)) (im : PPI := {}) : String :=
+  "[" ++ ", ".intercalate (sys.map fun (r, t) => s!"{ppKey keyNames r} -> {pp elemNames 0 t im}") ++ "]"
+
+/-- System keys are printed as faces `i = 0 /\\ j = 1` when possible. -/
 partial def ppKey (names : List String) (r : ITm) : String :=
   let rec lits : ITm → Option (List String)
     | .var i => some [s!"{nameAt names i} = 1"]

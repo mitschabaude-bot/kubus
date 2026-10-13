@@ -120,6 +120,11 @@ partial def eval (env : Env) (t : Tm) : M Val := do
   | .letE _ t b => do eval (.v (← eval env t) :: env) b
 
 partial def evalGlob (n : String) (k : Nat) : M Val := do
+  if let some m := metaId? n then
+    match (← get).metas[m]? with
+    | some { solV := some v, .. } => return v
+    | some mi => return .gvar n mi.ty
+    | none => throw s!"internal: unknown metavariable {n}"
   let info ← lookupDef n
   let cached := if k == 0 then info.value else info.lifted.lookup k
   match cached with
@@ -181,6 +186,40 @@ partial def papp (v : Val) (r : Formula) : M Val := do
       | some (.pathP _ a b) => pure (if d == .zero then a else b)
       | _ => pure (.papp v r)
     | none => pure (.papp v r)
+
+/-- If the head of a neutral is a solved metavariable, the value with the solution plugged in. -/
+partial def forceHead? (v : Val) : M (Option Val) := do
+  match v with
+  | .gvar n _ =>
+    match metaId? n with
+    | some m => pure ((← get).metas[m]?.bind (·.solV))
+    | none => pure none
+  | .app f a => match ← forceHead? f with
+    | some f' => some <$> app f' a
+    | none => pure none
+  | .papp p r => match ← forceHead? p with
+    | some p' => some <$> papp p' r
+    | none => pure none
+  | .fst p => match ← forceHead? p with
+    | some p' => some <$> fstV p'
+    | none => pure none
+  | .snd p => match ← forceHead? p with
+    | some p' => some <$> sndV p'
+    | none => pure none
+  | .splitApp f k env a => match ← forceHead? a with
+    | some a' => some <$> splitApp f k env a'
+    | none => pure none
+  | .unglue u b sys => match ← forceHead? u with
+    | some u' => some <$> unglueV u' b sys
+    | none => pure none
+  | _ => pure none
+
+/-- Plug in solved metavariables at the head of a value. -/
+partial def force (v : Val) : M Val := do
+  if !v.isNeutral || (← get).metas.isEmpty then return v
+  match ← forceHead? v with
+  | some v' => force v'
+  | none => pure v
 
 /-- Type of a neutral value, if it can be determined. -/
 partial def inferNe (v : Val) : M (Option Val) := do
