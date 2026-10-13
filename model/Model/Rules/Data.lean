@@ -543,15 +543,116 @@ theorem sem_EqTm_conBnd {Ψ Φ Γ d D c C ps args rs} {k : Nat} {ψ b T} (hS : S
       rfl
   exact ⟨h4, h4.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
+theorem constsLt_apps {n : ℕ} : ∀ (ts : List Tm) {f : Tm}, f.ConstsLt n → (∀ t ∈ ts, t.ConstsLt n) →
+    (Tm.apps f ts).ConstsLt n
+  | [], _, hf, _ => hf
+  | t :: ts, f, hf, ht => constsLt_apps ts (f := f.app t) ⟨hf, ht t List.mem_cons_self⟩
+      fun u hu => ht u (List.mem_cons_of_mem _ hu)
+
+theorem constsLt_papps {n : ℕ} : ∀ (rs : List I) {f : Tm}, f.ConstsLt n → (Tm.papps f rs).ConstsLt n
+  | [], _, hf => hf
+  | r :: rs, f, hf => constsLt_papps rs (f := f.papp r) hf
+
 theorem sem_EqTm_elimCon {Ψ Φ Γ d D c C ps P bs b qs args rs T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
-    (h1 : D.ctors[c]? = some C) (h2 : bs.toList[c]? = some b)
+    (h1 : D.ctors[c]? = some C) (h2 : bs.toList[c]? = some b) (hpl : ps = Tm.ofList ps.toList)
     (hal : args = Tm.ofList args.toList) (hbl : bs = Tm.ofList bs.toList)
     (hat : SemTele S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
     (h3 : SemTy S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T) :
     SemEq S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
       (Tm.papps (Tm.apps b (args.toList ++
         C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T := by
-  sorry
+  have hc : c < bs.toList.length := (List.getElem?_eq_some_iff.1 h2).1
+  obtain ⟨hdl, hpc, hPc, hbc, -, -, hac⟩ := h3.2.1
+  have hcl : (Tm.papps (Tm.apps b (args.toList ++
+      C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs).ConstsLt S.length := by
+    refine constsLt_papps _ (constsLt_apps _ (Tm.ConstsLt.toList_mem hbc b (List.mem_of_getElem? h2)) fun t ht => ?_)
+    rcases List.mem_append.1 ht with ht | ht
+    · exact Tm.ConstsLt.toList_mem hac t ht
+    · obtain ⟨k, -, rfl⟩ := List.mem_map.1 ht
+      refine ⟨hdl, hpc, hPc, hbc, ?_⟩
+      rw [List.getD_eq_getElem?_getD]
+      cases hk : args.toList[k]? with
+      | none => trivial
+      | some t => exact Tm.ConstsLt.toList_mem hac t (List.mem_of_getElem? hk)
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S (Tm.papps (Tm.apps b (args.toList ++
+      C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) m ρ γ =
+      sem S (elim d ps P bs (con d c qs args rs)) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h3.2.2.2 m ρ γ hp
+    have hne := hty.ne_empty hmem
+    rw [sem_elim h0] at hne
+    split at hne
+    swap; · exact absurd rfl hne
+    rename_i g
+    have hρ : ρ.restr (Hom.id m) = ρ := IEnv.restr_id ρ
+    have hγ : TEnv.restr γ (Hom.id m) = γ := TEnv.restr_id_of_kv hp.kv
+    have hpok := g.1
+    have hgood := ((hS.2 d D h0).2 m _ hpok).1
+    have hde := g.2.1
+    simp only [psRV, hρ, hγ] at hde
+    have hcne : sem S (con d c qs args rs) m ρ γ ≠ ∅ := fun h => not_isKV_empty (h ▸ hde.kv)
+    have hcg := conGuard_of_sem h0 hcne
+    obtain ⟨hatv, hnat, hlen⟩ := tele_argsTyped hS h0 h1 hpl hat hp hpok
+    set vals := args.toList.map fun t => sem S t m ρ γ with hvals
+    have hplv : plist (psRV S args m ρ γ m (Hom.id m)) C.args.length = vals := by
+      simp only [psRV, hρ, hγ]
+      rw [hal, sem_ofList_vlist, ← hlen,
+        show args.toList.length = (args.toList.map fun t => sem S t m ρ γ).length by simp, plist_vlist]
+    have hcon : sem S (con d c qs args rs) m ρ γ = conV D.ctors m c vals (rs.map (ival ρ)) := by
+      rw [sem_con_of h0 hcg, getD_ctors h1, hplv]
+    obtain ⟨C', hC', hrsl, -⟩ := hcg
+    rw [h1] at hC'; cases hC'
+    have hrs' : (rs.map (ival ρ)).length = C.dims := by simpa using hrsl
+    -- the eliminator on the arguments
+    have hel : ∀ j (hj : j < args.toList.length), C.isRec j = true →
+        sem S (elim d ps P bs (args.toList[j])) m ρ γ = elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ))
+          (motV S P ρ γ) (psRV S bs m ρ γ) m (Hom.id m) (vals[j]'(by simpa [vals] using hj)) ∧
+        Natural S (elim d ps P bs (args.toList[j])) m ρ γ := by
+      intro j hj hr
+      have hn := hnat _ (List.getElem_mem hj)
+      have hdj : DElem (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) m (Hom.id m) (vals[j]'(by simpa [vals] using hj)) :=
+        hatv.2.1 j _ (List.getElem?_eq_getElem _) hr
+      have gj : ElimGuard (sigUpTo S d) D d m (psRV S ps m ρ γ) (motV S P ρ γ) (psRV S bs m ρ γ)
+          (psRV S (args.toList[j]) m ρ γ) := by
+        refine ⟨hpok, ?_, g.2.2.1, g.2.2.2⟩
+        simp only [psRV, hρ, hγ]; simpa [vals] using hdj
+      obtain ⟨e1, e2⟩ := sem_elim_guard hS h0 hp.kv gj hn
+      exact ⟨by rw [e1]; simp [vals], e2⟩
+    have hnatall : ∀ t ∈ args.toList ++ C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort),
+        Natural S t m ρ γ := by
+      intro t ht
+      rcases List.mem_append.1 ht with ht | ht
+      · exact hnat t ht
+      · obtain ⟨k, hk, rfl⟩ := List.mem_map.1 ht
+        have hk' : k ∈ (List.range C.args.length).filter C.isRec := hk
+        rw [List.mem_filter, List.mem_range] at hk'
+        rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega), Option.getD_some]
+        exact (hel k (by omega) hk'.2).2
+    rw [sem_elim h0, if_pos g]
+    simp only [hρ, hγ]
+    have hL : elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ) (psRV S bs m ρ γ) m (Hom.id m)
+        (conV D.ctors m c vals (rs.map (ival ρ))) = pappsV m (appsV m (vnth (psRV S bs m ρ γ m (Hom.id m)) c)
+          (vals ++ C.recPos.map fun j => elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ)
+            (psRV S bs m ρ γ) m (Hom.id m) (vals.getD j ∅))) (rs.map (ival ρ)) :=
+      (elimD_conV_typed hgood _ _ g.2.2.1 h1 hatv hrs').trans
+        (elimBranch_eq (Θ := dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) _ _ h1 hatv.1 _)
+    rw [hcon]
+    refine Eq.trans ?_ hL.symm
+    rw [sem_papps, sem_apps_of_nat _ _ hnatall]
+    have hBSv : sem S b m ρ γ = vnth (psRV S bs m ρ γ m (Hom.id m)) c := by
+      simp only [psRV, hρ, hγ]; rw [sem_vnth bs _ _ c hc]
+      rw [List.getElem?_eq_getElem hc] at h2; cases h2; rfl
+    rw [hBSv, List.map_append, List.map_map]
+    congr 3
+    apply List.map_congr_left
+    intro k hk
+    have hk' : k ∈ (List.range C.args.length).filter C.isRec := hk
+    rw [List.mem_filter, List.mem_range] at hk'
+    simp only [Function.comp]
+    rw [List.getD_eq_getElem?_getD (l := args.toList), List.getElem?_eq_getElem (by omega), Option.getD_some,
+      (hel k (by omega) hk'.2).1, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by simp [vals]; omega),
+      Option.getD_some]
+  exact ⟨h3, h3.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} (hS : SigOK S)
     (hd : S[d]? = some (.data D)) (hh : SemTy S Ψ Φ Γ (hcomp (data d ps) φ u a) (data d ps))

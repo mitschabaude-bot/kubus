@@ -148,7 +148,7 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
   | .elim h0 h1 h2 h3 h4 hbl hbl' h5 h6 h7 => sem_EqTm_elim hS h0 (sound_ty hS h1) (sound_ty hS h2) (sound_eqtele hS h3)
       (sound_eq hS h4) hbl hbl' h5 (fun c C b b' e1 e2 e3 => sound_eq hS (h6 c C b b' e1 e2 e3)) (sound_eq hS h7)
   | .conBnd h0 h1 h2 h3 hpl hal h4 => sem_EqTm_conBnd hS h0 h1 h2 h3 hpl hal (sound_ty hS h4)
-  | .elimCon h0 h1 h2 hal hbl hat h3 => sem_EqTm_elimCon hS h0 h1 h2 hal hbl (sound_tele hS hat) (sound_ty hS h3)
+  | .elimCon h0 h1 h2 hpl hal hbl hat h3 => sem_EqTm_elimCon hS h0 h1 h2 hpl hal hbl (sound_tele hS hat) (sound_ty hS h3)
   | .elimHcomp hd hh h0 => sem_EqTm_elimHcomp hS hd (sound_ty hS hh) (sound_ty hS h0)
   | .transpData0 h0 h1 h2 => sem_EqTm_transpData0 hS h0 h1 (sound_ty hS h2)
   | .transpCon h0 h1 h2 hpl hal hat h3 => sem_EqTm_transpCon hS h0 h1 h2 hpl hal (sound_tele hS hat) (sound_ty hS h3)
