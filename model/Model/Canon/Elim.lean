@@ -79,9 +79,9 @@ theorem RE_of_DR_K {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : 
   exact (RE_data_iff hW hd hpsT).2 ⟨hr2.typed, hr2⟩
 
 /-- The eliminator is computable on computable elements (by induction on the relation). -/
-theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : ℕ} {ps P bs : Tm} {m : ℕ}
-    (hE : ∀ k (σ : ISub k k0), ElimPrem S k .one [] d D (ps.isub σ) (P.isub σ) (bs.isub σ) m)
-    (hPc : ∀ k (σ : ISub k k0) t, RE S k (.data d (ps.isub σ)) t → RE S k (.univ m) ((P.isub σ).inst t))
+theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : ℕ} {ps P bs : Tm}
+    (hE : ∀ k (σ : ISub k k0), ∃ m, ElimPrem S k .one [] d D (ps.isub σ) (P.isub σ) (bs.isub σ) m)
+    (hPc : ∀ k (σ : ISub k k0) t, RE S k (.data d (ps.isub σ)) t → RT S k ((P.isub σ).inst t))
     (hRT : ∀ k (σ : ISub k k0), RT S k (.data d (ps.isub σ)))
     (hbr : ∀ k (σ : ISub k k0) (c : ℕ) (C : Ctor) (b : Tm), D.ctors[c]? = some C → (bs.isub σ).toList[c]? = some b →
       RE S k (D.branchTy d c C (ps.isub σ) (P.isub σ)) b) :
@@ -95,7 +95,7 @@ theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : 
   | @con k g A t qs c C args rs hm hC hrs hsc hqs hAeq he hlen hrec hpt ihrec =>
     intro σ hg hA
     subst hg
-    have hEk := hE k σ
+    obtain ⟨m, hEk⟩ := hE k σ
     have hpsT' : HasTy S k .one [] (.data d (ps.isub σ)) (.univ D.level) := minimal_to_spec hEk.hdata
     have hpl' := hEk.hps
     have hpsl' : (ps.isub σ).toList.length = D.params.length := by simpa using tele_length hEk.hpt
@@ -218,7 +218,7 @@ theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : 
   | @hcomp k g A t qs u a φ hm hH hsc hn hqs hAeq he ha hu iha ihu =>
     intro σ hg hA
     subst hg
-    have hEk := hE k σ
+    obtain ⟨m, hEk⟩ := hE k σ
     have hpsT' : HasTy S k .one [] (.data d (ps.isub σ)) (.univ D.level) := minimal_to_spec hEk.hdata
     have hqp : TyEq S k (.data d qs) (.data d (ps.isub σ)) := hAeq.symm.trans hW hA
     obtain ⟨lq, eq⟩ := tyEq_eq hW hqp ⟨_, hpsT'⟩
@@ -236,7 +236,7 @@ theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : 
     have hrel : ∀ k' (σ' : ISub k' k) x X, DR S d D (dataMem S (ΘK S D d k0 ps) (Hom.id k0))
         (dataP S (ΘK S D d k0 ps) (Hom.id k0)) k' (σ.comp σ').hom X x →
         TyEq S k' X (.data d (ps.isub (σ.comp σ'))) → RE S k' (.data d (ps.isub (σ.comp σ'))) x :=
-      fun k' σ' x X hr hX => RE_of_DR_K hW hd (σ.comp σ') (minimal_to_spec (hE k' (σ.comp σ')).hdata) hr hX
+      fun k' σ' x X hr hX => RE_of_DR_K hW hd (σ.comp σ') (minimal_to_spec (hE k' (σ.comp σ')).choose_spec.hdata) hr hX
     have hu' : TubeC S k (.data d (ps.isub σ)) φ u := fun k' σ' r hr hh => by
       have h1 := hu k' σ' r hr hh
       rw [← ISub.hom_comp] at h1
@@ -273,7 +273,7 @@ theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : 
       exact this
     have hKC : KanAll S (k + 1) ((P.isub σ).dshift.inst (Tm.hfill (.data d (ps.isub σ)) φ u a)) :=
       kanAll_of_RT hW fun k' ρ => by
-        rw [hPσ]; exact ((RE_univ_iff hW).1 (hPc k' (σ.comp ρ.tail) _ (hHρ k' ρ))).2.2
+        rw [hPσ]; exact hPc k' (σ.comp ρ.tail) _ (hHρ k' ρ)
     have e2' : EqTm S k .one [] (.elim d (ps.isub σ) (P.isub σ) (bs.isub σ) (.hcomp (.data d qs) φ u a))
         (Tm.comp ((P.isub σ).dshift.inst (Tm.hfill (.data d (ps.isub σ)) φ u a)) φ
           (.elim d (ps.isub σ).dshift (P.isub σ).dshift (bs.isub σ).dshift u) (.elim d (ps.isub σ) (P.isub σ) (bs.isub σ) a))
@@ -304,13 +304,14 @@ theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : 
           show Tm.data d ((ps.isub σ).isub σ') = _; rw [Tm.isub_isub]] at this
         exact this)
       rw [isub_up_dinst _ σ' r hr, ← Tm.isub_isub, ← Tm.isub_isub, ← Tm.isub_isub] at h1
-      have hPk := minimal_to_spec (hE k' (σ.comp σ')).hP
+      obtain ⟨m', hE'⟩ := hE k' (σ.comp σ')
+      have hPk := minimal_to_spec hE'.hP
       rw [← Tm.isub_isub, ← Tm.isub_isub] at hPk
       have eHu := EqTm0.isub hS (Ψ' := k') (Φ' := .one) (τ := (ISub.cons r hr σ').τ) hHu
         (fun i hi => (ISub.cons r hr σ').sc i hi) (ent_cof_cons hW hφ' r hr σ' hh) (Wf0.nil trivial)
       have eHu' := minimal_to_spec_eq eHu
       rw [← isub_eq_subst, ← isub_eq_subst, ← isub_eq_subst, dshift_isub_cons] at eHu'
-      exact h1.conv_ty hW (.inr ⟨m, EqTm.subst (EqTm.refl hPk) (EqTm.symm eHu')⟩)
+      exact h1.conv_ty hW (.inr ⟨m', EqTm.subst (EqTm.refl hPk) (EqTm.symm eHu')⟩)
     · rw [dshift_inst_dinst]
       exact (iha σ rfl hqp).conv_ty hW (.inr ⟨m, EqTm.subst (EqTm.refl hP'') (EqTm.symm (minimal_to_spec_eq hHe0))⟩)
 

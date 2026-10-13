@@ -1,5 +1,5 @@
 import Model.Canon.Kan
-import Model.Canon.ArgConv
+import Model.Canon.Elim
 
 /-!
 # Canonicity: the fundamental lemma
@@ -57,6 +57,15 @@ theorem teleCompS_get {γ : ℕ → Tm} {τ : ℕ → I} : ∀ {ts : Tm} {Δ pre
   | .tnil, [], _, _ => fun j hj => by simp [Tm.toList] at hj
   | .tnil, _ :: _, _, h => h.elim
   | .tcons _ _, [], _, h => h.elim
+
+theorem CSub.upγ_restr_subst (hW : WfSig S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} (c : CSub S Ψ Φ Γ k) (σ : ISub k' k) (t : Tm) :
+    t.subst (Tm.up (c.restr hW σ).γ) (c.restr hW σ).σ.τ = (t.subst (Tm.up c.γ) c.σ.τ).isub σ := by
+  simp only [CSub.restr, Tm.isub, subst_subst, ISub.comp]
+  apply subst_congr
+  · intro x; cases x with
+    | zero => rfl
+    | succ x => exact (isub_shift (c.γ x) σ).symm
+  · intro i; rfl
 
 variable (hW : WfSig S) {n : ℕ} (hH : Hyp S n)
 include hW hH
@@ -338,8 +347,53 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
       rwa [Meta.paramVars_substList (isList_subst h2 _ _) (by rw [toList_subst h2]; simp [hpsl])
         (by rw [List.length_reverse, List.length_take, List.length_map]; exact Nat.min_eq_left hjl.le)] at this
   | @HasTy0.elim _ Ψ Φ Γ d D ps P bs t m h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => fun hc k c => by
-    have iht := fund_ty h9
-    sorry
+    have hS := sigClosed_of_wfSig hW
+    have iht := fund_ty h9 hc.2.2.2.2 k c
+    have hpsT : HasTy S k .one [] (.data d (ps.subst c.γ c.σ.τ)) (.univ D.level) := c.ty hW h2
+    obtain ⟨-, hdr⟩ := (RE_data_iff hW h0 hpsT).1 iht
+    have hel := c.ty hW (HasTy0.elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9)
+    rw [inst_subst] at hel ⊢
+    obtain ⟨D', m0, hE0, -⟩ := gen_elimP (spec_to_minimal hW hel) rfl
+    have hpc : (ps.subst c.γ c.σ.τ).closedB 0 k = true := by
+      have := closed_of_ty hW hpsT; simpa [Tm.closedB] using this
+    have hPc : (P.subst (Tm.up c.γ) c.σ.τ).closedB 1 k = true := by
+      have := closed_ty hE0.hP; simpa using this
+    have hbc : (bs.subst c.γ c.σ.τ).closedB 0 k = true := by
+      have : (Tm.elim d (ps.subst c.γ c.σ.τ) (P.subst (Tm.up c.γ) c.σ.τ) (bs.subst c.γ c.σ.τ)
+          (t.subst c.γ c.σ.τ)).closedB 0 k = true := closed_of_ty hW hel
+      simp only [Tm.closedB, Bool.and_eq_true] at this; exact this.1.2
+    have key := RE_elim_DR hW h0 (k0 := k) (ps := ps.subst c.γ c.σ.τ) (P := P.subst (Tm.up c.γ) c.σ.τ)
+      (bs := bs.subst c.γ c.σ.τ) ?_ ?_ ?_ ?_ hdr (ISub.id k) (ISub.hom_id k).symm
+      (by rw [isub_id_of_closed hpc]; exact TyEq.refl _)
+    · rwa [isub_id_of_closed hpc, isub_id_of_closed hPc, isub_id_of_closed hbc] at key
+    · intro k' σ
+      have h := (c.restr hW σ).ty hW (HasTy0.elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9)
+      obtain ⟨D'', m', hE', -⟩ := gen_elimP (spec_to_minimal hW h) rfl
+      have hDD : D'' = D := by have := hE'.hD; rw [h0] at this; cases this; rfl
+      rw [hDD, CSub.restr_subst, CSub.upγ_restr_subst, CSub.restr_subst] at hE'
+      exact ⟨m', hE'⟩
+    · intro k' σ x hx
+      have hx' : RE S k' ((Tm.data d ps).subst (c.restr hW σ).γ (c.restr hW σ).σ.τ) x := by
+        rw [CSub.restr_subst]; exact hx
+      have := fund_ty h4 hc.2.2.1 k' ((c.restr hW σ).ext hW (.data d ps) x hx')
+      rw [show P.subst ((c.restr hW σ).ext hW (.data d ps) x hx').γ ((c.restr hW σ).ext hW (.data d ps) x hx').σ.τ =
+        ((P.subst (Tm.up c.γ) c.σ.τ).isub σ).inst x from (subst_up_isub_inst P x c.γ c.σ.τ σ).symm] at this
+      exact ((RE_univ_iff hW).1 this).2.2
+    · intro k' σ
+      have := fund_ty h2 ⟨hc.1, hc.2.1⟩ k' (c.restr hW σ)
+      rw [CSub.restr_subst hW c (.data d ps)] at this
+      exact ((RE_univ_iff hW).1 this).2.2
+    · intro k' σ c' C b hC hb
+      have hbl : ((bs.subst c.γ c.σ.τ).isub σ).toList =
+          bs.toList.map (·.subst (c.restr hW σ).γ (c.restr hW σ).σ.τ) := by
+        rw [← CSub.restr_subst, toList_subst h5]
+      rw [hbl, List.getElem?_map] at hb
+      obtain ⟨b0, hb0, rfl⟩ := Option.map_eq_some_iff.1 hb
+      have hb0c : b0.ConstsLt n := Model.Tm.ConstsLt.toList_mem hc.2.2.2.1 b0 (List.mem_of_getElem? hb0)
+      have := fund_ty (h7 c' C b0 hC hb0) hb0c k' (c.restr hW σ)
+      rw [branchTy_subst _ _ hS h0 hC h1 (by simpa using tele_length h3) P, CSub.restr_subst,
+        CSub.upγ_restr_subst] at this
+      exact this
 
 theorem fund_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → ts.ConstsLt n → ∀ k (c : CSub S Ψ Φ Γ k),
     TeleCompS S k c.γ c.σ.τ ts Δ prev
