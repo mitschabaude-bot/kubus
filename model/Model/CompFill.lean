@@ -141,6 +141,25 @@ theorem fillF_natural (h : Hom n k) :
 
 end fill
 
+section compRestr
+
+variable {c : V} (hc : Fib c m) {f : Hom (k + 1) m} {ψ : Cof k} (hψ : ψ.IsCof) {u : Tube k} {u0 : V}
+  (hu0 : u0 ∈ El c (f.comp (Hom.endpt k (DM.zero k)))) (hu : LineTubeOK c f ψ u u0)
+include hc hψ hu0 hu
+
+theorem comp_base_restr (h : Hom n k) :
+    res h u0 ∈ El c ((f.comp (Hom.lift h)).comp (Hom.endpt n (DM.zero n))) := by
+  have := hc.elRes _ _ _ hu0 n h
+  rwa [Hom.comp_assoc, TranspPi.lift_comp_endpt0, ← Hom.comp_assoc]
+
+/-- A restricted composition on its face is the tube at the end. -/
+theorem compF_restr_face (h : Hom n k) (hh : (ψ.restr h).holds) :
+    res h (compF c f ψ u u0) = u n h (DM.one n) := by
+  rw [compF_res hc hψ hu0 hu h, compF_face hc (hψ.restr h) (comp_base_restr hc hψ hu0 hu h) (hu.restr h) hh]
+  simp only [Tube.restr, Hom.comp_id]
+
+end compRestr
+
 end
 
 end Model
