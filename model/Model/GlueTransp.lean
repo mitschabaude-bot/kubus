@@ -577,6 +577,63 @@ theorem gt_T1'_res {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (h : Hom n' k)
 
 end gtNat
 
+/-! ### The extension `ext` -/
+
+section gtExt
+
+variable {A : V} {φ : Cof (n + 1)} {Tp ep : V} (hG : GlueOK A φ Tp ep) {ψ : Cof n} (hψ : ψ.IsCof)
+  {u0 : V} (hu0 : u0 ∈ El (glueC (n + 1) A φ Tp ep) (eZ n))
+  (hcon : ConstOn (glueC (n + 1) A φ Tp ep) (Hom.id (n + 1)) ψ)
+
+include hG hψ hu0 hcon in
+theorem gt_Ω_psi {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (hψg : (ψ.restr g).holds) :
+    gtΩ A φ Tp ep ψ u0 g = res (Hom.wk k) (res g (gtA1' A φ ep ψ u0)) := by
+  have hface : (pathFace (ψ.restr g)).holds := by
+    rw [pathFace, Cof.holds_or]; left; exact ((hψ.restr g).holds_restr hψg _)
+  have hgw := gt_δ_comp hG hg (Hom.wk k)
+  have hψgw : (ψ.restr (g.comp (Hom.wk k))).holds := by
+    rw [← Cof.restr_restr]; exact (hψ.restr g).holds_restr hψg _
+  rw [gtΩ, compF_face hG.fibA (isCof_pathFace (hψ.restr g)) (gt_ΩBase_mem hG hu0 hg)
+    (gt_Ω_ok hG hψ hu0 hcon hg) hface]
+  unfold gtΩTube
+  rw [Hom.comp_id, if_pos hψgw, res_res, gt_A1'_restr_face hG hψ hu0 hcon hψgw]
+  have hP := gt_δ_snoc hG.cof hgw (DM.one (k + 1))
+  rw [ungAt, if_pos hP, if_pos ((hG.fibT _ _ hP).elKV _ _ _ (gt_u0_T hG hu0 hcon hgw hψgw _))]
+
+include hG hu0 hcon in
+theorem gt_u0_T1 {g : Hom k n} (hψg : (ψ.restr g).holds) (hφg : (φ.restr ((eO n).comp g)).holds) :
+    res g u0 ∈ El (gtT1 Tp g) (Hom.id k) := by
+  have h0 := gt_u_mem hG hu0 hcon hψg (DM.one k)
+  rw [El_eq_res_id, snoc_one_eq, res_glueC hG.Tcoh (fun k f hf => (hG.fibT k f hf).kv) hG.cof, if_pos hφg] at h0
+  exact h0
+
+include hG hψ hu0 hcon in
+theorem gt_A1'_psi {g : Hom k n} (hψg : (ψ.restr g).holds) (hφg : (φ.restr ((eO n).comp g)).holds) :
+    res g (gtA1' A φ ep ψ u0) = eqFun k (gtE1 ep g) (res g u0) := by
+  rw [gt_A1'_restr_face hG hψ hu0 hcon hψg, ungAt, snoc_one_eq, if_pos hφg,
+    if_pos ((hG.fibT _ _ hφg).elKV _ _ _ (gt_u0_T1 hG hu0 hcon hψg hφg))]
+  rfl
+
+include hG hψ hu0 hcon in
+theorem gt_refl_mem {g : Hom k n} (hψg : (ψ.restr g).holds) (hφg : (φ.restr ((eO n).comp g)).holds) :
+    pairV k (res g u0) (pathOfLine k (res (Hom.wk k) (res g (gtA1' A φ ep ψ u0)))) ∈
+      El (gtFib A φ Tp ep ψ u0 g) (Hom.id k) := by
+  obtain ⟨hT, hA, hp, -⟩ := gt_e1 hG hφg
+  have ha := gt_A1'_g hG hψ hu0 hcon g
+  have hakv : IsKV k (res g (gtA1' A φ ep ψ u0)) := isKV_res _ _
+  have hfkv : IsKV k (fstV k (gtE1 ep g)) := (mem_piEl.1 (mem_arrowM hT.kv hp)).1
+  refine pairV_mem_fiberM hT.kv hA.kv hfkv hakv (gt_u0_T1 hG hu0 hcon hψg hφg) ?_
+  have e := gt_A1'_psi hG hψ hu0 hcon hψg hφg
+  rw [mem_pathC, Hom.lift_id]
+  refine ⟨_, ?_, rfl, ?_, ?_⟩
+  · have := hA.elRes _ _ _ ha (k + 1) (Hom.wk k)
+    rw [Hom.id_comp] at this; rw [El_res, Hom.comp_id]; exact this
+  · rw [res_res, Hom.wk_comp_endpt, res_id hakv,
+      show appV k (fstV k (gtE1 ep g)) (res g u0) = res g (gtA1' A φ ep ψ u0) from e.symm, res_id hakv]
+  · rw [res_res, Hom.wk_comp_endpt]
+
+end gtExt
+
 section fields
 
 variable {A : V} {φ : Cof m} {Tp ep : V} (hG : GlueOK A φ Tp ep)
