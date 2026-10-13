@@ -4,6 +4,8 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 ## Phase 2 spec issues (read first)
 
+Status: P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
+
 ### P1. Inconsistent: boundary typing in `DataDecl.Wf` is vacuous (it can use the constructor's own boundary)
 
 `DataDecl.Wf` checks a boundary `[ψ ↦ b]` of constructor `c` by `HasTy S C.dims ψ (argCtx …) b (data d (paramVars …))` in `S.take (k + 1)`, which contains the full declaration. That judgment is always derivable, whatever `b` is: in the boundary context, `con d c (paramVars) (vars) (ivars) : data d …` by the `con` rule (its arguments are variables of the right types), and `conBnd` for this very constructor and clause (`Φ = ψ` entails `ψ`) gives `con d c … ≡ bndAt b … = b`, so `b : data d …` by `eqR`. The overlap condition is equally vacuous. So simplicity (`Ctor.simpleB`) is the only real check, and simplicity does not check that the point arguments passed to an earlier constructor have the right types.

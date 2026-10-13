@@ -96,8 +96,8 @@ theorem sem_EqTm_elimCon {Ψ Φ Γ d D c C ps P bs b qs args rs T} (hS : SigOK S
         C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T := by
   sorry
 
-theorem sem_EqTm_elimHcomp {Ψ Φ Γ d ps P bs qs φ u a T} (hS : SigOK S)
-    (h0 : SemTy S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T) :
+theorem sem_EqTm_elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} (hS : SigOK S)
+    (hd : S[d]? = some (.data D)) (h0 : SemTy S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T) :
     SemEq S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a))
       (comp (P.subst (fun | 0 => hfill (data d ps) φ u a | j + 1 => var j) (fun i => .var (i + 1))) φ
         (elim d ps.dshift P.dshift bs.dshift u) (elim d ps P bs a)) T := by
