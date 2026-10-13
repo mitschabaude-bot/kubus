@@ -120,13 +120,13 @@ theorem toMin_ty {Ψ Φ Γ t A} : HasTy S Ψ Φ Γ t A → HasTy0 S Ψ Φ Γ t A
   | .con h0 h1 h2 h3 h4 h5 h6 =>
     by
       have hd := toMin_ty h3
-      obtain ⟨D', hD', htele⟩ := gen_data_tele hS hd rfl
+      obtain ⟨D', hD', htele⟩ := gen_data_tele hd rfl
       rw [h0] at hD'; cases hD'
       exact HasTy0.con h0 h1 h2 hd htele (toMin_tele h4) h5 h6
   | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 =>
     by
       have hd := toMin_ty h2
-      obtain ⟨D', hD', htele⟩ := gen_data_tele hS hd rfl
+      obtain ⟨D', hD', htele⟩ := gen_data_tele hd rfl
       rw [h0] at hD'; cases hD'
       exact HasTy0.elim h0 h1 hd htele (toMin_ty h3) h4 h5
         (fun c C b a1 a2 => toMin_ty (h6 c C b a1 a2))

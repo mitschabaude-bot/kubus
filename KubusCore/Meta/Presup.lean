@@ -432,7 +432,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
     by
       have hv := pre_ty h2
       obtain ⟨l, ⟨hL, _, _, ha⟩, ch⟩ := gen_transpF h2 rfl
-      obtain ⟨D', hD', htele⟩ := gen_data_tele hS hL rfl
+      obtain ⟨D', hD', htele⟩ := gen_data_tele hL rfl
       rw [h0] at hD'; cases hD'
       rw [h1] at htele
       cases htele

@@ -264,6 +264,9 @@ theorem gen_glue {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {A φ T' e} (ht : t 
   | .con _ _ _ _ _ _ _ _ => by cases ht
   | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
 
+
+end
+
 theorem gen_data_tele {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d ps} (ht : t = .data d ps) :
     ∃ D, S[d]? = some (.data D) ∧ HasTele0 S Ψ Φ Γ ps D.params [] :=
   match h with
@@ -298,8 +301,6 @@ theorem gen_data_tele {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d ps} (ht : t 
   | .data h0 _ h2 => by cases ht; exact ⟨_, h0, h2⟩
   | .con _ _ _ _ _ _ _ _ => by cases ht
   | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
-
-end
 
 /-! ## The spec's inversion rules -/
 
