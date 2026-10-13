@@ -24,6 +24,13 @@ def fixedVar (Ψ : Nat) (Φ : I) :
       else fixedVar Ψ Φ is
     else fixedVar Ψ Φ is
 
+def transpConK {Ψ Φ Γ} (D : DataDecl) {d : Nat} (hS : S[d]? = some (.data D)) (hp : D.params ≠ [])
+    (c : Nat) {ps : Tm} {φ : I} {qs args : Tm} {rs : List I} {T : Tm}
+    (ht : HasTy S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T) :
+    K (Option (Red S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T)) := do
+  let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
+  return some ⟨_, EqTm.transpCon hS hp hC ht⟩
+
 /-- Computation rule of `transp` for a line in weak-head normal form. -/
 def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a T : Tm)
     (ht : HasTy S Ψ Φ Γ (.transp L φ a) T) : K (Option (Red S Ψ Φ Γ (.transp L φ a) T)) :=
@@ -38,6 +45,17 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
     let ⟨he⟩ ← checkEquiv R E.dext A ψ T' e l
     pure (some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht hA he⟩)
   | .ipi A, ht => pure (some ⟨Tm.transpIPi A φ a, EqTm.transpIPi ht⟩)
+  | .data d ps, ht => do
+    let ⟨D, ⟨hS⟩⟩ ← lookupData S d
+    if hp : D.params = [] then return some ⟨a, EqTm.transpData0 hS hp ht⟩
+    else
+      match a, ht with
+      | .con d' c qs args rs, ht =>
+        if hd : d' = d then (by subst hd; exact transpConK D hS hp c ht) else pure none
+      | .hcomp (.data d' qs) ψ u a0, ht =>
+        if hd : d' = d then (by subst hd; exact pure (some ⟨_, EqTm.transpHcomp hS hp ht⟩))
+        else pure none
+      | _, _ => return none
   | _, _ => pure none
 
 /-- Computation rule of `hcomp` for a type in weak-head normal form. -/
@@ -55,6 +73,20 @@ def hcompRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u 
   | .univ _, ht => pure (some ⟨Tm.hcompU φ u a, EqTm.hcompU ht⟩)
   | _, _ => pure none
 
+/-- Transport in an inductive type with parameters computes on constructors and formal
+compositions: reduce the transported element. -/
+def transpArgStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (Option (Red S Ψ Φ Γ (.transp L φ a) A × Bool)) := do
+  let i ← inferTransp R E L φ a
+  have hA0 : HasTy S Ψ Φ Γ (L.dinst .zero) (.univ i.l) := HasTy.dsubst i.hA trivial
+  let ⟨ai, ar⟩ ← R.whnfI E a
+  if ar.tm = a then return none
+  let ⟨ea⟩ ← bridge R E ai.hty hA0 ar.eq
+  have ht2 := HasTy.transp i.hA i.hφ i.heq (HasTy.eqR ea)
+  have e := EqTm.transp i.ht ht2 (EqTm.refl i.hA) (I.entails_refl φ) (I.entails_refl φ) ea
+  let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e
+  return some (⟨_, e⟩, false)
+
 /-- `transp`: face rule, reduction of the line, computation rule. -/
 def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ (.transp L φ a) A) :
@@ -63,7 +95,12 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
   let ⟨l1, ⟨hL⟩⟩ ← inferType R E.dext L
   let r ← whnfTy R E.dext L l1 hL
   if r.tm = L then
-    return (← transpRule R E L φ a A ht).map (·, false)
+    match ← transpRule R E L φ a A ht with
+    | some r2 => return some (r2, false)
+    | none =>
+      let r2 ← if (match L with | .data .. => true | _ => false) then transpArgStep R E L φ a A l hA
+        else pure none
+      return r2
   let i ← inferTransp R E L φ a
   let m := max l1 i.l
   let ⟨hm⟩ ← ensureLvl m
@@ -80,7 +117,7 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
   let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e
   match ← transpRule R E r.tm φ a A (HasTy.eqR e) with
   | some r2 => return some (⟨r2.tm, EqTm.trans e r2.eq⟩, false)
-  | none => return some (⟨.transp r.tm φ a, e⟩, true)
+  | none => return some (⟨.transp r.tm φ a, e⟩, false)
 
 /-- `hcomp`: face rule, reduction of the type, computation rule. -/
 def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u a A : Tm) (l : Nat)
@@ -115,6 +152,70 @@ def elimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     let ⟨e⟩ ← bridge R E i.hty hA r.eq
     pure (some (⟨r.tm, e⟩, true))
 
+/-- The first `k < n` for which `f k` gives a result. -/
+def firstSome {α : Type} (f : Nat → K (Option α)) : Nat → Nat → K (Option α)
+  | 0, _ => pure none
+  | n + 1, k => do
+    match ← f k with
+    | some x => pure (some x)
+    | none => firstSome f n (k + 1)
+
+/-- A constructor equals its boundary on the faces of the boundary. -/
+def conBndStep {Ψ Φ Γ} (d c : Nat) (ps args : Tm) (rs : List I) (A : Tm)
+    (ht : HasTy S Ψ Φ Γ (.con d c ps args rs) A) :
+    K (Option (Red S Ψ Φ Γ (.con d c ps args rs) A × Bool)) := do
+  let ⟨D, ⟨hS⟩⟩ ← lookupData S d
+  let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
+  firstSome (fun k =>
+    match getIdx? C.bnd k with
+    | some ⟨(ψ, _), ⟨hk⟩⟩ =>
+      if hent : I.Entails Φ (Ctor.cofAt ψ rs) then
+        pure (some (⟨_, EqTm.conBnd hS hC hk hent ht⟩, false))
+      else pure none
+    | none => pure none) C.bnd.length 0
+
+def elimConK {Ψ Φ Γ} (d c : Nat) (ps P bs qs args : Tm) (rs : List I) (T : Tm)
+    (ht : HasTy S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) T) :
+    K (Option (Red S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) T × Bool)) := do
+  let ⟨D, ⟨hS⟩⟩ ← lookupData S d
+  let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
+  match getIdx? bs.toList c with
+  | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb ht⟩, false))
+  | none => fail "kernel: missing branch"
+
+/-- Reduce the target of an eliminator. -/
+def elimTargetStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (Option (Red S Ψ Φ Γ (.elim d ps P bs t) A × Bool)) := do
+  let info ← inferElimInfo R E d ps P bs
+  let ⟨ti, tr⟩ ← R.whnfI E t
+  if tr.tm = t then return none
+  let ⟨et⟩ ← bridge R E ti.hty info.hD tr.eq
+  have h1 := info.typing (HasTy.eqL et)
+  have eP := EqTm.subst (EqTm.refl info.hP) (EqTm.symm et)
+  have h2 := HasTy.conv (info.typing (HasTy.eqR et)) eP
+  let ⟨hps⟩ ← checkTele R E ps info.D.params []
+  have e := EqTm.elim info.hS h1 h2 (HasTele.eqRefl hps) (EqTm.refl info.hP) rfl
+    (fun c C b b' hC hb hb' => by
+      rw [hb] at hb'; cases hb'; exact EqTm.refl (info.hbr c C b hC hb)) et
+  let ⟨e⟩ ← bridge R E (HasTy.subst info.hP (HasTy.eqL et)) hA e
+  let canonical := match tr.tm with
+    | .con .. | .hcomp (.data ..) .. => true
+    | _ => false
+  return some (⟨_, e⟩, !canonical)
+
+/-- β for the eliminator on constructors and formal compositions. -/
+def dataElimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ (.elim d ps P bs t) A) :
+    K (Option (Red S Ψ Φ Γ (.elim d ps P bs t) A × Bool)) :=
+  match t, ht with
+  | .con d' c qs args rs, ht =>
+    if hd : d' = d then (by subst hd; exact elimConK d' c ps P bs qs args rs A ht)
+    else pure none
+  | .hcomp (.data d' qs) φ u a, ht =>
+    if hd : d' = d then (by subst hd; exact pure (some (⟨_, EqTm.elimHcomp ht⟩, false)))
+    else pure none
+  | t, _ => elimTargetStep R E d ps P bs t A l hA
+
 /-- One head step at type `A`; `none` if `t` is in weak-head normal form. The flag says that
 the result is already in weak-head normal form. -/
 def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
@@ -144,6 +245,8 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
       pure (some (⟨b, e⟩, false))
     | _, _ => fail s!"kernel: unknown constant c{k}"
   | .transp L φ a, ht => transpStep R E L φ a A l hA ht
+  | .con d c ps args rs, ht => conBndStep d c ps args rs A ht
+  | .elim d ps P bs t, ht => dataElimStep R E d ps P bs t A l hA ht
   | .hcomp B φ u a, ht => hcompStep R E B φ u a A l hA ht
   | .app f a, _ => elimStep R E (.app f a) A l hA
   | .fst p, _ => elimStep R E (.fst p) A l hA

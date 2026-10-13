@@ -1,4 +1,4 @@
-import KubusCore.Kernel.Basic
+import KubusCore.Kernel.Data
 
 /-!
 # Kernel: type inference and checking
@@ -271,7 +271,17 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K (Inf
     let ⟨he⟩ ← checkEquiv R E A φ T e i.lvl
     pure ⟨A, i.lvl, hA, HasTy.unglue (HasTy.eqR eG) hA he (HasTy.conv i.htm eG)⟩
   | .tnil | .tcons .. => fail "kernel: a list is not a term"
-  | .data .. | .con .. | .elim .. => fail "kernel: inductive types are not supported yet"
+  | .data d ps => do
+    let ⟨D, ⟨_, hD⟩⟩ ← inferData R E d ps
+    let ⟨hU⟩ ← univTyK E D.level
+    pure ⟨.univ D.level, D.level + 1, hU, hD⟩
+  | .con d c ps args rs => do
+    let ⟨D, ⟨_, hD, hc⟩⟩ ← inferCon R E d c ps args rs
+    pure ⟨.data d ps, D.level, hD, hc⟩
+  | .elim d ps P bs t => do
+    let i ← inferElimInfo R E d ps P bs
+    let ⟨ht⟩ ← R.check E t (.data d ps) i.D.level i.hD
+    pure ⟨P.inst t, i.m, HasTy.subst i.hP ht, i.typing ht⟩
 
 def checkByInfer (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (PLift (HasTy S Ψ Φ Γ t A)) := do
