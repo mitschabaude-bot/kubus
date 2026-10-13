@@ -56,8 +56,8 @@ theorem gen_data {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d ps} (ht : t = .da
   | .glueEl _ _ _ _ _ => by cases ht
   | .unglue _ _ _ _ => by cases ht
   | .data h0 _ h2 => by cases ht; exact ⟨_, h0, tele_length h2⟩
-  | .con _ _ _ _ _ _ _ => by cases ht
-  | .elim _ _ _ _ _ _ _ _ _ => by cases ht
+  | .con _ _ _ _ _ _ _ _ => by cases ht
+  | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
 
 theorem gen_con {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d c ps args rs}
     (ht : t = .con d c ps args rs) :
@@ -91,12 +91,10 @@ theorem gen_con {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d c ps args rs}
   | .glueEl _ _ _ _ _ => by cases ht
   | .unglue _ _ _ _ => by cases ht
   | .data _ _ _ => by cases ht
-  | .con h0 h1 h2 h3 h4 h5 _ => by
+  | .con h0 h1 h2 _ h4 h5 h6 _ => by
     cases ht
-    obtain ⟨D', hD', hl⟩ := gen_data h3 rfl
-    rw [h0] at hD'; cases hD'
-    exact ⟨_, _, h0, h1, h2, hl, by rw [tele_length h4, argTys_length], h5⟩
-  | .elim _ _ _ _ _ _ _ _ _ => by cases ht
+    exact ⟨_, _, h0, h1, h2, tele_length h4, by rw [tele_length h5, argTys_length], h6⟩
+  | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
 
 theorem gen_elim {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d ps P bs u}
     (ht : t = .elim d ps P bs u) :
@@ -129,12 +127,10 @@ theorem gen_elim {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d ps P bs u}
   | .glueEl _ _ _ _ _ => by cases ht
   | .unglue _ _ _ _ => by cases ht
   | .data _ _ _ => by cases ht
-  | .con _ _ _ _ _ _ _ => by cases ht
-  | .elim h0 h1 h2 _ h4 _ _ _ _ => by
+  | .con _ _ _ _ _ _ _ _ => by cases ht
+  | .elim h0 h1 _ h3 _ h5 _ _ _ _ => by
     cases ht
-    obtain ⟨D', hD', hl⟩ := gen_data h2 rfl
-    rw [h0] at hD'; cases hD'
-    exact ⟨_, h0, h1, hl, h4⟩
+    exact ⟨_, h0, h1, tele_length h3, h5⟩
 
 /-- The line of a transport is a type (under a weaker restriction). -/
 theorem gen_transp {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {A φ a} (ht : t = .transp A φ a) :
@@ -169,8 +165,8 @@ theorem gen_transp {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {A φ a} (ht : t =
   | .glueEl _ _ _ _ _ => by cases ht
   | .unglue _ _ _ _ => by cases ht
   | .data _ _ _ => by cases ht
-  | .con _ _ _ _ _ _ _ => by cases ht
-  | .elim _ _ _ _ _ _ _ _ _ => by cases ht
+  | .con _ _ _ _ _ _ _ _ => by cases ht
+  | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
 
 theorem gen_transp_data {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d ps φ a}
     (ht : t = .transp (.data d ps) φ a) :

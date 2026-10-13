@@ -98,35 +98,36 @@ theorem ren_ty (hS : SigClosed S) {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → Ctx
     by have hφ := scoped_cof_right (scoped_of_ty h2); simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]; exact HasTy0.unglue (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h0).2 hR) ((ren_ty hS h1).2 hR) (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h2).2 (hR.underCof hφ)) (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h3).2 hR)⟩
   | .data h0 h1 h2 => ⟨(ren_tele hS h2).1, fun {Ψ' Φ' Δ ρ δ} hR =>
     by simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]; exact HasTy0.data h0 h1 ((ren_tele hS h2).2 (fun k A hk => by simpa using hS.params _ _ _ _ h0 hk) hR)⟩
-  | .con h0 h1 h2 h3 h4 h5 h6 => ⟨(ren_ty hS h3).1, fun {Ψ' Φ' Δ ρ δ} hR =>
+  | .con h0 h1 h2 h3 h4 h5 h6 h7 => ⟨(ren_ty hS h3).1, fun {Ψ' Φ' Δ ρ δ} hR =>
     by
-      obtain ⟨D', hD', hlen⟩ := gen_data h3 rfl
-      rw [h0] at hD'; cases hD'
-      have ht := (ren_tele hS h4).2 (fun k A hk => by
+      have hlen := tele_length h4
+      have ht := (ren_tele hS h5).2 (fun k A hk => by
         rw [List.length_reverse, hlen]; exact argTys_closed hS h0 h1 k A hk) hR
       simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]
-      refine HasTy0.con h0 h1 (isList_subst h2 _ _) ((ren_ty hS h3).2 hR) ?_ (by simpa using h5) (fun r hr => ?_)
+      refine HasTy0.con h0 h1 (isList_subst h2 _ _) ((ren_ty hS h3).2 hR)
+        ((ren_tele hS h4).2 (fun k A hk => by simpa using hS.params _ _ _ _ h0 hk) hR) ?_ (by simpa using h6) (fun r hr => ?_)
       · rw [toList_subst h2, ← List.map_reverse]; exact ht
-      · obtain ⟨r0, hr0, rfl⟩ := List.mem_map.1 hr; exact hR.sc (h6 r0 hr0)⟩
-  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 => ⟨(ren_ty hS h2).1, fun {Ψ' Φ' Δ ρ δ} hR =>
+      · obtain ⟨r0, hr0, rfl⟩ := List.mem_map.1 hr; exact hR.sc (h7 r0 hr0)⟩
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => ⟨(ren_ty hS h2).1, fun {Ψ' Φ' Δ ρ δ} hR =>
     by
-      obtain ⟨D', hD', hlen⟩ := gen_data h2 rfl
-      rw [h0] at hD'; cases hD'
+      have hlen := tele_length h3
       simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]
-      refine HasTy0.elim h0 (isList_subst h1 _ _) ((ren_ty hS h2).2 hR) ((ren_ty hS h3).2 (hR.up (ren_ty hS h3).1)) (isList_subst h4 _ _)
-        (by rw [toList_subst h4, List.length_map, h5]) ?_ ?_ ((ren_ty hS h8).2 hR)
+      refine HasTy0.elim h0 (isList_subst h1 _ _) ((ren_ty hS h2).2 hR)
+        ((ren_tele hS h3).2 (fun k A hk => by simpa using hS.params _ _ _ _ h0 hk) hR)
+        ((ren_ty hS h4).2 (hR.up (ren_ty hS h4).1)) (isList_subst h5 _ _)
+        (by rw [toList_subst h5, List.length_map, h6]) ?_ ?_ ((ren_ty hS h9).2 hR)
       · intro c C b hc hb
-        rw [toList_subst h4, List.getElem?_map] at hb
+        rw [toList_subst h5, List.getElem?_map] at hb
         obtain ⟨b0, hb0, rfl⟩ := Option.map_eq_some_iff.1 hb
-        have := (ren_ty hS (h6 c C b0 hc hb0)).2 hR
+        have := (ren_ty hS (h7 c C b0 hc hb0)).2 hR
         rwa [branchTy_subst _ _ hS h0 hc h1 hlen, up_rS] at this
       · intro c C b k ψ e hc hb hk
-        rw [toList_subst h4, List.getElem?_map] at hb
+        rw [toList_subst h5, List.getElem?_map] at hb
         obtain ⟨b0, hb0, rfl⟩ := Option.map_eq_some_iff.1 hb
         have hψ := hS.bnd _ _ _ _ _ _ _ h0 hc hk
-        have := (ren_eq hS (h7 c C b0 k ψ e hc hb0 hk)).2
-          (hR.branch hS h0 hc h1 hlen hψ.1 (ren_eq hS (h7 c C b0 k ψ e hc hb0 hk)).1)
-        rw [rn_lift C.dims, ← IupN_rI, branchApp_subst, bndElim_subst _ _ h1 hlen h4 e hψ.2,
+        have := (ren_eq hS (h8 c C b0 k ψ e hc hb0 hk)).2
+          (hR.branch hS h0 hc h1 hlen hψ.1 (ren_eq hS (h8 c C b0 k ψ e hc hb0 hk)).1)
+        rw [rn_lift C.dims, ← IupN_rI, branchApp_subst, bndElim_subst _ _ h1 hlen h5 e hψ.2,
           branchBody_subst, up_rS] at this
         exact this⟩
 

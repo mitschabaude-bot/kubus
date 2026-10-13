@@ -47,8 +47,8 @@ theorem wf_of_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → Wf0 S Ψ Φ Γ
   | .glueEl h0 _ _ _ _ => wf_of_ty h0
   | .unglue h0 _ _ _ => wf_of_ty h0
   | .data _ _ h2 => wf_of_tele h2
-  | .con _ _ _ h3 _ _ _ => wf_of_ty h3
-  | .elim _ _ h2 _ _ _ _ _ _ => wf_of_ty h2
+  | .con _ _ _ h3 _ _ _ _ => wf_of_ty h3
+  | .elim _ _ h2 _ _ _ _ _ _ _ => wf_of_ty h2
 
 theorem wf_of_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → Wf0 S Ψ Φ Γ
   | .nil h0 => h0
