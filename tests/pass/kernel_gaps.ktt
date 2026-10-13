@@ -25,3 +25,7 @@ def conProj : Susp Bool := ((north, zero) : (Susp Bool × Nat)).1
 
 -- a λ under a path abstraction applied to an interval
 def lamUnderPlam (i : I) : Int -> Nat := (\(x : I) -> ((\y -> zero) : (Int -> Nat))) (~i)
+
+-- compositions of types compared by congruence (cofibrations equal only up to the interval laws)
+def w1 (i : I) : U := hcomp j U [i = 0 -> Bool, i = 1 -> Bool] Bool
+def w1fill (j : I) (x : w1 0) : w1 j := fill m (hcomp k U [m = 0 -> Bool, m = 1 -> Bool] Bool) [] x j

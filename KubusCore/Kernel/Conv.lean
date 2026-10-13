@@ -248,6 +248,21 @@ def convTypes (m : Nat) (X Y : Tm) (hX : HasTy S Ψ Φ Γ X (.univ m))
   let ⟨e⟩ ← convTyWhnf R E m rX.tm rY.tm (HasTy.eqR rX.eq) (HasTy.eqR rY.eq)
   pure ⟨EqTm.trans rX.eq (EqTm.trans e (EqTm.symm rY.eq))⟩
 
+/-- Unfold the head constant of a type (with the β-redexes along its spine), at most `n`
+times, without reducing further: exposes compositions of types hidden behind definitions. -/
+def exposeTy (m : Nat) : Nat → (t : Tm) → HasTy S Ψ Φ Γ t (.univ m) →
+    K S (Red S Ψ Φ Γ t (.univ m))
+  | 0, t, ht => pure ⟨t, EqTm.refl ht⟩
+  | n + 1, t, ht => do
+    if (constHead t).isNone then return ⟨t, EqTm.refl ht⟩
+    match ← unfoldHead R E t with
+    | none => pure ⟨t, EqTm.refl ht⟩
+    | some ⟨ti, tr⟩ =>
+      let ⟨hU⟩ ← univTyK E m
+      let ⟨et⟩ ← bridge R E ti.hty hU tr.eq
+      let r ← exposeTy m n tr.tm (HasTy.eqR et)
+      pure ⟨r.tm, EqTm.trans et r.eq⟩
+
 /-- Type-directed comparison at a type in weak-head normal form. -/
 def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
     (ht : HasTy S Ψ Φ Γ t A) (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) :=
@@ -318,6 +333,17 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
     -- types with the same head constant: compare the spines before unfolding
     if sameConstHead t u then
       if let some (some e) ← tryOpt (lazyDelta R E (.univ m) l hA 20 t u ht hu) then return e
+    -- compositions of types: by congruence before reducing them to Glue types, whose
+    -- equivalences are large terms
+    let isH := fun (x : Tm) => x matches .hcomp ..
+    if (isH t && (isH u || (constHead u).isSome)) || (isH u && (constHead t).isSome) then
+      let rt ← exposeTy R E m 8 t ht
+      let ru ← exposeTy R E m 8 u hu
+      if let (.hcomp _ φ _ a, .hcomp _ φ' _ a') := (rt.tm, ru.tm) then
+        if tmEq a a' && I.entails φ φ' && I.entails φ' φ then
+        if let some ⟨ni, ⟨en⟩⟩ ← tryOpt (R.convNe E rt.tm ru.tm) then
+          if let some ⟨en'⟩ ← tryOpt (bridge R E ni.hty hA en) then
+            return ⟨EqTm.trans rt.eq (EqTm.trans en' (EqTm.symm ru.eq))⟩
     convTypes R E m t u ht hu
   | A, hA, ht, hu => do
     -- lazy δ: unfold the head constant defined later first

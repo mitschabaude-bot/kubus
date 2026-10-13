@@ -251,7 +251,7 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K S (I
     let ⟨hψ⟩ ← ensureScoped ψ Ψ
     let ⟨hcov⟩ ← ensureEntE E (.or φ ψ)
     let E2 := (E.cof φ hφ).cof ψ hψ
-    if E.ent φ then
+    if E.ent φ && !(t matches .abort && E.ent ψ) then
       let it ← R.infer E t
       let ⟨hu⟩ ← R.check (E.cof ψ hψ) u it.ty it.lvl (HasTy.rs E hψ it.hty)
       let ⟨hc⟩ ← ensureEnt (cof (cof Φ φ) ψ) (cof Φ ψ)
@@ -278,7 +278,12 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K S (I
       let ⟨e⟩ ← R.conv E2 A l (HasTy.cofcof E hφ hψ hA) t u (HasTy.rs (E.cof φ hφ) hψ ht)
         (HasTy.restrict E2.hsc hc hu)
       pure ⟨A, l, hA, HasTy.split hφ hψ hcov hA ht hu e⟩
-  | .abort => fail "kernel: cannot infer the type of the empty system"
+  | .abort => do
+    -- under an inconsistent restriction every type is inhabited; take `U₀`
+    if h : E.Ent .zero then
+      let ⟨hU⟩ ← univTyK E 0
+      pure ⟨.univ 0, 1, hU, HasTy.abort h hU⟩
+    else fail "kernel: cannot infer the type of the empty system"
   | .transp A φ a => do
     let i ← inferTransp R E A φ a
     pure ⟨A.dinst .one, i.l, HasTy.dsubst i.hA trivial, i.ht⟩
@@ -464,6 +469,31 @@ def checkStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     have hb' : HasTy S Ψ Φ Γ b (A.shift.inst a) := by rw [Tm.shift_inst]; exact hb
     have := HasTy.snd (HasTy.pair hS ia.htm hb')
     pure ⟨by rw [Tm.shift_inst] at this; exact this⟩
+  | .fst (.app (.lam D (.pair u v)) a) => do
+    tryCatch (checkByInfer R E (.fst (.app (.lam D (.pair u v)) a)) A l hA) fun e1 => tryCatch (do
+      -- `((λ x. (u, v)) a).1 : A` if `u : A` (with `x : D`), via `Σ A (type of v)`
+      let ⟨lD, ⟨hD⟩⟩ ← inferType R E D
+      let ⟨ha⟩ ← R.check E a D lD hD
+      let E1 := E.ext D lD hD
+      let ⟨hu⟩ ← R.check E1 u A.shift l (HasTy.wk hD hA)
+      let iv ← R.infer E1 v
+      let m := max (max lD l) iv.lvl
+      let ⟨hm⟩ ← ensureLvl m
+      have hl1 : l ≤ m := Nat.le_trans (Nat.le_max_right _ _) (Nat.le_max_left _ _)
+      have hA1 : HasTy S Ψ Φ (D :: Γ) A.shift (.univ m) := (HasTy.wk hD hA).liftLe hl1 hm
+      have hV : HasTy S Ψ Φ (A.shift :: D :: Γ) iv.ty.shift (.univ m) :=
+        HasTy.wk hA1 (iv.hty.liftLe (Nat.le_max_right _ _) hm)
+      have hS := HasTy.sigma hA1 hV
+      have hv : HasTy S Ψ Φ (D :: Γ) v (iv.ty.shift.inst u) := by rw [Tm.shift_inst]; exact iv.htm
+      have hp := HasTy.pair hS hu hv
+      have hD' : HasTy S Ψ Φ Γ D (.univ m) :=
+        hD.liftLe (Nat.le_trans (Nat.le_max_left _ _) (Nat.le_max_left _ _)) hm
+      have hP := HasTy.pi hD' hS
+      have := HasTy.fst (HasTy.app (HasTy.lam hP hp) ha)
+      pure ⟨by
+        have h := Tm.shift_inst A a
+        simp only [Tm.inst] at h
+        rw [h] at this; exact this⟩) fun _ => throw e1
   | .app (.lam D b) a => do
     tryCatch (do let i ← R.infer E (.app (.lam D b) a); bridgeHas R E i.hty hA i.htm) fun _ => do
       -- check-mode β-redex with a non-dependent codomain

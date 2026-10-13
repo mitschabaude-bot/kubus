@@ -121,7 +121,12 @@ def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
   if h : tmEq t u = true then return ⟨tmEq_sound h ▸ EqTm.refl ht⟩
   if let some v := (← get).conv.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc ConvF.restr then return v
-  let v ← trail (fun _ => s!"comparing {short t} and {short u} at {short A}") (canonConvRaw R E A l hA t u ht hu)
+  if ((← get).convFail.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc (fun _ _ _ => none)).isSome then
+    throw s!"kernel: {short t} and {short u} are not convertible (as before)"
+  let v ← tryCatch (trail (fun _ => s!"comparing {short t} and {short u} at {short A}")
+      (canonConvRaw R E A l hA t u ht hu)) fun e => do
+    modify fun c => { c with convFail := c.convFail.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs ⟨⟩ }
+    throw e
   modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }
   return v
 
