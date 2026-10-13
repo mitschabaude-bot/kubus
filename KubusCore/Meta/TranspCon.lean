@@ -308,6 +308,7 @@ theorem transpCon_inv :
     show (ps.subst Tm.var _).toList.length = _; rw [hpsr]; simpa using hpl
   have hal : as.length = C.args.length := by
     have := tele_length htele; rwa [argTys_length] at this
+  have hal' : args.toList.length = C.args.length := hal
   have h0 : ∀ {Ψ' Φ' Γ'} (τ σ : Nat → _), Wf0 S Ψ' Φ' Γ' → TySub S 0 .one [] Ψ' Φ' Γ' σ τ :=
     fun τ σ hw' => tySub_nil (fun i hi => absurd hi (Nat.not_lt_zero _)) (ent_one _) hw'
   have hpc : D.pointCtx d C 0 = D.paramCtx D.params.length := by simp [DataDecl.pointCtx]
@@ -334,7 +335,56 @@ theorem transpCon_inv :
         (Nat.le_refl _)
       rw [List.take_of_length_le (by omega), List.take_of_length_le (by rw [hpsr, List.length_map]; omega)] at E
       exact E.congr2 (fun x => (hpost τg x).symm)
-  | succ k ih => sorry
+  | succ k ih =>
+    have hkn : k < C.args.length := by omega
+    obtain ⟨T1, TO, E0, E1, Ec, Tel⟩ := ih (by omega)
+    have hpt0 : HasTele0 S Ψ Φ Γ (ps.dinst .zero) D.params [] := by
+      have := HasTele0.post (I.inst0 .zero) hw (hf .zero trivial) hptL (params_closed hS hD)
+      simpa using this
+    have hP0 := tySub_params hS hD hpt0 0 (h0 I.var · hw) _ (Nat.le_refl _)
+    rw [List.take_of_length_le (by omega)] at hP0
+    have TA := tySub_points hS hW hD hC hP0 htele hpl0 k (by omega)
+    have hFl : Fall.length = C.args.length := tFills_length _ _ _ _ _
+    have hOl : osAll.length = C.args.length := by simp [osAll]
+    have hFl' : (tFills A ps.toList φ as C.args.length).length = C.args.length := hFl
+    have hOl' : ((List.range C.args.length).map fun j => transp (tLine A ps.toList φ as j) φ (as.getD j .abort)).length = C.args.length := hOl
+    have hFt : Fall.take k = tFills A ps.toList φ as k := by
+      have := tFills_take A ps.toList φ as k (C.args.length - k)
+      rwa [show k + (C.args.length - k) = C.args.length by omega] at this
+    have hLk : tLine A ps.toList φ as k = (A k).substList ((Fall.take k).reverse ++ ps.toList.reverse) := by
+      rw [hFt]; rfl
+    have hFk : Fall.getD k .abort = transpFill (tLine A ps.toList φ as k) φ (as.getD k .abort) :=
+      tFills_get A ps.toList φ as hkn
+    have hOk : osAll.getD k .abort = transp (tLine A ps.toList φ as k) φ (as.getD k .abort) := by
+      simp only [osAll, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hkn]; rfl
+    have hak : as[k]? = some (as.getD k .abort) := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega)]; rfl
+    have hatk := tele_get htele k _ _ hak (argTys_get hkn)
+    have hTel : ∀ j, j < k + 1 → j ≠ k → HasTy0 S Ψ Φ Γ (osAll.getD j .abort)
+        ((A j).substList ((osAll.take j).reverse ++ (ps.dinst .one).toList.reverse)) :=
+      fun j hj hjk => Tel j (by omega)
+    rw [pointCtx_succ]
+    cases hr : C.isRec k
+    · sorry
+    · simp only [hr, if_true, ptL]
+      refine ⟨T1, TO, E0, E1, Ec, fun j hj => ?_⟩
+      by_cases hjk : j = k
+      · subst hjk
+        have hAk : A j = data d (Ctor.paramVars D.params.length j) := argTy_rec' hr
+        have hps0 : IsList (ps.dinst .zero) := isList_subst hps _ _
+        have hps1 : IsList (ps.dinst .one) := isList_subst hps _ _
+        rw [show C.argTy d D.params.length j = data d (Ctor.paramVars D.params.length j) from hAk,
+          substList_eq] at hatk
+        simp only [Tm.subst] at hatk
+        rw [← substList_eq, paramVars_substList hps0 hpl0 (by simp; omega)] at hatk
+        have hLd : tLine A ps.toList φ as j = data d ps := by
+          rw [hLk, hAk, substList_eq]; simp only [Tm.subst]
+          rw [← substList_eq, paramVars_substList hps hpl (by simp; omega)]
+        have := HasTy0.transp hL hφ hc hatk
+        rw [hOk, hLd, hAk, substList_eq]; simp only [Tm.subst]
+        rw [← substList_eq, paramVars_substList hps1 hpl1 (by simp; omega)]
+        exact this
+      · exact hTel j hj hjk
 
 end
 
