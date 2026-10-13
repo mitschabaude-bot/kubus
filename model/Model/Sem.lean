@@ -1,4 +1,4 @@
-import Model.Univ
+import Model.WFFib
 
 /-!
 # Semantic judgments
