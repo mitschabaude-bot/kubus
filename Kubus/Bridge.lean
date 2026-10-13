@@ -330,6 +330,14 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
       | _ => none
     if let some (g, k, mask) := implicit then
       return ← elabImplSpine R env E ks g k args mask
+    -- a β-redex: the domain of the λ is the type of the argument
+    if let .lam _ body := f then
+      let a' ← elabT R env E ks a none
+      let i ← KubusCore.Kernel.inferW R E a'
+      let bexp : Exp S Ψ Φ (i.ty :: Γ) := match exp with
+        | some ⟨T, l, ⟨hT⟩⟩ => some ⟨T.shift, l, ⟨HasTy.wk i.hty hT⟩⟩
+        | none => none
+      return .app (.lam i.ty (← elabT R env (E.ext i.ty i.lvl i.hty) (.tm :: ks) body bexp)) a'
     let f' ← elabT R env E ks f none
     match ← KubusCore.Kernel.inferW R E f' with
     | ⟨.pi A _, l, hP, _⟩ => return .app f' (← elabT R env E ks a (some ⟨A, l, ⟨HasTy.piDom hP⟩⟩))
