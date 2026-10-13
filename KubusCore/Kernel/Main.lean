@@ -204,13 +204,151 @@ theorem wfSig_append {S : Sig} {t A : Tm} (hS : WfSig S)
   · intro k D hk
     by_cases hlt : k < S.length
     · rw [List.getElem?_append_left hlt] at hk
-      rw [List.take_append_of_le_length hlt]
+      rw [List.take_append_of_le_length (Nat.le_of_lt hlt)]
       exact hS.2 k D hk
     · have hge : S.length ≤ k := Nat.le_of_not_lt hlt
       rw [List.getElem?_append_right hge] at hk
       cases h' : k - S.length with
       | zero => rw [h'] at hk; simp at hk
       | succ n => rw [h'] at hk; simp at hk
+
+theorem wfSig_appendData {S : Sig} {D : DataDecl} (hS : WfSig S)
+    (h : D.Wf S S.length) : WfSig (S ++ [.data D]) := by
+  refine ⟨?_, ?_⟩
+  · intro k t' A' hk
+    by_cases hlt : k < S.length
+    · rw [List.getElem?_append_left hlt] at hk
+      rw [List.take_append_of_le_length (Nat.le_of_lt hlt)]
+      exact hS.1 k t' A' hk
+    · have hge : S.length ≤ k := Nat.le_of_not_lt hlt
+      rw [List.getElem?_append_right hge] at hk
+      cases h' : k - S.length with
+      | zero => rw [h'] at hk; simp at hk
+      | succ n => rw [h'] at hk; simp at hk
+  · intro k D' hk
+    by_cases hlt : k < S.length
+    · rw [List.getElem?_append_left hlt] at hk
+      rw [List.take_append_of_le_length (Nat.le_of_lt hlt)]
+      exact hS.2 k D' hk
+    · have hge : S.length ≤ k := Nat.le_of_not_lt hlt
+      rw [List.getElem?_append_right hge] at hk
+      have hk0 : k - S.length = 0 := by
+        cases h' : k - S.length with
+        | zero => rfl
+        | succ n => rw [h'] at hk; simp at hk
+      have hkeq : k = S.length := by omega
+      subst hkeq
+      simp at hk
+      subst hk
+      rw [List.take_left' rfl]
+      exact h
+
+/-! ## Data declarations -/
+
+section
+variable {S : Sig}
+
+/-- The context of the parameters and the arguments before argument `k`. -/
+def argCtxK (R : Rec S) (E0 : KCtx S 0 .one []) (D : DataDecl) (d : Nat) (C : Ctor) (k : Nat) :
+    K (KCtx S 0 .one (D.argCtx d C k)) := do
+  let E1 ← extTypes R E0 D.params
+  let E2 ← extTypes R E1 ((List.range k).map (C.argTy d D.params.length))
+  if h : ((List.range k).map (C.argTy d D.params.length)).reverse ++ (D.params.reverse ++ []) =
+      D.argCtx d C k then pure (castCtx E2 rfl h)
+  else fail "kernel: argument context mismatch"
+
+/-- The same context at `Ψ = m` interval variables, restricted to `ψ`. -/
+def bndCtxK (E : KCtx S 0 .one Γ) (m : Nat) (ψ : I) : K (KCtx S m ψ Γ) := do
+  let E1 := E.dextN m
+  if h : shiftIN m .one = .one ∧ dshiftN m Γ = Γ then
+    let E2 : KCtx S (0 + m) .one Γ := castCtx E1 h.1 h.2
+    let E3 : KCtx S m .one Γ := Nat.zero_add m ▸ E2
+    let ⟨hψ⟩ ← ensureScoped ψ m
+    pure (E3.restrict ψ hψ (I.entails_one ψ))
+  else fail "kernel: boundary context mismatch"
+
+/-- Check constructor `c` against the declaration truncated to the constructors before it. -/
+def checkCtor (S : Sig) (d : Nat) (D : DataDecl) (c : Nat) (C : Ctor) :
+    let Sc := S ++ [.data (D.truncate c)]
+    K (PLift ((∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (D.params.length + k) 0 = true ∧
+        A.mentionsData d = false ∧ HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+      (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
+        b.closedB (D.params.length + C.args.length) C.dims = true ∧
+        Ctor.simpleB D.ctors d D.params.length c C.args.length C b = true ∧
+        HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b (.data d (Ctor.paramVars D.params.length C.args.length))) ∧
+      (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
+        EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
+          (.data d (Ctor.paramVars D.params.length C.args.length))))) := do
+  let Sc := S ++ [.data (D.truncate c)]
+  let np := D.params.length
+  let (R, E0) ← setup Sc
+  let (R0, E00) ← setup (S ++ [.data (D.truncate 0)])
+
+    let ⟨hargs⟩ ← forallElems C.args (fun k a => ∀ A, a = .point A → A.closedB (np + k) 0 = true ∧
+        A.mentionsData d = false ∧ HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) fun k a _ =>
+      match a with
+      | .point A => do
+        let Ek ← argCtxK R0 E00 D d C k
+        let ⟨hA⟩ ← checkType R0 Ek A D.level
+        if hc : A.closedB (np + k) 0 = true ∧ A.mentionsData d = false then
+          pure ⟨fun A' hA' => by cases hA'; exact ⟨hc.1, hc.2, hA⟩⟩
+        else fail "kernel: argument type not closed or mentions the type"
+      | .recur => pure ⟨fun _ h => by cases h⟩
+    let En ← argCtxK R E0 D d C C.args.length
+    let T : Tm := .data d (Ctor.paramVars np C.args.length)
+    let ⟨hb⟩ ← forallElems C.bnd (fun _ pb => pb.1.Scoped C.dims ∧
+        pb.2.closedB (np + C.args.length) C.dims = true ∧
+        Ctor.simpleB D.ctors d np c C.args.length C pb.2 = true ∧
+        HasTy Sc C.dims pb.1 (D.argCtx d C C.args.length) pb.2 T) fun _ pb _ => do
+      let Eb ← bndCtxK En C.dims pb.1
+      let ⟨hψ⟩ ← ensureScoped pb.1 C.dims
+      let ⟨l, ⟨hT⟩⟩ ← inferType R Eb T
+      let ⟨h⟩ ← R.check Eb pb.2 T l hT
+      if hc : pb.2.closedB (np + C.args.length) C.dims = true ∧
+          Ctor.simpleB D.ctors d np c C.args.length C pb.2 = true then pure ⟨hψ, hc.1, hc.2, h⟩
+      else fail "kernel: boundary not closed or not simple"
+    let ⟨hagree⟩ ← forallElems C.bnd (fun k pb => ∀ (k' : Nat) (ψ' : I) (b' : Tm), C.bnd[k']? = some (ψ', b') →
+        EqTm Sc C.dims (.and pb.1 ψ') (D.argCtx d C C.args.length) pb.2 b' T) fun k pb hk => do
+      let ⟨h⟩ ← forallElems C.bnd (fun _ pb' => EqTm Sc C.dims (.and pb.1 pb'.1)
+          (D.argCtx d C C.args.length) pb.2 pb'.2 T) fun k' pb' hk' => do
+        let Eb ← bndCtxK En C.dims (.and pb.1 pb'.1)
+        let ⟨l, ⟨hT⟩⟩ ← inferType R Eb T
+        let ⟨h1⟩ ← R.check Eb pb.2 T l hT
+        let ⟨h2⟩ ← R.check Eb pb'.2 T l hT
+        R.conv Eb T l hT _ _ h1 h2
+      pure ⟨fun k' ψ' b' hk' => h k' (ψ', b') hk'⟩
+    pure ⟨fun k A hk => hargs k (.point A) hk A rfl,
+      fun k ψ b hk => hb k (ψ, b) hk,
+      fun k k' ψ ψ' b b' hk hk' => hagree k (ψ, b) hk k' ψ' b' hk'⟩
+
+
+def checkData (S : Sig) (d : Nat) (D : DataDecl) : K (PLift (D.Wf S d)) := do
+  let np := D.params.length
+  let (R, E0) ← setup S
+  let ⟨hl⟩ ← ensureLvl (D.level + 1)
+  let ⟨hps⟩ ← forallElems D.params (fun j A => A.closedB j 0 = true ∧ A.mentionsData d = false ∧
+      ∃ l, HasTy S 0 .one (D.paramCtx j) A (.univ l)) fun j A _ => do
+    let E1 ← extTypes R E0 (D.params.take j)
+    if h : (D.params.take j).reverse ++ [] = D.paramCtx j then
+      let ⟨l, ⟨hA⟩⟩ ← inferType R (castCtx E1 rfl h) A
+      if hc : A.closedB j 0 = true ∧ A.mentionsData d = false then pure ⟨hc.1, hc.2, l, hA⟩
+      else fail "kernel: parameter type not closed or mentions the type"
+    else fail "kernel: parameter context mismatch"
+  let ⟨hcs⟩ ← forallElems D.ctors (fun c C =>
+      let Sc := S ++ [.data (D.truncate c)]
+      
+      (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
+        A.mentionsData d = false ∧ HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+      (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
+        b.closedB (np + C.args.length) C.dims = true ∧
+        Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
+        HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b (.data d (Ctor.paramVars np C.args.length))) ∧
+      (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
+        EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
+          (.data d (Ctor.paramVars np C.args.length)))) fun c C _ => checkCtor S d D c C
+  pure ⟨hl, hps, fun c C hC => hcs c C hC⟩
+
+end
 
 /-- A signature together with a proof that it is well-formed. -/
 structure CheckedSig where
@@ -224,13 +362,23 @@ def CheckedSig.extend (C : CheckedSig) (t A : Tm) (fuel : Nat := defaultFuel) : 
   let ⟨h⟩ ← checkEntry C.sig t A fuel
   pure ⟨C.sig ++ [.defn t A], wfSig_append C.wf h⟩
 
+/-- Check one more inductive type. -/
+def CheckedSig.extendData (C : CheckedSig) (D : DataDecl) (fuel : Nat := defaultFuel) :
+    K CheckedSig := do
+  let S' := C.sig ++ [.data D]
+  let ⟨h⟩ ← checkData C.sig C.sig.length D
+  pure ⟨S', wfSig_appendData C.wf h⟩
+
 def checkSigAux (pre : Sig) (hpre : WfSig pre) : (rest : Sig) → K (PLift (WfSig (pre ++ rest)))
   | [] => pure ⟨by simpa using hpre⟩
   | .defn t A :: rest => do
     let ⟨h⟩ ← checkEntry pre t A
     let ⟨h'⟩ ← checkSigAux (pre ++ [.defn t A]) (wfSig_append hpre h) rest
     pure ⟨by simpa using h'⟩
-  | .data _ :: _ => fail "kernel: inductive types are not supported yet"
+  | .data D :: rest => do
+    let ⟨h⟩ ← checkData pre pre.length D
+    let ⟨h'⟩ ← checkSigAux (pre ++ [.data D]) (wfSig_appendData hpre h) rest
+    pure ⟨by simpa using h'⟩
 
 /-- Check a whole signature. -/
 def checkSig (S : Sig) : K (PLift (WfSig S)) := do

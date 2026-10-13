@@ -68,35 +68,43 @@ def mapI (f : Nat → Nat → ITm) (c : Nat) : ITm → ITm
   | r => r
 
 /-- Map the free variables (term and interval, which share one index space) of a term; `c`
-counts the binders crossed. -/
-partial def mapVars (f : Nat → Nat → Kubus.Tm) (g : Nat → Nat → ITm) (c : Nat) : Kubus.Tm → Kubus.Tm
+counts the binders crossed. `pre c t` may replace a whole subterm first. -/
+partial def mapTm (pre : Nat → Kubus.Tm → Option Kubus.Tm) (f : Nat → Nat → Kubus.Tm)
+    (g : Nat → Nat → ITm) (c : Nat) (t : Kubus.Tm) : Kubus.Tm :=
+  match pre c t with
+  | some t' => t'
+  | none =>
+  let go := mapTm pre f g
+  let sysUnder (sys : List (ITm × Kubus.Tm)) := sys.map fun (r, t) => (mapI g c r, go (c + 1) t)
+  let sys0 (sys : List (ITm × Kubus.Tm)) := sys.map fun (r, t) => (mapI g c r, go c t)
+  match t with
   | .var i => f c i
-  | .pi x a b => .pi x (mapVars f g c a) (mapVars f g (c + 1) b)
-  | .sigma x a b => .sigma x (mapVars f g c a) (mapVars f g (c + 1) b)
-  | .lam x b => .lam x (mapVars f g (c + 1) b)
-  | .app a b => .app (mapVars f g c a) (mapVars f g c b)
-  | .pair a b => .pair (mapVars f g c a) (mapVars f g c b)
-  | .fst t => .fst (mapVars f g c t)
-  | .snd t => .snd (mapVars f g c t)
-  | .piI i a => .piI i (mapVars f g (c + 1) a)
-  | .pathP a u v => .pathP (mapVars f g c a) (mapVars f g c u) (mapVars f g c v)
-  | .plam i b => .plam i (mapVars f g (c + 1) b)
-  | .papp t r => .papp (mapVars f g c t) (mapI g c r)
-  | .comp i a sys u0 => .comp i (mapVars f g (c + 1) a) (sysUnder sys) (mapVars f g c u0)
-  | .hcomp i a sys u0 => .hcomp i (mapVars f g c a) (sysUnder sys) (mapVars f g c u0)
-  | .fill i a sys u0 => .fill i (mapVars f g (c + 1) a) (sysUnder sys) (mapVars f g c u0)
-  | .glueTy a sys => .glueTy (mapVars f g c a) (sys0 sys)
-  | .glue sys a => .glue (sys0 sys) (mapVars f g c a)
-  | .unglue u b sys => .unglue (mapVars f g c u) (mapVars f g c b) (sys0 sys)
-  | .compU a sys => .compU (mapVars f g c a) (sys0 sys)
-  | .unglueU u b sys => .unglueU (mapVars f g c u) (mapVars f g c b) (sys0 sys)
-  | .data d k ps => .data d k (ps.map (mapVars f g c))
-  | .con n as ds => .con n (as.map (mapVars f g c)) (ds.map (mapI g c))
-  | .letE x t b => .letE x (mapVars f g c t) (mapVars f g (c + 1) b)
+  | .pi x a b => .pi x (go c a) (go (c + 1) b)
+  | .sigma x a b => .sigma x (go c a) (go (c + 1) b)
+  | .lam x b => .lam x (go (c + 1) b)
+  | .app a b => .app (go c a) (go c b)
+  | .pair a b => .pair (go c a) (go c b)
+  | .fst t => .fst (go c t)
+  | .snd t => .snd (go c t)
+  | .piI i a => .piI i (go (c + 1) a)
+  | .pathP a u v => .pathP (go c a) (go c u) (go c v)
+  | .plam i b => .plam i (go (c + 1) b)
+  | .papp t r => .papp (go c t) (mapI g c r)
+  | .comp i a sys u0 => .comp i (go (c + 1) a) (sysUnder sys) (go c u0)
+  | .hcomp i a sys u0 => .hcomp i (go c a) (sysUnder sys) (go c u0)
+  | .fill i a sys u0 => .fill i (go (c + 1) a) (sysUnder sys) (go c u0)
+  | .glueTy a sys => .glueTy (go c a) (sys0 sys)
+  | .glue sys a => .glue (sys0 sys) (go c a)
+  | .unglue u b sys => .unglue (go c u) (go c b) (sys0 sys)
+  | .compU a sys => .compU (go c a) (sys0 sys)
+  | .unglueU u b sys => .unglueU (go c u) (go c b) (sys0 sys)
+  | .data d k ps => .data d k (ps.map (go c))
+  | .con n as ds => .con n (as.map (go c)) (ds.map (mapI g c))
+  | .letE x t b => .letE x (go c t) (go (c + 1) b)
   | t => t
-where
-  sysUnder (sys : List (ITm × Kubus.Tm)) := sys.map fun (r, t) => (mapI g c r, mapVars f g (c + 1) t)
-  sys0 (sys : List (ITm × Kubus.Tm)) := sys.map fun (r, t) => (mapI g c r, mapVars f g c t)
+
+def mapVars (f : Nat → Nat → Kubus.Tm) (g : Nat → Nat → ITm) (c : Nat) (t : Kubus.Tm) : Kubus.Tm :=
+  mapTm (fun _ _ => none) f g c t
 
 def shiftK (n : Nat) (t : Kubus.Tm) : Kubus.Tm :=
   if n == 0 then t else
@@ -161,6 +169,59 @@ def disj (keys : List KI) : KI := keys.foldr (fun r acc => .or r acc) .zero
 structure Env where
   /-- constant index of a global with its displacement -/
   consts : Std.HashMap (String × Nat) Nat := {}
+  /-- index of an inductive type with its displacement -/
+  datas : Std.HashMap (String × Nat) Nat := {}
+  globals : Globals := {}
+
+/-- Inductive types that do not mention universes are not displaced. -/
+def Env.dataKey (env : Env) (dn : String) (k : Nat) : String × Nat :=
+  match env.globals.datas[dn]? with
+  | some i => if i.liftInvariant then (dn, 0) else (dn, k)
+  | none => (dn, k)
+
+def Env.dataIdx (env : Env) (dn : String) (k : Nat) : Except String Nat :=
+  match env.datas[env.dataKey dn k]? with
+  | some i => pure i
+  | none => throw s!"uses the data type {dn}, which is not in the kernel signature"
+
+/-- The data type of a constructor and its index. -/
+def Env.ctorOf (env : Env) (c : String) : Except String (String × Nat) :=
+  match env.globals.ctors[c]? with
+  | some ci =>
+    match env.globals.datas[ci.data]? with
+    | some di =>
+      match di.ctors.findIdx? (·.name == c) with
+      | some i => pure (ci.data, i)
+      | none => throw s!"unknown constructor {c}"
+    | none => throw s!"unknown data type {ci.data}"
+  | none => throw s!"unknown constructor {c}"
+
+def appSpine : Kubus.Tm → Kubus.Tm × List Kubus.Tm
+  | .app f a => let (h, as) := appSpine f; (h, as ++ [a])
+  | t => (t, [])
+
+/-- Prepare the body of the clause of a pattern-matching definition `f` (with `nParams`
+parameters) for a constructor with `n` arguments (recursive ones at `recPos`) and `m` interval
+arguments: make room for the `r` induction hypotheses between the arguments and the interval
+arguments, and replace the structurally recursive calls `f params x` by the hypothesis for `x`. -/
+def prepBranch (f : String) (k nParams m n : Nat) (recPos : List Nat) (body : Kubus.Tm) : Kubus.Tm :=
+  let r := recPos.length
+  let pre (c : Nat) (t : Kubus.Tm) : Option Kubus.Tm :=
+    let (h, args) := appSpine t
+    match h, args.getLast? with
+    | .glob g k', some (.var j) =>
+      if g == f && k' == k && args.length == nParams + 1 && c + m ≤ j && j < c + m + n then
+        let paramsOk := (List.range nParams).all fun i =>
+          match args[i]? with
+          | some (.var x) => x == c + m + n + (nParams - 1 - i)
+          | _ => false
+        match recPos.idxOf? (n - 1 - (j - c - m)) with
+        | some s => if paramsOk then some (.var (c + m + (r - 1 - s))) else none
+        | none => none
+      else none
+    | _, _ => none
+  mapTm pre (fun c i => .var (if i ≥ c + m then i + r else i))
+    (fun c i => .var (if i ≥ c + m then i + r else i)) 0 body
 
 /-- An expected type with its level. -/
 abbrev Exp (S : Sig) (Ψ : Nat) (Φ : KI) (Γ : KubusCore.Ctx) :=
@@ -302,9 +363,77 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
     let t' ← elabT R env E ks t none
     elabT R env E (.defn t' :: ks) b exp
   | .compU .. | .unglueU .. => throw "composition in the universe is not supported"
-  | .data d _ _ => throw s!"uses the data type {d} (phase 2)"
-  | .con c _ _ => throw s!"uses the constructor {c} (phase 2)"
-  | .split f _ => throw s!"is defined by pattern matching ({f}) (phase 2)"
+  | .data dn k ps => do
+    let d ← env.dataIdx dn k
+    let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d
+    return .data d (KubusCore.Tm.ofList (← elabTele R env E ks D.params [] ps))
+  | .con c args dims => do
+    let (dn, cIdx) ← env.ctorOf c
+    -- the parameters come from the expected type
+    let (d, ps) ← match exp with
+      | some ⟨T, l, ⟨hT⟩⟩ => do
+        match ← KubusCore.Kernel.whnfTy R E T l hT with
+        | ⟨.data d ps, _⟩ => pure (d, ps)
+        | ⟨T', _⟩ => throw s!"constructor {c} at type {KubusCore.Kernel.short T'}"
+      | none => do
+        let d ← env.dataIdx dn 0
+        let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d
+        if D.params.isEmpty then pure (d, KubusCore.Tm.tnil)
+        else throw s!"cannot infer the parameters of {c}"
+    let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d
+    let ⟨C, _⟩ ← KubusCore.Kernel.lookupCtor D cIdx
+    let args' ← elabTele R env E ks (C.argTys d D.params.length) ps.toList.reverse args
+    return .con d cIdx ps (KubusCore.Tm.ofList args') (← dims.mapM (trI ks))
+  | .split f k => elabSplit R env E ks f k exp
+
+/-- Translate a list against a telescope. -/
+partial def elabTele (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry) :
+    List KTm → List KTm → List Kubus.Tm → Except String (List KTm)
+  | A :: Δ, prev, t :: ts => do
+    let t' ← elabT R env E ks t (expOf R E (A.substList prev))
+    return t' :: (← elabTele R env E ks Δ (t' :: prev) ts)
+  | [], _, [] => pure []
+  | _, _, _ => throw "wrong number of arguments"
+
+/-- Translate `body` under binders: `true` for a term binder of the Π type `T`, `false` for an
+interval binder of `(i : I) → T`. -/
+partial def elabUnder (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry)
+    (T : KTm) : List Bool → Kubus.Tm → Except String KTm
+  | [], body => elabT R env E ks body (expOf R E T)
+  | true :: bs, body => do
+    match T with
+    | .pi A B =>
+      let ⟨l, ⟨hA⟩⟩ ← KubusCore.Kernel.inferType R E A
+      return .lam A (← elabUnder R env (E.ext A l hA) (.tm :: ks) B bs body)
+    | _ => throw "branch type mismatch"
+  | false :: bs, body => do
+    match T with
+    | .ipi B => return .plam (← elabUnder R env E.dext (.dim :: ks) B bs body)
+    | _ => throw "branch type mismatch"
+
+/-- A pattern-matching function: `λ x. elim d ps (x. B) bs x`, with a branch for each clause. -/
+partial def elabSplit (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry)
+    (f : String) (k : Nat) (exp : Exp S Ψ Φ Γ) : Except String KTm := do
+  let some ⟨T, l, ⟨hT⟩⟩ := exp | throw "pattern matching without an expected type"
+  let some info := env.globals.defs[f]? | throw s!"unknown definition {f}"
+  match ← KubusCore.Kernel.whnfTy R E T l hT with
+  | ⟨.pi A B, e⟩ =>
+    have hP := HasTy.eqR e
+    match ← KubusCore.Kernel.whnfTy R E A l (HasTy.piDom hP) with
+    | ⟨.data d ps, _⟩ =>
+      let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d
+      let mut bs : Array KTm := #[]
+      for (C, c) in D.ctors.zip (List.range D.ctors.length) do
+        let some br := info.branches[c]? | throw s!"missing clause in {f}"
+        let n := C.args.length
+        let r := C.recPos.length
+        let m := C.dims
+        let body := prepBranch f k info.nParams m n C.recPos (inlineLets (br.body.lift k))
+        bs := bs.push (← elabUnder R env E ks (D.branchTy d c C ps B)
+          (List.replicate (n + r) true ++ List.replicate m false) body)
+      return .lam A (.elim d ps.shift (B.ren (KubusCore.Tm.upRen Nat.succ) id) (KubusCore.Tm.ofList bs.toList).shift (.var 0))
+    | ⟨A', _⟩ => throw s!"pattern matching on {KubusCore.Kernel.short A'}"
+  | ⟨T', _⟩ => throw s!"pattern matching at type {KubusCore.Kernel.short T'}"
 
 /-- A system whose elements bind an interval variable: the disjunction of the keys and the
 elements as a nested `split`, in the context extended by the bound variable. -/
@@ -339,6 +468,72 @@ partial def globs : Kubus.Tm → List (String × Nat)
   | .glob n j => [(n, j)]
   | t => t.children.flatMap fun (_, c) => globs c
 
+/-- Data types mentioned by a core term (constructors and pattern matching included). -/
+partial def datasOf (g : Globals) : Kubus.Tm → List (String × Nat)
+  | .data d k ps => (d, k) :: ps.flatMap (datasOf g)
+  | .con c as _ => ((g.ctors[c]?.map fun ci => [(ci.data, 0)]).getD []) ++ as.flatMap (datasOf g)
+  | .split f _ =>
+    match g.defs[f]? with
+    | some info => info.branches.flatMap fun b =>
+        ((g.ctors[b.ctor]?.map fun ci => [(ci.data, 0)]).getD []) ++ datasOf g b.body
+    | none => []
+  | t => t.children.flatMap fun (_, c) => datasOf g c
+
+/-- Translation of the types in a data declaration (no λ or Glue elements occur there). -/
+partial def trPlain (env : Env) (ks : List Entry) : Kubus.Tm → Except String KTm
+  | .var i => trVar ks i
+  | .glob n k =>
+    match env.consts[(n, k)]? with
+    | some c => pure (.const c)
+    | none => throw s!"uses {showName' n k}, which is not in the kernel signature"
+  | .univ l => pure (.univ l)
+  | .pi _ a b => return .pi (← trPlain env ks a) (← trPlain env (.tm :: ks) b)
+  | .sigma _ a b => return .sigma (← trPlain env ks a) (← trPlain env (.tm :: ks) b)
+  | .app f a => return .app (← trPlain env ks f) (← trPlain env ks a)
+  | .fst t => return .fst (← trPlain env ks t)
+  | .snd t => return .snd (← trPlain env ks t)
+  | .papp t r => return .papp (← trPlain env ks t) (← trI ks r)
+  | .piI _ a => return .ipi (← trPlain env (.dim :: ks) a)
+  | .pathP (.plam _ a) u v => return .path (← trPlain env (.dim :: ks) a) (← trPlain env ks u) (← trPlain env ks v)
+  | .data dn k ps => return .data (← env.dataIdx dn k) (KubusCore.Tm.ofList (← ps.mapM (trPlain env ks)))
+  | _ => throw "unsupported term in a data declaration"
+where showName' (n : String) (k : Nat) : String := if k == 0 then n else s!"{n}^{k}"
+
+/-- A boundary element of a constructor of the data type `d` (with `np` parameters) with `n`
+arguments: argument variables and constructors of `d`. -/
+partial def trBnd (env : Env) (di : DataInfo) (d np n : Nat) (ks : List Entry) : Kubus.Tm → Except String KTm
+  | .var i => trVar ks i
+  | .con c as rs => do
+    let some ci := di.ctors.findIdx? (·.name == c) | throw s!"boundary uses {c}, a constructor of another type"
+    return .con d ci (KubusCore.Ctor.paramVars np n) (KubusCore.Tm.ofList (← as.mapM (trBnd env di d np n ks)))
+      (← rs.mapM (trI ks))
+  | _ => throw "the boundary is not simple"
+
+/-- Translate the declaration of a data type, which will have index `d`. -/
+def transData (env : Env) (di : DataInfo) (k d : Nat) : Except String KubusCore.DataDecl := do
+  let np := di.params.length
+  let params ← (di.params.zip (List.range np)).mapM fun ((_, ty), j) =>
+    trPlain env (List.replicate j .tm) (ty.lift k)
+  let ctors ← di.ctors.mapM fun ci => do
+    let n := ci.tele.length
+    let args ← ((ci.tele.zip ci.recArgs).zip (List.range n)).mapM fun (((_, ty), isRec), j) => do
+      if isRec then
+        match ty with
+        | .data dn _ ps =>
+          let ok := dn == di.name && ps.length == np &&
+            (ps.zip (List.range np)).all fun (p, q) => match p with
+              | .var x => x == j + np - 1 - q
+              | _ => false
+          if ok then pure KubusCore.Arg.recur else throw s!"recursive argument of {ci.name} is not of the form {di.name} params"
+        | _ => throw s!"recursive argument of {ci.name} is infinitary (not supported)"
+      else return KubusCore.Arg.point (← trPlain env (List.replicate (np + j) .tm) (ty.lift k))
+    let m := ci.dims.length
+    let ks := List.replicate m Entry.dim ++ List.replicate (n + np) Entry.tm
+    let bnd ← ci.boundary.mapM fun (key, el) => do
+      return (← trI ks key, ← trBnd env di d np n ks (el.lift k))
+    return ({ args, dims := m, bnd } : KubusCore.Ctor)
+  return { level := di.level + k, params, ctors }
+
 /-- Translate a closed definition. -/
 def translate (env : Env) (S : Sig) (ty body : Kubus.Tm) : Except String (KTm × KTm) := do
   let (R, E) ← setup S
@@ -346,6 +541,38 @@ def translate (env : Env) (S : Sig) (ty body : Kubus.Tm) : Except String (KTm ×
   let ⟨l, ⟨hA⟩⟩ ← KubusCore.Kernel.inferType R E kty
   let kbody ← elabT R env E [] (inlineLets body) (some ⟨kty, l, ⟨hA⟩⟩)
   return (kty, kbody)
+
+mutual
+
+/-- Add the data type `dn` displaced by `k` to the signature. -/
+partial def addData (g : Globals) (dn : String) (k : Nat) : StateM State (List String) := do
+  let s ← get
+  let key := { s.env with globals := g }.dataKey dn k
+  let name := "data " ++ showName key.1 key.2
+  if s.env.datas.contains key || s.skipped.contains key then return []
+  let skip (why : String) : StateM State (List String) := do
+    modify fun s => { s with skipped := s.skipped.insert key why }
+    return [s!"kernel: skipped {name}: {why}"]
+  let some di := g.datas[dn]? | skip "unknown data type"
+  let mut out : List String := []
+  let tys := di.params.map (·.2) ++ di.ctors.flatMap fun ci => ci.tele.map (·.2)
+  for t in tys do
+    for (m, j) in globs t do out := out ++ (← addGlobal g m j)
+    for (m, j) in datasOf g t do
+      if m != dn then out := out ++ (← addData g m j)
+  let s ← get
+  let env := { s.env with globals := g }
+  match transData env di key.2 s.sig.sig.length with
+  | .error e => return out ++ (← skip e)
+  | .ok D =>
+    match s.sig.extendData D with
+    | .ok sig' =>
+      set { s with sig := sig', env.datas := s.env.datas.insert key s.sig.sig.length,
+                   certified := s.certified + 1 }
+      return out ++ [s!"kernel: certified {name}"]
+    | .error e =>
+      set { s with skipped := s.skipped.insert key "rejected", rejected := s.rejected + 1 }
+      return out ++ [s!"kernel: REJECTED {name}: {e}"]
 
 /-- Add the global `n` displaced by `k` to the signature (and the globals it uses first).
 Returns the messages to print. -/
@@ -357,14 +584,16 @@ partial def addGlobal (g : Globals) (n : String) (k : Nat) : StateM State (List 
     return [s!"kernel: skipped {showName n k}: {why}"]
   let some info := g.defs[n]? | skip "not a definition"
   let some body := info.body | skip "no body"
-  if !info.branches.isEmpty then return ← skip "pattern matching (phase 2)"
   let ty := info.tyTm.lift k
   let body := body.lift k
+  let parts := ty :: body :: info.branches.map (·.body.lift k)
   let mut out : List String := []
-  for (m, j) in globs ty ++ globs body do
-    if m != n then out := out ++ (← addGlobal g m j)
+  for t in parts do
+    for (m, j) in globs t do
+      if m != n then out := out ++ (← addGlobal g m j)
+    for (m, j) in datasOf g t do out := out ++ (← addData g m j)
   let s ← get
-  match translate s.env s.sig.sig ty body with
+  match translate { s.env with globals := g } s.sig.sig ty body with
   | .error e => return out ++ (← skip e)
   | .ok (kty, kbody) =>
     match s.sig.extend kbody kty with
@@ -375,5 +604,7 @@ partial def addGlobal (g : Globals) (n : String) (k : Nat) : StateM State (List 
     | .error e =>
       set { s with skipped := s.skipped.insert (n, k) "rejected", rejected := s.rejected + 1 }
       return out ++ [s!"kernel: REJECTED {showName n k}: {e}"]
+
+end
 
 end Kubus.Bridge

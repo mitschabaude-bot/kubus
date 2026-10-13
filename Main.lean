@@ -53,6 +53,10 @@ partial def runFile (path : System.FilePath) (top : Bool := true) : StateT Drive
             let (msgs, ks') := (Bridge.addGlobal st'.globals n 0).run ks
             for m in msgs do IO.println m
             modify fun dr => { dr with kernel := some ks' }
+          if let .data n .. := d then
+            let (msgs, ks') := (Bridge.addData st'.globals n 0).run ks
+            for m in msgs do IO.println m
+            modify fun dr => { dr with kernel := some ks' }
       | .error e => throw s!"{path}:{e}"
 
 def usage : String :=

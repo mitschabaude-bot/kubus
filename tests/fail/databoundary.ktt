@@ -1,0 +1,3 @@
+-- expect: type mismatch
+-- the boundary c0 y is ill-typed (y : Y); accepting it made the spec inconsistent (phase 2 red team)
+data D (X Y : U) : U := c0 (x : X) | c1 (y : Y) (i : I) [i = 1 -> c0 y]

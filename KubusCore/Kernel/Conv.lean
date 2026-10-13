@@ -81,6 +81,15 @@ def projSnd {Ψ Φ Γ} (t A : Tm) (h : HasTy S Ψ Φ Γ (.snd t) A) : Red S Ψ �
 section
 variable (R : Rec S) {Ψ : Nat} {Φ : I} {Γ : Ctx} (E : KCtx S Ψ Φ Γ)
 
+def convTyData (m d : Nat) (ps ps' : Tm) (hm : m + 1 ≤ maxLevel) :
+    K (PLift (EqTm S Ψ Φ Γ (.data d ps) (.data d ps') (.univ m))) := do
+  let ⟨D, ⟨hS, hD⟩⟩ ← inferData R E d ps
+  let ⟨D', ⟨hS', hD'⟩⟩ ← inferData R E d ps'
+  have hDD : D' = D := by rw [hS] at hS'; cases hS'; rfl
+  let ⟨e⟩ ← convTele R E ps ps' D.params []
+  if hl : D.level ≤ m then pure ⟨(EqTm.data hS hD (hDD ▸ hD') e).liftLe hl (Nat.le_of_succ_le hm)⟩
+  else fail "kernel: universe level mismatch"
+
 /-- Structural comparison of two types in weak-head normal form. -/
 def convTyWhnf (m : Nat) (X Y : Tm) (hX : HasTy S Ψ Φ Γ X (.univ m))
     (hY : HasTy S Ψ Φ Γ Y (.univ m)) : K (PLift (EqTm S Ψ Φ Γ X Y (.univ m))) :=
@@ -129,6 +138,9 @@ def convTyWhnf (m : Nat) (X Y : Tm) (hX : HasTy S Ψ Φ Γ X (.univ m))
     let ⟨he2⟩ ← R.check E1 e2 (Tm.equiv T2 A2) l2 hq2
     let ⟨ee⟩ ← R.conv E1 (Tm.equiv T1 A1) l1 hq1 e1 e2 he1 (HasTy.conv he2 eq)
     pure ⟨EqTm.glue hX hY eA h12 h21 eT ee⟩
+  | .data d ps, .data d' ps', hX, hY =>
+    if hd : d' = d then by subst hd; exact convTyData R E m d' ps ps' hm
+    else fail s!"kernel: different inductive types D{d} and D{d'}"
   | X, Y, _, _ => do
     let ⟨ni, ⟨en⟩⟩ ← R.convNe E X Y
     bridge R E ni.hty (E.univTy m hm) en
@@ -276,6 +288,51 @@ def convNeUnglue (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : Tm
   return ⟨⟨A1, gi.lvl, hA1, HasTy.unglue hG hA1 he (HasTy.conv gi.htm eG)⟩,
     ⟨EqTm.unglue (HasTy.unglue hG hA1 he (HasTy.conv gi.htm eG)) hu h1 h2 eg2⟩⟩
 
+def convNeCon (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps args : Tm) (rs : List I)
+    (ps' args' : Tm) (rs' : List I) :
+    K ((i : Inf S Ψ Φ Γ (.con d c ps args rs)) ×
+      PLift (EqTm S Ψ Φ Γ (.con d c ps args rs) (.con d c ps' args' rs') i.ty)) := do
+  let ⟨D, ⟨hS, hD, h1⟩⟩ ← inferCon R E d c ps args rs
+  let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
+  let ⟨h2⟩ ← R.check E (.con d c ps' args' rs') (.data d ps) D.level hD
+  let ⟨eps⟩ ← convTele R E ps ps' D.params []
+  let ⟨eas⟩ ← convTele R E args args' (C.argTys d D.params.length) ps.toList.reverse
+  if hlen : rs.length = rs'.length then
+    let ⟨hrs⟩ ← forallPairs0 rs rs' (fun _ r r' => I.Eq r r') fun _ r r' _ _ => ensureIEq r r'
+    return ⟨⟨_, D.level, hD, h1⟩, ⟨EqTm.con hS hC h1 h2 eps eas hlen hrs⟩⟩
+  else fail "kernel: interval arguments differ in number"
+
+def convNeElim (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t ps' P' bs' t' : Tm) :
+    K ((i : Inf S Ψ Φ Γ (.elim d ps P bs t)) ×
+      PLift (EqTm S Ψ Φ Γ (.elim d ps P bs t) (.elim d ps' P' bs' t') i.ty)) := do
+  let info ← inferElimInfo R E d ps P bs
+  let ⟨ht⟩ ← R.check E t (.data d ps) info.D.level info.hD
+  have h1 := info.typing ht
+  have hT := HasTy.subst info.hP ht
+  let ⟨h2⟩ ← R.check E (.elim d ps' P' bs' t') (P.inst t) info.m hT
+  let ⟨eps⟩ ← convTele R E ps ps' info.D.params []
+  let Ex := E.ext (.data d ps) info.D.level info.hD
+  let ⟨hU⟩ ← univTyK Ex info.m
+  let ⟨hP'⟩ ← checkType R Ex P' info.m
+  let ⟨eP⟩ ← R.conv Ex (.univ info.m) (info.m + 1) hU P P' info.hP hP'
+  if hlen : bs.toList.length = bs'.toList.length then
+    let ⟨hbr⟩ ← forallPairs0 bs.toList bs'.toList
+      (fun c b b' => ∀ C, info.D.ctors[c]? = some C → EqTm S Ψ Φ Γ b b' (info.D.branchTy d c C ps P))
+      fun c b b' hb _ => do
+        match getIdx' info.D.ctors c with
+        | .inl ⟨C, ⟨hC⟩⟩ =>
+          let ⟨l, ⟨hB⟩⟩ ← inferType R E (info.D.branchTy d c C ps P)
+          let ⟨hb1⟩ ← R.check E b _ l hB
+          let ⟨hb2⟩ ← R.check E b' _ l hB
+          let ⟨e⟩ ← R.conv E _ l hB b b' hb1 hb2
+          pure ⟨fun C' hC' => by rw [hC] at hC'; cases hC'; exact e⟩
+        | .inr ⟨hC⟩ => pure ⟨fun C' hC' => by rw [hC] at hC'; cases hC'⟩
+    let ⟨ht'⟩ ← R.check E t' (.data d ps) info.D.level info.hD
+    let ⟨et⟩ ← R.conv E _ info.D.level info.hD t t' ht ht'
+    return ⟨⟨_, info.m, hT, h1⟩, ⟨EqTm.elim info.hS h1 h2 eps eP hlen
+      (fun c C b b' hC hb hb' => hbr c b b' hb hb' C hC) et⟩⟩
+  else fail "kernel: different numbers of branches"
+
 /-- Comparison of neutral terms in weak-head normal form; returns the type of the first. -/
 def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
     K ((i : Inf S Ψ Φ Γ t) × PLift (EqTm S Ψ Φ Γ t u i.ty)) :=
@@ -365,6 +422,13 @@ def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
   | .unglue φ e g, .unglue φ' e' g' =>
     if he : e' = e then by subst he; exact convNeUnglue R E φ _ g φ' g'
     else fail s!"kernel: unglue with different equivalences:\n  {short e}\n  {short e'}"
+  | .con d c ps args rs, .con d' c' ps' args' rs' =>
+    if h : d' = d ∧ c' = c then by
+      obtain ⟨rfl, rfl⟩ := h; exact convNeCon R E d' c' ps args rs ps' args' rs'
+    else fail s!"kernel: different constructors D{d}.{c} and D{d'}.{c'}"
+  | .elim d ps P bs t, .elim d' ps' P' bs' t' =>
+    if h : d' = d then by subst h; exact convNeElim R E d' ps P bs t ps' P' bs' t'
+    else fail "kernel: eliminators of different types"
   | t, u => fail s!"kernel: not convertible:\n  {short t}\n  {short u}"
 
 end KubusCore.Kernel
