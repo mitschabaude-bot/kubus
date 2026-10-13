@@ -286,10 +286,9 @@ theorem dataSD_restr' (σ : SigV) (D : DataDecl) (d : ℕ) (ps : RV m) (f : Hom 
 
 /-- The guard of the eliminator is stable under restriction (given the scrutinee there). -/
 theorem ElimGuard.restr {σ : SigV} {D : DataDecl} {d : ℕ} {ps : RV m} {P : (n : ℕ) → Hom n m → V → V}
-    {bs t : RV m} (g : ElimGuard σ D d m ps P bs t) (f : Hom k m)
-    (ht : DElem (dataSD σ D d m ps) k f (t k f)) :
-    ElimGuard σ D d k (fun n g => ps n (f.comp g)) (fun n g => P n (f.comp g)) (fun n g => bs n (f.comp g))
-      (fun n g => t n (f.comp g)) := by
+    {bs t : RV m} (g : ElimGuard σ D d m ps P bs t) (f : Hom k m) (t' : RV k)
+    (ht : DElem (dataSD σ D d m ps) k f (t' k (Hom.id k))) :
+    ElimGuard σ D d k (fun n g => ps n (f.comp g)) (fun n g => P n (f.comp g)) (fun n g => bs n (f.comp g)) t' := by
   obtain ⟨hpok, -, hBO, hty, hmot⟩ := g
   rw [ElimGuard, dataSD_restr']
   refine ⟨hpok.restr f, ?_, fun n g' c C hC ψ b hmem args rs hat hrs hψ => ?_, fun n g' v hv => ?_,
@@ -333,12 +332,27 @@ theorem sem_elim_guard (hS : SigOK S) {d : ℕ} {D : DataDecl} (hd : S[d]? = som
     rw [hnat k f]
     have := hde.res hgood.resClosed k f
     rwa [Hom.id_comp] at this
-  have gf := g.restr f hdef
-  rw [← psRV_restr, ← motV_restr, ← psRV_restr, ← psRV_restr] at gf
+  have gf := g.restr f (psRV S t k (ρ.restr f) (TEnv.restr γ f)) (by
+    show DElem _ k f (sem S t k ((ρ.restr f).restr (Hom.id k)) (TEnv.restr (TEnv.restr γ f) (Hom.id k)))
+    rw [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr γ f) (fun x => isKV_res f _)]; exact hdef)
+  rw [← psRV_restr, ← motV_restr, ← psRV_restr] at gf
   rw [hval (ρ.restr f) (TEnv.restr γ f) (fun x => isKV_res f _) gf, elimD_restr_pt, Hom.comp_id, hnat k f, hval ρ γ hkv g]
   have := (g.2.2.2.1 m (Hom.id m) _ hde).2 k f
   rw [Hom.id_comp] at this
   exact this.symm
+
+
+theorem psRV_dshift_cons (t : Tm) (ρ : IEnv m) (γ : ℕ → V) (h : Hom n m) (r : DM n) :
+    psRV S t.dshift n ((ρ.restr h).cons r) (TEnv.restr γ h) = fun k f => psRV S t m ρ γ k (h.comp f) := by
+  funext k f
+  simp only [psRV]
+  rw [IEnv.cons_restr, sem_dshift_cons, IEnv.restr_restr, TEnv.restr_restr]
+
+theorem motV_dshift_cons (P : Tm) (ρ : IEnv m) (γ : ℕ → V) (h : Hom n m) (r : DM n) :
+    motV S P.dshift ((ρ.restr h).cons r) (TEnv.restr γ h) = fun k f => motV S P ρ γ k (h.comp f) := by
+  funext k f a
+  simp only [motV]
+  rw [IEnv.cons_restr, sem_dshift_cons, IEnv.restr_restr, TEnv.restr_restr]
 
 section
 
