@@ -61,8 +61,12 @@ variable {Θ : SData m} (hΘ : Θ.Good) (P : (n : ℕ) → Hom n m → V → V) 
     pappsV n (appsV n (vnth (bs n g) c) (args ++ ihs)) rs ∈ El (P n g (conV Θ.ctors n c args rs)) (Hom.id n) ∧
     ∀ n' (h : Hom n' n), res h (pappsV n (appsV n (vnth (bs n g) c) (args ++ ihs)) rs) =
       pappsV n' (appsV n' (vnth (bs n' (g.comp h)) c) ((args ++ ihs).map (res h))) (rs.map (·.restr h)))
-  (hBO : BranchesOK Θ P bs)
-include hΘ hP hPn hB hBO
+  (hG : ∀ n (g : Hom n m) c C, Θ.ctors[c]? = some C → ∀ args, Θ.ArgsTyped c C n g args →
+    ∀ rs : List (DM n), rs.length = C.dims →
+    (∀ j a, args[j]? = some a → C.isRec j = true → elimD Θ P bs n g a ∈ El (P n g a) (Hom.id n) ∧
+      ∀ n' (h : Hom n' n), res h (elimD Θ P bs n g a) = elimD Θ P bs n' (g.comp h) (res h a)) →
+    elimD Θ P bs n g (conV Θ.ctors n c args rs) = elimBranch Θ P bs n g c args rs)
+include hΘ hP hPn hB hG
 
 theorem elimBranch_eq {n : ℕ} {g : Hom n m} {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {args : List V}
     (hlen : args.length = C.args.length) (rs : List (DM n)) :
@@ -78,7 +82,7 @@ theorem elimD_typed : ∀ {n : ℕ} {g : Hom n m} {v : V}, DElem Θ n g v →
   induction hv with
   | @con n g c C args rs hC hlen hrs hrec hpt ih =>
     have hat : Θ.ArgsTyped c C n g args := ⟨hlen, hrec, hpt⟩
-    rw [elimD_conV_typed hΘ P bs hBO hC hat hrs, elimBranch_eq hΘ P bs hP hPn hB hBO hC hlen]
+    rw [hG n g c C hC args hat rs hrs ih, elimBranch_eq hΘ P bs hP hPn hB hG hC hlen]
     have hrp : ∀ s (hs : s < C.recPos.length), ∃ a, args[C.recPos.getD s 0]? = some a ∧ C.isRec (C.recPos.getD s 0) = true := by
       intro s hs
       have hm : C.recPos.getD s 0 ∈ C.recPos := by
@@ -117,7 +121,17 @@ theorem elimD_typed : ∀ {n : ℕ} {g : Hom n m} {v : V}, DElem Θ n g v →
     refine ⟨hihs.1, fun n' h => ?_⟩
     rw [hihs.2 n' h, res_conV, List.map_append, List.map_map]
     have hat' := hΘ.argsTyped_res hC hat n' h
-    rw [elimD_conV_typed hΘ P bs hBO hC hat' (by simp [hrs]), elimBranch_eq hΘ P bs hP hPn hB hBO hC (by simp [hlen])]
+    rw [hG n' (g.comp h) c C hC _ hat' _ (by simp [hrs]) (fun j a ha hr => by
+        rw [List.getElem?_map] at ha
+        obtain ⟨a0, ha0, rfl⟩ := Option.map_eq_some_iff.1 ha
+        obtain ⟨h1, h2⟩ := ih j a0 ha0 hr
+        have hd : DElem Θ n g a0 := hrec j a0 ha0 hr
+        refine ⟨?_, fun n'' h' => ?_⟩
+        · rw [← h2 n' h]
+          have := (hP n g a0 hd).elRes n (Hom.id n) _ h1 n' h
+          rwa [El_eq_res_id, Hom.id_comp, hPn n g a0 hd n' h] at this
+        · rw [← h2 n' h, res_res, h2 n'' (h.comp h'), res_res]; rfl),
+      elimBranch_eq hΘ P bs hP hPn hB hG hC (by simp [hlen])]
     congr 3
     apply List.map_congr_left
     intro j hj
