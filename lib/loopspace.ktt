@@ -12,12 +12,9 @@ def intLoop : Int -> Path S1 base base
   | pos n => intLoopPos n
   | negsuc n => intLoopNeg n
 
-def decodeSquarePos : (n : Nat) -> PathP (\i -> Path S1 base (loop i)) (intLoop (predInt (pos n))) (intLoop (pos n))
-  | zero => \i j -> loop (i \/ ~j)
-  | suc n => \i j -> fill k S1 [j = 0 -> base, j = 1 -> loop k] (intLoopPos n j) i
-
 def decodeSquare : (n : Int) -> PathP (\i -> Path S1 base (loop i)) (intLoop (predInt n)) (intLoop n)
-  | pos n => decodeSquarePos n
+  | pos zero => \i j -> loop (i \/ ~j)
+  | pos (suc n) => \i j -> fill k S1 [j = 0 -> base, j = 1 -> loop k] (intLoopPos n j) i
   | negsuc n => \i j -> fill k S1 [j = 0 -> base, j = 1 -> loop (~k)] (intLoopNeg n j) (~i)
 
 def decode : (x : S1) -> helix x -> Path S1 base x
@@ -26,10 +23,10 @@ def decode : (x : S1) -> helix x -> Path S1 base x
                                   j = 0 -> base, j = 1 -> loop i]
                         (decodeSquare (unglue y) i j)
 
-def encode (x : S1) (p : Path S1 base x) : helix x := transport Int (helix x) (\i -> helix (p i)) (pos zero)
+def encode (x : S1) (p : Path S1 base x) : helix x := transport (\i -> helix (p i)) (pos zero)
 
 def decodeEncode (x : S1) (p : Path S1 base x) : Path (Path S1 base x) (decode x (encode x p)) p :=
-  J S1 base (\x p -> Path (Path S1 base x) (decode x (encode x p)) p) (\i -> refl S1 base) x p
+  J (\x p -> Path (Path S1 base x) (decode x (encode x p)) p) (\i -> refl base) p
 
 def windingPos : (n : Nat) -> Path Int (winding (intLoopPos n)) (pos n)
   | zero => \i -> pos zero
@@ -45,4 +42,4 @@ def encodeDecode : (n : Int) -> Path Int (encode base (decode base n)) n
 
 -- The loop space of the circle is the integers
 def loopSpaceS1 : Path U (Path S1 base base) Int :=
-  isoToPath (Path S1 base base) Int (encode base) (decode base) encodeDecode (decodeEncode base)
+  isoToPath (encode base) (decode base) encodeDecode (decodeEncode base)

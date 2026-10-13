@@ -1,0 +1,3 @@
+-- expect: could not infer the implicit argument A of refl
+import basic
+def f := refl _

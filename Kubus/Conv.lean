@@ -1,4 +1,4 @@
-import Kubus.Eval
+import Kubus.Quote
 
 /-! # Type-directed conversion checking -/
 
@@ -7,10 +7,116 @@ namespace Kubus
 /-- `Σ (T : U l), Equiv T A` -/
 def equivPairTy (l : Nat) (a : Val) : M Val := eval [.v a] (equivPairTm l)
 
+/-- Universe level of a type. -/
+partial def levelOf (l : Nat) (v : Val) : M Nat := do
+  match ← force v with
+  | .univ n => pure (n + 1)
+  | .pi _ a env b | .sigma _ a env b =>
+    return max (← levelOf l a) (← levelOf (l + 1) (← inst env b (.var l a)))
+  | .piI line | .pathP line _ _ => do
+    let k ← freshAtom
+    levelOf l (← papp line (atomF k))
+  | .data d k _ => return (← lookupData d).level + k
+  | .glueTy b _ | .compU b _ => levelOf l b
+  | v =>
+    match ← inferNe v with
+    | some (.univ n) => pure n
+    | _ => pure 0
+
+/-! ## Unification
+
+A value whose head is an unsolved metavariable `?m` applied to a spine is *flexible*. Comparing
+it with a value `v` solves `?m := λ xs. v`, where the spine arguments that are distinct
+variables are abstracted (pattern unification). Other spine arguments may not occur in the
+solution. -/
+
+/-- An unsolved metavariable and its spine (outermost argument first). -/
+partial def flex? (v : Val) : M (Option (Nat × List EnvE)) := do
+  if (← get).metas.isEmpty then return none
+  let rec go (v : Val) (acc : List EnvE) : M (Option (Nat × List EnvE)) := do
+    match v with
+    | .gvar n _ =>
+      match metaId? n with
+      | some m => return if ((← get).metas[m]?.bind (·.sol)).isNone then some (m, acc) else none
+      | none => return none
+    | .app f a => go f (.v a :: acc)
+    | .papp p r => go p (.d r :: acc)
+    | _ => return none
+  go v []
+
+/-- Whether a quoted solution candidate mentions variables that are not in scope (quote marks
+them as `?x` globals and interval indices ≥ 1000000) or the metavariable itself. -/
+partial def Tm.badSolution (m : Nat) (t : Tm) : Bool :=
+  let badI : ITm → Bool := fun r => go r
+  match t with
+  | .glob n _ => n.startsWith "?x" || n == metaName m
+  | .papp t r => t.badSolution m || badI r
+  | .con _ as ds => as.any (·.badSolution m) || ds.any badI
+  | .comp _ a sys u0 | .hcomp _ a sys u0 | .fill _ a sys u0 =>
+    a.badSolution m || u0.badSolution m || sys.any fun (r, t) => badI r || t.badSolution m
+  | .glueTy a sys | .glue sys a | .compU a sys => a.badSolution m || sys.any fun (r, t) => badI r || t.badSolution m
+  | .unglue u b sys | .unglueU u b sys =>
+    u.badSolution m || b.badSolution m || sys.any fun (r, t) => badI r || t.badSolution m
+  | .pi _ a b | .sigma _ a b | .app a b | .pair a b | .letE _ a b => a.badSolution m || b.badSolution m
+  | .lam _ b | .piI _ b | .plam _ b | .fst b | .snd b => b.badSolution m
+  | .pathP a u v => a.badSolution m || u.badSolution m || v.badSolution m
+  | .data _ _ ps => ps.any (·.badSolution m)
+  | _ => false
+where
+  go : ITm → Bool
+    | .var i => i ≥ 1000000
+    | .neg r => go r
+    | .and r s | .or r s => go r || go s
+    | _ => false
+
+/-- The type of `?m sp`. -/
+partial def spineType (ty : Val) (sp : List EnvE) : M Val := do
+  let mut ty := ty
+  for e in sp do
+    match ← force ty, e with
+    | .pi _ _ env b, .v a => ty ← inst env b a
+    | .piI line, .d r => ty ← papp line r
+    | _, _ => return ty
+  return ty
+
+/-- Try to solve `?m sp := v` at context level `l`. -/
+partial def solveMeta (l : Nat) (m : Nat) (sp : List EnvE) (v : Val) : M Bool := do
+  let es := sp.reverse.map fun
+    | .v (.var lv _) => QE.tv lv
+    | .d r => match r.dnf with
+      | [[lit]] => if lit.pos then .dim lit.atom else .other
+      | _ => .other
+    | _ => .other
+  let body ← quote { es, next := l } v
+  if body.badSolution m then return false
+  let some mi := (← get).metas[m]? | return false
+  if let .univ n ← spineType mi.ty sp then
+    if (← levelOf l v) > n then return false
+  let tm := sp.foldr (fun e b => match e with | .v _ => .lam "x" b | .d _ => .plam "i" b) body
+  let solV ← eval [] tm
+  modify fun s => { s with metas := s.metas.modify m fun mi => { mi with sol := some tm, solV := some solV } }
+  return true
+
+/-- If one side is flexible, try to solve it with the other side. -/
+partial def flexSolve (l : Nat) (u v : Val) : M (Option Bool) := do
+  let fu ← flex? u
+  let fv ← flex? v
+  match fu, fv with
+  | some (m, _), some (m', _) => if m == m' then return none
+  | _, _ => pure ()
+  if let some (m, sp) := fu then
+    if ← solveMeta l m sp v then return some true
+  if let some (m, sp) := fv then
+    if ← solveMeta l m sp u then return some true
+  return none
+
 mutual
 
 partial def conv (l : Nat) (ty u v : Val) : M Bool := do
-  match ty with
+  let u ← force u
+  let v ← force v
+  if let some r ← flexSolve l u v then return r
+  match ← force ty with
   | .pi _ a env b =>
     let x := Val.var l a
     conv (l + 1) (← inst env b x) (← app u x) (← app v x)
@@ -75,6 +181,9 @@ partial def convSysWith (cmp : Face → Val → Val → M Bool) (s1 s2 : System 
   return true
 
 partial def convTy (l : Nat) (a b : Val) : M Bool := do
+  let a ← force a
+  let b ← force b
+  if let some r ← flexSolve l a b then return r
   match a, b with
   | .univ m, .univ n => pure (m == n)
   | .pi _ a1 e1 b1, .pi _ a2 e2 b2 | .sigma _ a1 e1 b1, .sigma _ a2 e2 b2 =>
@@ -105,6 +214,16 @@ partial def convTy (l : Nat) (a b : Val) : M Bool := do
 
 /-- Compare neutral values; returns their type if equal. -/
 partial def convNe (l : Nat) (u v : Val) : M (Option Val) := do
+  match ← convNe' l u v with
+  | some ty => return some (← force ty)
+  | none => return none
+
+partial def convNe' (l : Nat) (u v : Val) : M (Option Val) := do
+  -- a flexible head of an application spine (first-order approximation: `?f a =? g b` tries
+  -- `?f =? g` and `a =? b`)
+  if let some true ← flexSolve l u v then
+    if let some ty ← inferNe v then return some ty
+    return ← inferNe u
   match u, v with
   | .var x ty, .var y _ => pure (if x == y then some ty else none)
   | .gvar x ty, .gvar y _ => pure (if x == y then some ty else none)
@@ -161,6 +280,9 @@ end
 
 /-- Subtyping by cumulativity of universes. -/
 partial def subtype (l : Nat) (a b : Val) : M Bool := do
+  let a ← force a
+  let b ← force b
+  if let some r ← flexSolve l a b then return r
   match a, b with
   | .univ m, .univ n => pure (m ≤ n)
   | .pi _ a1 e1 b1, .pi _ a2 e2 b2 =>

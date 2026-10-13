@@ -1,0 +1,4 @@
+-- expect: no implicit argument named c
+import basic
+data Unit2 : U := tt2
+def f : Path Unit2 tt2 tt2 := sym {c := tt2} (refl tt2)

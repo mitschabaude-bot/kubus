@@ -1,0 +1,5 @@
+-- expect: missing clause for suc zero
+data Nat : U := zero | suc (n : Nat)
+def f : Nat -> Nat
+  | zero => zero
+  | suc (suc n) => n

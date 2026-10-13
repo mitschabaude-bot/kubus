@@ -1,0 +1,5 @@
+-- expect: type mismatch
+import basic
+data B2 : U := t | f
+data N2 : U := z
+def g : Path B2 t t := refl z
