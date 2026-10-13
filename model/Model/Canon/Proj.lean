@@ -173,12 +173,11 @@ theorem pis_inv (hS : SigClosed S) {Ψ : ℕ} {Φ : I} : ∀ (Ts : List Tm) {Γ0
     simpa [List.take_succ_cons, List.reverse_cons, List.append_assoc] using this
 
 /-- The values of a closed telescope, as a substitution out of the context of its types. -/
-theorem tySub_tele {Ψ : ℕ} {Φ : I} {Ts vals : List Tm} (ht : HasTele0 S Ψ Φ [] (Tm.ofList vals) Ts []) :
-    ∀ k, k ≤ Ts.length → TySub S Ψ Φ ((Ts.take k).reverse) Ψ Φ [] (slS ((vals.take k).reverse)) I.var
+theorem tySub_tele {Ψ : ℕ} {Φ : I} {Γ0 : Ctx} {Ts vals : List Tm} (ht : HasTele0 S Ψ Φ Γ0 (Tm.ofList vals) Ts []) :
+    ∀ k, k ≤ Ts.length → TySub S Ψ Φ ((Ts.take k).reverse ++ Γ0) Ψ Φ Γ0 (slS ((vals.take k).reverse)) I.var
   | 0, _ => by
-    have hw := wf_of_tele ht
-    have h : TySub S Ψ Φ [] Ψ Φ [] (slS []) I.var :=
-      ⟨fun i hi => hi, scoped_of_wf hw, by rw [I_subst_var]; exact ent_refl _, fun x A hx => by simp [Ctx.lookup] at hx, hw⟩
+    have h := tySub_id (wf_of_tele ht)
+    rw [show (Tm.var : ℕ → Tm) = slS [] from funext fun j => by simp [slS]] at h
     simpa using h
   | k + 1, hk => by
     have ih := tySub_tele ht k (by omega)
@@ -189,8 +188,10 @@ theorem tySub_tele {Ψ : ℕ} {Φ : I} {Ts vals : List Tm} (ht : HasTele0 S Ψ �
     rw [toList_ofList, List.append_nil, substList_eq] at ha
     have := ih.cons (A := Ts[k]) ha
     rw [← slS_cons] at this
-    have e1 : (Ts.take (k + 1)).reverse = Ts[k] :: (Ts.take k).reverse := by rw [List.take_succ, hT]; simp
-    have e2 : (vals.take (k + 1)).reverse = vals[k] :: (vals.take k).reverse := by rw [List.take_succ, hv]; simp
+    have e1 : (Ts.take (k + 1)).reverse ++ Γ0 = Ts[k] :: ((Ts.take k).reverse ++ Γ0) := by
+      have h1 : Ts.take (k + 1) = Ts.take k ++ [Ts[k]] := by rw [List.take_add_one, hT]; rfl
+      rw [h1, List.reverse_append]; rfl
+    have e2 : (vals.take (k + 1)).reverse = vals[k] :: (vals.take k).reverse := by rw [List.take_add_one, hv]; simp
     rw [e1, e2]; exact this
 
 theorem subst_up_inst (t : Tm) (σ : ℕ → Tm) (a : Tm) :
@@ -205,18 +206,18 @@ theorem subst_slS_nil (t : Tm) : t.subst (slS []) I.var = t := by
   rw [show slS [] = Tm.var from funext fun j => by simp [slS]]; exact subst_var t
 
 /-- Iterated β-reduction of an abstraction over a closed telescope. -/
-theorem apps_lams (hS : SigClosed S) {Ψ : ℕ} {Φ : I} {Ts vals : List Tm} {b B : Tm} {l : ℕ}
-    (hpi : HasTy0 S Ψ Φ [] (pis Ts B) (.univ l)) (hb : HasTy0 S Ψ Φ Ts.reverse b B)
-    (ht : HasTele0 S Ψ Φ [] (Tm.ofList vals) Ts []) :
-    EqTm0 S Ψ Φ [] (Tm.apps (lams Ts b) vals) (b.substList vals.reverse) (B.substList vals.reverse) := by
+theorem apps_lams (hS : SigClosed S) {Ψ : ℕ} {Φ : I} {Γ0 : Ctx} {Ts vals : List Tm} {b B : Tm} {l : ℕ}
+    (hpi : HasTy0 S Ψ Φ Γ0 (pis Ts B) (.univ l)) (hb : HasTy0 S Ψ Φ (Ts.reverse ++ Γ0) b B)
+    (ht : HasTele0 S Ψ Φ Γ0 (Tm.ofList vals) Ts []) :
+    EqTm0 S Ψ Φ Γ0 (Tm.apps (lams Ts b) vals) (b.substList vals.reverse) (B.substList vals.reverse) := by
   have hvl : vals.length = Ts.length := by have := tele_length ht; rwa [toList_ofList] at this
-  have hG : ∀ k, k ≤ Ts.length → HasTy0 S Ψ Φ [] ((lams (Ts.drop k) b).subst (slS ((vals.take k).reverse)) I.var)
+  have hG : ∀ k, k ≤ Ts.length → HasTy0 S Ψ Φ Γ0 ((lams (Ts.drop k) b).subst (slS ((vals.take k).reverse)) I.var)
       ((pis (Ts.drop k) B).subst (slS ((vals.take k).reverse)) I.var) := fun k hk => by
-    have hb' : HasTy0 S Ψ Φ ((Ts.drop k).reverse ++ (Ts.take k).reverse) b B := by
-      rw [← List.reverse_append, List.take_append_drop]; exact hb
-    have := lams_typed hS (Ts.drop k) (by simpa using pis_inv hS Ts hpi k hk) (by simpa using hb')
+    have hb' : HasTy0 S Ψ Φ ((Ts.drop k).reverse ++ ((Ts.take k).reverse ++ Γ0)) b B := by
+      rw [← List.append_assoc, ← List.reverse_append, List.take_append_drop]; exact hb
+    have := lams_typed hS (Ts.drop k) (pis_inv hS Ts hpi k hk) hb'
     exact (sub_ty hS this).2.1 (tySub_tele ht k hk)
-  have claim : ∀ k, k ≤ Ts.length → EqTm0 S Ψ Φ [] (Tm.apps (lams Ts b) (vals.take k))
+  have claim : ∀ k, k ≤ Ts.length → EqTm0 S Ψ Φ Γ0 (Tm.apps (lams Ts b) (vals.take k))
       ((lams (Ts.drop k) b).subst (slS ((vals.take k).reverse)) I.var)
       ((pis (Ts.drop k) B).subst (slS ((vals.take k).reverse)) I.var) := by
     intro k
@@ -237,9 +238,9 @@ theorem apps_lams (hS : SigClosed S) {Ψ : ℕ} {Φ : I} {Ts vals : List Tm} {b 
       rw [hd] at ih
       have hGk := hG k (by omega)
       rw [hd] at hGk
-      change EqTm0 S Ψ Φ [] _ (Tm.lam (Ts[k].subst _ I.var) ((lams (Ts.drop (k + 1)) b).subst (Tm.up _) I.var))
+      change EqTm0 S Ψ Φ Γ0 _ (Tm.lam (Ts[k].subst _ I.var) ((lams (Ts.drop (k + 1)) b).subst (Tm.up _) I.var))
         (Tm.pi (Ts[k].subst _ I.var) ((pis (Ts.drop (k + 1)) B).subst (Tm.up _) I.var)) at ih
-      change HasTy0 S Ψ Φ [] (Tm.lam (Ts[k].subst _ I.var) ((lams (Ts.drop (k + 1)) b).subst (Tm.up _) I.var))
+      change HasTy0 S Ψ Φ Γ0 (Tm.lam (Ts[k].subst _ I.var) ((lams (Ts.drop (k + 1)) b).subst (Tm.up _) I.var))
         (Tm.pi (Ts[k].subst _ I.var) ((pis (Ts.drop (k + 1)) B).subst (Tm.up _) I.var)) at hGk
       have e1 := EqTm0.app ih (EqTm0.refl ha)
       have e2 := EqTm0.piBeta (HasTy0.app hGk ha)
