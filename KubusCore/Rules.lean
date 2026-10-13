@@ -336,6 +336,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
         (Tm.papps (Tm.apps b (args.toList ++
           C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T
   | elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} : S[d]? = some (.data D) →
+      HasTy S Ψ Φ Γ (hcomp (data d ps) φ u a) (data d ps) →
       HasTy S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T →
       EqTm S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a))
         (comp (P.subst (fun | 0 => hfill (data d ps) φ u a | j + 1 => var j) (fun i => .var (i + 1))) φ
@@ -351,6 +352,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
         (con d c (ps.dinst .one)
           (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
   | transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} : S[d]? = some (.data D) → D.params ≠ [] →
+      HasTy S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero)) →
       HasTy S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T →
       EqTm S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a))
         (hcomp (data d (ps.dinst .one)) ψ

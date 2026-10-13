@@ -58,7 +58,13 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
       | .con d' c qs args rs, ht =>
         if hd : d' = d then (by subst hd; exact transpConK R E D hS hp c ht) else pure none
       | .hcomp (.data d' qs) ψ u a0, ht =>
-        if hd : d' = d then (by subst hd; exact pure (some ⟨_, EqTm.transpHcomp hS hp ht⟩))
+        if hd : d' = d then (by
+          subst hd
+          exact do
+            -- the composition at the parameters of the line's start
+            let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d' (ps.dinst .zero))
+            let ⟨hh⟩ ← R.check E (.hcomp (.data d' (ps.dinst .zero)) ψ u a0) _ l hD
+            pure (some ⟨_, EqTm.transpHcomp hS hp hh ht⟩))
         else pure none
       | _, _ => return none
   | _, _ => pure none
@@ -194,11 +200,14 @@ def elimConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps P bs q
   | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb h1 h2 hc ht⟩, false))
   | none => fail "kernel: missing branch"
 
-def elimHcompK {Ψ Φ Γ} (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
+def elimHcompK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
     (ht : HasTy S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T) :
     K S (Option (Red S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T × Bool)) := do
   let ⟨_, ⟨hS⟩⟩ ← lookupData S d
-  pure (some (⟨_, EqTm.elimHcomp hS ht⟩, false))
+  -- the composition at the eliminator's parameters
+  let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d ps)
+  let ⟨hh⟩ ← R.check E (.hcomp (.data d ps) φ u a) _ l hD
+  pure (some (⟨_, EqTm.elimHcomp hS hh ht⟩, false))
 
 /-- Reduce the target of an eliminator. -/
 def elimTargetStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t A : Tm) (l : Nat)
@@ -229,7 +238,7 @@ def dataElimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs
     if hd : d' = d then (by subst hd; exact elimConK R E d' c ps P bs qs args rs A ht)
     else pure none
   | .hcomp (.data d' qs) φ u a, ht =>
-    if hd : d' = d then (by subst hd; exact elimHcompK d' ps P bs qs φ u a A ht)
+    if hd : d' = d then (by subst hd; exact elimHcompK R E d' ps P bs qs φ u a A ht)
     else pure none
   | t, _ => elimTargetStep R E d ps P bs t A l hA
 
