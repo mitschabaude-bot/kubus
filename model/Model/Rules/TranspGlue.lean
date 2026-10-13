@@ -364,6 +364,10 @@ theorem nat_a1' (h : TGCond S A φ T e ψ u0 m ρ γ) :
   rw [(h.restr f).sem_a1', h.sem_a1', line_restr h.Anat f, tgφ_restr, tgP_restr, h.nat_u0, face_ival_restr,
     gd_A1' h.G (isCof_ival_face ρ ψ) h.u0mem h.con]
 
+theorem a1'kv (h : TGCond S A φ T e ψ u0 m ρ γ) :
+    IsKV m (gtA1' (lineV S A m ρ γ) (tgφ ρ φ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ)) :=
+  h.G.fibA.elKV _ _ _ (gt_A1'_mem h.G (isCof_ival_face ρ ψ) h.u0mem h.con)
+
 theorem sem_fillA (h : TGCond S A φ T e ψ u0 m ρ γ) :
     Natural S (Tm.fill A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))
         (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) ∧
@@ -648,6 +652,102 @@ theorem sem_a1'_at (h : TGCond S A φ T e ψ u0 m ρ γ) (f : Hom k m) :
     sem S (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)) k
       (ρ.restr f) (TEnv.restr γ f) = res f (gtA1' (lineV S A m ρ γ) (tgφ ρ φ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ)) := by
   rw [h.nat_a1' k f, h.sem_a1']
+
+/-! ### On `φ(1)` -/
+
+section φ1
+
+variable (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds)
+include h h1
+
+theorem h1' : (Cof.restr (tgφ ρ φ) ((eO m).comp (Hom.id m))).holds := by rw [Hom.comp_id]; exact h1
+
+theorem env1 : ρ.ext.restr (eO m) = ρ.cons (ival ρ .one) := by rw [ival_one, IEnv.ext_restr_endpt]
+
+theorem γ1 : TEnv.restr (TEnv.restr γ (Hom.wk m)) (eO m) = γ := by
+  rw [TEnv.restr_restr, Hom.wk_comp_endpt, TEnv.restr_id_of_kv h.kv]
+
+theorem sem_A1 : sem S (A.dinst .one) m ρ γ = gtAA1 (lineV S A m ρ γ) (Hom.id m) := by
+  rw [sem_dinst, ival_one, line_endpt h.kv h.Anat, gtAA1, Hom.comp_id]
+
+theorem nat_A1 : Natural S (A.dinst .one) m ρ γ :=
+  Natural.dinst (by rw [ival_one]; exact line_endpt_nat h.kv h.Anat _)
+
+theorem sem_T1 : sem S (T.dinst .one) m ρ γ = gtT1 (tgP S T φ ρ γ) (Hom.id m) := by
+  rw [sem_dinst, ← h.env1 h1, gtT1, Hom.comp_id, dat_partialKV_holds h1, faceVals, h.γ1 h1]
+
+theorem sem_e1 : sem S (e.dinst .one) m ρ γ = gtE1 (tgP S e φ ρ γ) (Hom.id m) := by
+  rw [sem_dinst, ← h.env1 h1, gtE1, Hom.comp_id, dat_partialKV_holds h1, faceVals, h.γ1 h1]
+
+theorem nat_T1 : Natural S (T.dinst .one) m ρ γ := by
+  apply Natural.dinst
+  intro k f
+  have := h.fn.1 m (eO m) h1 k f
+  rwa [h.env1 h1, h.γ1 h1] at this
+
+theorem nat_e1 : Natural S (e.dinst .one) m ρ γ := by
+  apply Natural.dinst
+  intro k f
+  have := h.fn.2 m (eO m) h1 k f
+  rwa [h.env1 h1, h.γ1 h1] at this
+
+theorem nat_fst_e1 : Natural S (.fst (e.dinst .one)) m ρ γ := by
+  intro k f
+  rw [sem_fst, sem_fst, h.nat_e1 h1 k f, h.sem_e1 h1, fstV_res_of_pair (gt_e1_pair h.G (h.h1' h1))]
+
+theorem sem_fib :
+    sem S (Tm.fiber (T.dinst .one) (A.dinst .one) (.fst (e.dinst .one))
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))) m ρ γ =
+    gtFib (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) (Hom.id m) := by
+  obtain ⟨hT, hA, hp, -⟩ := gt_e1 h.G (h.h1' h1)
+  rw [sem_fiber (h.nat_T1 h1) (h.nat_A1 h1) (h.nat_fst_e1 h1) h.nat_a1' (by rw [h.sem_T1 h1]; exact hT)
+    (by rw [(h.sem_A1 h1)]; exact hA) (by rw [sem_fst, h.sem_e1 h1, h.sem_T1 h1, (h.sem_A1 h1)]; exact hp),
+    h.sem_T1 h1, (h.sem_A1 h1), sem_fst, h.sem_e1 h1, h.sem_a1', gtFib, res_id h.a1'kv]
+
+theorem sem_c :
+    sem S (.app (.snd (e.dinst .one))
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))) m ρ γ =
+    gtC (lineV S A m ρ γ) (tgφ ρ φ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) (Hom.id m) := by
+  rw [sem_app_of_nat h.nat_a1', sem_snd, h.sem_e1 h1, h.sem_a1', gtC, res_id h.a1'kv]
+
+theorem nat_fib :
+    Natural S (Tm.fiber (T.dinst .one) (A.dinst .one) (.fst (e.dinst .one))
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))) m ρ γ := by
+  obtain ⟨hT, hA, hp, -⟩ := gt_e1 h.G (h.h1' h1)
+  exact natural_fiber (h.nat_T1 h1) (h.nat_A1 h1) (h.nat_fst_e1 h1) h.nat_a1' (by rw [h.sem_T1 h1]; exact hT)
+    (by rw [h.sem_A1 h1]; exact hA) (by rw [sem_fst, h.sem_e1 h1, h.sem_T1 h1, h.sem_A1 h1]; exact hp)
+
+end φ1
+
+theorem h1_restr (h : TGCond S A φ T e ψ u0 m ρ γ) {f : Hom k m} (hf : (Cof.restr (tgφ ρ φ) ((eO m).comp f)).holds) :
+    (Cof.restr (tgφ (ρ.restr f) φ) (eO k)).holds := by
+  rw [tgφ_restr, Cof.restr_restr, TranspPi.lift_comp_endpt1]; exact hf
+
+theorem sem_c_at (h : TGCond S A φ T e ψ u0 m ρ γ) {f : Hom k m} (hf : (Cof.restr (tgφ ρ φ) ((eO m).comp f)).holds) :
+    sem S (.app (.snd (e.dinst .one))
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))) k
+      (ρ.restr f) (TEnv.restr γ f) =
+    gtC (lineV S A m ρ γ) (tgφ ρ φ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) f := by
+  rw [(h.restr f).sem_c (h.h1_restr hf), line_restr h.Anat f, tgφ_restr, tgP_restr, face_ival_restr, h.nat_u0,
+    gd_C h.G (isCof_ival_face ρ ψ) h.u0mem h.con, Hom.comp_id]
+
+theorem sem_fib_at (h : TGCond S A φ T e ψ u0 m ρ γ) {f : Hom k m} (hf : (Cof.restr (tgφ ρ φ) ((eO m).comp f)).holds) :
+    sem S (Tm.fiber (T.dinst .one) (A.dinst .one) (.fst (e.dinst .one))
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))) k
+      (ρ.restr f) (TEnv.restr γ f) =
+    gtFib (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) f := by
+  rw [(h.restr f).sem_fib (h.h1_restr hf), line_restr h.Anat f, tgφ_restr, tgP_restr, tgP_restr, face_ival_restr,
+    h.nat_u0, gd_Fib h.G (isCof_ival_face ρ ψ) h.u0mem h.con, Hom.comp_id]
+
+theorem nat_fst_c (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds) :
+    Natural S (.fst (.app (.snd (e.dinst .one))
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))) m ρ γ := by
+  intro k f
+  have hf : (Cof.restr (tgφ ρ φ) ((eO m).comp f)).holds := by
+    rw [← Cof.restr_restr]; exact ((isCof_ival_face ρ.ext φ).restr _).holds_restr h1 f
+  obtain ⟨-, -, -, hpair⟩ := gt_c h.G (isCof_ival_face ρ ψ) h.u0mem h.con (h.h1' h1)
+  rw [sem_fst, sem_fst, h.sem_c_at hf, h.sem_c h1, ← fstV_res_of_pair hpair f,
+    gt_C_res h.G (isCof_ival_face ρ ψ) h.u0mem h.con (h.h1' h1), Hom.id_comp]
 
 end TGCond
 
