@@ -80,6 +80,8 @@ def canonConvNe (R : Rec S) (E : KCtx S Ψ Φ Γ) (t u : Tm) :
 keys (checked structurally, with a pointer-equality shortcut). -/
 
 def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ t) := do
+  -- cheap cases, not worth a lookup
+  if (match t with | .var _ | .const _ => true | _ => false) then return ← inferStep R E t
   if let some v := (← get).inf.find? Ψ Φ Γ [t] E.fs.get E.hfs E.hsc InfF.restr then return v
   let v ← canonInferRaw R E t
   modify fun c => { c with inf := c.inf.insert Ψ Φ Γ [t] E.fs.get E.hfs v }
@@ -94,6 +96,7 @@ def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
 
 def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K S (Red S Ψ Φ Γ t A) := do
+  if t.rigid then return ⟨t, EqTm.refl ht⟩
   if let some v := (← get).wh.find? Ψ Φ Γ [t, A] E.fs.get E.hfs E.hsc WhF.restr then return v
   let v ← canonWhnfRaw R E t A l hA ht
   modify fun c => { c with wh := c.wh.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
@@ -109,6 +112,7 @@ def canonWhnfI (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
 def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm) (ht : HasTy S Ψ Φ Γ t A)
     (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
+  if h : tmEq t u = true then return ⟨tmEq_sound h ▸ EqTm.refl ht⟩
   if let some v := (← get).conv.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc ConvF.restr then return v
   let v ← canonConvRaw R E A l hA t u ht hu
   modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }

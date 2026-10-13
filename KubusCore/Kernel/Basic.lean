@@ -38,17 +38,27 @@ def tmEq (a b : Tm) : Bool := withPtrEq a b (fun _ => decide (a = b)) (by intro 
 theorem tmEq_sound {a b : Tm} (h : tmEq a b = true) : a = b := by
   simp only [tmEq, withPtrEq, decide_eq_true_eq] at h; exact h
 
-def ctxEq : Ctx → Ctx → Bool
+def ctxEqAux : Ctx → Ctx → Bool
   | [], [] => true
-  | A :: Γ, B :: Δ => tmEq A B && ctxEq Γ Δ
+  | A :: Γ, B :: Δ => tmEq A B && withPtrEq Γ Δ (fun _ => decide (Γ = Δ)) (by intro h; simp [h])
   | _, _ => false
 
-theorem ctxEq_sound : ∀ {Γ Δ : Ctx}, ctxEq Γ Δ = true → Γ = Δ
+/-- Equality of contexts, with pointer-equality shortcuts for the entries and the tails. -/
+def ctxEq (Γ Δ : Ctx) : Bool := withPtrEq Γ Δ (fun _ => ctxEqAux Γ Δ) (by
+  intro h; subst h
+  cases Γ with
+  | nil => rfl
+  | cons A Γ => simp [ctxEqAux, tmEq, withPtrEq])
+
+theorem ctxEq_sound {Γ Δ : Ctx} (h : ctxEq Γ Δ = true) : Γ = Δ := by
+  simp only [ctxEq, withPtrEq] at h
+  match Γ, Δ, h with
   | [], [], _ => rfl
-  | A :: Γ, B :: Δ, h => by
-    simp only [ctxEq, Bool.and_eq_true] at h
-    rw [tmEq_sound h.1, ctxEq_sound h.2]
-  | [], _ :: _, h | _ :: _, [], h => by simp [ctxEq] at h
+  | A :: Γ, B :: Δ, h =>
+    simp only [ctxEqAux, Bool.and_eq_true, withPtrEq, decide_eq_true_eq] at h
+    rw [tmEq_sound h.1, h.2]
+  | [], _ :: _, h => simp [ctxEqAux] at h
+  | _ :: _, [], h => simp [ctxEqAux] at h
 
 /-- Equality of interval expressions, with a pointer-equality shortcut. -/
 def iEq (a b : I) : Bool := withPtrEq a b (fun _ => decide (a = b)) (by intro h; simp [h])
