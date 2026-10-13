@@ -1,6 +1,7 @@
 import Model.Canon.KanIPi
 import Model.Canon.KanSigma
 import Model.Canon.KanPath
+import Model.Canon.KanDataCon
 import Model.Canon.KripkeAll
 
 /-!
@@ -157,6 +158,39 @@ theorem kanP_path (m : ℕ) (L a0 a1 : V) (hLne : L ≠ ∅) (hL : KR S (m + 1) 
       (fun k' σ => path_end_RE hW hL σ .zero trivial (hall k' σ).1 (hall k' σ).2.1)
       (fun k' σ => path_end_RE hW hL σ .one trivial (hall k' σ).1 (hall k' σ).2.2))
 
+theorem kanP_data {Θ : SData m} (hΘ : Θ.Good)
+    (ih : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre →
+      KR S n (Θ.ty c j n g pre) ∧ KanP S n (Θ.ty c j n g pre)) (hKR : KR S m (dataC Θ)) :
+    KanP S m (dataC Θ) := by
+  constructor
+  · intro k f T hT
+    exact kanH_data hW hKR hT
+  · intro k f T hT
+    have hT' := hT
+    rw [Comp_dataC] at hT'
+    obtain ⟨⟨hTy, -⟩, ps, hE, hpl, hall⟩ := hT'
+    have hTp : (Comp S (dataC Θ) m (k + 1) f).ty (.data Θ.idx ps) := ((cv_dataC hW Θ) (k + 1) f T _ T T).1 hT hE
+    obtain ⟨l1, hdT⟩ := ty_of_tyEq hW hTy hE (fun l h => by cases h)
+    obtain ⟨l2, e⟩ := tyEq_eq hW hE ⟨l1, hdT⟩
+    refine kanT_retype hW e fun φ a hty ha => ?_
+    have hcl := closed_of_ty hW hdT
+    have hT0 := ty_dinst hW hKR hTp .zero trivial
+    have hdr := DR_of_RE hW hT0 ha
+    have key := transp_data_DR hW hΘ (fun c j n g pre hp => (ih c j n g pre hp).1)
+      (fun c j n g pre hp => (ih c j n g pre hp).2.2) hKR hTp hall hdr k (ISub.id k) (ISub.id (k + 1))
+      (by rw [ISub.hom_id, Hom.comp_id, ISub.id_comp]) ?_ φ ?_
+    · have hpc : ps.closedB 0 (k + 1) = true := by simpa [Tm.closedB] using hcl
+      rw [isub_id_of_closed hpc, isub_id_of_closed (closed_of_ty hW (Comp_el_typed ha).1)] at key
+      exact key
+    · have hd0 := minimal_to_spec (HasTy0.dsubst (sigClosed_of_wfSig hW) (Φ := .one) (Γ := [])
+        (spec_to_minimal hW hdT) (r := .zero) trivial)
+      have hpc : ps.closedB 0 (k + 1) = true := by simpa [Tm.closedB] using hcl
+      rw [isub_id_of_closed (closed_of_ty hW hd0), isub_id_of_closed hpc]
+      exact TyEq.refl _
+    · have hpc : ps.closedB 0 (k + 1) = true := by simpa [Tm.closedB] using hcl
+      rw [isub_id_of_closed hpc, isub_id_of_closed (closed_of_ty hW (Comp_el_typed ha).1)]
+      exact hty
+
 theorem kanP_empty (m : ℕ) : KanP S m (emptyC m) := by
   constructor
   · intro k f T hT φ u a _ _ ha
@@ -182,7 +216,10 @@ theorem kanP_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KanP S m X := by
       kanP_ipi hW m L (IsKV.ne_empty hL.fib.kv) ihL.1 ihL.2⟩
   · sorry
   · sorry
-  · sorry
+  · intro l m Θ hc hw ih
+    have hΘ : Θ.Good := { hc with fib := fun c j n g pre hp => (hw c j n g pre hp).fib }
+    have hKR := kr_dataC hW hΘ (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw)) (fun c j n g pre hp => (ih c j n g pre hp).1)
+    exact ⟨hKR, kanP_data hW hΘ ih hKR⟩
 
 /-- Composition in a computable type of a computable tube and base is computable. -/
 theorem kan_hcomp {A u a : Tm} {φ : I} (hA : RT S k A)
