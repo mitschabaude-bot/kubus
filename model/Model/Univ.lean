@@ -1,7 +1,7 @@
 import Model.Interp
 import Model.UnivHc
 import Model.Tower
-import Model.DataRestr
+import Model.DataElim
 
 /-!
 # The empty type, well-formed codes, universes

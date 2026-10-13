@@ -20,10 +20,10 @@ variable {S : Sig} {k m n : ℕ}
 theorem sigV_entry_data {d : ℕ} {D : DataDecl} (h : S[d]? = some (.data D)) :
     (∀ m ps, (sigV S).dat m d ps =
       if ParamsOK (sigUpTo S d) D m ps then dataC (dataSD (sigUpTo S d) D d m ps) else ∅) ∧
-    (∀ m c ps args rs, (sigV S).con m d c ps args rs =
-      conV D.ctors m c (plist (args m (Hom.id m)) (D.ctors.getD c default).args.length) rs) ∧
-    (∀ m ps P bs t, (sigV S).elim m d ps P bs t =
-      elimD (dataSD (sigUpTo S d) D d m ps) P bs m (Hom.id m) (t m (Hom.id m))) := by
+    (∀ m c ps args rs, (sigV S).con m d c ps args rs = if ConGuard (sigUpTo S d) D d m ps c args rs then
+      conV D.ctors m c (plist (args m (Hom.id m)) (D.ctors.getD c default).args.length) rs else ∅) ∧
+    (∀ m ps P bs t, (sigV S).elim m d ps P bs t = if ElimGuard (sigUpTo S d) D d m ps P bs t then
+      elimD (dataSD (sigUpTo S d) D d m ps) P bs m (Hom.id m) (t m (Hom.id m)) else ∅) := by
   obtain ⟨hk, -⟩ := List.getElem?_eq_some_iff.1 h
   have ha := sigUpTo_agree S S.length hk
   refine ⟨fun m ps => ?_, fun m c ps args rs => ?_, fun m ps P bs t => ?_⟩
@@ -57,15 +57,31 @@ theorem paramsOK_of_sem_data {d : ℕ} {D : DataDecl} (h : S[d]? = some (.data D
 theorem sem_con {d : ℕ} {D : DataDecl} (h : S[d]? = some (.data D)) (c : ℕ) (ps args : Tm) (rs : List I)
     (ρ : IEnv m) (γ : ℕ → V) :
     sem S (.con d c ps args rs) m ρ γ =
+      if ConGuard (sigUpTo S d) D d m (psRV S ps m ρ γ) c (psRV S args m ρ γ) (rs.map (ival ρ)) then
       conV D.ctors m c (plist (sem S args m (ρ.restr (Hom.id m)) (TEnv.restr γ (Hom.id m)))
-        (D.ctors.getD c default).args.length) (rs.map (ival ρ)) :=
+        (D.ctors.getD c default).args.length) (rs.map (ival ρ)) else ∅ :=
   (sigV_entry_data h).2.1 m c _ _ _
+
+theorem sem_con_of {d : ℕ} {D : DataDecl} (h : S[d]? = some (.data D)) {c : ℕ} {ps args : Tm} {rs : List I}
+    {ρ : IEnv m} {γ : ℕ → V}
+    (hg : ConGuard (sigUpTo S d) D d m (psRV S ps m ρ γ) c (psRV S args m ρ γ) (rs.map (ival ρ))) :
+    sem S (.con d c ps args rs) m ρ γ =
+      conV D.ctors m c (plist (sem S args m (ρ.restr (Hom.id m)) (TEnv.restr γ (Hom.id m)))
+        (D.ctors.getD c default).args.length) (rs.map (ival ρ)) := by
+  rw [sem_con h, if_pos hg]
+
+theorem conGuard_of_sem {d : ℕ} {D : DataDecl} (h : S[d]? = some (.data D)) {c : ℕ} {ps args : Tm} {rs : List I}
+    {ρ : IEnv m} {γ : ℕ → V} (hne : sem S (.con d c ps args rs) m ρ γ ≠ ∅) :
+    ConGuard (sigUpTo S d) D d m (psRV S ps m ρ γ) c (psRV S args m ρ γ) (rs.map (ival ρ)) := by
+  rw [sem_con h] at hne; by_contra hc; exact hne (if_neg hc)
 
 theorem sem_elim {d : ℕ} {D : DataDecl} (h : S[d]? = some (.data D)) (ps P bs t : Tm) (ρ : IEnv m) (γ : ℕ → V) :
     sem S (.elim d ps P bs t) m ρ γ =
+      if ElimGuard (sigUpTo S d) D d m (psRV S ps m ρ γ)
+        (fun k f a => sem S P k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) (psRV S bs m ρ γ) (psRV S t m ρ γ) then
       elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ))
         (fun k f a => sem S P k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) (psRV S bs m ρ γ) m (Hom.id m)
-        (sem S t m (ρ.restr (Hom.id m)) (TEnv.restr γ (Hom.id m))) :=
+        (sem S t m (ρ.restr (Hom.id m)) (TEnv.restr γ (Hom.id m))) else ∅ :=
   (sigV_entry_data h).2.2 m _ _ _ _
 
 /-! ### List terms and telescopes -/

@@ -79,6 +79,17 @@ def dataSD (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) : SData m where
   params := !D.params.isEmpty
   ty c j n g pre := argTySem σ D d c j n (ps n g) pre
 
+/-- A constructor term denotes a constructor value only at valid parameters and typed arguments
+of the right number. -/
+def ConGuard (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) (c : ℕ) (args : RV m) (rs : List (DM m)) : Prop :=
+  ∃ C, D.ctors[c]? = some C ∧ rs.length = C.dims ∧ ListLen (args m (Hom.id m)) C.args.length ∧
+    ParamsOK σ D m ps ∧ (dataSD σ D d m ps).ArgsTyped c C m (Hom.id m) (plist (args m (Hom.id m)) C.args.length)
+
+/-- The eliminator applies only at valid parameters, to an element, with branches satisfying the
+boundary conditions. -/
+def ElimGuard (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) (P : (n : ℕ) → Hom n m → V → V) (bs t : RV m) : Prop :=
+  ParamsOK σ D m ps ∧ DElem (dataSD σ D d m ps) m (Hom.id m) (t m (Hom.id m)) ∧ BranchesOK (dataSD σ D d m ps) P bs
+
 /-- The semantics of the inductive type `d` with declaration `D`, given the semantics `σ` of the
 entries before it: the type former (the data code at valid parameters, junk otherwise, so that
 a well-typed type former has valid parameters), the constructors (values of the arguments at
@@ -86,8 +97,10 @@ the stage itself; parameters are not recorded) and the eliminator. -/
 def dataSem (σ : SigV) (D : DataDecl) (d : ℕ) : SigV where
   cst _ _ := ∅
   dat m _ ps := if ParamsOK σ D m ps then dataC (dataSD σ D d m ps) else ∅
-  con m _ c _ args rs := conV D.ctors m c (plist (args m (Hom.id m)) (D.ctors.getD c default).args.length) rs
-  elim m _ ps P bs t := elimD (dataSD σ D d m ps) P bs m (Hom.id m) (t m (Hom.id m))
+  con m _ c ps args rs := if ConGuard σ D d m ps c args rs then
+    conV D.ctors m c (plist (args m (Hom.id m)) (D.ctors.getD c default).args.length) rs else ∅
+  elim m _ ps P bs t := if ElimGuard σ D d m ps P bs t then
+    elimD (dataSD σ D d m ps) P bs m (Hom.id m) (t m (Hom.id m)) else ∅
 
 /-- `σ` with the entry `k` taken from `τ`. -/
 def SigV.set (σ τ : SigV) (k : ℕ) : SigV where
