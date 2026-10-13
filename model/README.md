@@ -2,6 +2,30 @@
 
 This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) towards the theorem `KubusCore.Consistent`. It depends on Mathlib and on the root package (for `KubusCore`).
 
+## Phase 2 spec issues (read first)
+
+### P1. Inconsistent: boundary typing in `DataDecl.Wf` is vacuous (it can use the constructor's own boundary)
+
+`DataDecl.Wf` checks a boundary `[ψ ↦ b]` of constructor `c` by `HasTy S C.dims ψ (argCtx …) b (data d (paramVars …))` in `S.take (k + 1)`, which contains the full declaration. That judgment is always derivable, whatever `b` is: in the boundary context, `con d c (paramVars) (vars) (ivars) : data d …` by the `con` rule (its arguments are variables of the right types), and `conBnd` for this very constructor and clause (`Φ = ψ` entails `ψ`) gives `con d c … ≡ bndAt b … = b`, so `b : data d …` by `eqR`. The overlap condition is equally vacuous. So simplicity (`Ctor.simpleB`) is the only real check, and simplicity does not check that the point arguments passed to an earlier constructor have the right types.
+
+Counterexample. Let `Bool` be the usual data type (no parameters) and declare
+
+```
+data D (A B : U₀) : U₀ :=
+  | c0 (a : A)
+  | c1 (b : B) (i : I) [i = 1 ↦ c0 b]
+```
+
+It satisfies `DataDecl.Wf` (the boundary `c0 b` is simple; its typing is derived as above, although `b : B` is passed where `A` is expected). Let `L i := ua not i : U₀` be the univalence line of `not : Bool ≃ Bool` (constructible with `Bool`'s eliminator and `Glue`), so `L 0 ≡ L 1 ≡ Bool` and `transp (i. L i) 0 true ≡ not true` (up to formal `hcomp`s in `Bool` with empty systems, which `elim` sees through by `elimHcomp`). In `D Bool Bool`:
+
+1. `con c1 [true] [1] ≡ c0 true` (`conBnd`).
+2. Transport along `i. D Bool (L i)` (parameters non-empty, so `transpCon` applies). On the left, `transpCon` transports `c1`'s argument along its type line `L`, then `conBnd`: `transp (i. D Bool (L i)) 0 (con c1 [true] [1]) ≡ con c1 [not true] [1] ≡ c0 (not true) ≡ c0 false`. On the right (by congruence with step 1), `transpCon` transports `c0`'s argument along its type line, the constant line `Bool`, which is the identity (`transpData0`): `transp (…) 0 (c0 true) ≡ c0 true`.
+3. Hence `c0 false ≡ c0 true : D Bool Bool`. The eliminator of `D Bool Bool` is available: with motive `Bool`, branches `λ a. a` and `λ b i. b`, the boundary condition `b ≡ b` holds because the parameters are equal. So `false ≡ true : Bool`, then `Empty ≡ Unit : U₀` by eliminating `Bool` into `U₀` (the `hcomp`s with empty systems in `U₀` become Glue types with a false face, which `unglue` removes), and every type is inhabited.
+
+So the spec is inconsistent as stated. The root cause is that the declaration is checked against itself: well-formedness of constructor `c` may use the rules (`conBnd`, `elimCon`, …) of `c` and of later constructors, which presuppose that very well-formedness. This is also a problem for the model independently of the counterexample: the soundness proof proceeds by induction on the signature and cannot use derivations whose soundness depends on the entry being validated.
+
+Suggested fix: check constructor `c` (its point argument types and its boundary) against the declaration truncated to the constructors before `c`, e.g. `D.Wf` quantifies over `c` and checks in `S.take k ++ [.data { D with ctors := D.ctors.take c }]` (boundaries only use earlier constructors, and point argument types do not mention `d` at all, so nothing is lost for the intended examples). Then `conBnd` for `c` is not available while checking `c`, and the model can validate declarations constructor by constructor.
+
 ## Spec issues (read first)
 
 Status: all issues below are fixed in the spec: 1–4 in `91505c9` (`unglue φ e g`, annotated `lam A t`, `glueBase`/`glueEquiv` removed, `maxLevel = 4`), 5–6 in `1c637f0` (`glueEl φ e t a`, `transpGlue` composes the base along the unglued tube). They are kept here as a record. New issues are added at the top of this section.
