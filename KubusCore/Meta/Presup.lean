@@ -1,4 +1,4 @@
-import KubusCore.Meta.HcompTyped
+import KubusCore.Meta.KanPath
 
 /-!
 # Metatheory: presupposition
@@ -7,9 +7,9 @@ import KubusCore.Meta.HcompTyped
 contracta of the computation rules listed in `ContractaTyped` are typed whenever the redex is.
 These are the rules whose contractum's typing would have to be read off the redex's typing
 through conversions, which needs injectivity of type formers (`docs/metatheory.md`), or which
-are long typing derivations not yet done (`hcomp` in `Σ`, `PathP`, Glue types and `U`). All other rules are proven here:
+are long typing derivations not yet done (`hcomp` in `Σ`, Glue types and `U`). All other rules are proven here:
 structural rules, congruences, η-rules, the face rules and the boundary rules of systems,
-`transp` and `hcomp`, `hcomp` in `Π` and `(i : I) → A` (`HcompTyped.lean`), and the Glue face
+`transp` and `hcomp`, `hcomp` in `Π`, `(i : I) → A` (`HcompTyped.lean`) and `PathP` (`KanPath.lean`), and the Glue face
 and η rules.
 -/
 
@@ -40,8 +40,6 @@ structure ContractaTyped (S : Sig) : Prop where
     I.Entails δ φ.forall0 → I.Entails φ.forall0 δ → HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) T
   hcompSigma : ∀ {Ψ Φ Γ A B φ u u0 T}, HasTy0 S Ψ Φ Γ (hcomp (sigma A B) φ u u0) T →
     HasTy0 S Ψ Φ Γ (hcompSigma A B φ u u0) T
-  hcompPath : ∀ {Ψ Φ Γ A a b φ u p0 T}, HasTy0 S Ψ Φ Γ (hcomp (path A a b) φ u p0) T →
-    HasTy0 S Ψ Φ Γ (hcompPath A a b φ u p0) T
   hcompGlue : ∀ {Ψ Φ Γ A φ T' e ψ u u0 T l}, HasTy0 S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) T →
     HasTy0 S Ψ Φ Γ A (univ l) → HasTy0 S Ψ (cof Φ φ) Γ e (equiv T' A) →
     HasTy0 S Ψ Φ Γ (hcompGlue A φ T' e ψ u u0) T
@@ -368,7 +366,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.hcompSigma _ Ψ Φ Γ A B φ u u0 T h0 =>
     ⟨h0, hC.hcompSigma h0, pre_ty h0⟩
   | @EqTm0.hcompPath _ Ψ Φ Γ A a b φ u p0 T h0 =>
-    ⟨h0, hC.hcompPath h0, pre_ty h0⟩
+    ⟨h0, hcompPath_typed hS h0, pre_ty h0⟩
   | @EqTm0.hcompGlue _ Ψ Φ Γ A φ T' e ψ u u0 T l h0 h1 h2 =>
     ⟨h0, hC.hcompGlue h0 h1 h2, pre_ty h0⟩
   | @EqTm0.hcompU _ Ψ Φ Γ φ u u0 T l h0 =>
