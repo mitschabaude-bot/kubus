@@ -335,4 +335,26 @@ theorem branch_app_typed (hS : SigClosed S) {Ψ Φ Γ d D c C ps P b} (hD : S[d]
   rw [branchBody_inst hil hal hrs] at h3
   rw [Tm.apps, List.foldl_append]; exact h3
 
+/-- The induction hypotheses of `elimCon` form the hypothesis telescope of the branch. -/
+theorem ihs_tele {Ψ Φ Γ d D ps P bs m} (hE : ElimPrem S Ψ Φ Γ d D ps P bs m) {C : Ctor}
+    {args : List Tm} (ha : HasTele0 S Ψ Φ Γ (Tm.ofList args) (C.argTys d D.params.length) ps.toList.reverse) :
+    HasTele0 S Ψ Φ Γ (Tm.ofList (C.recPos.map fun k => elim d ps P bs (args.getD k .abort)))
+      ((List.range C.recPos.length).map (DataDecl.branchIhTy C P)) args.reverse := by
+  have hal : args.length = C.args.length := by
+    have := tele_length ha; rwa [toList_ofList, argTys_length] at this
+  have hlen := tele_length hE.hpt
+  apply HasTele0.ofList_of (wf_of_tele ha) _ _ _ (by simp)
+  intro s a A hs hA
+  simp only [List.getElem?_map, Option.map_eq_some_iff] at hs hA
+  obtain ⟨k, hk, rfl⟩ := hs
+  obtain ⟨s', hs', rfl⟩ := hA
+  obtain ⟨hsr, rfl⟩ := List.getElem?_eq_some_iff.1 hs'
+  simp only [List.getElem_range, List.length_range] at hsr ⊢
+  have hkm : k ∈ C.recPos := List.mem_of_getElem? hk
+  have hkd : C.recPos.getD s 0 = k := by rw [List.getD_eq_getElem?_getD, hk]; rfl
+  rw [branchIhTy_substList P hsr (by simp; omega) hal, hkd]
+  have ht := recArg_typed (hE.hps) hlen ha hkm
+  rw [toList_ofList] at ht
+  exact HasTy0.elim hE.hD hE.hps hE.hdata hE.hpt hE.hP hE.hbs hE.hlen hE.hbr hE.hcoh ht
+
 end KubusCore.Meta
