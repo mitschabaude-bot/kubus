@@ -248,4 +248,30 @@ theorem lam_congr' (hS : SigClosed S) {Ψ Φ Γ A A' B t t' l l'} (hA : HasTy0 S
   have hlam := EqTm0.lam hpi (EqTm0.trans htt (EqTm0.symm hbeta))
   exact EqTm0.trans hlam (EqTm0.symm heta)
 
+theorem dinst_one_consI (A : Tm) (σ : Nat → Tm) (τ : Nat → I) :
+    (A.dinst .one).subst σ τ = A.subst σ (consI .one τ) := dinst_consI A .one σ τ
+
+/-- Restrict a second substitution to the first one's cofibration. -/
+theorem TySub.underCofE {Ψ Φ Γ Ψ' Φ' Δ σ τ} (h : TySub S Ψ Φ Γ Ψ' Φ' Δ σ τ) {φ φ1 : I}
+    (hφ1 : φ1.Scoped Ψ') (he : I.Entails φ1 (φ.subst τ)) :
+    TySub S Ψ (cof Φ φ) Γ Ψ' (cof Φ' φ1) Δ σ τ :=
+  { bound := h.bound
+    hscoped := ⟨h.hscoped, hφ1⟩
+    ent := ent_and_mono h.ent he
+    look := fun x A hx => HasTy0.restrict ⟨h.hscoped, hφ1⟩ (ent_and_left _ _) (h.look x A hx)
+    wf := h.wf.restrict ⟨h.hscoped, hφ1⟩ (ent_and_left _ _) }
+
+theorem EqSub.underCof {Ψ Γ Ψ' Φ' Δ σ1 τ1 σ2 τ2} (h : EqSub S Ψ Γ Ψ' Φ' Δ σ1 τ1 σ2 τ2) {φ1 : I}
+    (hs : Φ'.Scoped Ψ') (hφ1 : φ1.Scoped Ψ') : EqSub S Ψ Γ Ψ' (cof Φ' φ1) Δ σ1 τ1 σ2 τ2 :=
+  h.restrict ⟨hs, hφ1⟩ (ent_and_left _ _)
+
+theorem tele_closed_tail {Δt : List Tm} {A : Tm} {n : Nat}
+    (h : ∀ (k : Nat) (B : Tm), (A :: Δt)[k]? = some B → B.closedB (n + k) 0 = true) :
+    ∀ (k : Nat) (B : Tm), Δt[k]? = some B → B.closedB (n + 1 + k) 0 = true :=
+  fun k B hk => by have := h (k + 1) B hk; rwa [Nat.add_assoc, Nat.add_comm 1 k]
+
+theorem tele_closed_head {Δt : List Tm} {A : Tm} {n : Nat}
+    (h : ∀ (k : Nat) (B : Tm), (A :: Δt)[k]? = some B → B.closedB (n + k) 0 = true) :
+    A.closedB n 0 = true := by simpa using h 0 A rfl
+
 end KubusCore.Meta
