@@ -68,15 +68,21 @@ theorem CSub.upγ_restr_subst (hW : WfSig S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} (c :
     | succ x => exact (isub_shift (c.γ x) σ).symm
   · intro i; rfl
 
+theorem ISub.scAll {k Ψ : ℕ} (σ : ISub k Ψ) (i : ℕ) : (σ.τ i).Scoped k := by
+  by_cases h : i < Ψ
+  · exact σ.sc i h
+  · rw [σ.hi i (by omega)]; trivial
+
 /-- Composition in all instances of `A` is computable (for types that need not be covered by the
 Kan oracle). -/
 def NKH (S : Sig) (A : Tm) : Prop :=
-  ∀ k (γ : ℕ → Tm) (τ : ℕ → I) (l : ℕ), HasTy S k .one [] (A.subst γ τ) (.univ l) →
+  ∀ k (γ : ℕ → Tm) (τ : ℕ → I) (l : ℕ), (∀ i, (τ i).Scoped k) → HasTy S k .one [] (A.subst γ τ) (.univ l) →
     RT S k (A.subst γ τ) ∧ KanH S k (A.subst γ τ)
 
 /-- Transport along all instances of the line `A` is computable. -/
 def NKT (S : Sig) (A : Tm) : Prop :=
-  ∀ k (γ : ℕ → Tm) (τ : ℕ → I) (l : ℕ), HasTy S (k + 1) .one [] (A.subst γ (I.up τ)) (.univ l) →
+  ∀ k (γ : ℕ → Tm) (τ : ℕ → I) (l : ℕ), (∀ i, (τ i).Scoped k) →
+    HasTy S (k + 1) .one [] (A.subst γ (I.up τ)) (.univ l) →
     RT S (k + 1) (A.subst γ (I.up τ)) ∧ KanT S k (A.subst γ (I.up τ))
 
 /-- The terms the fundamental lemma applies to: constants below `n`, and Kan operations either
@@ -314,7 +320,7 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → KOK S n O t → ∀ k
       rcases hc.1 with ⟨hA, hO⟩ | hN
       · have hA := (RE_univ_iff hW).1 (fund_ty h0 hA (k + 1) (c.up hW))
         exact ⟨hA.2.2, fun φ a hty ha => kan_transp hW (hOK hO) (l := l) hA.2.2 hty ha⟩
-      · exact hN k (dupS c.γ) c.σ.τ l ((c.up hW).ty hW h0)
+      · exact hN k (dupS c.γ) c.σ.τ l c.σ.scAll ((c.up hW).ty hW h0)
     have ha := fund_ty h3 hc.2 k c
     rw [dinst_subst] at ha ⊢
     exact hRK.2 _ _ hty ha
@@ -325,7 +331,7 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → KOK S n O t → ∀ k
       rcases hc.1 with ⟨hA, hO⟩ | hN
       · have hA := (RE_univ_iff hW).1 (fund_ty h0 hA k c)
         exact ⟨hA.2.2, fun φ u a hty hu ha => kan_hcomp hW (hOK hO) hA.2.2 hty hu ha⟩
-      · exact hN k c.γ c.σ.τ l (c.ty hW h0)
+      · exact hN k c.γ c.σ.τ l c.σ.scAll (c.ty hW h0)
     refine hRK.2 _ _ _ hty (fun k' σ r hr hh => ?_) (fund_ty h3 hc.2.2 k c)
     have hface : I.Entails .one (φ.subst (c.restr hW σ).σ.τ) := by
       rw [show φ.subst (c.restr hW σ).σ.τ = (φ.subst c.σ.τ).subst σ.τ from (I_subst_subst _ _ _).symm]
