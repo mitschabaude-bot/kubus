@@ -290,9 +290,10 @@ theorem ElimGuard.restr {σ : SigV} {D : DataDecl} {d : ℕ} {ps : RV m} {P : (n
     (ht : DElem (dataSD σ D d m ps) k f (t k f)) :
     ElimGuard σ D d k (fun n g => ps n (f.comp g)) (fun n g => P n (f.comp g)) (fun n g => bs n (f.comp g))
       (fun n g => t n (f.comp g)) := by
-  obtain ⟨hpok, -, hBO, hty⟩ := g
+  obtain ⟨hpok, -, hBO, hty, hmot⟩ := g
   rw [ElimGuard, dataSD_restr']
-  refine ⟨hpok.restr f, ?_, fun n g' c C hC ψ b hmem args rs hat hrs hψ => ?_, fun n g' v hv => ?_⟩
+  refine ⟨hpok.restr f, ?_, fun n g' c C hC ψ b hmem args rs hat hrs hψ => ?_, fun n g' v hv => ?_,
+    fun n g' v hv => ?_⟩
   · rw [delem_restr_iff, Hom.comp_id]; exact ht
   · rw [elimD_restr, elimBranch_restr]
     exact hBO n (f.comp g') c C hC ψ b hmem args rs ((argsTyped_restr_iff _ f g' args).1 hat) hrs hψ
@@ -300,6 +301,8 @@ theorem ElimGuard.restr {σ : SigV} {D : DataDecl} {d : ℕ} {ps : RV m} {P : (n
     obtain ⟨h1, h2⟩ := hty n (f.comp g') v hv
     refine ⟨by rw [elimD_restr]; exact h1, fun n' h => ?_⟩
     rw [elimD_restr, elimD_restr, h2 n' h]; rfl
+  · rw [delem_restr_iff] at hv
+    exact hmot n (f.comp g') v hv
 
 
 /-- The eliminator at a point where its guard holds, on a natural scrutinee: its value, and
@@ -333,7 +336,7 @@ theorem sem_elim_guard (hS : SigOK S) {d : ℕ} {D : DataDecl} (hd : S[d]? = som
   have gf := g.restr f hdef
   rw [← psRV_restr, ← motV_restr, ← psRV_restr, ← psRV_restr] at gf
   rw [hval (ρ.restr f) (TEnv.restr γ f) (fun x => isKV_res f _) gf, elimD_restr_pt, Hom.comp_id, hnat k f, hval ρ γ hkv g]
-  have := (g.2.2.2 m (Hom.id m) _ hde).2 k f
+  have := (g.2.2.2.1 m (Hom.id m) _ hde).2 k f
   rw [Hom.id_comp] at this
   exact this.symm
 
@@ -937,7 +940,10 @@ theorem sem_elim_pt {ρ : IEnv m} {γ : ℕ → V} (hp : IsPoint S Φ Γ m ρ γ
   have hγ : TEnv.restr γ (Hom.id m) = γ := TEnv.restr_id_of_kv hp.kv
   have hg : ElimGuard (sigUpTo S d) D d m (psRV S ps m ρ γ) (motV S P ρ γ) (psRV S bs m ρ γ) (psRV S t m ρ γ) := by
     refine ⟨hpok, ?_, elimPt_branchesOK hS hd hpl h1 h2 hbsl h5 h6 hp,
-      fun n g v hv => elimPt_typed hS hd hpl h1 h2 hbsl h5 h6 hp hv⟩
+      fun n g v hv => elimPt_typed hS hd hpl h1 h2 hbsl h5 h6 hp hv, fun n g v hv => ⟨?_, (elimPt_motive hd h1 h2 hp).2 n g v hv⟩⟩
+    swap
+    · obtain ⟨hmem, -, hty, -⟩ := h2.2.2.2 n _ _ (elimPt_cons hd h1 hp g hv)
+      exact TyCode.of_mem_univ hty hmem
     simp only [psRV, hρ, hγ]; exact ht
   refine ⟨?_, ht⟩
   rw [sem_elim hd]
