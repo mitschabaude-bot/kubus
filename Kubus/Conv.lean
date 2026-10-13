@@ -57,7 +57,7 @@ partial def Tm.badSolution (m : Nat) (t : Tm) : Bool :=
   | .glueTy a sys | .glue sys a | .compU a sys => a.badSolution m || sys.any fun (r, t) => badI r || t.badSolution m
   | .unglue u b sys | .unglueU u b sys =>
     u.badSolution m || b.badSolution m || sys.any fun (r, t) => badI r || t.badSolution m
-  | .pi _ a b | .sigma _ a b | .app a b | .pair a b | .letE _ a b => a.badSolution m || b.badSolution m
+  | .pi _ a b | .sigma _ a b | .app a b | .pair a b | .letE _ a b | .ann a b => a.badSolution m || b.badSolution m
   | .lam _ b | .piI _ b | .plam _ b | .fst b | .snd b => b.badSolution m
   | .pathP a u v => a.badSolution m || u.badSolution m || v.badSolution m
   | .data _ _ ps => ps.any (·.badSolution m)

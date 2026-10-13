@@ -148,6 +148,7 @@ partial def pp (names : List String) (p : Nat) (t : Tm) (im : PPI := {}) : Strin
   let pp := fun names p t => pp names p t im
   let ppSys := fun kn en sys => ppSys kn en sys im
   match t with
+  | .ann t _ => pp names p t
   | .var i => nameAt names i
   | .glob n 0 => match metaId? n with
     | some m => im.metaStr m

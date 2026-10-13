@@ -101,6 +101,7 @@ partial def mapTm (pre : Nat → Kubus.Tm → Option Kubus.Tm) (f : Nat → Nat 
   | .data d k ps => .data d k (ps.map (go c))
   | .con n as ds => .con n (as.map (go c)) (ds.map (mapI g c))
   | .letE x t b => .letE x (go c t) (go (c + 1) b)
+  | .ann t ty => .ann (go c t) (go c ty)
   | t => t
 
 def mapVars (f : Nat → Nat → Kubus.Tm) (g : Nat → Nat → ITm) (c : Nat) (t : Kubus.Tm) : Kubus.Tm :=
@@ -140,6 +141,7 @@ where
   | .unglue u b sys => .unglue (inlineLets u) (inlineLets b) (sys.map fun (r, t) => (r, inlineLets t))
   | .data d k ps => .data d k (ps.map inlineLets)
   | .con n as ds => .con n (as.map inlineLets) ds
+  | .ann t ty => .ann (inlineLets t) (inlineLets ty)
   | t => t
 
 /-! ## Systems and canonical cofibrations -/
@@ -330,14 +332,6 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
       | _ => none
     if let some (g, k, mask) := implicit then
       return ← elabImplSpine R env E ks g k args mask
-    -- a β-redex: the domain of the λ is the type of the argument
-    if let .lam _ body := f then
-      let a' ← elabT R env E ks a none
-      let i ← KubusCore.Kernel.inferW R E a'
-      let bexp : Exp S Ψ Φ (i.ty :: Γ) := match exp with
-        | some ⟨T, l, ⟨hT⟩⟩ => some ⟨T.shift, l, ⟨HasTy.wk i.hty hT⟩⟩
-        | none => none
-      return .app (.lam i.ty (← elabT R env (E.ext i.ty i.lvl i.hty) (.tm :: ks) body bexp)) a'
     let f' ← elabT R env E ks f none
     match ← KubusCore.Kernel.inferW R E f' with
     | ⟨.pi A _, l, hP, _⟩ => return .app f' (← elabT R env E ks a (some ⟨A, l, ⟨HasTy.piDom hP⟩⟩))
@@ -355,9 +349,6 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
         return .pair a' b'
       | _ => dflt
     | none => dflt
-  -- a projection of a pair literal: the projected component gets the expected type
-  | .fst (.pair a b) => return .fst (.pair (← elabT R env E ks a exp) (← elabT R env E ks b none))
-  | .snd (.pair a b) => return .snd (.pair (← elabT R env E ks a none) (← elabT R env E ks b exp))
   | .fst p => return .fst (← elabT R env E ks p none)
   | .snd p => return .snd (← elabT R env E ks p none)
   | .piI _ a => return .ipi (← elabT R env E.dext (.dim :: ks) a none)
@@ -378,15 +369,6 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
         | _ => pure none
       | none => pure none
     return .plam (← elabT R env E.dext (.dim :: ks) b line)
-  | .papp (.plam _ b) r => do
-    -- a path abstraction applied: the body gets the expected type, if the line is constant
-    let r' ← trI ks r
-    let bexp : Exp S (Ψ + 1) Φ.shift Γ.dshift := match exp with
-      | some ⟨T, l, ⟨hT⟩⟩ => some ⟨T.dshift, l, ⟨HasTy.dwk hT⟩⟩
-      | none => none
-    if let some b' ← KubusCore.Kernel.tryOpt (elabT R env E.dext (.dim :: ks) b bexp) then
-      return .papp (.plam b') r'
-    return .papp (.plam (← elabT R env E.dext (.dim :: ks) b none)) r'
   | .papp p r => return .papp (← elabT R env E ks p none) (← trI ks r)
   | .comp _ a sys u0 => do
     let L ← elabT R env E.dext (.dim :: ks) a none
@@ -464,6 +446,13 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
         | _ => pure (canonCof keys)
       let ⟨_, _, e, _⟩ ← KubusCore.Kernel.toGlue R E i.ty i.lvl i.hty φ
       return .unglue φ e g
+  | .ann t ty => do
+    -- the type recorded by the elaborator, where no expected type is known
+    match exp with
+    | some _ => elabT R env E ks t exp
+    | none =>
+      let ty' ← elabT R env E ks ty none
+      elabT R env E ks t (← expOf R E ty')
   | .letE _ t b => do
     let t' ← elabT R env E ks t none
     elabT R env E (.defn t' :: ks) b exp
@@ -484,19 +473,7 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
         let d ← env.dataIdx dn 0
         let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d
         if D.params.isEmpty then pure (d, KubusCore.Tm.tnil)
-        else
-          -- match the argument types of the constructor against the arguments' types
-          let ⟨C, _⟩ ← KubusCore.Kernel.lookupCtor D cIdx
-          let np := D.params.length
-          let mut vals : Array (Option KTm) := Array.replicate np none
-          for (a, k) in args.zipIdx do
-            if let some t ← KubusCore.Kernel.tryOpt (elabT R env E ks a none) then
-              if let some inf ← KubusCore.Kernel.tryOpt (KubusCore.Kernel.inferW R E t) then
-                let pat := (C.argTy d np k).subst (fun x => if x < k then .abort else .var (x - k)) .var
-                vals := matchPat np vals 0 0 pat inf.ty
-          match vals.toList.mapM id with
-          | some ps => pure (d, KubusCore.Tm.ofList ps)
-          | none => throw s!"cannot infer the parameters of {c}"
+        else throw s!"cannot infer the parameters of {c}"
     let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d
     let ⟨C, _⟩ ← KubusCore.Kernel.lookupCtor D cIdx
     let args' ← elabTele R env E ks (C.argTys d D.params.length) ps.toList.reverse args
