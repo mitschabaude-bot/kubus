@@ -60,8 +60,12 @@ theorem gen_conF {Ψ Φ Γ s T} (h : HasTy0 S Ψ Φ Γ s T) {d c ps args rs}
 
 theorem contractaTyped_of (hW : WfSig S)
     (htr : ∀ (d : Nat) (D : DataDecl), S[d]? = some (.data D) →
-      ∀ {Ψ Φ Γ t u A}, EqTm (S.take d) Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t u A) :
+      ∀ {Ψ Φ Γ t u A}, EqTm (S.take d) Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t u A)
+    (htr' : ∀ (d : Nat) (D : DataDecl), S[d]? = some (.data D) →
+      ∀ {Ψ Φ Γ t A}, HasTy (S.take d) Ψ Φ Γ t A → HasTy0 S Ψ Φ Γ t A) :
     ContractaTyped S where
+  transpCon := fun hD hne hC hps hargs htele hL hφ hc hI hX hl r tb ch =>
+    transpCon_of (sigClosed_of_wfSig hW) hW (htr' _ _ hD) hD hne hC hps hargs htele hL hφ hc hI hX hl r tb ch
   conBnd := fun hD hC hk hent hps hargs h => by
     obtain ⟨⟨_, D', C', hD', hC', _, hdata, hpt, hat, hrs, hrsc⟩, ch⟩ := gen_conF h rfl
     rw [hD] at hD'; cases hD'; rw [hC] at hC'; cases hC'
@@ -75,12 +79,19 @@ theorem wf_typed : ∀ (n : Nat) (S : Sig), S.length = n → WfSig S → SigType
     intro S hn hS
     have hpre : ∀ k, k < S.length → SigTyped0 (S.take k) ∧ ContractaTyped (S.take k) := fun k hk =>
       ih k (by omega) (S.take k) (by simp [List.length_take]; omega) (wfSig_take hS k)
-    have hC : ContractaTyped S := contractaTyped_of hS fun d D hD {Ψ Φ Γ t u A} e => by
-      have hd : d < S.length := (List.getElem?_eq_some_iff.1 hD).1
-      obtain ⟨hT', hC'⟩ := hpre d hd
-      have hinc : ∀ (j : Nat) (e : Entry), (S.take d)[j]? = some e → S[j]? = some e :=
-        fun j e h => (getElem?_take_some h).2
-      exact sigwk_eq hinc (spec_to_minimal_eq_of (wfSig_take hS d) hT' hC' e)
+    have hC : ContractaTyped S := contractaTyped_of hS
+      (fun d D hD {Ψ Φ Γ t u A} e => by
+        have hd : d < S.length := (List.getElem?_eq_some_iff.1 hD).1
+        obtain ⟨hT', hC'⟩ := hpre d hd
+        have hinc : ∀ (j : Nat) (e : Entry), (S.take d)[j]? = some e → S[j]? = some e :=
+          fun j e h => (getElem?_take_some h).2
+        exact sigwk_eq hinc (spec_to_minimal_eq_of (wfSig_take hS d) hT' hC' e))
+      (fun d D hD {Ψ Φ Γ t A} e => by
+        have hd : d < S.length := (List.getElem?_eq_some_iff.1 hD).1
+        obtain ⟨hT', hC'⟩ := hpre d hd
+        have hinc : ∀ (j : Nat) (e : Entry), (S.take d)[j]? = some e → S[j]? = some e :=
+          fun j e h => (getElem?_take_some h).2
+        exact sigwk_ty hinc (spec_to_minimal_of (wfSig_take hS d) hT' hC' e))
     refine ⟨sigTyped0_of_wfSig n S hn hS fun k => ?_, hC⟩
     by_cases hk : k < S.length
     · exact (hpre k hk).2

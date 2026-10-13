@@ -30,6 +30,16 @@ structure ContractaTyped (S : Sig) : Prop where
     ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
     HasTy0 S Ψ Φ Γ (con d c ps args rs) T →
     HasTy0 S Ψ Φ Γ (Ctor.bndAt b ps.toList args.toList rs) T
+  transpCon : ∀ {Ψ Φ Γ d D c C ps φ qs args rs l0 X l T}, S[d]? = some (.data D) → D.params ≠ [] →
+    D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
+    HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →
+    HasTy0 S (Ψ + 1) Φ.shift Γ.dshift (data d ps) (univ l0) → φ.Scoped Ψ →
+    EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift (data d ps) ((data d ps).dinst .zero).dshift (univ l0) →
+    IntroTy S Ψ Φ Γ (con d c qs args rs) X → HasTy0 S Ψ Φ Γ X (univ l) → l ≤ maxLevel →
+    Rel S Ψ Φ Γ X ((data d ps).dinst .zero) → TB S Ψ Φ Γ ((data d ps).dinst .zero) →
+    TyChainC S Ψ Φ Γ ((data d ps).dinst .one) T →
+    HasTy0 S Ψ Φ Γ (con d c (ps.dinst .one)
+      (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
 
 section
 variable (hS : SigClosed S) (hT : SigTyped0 S) (hC : ContractaTyped S)
@@ -452,7 +462,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.transpCon _ Ψ Φ Γ d D c C ps φ qs args rs T h0 h1 h2 h3 h4 h5 h6 =>
     by
       obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h6 rfl rfl
-      exact ⟨h6, transpCon_of hS h0 h1 h2 h3 h4 h5 hL hφ hc hI hX hl r tb ch, pre_ty h6⟩
+      exact ⟨h6, hC.transpCon h0 h1 h2 h3 h4 h5 hL hφ hc hI hX hl r tb ch, pre_ty h6⟩
   | @EqTm0.transpHcomp _ Ψ Φ Γ d D ps φ qs ψ u a T h0 h1 h2 h3 =>
     by
       obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h3 rfl rfl

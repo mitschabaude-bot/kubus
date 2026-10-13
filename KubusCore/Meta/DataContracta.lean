@@ -136,7 +136,8 @@ theorem elimHcomp_of (hS : SigClosed S) {Ψ Φ Γ d D D' ps P bs qs φ u a m X l
   have e5 := HasTy0.inst_congr hS hE.hP hh hhq e4
   exact ch.transport (HasTy0.conv (HasTy0.conv hcomp e3) e5)
 
-theorem transpCon_of (hS : SigClosed S) {Ψ Φ Γ d D c C ps φ qs args rs l0 X l T}
+theorem transpCon_of (hS : SigClosed S) (hW : WfSig S) {Ψ Φ Γ d D c C ps φ qs args rs l0 X l T}
+    (htr : ∀ {Ψ' Φ' Γ' t A}, HasTy (S.take d) Ψ' Φ' Γ' t A → HasTy0 S Ψ' Φ' Γ' t A)
     (hD : S[d]? = some (.data D)) (hne : D.params ≠ []) (hC : D.ctors[c]? = some C)
     (hps : ps = Tm.ofList ps.toList) (hargs : args = Tm.ofList args.toList)
     (htele : HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse)
@@ -147,10 +148,8 @@ theorem transpCon_of (hS : SigClosed S) {Ψ Φ Γ d D c C ps φ qs args rs l0 X 
     (ch : TyChainC S Ψ Φ Γ ((data d ps).dinst .one) T) :
     HasTy0 S Ψ Φ Γ (con d c (ps.dinst .one)
       (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T := by
-  -- Not provable from `SigClosed` alone: `transp L_k φ a_k` needs the argument-type line
-  -- `L_k = (C.argTy d np k).substList (fills ++ ps.toList.reverse)` typed at `Ψ + 1`, but nothing in
-  -- the hypotheses types the constructor's argument types at parameters other than `ps.dinst .zero`
-  -- (only `SigClosed`, not `DataDecl.Wf`, is available).
+  -- The argument types along the line are typed by the `DataDecl.Wf` clause for point arguments
+  -- over the prefix signature (`D.pointCtx`), carried to `S` by `htr`.
   sorry
 
 theorem skip1I_dinst0_dshift (A : Tm) : ((A.dsubst skip1I).dinst .zero).dshift = (A.dinst .zero).dshift.dshift := by
