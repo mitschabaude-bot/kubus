@@ -54,6 +54,20 @@ theorem isub_path (L a b : Tm) (σ : ISub k' k) :
 theorem isub_ipi (L : Tm) (σ : ISub k' k) : (Tm.ipi L).isub σ = .ipi (L.isub σ.up) := rfl
 theorem isub_papp (p : Tm) (r : I) (σ : ISub k' k) : (Tm.papp p r).isub σ = .papp (p.isub σ) (r.subst σ.τ) := rfl
 
+
+theorem isub_shift (t : Tm) (σ : ISub k' k) : t.shift.isub σ = (t.isub σ).shift := by
+  simp only [Tm.isub, shift_subst, subst_shift]; rfl
+
+theorem isub_dshift (t : Tm) (σ : ISub k' k) : t.dshift.isub σ.up = (t.isub σ).dshift := by
+  simp only [Tm.isub, dshift_subst, subst_dshift]; rfl
+
+theorem isub_var (n : ℕ) (σ : ISub k' k) : (Tm.var n).isub σ = .var n := rfl
+
+theorem isub_equiv (T A : Tm) (σ : ISub k' k) :
+    (Tm.equiv T A).isub σ = Tm.equiv (T.isub σ) (A.isub σ) := by
+  simp only [Tm.equiv, Tm.isEquiv, Tm.isContr, Tm.fiber, Tm.pathC, Tm.arrow, isub_sigma, isub_pi, isub_path,
+    isub_app, isub_var, isub_shift, isub_dshift]
+
 /-- Computability is Kripke: stable under every interval substitution. -/
 def KR (S : Sig) (m : ℕ) (X : V) : Prop :=
   ∀ k (f : Hom k m) k' (σ : ISub k' k) (A t : Tm),
