@@ -456,17 +456,38 @@ theorem sem_EqTm_face {S : Sig} {Ψ Φ Γ t A i d}
 theorem sem_EqTm_pi {S : Sig} {Ψ Φ Γ A A' B B' l}
     (h0 : SemEq S Ψ Φ Γ A A' (univ l)) (h1 : SemEq S Ψ Φ (A :: Γ) B B' (univ l)) :
     SemEq S Ψ Φ Γ (pi A B) (pi A' B') (univ l) := by
-  sorry
+  have h1' : SemTy S Ψ Φ (A' :: Γ) B' (univ l) := h1.2.1.ctx_conv h0
+  refine ⟨sem_HasTy_pi h0.1 h1.1, sem_HasTy_pi h0.2.1 h1', fun m ρ γ hp => ?_⟩
+  obtain ⟨hAmem, hAnat, -, -⟩ := h0.1.2.2.2 m ρ γ hp
+  obtain ⟨hAty, -⟩ := h0.1.ty_at hp
+  have hAkv : IsKV m (sem S A m ρ γ) := hAty.fib.kv
+  have hAeq := h0.2.2 m ρ γ hp
+  rw [sem_pi hAkv, sem_pi (hAeq ▸ hAkv), ← hAeq]
+  congr 1; unfold famV lamV; congr 1; funext k g
+  apply fnZ_congr; intro x hx
+  exact h1.2.2 k _ _ (hp.ext h0.1.1 hAty hAnat g hx)
 
 theorem sem_EqTm_lam {S : Sig} {Ψ Φ Γ A B t t' l}
     (h0 : SemTy S Ψ Φ Γ (pi A B) (univ l)) (h1 : SemEq S Ψ Φ (A :: Γ) t t' B) :
     SemEq S Ψ Φ Γ (lam A t) (lam A t') (pi A B) := by
-  sorry
+  refine ⟨sem_HasTy_lam h0 h1.1, sem_HasTy_lam h0 h1.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hAty, hAnat⟩ := h0.piDom.ty_at hp
+  rw [sem_lam, sem_lam]
+  unfold lamV; congr 1; funext k g
+  apply fnZ_congr; intro x hx
+  exact h1.2.2 k _ _ (hp.ext h0.1 hAty hAnat g hx)
 
 theorem sem_EqTm_app {S : Sig} {Ψ Φ Γ A B f f' a a'}
     (h0 : SemEq S Ψ Φ Γ f f' (pi A B)) (h1 : SemEq S Ψ Φ Γ a a' A) :
     SemEq S Ψ Φ Γ (app f a) (app f' a') (B.inst a) := by
-  sorry
+  refine ⟨sem_HasTy_app h0.1 h1.1, (sem_HasTy_app h0.2.1 h1.2.1).retype
+    (h0.1.2.2.1.2.inst h1.1.2.1) (fun m ρ γ hp => ?_), fun m ρ γ hp => ?_⟩
+  · obtain ⟨-, hanat, -, -⟩ := h1.1.2.2.2 m ρ γ hp
+    obtain ⟨-, hanat', -, -⟩ := h1.2.1.2.2.2 m ρ γ hp
+    rw [sem_inst hanat, sem_inst hanat', h1.2.2 m ρ γ hp]
+  · obtain ⟨-, hanat, -, -⟩ := h1.1.2.2.2 m ρ γ hp
+    obtain ⟨-, hanat', -, -⟩ := h1.2.1.2.2.2 m ρ γ hp
+    rw [sem_app_of_nat hanat, sem_app_of_nat hanat', h0.2.2 m ρ γ hp, h1.2.2 m ρ γ hp]
 
 theorem sem_EqTm_sigma {S : Sig} {Ψ Φ Γ A A' B B' l}
     (h0 : SemEq S Ψ Φ Γ A A' (univ l)) (h1 : SemEq S Ψ Φ (A :: Γ) B B' (univ l)) :
@@ -578,7 +599,18 @@ theorem sem_EqTm_piBeta {S : Sig} {Ψ Φ Γ A t a T}
 theorem sem_EqTm_piEta {S : Sig} {Ψ Φ Γ A B f}
     (h0 : SemTy S Ψ Φ Γ f (pi A B)) :
     SemEq S Ψ Φ Γ f (lam A (app f.shift (var 0))) (pi A B) := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (lam A (app f.shift (var 0))) m ρ γ = sem S f m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hfmem, hfnat, hpiTy, -⟩ := h0.2.2.2 m ρ γ hp
+    obtain ⟨hAkv, -⟩ := hpiTy.pi_at
+    rw [sem_pi hAkv, El_piC, res_id hAkv, res_id (isKV_famV _ _)] at hfmem
+    rw [sem_lam, eq_lamV_of_mem_piEl hfmem]
+    unfold lamV; congr 1; funext k g
+    apply fnZ_congr; intro x hx
+    dsimp only
+    rw [sem_app_of_nat (natural_var S 0 _ _), sem_shift, hfnat k g, sem_var, TEnv.cons_zero, appV_res]
+  exact ⟨h0, h0.of_eq ⟨h0.2.2.1.1, h0.2.1.ren _ _, trivial⟩ he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_fstBeta {S : Sig} {Ψ Φ Γ a b T}
     (h0 : SemTy S Ψ Φ Γ (fst (pair a b)) T) :
