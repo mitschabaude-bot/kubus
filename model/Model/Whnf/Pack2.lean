@@ -339,6 +339,53 @@ theorem path_conv {A A' t t' : Tm} (hT : pathT (S := S) Lp A A') (hE : TyEq S k 
 
 end path
 
+variable (hW : WfSig S)
+include hW
+
+/-- The pack of a `Π` family, with judgmentally equal types. -/
+def piPack (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2) :
+    Pack2 := ⟨fun A A' => TyEq S k A A' ∧ piT (S := S) D C A A', piEl (S := S) D C⟩
+
+theorem piPack_per (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
+    (hD : ∀ k' (σ : ISub k' k), PERP (D k' σ))
+    (hC : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → PERP (C k' σ a k' (ISub.id k')))
+    (hCa : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → C k' σ a = C k' σ a') :
+    PERP (piPack (S := S) D C) :=
+  ⟨fun hT => ⟨hT.1.symm, pi_symTy D C hD hC hCa hT.2⟩,
+    fun hT hT' => ⟨hT.1.trans hW hT'.1, pi_transTy D C hD hC hCa hT.2 hT'.2⟩,
+    fun hT ht => pi_symEl D C hD hC hCa hT.2 ht,
+    fun hT ht ht' => pi_transEl D C hD hC hCa hT.2 ht ht',
+    fun hT ht => pi_conv D C hD hC hT.2 hT.1 ht⟩
+
+/-- The pack of a `Σ` family, with judgmentally equal types. -/
+def sigPack (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2) :
+    Pack2 := ⟨fun A A' => TyEq S k A A' ∧ sigT (S := S) D C A A', sigEl (S := S) D C⟩
+
+theorem sigPack_per (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
+    (hD : ∀ k' (σ : ISub k' k), PERP (D k' σ))
+    (hC : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → PERP (C k' σ a k' (ISub.id k')))
+    (hCa : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → C k' σ a = C k' σ a') :
+    PERP (sigPack (S := S) D C) :=
+  ⟨fun hT => ⟨hT.1.symm, sig_symTy D C hD hC hCa hT.2⟩,
+    fun hT hT' => ⟨hT.1.trans hW hT'.1, sig_transTy D C hD hC hCa hT.2 hT'.2⟩,
+    fun hT ht => sig_symEl D C hD hC hCa hT.2 ht,
+    fun hT ht ht' => sig_transEl D C hD hC hCa hT.2 ht ht',
+    fun hT ht => sig_conv D C hD hC hT.2 hT.1 ht⟩
+
+/-- The pack of path types over a family of lines, with judgmentally equal types. -/
+def pathPack (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) : Pack2 :=
+  ⟨fun A A' => TyEq S k A A' ∧ pathT (S := S) Lp A A', pathEl (S := S) Lp⟩
+
+theorem pathPack_per (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (hL : ∀ k' (σ : ISub k' (k + 1)), PERP (Lp k' σ))
+    (hLt : ∀ k' (σ : ISub k' k) (L1 L1' : Tm), (Lp (k' + 1) σ.up).ty L1 L1' → ∀ (r : I) (hr : r.Scoped k'),
+      (Lp k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r)) :
+    PERP (pathPack (S := S) Lp) :=
+  ⟨fun hT => ⟨hT.1.symm, path_symTy Lp hL hLt hT.2⟩,
+    fun hT hT' => ⟨hT.1.trans hW hT'.1, path_transTy Lp hL hLt hT.2 hT'.2⟩,
+    fun hT ht => path_symEl Lp hL hLt hT.2 ht,
+    fun hT ht ht' => path_transEl Lp hL hLt hT.2 ht ht',
+    fun hT ht => path_conv Lp hL hLt hT.2 hT.1 ht⟩
+
 end
 
 end Model.Whnf
