@@ -272,6 +272,71 @@ theorem elimTN_restr_pt (d : ℕ) (D : DataDecl) (ps P bs : Tm) (ρ : IEnv m) (�
   · rw [← e2, res_res, elimD_restr_pt, h.2 n' (f.comp h'), res_res]
     simp only [Hom.id_comp]
 
+
+theorem elimBranch_restr (Θ : SData m) (P : (n : ℕ) → Hom n m → V → V) (bs : (k : ℕ) → Hom k m → V) (f : Hom k m)
+    {n : ℕ} (g : Hom n k) (c : ℕ) (args : List V) (rs : List (DM n)) :
+    elimBranch (Θ.restr f) (fun n' g' => P n' (f.comp g')) (fun n' g' => bs n' (f.comp g')) n g c args rs =
+      elimBranch Θ P bs n (f.comp g) c args rs := by
+  unfold elimBranch
+  simp only [elimD_restr]
+  rfl
+
+theorem dataSD_restr' (σ : SigV) (D : DataDecl) (d : ℕ) (ps : RV m) (f : Hom k m) :
+    dataSD σ D d k (fun n g => ps n (f.comp g)) = (dataSD σ D d m ps).restr f := rfl
+
+/-- The guard of the eliminator is stable under restriction (given the scrutinee there). -/
+theorem ElimGuard.restr {σ : SigV} {D : DataDecl} {d : ℕ} {ps : RV m} {P : (n : ℕ) → Hom n m → V → V}
+    {bs t : RV m} (g : ElimGuard σ D d m ps P bs t) (f : Hom k m)
+    (ht : DElem (dataSD σ D d m ps) k f (t k f)) :
+    ElimGuard σ D d k (fun n g => ps n (f.comp g)) (fun n g => P n (f.comp g)) (fun n g => bs n (f.comp g))
+      (fun n g => t n (f.comp g)) := by
+  obtain ⟨hpok, -, hBO, hty⟩ := g
+  rw [ElimGuard, dataSD_restr']
+  refine ⟨hpok.restr f, ?_, fun n g' c C hC ψ b hmem args rs hat hrs hψ => ?_, fun n g' v hv => ?_⟩
+  · rw [delem_restr_iff, Hom.comp_id]; exact ht
+  · rw [elimD_restr, elimBranch_restr]
+    exact hBO n (f.comp g') c C hC ψ b hmem args rs ((argsTyped_restr_iff _ f g' args).1 hat) hrs hψ
+  · rw [delem_restr_iff] at hv
+    obtain ⟨h1, h2⟩ := hty n (f.comp g') v hv
+    refine ⟨by rw [elimD_restr]; exact h1, fun n' h => ?_⟩
+    rw [elimD_restr, elimD_restr, h2 n' h]; rfl
+
+
+/-- The eliminator at a point where its guard holds, on a natural scrutinee: its value, and
+naturality. -/
+theorem sem_elim_guard (hS : SigOK S) {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {ps P bs t : Tm}
+    {ρ : IEnv m} {γ : ℕ → V} (hkv : ∀ x, IsKV m (γ x))
+    (g : ElimGuard (sigUpTo S d) D d m (psRV S ps m ρ γ) (motV S P ρ γ) (psRV S bs m ρ γ) (psRV S t m ρ γ))
+    (hnat : Natural S t m ρ γ) :
+    sem S (.elim d ps P bs t) m ρ γ = elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ)
+      (psRV S bs m ρ γ) m (Hom.id m) (sem S t m ρ γ) ∧ Natural S (.elim d ps P bs t) m ρ γ := by
+  have hρ : ρ.restr (Hom.id m) = ρ := IEnv.restr_id ρ
+  have hγ : TEnv.restr γ (Hom.id m) = γ := TEnv.restr_id_of_kv hkv
+  have hval : ∀ {k : ℕ} (ρ' : IEnv k) (γ' : ℕ → V), (∀ x, IsKV k (γ' x)) →
+      ElimGuard (sigUpTo S d) D d k (psRV S ps k ρ' γ') (motV S P ρ' γ') (psRV S bs k ρ' γ') (psRV S t k ρ' γ') →
+      sem S (.elim d ps P bs t) k ρ' γ' = elimD (dataSD (sigUpTo S d) D d k (psRV S ps k ρ' γ')) (motV S P ρ' γ')
+        (psRV S bs k ρ' γ') k (Hom.id k) (sem S t k ρ' γ') := by
+    intro k ρ' γ' hkv' g'
+    rw [sem_elim hd]
+    split
+    · simp only [IEnv.restr_id, TEnv.restr_id_of_kv hkv']; rfl
+    · exact absurd g' ‹_›
+  have hde : DElem (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) m (Hom.id m) (sem S t m ρ γ) := by
+    have := g.2.1; simp only [psRV, hρ, hγ] at this; exact this
+  refine ⟨hval ρ γ hkv g, fun k f => ?_⟩
+  have hgood := ((hS.2 d D hd).2 m _ g.1).1
+  have hdef : DElem (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) k f (psRV S t m ρ γ k f) := by
+    show DElem _ k f (sem S t k (ρ.restr f) (TEnv.restr γ f))
+    rw [hnat k f]
+    have := hde.res hgood.resClosed k f
+    rwa [Hom.id_comp] at this
+  have gf := g.restr f hdef
+  rw [← psRV_restr, ← motV_restr, ← psRV_restr, ← psRV_restr] at gf
+  rw [hval (ρ.restr f) (TEnv.restr γ f) (fun x => isKV_res f _) gf, elimD_restr_pt, Hom.comp_id, hnat k f, hval ρ γ hkv g]
+  have := (g.2.2.2 m (Hom.id m) _ hde).2 k f
+  rw [Hom.id_comp] at this
+  exact this.symm
+
 section
 
 variable (hS : SigOK S) {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {Ψ : ℕ} {Φ : I} {Γ : Ctx}
