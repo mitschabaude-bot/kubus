@@ -119,6 +119,66 @@ theorem sem_hcompPi {A B u u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
   rw [sem_hcomp hcond, eB, eb, hface]
   exact hcompAt_congr et
 
+theorem sem_dsubst (t : Tm) (τ : ℕ → I) (ρ : IEnv m) (γ : ℕ → V) :
+    sem S (t.dsubst τ) m ρ γ = sem S t m (fun i => ival ρ (τ i)) γ := by
+  rw [Tm.dsubst, sem_subst S t m ρ γ _ _ (fun x => natural_var S x ρ γ)]; rfl
+
+/-- A point of the form `⟦A⟧(ρ.ext, γ.wk)` of a natural line is the same as the line. -/
+theorem papp_dshift_var0_generic {p : Tm} {ρ : IEnv m} {γ : ℕ → V} {P : V} (hnat : Natural S p m ρ γ)
+    (hP : sem S p m ρ γ = pathOfLine m P) (hPkv : IsKV (m + 1) P) :
+    sem S (.papp p.dshift (.var 0)) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) = P ∧
+      Natural S (.papp p.dshift (.var 0)) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := by
+  have hb := sem_eta_body hnat hP
+  have h2 := hb (m + 1) (Hom.id (m + 1))
+  rw [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr γ (Hom.wk m)) (fun x => isKV_res _ _),
+    res_id hPkv] at h2
+  exact ⟨h2, fun k g => by rw [hb k g, h2]⟩
+
+/-! ### hcompIPi -/
+
+theorem sem_hcompIPi {A u u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
+    (hc : HcompCond S (.ipi A) φ u u0 m ρ γ) :
+    sem S (Tm.hcompIPi A φ u u0) m ρ γ = sem S (.hcomp (.ipi A) φ u u0) m ρ γ := by
+  obtain ⟨hN, hL, hsem, l, hl, hV, hW⟩ := (show TyOK S (.ipi A) m ρ γ from hc.1).ipi_at
+  have hLfib := hW.fib
+  have hp0 := hc.2.2.1
+  have hu := hc.2.1
+  have hu0nat := hc.2.2.2.2
+  rw [hsem] at hp0 hu
+  have hφ := isCof_ival_face ρ φ
+  obtain ⟨hp0eq, hline⟩ := ipi_line hLfib hp0
+  rw [Hom.lift_id] at hline
+  have hP := papp_dshift_var0_generic hu0nat hp0eq (hLfib.elKV _ _ _ hline)
+  have hface : (ival ρ.ext φ.shift).face = Cof.restr (ival ρ φ).face (Hom.wk m) := by
+    rw [ival_shift]; exact face_ival_restr ρ φ (Hom.wk m)
+  have et : ∀ n (h : Hom n (m + 1)) r, (Cof.restr (Cof.restr (ival ρ φ).face (Hom.wk m)) h).holds →
+      tubeV S (.papp (u.dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)) (.var 1)) ρ.ext
+        (TEnv.restr γ (Hom.wk m)) n h r = ipiHTube (Tube.canon (ival ρ φ).face (tubeV S u ρ γ)) n h r := by
+    intro n h r hh
+    rw [Cof.restr_restr] at hh
+    simp only [tubeV, ipiHTube, sem_papp, sem_dsubst, tube_canon_eq hh, TEnv.restr_restr]
+    congr 2
+    funext i; cases i with
+    | zero => rfl
+    | succ i => simp [IEnv.cons, IEnv.restr, IEnv.ext, DM.restr_restr]
+  have hcb : HcompCond S A φ.shift (.papp (u.dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)) (.var 1))
+      (.papp u0.dshift (.var 0)) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := by
+    refine ⟨⟨l, hl, Or.inl ⟨hW, hV⟩⟩, ?_, ?_, hN, hP.2⟩
+    · rw [hP.1, hface]
+      have := ipiHTube_ok hLfib hφ hp0 hu
+      rw [Hom.lift_id] at this
+      exact this.congr (hφ.restr _) fun n h r hh => (et n h r hh).symm
+    · rw [hP.1]; exact hline
+  rw [sem_hcomp hc, hsem, hcompAt_ipiC hp0 hu, hcompIPiF_eq, Hom.lift_id]
+  have e1 : sem S (Tm.hcompIPi A φ u u0) m ρ γ = pathOfLine m (lineV S (.hcomp A φ.shift
+      (.papp (u.dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)) (.var 1)) (.papp u0.dshift (.var 0))) m ρ γ) :=
+    sem_plam hcb.natural
+  rw [e1]
+  unfold lineV
+  rw [sem_hcomp hcb, hP.1, hface]
+  congr 1
+  exact hcompAt_congr et
+
 end
 
 end Model

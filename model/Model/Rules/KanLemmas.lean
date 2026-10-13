@@ -129,6 +129,61 @@ theorem hcomp_cond {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A u a : Tm} {φ : I}
     rw [sem_dinst, ival_zero] at this
     rw [this, hanat n h]
 
+theorem tubeV_restr (u : Tm) (ρ : IEnv m) (γ : ℕ → V) (g : Hom k m) :
+    tubeV S u (ρ.restr g) (TEnv.restr γ g) = (tubeV S u ρ γ).restr g := by
+  funext n h r; simp only [tubeV, Tube.restr, IEnv.restr_restr, TEnv.restr_restr]
+
+theorem face_ival_restr (ρ : IEnv m) (φ : I) (g : Hom k m) :
+    (ival (ρ.restr g) φ).face = Cof.restr (ival ρ φ).face g := by
+  rw [ival.restr, DM.face_restr]
+
+theorem TubeOK.res_id {c : V} {f : Hom k m} {φ : Cof k} {u : Tube k} {u0 : V} (hu : TubeOK c f φ u u0) :
+    TubeOK (res f c) (Hom.id k) φ u u0 where
+  mem n h r hh := by rw [El_res, Hom.id_comp]; exact hu.mem n h r hh
+  coh := hu.coh
+  base := hu.base
+
+theorem HcompCond.restr {A u a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (hc : HcompCond S A φ u a m ρ γ)
+    (g : Hom k m) : HcompCond S A φ u a k (ρ.restr g) (TEnv.restr γ g) := by
+  obtain ⟨hty, hu, ha, hAn, han⟩ := hc
+  refine ⟨?_, ?_, ?_, hAn.restr g, han.restr g⟩
+  · rw [hAn k g]; exact hty.res g
+  · rw [hAn k g, han k g, tubeV_restr, face_ival_restr]
+    have := hu.restr g; rw [Hom.id_comp] at this; exact this.res_id
+  · rw [hAn k g, han k g, El_res, Hom.comp_id]
+    have := hty.fib.elRes _ _ _ ha k g; rwa [Hom.id_comp] at this
+
+theorem HcompCond.natural {A u a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (hc : HcompCond S A φ u a m ρ γ) :
+    Natural S (.hcomp A φ u a) m ρ γ := by
+  intro k g
+  rw [sem_hcomp (hc.restr g), sem_hcomp hc,
+    hc.1.fib.hcRes m _ _ _ _ (isCof_ival_face ρ φ) hc.2.2.1 hc.2.1 k g, hc.2.2.2.1 k g, hc.2.2.2.2 k g,
+    tubeV_restr, face_ival_restr, hcompAt_res_id', Hom.id_comp]
+
+theorem TranspCond.restr {A a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (hc : TranspCond S A φ a m ρ γ)
+    (g : Hom k m) : TranspCond S A φ a k (ρ.restr g) (TEnv.restr γ g) := by
+  obtain ⟨hty, hcon, ha, hN, han⟩ := hc
+  refine ⟨?_, ?_, ?_, line_restr_nat hN g, han.restr g⟩
+  · rw [line_restr hN g]; exact hty.res _
+  · rw [line_restr hN g, face_ival_restr]
+    have hcon' := hcon.restr g
+    rw [Hom.id_comp] at hcon'
+    intro n' h hh r
+    have := hcon' n' h hh r
+    rw [res_res, res_res, Hom.id_comp, Hom.id_comp]
+    exact this
+  · rw [line_restr hN g, han k g, El_res, Hom.id_comp]
+    have := hty.fib.transp_base_restr ha g
+    rwa [Hom.id_comp] at this
+
+theorem TranspCond.natural {A a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (hc : TranspCond S A φ a m ρ γ) :
+    Natural S (.transp A φ a) m ρ γ := by
+  intro k g
+  rw [sem_transp (hc.restr g), sem_transp hc,
+    hc.1.fib.trRes m _ _ _ (isCof_ival_face ρ φ) hc.2.1 hc.2.2.1 k g, line_restr hc.2.2.2.1 g,
+    hc.2.2.2.2 k g, face_ival_restr, transpAt_res]
+  simp only [Hom.comp_id, Hom.id_comp]
+
 end
 
 end Model
