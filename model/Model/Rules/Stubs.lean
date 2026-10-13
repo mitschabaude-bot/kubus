@@ -1,4 +1,4 @@
-import Model.Rules.GlueLemmas
+import Model.Rules.GlueComp
 
 /-!
 # Semantic validity of the rules
@@ -1389,7 +1389,22 @@ theorem sem_EqTm_hcompPath {S : Sig} {Ψ Φ Γ A a b φ u p0 T}
 theorem sem_EqTm_hcompGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u u0 T l}
     (h0 : SemTy S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) T) (h1 : SemTy S Ψ Φ Γ A (univ l)) (h2 : SemTy S Ψ (cof Φ φ) Γ e (equiv T' A)) :
     SemEq S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) (hcompGlue A φ T' e ψ u u0) T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (Tm.hcompGlue A φ T' e ψ u u0) m ρ γ = sem S (hcomp (glue A φ T' e) ψ u u0) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    obtain ⟨hAmem, hAnat, hUty, -⟩ := h1.2.2.2 m ρ γ hp
+    refine sem_hcompGlue hp.kv (cond_of_sem_hcomp (hty.ne_empty hmem)) (TyCode.of_mem_univ hUty hAmem) hAnat
+      fun k f hf => ?_
+    have hpt : IsPoint S (cof Φ φ) Γ k (ρ.restr f) (TEnv.restr γ f) :=
+      isPoint_cof_iff.2 ⟨hp.restr h1.1 f, (holds_face_restr_iff f).1 hf⟩
+    exact ⟨(h2.2.2.2 k _ _ hpt).1, (h2.2.2.2 k _ _ hpt).2.2.1⟩
+  have hcl : (Tm.hcompGlue A φ T' e ψ u u0).ConstsLt S.length := by
+    obtain ⟨⟨hA, hT, he⟩, hu, hu0⟩ := h0.2.1
+    have hf : (Tm.hfill T' ψ u u0).ConstsLt S.length :=
+      ⟨hT.ren _ _, ⟨(show u.ConstsLt S.length from hu).dsubst _, (hu0.ren _ _).ren _ _⟩, hu0.ren _ _⟩
+    exact ⟨he, ⟨hT, hu, hu0⟩, hA, ⟨⟨he.ren _ _, hu⟩, he.ren _ _, hf⟩, he, hu0⟩
+  exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_glueFace {S : Sig} {Ψ Φ Γ A φ T e G}
     (h0 : I.Entails Φ φ) (h1 : SemTy S Ψ Φ Γ (glue A φ T e) G) :

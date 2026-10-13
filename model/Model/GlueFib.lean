@@ -313,9 +313,11 @@ theorem glue_hfill_mem {n : ℕ} {h : Hom n m} (hh : (φ.restr h).holds) (r : DM
   have := hfib.elRes _ _ _ (hfillF_mem hfib (hψ.restr h) h0 hT) n (Hom.endpt n r)
   rwa [Hom.id_comp, Hom.wk_comp_endpt] at this
 
-include hG hn hψ hu0 hu in
-theorem glueTube_ok :
-    TubeOK A (Hom.id m) (Cof.or ψ φ) (glueTube m φ Tp ep ψ u u0) (π2 (π2 (here m u0))) where
+include hG hψ hu0 hu in
+/-- The tube of `hcompGlue` is a tube in `A`, over the unglued base. -/
+theorem glueTube_ok' :
+    TubeOK A (Hom.id m) (Cof.or ψ φ) (glueTube m φ Tp ep ψ u u0)
+      (ungAt m (φ.restr (Hom.id m)) (dat ep m (Hom.id m)) u0) where
   mem n h r hh := by
     unfold glueTube
     split
@@ -358,7 +360,7 @@ theorem glueTube_ok :
     unfold glueTube
     have hu0h := hG.elRes hu0 h
     rw [Hom.id_comp] at hu0h
-    rw [glue_a0 hG hn, hG.ung_res hu0 h, Hom.id_comp]
+    rw [hG.ung_res hu0 h, Hom.id_comp]
     split
     · rw [hu.base n h ‹_›]
     · rename_i h1
@@ -368,6 +370,11 @@ theorem glueTube_ok :
       have hfib := hG.fibT n h hφh
       rw [if_pos hφh, hfillF_endpt0 hfib (hψ.restr h) h0 hT, ungAt, if_pos hφh, if_pos (hG.elKV hu0h)]
 
+include hG hn hψ hu0 hu in
+theorem glueTube_ok :
+    TubeOK A (Hom.id m) (Cof.or ψ φ) (glueTube m φ Tp ep ψ u u0) (π2 (π2 (here m u0))) := by
+  rw [glue_a0 hG hn]; exact glueTube_ok' hG hψ hu0 hu
+
 end hcomp2
 
 section hcomp3
@@ -376,12 +383,13 @@ variable {A : V} {φ : Cof m} {Tp ep : V} (hG : GlueOK A φ Tp ep) (hn : ¬ φ.h
   (hψ : ψ.IsCof) {u : Tube m} {u0 : V} (hu0 : u0 ∈ El (glueC m A φ Tp ep) (Hom.id m))
   (hu : TubeOK (glueC m A φ Tp ep) (Hom.id m) ψ u u0)
 
-include hG hn hψ hu0 hu in
-theorem glueHc_eqFun {n : ℕ} {g : Hom n m} (hg : (φ.restr g).holds) :
+include hG hψ hu0 hu in
+theorem glueHc_eqFun' {n : ℕ} {g : Hom n m} (hg : (φ.restr g).holds) :
     eqFun n (dat ep n g) (hcompAt (dat Tp n g) (Hom.id n) (ψ.restr g) (u.restr g) (res g u0)) =
-      res g (hcompAt A (Hom.id m) (Cof.or ψ φ) (glueTube m φ Tp ep ψ u u0) (π2 (π2 (here m u0)))) := by
-  have hT := glueTube_ok hG hn hψ hu0 hu
-  have ha0 := glue_a0_mem hG hn hu0
+      res g (hcompAt A (Hom.id m) (Cof.or ψ φ) (glueTube m φ Tp ep ψ u u0)
+        (ungAt m (φ.restr (Hom.id m)) (dat ep m (Hom.id m)) u0)) := by
+  have hT := glueTube_ok' hG hψ hu0 hu
+  have ha0 := hG.ung_mem hu0
   have hFg : ((Cof.or ψ φ).restr g).holds := by rw [Cof.or_restr, Cof.holds_or]; exact Or.inr hg
   rw [hG.fibA.hcRes m _ _ _ _ (hψ.or hG.cof) ha0 hT n g,
     hG.fibA.hcFace n _ _ _ _ ((hψ.or hG.cof).restr g) (hG.fibA.elRes _ _ _ ha0 n g) (hT.restr g) hFg]
@@ -390,11 +398,16 @@ theorem glueHc_eqFun {n : ℕ} {g : Hom n m} (hg : (φ.restr g).holds) :
   have hfib := hG.fibT n g hg
   split
   · rename_i h1
-    have hid : ((ψ.restr g).restr (Hom.id n)).holds := by rw [(hψ.restr g).restr_id]; exact h1
     have hm := hu.mem n g (DM.one n) h1; rw [Hom.id_comp] at hm
     rw [hfib.hcFace n _ _ _ _ (hψ.restr g) h0 hTT h1, ungAt, if_pos hg, if_pos (hG.elKV hm)]
     simp only [Tube.restr, Hom.comp_id]
   · rw [hfillF_endpt1 hfib (hψ.restr g) h0 hTT]
+
+include hG hn hψ hu0 hu in
+theorem glueHc_eqFun {n : ℕ} {g : Hom n m} (hg : (φ.restr g).holds) :
+    eqFun n (dat ep n g) (hcompAt (dat Tp n g) (Hom.id n) (ψ.restr g) (u.restr g) (res g u0)) =
+      res g (hcompAt A (Hom.id m) (Cof.or ψ φ) (glueTube m φ Tp ep ψ u u0) (π2 (π2 (here m u0)))) := by
+  rw [glue_a0 hG hn]; exact glueHc_eqFun' hG hψ hu0 hu hg
 
 include hG hn hψ hu0 hu in
 /-- `hcompGlue` is typed. -/

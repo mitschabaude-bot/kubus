@@ -84,17 +84,17 @@ theorem equivCode_kv_of_mem {T A v : V} (f : Hom k m) (hv : v ∈ El (equivCode 
   · rw [El_empty'] at hv; exact absurd hv (ZFSet.notMem_empty _)
 
 theorem equivCode_eq {T A : V} (hT : IsKV m T) :
-    ∃ Q, equivCode m T A = sigmaC m (piC m T (famV m T fun _ f _ => res f A)) Q := by
+    ∃ Q, IsKV m Q ∧ equivCode m T A = sigmaC m (piC m T (famV m T fun _ f _ => res f A)) Q := by
   have hP : IsKV m (piC m T (famV m T fun _ f _ => res f A)) := by unfold piC; exact isKV_mkKV _
   unfold equivCode Tm.equiv Tm.arrow
   simp only [interp, Tm.shift, Tm.ren, TEnv.cons_zero, TEnv.cons_succ, TEnv.restr, Nat.succ_eq_add_one, zero_add,
     hT, if_true]
   rw [if_pos hP]
-  exact ⟨_, rfl⟩
+  exact ⟨_, isKV_famV _ _, rfl⟩
 
 theorem equiv_fst {T A v : V} (hT : IsKV m T) (hv : v ∈ El (equivCode m T A) (Hom.id m)) :
     fstV m v ∈ piElSet m T (famV m T fun _ f _ => res f A) := by
-  obtain ⟨Q, hQ⟩ := equivCode_eq (A := A) hT
+  obtain ⟨Q, -, hQ⟩ := equivCode_eq (A := A) hT
   rw [hQ, El_sigmaC, sigmaElSet, mem_sigmaEl] at hv
   obtain ⟨p, hp, q, -, rfl⟩ := hv
   have hPkv : IsKV m (piC m T (famV m T fun _ f _ => res f A)) := by unfold piC; exact isKV_mkKV _
@@ -160,7 +160,7 @@ theorem res_partialKV (φ : Cof m) (F : (k : ℕ) → Hom k m → V) (g : Hom k 
 
 theorem equiv_pair {T A v : V} (hT : IsKV m T) (hv : v ∈ El (equivCode m T A) (Hom.id m)) :
     ∃ p q, IsKV m p ∧ v = pairV m p q := by
-  obtain ⟨Q, hQ⟩ := equivCode_eq (A := A) hT
+  obtain ⟨Q, -, hQ⟩ := equivCode_eq (A := A) hT
   rw [hQ, El_sigmaC, sigmaElSet, mem_sigmaEl] at hv
   obtain ⟨p, hp, q, -, rfl⟩ := hv
   have hPkv : IsKV m (piC m T (famV m T fun _ f _ => res f A)) := by unfold piC; exact isKV_mkKV _

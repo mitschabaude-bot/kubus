@@ -308,6 +308,21 @@ theorem glue_elem {A : V} {φ : Cof m} {Tp ep g : V} {l : ℕ} (hn : ¬ φ.holds
   · rwa [El_res, Hom.id_comp] at ha
   · rw [h5 n g' hg']
 
+/-- The domain of a good equivalence code is a good code. -/
+theorem TyCode.equiv_dom {T A : V} (hT : IsKV m T) (h : TyCode m (equivCode m T A)) : TyCode m T := by
+  obtain ⟨Q, hQkv, hQ⟩ := equivCode_eq (A := A) hT
+  have hPkv : IsKV m (piC m T (famV m T fun _ f _ => Model.res f A)) := by unfold piC; exact isKV_mkKV _
+  rw [hQ] at h
+  obtain ⟨l, hl, h | h⟩ := h
+  · obtain ⟨hW, hV⟩ := h
+    have hP := (WF.sigma_inv hPkv hQkv hW).1
+    have hTW := (WF.pi_inv hT (isKV_famV _ _) hP).1
+    exact ⟨l, hl, Or.inl ⟨hTW, Vt_below ((below_piC_dom _ _ hT).trans (below_sigmaC_dom _ _ hPkv)) hV⟩⟩
+  · have := congrArg (codeTag m) h; simp [tSigma, tUniv] at this
+
+theorem ungAt_not {φ : Cof m} (hn : ¬ φ.holds) (e e' g : V) : ungAt m φ e g = ungAt m φ e' g := by
+  simp only [ungAt, if_neg hn]
+
 end
 
 end Model
