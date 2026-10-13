@@ -52,8 +52,15 @@ def fqctx (c : Ctx) : QCtx := { c.qctx with fold := true }
 
 end Ctx
 
-def err {α} (ctx : Ctx) (msg : String) : M α :=
-  throw s!"{ctx.pos.line}:{ctx.pos.col}: {msg}"
+def err {α} (ctx : Ctx) (msg : String) : M α := do
+  let p := ctx.pos
+  -- in editor mode, errors carry the end of the source range
+  if (← get).lsp && p.eline > 0 then throw s!"{p.line}:{p.col}-{p.eline}:{p.ecol}: {msg}"
+  throw s!"{p.line}:{p.col}: {msg}"
+
+/-- Record the type of a source range (editor mode). -/
+def recordHover (ctx : Ctx) (p : Pos) (ty : Val) : M Unit :=
+  modify fun s => if s.lsp && p.eline > 0 then { s with pendingHovers := s.pendingHovers.push (p, ctx, ty) } else s
 
 /-- Which binders of the type of each global are implicit, for printing. -/
 def implMasks : M (String → List Bool) := do
@@ -172,7 +179,7 @@ def ctxMsg (ctx : Ctx) : M String := do
 /-- Fail on the first unsolved metavariable. -/
 def checkMetas : M Unit := do
   for mi in (← get).metas do
-    if mi.sol.isNone then
+    if mi.sol.isNone && !mi.hole then
       err mi.ctx s!"could not infer {mi.desc}\n  of type {← ppVal mi.ctx mi.ctxTy}{← ctxMsg mi.ctx}"
 
 /-- The first difference between two terms of the same shape, descending through
@@ -263,7 +270,11 @@ def headPos (ctx : Ctx) : Raw → Pos
 mutual
 
 partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
-  if let .loc p t := t then return ← check { ctx with pos := p } t ty
+  if let .loc p t := t then
+    let ctx' := { ctx with pos := p }
+    let tm ← check ctx' t ty
+    recordHover ctx' p ty
+    return tm
   let ty ← force ty
   -- against an implicit Π-type, insert an implicit lambda
   if let .pi x a env bTy := ty then
@@ -358,7 +369,12 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
     let vt ← eval ctx.env tt
     return .letE x tt (← check (ctx.define x a vt) b ty)
   | .hole =>
-    err ctx s!"hole\ngoal: {← ppVal ctx ty}\ncontext:\n{← ppCtx ctx}"
+    if !(← get).lsp then err ctx s!"hole\ngoal: {← ppVal ctx ty}\ncontext:\n{← ppCtx ctx}"
+    -- editor mode: report the goal and continue
+    let (tm, _) ← freshMeta ctx ty "a hole"
+    modify fun s => { s with pendingGoals := s.pendingGoals.push (ctx.pos, ctx, ty),
+                             metas := s.metas.modify (s.metas.size - 1) (fun mi => { mi with hole := true }) }
+    return tm
   | _ =>
     let (h, args) := unspine t
     match headVar? h, ty with
@@ -510,7 +526,11 @@ partial def elabCon (ctx : Ctx) (c : String) (args : List Raw) (expected : Optio
 
 partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
   match t with
-  | .loc p t => infer { ctx with pos := p } t
+  | .loc p t =>
+    let ctx' := { ctx with pos := p }
+    let (tm, ty) ← infer ctx' t
+    recordHover ctx' p ty
+    return (tm, ty)
   | .var "_" => err ctx "cannot infer the type of the hole _; add a type annotation"
   | .var x =>
     match ctx.lookup x with

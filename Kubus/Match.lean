@@ -175,7 +175,7 @@ def errAt {α} (pos : Pos) (msg : String) : M α := throw s!"{pos.line}:{pos.col
 /-- The name to bind a column under: the first row's variable, if it has one. -/
 def colName (rows : List Row) (i : Nat) (dflt : String) : M String := do
   match rows.head? >>= (·.pats[i]?) with
-  | some (.var x _) => if x != "_" && !(← isCtorPat (.var x ⟨0, 0⟩)) then return x else return dflt
+  | some (.var x _) => if x != "_" && !(← isCtorPat (.var x { line := 0, col := 0 })) then return x else return dflt
   | _ => return dflt
 
 /-- Record the variable patterns of the first `n` columns as aliases of the bound values, and

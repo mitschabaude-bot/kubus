@@ -1,5 +1,6 @@
 import Kubus
 import Kubus.Bridge
+import Kubus.Lsp
 
 open Kubus
 
@@ -89,7 +90,7 @@ partial def repl : DM Unit := do
     let blank := l.isEmpty
     buf := buf ++ line
     let isDecl := ["def", "data", "import", "#eval", "#check"].any (buf.trimAsciiStart.toString.startsWith ·)
-    let parsed := if isDecl then parseFile buf else (parseTerm buf).map fun t => [Decl.eval t ⟨1, 1⟩]
+    let parsed := if isDecl then parseFile buf else (parseTerm buf).map fun t => [Decl.eval t { line := 1, col := 1 }]
     match parsed with
     | .error e =>
       if isEofError e && !blank then continue
@@ -104,6 +105,7 @@ partial def repl : DM Unit := do
 
 def usage : String :=
   "usage: kubus [--selfcheck | --selfcheck-main] [--budget N] [--verbose] [--interactive] FILE.ktt...\n" ++
+  "  --lsp        run a language server on standard input/output\n" ++
   "  --interactive  after loading the files, read declarations and terms from standard input\n" ++
   "  --selfcheck  check evaluator/checker invariants on every definition and #eval\n" ++
   "  --selfcheck-main  the same, but only for the given files, not their imports\n" ++
@@ -112,6 +114,7 @@ def usage : String :=
   "  --kernel     also check every definition with the certified KubusCore kernel"
 
 def main (args : List String) : IO UInt32 := do
+  if args == ["--lsp"] then return ← Kubus.Lsp.serve
   let mut drv : Driver := {}
   let mut files : Array String := #[]
   let mut interactive := false

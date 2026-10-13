@@ -82,6 +82,7 @@ Cubical primitives:
 | `Kubus/Match.lean` | pattern matching: compilation to case trees, coverage, termination check |
 | `Kubus/Top.lean` | definitions, data types, positivity checks |
 | `Kubus/SelfCheck.lean` | invariant self-checks (`--selfcheck`) |
+| `Kubus/Lsp.lean` | language server (`--lsp`) |
 
 Evaluation follows the cubicaltt approach: interval variables in values are nominal atoms, and composition is defined by cases on the type. Neutral variables carry their types, so that `p 0` reduces to the endpoint of a neutral path. Composition in the universe produces a Glue-like composite type with an equivalence built from transport along the line. Values of applied globals are glued: they remember the global and its arguments next to the unfolded value, so that they can be printed folded and compared without unfolding when the arguments agree. Transport along a constant closed first-order data type (like `Nat` or `Int`) is the identity definitionally. This regularity holds stably for those types only.
 
@@ -97,6 +98,18 @@ KUBUS_PATH=lib .lake/build/bin/kubus --interactive lib/loopspace.ktt
 `kubus --interactive` loads the given files and then reads declarations, `#eval`/`#check` commands and terms (which are evaluated) from standard input; pattern-matching definitions and data types end with an empty line. `#check t` prints the elaborated term (without implicit arguments) and its type.
 
 `tests/run.sh` checks the library, compares `tests/pass/*_test.ktt` against golden outputs, and checks that every file in `tests/fail/` is rejected with the expected error.
+
+## Editor support
+
+`editor/vscode` is a VS Code extension: syntax highlighting for `.ktt` files and a client for the language server `kubus --lsp`, which checks a file on open, change and save. Errors are reported with their source range, `#eval`/`#check` results and the goals of `?` holes as information (a definition with holes is checked to the end and then treated as an opaque constant), and hovering shows the type of the subterm under the cursor. To install:
+
+```
+lake build                                  # then put .lake/build/bin on PATH, or set kubus.path
+cd editor/vscode && npm install && npm run package
+code --install-extension kubus-0.1.0.vsix
+```
+
+Imports are found in the file's directory, in `kubus.libraryPath` (default: the workspace's `lib` folder) and in `KUBUS_PATH`.
 
 ## Self-checks and fuzzing
 

@@ -134,7 +134,7 @@ structure CEntry where
 
 structure Ctx where
   entries : List CEntry := []
-  pos : Pos := ⟨0, 0⟩
+  pos : Pos := { line := 0, col := 0 }
 
 /-- A term recorded by the elaborator for self-checking (`--selfcheck`): context, core term,
 its type, and a description. -/
@@ -156,10 +156,20 @@ structure MetaInfo where
   short : String
   sol : Option Tm := none
   solV : Option Val := none
+  /-- a `?` hole (in editor mode): stays unsolved without an error -/
+  hole : Bool := false
 
 structure St where
   globals : Globals := {}
   metas : Array MetaInfo := #[]
+  /-- editor mode (`kubus --lsp`): record types of subterms, holes are not errors -/
+  lsp : Bool := false
+  /-- recorded subterms with their context and type, and their printed types -/
+  pendingHovers : Array (Pos × Ctx × Val) := #[]
+  hovers : Array (Pos × String) := #[]
+  /-- goals of `?` holes, printed at the end of the declaration -/
+  pendingGoals : Array (Pos × Ctx × Val) := #[]
+  goals : Array (Pos × String) := #[]
   fresh : Nat := 0
   /-- self-check mode: the elaborator records terms in `pending` and checks conversions both ways -/
   selfcheck : Bool := false
