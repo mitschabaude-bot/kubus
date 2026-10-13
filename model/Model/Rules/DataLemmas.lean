@@ -30,6 +30,15 @@ theorem sem_ofList_vlist (S : Sig) (L : List Tm) (ρ : IEnv m) (γ : ℕ → V) 
   | nil => rfl
   | cons t L ih => simp only [Tm.ofList, List.map_cons, vlist]; rw [← ih]; rfl
 
+theorem ParamsOK.restr {σ : SigV} {D : DataDecl} {ps : RV m} (h : ParamsOK σ D m ps) (g : Hom n m) :
+    ParamsOK σ D n (fun k f => ps k (g.comp f)) := fun k f => h k (g.comp f)
+
+theorem plist_pair (a b : V) (n : ℕ) : plist (ZFSet.pair a b) (n + 1) = a :: plist b n := by
+  simp only [plist, List.range_succ_eq_map, List.map_cons, List.map_map]
+  congr 1
+  · simp [vnth]
+  · apply List.map_congr_left; intro i _; simp [vnth]
+
 /-- Substitution only depends on the free variables. -/
 theorem Tm.subst_congr_free : ∀ (t : Tm) (σ σ' : ℕ → Tm) (τ : ℕ → I),
     (∀ x, t.freeIn x = true → σ x = σ' x) → t.subst σ τ = t.subst σ' τ := by

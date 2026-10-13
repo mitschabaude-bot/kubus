@@ -81,21 +81,12 @@ end ext
 
 /-! ### List values -/
 
-theorem plist_pair (a b : V) (n : ℕ) : plist (ZFSet.pair a b) (n + 1) = a :: plist b n := by
-  simp only [plist, List.range_succ_eq_map, List.map_cons, List.map_map]
-  congr 1
-  · simp [vnth]
-  · apply List.map_congr_left; intro i _; simp [vnth]
-
 theorem listLen_vlist : ∀ {v : V} {n : ℕ}, ListLen v n → v = vlist (plist v n)
   | v, 0, h => by simp [ListLen] at h; simp [h, plist, vlist]
   | v, n + 1, h => by
     obtain ⟨⟨a, b, rfl⟩, h2⟩ := h
     simp only [π2_pair] at h2
     rw [plist_pair, vlist, ← listLen_vlist h2]
-
-theorem ParamsOK.restr {σ : SigV} {D : DataDecl} {ps : RV m} (h : ParamsOK σ D m ps) (g : Hom n m) :
-    ParamsOK σ D n (fun k f => ps k (g.comp f)) := fun k f => h k (g.comp f)
 
 /-- The generator of a truncated declaration, as an element. -/
 def genV (c n : ℕ) (ctors : List Ctor) : V := conV ctors n c [] []

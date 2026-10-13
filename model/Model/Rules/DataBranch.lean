@@ -171,6 +171,96 @@ theorem sem_branchArgTy_point {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data
     · obtain ⟨p, hp, rfl⟩ := List.mem_map.1 (List.mem_reverse.1 ht)
       exact natural_wkN_consL (hnat p hp) args
 
+theorem sem_wkN_consL_restr (t : Tm) (γ' : ℕ → V) (args : List V) {k' : ℕ} (ρ'' : IEnv k') (f : Hom k' n) :
+    sem S (t.wkN args.length 0) k' ρ'' (TEnv.restr (TEnv.consL γ' args) f) = sem S t k' ρ'' (TEnv.restr γ' f) := by
+  rw [Tm.wkN, sem_ren]
+  congr 1
+  funext x
+  simp only [TEnv.restr]
+  rw [TEnv.consL_ge _ _ _ (by omega)]; simp
+
+theorem sem_branchArgTy_rec {d : ℕ} {D : DataDecl} {C : Ctor} {k : ℕ}
+    (hr : C.argTy d D.params.length k = .data d (Ctor.paramVars D.params.length k)) (ps : Tm)
+    (hpl : ps = Tm.ofList ps.toList) (hpsl : ps.toList.length = D.params.length) (ρ' : IEnv n) (γ' : ℕ → V)
+    (args : List V) (hk : args.length = k) :
+    sem S (DataDecl.branchArgTy d D.params.length C ps k) n ρ' (TEnv.consL γ' args) =
+      sem S (.data d ps) n ρ' γ' := by
+  subst hk
+  unfold DataDecl.branchArgTy
+  rw [hr, List.map_reverse]
+  have e := paramVars_substList (ps.toList.map (·.wkN args.length 0)) ((List.range args.length).map Tm.var)
+  simp only [List.length_map, List.length_range, hpsl] at e
+  rw [Tm.substList, show (Tm.data d (Ctor.paramVars D.params.length args.length)).subst _ I.var =
+    Tm.data d ((Ctor.paramVars D.params.length args.length).substList
+      ((List.range args.length).map Tm.var ++ (ps.toList.map (·.wkN args.length 0)).reverse)) from rfl, e]
+  show (sigV S).dat n d _ = (sigV S).dat n d _
+  congr 1
+  funext k' f
+  conv_rhs => rw [hpl]
+  show sem S _ _ _ _ = sem S _ _ _ _
+  rw [sem_ofList_vlist, sem_ofList_vlist, List.map_map]
+  exact congrArg vlist (List.map_congr_left fun t _ => sem_wkN_consL_restr t γ' args _ f)
+
+theorem listLen_vlist' : ∀ (L : List V), ListLen (vlist L) L.length
+  | [] => rfl
+  | a :: L => ⟨⟨_, _, rfl⟩, by simpa [vlist] using listLen_vlist' L⟩
+
+theorem plist_vlist : ∀ (L : List V), plist (vlist L) L.length = L
+  | [] => rfl
+  | a :: L => by
+    rw [List.length_cons, vlist, plist_pair, plist_vlist L]
+
+/-- A constructor term with variable arguments denotes the constructor value. -/
+theorem sem_con_vars {d : ℕ} {D : DataDecl} (hS : SigOK S) (hd : S[d]? = some (.data D)) {c : ℕ} {C : Ctor}
+    (hC : D.ctors[c]? = some C) (ps' : Tm) (xs : List Tm) (is : List I) {ρ : IEnv m} {γ : ℕ → V}
+    (hγ : ∀ x, IsKV m (γ x)) (PSv : RV m) (hPS : psRV S ps' m ρ γ = PSv)
+    (hpok : ParamsOK (sigUpTo S d) D m PSv) (args : List V)
+    (hxs : xs.map (fun t => sem S t m ρ γ) = args) (hxv : ∀ t ∈ xs, ∃ y, t = .var y)
+    (rs : List (DM m)) (his : is.map (ival ρ) = rs) (hlen : args.length = C.args.length) (hrs : rs.length = C.dims)
+    (hat : (dataSD (sigUpTo S d) D d m PSv).ArgsTyped c C m (Hom.id m) args) :
+    sem S (.con d c ps' (Tm.ofList xs) is) m ρ γ = conV D.ctors m c args rs ∧
+      Natural S (.con d c ps' (Tm.ofList xs) is) m ρ γ := by
+  have hgood := ((hS.2 d D hd).2 m PSv hpok).1
+  have hxnat : ∀ t ∈ xs, ∀ k (f : Hom k m), sem S t k (ρ.restr f) (TEnv.restr γ f) = res f (sem S t m ρ γ) := by
+    intro t ht k f; obtain ⟨y, rfl⟩ := hxv t ht; rfl
+  have hguard : ∀ k (f : Hom k m), ConGuard (sigUpTo S d) D d k (psRV S ps' k (ρ.restr f) (TEnv.restr γ f)) c
+      (psRV S (Tm.ofList xs) k (ρ.restr f) (TEnv.restr γ f)) (is.map (ival (ρ.restr f))) ∧
+      sem S (Tm.ofList xs) k (ρ.restr f) (TEnv.restr γ f) = vlist (args.map (res f)) := by
+    intro k f
+    have hxsk : sem S (Tm.ofList xs) k (ρ.restr f) (TEnv.restr γ f) = vlist (args.map (res f)) := by
+      rw [sem_ofList_vlist, ← hxs, List.map_map]
+      exact congrArg vlist (List.map_congr_left fun t ht => hxnat t ht k f)
+    have hisl : is.length = C.dims := by rw [← hrs, ← his, List.length_map]
+    refine ⟨⟨C, hC, by simp [hisl], ?_, ?_, ?_⟩, hxsk⟩
+    · simp only [psRV, Hom.comp_id, IEnv.restr_restr, TEnv.restr_restr]
+      rw [hxsk]
+      simpa [hlen] using listLen_vlist' (args.map (res f))
+    · have : psRV S ps' k (ρ.restr f) (TEnv.restr γ f) = fun k' f' => PSv k' (f.comp f') := by
+        rw [← hPS]; funext k' f'; simp only [psRV, IEnv.restr_restr, TEnv.restr_restr]
+      rw [this]; exact hpok.restr f
+    · have hpsr : psRV S ps' k (ρ.restr f) (TEnv.restr γ f) = fun k' f' => PSv k' (f.comp f') := by
+        rw [← hPS]; funext k' f'; simp only [psRV, IEnv.restr_restr, TEnv.restr_restr]
+      rw [hpsr]
+      simp only [psRV, Hom.comp_id, IEnv.restr_restr, TEnv.restr_restr]
+      rw [hxsk, show C.args.length = (args.map (res f)).length by simp [hlen], plist_vlist]
+      have := hgood.argsTyped_res hC hat k f
+      exact (argsTyped_restr_iff (dataSD (sigUpTo S d) D d m PSv) f (Hom.id k) _).2 (by simpa using this)
+  have hval : ∀ k (f : Hom k m), sem S (.con d c ps' (Tm.ofList xs) is) k (ρ.restr f) (TEnv.restr γ f) =
+      conV D.ctors k c (args.map (res f)) (rs.map (·.restr f)) := by
+    intro k f
+    rw [sem_con_of hd (hguard k f).1, IEnv.restr_restr, TEnv.restr_restr, Hom.comp_id, (hguard k f).2,
+      getD_ctors hC, show C.args.length = (args.map (res f)).length by simp [hlen], plist_vlist, ← his,
+      List.map_map]
+    congr 1
+  have h0 := hval m (Hom.id m)
+  rw [IEnv.restr_id, TEnv.restr_id_of_kv hγ] at h0
+  have hargkv : ∀ a ∈ args, IsKV m a := by
+    intro a ha; rw [← hxs] at ha; obtain ⟨t, ht, rfl⟩ := List.mem_map.1 ha
+    obtain ⟨y, rfl⟩ := hxv t ht; exact hγ y
+  rw [map_res_id_of_kv hargkv, show rs.map (·.restr (Hom.id m)) = rs by simp] at h0
+  refine ⟨h0, fun k f => ?_⟩
+  rw [hval k f, h0, res_conV]
+
 /-- `n` interval-Π-types around `inner`. -/
 def ipiN (k : ℕ) (inner : Tm) : Tm := (List.range k).foldl (fun acc _ => Tm.ipi acc) inner
 
