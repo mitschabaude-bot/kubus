@@ -95,7 +95,7 @@ partial def eval (env : Env) (t : Tm) : M Val := do
     let av ← eval env a
     -- in a higher inductive type, homogeneous composition is the formal `hcomp` constructor
     -- (read-back prints `hcompF` as `hcomp`, so this keeps evaluation stable under read-back)
-    if let .data d _ _ := av then
+    if let .data d _ _ := av.unfold then
       if (← lookupData d).isHIT then
         if let some v := us.eps? then return ← act i Formula.one v
         return ← mkHCompF av (← eval env u0) (lines i us)
@@ -128,7 +128,7 @@ partial def evalGlob (n : String) (k : Nat) : M Val := do
   let info ← lookupDef n
   let cached := if k == 0 then info.value else info.lifted.lookup k
   match cached with
-  | some v => pure v
+  | some v => pure (.glued n k [] v)
   | none =>
     match info.body with
     | none => pure (.gvar n info.ty)
@@ -136,7 +136,7 @@ partial def evalGlob (n : String) (k : Nat) : M Val := do
       let v ← eval [] (body.lift k)
       let info' := if k == 0 then { info with value := some v } else { info with lifted := (k, v) :: info.lifted }
       modify fun s => { s with globals.defs := s.globals.defs.insert n info' }
-      pure v
+      pure (.glued n k [] v)
 
 partial def evalSys (env : Env) (sys : TSys Tm) : M (System Val) := do
   let mut out : System Val := []
@@ -159,6 +159,7 @@ partial def inst (env : Env) (b : Tm) (v : Val) : M Val := eval (.v v :: env) b
 
 partial def app (f a : Val) : M Val := do
   match f with
+  | .glued g k sp v => return .glued g k (.v a :: sp) (← app v a)
   | .lam _ env b => eval (.v a :: env) b
   | .split fn k env => splitApp fn k env a
   | .comp line u0 sys => appComp line u0 sys a
@@ -167,17 +168,20 @@ partial def app (f a : Val) : M Val := do
     else throw "internal: applying a non-function"
 
 partial def fstV (p : Val) : M Val := do
+  let p := p.unfold
   match p with
   | .pair a _ => pure a
   | _ => if p.isNeutral then pure (.fst p) else throw "internal: fst of a non-pair"
 
 partial def sndV (p : Val) : M Val := do
+  let p := p.unfold
   match p with
   | .pair _ b => pure b
   | _ => if p.isNeutral then pure (.snd p) else throw "internal: snd of a non-pair"
 
 partial def papp (v : Val) (r : Formula) : M Val := do
   match v with
+  | .glued g k sp v => return .glued g k (.d r :: sp) (← papp v r)
   | .plam i b => act i r b
   | _ =>
     match r.toDir? with
@@ -235,6 +239,10 @@ partial def refresh? (v : Val) : M (Option Val) := do
     if parts.all (·.2.isNone) then return none
     return some (parts.map fun (u, u') => u'.getD u)
   match v with
+  | .glued g k sp u => do
+    let sp' ← re sp; let u' ← r u
+    if sp'.isNone && u'.isNone then return none
+    return some (.glued g k (sp'.getD sp) (u'.getD u))
   | .univ _ | .var .. => pure none
   | .gvar n _ =>
     match metaId? n with
@@ -305,12 +313,19 @@ partial def refresh? (v : Val) : M (Option Val) := do
     if u'.isNone && b'.isNone && sys'.isNone then return none
     return some (← unglueUV (u'.getD u) (b'.getD b) (sys'.getD sys))
 
-/-- Plug in solved metavariables at the head of a value. -/
-partial def force (v : Val) : M Val := do
+/-- Plug in solved metavariables at the head of a value (glued globals stay folded). -/
+partial def forceM (v : Val) : M Val := do
   if !v.isNeutral || (← get).metas.isEmpty then return v
   match ← forceHead? v with
-  | some v' => force v'
+  | some v' => forceM v'
   | none => pure v
+
+/-- The head normal form of a value: unfold glued globals, plug in solved metavariables. -/
+partial def force (v : Val) : M Val := do
+  let v' ← forceM v.unfold
+  match v' with
+  | .glued .. => force v'
+  | _ => pure v'
 
 /-- Type of a neutral value, if it can be determined. -/
 partial def inferNe (v : Val) : M (Option Val) := do
@@ -319,7 +334,7 @@ partial def inferNe (v : Val) : M (Option Val) := do
   | none => return none
 
 partial def inferNe' (v : Val) : M (Option Val) := do
-  match v with
+  match v.unfold with
   | .var _ ty | .gvar _ ty => pure (some ty)
   | .app f a =>
     match ← inferNe f with
@@ -351,12 +366,13 @@ partial def splitFnType (f : String) (k : Nat) (env : Env) : M Val := do
   let ty0 ← if k == 0 then pure info.ty else eval [] (info.tyTm.lift k)
   let mut ty := ty0
   for e in env.reverse do
-    match ty, e with
+    match ty.unfold, e with
     | .pi _ _ env' b, .v p => ty ← inst env' b p
     | _, _ => throw "internal: bad split type"
   return ty
 
 partial def splitApp (f : String) (k : Nat) (env : Env) (a : Val) : M Val := do
+  let a := a.unfold
   match a with
   | .con c args =>
     let br ← findBranch f c
@@ -388,7 +404,7 @@ partial def findBranch (f c : String) : M Branch := do
 /-- Application of a stuck composition in a Π-type. -/
 partial def appComp (line u0 : Val) (sys : System Val) (v1 : Val) : M Val := do
   let j ← freshAtom
-  match ← papp line (atomF j) with
+  match (← papp line (atomF j)).unfold with
   | .pi _ a envB b =>
     let w ← transFillNeg j a v1
     let w0 ← act j Formula.zero w
@@ -403,6 +419,7 @@ partial def appComp (line u0 : Val) (sys : System Val) (v1 : Val) : M Val := do
 partial def act (i : Atom) (r : Formula) (v : Val) : M Val := do
   tick
   match v with
+  | .glued g k sp v => return .glued g k (← actEnv i r sp) (← act i r v)
   | .univ _ => pure v
   | .pi x a env b => return .pi x (← act i r a) (← actEnv i r env) b
   | .lam x env b => return .lam x (← actEnv i r env) b
@@ -497,7 +514,7 @@ partial def unglueV (u b : Val) (sys : System Val) : M Val := do
   match sys.eps? with
   | some te => app (← fstV (← sndV te)) u
   | none =>
-    match u with
+    match u.unfold with
     | .glue a _ => pure a
     | _ => pure (.unglue u b sys)
 
@@ -510,7 +527,7 @@ partial def unglueUV (u b : Val) (sys : System Val) : M Val := do
   match sys.eps? with
   | some line => lineFun line u
   | none =>
-    match u with
+    match u.unfold with
     | .glue a _ => pure a
     | _ => pure (.unglueU u b sys)
 
@@ -526,6 +543,8 @@ partial def compLine (line u : Val) (sys : System Val) : M Val := do
 
 /-- `comp i a u us`: `a` and the elements of `us` may mention `i`; `u : a(i/0)`. Result in `a(i/1)`. -/
 partial def comp (i : Atom) (a u : Val) (us : System Val) : M Val := do
+  let a := a.unfold
+  let u := u.unfold
   match us.eps? with
   | some v => act i Formula.one v
   | none =>
@@ -564,7 +583,7 @@ partial def comp (i : Atom) (a u : Val) (us : System Val) : M Val := do
       | .con c args =>
         let sysArgs? : Option (List (System Val)) :=
           us.foldr (fun (α, v) acc => acc.bind fun cols =>
-            match v with
+            match v.unfold with
             | .con c' bs => if c' == c && bs.length == cols.length
                 then some ((cols.zip bs).map fun (col, b) => (α, b) :: col) else none
             | _ => none) (some (args.map fun _ => []))
@@ -596,7 +615,8 @@ partial def compHIT (i : Atom) (a u : Val) (us : System Val) : M Val := do
 /-- Componentwise `comp j a v [face ↦ v]` on canonical elements of a higher inductive type
 (`face` must not mention `j`). Returns `none` on neutral elements. -/
 partial def hitPush (j : Atom) (a v : Val) (face : Option Face) : M (Option Val) := do
-  match a with
+  let v := v.unfold
+  match a.unfold with
   | .data d dk ps =>
     let pushArgs (c : String) (args : List Val) : M (Option (List Val)) := do
       let ctor ← lookupCtor c
@@ -613,7 +633,7 @@ partial def hitPush (j : Atom) (a v : Val) (face : Option Face) : M (Option Val)
         let sysK : System Val ← match face with
           | some f => do pure [(f, ← faceV arg f)]
           | none => pure []
-        let r ← match A with
+        let r ← match A.unfold with
           | .data d' _ _ => if d' == d then hitPush j A arg face else some <$> comp j A arg sysK
           | _ => some <$> comp j A arg sysK
         match r with

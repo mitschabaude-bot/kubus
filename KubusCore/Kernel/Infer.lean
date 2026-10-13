@@ -42,12 +42,34 @@ def checkEquiv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (T e : Tm) (l
   let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A) l
   R.check E1 e (Tm.equiv T A) l hq
 
+/-- Substitute the endpoints that the restriction fixes into a type (face rule). -/
+def faceNormTy {Ψ Φ Γ} (G : Tm) (l : Nat) : Nat → (G' : Tm) → EqTm S Ψ Φ Γ G G' (.univ l) →
+    Red S Ψ Φ Γ G (.univ l)
+  | 0, G', e => ⟨G', e⟩
+  | n + 1, G', e =>
+    let i := n
+    if hi : i < Ψ ∧ G'.mentionsI i = true then
+      if h1 : I.Entails Φ (I.lit i true) then
+        faceNormTy G l n _ (EqTm.trans e (EqTm.face hi.1 h1 (HasTy.eqR e)))
+      else if h0 : I.Entails Φ (I.lit i false) then
+        faceNormTy G l n _ (EqTm.trans e (EqTm.face hi.1 h0 (HasTy.eqR e)))
+      else faceNormTy G l n G' e
+    else faceNormTy G l n G' e
+
 /-- Bring a type `G` to the form `Glue A [φ ↦ (T, e)]` with the given `φ`, with a derivation
 that the base `A` is a type. -/
 def toGlue (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ Φ Γ G (.univ l))
     (φ : I) : K ((A T e : Tm) × PLift (HasTy S Ψ Φ Γ A (.univ l) ∧
       EqTm S Ψ Φ Γ G (.glue A φ T e) (.univ l))) := do
-  match ← whnfTy R E G l hG with
+  let rG ← whnfTy R E G l hG
+  let rG ← match rG.tm with
+    | .glue _ φ' _ _ =>
+      if φ' = φ then pure rG else do
+        let rf := faceNormTy rG.tm l Ψ rG.tm (EqTm.refl (HasTy.eqR rG.eq))
+        let r2 ← whnfTy R E rf.tm l (HasTy.eqR rf.eq)
+        pure ⟨r2.tm, EqTm.trans rG.eq (EqTm.trans rf.eq r2.eq)⟩
+    | _ => pure rG
+  match rG with
   | ⟨.glue A φ' T e', eG⟩ =>
     let ⟨hA⟩ ← checkType R E A l
     let ⟨e2⟩ ← reglue R E A φ' T e' φ e' l (HasTy.eqR eG) hA
@@ -58,7 +80,15 @@ def toGlue (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ
 def toGlueE (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ Φ Γ G (.univ l))
     (φ : I) (e : Tm) : K ((A T : Tm) × PLift (HasTy S Ψ Φ Γ A (.univ l) ∧
       EqTm S Ψ Φ Γ G (.glue A φ T e) (.univ l))) := do
-  match ← whnfTy R E G l hG with
+  let rG ← whnfTy R E G l hG
+  let rG ← match rG.tm with
+    | .glue _ φ' _ e' =>
+      if φ' = φ ∧ e' = e then pure rG else do
+        let rf := faceNormTy rG.tm l Ψ rG.tm (EqTm.refl (HasTy.eqR rG.eq))
+        let r2 ← whnfTy R E rf.tm l (HasTy.eqR rf.eq)
+        pure ⟨r2.tm, EqTm.trans rG.eq (EqTm.trans rf.eq r2.eq)⟩
+    | _ => pure rG
+  match rG with
   | ⟨.glue A φ' T e', eG⟩ =>
     let ⟨hA⟩ ← checkType R E A l
     let ⟨e2⟩ ← reglue R E A φ' T e' φ e l (HasTy.eqR eG) hA

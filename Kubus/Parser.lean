@@ -14,6 +14,7 @@ inductive TokK
 structure Tok where
   k : TokK
   pos : Pos
+  len : Nat := 1
   deriving Inhabited
 
 def TokK.show : TokK → String
@@ -65,12 +66,12 @@ partial def lex (src : String) : Except String (Array Tok) := do
       let mut v := 0
       while i < n && cs[i]!.isDigit do
         v := v * 10 + (cs[i]!.toNat - '0'.toNat); i := i + 1
-      out := out.push ⟨.num v, ⟨line, col⟩⟩
+      out := out.push { k := .num v, pos := { line, col }, len := i - start }
       col := col + (i - start)
     else
       match symbols.find? (startsWith i ·) with
       | some s =>
-        out := out.push ⟨.sym s, ⟨line, col⟩⟩
+        out := out.push { k := .sym s, pos := { line, col }, len := s.length }
         i := i + s.length; col := col + s.length
       | none =>
         if isIdChar c then
@@ -78,10 +79,10 @@ partial def lex (src : String) : Except String (Array Tok) := do
           let mut s := ""
           while i < n && isIdChar cs[i]! do
             s := s.push cs[i]!; i := i + 1
-          out := out.push ⟨.ident s, ⟨line, col⟩⟩
+          out := out.push { k := .ident s, pos := { line, col }, len := i - start }
           col := col + (i - start)
         else throw s!"{line}:{col}: unexpected character '{c}'"
-  return out.push ⟨.eof, ⟨line, col⟩⟩
+  return out.push { k := .eof, pos := { line, col } }
 
 abbrev P := ReaderT (Array Tok) (StateT Nat (Except String))
 
@@ -97,6 +98,14 @@ def peekAt (k : Nat) : P TokK := do
   return (ts[i + k]?.getD ts.back!).k
 def advance : P Unit := modify (· + 1)
 def curPos : P Pos := return (← peekTok).pos
+
+/-- The range from `p` to the end of the last consumed token. -/
+def spanFrom (p : Pos) : P Pos := do
+  let ts ← read
+  let i ← get
+  match ts[i - 1]? with
+  | some t => if i > 0 then return { p with eline := t.pos.line, ecol := t.pos.col + t.len } else return p
+  | none => return p
 
 def perr {α} (msg : String) : P α := do
   let t ← peekTok
@@ -154,7 +163,7 @@ partial def expr : P Raw := do
     if xs.isEmpty then perr "expected a binder"
     advance
     let b ← expr
-    return .loc pos (xs.foldr (fun (x, ty) b => .lam x ty b) b)
+    return .loc (← spanFrom pos) (xs.foldr (fun (x, ty) b => .lam x ty b) b)
   if ← isIdent "let" then
     advance
     let x ← ident
@@ -164,7 +173,7 @@ partial def expr : P Raw := do
     if !(← isIdent "in") then perr "expected 'in'"
     advance
     let b ← expr
-    return .loc pos (.letE x ty t b)
+    return .loc (← spanFrom pos) (.letE x ty t b)
   arrowExpr
 
 /-- Try to parse telescope binders `(x y : A) (z : B)`; returns none (and backtracks) on failure. -/
@@ -280,7 +289,7 @@ partial def appExpr : P Raw := do
       | .num n => advance; pure (Raw.univ n)
       | _ => pure (Raw.univ 0)
     | _ => atom
-  let mut t := Raw.loc pos head
+  let mut t := Raw.loc (← spanFrom pos) head
   while (← isAtomStart) || (← isSym "{") do
     if ← isSym "{" then
       -- implicit argument `{a}` or `{x := a}`
@@ -297,10 +306,11 @@ partial def appExpr : P Raw := do
   if ← isSym "≡" then
     advance
     let rhs ← appExpr
-    return .loc pos (.path .hole t rhs)
+    return .loc (← spanFrom pos) (.path .hole t rhs)
+  let pos' ← spanFrom pos
   return match t with
     | .loc .. => t
-    | _ => .loc pos t
+    | _ => .loc pos' t
 
 partial def atom : P Raw := do
   let pos ← curPos
@@ -308,7 +318,7 @@ partial def atom : P Raw := do
   while (← isSym ".1") || (← isSym ".2") do
     if ← isSym ".1" then t := .fst t else t := .snd t
     advance
-  return .loc pos t
+  return .loc (← spanFrom pos) t
 
 partial def primary : P Raw := do
   match ← peek with

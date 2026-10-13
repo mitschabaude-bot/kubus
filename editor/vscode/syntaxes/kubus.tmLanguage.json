@@ -1,0 +1,86 @@
+{
+  "name": "Kubus",
+  "scopeName": "source.kubus",
+  "patterns": [{ "include": "#expr" }],
+  "repository": {
+    "expr": {
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#declaration" },
+        { "include": "#system" },
+        { "include": "#tokens" }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-dash.kubus", "match": "--.*$" },
+        { "include": "#blockComment" }
+      ]
+    },
+    "blockComment": {
+      "name": "comment.block.kubus",
+      "begin": "\\{-",
+      "end": "-\\}",
+      "patterns": [{ "include": "#blockComment" }]
+    },
+    "declaration": {
+      "patterns": [
+        {
+          "match": "^\\s*(def|data)\\s+([^\\s(){}\\[\\]:,]+)",
+          "captures": {
+            "1": { "name": "keyword.other.declaration.kubus" },
+            "2": { "name": "entity.name.function.kubus" }
+          }
+        },
+        {
+          "match": "^\\s*(import)\\s+(\\S+)",
+          "captures": {
+            "1": { "name": "keyword.other.import.kubus" },
+            "2": { "name": "entity.name.namespace.kubus" }
+          }
+        },
+        { "name": "keyword.other.command.kubus", "match": "#(eval|check)\\b" }
+      ]
+    },
+    "system": {
+      "comment": "systems [φ -> u, ...]: faces are interval formulas",
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": { "0": { "name": "punctuation.section.system.begin.kubus" } },
+      "endCaptures": { "0": { "name": "punctuation.section.system.end.kubus" } },
+      "name": "meta.system.kubus",
+      "patterns": [
+        { "include": "#comments" },
+        {
+          "match": "([^\\s\\[\\],()]+)\\s*(=)\\s*([01])\\b",
+          "captures": {
+            "1": { "name": "variable.other.interval.kubus" },
+            "2": { "name": "keyword.operator.face.kubus" },
+            "3": { "name": "constant.numeric.interval.kubus" }
+          }
+        },
+        { "name": "keyword.operator.system-arrow.kubus", "match": "->|→|↦" },
+        { "name": "punctuation.separator.system.kubus", "match": "," },
+        { "include": "#system" },
+        { "include": "#tokens" }
+      ]
+    },
+    "tokens": {
+      "patterns": [
+        { "name": "keyword.control.kubus", "match": "(?<![\\w'#])(let|in|fun)(?![\\w'#])" },
+        { "name": "support.function.kan.kubus", "match": "(?<![\\w'#])(comp|hcomp|fill|Glue|glue|unglue)(?![\\w'#])" },
+        { "name": "support.type.builtin.kubus", "match": "(?<![\\w'#])(Path|PathP|U|I)(?![\\w'#])" },
+        { "name": "keyword.operator.interval.kubus", "match": "/\\\\|\\\\/|∧|∨|~" },
+        { "name": "constant.numeric.interval.kubus", "match": "(?<![\\w'#])[01](?![\\w'#])" },
+        { "name": "constant.numeric.level.kubus", "match": "(?<![\\w'#])[0-9]+(?![\\w'#])" },
+        { "name": "keyword.other.hole.kubus", "match": "\\?|(?<![\\w'#])_(?![\\w'#])" },
+        { "name": "keyword.operator.lambda.kubus", "match": "\\\\|λ" },
+        { "name": "keyword.operator.arrow.kubus", "match": "->|→|=>|↦" },
+        { "name": "keyword.operator.kubus", "match": ":=|:|×|\\*|\\||≡|@|\\^" },
+        { "name": "keyword.operator.projection.kubus", "match": "\\.[12]\\b" },
+        { "name": "punctuation.implicit.kubus", "match": "[{}]" },
+        { "name": "entity.name.type.kubus", "match": "(?<![\\w'#])[A-Z][\\w'#]*" }
+      ]
+    }
+  }
+}

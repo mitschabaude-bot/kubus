@@ -1,0 +1,50 @@
+{
+  "name": "kubus",
+  "displayName": "Kubus",
+  "description": "Kubus cubical type theory: syntax highlighting and language server",
+  "version": "0.1.0",
+  "publisher": "kubus",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/mitschabaude-bot/kubus" },
+  "engines": { "vscode": "^1.82.0" },
+  "categories": ["Programming Languages"],
+  "main": "./extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "languages": [{
+      "id": "kubus",
+      "aliases": ["Kubus", "kubus"],
+      "extensions": [".ktt"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "kubus",
+      "scopeName": "source.kubus",
+      "path": "./syntaxes/kubus.tmLanguage.json"
+    }],
+    "configuration": {
+      "title": "Kubus",
+      "properties": {
+        "kubus.path": {
+          "type": "string",
+          "default": "kubus",
+          "description": "Path of the kubus executable (started as `kubus --lsp`)."
+        },
+        "kubus.libraryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Directories searched for imports (KUBUS_PATH, colon-separated). Default: the `lib` folder of the workspace, if there is one."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.2.1"
+  },
+  "scripts": {
+    "package": "vsce package --allow-missing-repository --skip-license"
+  }
+}

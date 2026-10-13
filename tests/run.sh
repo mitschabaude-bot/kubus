@@ -25,13 +25,14 @@ if [ "${SELFCHECK:-1}" = 1 ]; then
     fi
   done
 fi
-# certified kernel: every definition of the core library without data types is certified
-if ! out=$(timeout 300 $bin --kernel lib/univalence.ktt 2>&1) \
-    || grep "kernel: skipped" <<< "$out" | grep -qvE "phase 2|not in the kernel signature"; then
-  echo "FAIL kernel"; grep -E "REJECTED|skipped" <<< "$out" | head -10; fails=$((fails+1))
-else
-  echo "$(tail -1 <<< "$out")"
-fi
+# certified kernel: every definition and data type of the library is certified
+for f in lib/univalence.ktt lib/hits.ktt lib/loopspace.ktt; do
+  if ! out=$(timeout 900 $bin --kernel "$f" 2>&1) || grep -q "kernel: skipped" <<< "$out"; then
+    echo "FAIL kernel $f"; grep -E "REJECTED|skipped" <<< "$out" | head -10; fails=$((fails+1))
+  else
+    echo "$f: $(tail -1 <<< "$out")"
+  fi
+done
 # kernel regression tests (signatures the kernel must reject or accept)
 for f in tests/kernel/*.lean; do
   if ! lake env lean "$f" > /tmp/kubus-err 2>&1; then
@@ -52,6 +53,10 @@ if [ "$1" = "--update" ]; then echo "$out" > tests/repl.out; fi
 if [ "$out" != "$(cat tests/repl.out 2>/dev/null)" ]; then
   echo "FAIL tests/repl.in"; diff <(echo "$out") tests/repl.out | head -20; fails=$((fails+1))
 fi
+# the tutorial's examples
+if ! python3 tests/tutorial.py; then fails=$((fails+1)); fi
+# language server
+if ! python3 tests/lsp.py; then fails=$((fails+1)); fi
 for f in tests/fail/*.ktt; do
   exp=$(head -1 "$f" | sed -n 's/^-- expect: //p')
   if out=$(timeout 10 $bin --selfcheck "$f" 2>&1); then

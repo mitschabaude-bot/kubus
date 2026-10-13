@@ -238,6 +238,61 @@ def cofOf {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (r : KI) : Except String (KCtx S Ψ (
   let ⟨h⟩ ← KubusCore.Kernel.ensureScoped r Ψ
   pure (E.cof r h)
 
+/-! ### Implicit arguments
+
+Kubus inserts the solutions of implicit arguments as normal forms of its own evaluator, which
+may rely on computation that CCHM does not have (regularity). The translation therefore
+recovers implicit arguments by first-order matching of the parameter types of the head against
+the inferred types of the explicit arguments, and uses Kubus's solutions only for implicit
+arguments that are not determined this way. -/
+
+/-- Which of the first `n` binders of the type of `g` are implicit. -/
+def implMask (env : Env) (g : String) (n : Nat) : Option (List Bool) :=
+  match env.globals.defs[g]? with
+  | some info =>
+    let rec go : Nat → Kubus.Tm → Option (List Bool)
+      | 0, _ => some []
+      | n + 1, .pi x _ b => (isImplName x :: ·) <$> go n b
+      | _, _ => none
+    go n info.tyTm
+  | none => none
+
+def piDoms : Nat → KTm → List KTm
+  | n + 1, .pi A B => A :: piDoms n B
+  | _, _ => []
+
+def markVar : Nat := 1000000000
+
+/-- `t` under `k` term and `m` interval binders, lowered to the outer context (if it does not
+mention the bound variables). -/
+def lowerTm (k m : Nat) (t : KTm) : Option KTm :=
+  let t' := t.subst (fun x => .var (if x < k then markVar else x - k))
+    (fun i => .var (if i < m then markVar else i - m))
+  if t'.closedB markVar markVar then some t' else none
+
+/-- Match the parameter type `pat` (in which variable `j ≥ dT` with `j - dT < i` stands for
+argument `i - 1 - (j - dT)`) against `t`, recording the arguments found. -/
+partial def matchPat (i : Nat) (vals : Array (Option KTm)) (dT dI : Nat) (pat t : KTm) :
+    Array (Option KTm) :=
+  let go := matchPat i
+  match pat, t with
+  | .var j, t =>
+    if dT ≤ j && j - dT < i then
+      let pos := i - 1 - (j - dT)
+      match vals[pos]?, lowerTm dT dI t with
+      | some none, some v => vals.set! pos (some v)
+      | _, _ => vals
+    else vals
+  | .pi A B, .pi A' B' | .sigma A B, .sigma A' B' | .lam A B, .lam A' B' =>
+    go (go vals dT dI A A') (dT + 1) dI B B'
+  | .app f a, .app f' a' | .pair f a, .pair f' a' | .tcons f a, .tcons f' a' =>
+    go (go vals dT dI f f') dT dI a a'
+  | .fst p, .fst p' | .snd p, .snd p' | .papp p _, .papp p' _ | .data _ p, .data _ p' => go vals dT dI p p'
+  | .plam b, .plam b' | .ipi b, .ipi b' => go vals dT (dI + 1) b b'
+  | .path A a b, .path A' a' b' => go (go (go vals dT (dI + 1) A A') dT dI a a') dT dI b b'
+  | .con _ _ ps as _, .con _ _ ps' as' _ => go (go vals dT dI ps ps') dT dI as as'
+  | _, _ => vals
+
 mutual
 
 /-- Translate `t`, against the expected type if given. -/
@@ -267,6 +322,14 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
         (some ⟨B, l, ⟨HasTy.piCod hP⟩⟩))
     | ⟨T', _⟩ => throw s!"a λ is expected to have type {KubusCore.Kernel.short T'}"
   | .app f a => do
+    let (h, args) := appSpine (.app f a)
+    let implicit := match h with
+      | .glob g k => match implMask env g args.length with
+        | some mask => if mask.any id then some (g, k, mask) else none
+        | none => none
+      | _ => none
+    if let some (g, k, mask) := implicit then
+      return ← elabImplSpine R env E ks g k args mask
     let f' ← elabT R env E ks f none
     match ← KubusCore.Kernel.inferW R E f' with
     | ⟨.pi A _, l, hP, _⟩ => return .app f' (← elabT R env E ks a (some ⟨A, l, ⟨HasTy.piDom hP⟩⟩))
@@ -343,22 +406,44 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
       (mkSys (es'.map fun (r, p) => (r, .snd p)))
   | .glue sys a => do
     let keys ← sys.mapM fun (r, _) => trI ks r
-    let φ := canonCof keys
     let some ⟨G, l, ⟨hG⟩⟩ := exp | throw "glue without an expected type"
-    let ⟨A, T, e, ⟨hA, _⟩⟩ ← KubusCore.Kernel.toGlue R E G l hG φ
-    let a' ← elabT R env E ks a (some ⟨A, l, ⟨hA⟩⟩)
+    -- the cofibration of the Glue type as the kernel sees it (Kubus may have elaborated the
+    -- element against the Glue type restricted to a face)
+    -- under a face the Glue type may reduce: use its unreduced form if it is one
+    let parts : Option (KTm × KTm × KTm × KI) := match G with
+      | .glue A φ' T e => some (A, T, e, φ')
+      | _ => none
+    let (A, T, e, φ) ← match parts with
+      | some p => pure p
+      | none => do
+        let φ ← match ← KubusCore.Kernel.whnfTy R E G l hG with
+          | ⟨.glue _ φ' _ _, _⟩ => pure φ'
+          | _ => pure (canonCof keys)
+        let ⟨A, T, e, _⟩ ← KubusCore.Kernel.toGlue R E G l hG φ
+        pure (A, T, e, φ)
+    let ⟨_, ⟨hA⟩⟩ ← KubusCore.Kernel.inferType R E A
+    let a' ← elabT R env E ks a (some ⟨A, _, ⟨hA⟩⟩)
     let mut es : Array (KI × KTm) := #[]
     for ((_, t), r) in sys.zip keys do
       let Ek ← cofOf E r
       es := es.push (r, ← elabT R env Ek ks t (expOf R Ek T))
     return .glueEl φ e (mkSys es.toList) a'
-  | .unglue u _ sys => do
+  | .unglue u base sys => do
     let keys ← sys.mapM fun (r, _) => trI ks r
-    let φ := canonCof keys
-    let g ← elabT R env E ks u none
+    -- the argument is checked against the Glue type recorded by Kubus, if it translates
+    let G := match elabT R env E ks (.glueTy base sys) none with
+      | .ok G => expOf R E G
+      | .error _ => none
+    let g ← elabT R env E ks u G
     let i ← R.infer E g
-    let ⟨_, _, e, _⟩ ← KubusCore.Kernel.toGlue R E i.ty i.lvl i.hty φ
-    return .unglue φ e g
+    match i.ty with
+    | .glue _ φ' _ e => return .unglue φ' e g
+    | _ =>
+      let φ ← match ← KubusCore.Kernel.whnfTy R E i.ty i.lvl i.hty with
+        | ⟨.glue _ φ' _ _, _⟩ => pure φ'
+        | _ => pure (canonCof keys)
+      let ⟨_, _, e, _⟩ ← KubusCore.Kernel.toGlue R E i.ty i.lvl i.hty φ
+      return .unglue φ e g
   | .letE _ t b => do
     let t' ← elabT R env E ks t none
     elabT R env E (.defn t' :: ks) b exp
@@ -385,6 +470,34 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
     let args' ← elabTele R env E ks (C.argTys d D.params.length) ps.toList.reverse args
     return .con d cIdx ps (KubusCore.Tm.ofList args') (← dims.mapM (trI ks))
   | .split f k => elabSplit R env E ks f k exp
+
+/-- An application of a global with implicit parameters. -/
+partial def elabImplSpine (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry)
+    (g : String) (k : Nat) (args : List Kubus.Tm) (mask : List Bool) : Except String KTm := do
+  let some c := env.consts[(g, k)]? | throw s!"uses {g}, which is not in the kernel signature"
+  let F ← match S[c]? with
+    | some (.defn _ A) => pure A
+    | _ => throw s!"internal: {g} is not a definition"
+  let n := args.length
+  let doms := piDoms n F
+  if doms.length != n then throw s!"too many arguments for {g}"
+  -- explicit arguments that can be inferred determine the implicit ones before them
+  let mut vals : Array (Option KTm) := Array.replicate n none
+  let mut infd : Array (Option KTm) := Array.replicate n none
+  for i in List.range n do
+    if !(mask.getD i false) then
+      if let .ok t := elabT R env E ks (args.getD i (.univ 0)) none then
+        if let .ok inf := KubusCore.Kernel.inferW R E t then
+          infd := infd.set! i (some t)
+          vals := matchPat i vals 0 0 (doms.getD i (.univ 0)) inf.ty
+  let mut final : Array KTm := #[]
+  for i in List.range n do
+    let D := (doms.getD i (.univ 0)).substList final.toList.reverse
+    let given := if mask.getD i false then vals.getD i none else infd.getD i none
+    match given with
+    | some t => final := final.push t
+    | none => final := final.push (← elabT R env E ks (args.getD i (.univ 0)) (expOf R E D))
+  return KubusCore.Tm.apps (.const c) final.toList
 
 /-- Translate a list against a telescope. -/
 partial def elabTele (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry) :

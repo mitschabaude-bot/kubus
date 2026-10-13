@@ -14,8 +14,11 @@ inductive QE
 structure QCtx where
   es : List QE
   next : Nat
+  /-- print applications of globals folded (for display and metavariable solutions) rather than
+  in normal form -/
+  fold : Bool := false
 
-def QCtx.pushV (q : QCtx) : QCtx × Val := ({ es := .tv q.next :: q.es, next := q.next + 1 }, .var q.next (.univ 0))
+def QCtx.pushV (q : QCtx) : QCtx × Val := ({ q with es := .tv q.next :: q.es, next := q.next + 1 }, .var q.next (.univ 0))
 def QCtx.pushD (q : QCtx) (a : Atom) : QCtx := { q with es := .dim a :: q.es }
 
 def quoteAtom (q : QCtx) (a : Atom) : Nat := (q.es.findIdx? (· == .dim a)).getD (1000000 + a)
@@ -41,7 +44,11 @@ def quoteFace (q : QCtx) (α : Face) : ITm :=
 mutual
 
 partial def quote (q : QCtx) (v : Val) : M Tm := do
-  match ← force v with
+  match ← forceM v with
+  | .glued g k sp u =>
+    -- applications to an endpoint are shown computed
+    let endpoint := sp.any fun | .d r => r.toDir?.isSome | _ => false
+    if q.fold && !endpoint then quoteSpine q (.glob g k) sp else quote q u
   | .univ l => pure (.univ l)
   | .pi x a env b =>
     let (q', xv) := q.pushV

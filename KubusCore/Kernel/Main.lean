@@ -24,7 +24,29 @@ structure Equiv' (Ψ : Nat) (Φ Φ' : I) : Type where
   h1 : I.Entails Φ' Φ
   h2 : I.Entails Φ Φ'
 
+/-- A literal `i` or `~i`, and its sort key. -/
+def litKey : I → Option Nat
+  | .var i => some (2 * i + 1)
+  | .neg (.var i) => some (2 * i)
+  | _ => none
+
+/-- A conjunction of literals with strictly increasing keys, ending in `1`. -/
+def faceShape (bound : Nat) : I → Bool
+  | .one => true
+  | .and l r => match litKey l with
+    | some k => decide (bound ≤ k) && faceShape (k + 1) r
+    | none => false
+  | _ => false
+
+/-- Already in the form produced by `canonPhi` (up to absorption): a disjunction of such
+faces ending in `0`. Only a shortcut; the canonical form is not needed for soundness. -/
+def canonShape : I → Bool
+  | .zero => true
+  | .or f r => faceShape 0 f && canonShape r
+  | _ => false
+
 def canonical (Ψ : Nat) (Φ : I) : Option ((Φ' : I) × Equiv' Ψ Φ Φ') :=
+  if canonShape Φ then none else
   let Φ' := canonPhi Φ
   if Φ' = Φ then none else
   if hs : Φ'.Scoped Ψ then
