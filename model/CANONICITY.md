@@ -84,6 +84,8 @@ The faces are a premise, not a conclusion. The first version concluded `φ ⟺ �
 
 Injectivity of `glue` in its base and equivalence, between Glue types with the same face that does not hold, for closed types (stage `k`, no term variables). The relation of a Glue type records one decomposition `glue A1 φ1 T1 e1` of it; to use the components of an element against another decomposition `glue A φ T e` of the same type (`unglue φ e g` versus `unglue φ1 e1 g`), `RE_glue_elim` needs the two decompositions to agree. This is the Glue analogue of the spec's `dataInj`/`ipiInj`. It cannot be a rule: where the face holds, `glue A φ T e ≡ T` leaves `A` and `e` unconstrained, so the premise `¬ φ` is not stable under interval substitution, and a rule with it would break the substitution lemma of the metatheory.
 
+The trivial context `Φ = .one` is essential. At `Φ = i ∨ ~i` with `φ = i`, `glue A i T e ≡ glue A' i T e'` is derivable with `A(1) ≢ A'(1)`, using `local` and `face`. So the statement must not be generalized to arbitrary `Φ`. Taking the premise by reflexivity, `GlueCompat` also gives base inversion (`glue A φ T e : U l` implies `A : U l`). That is not a rule (`glueBase` was removed) and is an obligation of milestone (d).
+
 Why it is believed true:
 
 - It holds semantically. The set model's Glue code (`glueC`, `Model/Glue.lean`) is, where the face does not hold, a datum recording the base family, the face and the equivalence. So two Glue types with equal semantics and the same face that does not hold at the identity have equal bases and equal equivalences under the face.
