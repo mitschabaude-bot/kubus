@@ -109,11 +109,10 @@ Design decisions:
 
 `Model/Consistency.lean` proves `consistent : KubusCore.Consistent` from the soundness theorem; it is unconditional up to the `sorry`s listed here (`lake build` shows each as a warning).
 
-Rules validated (sorry-free lemma in `Model/Rules/Stubs.lean`): all structural rules (contexts, variables, conversion, restriction, weakening, interval weakening, substitution, interval substitution, presupposition, equivalence), constants and δ, universes and cumulativity, faces (`absurd`, `local`, face rule, `abort`, systems), Π (formation, λ, application, inversion, β, η, congruences), Σ (all), paths (formation, inversion, `plam`, `papp`, β, η, endpoints, congruences), `(i : I) → A` (all except Kan), `transp`/`hcomp` typing and congruences, `transpFace`, `hcompFace`, `transpU`.
+All rules of `KubusCore/Rules.lean` are validated (sorry-free lemma in `Model/Rules/Stubs.lean`) except `transpGlue`.
 
 Remaining `sorry`s:
 
-1. Kan computation rules: `transpPi`, `transpSigma`, `transpPath`, `transpIPi`, `hcompPi`, `hcompSigma`, `hcompPath`, `hcompIPi`, `transpGlue`, `hcompGlue` (the codes' operations are the semantic readings of these contracta; what is missing is computing the denotation of each contractum).
-2. Glue rules: `glueFib`, `glue`, `glueEl`, `unglue`, their congruences, `glueFace`, `glueElFace`, `unglueFace`, `glueBeta`, `glueEta`; and `fib_glueC` (Glue transport is still a placeholder).
-3. `hcomp` in universes (`fib_univC`): Glue along the transport equivalence.
-4. Smallness: `Vt l` is closed under the code constructors (`emptyC_mem_Vt`, `res_mem_Vt`, `univC_mem_Vt`, `piC_mem_Vt`, `sigmaC_mem_Vt`, `pathC_mem_Vt`, `ipiC_mem_Vt`).
+1. Glue transport: `GlueOK.trMem`/`trFace`/`trRes` (`Model/GlueFib.lean`) and the rule `transpGlue` (the code's transport is still a placeholder; it will be the semantic reading of `Tm.transpGlue`, after CCHM).
+2. `hcomp` in universes (`fib_univC` in `Model/WFFib.lean`): Glue along the transport equivalence.
+3. Smallness: `Vt l` is closed under the code constructors (`emptyC_mem_Vt`, `res_mem_Vt`, `univC_mem_Vt`, `piC_mem_Vt`, `sigmaC_mem_Vt`, `pathC_mem_Vt`, `ipiC_mem_Vt`, `equivCode_mem_Vt`, `glueC_mem_Vt`).
