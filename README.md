@@ -31,6 +31,8 @@ The underlying theory is CCHM extended with higher inductive types following Coq
 
 ## Language
 
+`docs/tutorial.md` introduces the language, from paths to univalence and the circle; its examples are checked by the tests.
+
 ```
 def name (x : A) (i : I) : T := body              -- definitions; (i : I) binds an interval variable
 def name {A : U} (x : A) : T := body               -- {A : U} is an implicit argument
