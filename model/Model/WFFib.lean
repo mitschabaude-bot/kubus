@@ -1,5 +1,4 @@
-import Model.GlueTransp
-import Model.Small
+import Model.UnivHcFib
 
 /-!
 # Well-formed codes are fibrant
