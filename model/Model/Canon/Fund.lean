@@ -195,9 +195,18 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
     rw [dinst_subst]
     exact RE_ipi_elim hW (fund_ty h0 hc k c) _ (I.scoped_subst h1 c.σ.sc)
   | @HasTy0.split _ Ψ Φ Γ A φ ψ t u l h0 h1 h2 h3 h4 h5 h6 => fun hc k c => by
-    sorry
+    have hsp := c.ty hW (HasTy0.split h0 h1 h2 h3 h4 h5 h6)
+    have hor : (ival (idEnv k) ((I.or φ ψ).subst c.σ.τ)).holds := entails_holds (ent_subst h2 _) c.face_holds
+    rcases holds_or hor with hφ | hψ
+    · have he := entails_of_holds (I.scoped_subst h0 c.σ.sc) hφ
+      have ih := fund_ty h4 hc.1 k (c.cof he)
+      exact ih.conv hW (TyEq.refl _) (EqTm.symm (EqTm.splitL he hsp))
+    · have he := entails_of_holds (I.scoped_subst h1 c.σ.sc) hψ
+      have ih := fund_ty h5 hc.2 k (c.cof he)
+      exact ih.conv hW (TyEq.refl _) (EqTm.symm (EqTm.splitR he hsp))
   | @HasTy0.abort _ Ψ Φ Γ A l h0 h1 => fun hc k c => by
-    sorry
+    exfalso
+    exact not_holds_zero (entails_holds (ent_subst h0 c.σ.τ) c.face_holds)
   | @HasTy0.transp _ Ψ Φ Γ A φ a l h0 h1 h2 h3 => fun hc k c => by
     sorry
   | @HasTy0.hcomp _ Ψ Φ Γ A φ u a l h0 h1 h2 h3 h4 => fun hc k c => by

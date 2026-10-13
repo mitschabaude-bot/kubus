@@ -322,6 +322,22 @@ theorem cons_restr_subst (hW : WfSig S) (c : CSub S Ψ Φ Γ k) (σ : ISub k' k)
 
 end CSub
 
+namespace CSub
+
+variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
+
+/-- Extend the face of a computable substitution by a face it satisfies. -/
+def cof (c : CSub S Ψ Φ Γ k) {φ : I} (h : I.Entails .one (φ.subst c.σ.τ)) : CSub S Ψ (KubusCore.cof Φ φ) Γ k :=
+  { c with face := ent_and_intro c.face h }
+
+theorem face_holds (c : CSub S Ψ Φ Γ k) : (ival (idEnv k) (Φ.subst c.σ.τ)).holds :=
+  entails_holds c.face (by rw [ival_one]; rfl)
+
+end CSub
+
+theorem entails_of_holds {φ : I} (hs : φ.Scoped k) (h : (ival (idEnv k) φ).holds) : I.Entails .one φ :=
+  (holds_iff_entails hs).1 h
+
 end
 
 end Model.Canon
