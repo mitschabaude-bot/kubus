@@ -4,7 +4,24 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 ## Spec issues (read first)
 
-Status: issues 1–4 below were fixed in the spec in commit `91505c9` (`unglue φ e g`, annotated `lam A t`, `glueBase`/`glueEquiv` removed, `maxLevel = 4`). They are kept here as a record. New issues will be added at the top of this section.
+Status: issues 1–4 below were fixed in the spec in commit `91505c9` (`unglue φ e g`, annotated `lam A t`, `glueBase`/`glueEquiv` removed, `maxLevel = 4`). They are kept here as a record. New issues are added at the top of this section.
+
+### 5. Still inconsistent (after `91505c9`): `glueBeta` with an un-annotated `glueEl`
+
+`glueEl φ t a` does not record the equivalence it was checked against, but `glueBeta` (`unglue φ e (glueEl φ t a) ≡ a`) is stated for any `e`. Under `Φ ⊨ φ` all Glue types `Glue A [φ ↦ (T, e)]` are judgmentally `T`, so `conv` moves a `glueEl` checked against one equivalence into the Glue type of another. With `P`, `swap`, `e_id`, `e_sw` as in issue 1, in context `g : P` (`Ψ = 0`, `Φ = φ = 1`):
+
+1. `glueEl 1 g (swap g) : Glue P [1 ↦ (P, e_sw)]` by the `glueEl` rule (`e_sw.1 g ≡ swap g`).
+2. `Glue P [1 ↦ (P, e_sw)] ≡ P ≡ Glue P [1 ↦ (P, e_id)] : U₁` (`glueFace`), so by `conv` `glueEl 1 g (swap g) : Glue P [1 ↦ (P, e_id)]`, and by the `unglue` rule `unglue 1 e_id (glueEl 1 g (swap g)) : P`.
+3. `glueBeta`: `unglue 1 e_id (glueEl 1 g (swap g)) ≡ swap g`.
+4. `unglueFace`: the same term `≡ e_id.1 (glueEl 1 g (swap g)) ≡ e_id.1 g ≡ g` (`glueElFace`, `app` congruence, β).
+5. Hence `swap g ≡ g`, and the rest is as in issue 1: `λX. λx. x : (X : U₀) → X`.
+
+The root cause is the same as in issue 1: a reduct (here `glueEl φ t a ↦ t` under `φ`) forgets type information that a later rule depends on. Fix: `glueEl` carries the equivalence, `glueEl (φ : I) (e t a : Tm)`, with
+- `glueEl`: `… → EqTm (cof Φ φ) (app (fst e) t) a A → HasTy (glueEl φ e t a) (glue A φ T e)` (annotation = the type's `e`);
+- `glueBeta`: `unglue φ e (glueEl φ e t a) ≡ a` (the *same* `e` on both);
+- `glueEta`: `g ≡ glueEl φ e g (unglue φ e g)`; the congruence rule keeps `e` fixed; the contracta `hcompGlue`/`transpGlue` pass `e` (resp. `e(1)`).
+
+The step-2 retyping then only yields `unglue φ e_id (glueEl φ e_sw t a)`, to which `glueBeta` does not apply. This version is modelable: the model interprets `glueEl φ e t a` as `t` on `φ` *only if* `e.1 t = a` there, and as an untypable junk value otherwise; then `glueElFace` and `glueBeta` are validated from the typing premise of the redex alone. (Cubical Agda's `glue` also takes `e` as an implicit argument.)
 
 ### 1. The spec is inconsistent: `unglue φ g` does not carry the equivalence
 
