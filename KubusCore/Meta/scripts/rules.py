@@ -17,6 +17,8 @@ def split_top(s, sep="→"):
 
 def parse(path="KubusCore/Meta/Minimal.lean"):
     txt = open(path).read()
+    i = txt.index("\nmutual\n")
+    txt = txt[i:txt.index("\nend\n", i)]
     rules = []
     ind = None
     cur = None
