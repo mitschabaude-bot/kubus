@@ -148,8 +148,8 @@ theorem Comp2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp)
             (Comp2 S A m k' σ.hom).ty A1 A1' ∧
             ∀ k'' (σ' : ISub k'' k'), (φ.restr (σ.comp σ').hom).holds →
               (Comp2 S (dat Tp k'' (σ.comp σ').hom) k'' k'' (Hom.id k'')).ty (T1.isub σ') (T1'.isub σ') ∧
-              equivE2 S (fun k3 σ3 => (Comp2 S (dat Tp k'' (σ.comp σ').hom) k'' k3 σ3.hom).el)
-                (fun k3 σ3 => (Comp2 S A m k3 ((σ.comp σ').comp σ3).hom).el) k'' (ISub.id k'')
+              (equivF S (fun k3 σ3 => Comp2 S (dat Tp k'' (σ.comp σ').hom) k'' k3 σ3.hom)
+                (fun k3 σ3 => Comp2 S A m k3 ((σ.comp σ').comp σ3).hom) k'' (ISub.id k'')).el
                 (Tm.equiv (T1.isub σ') (A1.isub σ')) (e1.isub σ') (e1'.isub σ'),
         fun T g g' => EB S m T g g' ∧ semK S m g ∈ El (res (Hom.id m) (glueC m A φ Tp ep)) (Hom.id m) ∧
           EB S m T g g' ∧ ∀ k' (σ : ISub k' m),

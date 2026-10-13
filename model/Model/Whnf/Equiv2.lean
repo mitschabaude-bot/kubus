@@ -4,7 +4,7 @@ import Model.Canon.GlueEquiv
 /-!
 # The binary relation of equivalences
 
-`equivE2 T A` is the relation of `equiv T A` built from the relations of `T` and `A` (as in Glue
+`equivF T A` is the relation of `equiv T A` built from the relations of `T` and `A` (as in Glue
 types). It is a partial equivalence, transferable along related `T` and `A`, given the PER
 properties of `T` and `A` and their Kripke property.
 -/
@@ -74,6 +74,71 @@ theorem constLine_ty {n : ℕ} {AP : (k' : ℕ) → ISub k' n → Pack2} (hA : F
   rw [ISub.up_tail_comp_cons_id, isub_cons_id_of_closed (closed_of_isTyK hW h1),
     isub_cons_id_of_closed (closed_of_isTyK hW h2)] at this
   exact this
+
+omit hW in
+theorem ISub.up_comp_tail {n k'' : ℕ} (σ : ISub k' n) (σ' : ISub k'' (k' + 1)) :
+    (σ.up.comp σ').tail = σ.comp σ'.tail := by
+  ext i
+  show ((σ.τ i).shift).subst σ'.τ = (σ.τ i).subst σ'.tail.τ
+  exact I_shift_tail _ _
+
+section fam
+variable {n : ℕ}
+
+theorem pathF_ok {AP : (k' : ℕ) → ISub k' n → Pack2} (hA : FamOK S n AP) : FamOK S n (pathF S AP) where
+  per k' σ := pathPack_per hW _ (fun k3 σ3 => hA.per _ _) (constLine_ty hW (hA.rebase σ))
+  kr k' σ k'' σ' X X' h := by
+    refine ⟨⟨h.1.1.isub hW σ', h.1.2.1.isub hW σ', h.1.2.2.isub hW σ'⟩, ?_⟩
+    have := pathT_isub _ σ' h.2
+    simp only [ISub.up_comp_tail, ISub.comp_assoc] at this ⊢
+    exact this
+  krEl k' σ k'' σ' X t t' h := by
+    have := pathEl_isub (S := S) (fun k3 (σ3 : ISub k3 (k' + 1)) => AP k3 (σ.comp σ3.tail)) hW σ' h
+    simp only [pathF, pathPack, ISub.up_comp_tail, ISub.comp_assoc] at this ⊢
+    exact this
+  tyEq k' σ X X' h := h.1.2.2
+  isTy k' σ X X' h := ⟨h.1.1, h.1.2.1⟩
+
+theorem sigF_ok {D Cf : (k' : ℕ) → ISub k' n → Pack2} (hD : FamOK S n D) (hC : FamOK S n Cf) :
+    FamOK S n (sigF S D Cf) where
+  per k' σ := sigPack_per hW _ _ (fun k3 σ3 => hD.per _ _) (fun k3 σ3 _ _ _ _ => hC.per _ _) (fun _ _ _ _ _ _ => rfl)
+  kr k' σ k'' σ' X X' h := by
+    refine ⟨⟨h.1.1.isub hW σ', h.1.2.1.isub hW σ', h.1.2.2.isub hW σ'⟩, ?_⟩
+    have := sigT_isub _ _ σ' h.2
+    simp only [ISub.comp_assoc] at this ⊢
+    exact this
+  krEl k' σ k'' σ' X t t' h := by
+    have := sigEl_isub (S := S) (fun k3 σ3 => D k3 (σ.comp σ3)) (fun k3 σ3 _ k4 σ4 => Cf k4 ((σ.comp σ3).comp σ4)) hW σ' h
+    simp only [sigF, sigPack, ISub.comp_assoc] at this ⊢
+    exact this
+  tyEq k' σ X X' h := h.1.2.2
+  isTy k' σ X X' h := ⟨h.1.1, h.1.2.1⟩
+
+theorem piF_ok {D Cf : (k' : ℕ) → ISub k' n → Pack2} (hD : FamOK S n D) (hC : FamOK S n Cf) :
+    FamOK S n (piF S D Cf) where
+  per k' σ := piPack_per hW _ _ (fun k3 σ3 => hD.per _ _) (fun k3 σ3 _ _ _ _ => hC.per _ _) (fun _ _ _ _ _ _ => rfl)
+  kr k' σ k'' σ' X X' h := by
+    refine ⟨⟨h.1.1.isub hW σ', h.1.2.1.isub hW σ', h.1.2.2.isub hW σ'⟩, ?_⟩
+    have := piT_isub _ _ σ' h.2
+    simp only [ISub.comp_assoc] at this ⊢
+    exact this
+  krEl k' σ k'' σ' X t t' h := by
+    have := piEl_isub (S := S) (fun k3 σ3 => D k3 (σ.comp σ3)) (fun k3 σ3 _ k4 σ4 => Cf k4 ((σ.comp σ3).comp σ4)) hW σ' h
+    simp only [piF, piPack, ISub.comp_assoc] at this ⊢
+    exact this
+  tyEq k' σ X X' h := h.1.2.2
+  isTy k' σ X X' h := ⟨h.1.1, h.1.2.1⟩
+
+end fam
+
+section eqv
+variable {n : ℕ} (TP AP : (k' : ℕ) → ISub k' n → Pack2)
+
+theorem equivF_ok (hT : FamOK S n TP) (hA : FamOK S n AP) : FamOK S n (equivF S TP AP) :=
+  sigF_ok hW (piF_ok hW hT hA) (piF_ok hW hA (sigF_ok hW (sigF_ok hW hT (pathF_ok hW hA))
+    (piF_ok hW (sigF_ok hW hT (pathF_ok hW hA)) (pathF_ok hW (sigF_ok hW hT (pathF_ok hW hA))))))
+
+end eqv
 
 end
 

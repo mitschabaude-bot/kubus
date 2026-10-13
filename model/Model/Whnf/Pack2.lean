@@ -73,16 +73,7 @@ variable (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k 
   (hCa : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → C k' σ a = C k' σ a')
 include hD hC hCa
 
-/-- The element relation of a `Π` family. -/
-abbrev piEl (A t t' : Tm) : Prop :=
-  piE2 S (fun k' σ => (D k' σ).el) (fun k' σ a k'' σ' => (C k' σ a k'' σ').el) k (ISub.id k) A t t'
-
-/-- The type relation of a `Π` family. -/
-def piT (A A' : Tm) : Prop :=
-  ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1', RedW S (A.isub σ) (.pi A1 B1) ∧ RedW S (A'.isub σ) (.pi A1' B1') ∧
-    (D k' σ).ty A1 A1' ∧ ∀ a a', (D k' σ).el A1 a a' → (C k' σ a k' (ISub.id k')).ty (B1.inst a) (B1'.inst a')
-
-theorem pi_symTy {A A' : Tm} (hT : piT (S := S) D C A A') : piT (S := S) D C A' A := by
+theorem pi_symTy {A A' : Tm} (hT : piT S D C A A') : piT S D C A' A := by
   intro k' σ
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hT k' σ
   have P := hD k' σ
@@ -91,8 +82,8 @@ theorem pi_symTy {A A' : Tm} (hT : piT (S := S) D C A A') : piT (S := S) D C A' 
   have := (hC k' σ _ a' a ha').symTy (h4 a' a ha')
   rwa [hCa k' σ _ a' a ha'] at this
 
-theorem pi_transTy {A A' A'' : Tm} (hT : piT (S := S) D C A A') (hT' : piT (S := S) D C A' A'') :
-    piT (S := S) D C A A'' := by
+theorem pi_transTy {A A' A'' : Tm} (hT : piT S D C A A') (hT' : piT S D C A' A'') :
+    piT S D C A A'' := by
   intro k' σ
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hT k' σ
   obtain ⟨A2, B2, A2', B2', h1', h2', h3', h4'⟩ := hT' k' σ
@@ -106,8 +97,8 @@ theorem pi_transTy {A A' A'' : Tm} (hT : piT (S := S) D C A A') (hT' : piT (S :=
   rw [← hCa k' σ _ a a' ha] at e2
   exact (hC k' σ _ a a' ha).transTy e1 e2
 
-theorem pi_symEl {A A' t t' : Tm} (hT : piT (S := S) D C A A') (ht : piEl (S := S) D C A t t') :
-    piEl (S := S) D C A t' t := by
+theorem pi_symEl {A A' t t' : Tm} (hT : piT S D C A A') (ht : piEl S D C A t t') :
+    piEl S D C A t' t := by
   obtain ⟨he, hall⟩ := ht
   refine ⟨he.symm, fun k'' σ' => ?_⟩
   obtain ⟨A1, B1, hr, hel⟩ := hall k'' σ'
@@ -124,8 +115,8 @@ theorem pi_symEl {A A' t t' : Tm} (hT : piT (S := S) D C A A') (ht : piEl (S := 
   have := (hC k'' σ' _ a' a ha').conv c y
   rwa [hCa k'' σ' _ a' a ha'] at this
 
-theorem pi_transEl {A A' t t' t'' : Tm} (hT : piT (S := S) D C A A') (ht : piEl (S := S) D C A t t')
-    (ht' : piEl (S := S) D C A t' t'') : piEl (S := S) D C A t t'' := by
+theorem pi_transEl {A A' t t' t'' : Tm} (hT : piT S D C A A') (ht : piEl S D C A t t')
+    (ht' : piEl S D C A t' t'') : piEl S D C A t t'' := by
   obtain ⟨he, hall⟩ := ht
   obtain ⟨he', hall'⟩ := ht'
   refine ⟨he.trans he', fun k'' σ' => ?_⟩
@@ -146,8 +137,8 @@ theorem pi_transEl {A A' t t' t'' : Tm} (hT : piT (S := S) D C A A') (ht : piEl 
   exact (hC k'' σ' _ a a' ha).transEl (h4 a a' ha) x ((hC k'' σ' _ a a' ha).conv c y)
 
 omit hCa in
-theorem pi_conv {A A' t t' : Tm} (hT : piT (S := S) D C A A') (hE : TyEq S k A A')
-    (ht : piEl (S := S) D C A t t') : piEl (S := S) D C A' t t' := by
+theorem pi_conv {A A' t t' : Tm} (hT : piT S D C A A') (hE : TyEq S k A A')
+    (ht : piEl S D C A t t') : piEl S D C A' t t' := by
   obtain ⟨he, hall⟩ := ht
   refine ⟨he.conv hE, fun k'' σ' => ?_⟩
   obtain ⟨A1, B1, hr, hel⟩ := hall k'' σ'
@@ -170,16 +161,7 @@ variable (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k 
   (hCa : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → C k' σ a = C k' σ a')
 include hD hC hCa
 
-/-- The element relation of a `Σ` family. -/
-abbrev sigEl (A t t' : Tm) : Prop :=
-  sigmaE2 S (fun k' σ => (D k' σ).el) (fun k' σ a k'' σ' => (C k' σ a k'' σ').el) k (ISub.id k) A t t'
-
-/-- The type relation of a `Σ` family. -/
-def sigT (A A' : Tm) : Prop :=
-  ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1', RedW S (A.isub σ) (.sigma A1 B1) ∧ RedW S (A'.isub σ) (.sigma A1' B1') ∧
-    (D k' σ).ty A1 A1' ∧ ∀ a a', (D k' σ).el A1 a a' → (C k' σ a k' (ISub.id k')).ty (B1.inst a) (B1'.inst a')
-
-theorem sig_symTy {A A' : Tm} (hT : sigT (S := S) D C A A') : sigT (S := S) D C A' A := by
+theorem sig_symTy {A A' : Tm} (hT : sigT S D C A A') : sigT S D C A' A := by
   intro k' σ
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hT k' σ
   have P := hD k' σ
@@ -188,8 +170,8 @@ theorem sig_symTy {A A' : Tm} (hT : sigT (S := S) D C A A') : sigT (S := S) D C 
   have := (hC k' σ _ a' a ha').symTy (h4 a' a ha')
   rwa [hCa k' σ _ a' a ha'] at this
 
-theorem sig_transTy {A A' A'' : Tm} (hT : sigT (S := S) D C A A') (hT' : sigT (S := S) D C A' A'') :
-    sigT (S := S) D C A A'' := by
+theorem sig_transTy {A A' A'' : Tm} (hT : sigT S D C A A') (hT' : sigT S D C A' A'') :
+    sigT S D C A A'' := by
   intro k' σ
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hT k' σ
   obtain ⟨A2, B2, A2', B2', h1', h2', h3', h4'⟩ := hT' k' σ
@@ -203,8 +185,8 @@ theorem sig_transTy {A A' A'' : Tm} (hT : sigT (S := S) D C A A') (hT' : sigT (S
   rw [← hCa k' σ _ a a' ha] at e2
   exact (hC k' σ _ a a' ha).transTy e1 e2
 
-theorem sig_symEl {A A' t t' : Tm} (hT : sigT (S := S) D C A A') (ht : sigEl (S := S) D C A t t') :
-    sigEl (S := S) D C A t' t := by
+theorem sig_symEl {A A' t t' : Tm} (hT : sigT S D C A A') (ht : sigEl S D C A t t') :
+    sigEl S D C A t' t := by
   obtain ⟨he, hall⟩ := ht
   refine ⟨he.symm, fun k'' σ' => ?_⟩
   obtain ⟨A1, B1, hr, hfst, hsnd⟩ := hall k'' σ'
@@ -219,8 +201,8 @@ theorem sig_symEl {A A' t t' : Tm} (hT : sigT (S := S) D C A A') (ht : sigEl (S 
   have := (hC k'' σ' _ _ _ hfst).conv c y
   rwa [hCa k'' σ' _ _ _ hfst] at this
 
-theorem sig_transEl {A A' t t' t'' : Tm} (hT : sigT (S := S) D C A A') (ht : sigEl (S := S) D C A t t')
-    (ht' : sigEl (S := S) D C A t' t'') : sigEl (S := S) D C A t t'' := by
+theorem sig_transEl {A A' t t' t'' : Tm} (hT : sigT S D C A A') (ht : sigEl S D C A t t')
+    (ht' : sigEl S D C A t' t'') : sigEl S D C A t t'' := by
   obtain ⟨he, hall⟩ := ht
   obtain ⟨he', hall'⟩ := ht'
   refine ⟨he.trans he', fun k'' σ' => ?_⟩
@@ -239,8 +221,8 @@ theorem sig_transEl {A A' t t' t'' : Tm} (hT : sigT (S := S) D C A A') (ht : sig
   exact (hC k'' σ' _ _ _ hfst).transEl (h4 _ _ (P.reflEl h3 hfst)) hsnd ((hC k'' σ' _ _ _ hfst).conv c hsnd')
 
 omit hCa in
-theorem sig_conv {A A' t t' : Tm} (hT : sigT (S := S) D C A A') (hE : TyEq S k A A')
-    (ht : sigEl (S := S) D C A t t') : sigEl (S := S) D C A' t t' := by
+theorem sig_conv {A A' t t' : Tm} (hT : sigT S D C A A') (hE : TyEq S k A A')
+    (ht : sigEl S D C A t t') : sigEl S D C A' t t' := by
   obtain ⟨he, hall⟩ := ht
   refine ⟨he.conv hE, fun k'' σ' => ?_⟩
   obtain ⟨A1, B1, hr, hfst, hsnd⟩ := hall k'' σ'
@@ -259,18 +241,7 @@ variable (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (hL : ∀ k' (σ : ISub
     (Lp k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r))
 include hL hLt
 
-/-- The element relation of path types over a family of lines. -/
-abbrev pathEl (A t t' : Tm) : Prop := pathE2 S (fun k' σ => (Lp k' σ).el) k (ISub.id k) A t t'
-
-/-- The type relation of path types over a family of lines. -/
-def pathT (A A' : Tm) : Prop :=
-  ∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
-    RedW S (A.isub σ) (.path L1 b0 b1) ∧ RedW S (A'.isub σ) (.path L1' b0' b1') ∧
-    (Lp (k' + 1) σ.up).ty L1 L1' ∧
-    (Lp k' (ISub.cons .zero trivial σ)).el (L1.dinst .zero) b0 b0' ∧
-    (Lp k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1'
-
-theorem path_symTy {A A' : Tm} (hT : pathT (S := S) Lp A A') : pathT (S := S) Lp A' A := by
+theorem path_symTy {A A' : Tm} (hT : pathT S Lp A A') : pathT S Lp A' A := by
   intro k' σ
   obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := hT k' σ
   have P0 := hL k' (ISub.cons .zero trivial σ)
@@ -280,8 +251,8 @@ theorem path_symTy {A A' : Tm} (hT : pathT (S := S) Lp A A') : pathT (S := S) Lp
   exact ⟨L1', b0', b1', L1, b0, b1, h2, h1, (hL _ _).symTy h3, P0.conv c0 (P0.symEl c0 h4),
     P1.conv c1 (P1.symEl c1 h5)⟩
 
-theorem path_transTy {A A' A'' : Tm} (hT : pathT (S := S) Lp A A') (hT' : pathT (S := S) Lp A' A'') :
-    pathT (S := S) Lp A A'' := by
+theorem path_transTy {A A' A'' : Tm} (hT : pathT S Lp A A') (hT' : pathT S Lp A' A'') :
+    pathT S Lp A A'' := by
   intro k' σ
   obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := hT k' σ
   obtain ⟨L2, c0, c1, L2', c0', c1', h1', h2', h3', h4', h5'⟩ := hT' k' σ
@@ -294,8 +265,8 @@ theorem path_transTy {A A' A'' : Tm} (hT : pathT (S := S) Lp A A') (hT' : pathT 
   exact ⟨L1, b0, b1, L2', c0', c1', h1, h2', (hL _ _).transTy h3 h3',
     P0.transEl d0 h4 (P0.conv (P0.symTy d0) h4'), P1.transEl d1 h5 (P1.conv (P1.symTy d1) h5')⟩
 
-theorem path_symEl {A A' t t' : Tm} (hT : pathT (S := S) Lp A A') (ht : pathEl (S := S) Lp A t t') :
-    pathEl (S := S) Lp A t' t := by
+theorem path_symEl {A A' t t' : Tm} (hT : pathT S Lp A A') (ht : pathEl S Lp A t t') :
+    pathEl S Lp A t' t := by
   obtain ⟨he, hall⟩ := ht
   refine ⟨he.symm, fun k'' σ' => ?_⟩
   obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
@@ -307,8 +278,8 @@ theorem path_symEl {A A' t t' : Tm} (hT : pathT (S := S) Lp A A') (ht : pathEl (
   simp only [ISub.id_comp] at this ⊢
   exact (hL _ _).symEl (hLt k'' σ' _ _ h3 r hr') this
 
-theorem path_transEl {A A' t t' t'' : Tm} (hT : pathT (S := S) Lp A A') (ht : pathEl (S := S) Lp A t t')
-    (ht' : pathEl (S := S) Lp A t' t'') : pathEl (S := S) Lp A t t'' := by
+theorem path_transEl {A A' t t' t'' : Tm} (hT : pathT S Lp A A') (ht : pathEl S Lp A t t')
+    (ht' : pathEl S Lp A t' t'') : pathEl S Lp A t t'' := by
   obtain ⟨he, hall⟩ := ht
   obtain ⟨he', hall'⟩ := ht'
   refine ⟨he.trans he', fun k'' σ' => ?_⟩
@@ -325,8 +296,8 @@ theorem path_transEl {A A' t t' t'' : Tm} (hT : pathT (S := S) Lp A A') (ht : pa
   simp only [ISub.id_comp] at x y ⊢
   exact (hL _ _).transEl (hLt k'' σ' _ _ h3 r hr') x y
 
-theorem path_conv {A A' t t' : Tm} (hT : pathT (S := S) Lp A A') (hE : TyEq S k A A')
-    (ht : pathEl (S := S) Lp A t t') : pathEl (S := S) Lp A' t t' := by
+theorem path_conv {A A' t t' : Tm} (hT : pathT S Lp A A') (hE : TyEq S k A A')
+    (ht : pathEl S Lp A t t') : pathEl S Lp A' t t' := by
   obtain ⟨he, hall⟩ := ht
   refine ⟨he.conv hE, fun k'' σ' => ?_⟩
   obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
@@ -354,28 +325,28 @@ theorem ISub.up_comp_cons {k'' : ℕ} (σ : ISub k' k) (r : I) (hr : r.Scoped k'
 section isub
 variable {k'' : ℕ} (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k3 : ℕ) → ISub k3 k' → Pack2)
 
-theorem piT_isub (σ : ISub k'' k) {X X' : Tm} (h : piT (S := S) D C X X') :
-    piT (S := S) (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (X'.isub σ) := by
+theorem piT_isub (σ : ISub k'' k) {X X' : Tm} (h : piT S D C X X') :
+    piT S (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (X'.isub σ) := by
   intro k4 σ4
   have := h k4 (σ.comp σ4)
   rwa [← Tm.isub_isub, ← Tm.isub_isub] at this
 
-theorem sigT_isub (σ : ISub k'' k) {X X' : Tm} (h : sigT (S := S) D C X X') :
-    sigT (S := S) (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (X'.isub σ) := by
+theorem sigT_isub (σ : ISub k'' k) {X X' : Tm} (h : sigT S D C X X') :
+    sigT S (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (X'.isub σ) := by
   intro k4 σ4
   have := h k4 (σ.comp σ4)
   rwa [← Tm.isub_isub, ← Tm.isub_isub] at this
 
-theorem piEl_isub (hW : WfSig S) (σ : ISub k'' k) {X t t' : Tm} (h : piEl (S := S) D C X t t') :
-    piEl (S := S) (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (t.isub σ) (t'.isub σ) := by
+theorem piEl_isub (hW : WfSig S) (σ : ISub k'' k) {X t t' : Tm} (h : piEl S D C X t t') :
+    piEl S (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (t.isub σ) (t'.isub σ) := by
   obtain ⟨he, hall⟩ := h
   refine ⟨⟨HasTy.isubS hW he.1 σ, HasTy.isubS hW he.2.1 σ, EqTm.isubS hW he.2.2 σ⟩, fun k4 σ4 => ?_⟩
   have := hall k4 (σ.comp σ4)
   simp only [ISub.id_comp] at this ⊢
   rwa [← Tm.isub_isub, ← Tm.isub_isub, ← Tm.isub_isub] at this
 
-theorem sigEl_isub (hW : WfSig S) (σ : ISub k'' k) {X t t' : Tm} (h : sigEl (S := S) D C X t t') :
-    sigEl (S := S) (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (t.isub σ) (t'.isub σ) := by
+theorem sigEl_isub (hW : WfSig S) (σ : ISub k'' k) {X t t' : Tm} (h : sigEl S D C X t t') :
+    sigEl S (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (t.isub σ) (t'.isub σ) := by
   obtain ⟨he, hall⟩ := h
   refine ⟨⟨HasTy.isubS hW he.1 σ, HasTy.isubS hW he.2.1 σ, EqTm.isubS hW he.2.2 σ⟩, fun k4 σ4 => ?_⟩
   have := hall k4 (σ.comp σ4)
@@ -386,8 +357,8 @@ end isub
 section isubPath
 variable {k'' : ℕ} (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2)
 
-theorem pathT_isub (σ : ISub k'' k) {X X' : Tm} (h : pathT (S := S) Lp X X') :
-    pathT (S := S) (fun k4 σ4 => Lp k4 (σ.up.comp σ4)) (X.isub σ) (X'.isub σ) := by
+theorem pathT_isub (σ : ISub k'' k) {X X' : Tm} (h : pathT S Lp X X') :
+    pathT S (fun k4 σ4 => Lp k4 (σ.up.comp σ4)) (X.isub σ) (X'.isub σ) := by
   intro k4 σ4
   have := h k4 (σ.comp σ4)
   rw [← Tm.isub_isub, ← Tm.isub_isub] at this
@@ -400,8 +371,8 @@ theorem pathT_isub (σ : ISub k'' k) {X X' : Tm} (h : pathT (S := S) Lp X X') :
   · show (Lp k4 (σ.up.comp (ISub.cons .one trivial σ4))).el _ _ _
     rw [ISub.up_comp_cons]; exact h5
 
-theorem pathEl_isub (hW : WfSig S) (σ : ISub k'' k) {X t t' : Tm} (h : pathEl (S := S) Lp X t t') :
-    pathEl (S := S) (fun k4 σ4 => Lp k4 (σ.up.comp σ4)) (X.isub σ) (t.isub σ) (t'.isub σ) := by
+theorem pathEl_isub (hW : WfSig S) (σ : ISub k'' k) {X t t' : Tm} (h : pathEl S Lp X t t') :
+    pathEl S (fun k4 σ4 => Lp k4 (σ.up.comp σ4)) (X.isub σ) (t.isub σ) (t'.isub σ) := by
   obtain ⟨he, hall⟩ := h
   refine ⟨⟨HasTy.isubS hW he.1 σ, HasTy.isubS hW he.2.1 σ, EqTm.isubS hW he.2.2 σ⟩, fun k4 σ4 => ?_⟩
   have := hall k4 (σ.comp σ4)
@@ -416,44 +387,32 @@ end isubPath
 variable (hW : WfSig S)
 include hW
 
-/-- The pack of a `Π` family, with judgmentally equal types. -/
-def piPack (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2) :
-    Pack2 := ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ TyEq S k A A') ∧ piT (S := S) D C A A', piEl (S := S) D C⟩
-
 theorem piPack_per (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
     (hD : ∀ k' (σ : ISub k' k), PERP (D k' σ))
     (hC : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → PERP (C k' σ a k' (ISub.id k')))
     (hCa : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → C k' σ a = C k' σ a') :
-    PERP (piPack (S := S) D C) :=
+    PERP (piPack S D C) :=
   ⟨fun hT => ⟨⟨hT.1.2.1, hT.1.1, hT.1.2.2.symm⟩, pi_symTy D C hD hC hCa hT.2⟩,
     fun hT hT' => ⟨⟨hT.1.1, hT'.1.2.1, hT.1.2.2.trans hW hT'.1.2.2⟩, pi_transTy D C hD hC hCa hT.2 hT'.2⟩,
     fun hT ht => pi_symEl D C hD hC hCa hT.2 ht,
     fun hT ht ht' => pi_transEl D C hD hC hCa hT.2 ht ht',
     fun hT ht => pi_conv D C hD hC hT.2 hT.1.2.2 ht⟩
 
-/-- The pack of a `Σ` family, with judgmentally equal types. -/
-def sigPack (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2) :
-    Pack2 := ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ TyEq S k A A') ∧ sigT (S := S) D C A A', sigEl (S := S) D C⟩
-
 theorem sigPack_per (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
     (hD : ∀ k' (σ : ISub k' k), PERP (D k' σ))
     (hC : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → PERP (C k' σ a k' (ISub.id k')))
     (hCa : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → C k' σ a = C k' σ a') :
-    PERP (sigPack (S := S) D C) :=
+    PERP (sigPack S D C) :=
   ⟨fun hT => ⟨⟨hT.1.2.1, hT.1.1, hT.1.2.2.symm⟩, sig_symTy D C hD hC hCa hT.2⟩,
     fun hT hT' => ⟨⟨hT.1.1, hT'.1.2.1, hT.1.2.2.trans hW hT'.1.2.2⟩, sig_transTy D C hD hC hCa hT.2 hT'.2⟩,
     fun hT ht => sig_symEl D C hD hC hCa hT.2 ht,
     fun hT ht ht' => sig_transEl D C hD hC hCa hT.2 ht ht',
     fun hT ht => sig_conv D C hD hC hT.2 hT.1.2.2 ht⟩
 
-/-- The pack of path types over a family of lines, with judgmentally equal types. -/
-def pathPack (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) : Pack2 :=
-  ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ TyEq S k A A') ∧ pathT (S := S) Lp A A', pathEl (S := S) Lp⟩
-
 theorem pathPack_per (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (hL : ∀ k' (σ : ISub k' (k + 1)), PERP (Lp k' σ))
     (hLt : ∀ k' (σ : ISub k' k) (L1 L1' : Tm), (Lp (k' + 1) σ.up).ty L1 L1' → ∀ (r : I) (hr : r.Scoped k'),
       (Lp k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r)) :
-    PERP (pathPack (S := S) Lp) :=
+    PERP (pathPack S Lp) :=
   ⟨fun hT => ⟨⟨hT.1.2.1, hT.1.1, hT.1.2.2.symm⟩, path_symTy Lp hL hLt hT.2⟩,
     fun hT hT' => ⟨⟨hT.1.1, hT'.1.2.1, hT.1.2.2.trans hW hT'.1.2.2⟩, path_transTy Lp hL hLt hT.2 hT'.2⟩,
     fun hT ht => path_symEl Lp hL hLt hT.2 ht,

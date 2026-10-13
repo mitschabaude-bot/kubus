@@ -66,20 +66,88 @@ def ipiE2 (line : ElR2 (k + 1)) : ElR2 k := fun k' σ A t t' =>
     ∀ (r : I) (hr : r.Scoped k''),
       line k'' (ISub.cons r hr (σ.comp σ')) (L1.dinst r) (.papp (t.isub σ') r) (.papp (t'.isub σ') r)
 
-def constLine2 (R : ElR2 k) : ElR2 (k + 1) := fun k' σ => R k' σ.tail
+/-! ### Relations of families of types -/
 
-def isContrE2 (X : ElR2 k) : ElR2 k :=
-  sigmaE2 S X fun k' σ _ => piE2 S (fun k'' σ' => X k'' (σ.comp σ'))
-    fun k'' σ' _ => pathE2 S (constLine2 (fun k3 σ3 => X k3 (σ.comp (σ'.comp σ3))))
+section families
+variable {k : ℕ}
 
-def fiberE2 (T A : ElR2 k) : ElR2 k :=
-  sigmaE2 S T fun k' σ _ => pathE2 S (constLine2 (fun k'' σ' => A k'' (σ.comp σ')))
+/-- The element relation of a `Π` family. -/
+def piEl (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
+    (A t t' : Tm) : Prop :=
+  piE2 S (fun k' σ => (D k' σ).el) (fun k' σ a k'' σ' => (C k' σ a k'' σ').el) k (ISub.id k) A t t'
 
-def equivE2 (T A : ElR2 k) : ElR2 k :=
-  sigmaE2 S (piE2 S T fun k' σ _ k'' σ' => A k'' (σ.comp σ'))
-    fun k' σ _ => piE2 S (fun k'' σ' => A k'' (σ.comp σ'))
-      fun k'' σ' _ => isContrE2 S (fiberE2 S (fun k3 σ3 => T k3 ((σ.comp σ').comp σ3))
-        (fun k3 σ3 => A k3 ((σ.comp σ').comp σ3)))
+/-- The type relation of a `Π` family. -/
+def piT (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
+    (A A' : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1', RedW S (A.isub σ) (.pi A1 B1) ∧ RedW S (A'.isub σ) (.pi A1' B1') ∧
+    (D k' σ).ty A1 A1' ∧ ∀ a a', (D k' σ).el A1 a a' → (C k' σ a k' (ISub.id k')).ty (B1.inst a) (B1'.inst a')
+
+/-- The element relation of a `Σ` family. -/
+def sigEl (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
+    (A t t' : Tm) : Prop :=
+  sigmaE2 S (fun k' σ => (D k' σ).el) (fun k' σ a k'' σ' => (C k' σ a k'' σ').el) k (ISub.id k) A t t'
+
+/-- The type relation of a `Σ` family. -/
+def sigT (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
+    (A A' : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1', RedW S (A.isub σ) (.sigma A1 B1) ∧ RedW S (A'.isub σ) (.sigma A1' B1') ∧
+    (D k' σ).ty A1 A1' ∧ ∀ a a', (D k' σ).el A1 a a' → (C k' σ a k' (ISub.id k')).ty (B1.inst a) (B1'.inst a')
+
+/-- The element relation of path types over a family of lines. -/
+def pathEl (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (A t t' : Tm) : Prop :=
+  pathE2 S (fun k' σ => (Lp k' σ).el) k (ISub.id k) A t t'
+
+/-- The type relation of path types over a family of lines. -/
+def pathT (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (A A' : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
+    RedW S (A.isub σ) (.path L1 b0 b1) ∧ RedW S (A'.isub σ) (.path L1' b0' b1') ∧
+    (Lp (k' + 1) σ.up).ty L1 L1' ∧
+    (Lp k' (ISub.cons .zero trivial σ)).el (L1.dinst .zero) b0 b0' ∧
+    (Lp k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1'
+
+/-- The pack of a `Π` family. -/
+def piPack (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2) :
+    Pack2 := ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ TyEq S k A A') ∧ piT S D C A A', piEl S D C⟩
+
+/-- The pack of a `Σ` family. -/
+def sigPack (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2) :
+    Pack2 := ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ TyEq S k A A') ∧ sigT S D C A A', sigEl S D C⟩
+
+/-- The pack of path types over a family of lines. -/
+def pathPack (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) : Pack2 :=
+  ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ TyEq S k A A') ∧ pathT S Lp A A', pathEl S Lp⟩
+
+end families
+
+section fam
+variable {n : ℕ}
+
+/-- Path types over a constant family of lines. -/
+def pathF (AP : (k' : ℕ) → ISub k' n → Pack2) : (k' : ℕ) → ISub k' n → Pack2 := fun k' σ =>
+  pathPack S (k := k') (fun k3 (σ3 : ISub k3 (k' + 1)) => AP k3 (σ.comp σ3.tail))
+
+/-- `Σ` types over families of relations (the codomain relation does not depend on the argument). -/
+def sigF (D Cf : (k' : ℕ) → ISub k' n → Pack2) : (k' : ℕ) → ISub k' n → Pack2 := fun k' σ =>
+  sigPack S (k := k') (fun k3 σ3 => D k3 (σ.comp σ3)) (fun k3 σ3 _ k4 σ4 => Cf k4 ((σ.comp σ3).comp σ4))
+
+/-- `Π` types over families of relations (the codomain relation does not depend on the argument). -/
+def piF (D Cf : (k' : ℕ) → ISub k' n → Pack2) : (k' : ℕ) → ISub k' n → Pack2 := fun k' σ =>
+  piPack S (k := k') (fun k3 σ3 => D k3 (σ.comp σ3)) (fun k3 σ3 _ k4 σ4 => Cf k4 ((σ.comp σ3).comp σ4))
+
+/-- `fiber f y = Σ (x : T), Path A (f x) y`. -/
+def fiberF (TP AP : (k' : ℕ) → ISub k' n → Pack2) : (k' : ℕ) → ISub k' n → Pack2 :=
+  sigF S TP (pathF S AP)
+/-- `isContr X = Σ (c : X), (x : X) → Path X c x`. -/
+def isContrF (X : (k' : ℕ) → ISub k' n → Pack2) : (k' : ℕ) → ISub k' n → Pack2 :=
+  sigF S X (piF S X (pathF S X))
+/-- `isEquiv f = (y : A) → isContr (fiber f y)`. -/
+def isEquivF (TP AP : (k' : ℕ) → ISub k' n → Pack2) : (k' : ℕ) → ISub k' n → Pack2 :=
+  piF S AP (isContrF S (fiberF S TP AP))
+/-- `Equiv T A = Σ (f : T → A), isEquiv f`. -/
+def equivF (TP AP : (k' : ℕ) → ISub k' n → Pack2) : (k' : ℕ) → ISub k' n → Pack2 :=
+  sigF S (piF S TP AP) (isEquivF S TP AP)
+
+end fam
 
 /-! ### Inductive types -/
 
@@ -186,8 +254,8 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     let RA : (k' : ℕ) → ISub k' k → Pack2 := fun k' σ => rec A0 h12 k k' σ.hom
     let RT : (k' : ℕ) → ISub k' k → Pack2 := fun k' σ =>
       rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k' k' (Hom.id k')
-    let ET : (k' : ℕ) → ISub k' k → ElR2 k' := fun k' σ k'' σ' =>
-      (rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k' k'' σ'.hom).el
+    let ET : (k' : ℕ) → ISub k' k → (k'' : ℕ) → ISub k'' k' → Pack2 := fun k' σ k'' σ' =>
+      rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k' k'' σ'.hom
     { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k),
           if (φ.restr σ.hom).holds then (RT k' σ).ty (A.isub σ) (A'.isub σ)
           else ∃ A1 φ1 T1 e1 A1' φ1' T1' e1',
@@ -197,7 +265,7 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
             (RA k' σ).ty A1 A1' ∧
             ∀ k'' (σ' : ISub k'' k'), (φ.restr (σ.comp σ').hom).holds →
               (RT k'' (σ.comp σ')).ty (T1.isub σ') (T1'.isub σ') ∧
-              equivE2 S (ET k'' (σ.comp σ')) (fun k3 σ3 => (RA k3 ((σ.comp σ').comp σ3)).el) k'' (ISub.id k'')
+              (equivF S (ET k'' (σ.comp σ')) (fun k3 σ3 => RA k3 ((σ.comp σ').comp σ3)) k'' (ISub.id k'')).el
                 (Tm.equiv (T1.isub σ') (A1.isub σ')) (e1.isub σ') (e1'.isub σ')
       el := fun A g g' => EB S k A g g' ∧ ∀ k' (σ : ISub k' k),
           if (φ.restr σ.hom).holds then (RT k' σ).el (A.isub σ) (g.isub σ) (g'.isub σ)
