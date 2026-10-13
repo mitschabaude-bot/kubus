@@ -106,18 +106,18 @@ def genV (c n : ℕ) (ctors : List Ctor) : V := conV ctors n c [] []
 /-- The environment of an argument context with Kripke-value junk out of range. -/
 def argEnvKV (n : ℕ) (ps pre : List V) : ℕ → V := fun x => (pre.reverse ++ ps.reverse).getD x (emptyC n)
 
-/-- Earlier arguments with the recursive ones replaced by `gv`. -/
-def genPre (C : Ctor) (gv : V) (pre : List V) : List V := pre.mapIdx fun i a => if C.isRec i then gv else a
+/-- Earlier arguments with the recursive one at position `i` replaced by `gf i`. -/
+def genPre (C : Ctor) (gf : ℕ → V) (pre : List V) : List V := pre.mapIdx fun i a => if C.isRec i then gf i else a
 
-theorem genPre_length (C : Ctor) (gv : V) (pre : List V) : (genPre C gv pre).length = pre.length := by
+theorem genPre_length (C : Ctor) (gf : ℕ → V) (pre : List V) : (genPre C gf pre).length = pre.length := by
   simp [genPre]
 
-theorem genPre_getElem (C : Ctor) (gv : V) (pre : List V) (i : ℕ) (hi : i < (genPre C gv pre).length) :
-    (genPre C gv pre)[i] = if C.isRec i then gv else pre[i]'(by simpa [genPre_length] using hi) := by
+theorem genPre_getElem (C : Ctor) (gf : ℕ → V) (pre : List V) (i : ℕ) (hi : i < (genPre C gf pre).length) :
+    (genPre C gf pre)[i] = if C.isRec i then gf i else pre[i]'(by simpa [genPre_length] using hi) := by
   simp [genPre]
 
-theorem genPre_take (C : Ctor) (gv : V) (pre : List V) (i : ℕ) :
-    (genPre C gv pre).take i = genPre C gv (pre.take i) := by
+theorem genPre_take (C : Ctor) (gf : ℕ → V) (pre : List V) (i : ℕ) :
+    (genPre C gf pre).take i = genPre C gf (pre.take i) := by
   apply List.ext_getElem (by simp [genPre_length])
   intro q h1 h2
   simp only [List.getElem_take, genPre_getElem]
@@ -156,9 +156,9 @@ theorem noRecDeps_point {C : Ctor} {i : ℕ} {A : Tm} (h : C.noRecDeps i A = tru
 /-- The interpretation of a point argument type at the generic environment is `argTyRaw`. -/
 theorem sem_argTy_eq (S0 : Sig) (E D : DataDecl) (hsyn : DataSyn S0.length D) {c : ℕ} {C : Ctor}
     (hC : D.ctors[c]? = some C) {i : ℕ} {A : Tm} (hA : C.args[i]? = some (.point A)) (psv : V) (pre : List V)
-    (hi : i ≤ pre.length) (gv : V) :
+    (hi : i ≤ pre.length) (gf : ℕ → V) :
     sem (S0 ++ [.data E]) A n (fun _ => DM.zero n)
-      (argEnvKV n (plist psv D.params.length) (genPre C gv (pre.take i))) =
+      (argEnvKV n (plist psv D.params.length) (genPre C gf (pre.take i))) =
       argTyRaw (sigV S0) D S0.length c i n psv pre := by
   obtain ⟨hcl, hcs, hnr⟩ := hsyn.2.2 c C hC i A hA
   have harg : (D.ctors.getD c default).argTy S0.length D.params.length i = A := by
@@ -166,7 +166,7 @@ theorem sem_argTy_eq (S0 : Sig) (E D : DataDecl) (hsyn : DataSyn S0.length D) {c
   rw [argTyRaw, harg, sem_ext S0 E hcs]
   refine interp_congr_free _ _ _ A n _ _ _ fun x hx => ?_
   have hxl := freeIn_lt_of_closedB A _ 0 x hcl hx
-  have hgl : (genPre C gv (pre.take i)).length = i := by simp [genPre_length]; omega
+  have hgl : (genPre C gf (pre.take i)).length = i := by simp [genPre_length]; omega
   rw [argEnvKV_eq_of_lt (by simp [plist, hgl]; omega), argEnv_eq_of_lt (by simp [plist]; omega)]
   by_cases hxi : x < i
   · rw [List.getElem_append_left (by simp [hgl]; omega), List.getElem_append_left (by simp; omega)]
@@ -230,16 +230,18 @@ variable (S0 : Sig) (D : DataDecl) (hsyn : DataSyn S0.length D)
   {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) D m ps)
 
 include hsyn hC hps in
-theorem isPoint_argCtx (c0 : ℕ) (hc0 : c0 ≤ D.ctors.length) {Φ : I} {j : ℕ} {n : ℕ} (g : Hom n m)
-    (ρ : IEnv n) (hρ : (ival ρ Φ).holds) {pre : List V} (hjp : j ≤ pre.length)
+theorem isPoint_argCtx (c0 : ℕ) {Φ : I} {j : ℕ} {n : ℕ} (g : Hom n m)
+    (ρ : IEnv n) (hρ : (ival ρ Φ).holds) (gf : ℕ → V)
+    (hgf : ∀ i, C.isRec i = true →
+      gf i ∈ El (dataC (dataSD (sigV S0) (D.truncate c0) S0.length n fun k f => ps k (g.comp f))) (Hom.id n))
+    {pre : List V} (hjp : j ≤ pre.length)
     (hjC : j ≤ C.args.length)
     (hpt : ∀ i (hi : i < j), C.isRec i = false →
       pre[i]'(by omega) ∈ El (argTyRaw (sigV S0) D S0.length c i n (ps n g) pre) (Hom.id n) ∧ IsKV n (pre[i]'(by omega))) :
     IsPoint (S0 ++ [.data (D.truncate c0)]) Φ (D.argCtx S0.length C j) n ρ
-      (argEnvKV n (plist (ps n g) D.params.length) (genPre C (genV c0 n (D.truncate c0).ctors) (pre.take j))) := by
+      (argEnvKV n (plist (ps n g) D.params.length) (genPre C gf (pre.take j))) := by
   set np := D.params.length
-  set gv := genV c0 n (D.truncate c0).ctors
-  have hgl : (genPre C gv (pre.take j)).length = j := by simp [genPre_length]; omega
+  have hgl : (genPre C gf (pre.take j)).length = j := by simp [genPre_length]; omega
   have hpl : (plist (ps n g) np).length = np := by simp [plist]
   refine ⟨hρ, fun x B hB => ?_, fun x => ?_⟩
   · rw [Ctx.lookup_eq] at hB
@@ -248,8 +250,8 @@ theorem isPoint_argCtx (c0 : ℕ) (hc0 : c0 ≤ D.ctors.length) {Φ : I} {j : �
     by_cases hxj : x < j
     · rw [argCtx_lt D _ C j x hxj] at hT
       cases hT
-      rw [show (fun y => argEnvKV n (plist (ps n g) np) (genPre C gv (pre.take j)) (y + (x + 1))) =
-          argEnvKV n (plist (ps n g) np) (genPre C gv (pre.take (j - 1 - x))) by
+      rw [show (fun y => argEnvKV n (plist (ps n g) np) (genPre C gf (pre.take j)) (y + (x + 1))) =
+          argEnvKV n (plist (ps n g) np) (genPre C gf (pre.take (j - 1 - x))) by
         rw [argEnvKV_shift _ _ (by omega), hgl, genPre_take, List.take_take, Nat.min_eq_left (by omega)]]
       rw [argEnvKV_eq_of_lt (by omega), List.getElem_append_left (by simp; omega), List.getElem_reverse,
         genPre_getElem]
@@ -272,10 +274,10 @@ theorem isPoint_argCtx (c0 : ℕ) (hc0 : c0 ≤ D.ctors.length) {Φ : I} {j : �
             simp [Ctor.argTy, hA]
           rw [harg, sem_data (entry_ext S0 _), sigUpTo_ext]
           have hpv := sem_paramVars_rv (i := j - 1 - x) (S0 ++ [.data (D.truncate c0)]) hps g
-            (genPre C gv (pre.take (j - 1 - x))) (by simp [genPre_length]; omega) (fun i => ρ (id i))
+            (genPre C gf (pre.take (j - 1 - x))) (by simp [genPre_length]; omega) (fun i => ρ (id i))
           unfold psRV
           rw [hpv, if_pos (show ParamsOK (sigV S0) (D.truncate c0) n _ from hps.restr g)]
-          exact genV_mem hc0
+          exact hgf _ hr
     · by_cases hxp : x < j + np
       · rw [argCtx_ge D _ C j x (by omega) hxp] at hT
         cases hT
@@ -301,7 +303,8 @@ theorem isPoint_argCtx (c0 : ℕ) (hc0 : c0 ≤ D.ctors.length) {Φ : I} {j : �
       by_cases hxj : x < j
       · rw [List.getElem_append_left (by simp; omega), List.getElem_reverse, genPre_getElem]
         split
-        · exact isKV_conV _ _ _ _
+        · rename_i hr'
+          exact (mem_El_dataC.1 (hgf _ hr')).kv
         · simp only [hgl, List.getElem_take]
           rename_i hr
           exact (hpt _ (by omega) (by simpa [hgl] using hr)).2
@@ -319,8 +322,8 @@ theorem restr_argEnvKV (ps pre : List V) (h : Hom k n) :
   rw [← List.map_reverse, ← List.map_reverse, ← List.map_append, List.getElem?_map]
   cases (pre.reverse ++ ps.reverse)[x]? <;> simp [res_emptyC]
 
-theorem genPre_map (C : Ctor) (gv : V) (pre : List V) (f : V → V) :
-    (genPre C gv pre).map f = genPre C (f gv) (pre.map f) := by
+theorem genPre_map (C : Ctor) (gf : ℕ → V) (pre : List V) (f : V → V) :
+    (genPre C gf pre).map f = genPre C (fun i => f (gf i)) (pre.map f) := by
   apply List.ext_getElem (by simp [genPre_length])
   intro i h1 h2
   simp only [List.getElem_map, genPre_getElem]
@@ -358,8 +361,9 @@ theorem argTy_univ (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
       have := (ih i hi Ai hAi n g pre (by omega) fun i' hi' hr' => hpre i' (by omega) hr').1
       rw [mem_El_univ_iff] at this
       exact this.2.fib.elKV n (Hom.id n) _ (hpre i hi hr)
-    have hp := isPoint_argCtx S0 D hsyn hC hps 0 (Nat.zero_le _) (Φ := .one) g (fun _ => DM.zero n)
-      (by simp [DM.holds, ival.fn, I.eval]) hjp hjC hkv
+    have hp := isPoint_argCtx S0 D hsyn hC hps 0 (Φ := .one) g (fun _ => DM.zero n)
+      (by simp [DM.holds, ival.fn, I.eval]) (fun _ => genV 0 n (D.truncate 0).ctors)
+      (fun _ _ => genV_mem (Nat.zero_le _)) hjp hjC hkv
     obtain ⟨hmem, hnat, -, -⟩ := (sound_ty hok0 (hck j A hA)).2.2.2 n _ _ hp
     rw [← sem_argTy_eq S0 _ D hsyn hC hA (ps n g) pre hjp]
     refine ⟨hmem, fun n' h => ?_⟩
@@ -376,15 +380,15 @@ include hsyn hC in
 omit hps in
 theorem sem_lookup_point (E : DataDecl) {j x : ℕ} (hx : x < j) (hjC : j ≤ C.args.length)
     (hr : C.isRec (j - 1 - x) = false) {T : Tm} (hT : (D.argCtx S0.length C j).lookup x = some T)
-    (ρ : IEnv n) (psv gv : V) {pre : List V} (hjp : j ≤ pre.length) :
-    sem (S0 ++ [.data E]) T n ρ (argEnvKV n (plist psv D.params.length) (genPre C gv (pre.take j))) =
+    (ρ : IEnv n) (psv : V) (gf : ℕ → V) {pre : List V} (hjp : j ≤ pre.length) :
+    sem (S0 ++ [.data E]) T n ρ (argEnvKV n (plist psv D.params.length) (genPre C gf (pre.take j))) =
       argTyRaw (sigV S0) D S0.length c (j - 1 - x) n psv pre := by
   rw [Ctx.lookup_eq, argCtx_lt D _ C j x hx] at hT
   simp only [Option.map_some, Option.some.injEq] at hT
   subst hT
-  have hgl : (genPre C gv (pre.take j)).length = j := by simp [genPre_length]; omega
-  rw [sem_ren, show (fun y => argEnvKV n (plist psv D.params.length) (genPre C gv (pre.take j)) (y + (x + 1))) =
-      argEnvKV n (plist psv D.params.length) (genPre C gv (pre.take (j - 1 - x))) by
+  have hgl : (genPre C gf (pre.take j)).length = j := by simp [genPre_length]; omega
+  rw [sem_ren, show (fun y => argEnvKV n (plist psv D.params.length) (genPre C gf (pre.take j)) (y + (x + 1))) =
+      argEnvKV n (plist psv D.params.length) (genPre C gf (pre.take (j - 1 - x))) by
     rw [argEnvKV_shift _ _ (by omega), hgl, genPre_take, List.take_take, Nat.min_eq_left (by omega)]]
   obtain ⟨A, hA⟩ : ∃ A, C.args[j - 1 - x]? = some (.point A) := by
     have hi : j - 1 - x < C.args.length := by omega
@@ -671,9 +675,9 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
   set Sc := S0 ++ [Entry.data (D.truncate c)]
   set ρ2 : IEnv n2 := (renv rs0).restr (fun _ => DM.zero n2)
   have hρ2 : (ival ρ2 ψ).holds := by rw [ival.restr]; exact hrs0.restr _
-  set gv := genV c n2 (D.truncate c).ctors
+  set gv : ℕ → V := fun _ => genV c n2 (D.truncate c).ctors
   set γ2 := argEnvKV n2 (plist (ps n2 g) np) (genPre C gv (pre.take n))
-  have hp := isPoint_argCtx S0 D hsyn hC hps c hc g ρ2 hρ2 (j := n) (by omega) le_rfl
+  have hp := isPoint_argCtx S0 D hsyn hC hps c g ρ2 hρ2 gv (fun _ _ => genV_mem hc) (j := n) (by omega) le_rfl
     (fun i hi hr => hpt i hi hr)
   have hE := (sound_eq hokc heq).2.2 n2 ρ2 γ2 hp
   rw [sem_lookup_point S0 D hsyn hC _ hx le_rfl hxr hT ρ2 (ps n2 g) gv (by omega)] at hE
