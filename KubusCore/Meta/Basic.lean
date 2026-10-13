@@ -132,13 +132,13 @@ theorem wf_of_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → Wf0 S Ψ Φ Γ
   | .glueEta h0 => wf_of_ty h0
   | .data _ h1 _ _ => wf_of_ty h1
   | .con _ _ h2 _ _ _ _ _ => wf_of_ty h2
-  | .elim _ h1 _ _ _ _ _ _ => wf_of_ty h1
+  | .elim _ h1 _ _ _ _ _ _ _ _ => wf_of_ty h1
   | .conBnd _ _ _ _ _ _ h6 => wf_of_ty h6
-  | .elimCon _ _ _ _ _ h5 => wf_of_ty h5
-  | .elimHcomp _ h1 => wf_of_ty h1
+  | .elimCon _ _ _ _ _ _ _ h7 => wf_of_ty h7
+  | .elimHcomp _ _ h2 => wf_of_ty h2
   | .transpData0 _ _ h2 => wf_of_ty h2
-  | .transpCon _ _ _ _ _ h5 => wf_of_ty h5
-  | .transpHcomp _ _ h2 => wf_of_ty h2
+  | .transpCon _ _ _ _ _ _ h6 => wf_of_ty h6
+  | .transpHcomp _ _ _ h3 => wf_of_ty h3
 end
 
 end KubusCore.Meta

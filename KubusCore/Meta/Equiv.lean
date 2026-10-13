@@ -302,21 +302,21 @@ theorem toMin_eq {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t
     EqTm0.data h0 (toMin_ty h1) (toMin_ty h2) (toMin_eqtele h3)
   | .con h0 h1 h2 h3 h4 h5 h6 h7 =>
     EqTm0.con h0 h1 (toMin_ty h2) (toMin_ty h3) (toMin_eqtele h4) (toMin_eqtele h5) h6 h7
-  | .elim h0 h1 h2 h3 h4 h5 h6 h7 =>
-    EqTm0.elim h0 (toMin_ty h1) (toMin_ty h2) (toMin_eqtele h3) (toMin_eq h4) h5
-        (fun c C b b' a1 a2 a3 => toMin_eq (h6 c C b b' a1 a2 a3)) (toMin_eq h7)
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 =>
+    EqTm0.elim h0 (toMin_ty h1) (toMin_ty h2) (toMin_eqtele h3) (toMin_eq h4) h5 h6 h7
+        (fun c C b b' a1 a2 a3 => toMin_eq (h8 c C b b' a1 a2 a3)) (toMin_eq h9)
   | .conBnd h0 h1 h2 h3 h4 h5 h6 =>
     EqTm0.conBnd h0 h1 h2 h3 h4 h5 (toMin_ty h6)
-  | .elimCon h0 h1 h2 h3 h4 h5 =>
-    EqTm0.elimCon h0 h1 h2 h3 h4 (toMin_ty h5)
-  | .elimHcomp h0 h1 =>
-    EqTm0.elimHcomp h0 (toMin_ty h1)
+  | .elimCon h0 h1 h2 h3 h4 h5 h6 h7 =>
+    EqTm0.elimCon h0 h1 h2 h3 h4 h5 (toMin_tele h6) (toMin_ty h7)
+  | .elimHcomp h0 h1 h2 =>
+    EqTm0.elimHcomp h0 (toMin_ty h1) (toMin_ty h2)
   | .transpData0 h0 h1 h2 =>
     EqTm0.transpData0 h0 h1 (toMin_ty h2)
-  | .transpCon h0 h1 h2 h3 h4 h5 =>
-    EqTm0.transpCon h0 h1 h2 h3 h4 (toMin_ty h5)
-  | .transpHcomp h0 h1 h2 =>
-    EqTm0.transpHcomp h0 h1 (toMin_ty h2)
+  | .transpCon h0 h1 h2 h3 h4 h5 h6 =>
+    EqTm0.transpCon h0 h1 h2 h3 h4 (toMin_tele h5) (toMin_ty h6)
+  | .transpHcomp h0 h1 h2 h3 =>
+    EqTm0.transpHcomp h0 h1 (toMin_ty h2) (toMin_ty h3)
 end
 
 end
@@ -552,21 +552,21 @@ theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ 
     EqTm.data h0 (toFull_ty h1) (toFull_ty h2) (toFull_eqtele h3)
   | .con h0 h1 h2 h3 h4 h5 h6 h7 =>
     EqTm.con h0 h1 (toFull_ty h2) (toFull_ty h3) (toFull_eqtele h4) (toFull_eqtele h5) h6 h7
-  | .elim h0 h1 h2 h3 h4 h5 h6 h7 =>
-    EqTm.elim h0 (toFull_ty h1) (toFull_ty h2) (toFull_eqtele h3) (toFull_eq h4) h5
-        (fun c C b b' a1 a2 a3 => toFull_eq (h6 c C b b' a1 a2 a3)) (toFull_eq h7)
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 =>
+    EqTm.elim h0 (toFull_ty h1) (toFull_ty h2) (toFull_eqtele h3) (toFull_eq h4) h5 h6 h7
+        (fun c C b b' a1 a2 a3 => toFull_eq (h8 c C b b' a1 a2 a3)) (toFull_eq h9)
   | .conBnd h0 h1 h2 h3 h4 h5 h6 =>
     EqTm.conBnd h0 h1 h2 h3 h4 h5 (toFull_ty h6)
-  | .elimCon h0 h1 h2 h3 h4 h5 =>
-    EqTm.elimCon h0 h1 h2 h3 h4 (toFull_ty h5)
-  | .elimHcomp h0 h1 =>
-    EqTm.elimHcomp h0 (toFull_ty h1)
+  | .elimCon h0 h1 h2 h3 h4 h5 h6 h7 =>
+    EqTm.elimCon h0 h1 h2 h3 h4 h5 (toFull_tele h6) (toFull_ty h7)
+  | .elimHcomp h0 h1 h2 =>
+    EqTm.elimHcomp h0 (toFull_ty h1) (toFull_ty h2)
   | .transpData0 h0 h1 h2 =>
     EqTm.transpData0 h0 h1 (toFull_ty h2)
-  | .transpCon h0 h1 h2 h3 h4 h5 =>
-    EqTm.transpCon h0 h1 h2 h3 h4 (toFull_ty h5)
-  | .transpHcomp h0 h1 h2 =>
-    EqTm.transpHcomp h0 h1 (toFull_ty h2)
+  | .transpCon h0 h1 h2 h3 h4 h5 h6 =>
+    EqTm.transpCon h0 h1 h2 h3 h4 (toFull_tele h5) (toFull_ty h6)
+  | .transpHcomp h0 h1 h2 h3 =>
+    EqTm.transpHcomp h0 h1 (toFull_ty h2) (toFull_ty h3)
 end
 
 end KubusCore.Meta

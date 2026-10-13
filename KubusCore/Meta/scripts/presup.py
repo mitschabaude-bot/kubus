@@ -280,11 +280,11 @@ eq = {
 'elim': "⟨h1, h2, pre_ty h1⟩",
 'conBnd': "⟨h6, hC.conBnd h0 h1 h2 h3 h4 h5 h6, pre_ty h6⟩",
 'elimCon': """by
-      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h5 rfl rfl
-      exact ⟨h5, elimCon_of hS h0 h1 h2 h3 h4 hE hI hX hl r tb ch, pre_ty h5⟩""",
+      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h7 rfl rfl
+      exact ⟨h7, elimCon_of hS h0 h1 h2 h3 h4 h5 h6 hE hI hX hl r tb ch, pre_ty h7⟩""",
 'elimHcomp': """by
-      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h1 rfl rfl
-      exact ⟨h1, elimHcomp_of hS h0 hE hI hX hl r tb ch, pre_ty h1⟩""",
+      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h2 rfl rfl
+      exact ⟨h2, elimHcomp_of hS h0 h1 hE hI hX hl r tb ch, pre_ty h2⟩""",
 'transpData0': """by
       have hv := pre_ty h2
       obtain ⟨l, ⟨hL, _, _, ha⟩, ch⟩ := gen_transpF h2 rfl
@@ -294,11 +294,11 @@ eq = {
       cases htele
       exact ⟨h2, ch.transport ha, hv⟩""",
 'transpCon': """by
-      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h5 rfl rfl
-      exact ⟨h5, transpCon_of hS h0 h1 h2 h3 h4 hL hφ hc hI hX hl r tb ch, pre_ty h5⟩""",
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h6 rfl rfl
+      exact ⟨h6, transpCon_of hS h0 h1 h2 h3 h4 h5 hL hφ hc hI hX hl r tb ch, pre_ty h6⟩""",
 'transpHcomp': """by
-      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h2 rfl rfl
-      exact ⟨h2, transpHcomp_of hS h0 h1 hL hφ hc hI hX hl r tb ch, pre_ty h2⟩""",
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h3 rfl rfl
+      exact ⟨h3, transpHcomp_of hS h0 h1 h2 hL hφ hc hI hX hl r tb ch, pre_ty h3⟩""",
 }
 out=[]
 out.append("theorem pre_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → IsTypB S Ψ Φ Γ A")

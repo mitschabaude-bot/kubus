@@ -175,4 +175,7 @@ theorem gen_transp_data {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d ps φ a}
   obtain ⟨_, _, _, h⟩ := gen_transp h ht
   exact gen_data h rfl
 
+theorem dinst_toList {ps : Tm} (h : IsList ps) (r : I) :
+    (ps.dinst r).toList = ps.toList.map (·.dinst r) := toList_subst h _ _
+
 end KubusCore.Meta

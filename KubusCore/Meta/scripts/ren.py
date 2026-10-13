@@ -187,18 +187,18 @@ bodies['EqTm0'] = {
         obtain ⟨r0', hr0', rfl⟩ := Option.map_eq_some_iff.1 hr'
         exact I_eq_subst (h7 k r0 r0' hr0 hr0') _""",
 'elim': f"""by
-      obtain ⟨D', hD', hps, hlen, hbs⟩ := gen_elim h1 rfl
+      obtain ⟨D', hD', hps, hlen, _⟩ := gen_elim h1 rfl
       rw [h0] at hD'; cases hD'
-      obtain ⟨_, _, _, _, hbs'⟩ := gen_elim h2 rfl
       simp only [{RN}]
       refine EqTm0.elim h0 {ST('h1')} {ST('h2')} ((ren_eqtele hS h3).2 (fun k A hk => by simpa using hS.params _ _ _ _ h0 hk) hR)
-        {E('h4','(hR.up (ren_eq hS h4).1)')} (by rw [toList_subst hbs, toList_subst hbs', List.length_map, List.length_map, h5]) ?_ {E('h7')}
+        {E('h4','(hR.up (ren_eq hS h4).1)')} (isList_subst h5 _ _) (isList_subst h6 _ _)
+        (by rw [toList_subst h5, toList_subst h6, List.length_map, List.length_map, h7]) ?_ {E('h9')}
       intro c C b b' hc hb hb'
-      rw [toList_subst hbs, List.getElem?_map] at hb
-      rw [toList_subst hbs', List.getElem?_map] at hb'
+      rw [toList_subst h5, List.getElem?_map] at hb
+      rw [toList_subst h6, List.getElem?_map] at hb'
       obtain ⟨b0, hb0, rfl⟩ := Option.map_eq_some_iff.1 hb
       obtain ⟨b0', hb0', rfl⟩ := Option.map_eq_some_iff.1 hb'
-      have := (ren_eq hS (h6 c C b0 b0' hc hb0 hb0')).2 hR
+      have := (ren_eq hS (h8 c C b0 b0' hc hb0 hb0')).2 hR
       rwa [branchTy_subst _ _ hS h0 hc hps hlen, up_rS] at this""",
 'conBnd': f"""by
       obtain ⟨D', C', hD', hC', _, hlen, hlena, hlenr⟩ := gen_con h6 rfl
@@ -209,17 +209,27 @@ bodies['EqTm0'] = {
           have := ent_trans hR.ent (ent_subst h3 (rI δ)); rwa [cofAt_subst _ (by rw [hlenr]; exact hb.1)] at this)
         (isList_subst h4 _ _) (isList_subst h5 _ _) {T('h6')}""",
 'elimCon': f"""by
-      rw [elimCon_subst h3]; simp only [{RN}]
-      refine EqTm0.elimCon h0 h1 ?_ (isList_subst h3 _ _) (isList_subst h4 _ _) {ST('h5')}
-      rw [toList_subst h4, List.getElem?_map, h2]; rfl""",
-'elimHcomp': f"by rw [elimHcomp_subst]; simp only [{RN}]; exact EqTm0.elimHcomp h0 {ST('h1')}",
+      obtain ⟨D', hD', _, hlen, _⟩ := gen_elim h7 rfl
+      rw [h0] at hD'; cases hD'
+      have ht := (ren_tele hS h6).2 (fun k A hk => by rw [List.length_reverse, hlen]; exact argTys_closed hS h0 h1 k A hk) hR
+      rw [elimCon_subst h4]; simp only [{RN}]
+      refine EqTm0.elimCon h0 h1 ?_ (isList_subst h3 _ _) (isList_subst h4 _ _) (isList_subst h5 _ _) ?_ {ST('h7')}
+      · rw [toList_subst h5, List.getElem?_map, h2]; rfl
+      · rw [toList_subst h3, ← List.map_reverse]; exact ht""",
+'elimHcomp': f"by rw [elimHcomp_subst]; simp only [{RN}]; exact EqTm0.elimHcomp h0 {ST('h1')} {ST('h2')}",
 'transpData0': f"by simp only [{RN}]; exact EqTm0.transpData0 h0 h1 {ST('h2')}",
 'transpCon': f"""by
-      obtain ⟨D', hD', hlen⟩ := gen_transp_data h5 rfl
+      obtain ⟨D', hD', hlen0⟩ := gen_transp_data h6 rfl
       rw [h0] at hD'; cases hD'
-      rw [transpCon_subst hS h0 h2 h3 h4 hlen]; simp only [{RN}]
-      exact EqTm0.transpCon h0 h1 h2 (isList_subst h3 _ _) (isList_subst h4 _ _) {ST('h5')}""",
-'transpHcomp': f"by rw [transpHcomp_subst]; simp only [{RN}]; exact EqTm0.transpHcomp h0 h1 {ST('h2')}",
+      have hlen := hlen0
+      rw [← List.length_map (f := (·.dinst .zero)), ← dinst_toList h3] at hlen
+      have ht := (ren_tele hS h5).2 (fun k A hk => by rw [List.length_reverse, hlen]; exact argTys_closed hS h0 h2 k A hk) hR
+      rw [transpCon_subst hS h0 h2 h3 h4 hlen0]; simp only [{RN}]
+      refine EqTm0.transpCon h0 h1 h2 (isList_subst h3 _ _) (isList_subst h4 _ _) ?_ {ST('h6')}
+      rw [dinst_toList (isList_subst h3 _ _), toList_subst h3]
+      rw [dinst_toList h3] at ht
+      simpa only [List.map_reverse, List.map_map, Function.comp_def, dinst_subst, I.subst, {RN}] using ht""",
+'transpHcomp': f"by rw [transpHcomp_subst]; simp only [{RN}]; exact EqTm0.transpHcomp h0 h1 {ST('h2')} {ST('h3')}",
 }
 
 fn={'HasTy0':'ren_ty','EqTm0':'ren_eq','HasTele0':'ren_tele','EqTele0':'ren_eqtele','Wf0':'ren_wf'}
