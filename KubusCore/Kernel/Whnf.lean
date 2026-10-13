@@ -245,8 +245,10 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .glue _ φ T _, ht =>
     if h : E.Ent φ then pure (some (⟨T, EqTm.glueFace h ht⟩, false)) else pure none
   | .unglue φ e (.glueEl φ' e' t1 a1), ht =>
-    if h : φ' = φ ∧ e' = e then
-      pure (some (⟨a1, by obtain ⟨h1, h2⟩ := h; subst h1; subst h2; exact EqTm.glueBeta ht⟩, false))
+    if h : φ' = φ ∧ e' = e then do
+      -- the rule takes the typing of the base element as a premise
+      let ⟨ha⟩ ← R.check E a1 A l hA
+      pure (some (⟨a1, by obtain ⟨h1, h2⟩ := h; subst h1; subst h2; exact EqTm.glueBeta ht ha⟩, false))
     else elimStep R E (.unglue φ e (.glueEl φ' e' t1 a1)) A l hA
   | .glueEl φ _ t1 _, ht =>
     if h : E.Ent φ then pure (some (⟨t1, EqTm.glueElFace h ht⟩, false)) else pure none
@@ -476,7 +478,8 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
       if hφ' : φ' = φ ∧ e' = e then
         have e1' : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e (.glueEl φ e t1 a1)) A1 := by
           rw [h, hφ'.1, hφ'.2] at e1; exact e1
-        have e2 := EqTm.glueBeta (HasTy.eqR e1')
+        let ⟨ha⟩ ← R.check E a1 A1 gi.lvl inf.hty
+        have e2 := EqTm.glueBeta (HasTy.eqR e1') ha
         let r3 ← R.whnf E a1 A1 gi.lvl inf.hty (HasTy.eqR e2)
         return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩
       else return ⟨inf, ⟨_, h ▸ e1⟩⟩
