@@ -348,9 +348,16 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
   | A, hA, ht, hu => do
     -- lazy δ: unfold the head constant defined later first
     if let some (some e) ← tryOpt (lazyDelta R E A l hA 20 t u ht hu) then return e
-    -- the same composition or transport on both sides: by congruence, before reducing them
-    if (t matches .hcomp ..) && (u matches .hcomp ..) || (t matches .transp ..) && (u matches .transp ..) then
-      if let some ⟨ni, ⟨en⟩⟩ ← tryOpt (R.convNe E t u) then
+    -- eliminations of the same shape: by congruence, before reducing them (contracta of
+    -- equal terms often differ syntactically); not nested, since failures would multiply
+    let shape : Tm → Nat := fun
+      | .hcomp .. => 1 | .transp .. => 2 | .app .. => 3 | .fst _ => 4 | .snd _ => 5
+      | .papp .. => 6 | .unglue .. => 7 | .elim .. => 8 | _ => 0
+    if shape t != 0 && shape t == shape u && !(← get).congFirst then
+      modify fun c => { c with congFirst := true }
+      let r ← tryOpt (R.convNe E t u)
+      modify fun c => { c with congFirst := false }
+      if let some ⟨ni, ⟨en⟩⟩ := r then
         if let some ⟨en'⟩ ← tryOpt (bridge R E ni.hty hA en) then return ⟨en'⟩
     let rt ← R.whnf E t A l hA ht
     let ru ← R.whnf E u A l hA hu

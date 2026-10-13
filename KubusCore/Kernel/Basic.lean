@@ -506,6 +506,8 @@ structure Cache (S : Sig) where
   convFail : Table S (fun _ _ _ _ _ => PUnit) := {}
   /-- inside an attempt to compare without splitting the restriction into faces -/
   noSplit : Bool := false
+  /-- inside an attempt to compare by congruence before reducing -/
+  congFirst : Bool := false
 
 /-- The kernel monad: errors, and the cache of judgments over the signature `S`. -/
 abbrev K (S : Sig) := EStateM String (Cache S)
