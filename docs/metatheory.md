@@ -54,7 +54,7 @@ The general theorems behind these:
   - `transp` in `Π`, `Σ`, path types, `(i : I) → A` (`KanTransp.lean`): the line's constancy gives its components' constancy by injectivity; the contracta are typed with the transport filler and `comp`.
   - `transpGlue` (`KanTranspGlue.lean`): no injectivity needed.
   - `hcomp` in every type former (`HcompTyped.lean`, `KanPath.lean`, `KanSigma.lean`, `KanGlue.lean`, `KanU.lean`), resting on `hfill`, `comp`, `fill` (`KanFill.lean`) and the equivalence machinery `isContr`, `fiber`, `isEquiv`, `idIsEquiv`, `lineEquiv` (`KanU.lean`).
-  - inductive types (`DataContracta.lean`, `DataTele.lean`): `elimCon`, `elimHcomp`, `transpHcomp`, `transpCon`, with `dataInj` relating the scrutinee's parameters to the eliminator's.
+  - inductive types (`DataContracta.lean`, `DataTele.lean`, `TranspCon.lean`): `elimCon`, `elimHcomp`, `transpHcomp`, `transpCon`, with `dataInj` relating the scrutinee's parameters to the eliminator's; `transpCon` transports the argument telescope along the parameter line, with the argument types typed by P11 and their constancy on `φ` from `dataInjAt`.
   - `conBnd` (`ConBnd.lean`): the boundary is typed by recursion on the simple boundary, with the point arguments' type equations from `Ctor.bndTyped` (P8).
   - `conBnd` and `transpCon` read the signature's checks in the prefix before the inductive type; `ContractaTyped` collects them and `Final.lean` discharges it for `WfSig S` by induction on the signature (the prefix's spec judgments are minimal ones by the induction hypothesis).
 - **Equivalence** (`Equiv.lean`, `SigWk.lean`, `Final.lean`).
