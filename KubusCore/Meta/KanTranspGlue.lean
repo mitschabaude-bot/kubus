@@ -105,6 +105,13 @@ theorem app_sk2 (e u0 : Tm) : (app (fst e) u0.dshift).subst Tm.var (sk (.var 0) 
     app (fst (e.dsubst (sk (.var 0) 2))) u0.dshift.dshift := by
   show app (fst (e.subst _ _)) (u0.dshift.subst _ _) = _; rw [dshift_sk2]; rfl
 
+theorem isContr_fiber_inst (T A f a : Tm) :
+    (isContr (fiber T.shift A.shift f.shift (var 0))).inst a = isContr (fiber T A f a) := by
+  simp only [isContr, fiber, pathC]; scalc
+
+theorem pathC_var0_inst (X c p : Tm) : (pathC X.shift c.shift (var 0)).inst p = pathC X c p := by
+  simp only [pathC]; scalc
+
 /-- The cofibration of the composition in `ω`: `ψ ∨ j = 0 ∨ j = 1`. -/
 abbrev tgChi (ψ : I) : I := .or ψ.shift (.or (.neg (.var 0)) (.var 0))
 
@@ -450,6 +457,49 @@ theorem hω : HasTy0 S Ψ (cof Φ δ) Γ (tgOmega A φ T e ψ u0)
     (pathC (A.dinst .one) (app (fst (e.dinst .one)) (tgT1 T ψ u0)) (tgA1' A φ e ψ u0)) :=
   HasTy0.plam (pathC_typed H.hS H.hA1Z (app_fst_equiv (H.he0Z .one trivial) H.ht1) H.ha1'Z) H.hbody
     (by rw [dshift_dinst]; exact H.hω0) (by rw [dshift_dinst]; exact H.hω1)
+
+/-! ### The fibre -/
+
+theorem hWs : (cof Φ (φ.subst (I.inst0 .one))).Scoped Ψ := ⟨H.hs, H.hφr (r := .one) trivial⟩
+
+theorem he1 : HasTy0 S Ψ (cof Φ (φ.subst (I.inst0 .one))) Γ (e.dinst .one) (equiv (T.dinst .one) (A.dinst .one)) :=
+  H.her (r := .one) trivial H.hWs (ent_and_left _ _) (ent_and_right _ _)
+
+theorem hfe1 : HasTy0 S Ψ (cof Φ (φ.subst (I.inst0 .one))) Γ (fst (e.dinst .one)) (arrow (T.dinst .one) (A.dinst .one)) :=
+  HasTy0.fst H.he1
+
+theorem hfib : HasTy0 S Ψ (cof Φ (φ.subst (I.inst0 .one))) Γ (tgFib A φ T e ψ u0) (univ l) :=
+  fiber_typed H.hS (H.hTr (r := .one) trivial H.hWs (ent_and_left _ _) (ent_and_right _ _))
+    (HasTy0.restrict H.hWs (ent_and_left _ _) (H.hAr (r := .one) trivial)) H.hfe1
+    (HasTy0.restrict H.hWs (ent_and_left _ _) H.ha1')
+
+/-- `c = e(1).2 a1' : isContr (fiber e(1).1 a1')` -/
+theorem hc : HasTy0 S Ψ (cof Φ (φ.subst (I.inst0 .one))) Γ (tgC A φ e ψ u0) (isContr (tgFib A φ T e ψ u0)) := by
+  have h1 := HasTy0.snd H.he1
+  rw [isEquiv_inst, isEquiv_eq] at h1
+  have := HasTy0.app h1 (HasTy0.restrict H.hWs (ent_and_left _ _) H.ha1')
+  rwa [isContr_fiber_inst] at this
+
+theorem hfc : HasTy0 S Ψ (cof Φ (φ.subst (I.inst0 .one))) Γ (fst (tgC A φ e ψ u0)) (tgFib A φ T e ψ u0) :=
+  HasTy0.fst H.hc
+
+/-- Contractibility: `c.2 p : Path fib c.1 p`. -/
+theorem hcp {X : I} (hXs : X.Scoped Ψ) (hX : I.Entails X (cof Φ (φ.subst (I.inst0 .one)))) {p : Tm}
+    (hp : HasTy0 S Ψ X Γ p (tgFib A φ T e ψ u0)) :
+    HasTy0 S Ψ X Γ (app (snd (tgC A φ e ψ u0)) p) (pathC (tgFib A φ T e ψ u0) (fst (tgC A φ e ψ u0)) p) := by
+  have h1 := HasTy0.snd (HasTy0.restrict hXs hX H.hc)
+  rw [K_inst] at h1
+  have := HasTy0.app h1 hp
+  rwa [pathC_var0_inst] at this
+
+theorem hcpEq {X : I} (hXs : X.Scoped Ψ) (hX : I.Entails X (cof Φ (φ.subst (I.inst0 .one)))) {p p' : Tm}
+    (hp : EqTm0 S Ψ X Γ p p' (tgFib A φ T e ψ u0)) :
+    EqTm0 S Ψ X Γ (app (snd (tgC A φ e ψ u0)) p) (app (snd (tgC A φ e ψ u0)) p')
+      (pathC (tgFib A φ T e ψ u0) (fst (tgC A φ e ψ u0)) p) := by
+  have h1 := HasTy0.snd (HasTy0.restrict hXs hX H.hc)
+  rw [K_inst] at h1
+  have := EqTm0.app (EqTm0.refl h1) hp
+  rwa [pathC_var0_inst] at this
 
 end TG
 
