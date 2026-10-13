@@ -35,7 +35,7 @@ theorem code_ind (P : ℕ → V → Prop)
       a1 ∈ El L (Hom.endpt m (DM.one m)) → P (m + 1) L → P m (pathC m L a0 a1))
     (hipi : ∀ l m L, WF l (m + 1) L → P (m + 1) L → P m (ipiC m L))
     (huniv : ∀ m l, l ≤ maxLevel → (∀ m' X, WF l m' X → P m' X) → P m (univC m l))
-    (hglue : ∀ l m A (φ : Cof m) Tp ep, WF l m A → φ.IsCof → ¬ φ.holds →
+    (hglue : ∀ l m A (φ : Cof m) Tp ep, l ≤ maxLevel → WF l m A → φ.IsCof → ¬ φ.holds →
       Tp = partialKV m φ (fun k f => dat Tp k f) → ep = partialKV m φ (fun k f => dat ep k f) →
       (∀ k (f : Hom k m), (φ.restr f).holds → WF l k (dat Tp k f)) →
       (∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h)) →
@@ -62,7 +62,7 @@ theorem code_ind (P : ℕ → V → Prop)
       rw [Ucodes_lt m hl']
       exact huniv m l' (by omega) fun m' X hX => ihl l' hl' (by omega) m' X hX
     | glue hA hφ hn hTp hep hTw hTn hem hen ihA ihT =>
-      exact hglue l _ _ _ _ _ hA hφ hn hTp hep hTw hTn hem hen ihA ihT
+      exact hglue l _ _ _ _ _ hl hA hφ hn hTp hep hTw hTn hem hen ihA ihT
     | data Θ hc hw ih => exact hdata l _ Θ hc hw ih
 
 /-- The induction principle for the codes of types (`TyCode`: well-formed codes and universes). -/
@@ -84,7 +84,7 @@ theorem tyCode_ind (P : ℕ → V → Prop)
       a1 ∈ El L (Hom.endpt m (DM.one m)) → P (m + 1) L → P m (pathC m L a0 a1))
     (hipi : ∀ l m L, WF l (m + 1) L → P (m + 1) L → P m (ipiC m L))
     (huniv : ∀ m l, l ≤ maxLevel → (∀ m' X, WF l m' X → P m' X) → P m (univC m l))
-    (hglue : ∀ l m A (φ : Cof m) Tp ep, WF l m A → φ.IsCof → ¬ φ.holds →
+    (hglue : ∀ l m A (φ : Cof m) Tp ep, l ≤ maxLevel → WF l m A → φ.IsCof → ¬ φ.holds →
       Tp = partialKV m φ (fun k f => dat Tp k f) → ep = partialKV m φ (fun k f => dat ep k f) →
       (∀ k (f : Hom k m), (φ.restr f).holds → WF l k (dat Tp k f)) →
       (∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h)) →

@@ -50,7 +50,7 @@ theorem cv_wf : ∀ l, l ≤ maxLevel → ∀ m X, WF l m X → CV S m X := by
   · intro l m L a0 a1 hL _ _ ihL; exact cv_pathC hW (IsKV.ne_empty hL.fib.kv) ihL
   · intro l m L hL ihL; exact cv_ipiC hW (IsKV.ne_empty hL.fib.kv) ihL
   · intro m l _ ih; exact cv_univC hW ih
-  · intro l m A φ Tp ep hA hφ _ _ _ hTw hTn _ _ ihA ihT
+  · intro l m A φ Tp ep _ hA hφ _ _ _ hTw hTn _ _ ihA ihT
     exact cv_glueC hW hA.fib.kv hφ hTn (fun k f hh => (hTw k f hh).fib.kv) ihA ihT
   · intro l m Θ _ _ _; exact cv_dataC hW Θ
 
