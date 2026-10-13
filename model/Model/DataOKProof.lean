@@ -178,8 +178,8 @@ theorem sem_argTy_eq (S0 : Sig) (E D : DataDecl) (hsyn : DataSyn S0.length D) {c
     simp [hgl, Nat.min_eq_left hi]
 
 theorem sem_paramVars_rv (S : Sig) {σ : SigV} {D : DataDecl} {ps : RV m} (hps : ParamsOK σ D m ps) (g : Hom n m)
-    (preL : List V) {i : ℕ} (hi : preL.length = i) :
-    (fun k (f : Hom k n) => sem S (Ctor.paramVars D.params.length i) k (IEnv.restr (fun _ => DM.zero n) f)
+    (preL : List V) {i : ℕ} (hi : preL.length = i) (ρ : IEnv n) :
+    (fun k (f : Hom k n) => sem S (Ctor.paramVars D.params.length i) k (IEnv.restr ρ f)
       (TEnv.restr (argEnvKV n (plist (ps n g) D.params.length) preL) f)) = fun k f => ps k (g.comp f) := by
   subst hi
   funext k f
@@ -210,12 +210,19 @@ theorem argCtx_ge (D : DataDecl) (d : ℕ) (C : Ctor) (j x : ℕ) (hx : j ≤ x)
   simp only [List.length_map, List.length_reverse, List.length_range]
   rw [List.getElem?_reverse (by omega), List.getElem?_eq_getElem (by omega)]
 
-theorem genV_mem {S0 : Sig} {D : DataDecl} {n : ℕ} {ps : RV n}
-    (hps : ParamsOK (sigV S0) D n ps) :
-    genV 0 n (D.truncate 0).ctors ∈ El (dataC (dataSD (sigV S0) (D.truncate 0) S0.length n ps)) (Hom.id n) := by
+theorem truncate_gen (D : DataDecl) {c0 : ℕ} (hc0 : c0 ≤ D.ctors.length) :
+    (D.truncate c0).ctors[c0]? = some { args := [], dims := 0, bnd := [] } := by
+  simp [DataDecl.truncate, Nat.min_eq_left hc0]
+
+theorem genV_mem {S0 : Sig} {D : DataDecl} {c0 : ℕ} (hc0 : c0 ≤ D.ctors.length) {n : ℕ} {ps : RV n} :
+    genV c0 n (D.truncate c0).ctors ∈ El (dataC (dataSD (sigV S0) (D.truncate c0) S0.length n ps)) (Hom.id n) := by
   rw [mem_El_dataC]
-  exact DElem.con (C := { args := [], dims := 0, bnd := [] }) rfl rfl rfl
+  exact DElem.con (C := { args := [], dims := 0, bnd := [] }) (truncate_gen D hc0) rfl rfl
     (fun j a ha => by simp at ha) (fun j a ha => by simp at ha)
+
+theorem sem_rho_irrel (S : Sig) {A : Tm} {k : ℕ} (hA : A.closedB k 0 = true) (ρ ρ' : IEnv n) (γ : ℕ → V) :
+    sem S A n ρ γ = sem S A n ρ' γ :=
+  interp_congr_closed _ _ _ A k 0 hA n ρ ρ' γ γ (fun _ h => absurd h (by omega)) (fun _ _ => rfl)
 
 section argty
 
@@ -223,17 +230,18 @@ variable (S0 : Sig) (D : DataDecl) (hsyn : DataSyn S0.length D)
   {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) D m ps)
 
 include hsyn hC hps in
-theorem isPoint_argCtx {j : ℕ} {n : ℕ} (g : Hom n m) {pre : List V} (hjp : j ≤ pre.length)
+theorem isPoint_argCtx (c0 : ℕ) (hc0 : c0 ≤ D.ctors.length) {Φ : I} {j : ℕ} {n : ℕ} (g : Hom n m)
+    (ρ : IEnv n) (hρ : (ival ρ Φ).holds) {pre : List V} (hjp : j ≤ pre.length)
     (hjC : j ≤ C.args.length)
     (hpt : ∀ i (hi : i < j), C.isRec i = false →
       pre[i]'(by omega) ∈ El (argTyRaw (sigV S0) D S0.length c i n (ps n g) pre) (Hom.id n) ∧ IsKV n (pre[i]'(by omega))) :
-    IsPoint (S0 ++ [.data (D.truncate 0)]) .one (D.argCtx S0.length C j) n (fun _ => DM.zero n)
-      (argEnvKV n (plist (ps n g) D.params.length) (genPre C (genV 0 n (D.truncate 0).ctors) (pre.take j))) := by
+    IsPoint (S0 ++ [.data (D.truncate c0)]) Φ (D.argCtx S0.length C j) n ρ
+      (argEnvKV n (plist (ps n g) D.params.length) (genPre C (genV c0 n (D.truncate c0).ctors) (pre.take j))) := by
   set np := D.params.length
-  set gv := genV 0 n (D.truncate 0).ctors
+  set gv := genV c0 n (D.truncate c0).ctors
   have hgl : (genPre C gv (pre.take j)).length = j := by simp [genPre_length]; omega
   have hpl : (plist (ps n g) np).length = np := by simp [plist]
-  refine ⟨by simp [DM.holds, ival.fn, I.eval], fun x B hB => ?_, fun x => ?_⟩
+  refine ⟨hρ, fun x B hB => ?_, fun x => ?_⟩
   · rw [Ctx.lookup_eq] at hB
     obtain ⟨T, hT, rfl⟩ := Option.map_eq_some_iff.1 hB
     rw [sem_ren]
@@ -254,7 +262,8 @@ theorem isPoint_argCtx {j : ℕ} {n : ℕ} (g : Hom n m) {pre : List V} (hjp : j
           have hr : C.isRec (j - 1 - x) = false := by simp [Ctor.isRec, hA]
           rw [if_neg (by simp [hr]), List.getElem_take]
           have harg : C.argTy S0.length np (j - 1 - x) = A := by simp [Ctor.argTy, hA]
-          rw [harg, sem_argTy_eq S0 _ D hsyn hC hA (ps n g) pre (by omega)]
+          rw [harg, sem_rho_irrel _ (hsyn.2.2 c C hC _ A hA).1 _ (fun _ => DM.zero n),
+            sem_argTy_eq S0 _ D hsyn hC hA (ps n g) pre (by omega)]
           exact (hpt _ (by omega) hr).1
         | recur =>
           have hr : C.isRec (j - 1 - x) = true := by simp [Ctor.isRec, hA]
@@ -262,11 +271,11 @@ theorem isPoint_argCtx {j : ℕ} {n : ℕ} (g : Hom n m) {pre : List V} (hjp : j
           have harg : C.argTy S0.length np (j - 1 - x) = .data S0.length (Ctor.paramVars np (j - 1 - x)) := by
             simp [Ctor.argTy, hA]
           rw [harg, sem_data (entry_ext S0 _), sigUpTo_ext]
-          have hpv := sem_paramVars_rv (i := j - 1 - x) (S0 ++ [.data (D.truncate 0)]) hps g
-            (genPre C gv (pre.take (j - 1 - x))) (by simp [genPre_length]; omega)
+          have hpv := sem_paramVars_rv (i := j - 1 - x) (S0 ++ [.data (D.truncate c0)]) hps g
+            (genPre C gv (pre.take (j - 1 - x))) (by simp [genPre_length]; omega) (fun i => ρ (id i))
           unfold psRV
-          rw [hpv, if_pos (show ParamsOK (sigV S0) (D.truncate 0) n _ from hps.restr g)]
-          exact genV_mem (hps.restr g)
+          rw [hpv, if_pos (show ParamsOK (sigV S0) (D.truncate c0) n _ from hps.restr g)]
+          exact genV_mem hc0
     · by_cases hxp : x < j + np
       · rw [argCtx_ge D _ C j x (by omega) hxp] at hT
         cases hT
@@ -349,7 +358,8 @@ theorem argTy_univ (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
       have := (ih i hi Ai hAi n g pre (by omega) fun i' hi' hr' => hpre i' (by omega) hr').1
       rw [mem_El_univ_iff] at this
       exact this.2.fib.elKV n (Hom.id n) _ (hpre i hi hr)
-    have hp := isPoint_argCtx S0 D hsyn hC hps g hjp hjC hkv
+    have hp := isPoint_argCtx S0 D hsyn hC hps 0 (Nat.zero_le _) (Φ := .one) g (fun _ => DM.zero n)
+      (by simp [DM.holds, ival.fn, I.eval]) hjp hjC hkv
     obtain ⟨hmem, hnat, -, -⟩ := (sound_ty hok0 (hck j A hA)).2.2.2 n _ _ hp
     rw [← sem_argTy_eq S0 _ D hsyn hC hA (ps n g) pre hjp]
     refine ⟨hmem, fun n' h => ?_⟩
