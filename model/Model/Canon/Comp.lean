@@ -1,4 +1,4 @@
-import Model.Canon.Basic
+import Model.Canon.Rank
 
 /-!
 # Canonicity: computability
@@ -191,44 +191,71 @@ def tyLook (tbl : V) (c j : ℕ) (pre : List V) : V :=
 
 /-! ### Computability -/
 
-/-- One step of the definition, given the relations of the codes below `X`. -/
-def compF (X : V) (rec : (Y : V) → Below Y X → (m k : ℕ) → Hom k m → Pack) (m k : ℕ) (f : Hom k m) : Pack :=
-  let R : V → (m' k' : ℕ) → Hom k' m' → Pack := fun Y m' k' g => if h : Below Y X then rec Y h m' k' g else Pack.bot
-  let RE : V → (n : ℕ) → ElR n := fun Y n k' σ => (R Y n k' σ.hom).el
-  let RT : V → (n : ℕ) → (k' : ℕ) → ISub k' n → Tm → Prop := fun Y n k' σ => (R Y n k' σ.hom).ty
-  let sh := shapeOf X f
-  let base : Tm → Prop := fun A => IsTyK S k A ∧ semK S k A = res f X
-  if π1 sh = natZ tPi then
+theorem tyLook_rank_lt {X : V} {ρ : Ordinal} (h : rank X < ρ) {c j : ℕ} {pre : List V} :
+    rank (tyLook (π2 (π2 (π2 (π1 X)))) c j pre) < ρ := by
+  have hb : rank (π2 (π2 (π2 (π1 X)))) < ρ :=
+    (rank_π2_le _).trans_lt ((rank_π2_le _).trans_lt ((rank_π2_le _).trans_lt ((rank_π1_le _).trans_lt h)))
+  unfold tyLook; split
+  · rename_i hT
+    exact ((rank_pair_right _ _).trans ((rank_pair_right _ _).trans ((rank_pair_right _ _).trans
+      (rank_lt_of_mem hT.choose_spec)))).trans hb
+  · rw [rank_empty]; exact (bot_le).trans_lt hb
+
+/-- The rank order on values is well founded. -/
+theorem rank_wf : WellFounded (fun Y X : V => rank Y < rank X) := InvImage.wf _ wellFounded_lt
+
+theorem rank_appV_res_le (B : V) (g : Hom k' k) (a : V) : rank (appV k' (res g B) a) ≤ rank B := by
+  unfold appV here
+  refine (rank_apZ_le _ _).trans ?_
+  rw [dat_res]; exact rank_dat_le _ _
+
+/-- One step of the definition: the relations of the type whose data at the restrictions of
+stage `k` are `Dt` and which is the code `self`, given the relations `rec` of the codes of rank
+below `ρ`. -/
+def body (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal)
+    (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ)
+    (rec : (Y : V) → rank Y < ρ → (m k : ℕ) → Hom k m → Pack) : Pack :=
+  let sh := π1 (Dt k (Hom.id k))
+  have hsh : rank sh < ρ := (rank_π1_le _).trans_lt (hD k (Hom.id k))
+  have h2 : rank (π2 sh) < ρ := (rank_π2_le _).trans_lt hsh
+  have h12 : rank (π1 (π2 sh)) < ρ := (rank_π1_le _).trans_lt h2
+  have h22 : rank (π2 (π2 sh)) < ρ := (rank_π2_le _).trans_lt h2
+  have h122 : rank (π1 (π2 (π2 sh))) < ρ := (rank_π1_le _).trans_lt h22
+  have h222 : rank (π2 (π2 (π2 sh))) < ρ := (rank_π2_le _).trans_lt h22
+  have h1222 : rank (π1 (π2 (π2 (π2 sh)))) < ρ := (rank_π1_le _).trans_lt h222
+  let base : Tm → Prop := fun A => IsTyK S k A ∧ semK S k A = self
+  if π1 sh = natZ tPi ∨ π1 sh = natZ tSigma then
     let Y := π1 (π2 sh)
     let B := π2 (π2 sh)
-    let cod : (k' : ℕ) → ISub k' k → Tm → ElR k' := fun k' σ a => RE (appV k' (res σ.hom B) (semK S k' a)) k'
-    { ty := fun A => base A ∧ ∃ A1 B1, TyEq S k A (.pi A1 B1) ∧ ∀ k' (σ : ISub k' k), RT Y k k' σ (A1.isub σ) ∧
-          ∀ a, RE Y k k' σ (A1.isub σ) a →
-            (R (appV k' (res σ.hom B) (semK S k' a)) k' k' (Hom.id k')).ty ((B1.isub σ).inst a)
-      el := piE S (RE Y k) cod k (ISub.id k) }
-  else if π1 sh = natZ tSigma then
-    let Y := π1 (π2 sh)
-    let B := π2 (π2 sh)
-    let cod : (k' : ℕ) → ISub k' k → Tm → ElR k' := fun k' σ a => RE (appV k' (res σ.hom B) (semK S k' a)) k'
-    { ty := fun A => base A ∧ ∃ A1 B1, TyEq S k A (.sigma A1 B1) ∧ ∀ k' (σ : ISub k' k), RT Y k k' σ (A1.isub σ) ∧
-          ∀ a, RE Y k k' σ (A1.isub σ) a →
-            (R (appV k' (res σ.hom B) (semK S k' a)) k' k' (Hom.id k')).ty ((B1.isub σ).inst a)
-      el := sigmaE S (RE Y k) cod k (ISub.id k) }
-  else if π1 sh = natZ tPath then
+    let RY : (k' : ℕ) → ISub k' k → Pack := fun k' σ => rec Y h12 k k' σ.hom
+    let RB : (k' : ℕ) → ISub k' k → Tm → Pack := fun k' σ a =>
+      rec (appV k' (res σ.hom B) (semK S k' a)) ((rank_appV_res_le _ _ _).trans_lt h22) k' k' (Hom.id k')
+    let cod : (k' : ℕ) → ISub k' k → Tm → ElR k' := fun k' σ a k'' σ' =>
+      (rec (appV k' (res σ.hom B) (semK S k' a)) ((rank_appV_res_le _ _ _).trans_lt h22) k' k'' σ'.hom).el
+    let isPi := π1 sh = natZ tPi
+    { ty := fun A => base A ∧ ∃ A1 B1, TyEq S k A (if isPi then .pi A1 B1 else .sigma A1 B1) ∧
+          ∀ k' (σ : ISub k' k), (RY k' σ).ty (A1.isub σ) ∧
+            ∀ a, (RY k' σ).el (A1.isub σ) a → (RB k' σ a).ty ((B1.isub σ).inst a)
+      el := if isPi then piE S (fun k' σ => (RY k' σ).el) cod k (ISub.id k)
+        else sigmaE S (fun k' σ => (RY k' σ).el) cod k (ISub.id k) }
+  else if π1 sh = natZ tPath ∨ π1 sh = natZ tIPi then
     let L := π1 (π2 sh)
-    { ty := fun A => base A ∧ ∃ L1 b0 b1, TyEq S k A (.path L1 b0 b1) ∧ ∀ k' (σ : ISub k' k),
-          RT L (k + 1) (k' + 1) σ.up (L1.isub σ.up) ∧
-          RE L (k + 1) k' (ISub.cons .zero trivial σ) ((L1.isub σ.up).dinst .zero) (b0.isub σ) ∧
-          RE L (k + 1) k' (ISub.cons .one trivial σ) ((L1.isub σ.up).dinst .one) (b1.isub σ)
-      el := pathE S (RE L (k + 1)) k (ISub.id k) }
-  else if π1 sh = natZ tIPi then
-    let L := π1 (π2 sh)
-    { ty := fun A => base A ∧ ∃ L1, TyEq S k A (.ipi L1) ∧ ∀ k' (σ : ISub k' k),
-          RT L (k + 1) (k' + 1) σ.up (L1.isub σ.up)
-      el := ipiE S (RE L (k + 1)) k (ISub.id k) }
+    let RL : (k' : ℕ) → ISub k' (k + 1) → Pack := fun k' σ => rec L h12 (k + 1) k' σ.hom
+    if π1 sh = natZ tPath then
+      { ty := fun A => base A ∧ ∃ L1 b0 b1, TyEq S k A (.path L1 b0 b1) ∧ ∀ k' (σ : ISub k' k),
+            (RL (k' + 1) σ.up).ty (L1.isub σ.up) ∧
+            (RL k' (ISub.cons .zero trivial σ)).el ((L1.isub σ.up).dinst .zero) (b0.isub σ) ∧
+            (RL k' (ISub.cons .one trivial σ)).el ((L1.isub σ.up).dinst .one) (b1.isub σ)
+        el := pathE S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
+    else
+      { ty := fun A => base A ∧ ∃ L1, TyEq S k A (.ipi L1) ∧ ∀ k' (σ : ISub k' k),
+            (RL (k' + 1) σ.up).ty (L1.isub σ.up)
+        el := ipiE S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
   else if π1 sh = natZ tUniv then
     { ty := fun A => base A ∧ TyEq S k A (.univ (natOf (π2 sh)))
-      el := fun A T => HasTy S k .one [] T A ∧ (R (semK S k T) k k (Hom.id k)).ty T }
+      el := fun A T => HasTy S k .one [] T A ∧ ∃ h : semK S k T ∈ π1 (π2 (Dt k (Hom.id k))),
+        (rec (semK S k T) (lt_trans (rank_lt_of_mem h) ((rank_π1_le _).trans_lt ((rank_π2_le _).trans_lt
+          (hD k (Hom.id k))))) k k (Hom.id k)).ty T }
   else if π1 sh = natZ tEmpty then
     { ty := base
       el := fun _ _ => False }
@@ -236,42 +263,53 @@ def compF (X : V) (rec : (Y : V) → Below Y X → (m k : ℕ) → Hom k m → P
     let A0 := π1 (π2 sh)
     let φ := cofOf k (π1 (π2 (π2 sh)))
     let Tp := π1 (π2 (π2 (π2 sh)))
+    let RA : (k' : ℕ) → ISub k' k → Pack := fun k' σ => rec A0 h12 k k' σ.hom
+    let RT : (k' : ℕ) → ISub k' k → Pack := fun k' σ =>
+      rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k' k' (Hom.id k')
+    let ET : (k' : ℕ) → ISub k' k → ElR k' := fun k' σ k'' σ' =>
+      (rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k' k'' σ'.hom).el
     { ty := fun A => base A ∧ ∃ A1 φ1 T1 e1, TyEq S k A (.glue A1 φ1 T1 e1) ∧ φ1.Scoped k ∧
           (ival (idEnv k) φ1).face = φ ∧
-          (∀ k' (σ : ISub k' k), RT A0 k k' σ (A1.isub σ)) ∧
+          (∀ k' (σ : ISub k' k), (RA k' σ).ty (A1.isub σ)) ∧
           ∀ k' (σ : ISub k' k), (φ.restr σ.hom).holds →
-            RT (dat Tp k' σ.hom) k' k' (ISub.id k') (T1.isub σ) ∧
-            equivE S (RE (dat Tp k' σ.hom) k') (fun k'' σ' => RE A0 k k'' (σ.comp σ')) k' (ISub.id k')
+            (RT k' σ).ty (T1.isub σ) ∧
+            equivE S (ET k' σ) (fun k'' σ' => (RA k'' (σ.comp σ')).el) k' (ISub.id k')
               (Tm.equiv (T1.isub σ) (A1.isub σ)) (e1.isub σ)
       el := fun A g => HasTy S k .one [] g A ∧ ∃ A1 φ1 T1 e1, TyEq S k A (.glue A1 φ1 T1 e1) ∧ φ1.Scoped k ∧
           (ival (idEnv k) φ1).face = φ ∧
-          (∀ k' (σ : ISub k' k), RE A0 k k' σ (A1.isub σ) (.unglue (φ1.subst σ.τ) (e1.isub σ) (g.isub σ))) ∧
-          ∀ k' (σ : ISub k' k), (φ.restr σ.hom).holds → RE (dat Tp k' σ.hom) k' k' (ISub.id k') (T1.isub σ) (g.isub σ) }
+          (∀ k' (σ : ISub k' k), (RA k' σ).el (A1.isub σ) (.unglue (φ1.subst σ.τ) (e1.isub σ) (g.isub σ))) ∧
+          ∀ k' (σ : ISub k' k), (φ.restr σ.hom).holds → (RT k' σ).el (T1.isub σ) (g.isub σ) }
   else if π1 sh = natZ tData then
     let d := natOf (π1 (π2 sh))
     let D : DataDecl := match S[d]? with | some (.data D) => D | _ => default
-    let P : (k' : ℕ) → Hom k' m → ℕ → ℕ → List V → Tm → Tm → Prop := fun k' g c j pre A t =>
-      (R (tyLook (π2 (π2 (π2 (shapeOf X g)))) c j pre) k' k' (Hom.id k')).el A t
+    let P : (k' : ℕ) → Hom k' k → ℕ → ℕ → List V → Tm → Tm → Prop := fun k' g c j pre A t =>
+      (rec (tyLook (π2 (π2 (π2 (π1 (Dt k' g))))) c j pre) (tyLook_rank_lt (hD k' g)) k' k' (Hom.id k')).el A t
     { ty := fun A => base A ∧ ∃ ps, TyEq S k A (.data d ps) ∧ ps = Tm.ofList ps.toList ∧
           ∀ k' (σ : ISub k' k) (c : ℕ) (C : Ctor) (args : List Tm), D.ctors[c]? = some C →
             args.length < C.args.length → C.isRec args.length = false →
-            (∀ j (hj : j < args.length), C.isRec j = true → DR S d D P k' (f.comp σ.hom) (A.isub σ) args[j]) →
+            (∀ j (hj : j < args.length), C.isRec j = true → DR S d D P k' σ.hom (A.isub σ) args[j]) →
             (∀ j (hj : j < args.length), C.isRec j = false →
-              P k' (f.comp σ.hom) c j ((args.take j).map (semK S k'))
+              P k' σ.hom c j ((args.take j).map (semK S k'))
                 ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ (ps.isub σ).toList.reverse))
                 args[j]) →
-            (R (tyLook (π2 (π2 (π2 (shapeOf X (f.comp σ.hom))))) c args.length (args.map (semK S k')))
-              k' k' (Hom.id k')).ty
+            (rec (tyLook (π2 (π2 (π2 (π1 (Dt k' σ.hom))))) c args.length (args.map (semK S k')))
+              (tyLook_rank_lt (hD k' σ.hom)) k' k' (Hom.id k')).ty
               ((C.argTy d D.params.length args.length).substList (args.reverse ++ (ps.isub σ).toList.reverse))
-      el := fun A t => HasTy S k .one [] t A ∧ DR S d D P k f A t }
+      el := fun A t => HasTy S k .one [] t A ∧ DR S d D P k (Hom.id k) A t }
+  else Pack.bot
+
+/-- The recursion step: the relations of `X` restricted along `f`. -/
+def compF (X : V) (rec : (Y : V) → rank Y < rank X → (m k : ℕ) → Hom k m → Pack) (m k : ℕ) (f : Hom k m) : Pack :=
+  if h : X ≠ ∅ then body S k (fun k' g => dat X k' (f.comp g)) (res f X) (rank X)
+    (fun k' g => rank_dat_lt h _) rec
   else Pack.bot
 
 /-- Computability for the code `X` (at stage `m`) restricted along `f : Hom k m`. -/
 def Comp (X : V) : (m k : ℕ) → Hom k m → Pack :=
-  below_wf.fix (C := fun _ => (m k : ℕ) → Hom k m → Pack) (fun X rec => compF S X rec) X
+  rank_wf.fix (C := fun _ => (m k : ℕ) → Hom k m → Pack) (fun X rec => compF S X rec) X
 
 theorem Comp_eq (X : V) : Comp S X = compF S X (fun Y _ => Comp S Y) :=
-  below_wf.fix_eq _ X
+  rank_wf.fix_eq _ X
 
 end
 
