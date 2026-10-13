@@ -573,6 +573,122 @@ theorem L_omega {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) (
   rw [tgBody_dinst, isub_up_dinst _ _ _ hr, dshift_isub_cons, dinst_isub_end _ (.inr rfl)] at eβ
   exact hb.conv hW (TyEq.refl _) eβ.symm
 
+omit hW in
+theorem forall0_scoped {φ : I} (h : φ.Scoped (k + 1)) : φ.forall0.Scoped k := by
+  apply scoped_ofFaces
+  intro c hc l hl
+  simp only [List.mem_map, List.mem_filter] at hc
+  obtain ⟨α, ⟨hα, hall⟩, rfl⟩ := hc
+  obtain ⟨⟨i, d⟩, hil, rfl⟩ := List.mem_map.1 hl
+  have h1 := faces_scoped h α hα _ hil
+  have h2 := List.all_eq_true.1 hall _ hil
+  simp only [bne_iff_ne, ne_eq] at h2
+  simp only at h1 ⊢
+  omega
+
+omit hW in
+theorem dshift_isub_up (X : Tm) (ρ : ISub k' k) : X.dshift.isub ρ.up = (X.isub ρ).dshift := by
+  have := dshift_subst_dup Tm.var ρ.τ X
+  rw [dupS_var] at this
+  exact this
+
+omit hW in
+theorem pathC_isub (X x y : Tm) (ρ : ISub k' k) :
+    (Tm.pathC X x y).isub ρ = Tm.pathC (X.isub ρ) (x.isub ρ) (y.isub ρ) := by
+  unfold Tm.pathC; rw [isub_path, dshift_isub_up]
+
+/-- Path types with a constant line between computable endpoints are Kan. -/
+theorem kanAll_pathC {X x y : Tm} {l : ℕ} (hpT : HasTy S k .one [] (Tm.pathC X x y) (.univ l)) (hX : KanAll S k X)
+    (hx : ∀ k' (ρ : ISub k' k), RE S k' (X.isub ρ) (x.isub ρ)) (hy : ∀ k' (ρ : ISub k' k), RE S k' (X.isub ρ) (y.isub ρ)) :
+    KanAll S k (Tm.pathC X x y) := by
+  constructor
+  · intro k' ρ
+    have hp := HasTy.isubS hW hpT ρ
+    rw [pathC_isub] at hp ⊢
+    unfold Tm.pathC at hp ⊢
+    refine kanH_path hW hp (fun k'' ρ' => ?_) ?_ ?_
+    · rw [dshift_isub_tail, Tm.isub_isub]; exact hX.1 _ _
+    · rw [Meta.dshift_dinst]; exact hx k' ρ
+    · rw [Meta.dshift_dinst]; exact hy k' ρ
+  · intro k' ρ
+    have hp := HasTy.isubS hW hpT ρ
+    rw [pathC_isub] at hp ⊢
+    unfold Tm.pathC at hp ⊢
+    refine kanT_path hW hp ?_ (fun k'' σ => ?_) (fun k'' σ => ?_)
+    · exact ⟨fun k3 ρ'' => by rw [dshift_isub_tail, Tm.isub_isub]; exact hX.1 _ _,
+        fun k3 ρ'' => by rw [dshift_isub_tail, Tm.isub_isub]; exact hX.2 _ _⟩
+    · rw [isub_up_dinst _ _ _ (show I.Scoped k'' .zero from trivial), dshift_isub_cons, Tm.isub_isub,
+        Tm.isub_isub]; exact hx _ _
+    · rw [isub_up_dinst _ _ _ (show I.Scoped k'' .one from trivial), dshift_isub_cons, Tm.isub_isub,
+        Tm.isub_isub]; exact hy _ _
+
+theorem GlueL.eqv0 {n : ℕ} {A T e : Tm} {φ : I} (G : GlueL S n A φ T e) (hh : (ival (idEnv n) φ).holds) :
+    RE S n (Tm.equiv T A) e := by
+  obtain ⟨l, hG⟩ := G.ty
+  obtain ⟨hφs, -⟩ := glue_data hW hG
+  have hc := closed_of_ty hW hG
+  simp only [Tm.closedB, Bool.and_eq_true] at hc
+  have := G.eqv n (ISub.id n) (by rw [I_subst_id hφs]; exact hh)
+  rwa [isub_id_of_closed hc.1.2, isub_id_of_closed hc.1.1.1, isub_id_of_closed hc.2] at this
+
+omit hW in
+theorem tgA1'_isub (A : Tm) (φ : I) (e : Tm) (ψ : I) (u0 : Tm) (σ : ISub k' k) :
+    (tgA1' A φ e ψ u0).isub σ = tgA1' (A.isub σ.up) (φ.subst σ.up.τ) (e.isub σ.up) (ψ.subst σ.τ) (u0.isub σ) := by
+  have := (tg_subst_mid A φ (.var 0) e ψ u0 Tm.var σ.τ).2.2.2.2; rw [dupS_var] at this; exact this
+
+include hGC in
+theorem L_a1'_isub {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) (σ : ISub k' k) :
+    RE S k' ((A.dinst .one).isub σ) ((tgA1' A φ e ψ u0).isub σ) := by
+  rw [tgA1'_isub, dinst_isub_end _ (.inr rfl)]; exact L_a1' hW hGC (D.isub hW σ)
+
+include hGC in
+theorem L_c {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ)
+    (hφ1 : (ival (idEnv k) (φ.subst (I.inst0 .one))).holds) :
+    RE S k (Tm.isContr (tgFib A φ T e ψ u0)) (tgC A φ e ψ u0) := by
+  have he1 := (D.gl.slice hW .one trivial).eqv0 hW hφ1
+  unfold Tm.equiv at he1
+  have h2 := (RE_sigma_elim hW he1).2
+  rw [isEquiv_inst, isEquiv_eq] at h2
+  have h3 := RE_pi_elim hW h2 (L_a1' hW hGC D)
+  rwa [isContr_fiber_inst] at h3
+
+include hGC in
+theorem L_fibK {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ)
+    (hφ1 : (ival (idEnv k) (φ.subst (I.inst0 .one))).holds) : KanH S k (tgFib A φ T e ψ u0) := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l, H⟩ := D.tg hW
+  have D1 := D.gl.slice hW .one trivial
+  have hent1 : I.Entails .one (cof .one (φ.subst (I.inst0 .one))) :=
+    ent_cof_one hW (entails_of_holds (H.hφr (r := .one) trivial) hφ1)
+  have hfib := HasTy.restrict (Φ' := .one) trivial hent1 (minimal_to_spec H.hfib)
+  rw [tgFib_eq] at hfib ⊢
+  refine kanH_sigma hW hfib (fun k' ρ => D1.kTH k' ρ (holds_isub hW (H.hφr (r := .one) trivial) hφ1 ρ))
+    (fun k' σ a ha => ?_)
+  have hφσ := holds_isub hW (H.hφr (r := .one) trivial) hφ1 σ
+  rw [pathC_isub, isub_shift, isub_shift]
+  have eapp : ((Tm.fst (e.dinst .one)).shift.app (.var 0)).isub σ =
+      .app ((Tm.fst (e.dinst .one)).isub σ).shift (.var 0) := by
+    show Tm.app ((Tm.fst (e.dinst .one)).shift.isub σ) (Tm.var 0) = _; rw [isub_shift]
+  rw [eapp, P_inst]
+  have heσ : RE S k' (Tm.equiv ((T.dinst .one).isub σ) ((A.dinst .one).isub σ)) ((e.dinst .one).isub σ) :=
+    D1.eqv k' σ hφσ
+  have happ := RE_app_fst hW heσ ha
+  have ha1 := L_a1'_isub hW hGC D σ
+  obtain ⟨lp, hpT⟩ : ∃ lp, HasTy S k' .one [] (Tm.pathC ((A.dinst .one).isub σ) (.app (.fst ((e.dinst .one).isub σ)) a)
+      ((tgA1' A φ e ψ u0).isub σ)) (.univ lp) := by
+    obtain ⟨lG, hG1⟩ := D1.ty
+    obtain ⟨-, lA, hAt, -⟩ := glue_data hW hG1
+    have hp := pathC_typed hS (spec_to_minimal hW (HasTy.isubS hW hAt σ)) (spec_to_minimal hW (Comp_el_typed happ).1)
+      (spec_to_minimal hW (Comp_el_typed ha1).1)
+    exact ⟨lA, minimal_to_spec hp⟩
+  refine kanAll_pathC hW hpT (kanAll_isub D1.kA σ) (fun k'' ρ => ?_) (fun k'' ρ => ?_)
+  · show RE S k'' (((A.dinst .one).isub σ).isub ρ) (Tm.app (.fst (((e.dinst .one).isub σ).isub ρ)) (a.isub ρ))
+    rw [Tm.isub_isub, Tm.isub_isub]
+    have haρ := ha.isub hW ρ
+    rw [Tm.isub_isub] at haρ
+    exact RE_app_fst hW (D1.eqv k'' (σ.comp ρ) (holds_isub hW (H.hφr (r := .one) trivial) hφ1 _)) haρ
+  · rw [Tm.isub_isub, Tm.isub_isub]; exact L_a1'_isub hW hGC D (σ.comp ρ)
+
 end
 
 end Model.Canon
