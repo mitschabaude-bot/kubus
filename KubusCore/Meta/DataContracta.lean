@@ -26,7 +26,24 @@ theorem elimCon_of (hS : SigClosed S) {Ψ Φ Γ d D D' c C ps P bs b qs args rs 
     (tb : TB S Ψ Φ Γ (data d ps)) (ch : TyChainC S Ψ Φ Γ (P.inst (con d c qs args rs)) T) :
     HasTy0 S Ψ Φ Γ (Tm.papps (Tm.apps b (args.toList ++
       C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T := by
-  sorry
+  have hDD : D' = D := by have := hE.hD; rw [hD] at this; cases this; rfl
+  subst hDD
+  obtain ⟨hXq, D0, C0, hD0, hC0, hqs, hdq, hqt, haq, hrs, hrsc⟩ := hI
+  rw [hD] at hD0; cases hD0; rw [hC] at hC0; cases hC0
+  subst hXq
+  have hlen := tele_length hE.hpt
+  have ha : HasTele0 S Ψ Φ Γ (Tm.ofList args.toList) (C.argTys d D'.params.length) ps.toList.reverse := by
+    rw [← hargs]; exact htele
+  have happ := branch_app_typed hS hD hC hlen (hE.hbr c C b hC hb) ha (ihs_tele hE ha) hrs hrsc
+  rw [← hargs] at happ
+  -- relate the constructor at `ps` with the one at `qs`
+  obtain ⟨m', _, e⟩ := r.collapse hX hl rfl tb (fun k h => by cases h)
+  have hcp := HasTy0.con hD hC hE.hps hE.hdata hE.hpt htele hrs hrsc
+  have hcq := HasTy0.conv (HasTy0.con hD hC hqs hdq hqt haq hrs hrsc) e
+  have eps := EqTele0.dataInj hD hE.hpt hqt (EqTm0.symm e)
+  have ec := EqTm0.con hD hC hcp hcq eps (EqTele0.refl htele) rfl
+    (fun k r r' h1 h2 => by rw [h1] at h2; cases h2; exact I_eq_refl _)
+  exact ch.transport (HasTy0.conv happ (HasTy0.inst_congr hS hE.hP hcp hcq ec))
 
 theorem elimHcomp_C_eq (P H : Tm) : P.subst (consSub H) (fun i => .var (i + 1)) = (P.dshift).inst H := by
   scalc
