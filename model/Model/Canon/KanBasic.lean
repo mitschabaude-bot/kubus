@@ -1,4 +1,4 @@
-import Model.Canon.Formers
+import Model.Canon.FormersData
 
 /-!
 # Canonicity: the Kan properties of a closed type
@@ -44,6 +44,22 @@ theorem I_subst_congr_scoped {σ τ : ℕ → I} {n : ℕ} (h : ∀ i < n, σ i 
 
 theorem I_subst_id {r : I} (hr : r.Scoped k) : r.subst (ISub.id k).τ = r := by
   rw [I_subst_congr_scoped (τ := I.var) (fun i hi => by simp [ISub.id, hi]) hr, I_subst_var]
+
+/-- Every computable type has the base clause: it is a type whose value is the code. -/
+theorem Comp_ty_base {X : V} {f : Hom k m} {T : Tm} (h : (Comp S X m k f).ty T) :
+    X ≠ ∅ ∧ IsTyK S k T ∧ semK S k T = res f X := by
+  rw [Comp_eq] at h; unfold compF at h
+  split at h
+  · rename_i hX
+    refine ⟨hX, ?_⟩
+    simp only [body, core] at h
+    split_ifs at h <;> first | exact h.1 | exact h | exact h.elim
+  · exact h.elim
+
+theorem Comp_eq_semK {X : V} {f : Hom k m} {T : Tm} (h : (Comp S X m k f).ty T) :
+    Comp S X m k f = Comp S (semK S k T) k k (Hom.id k) := by
+  obtain ⟨hX, -, hs⟩ := Comp_ty_base h
+  rw [Comp_eq_res hX, hs]
 
 /-- The interval substitution `τ` out of stage `n`, made an `ISub` (zero beyond `n`). -/
 def ISub.ofFun (n : ℕ) (τ : ℕ → I) (hsc : ∀ i < n, (τ i).Scoped k) : ISub k n :=

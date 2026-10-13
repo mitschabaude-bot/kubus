@@ -1,7 +1,9 @@
-import Model.Canon.Formers
+import Model.Canon.KanPi
 
 /-!
 # Canonicity: the Kan operations preserve computability
+
+By induction on the code of the type (`tyCode_ind`), one lemma per type former.
 -/
 
 set_option autoImplicit false
@@ -14,22 +16,75 @@ noncomputable section
 
 variable {S : Sig} {k k' m : ℕ}
 
+/-- The Kan properties of all types whose code is a restriction of `X`. -/
+def KanP (S : Sig) (m : ℕ) (X : V) : Prop :=
+  (∀ k (f : Hom k m) (A : Tm), (Comp S X m k f).ty A → KanH S k A) ∧
+  (∀ k (f : Hom (k + 1) m) (A : Tm), (Comp S X m (k + 1) f).ty A → KanT S k A)
+
 variable (hW : WfSig S)
 include hW
+
+theorem tyEq_eq {A B : Tm} (h : TyEq S k A B) (hB : ∃ l, HasTy S k .one [] B (.univ l)) :
+    ∃ l, EqTm S k .one [] A B (.univ l) := by
+  rcases h with rfl | h
+  · obtain ⟨l, hB⟩ := hB; exact ⟨l, EqTm.refl hB⟩
+  · exact h
+
+theorem kanP_pi (l m : ℕ) (A B : V) (hA : WF l m A) (ihA : KanP S m A)
+    (ihB : ∀ k (f : Hom k m), ∀ a ∈ El A f, KanP S k (apZ (dat B k f) a)) : KanP S m (piC m A B) := by
+  have hAne : A ≠ ∅ := IsKV.ne_empty hA.fib.kv
+  constructor
+  · intro k f T hT
+    rw [Comp_piC A B hAne] at hT
+    obtain ⟨⟨hTy, -⟩, A1, B1, hE, hall⟩ := hT
+    obtain ⟨l1, hpiT⟩ := ty_of_tyEq hW hTy hE (fun l h => by cases h)
+    refine kanH_retype hW hE (kanH_pi hW hpiT fun k' σ a ha => ?_)
+    obtain ⟨hA1, hB1⟩ := hall k' σ
+    have hael : (Comp S A m k' (f.comp σ.hom)).el (A1.isub σ) a := by rw [Comp_eq_semK hA1]; exact ha
+    have hmem : semK S k' a ∈ El A (f.comp σ.hom) := by
+      have := (Comp_el_typed hael).2; rwa [El_res, Hom.comp_id] at this
+    exact (ihB k' (f.comp σ.hom) (semK S k' a) hmem).1 k' (Hom.id k') _ (hB1 a hael)
+  · intro k f T hT
+    rw [Comp_piC A B hAne] at hT
+    obtain ⟨⟨hTy, -⟩, A1, B1, hE, hall⟩ := hT
+    obtain ⟨l1, hpiT⟩ := ty_of_tyEq hW hTy hE (fun l h => by cases h)
+    obtain ⟨l2, e⟩ := tyEq_eq hW hE ⟨l1, hpiT⟩
+    refine kanT_retype hW e (kanT_pi hW hpiT (fun k' σ => ?_) fun k' σ w hw => ?_)
+    · exact ihA.2 k' (f.comp σ.hom) _ (hall (k' + 1) σ).1
+    · obtain ⟨hA1, hB1⟩ := hall (k' + 1) σ
+      have hwel : (Comp S A m (k' + 1) (f.comp σ.hom)).el (A1.isub σ) w := by rw [Comp_eq_semK hA1]; exact hw
+      have hmem : semK S (k' + 1) w ∈ El A (f.comp σ.hom) := by
+        have := (Comp_el_typed hwel).2; rwa [El_res, Hom.comp_id] at this
+      exact (ihB (k' + 1) (f.comp σ.hom) (semK S (k' + 1) w) hmem).2 k' (Hom.id (k' + 1)) _ (hB1 w hwel)
+
+theorem kanP_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KanP S m X := by
+  refine tyCode_ind (KanP S) ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ m X hX
+  · sorry
+  · intro l m A B hA _ _ _ _ ihA ihB; exact kanP_pi hW l m A B hA ihA ihB
+  · sorry
+  · sorry
+  · sorry
+  · sorry
+  · sorry
+  · sorry
 
 /-- Composition in a computable type of a computable tube and base is computable. -/
 theorem kan_hcomp {A u a : Tm} {φ : I} (hA : RT S k A)
     (hty : HasTy S k .one [] (.hcomp A φ u a) A)
     (hu : ∀ k' (σ : ISub k' k) (r : I), r.Scoped k' → (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE S k' (A.isub σ) ((u.isub σ.up).dinst r))
-    (ha : RE S k A a) : RE S k A (.hcomp A φ u a) := by
-  sorry
+    (ha : RE S k A a) : RE S k A (.hcomp A φ u a) :=
+  (kanP_tyCode hW (tyCode_of_ty hW (Comp_el_typed ha).1)).1 k (Hom.id k) A hA φ u a hty hu ha
 
 /-- Transport along a computable line of a computable element is computable. -/
 theorem kan_transp {A a : Tm} {φ : I} {l : ℕ} (hA : RT S (k + 1) A)
     (hty : HasTy S k .one [] (.transp A φ a) (A.dinst .one))
     (ha : RE S k (A.dinst .zero) a) : RE S k (A.dinst .one) (.transp A φ a) := by
-  sorry
+  obtain ⟨-, ⟨l, hA' | rfl⟩, -⟩ := Comp_ty_base hA
+  · exact (kanP_tyCode hW (tyCode_of_univ hW hA')).2 k (Hom.id (k + 1)) A hA φ a hty ha
+  · obtain ⟨l0, ⟨hU, -⟩, -⟩ := gen_transpF (Φ := .one) (Γ := []) (spec_to_minimal hW hty) rfl
+    have hl := gen_univ hU rfl
+    exact (kanP_tyCode hW ⟨l, by omega, .inr rfl⟩).2 k (Hom.id (k + 1)) _ hA φ a hty ha
 
 end
 
