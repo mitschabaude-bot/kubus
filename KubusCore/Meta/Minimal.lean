@@ -222,6 +222,13 @@ inductive EqTm0 (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm0 S Ψ Φ Γ b b' (A.dinst .one)
   | ipiInj {Ψ Φ Γ A A' r l} : EqTm0 S Ψ Φ Γ (ipi A) (ipi A') (univ l) →
       r.Scoped Ψ → EqTm0 S Ψ Φ Γ (A.dinst r) (A'.dinst r) (univ l)
+  | dataInjAt {Ψ Φ Γ d} {D : DataDecl} {ps ps' : Tm} {l k : Nat} {p p' A : Tm} : S[d]? = some (.data D) →
+      ps = Tm.ofList ps.toList → ps' = Tm.ofList ps'.toList →
+      EqTm0 S Ψ Φ Γ (data d ps) (data d ps') (univ l) →
+      ps.toList[k]? = some p → ps'.toList[k]? = some p' → D.params[k]? = some A →
+      HasTy0 S Ψ Φ Γ p (A.substList (ps.toList.take k).reverse) →
+      HasTy0 S Ψ Φ Γ p' (A.substList (ps.toList.take k).reverse) →
+      EqTm0 S Ψ Φ Γ p p' (A.substList (ps.toList.take k).reverse)
   /- no-confusion of type formers: an equation between different ones holds only where the
   restriction is unsatisfiable -/
   | noConf {Ψ Φ Γ X Y l t u T} : X.headClash Y = true → EqTm0 S Ψ Φ Γ X Y (univ l) →

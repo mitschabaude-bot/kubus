@@ -417,6 +417,15 @@ theorem sub_eq (hS : SigClosed S) {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → 
     by simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]; exact EqTm0.pathInjRight (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_eq hS h0).2 hσ)⟩
   | @EqTm0.ipiInj _ Ψ Φ Γ A A' r l h0 h1 => ⟨(sub_eq hS h0).1, fun {Ψ' Φ' Δ σ τ} hσ =>
     by simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]; exact EqTm0.ipiInj (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_eq hS h0).2 hσ) (hσ.sc h1)⟩
+  | @EqTm0.dataInjAt _ Ψ Φ Γ d D ps ps' l k p p' A h0 h1 h2 h3 h4 h5 h6 h7 h8 => ⟨(sub_eq hS h3).1, fun {Ψ' Φ' Δ σ τ} hσ =>
+    by
+      have hA := hS.params _ _ _ _ h0 h6
+      have hk := (List.getElem?_eq_some_iff.1 h4).1
+      rw [dataInjAt_ty_subst h1 hA hk]
+      exact EqTm0.dataInjAt h0 (isList_subst h1 _ _) (isList_subst h2 _ _) ((sub_eq hS h3).2 hσ)
+        (by rw [toList_subst h1, List.getElem?_map, h4]; rfl) (by rw [toList_subst h2, List.getElem?_map, h5]; rfl) h6
+        (by have := ((sub_ty hS h7).2.1 hσ); rwa [dataInjAt_ty_subst h1 hA hk] at this)
+        (by have := ((sub_ty hS h8).2.1 hσ); rwa [dataInjAt_ty_subst h1 hA hk] at this)⟩
   | @EqTm0.noConf _ Ψ Φ Γ X Y l t u T h0 h1 h2 h3 => ⟨(sub_eq hS h1).1, fun {Ψ' Φ' Δ σ τ} hσ =>
     EqTm0.noConf (headClash_subst _ _ h0) ((sub_eq hS h1).2 hσ) ((sub_ty hS h2).2.1 hσ) ((sub_ty hS h3).2.1 hσ)⟩
   | @EqTm0.piBeta _ Ψ Φ Γ A t a T h0 => ⟨(sub_ty hS h0).1, fun {Ψ' Φ' Δ σ τ} hσ =>

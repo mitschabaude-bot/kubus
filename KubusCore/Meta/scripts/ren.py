@@ -134,6 +134,14 @@ bodies['EqTm0'] = {
 'ilam': f"by simp only [{RN}]; exact EqTm0.ilam {ST('h0')} {E('h1','hR.dup')}",
 'iapp': f"by simp only [{RN}]; exact EqTm0.iapp {SE('h0')} (hR.sc h1) (hR.sc h2) (I_eq_subst h3 _)",
 'noConf': f"EqTm0.noConf (headClash_subst _ _ h0) {E('h1')} {T('h2')} {T('h3')}",
+'dataInjAt': f"""by
+      have hA := hS.params _ _ _ _ h0 h6
+      have hk := (List.getElem?_eq_some_iff.1 h4).1
+      rw [dataInjAt_ty_subst h1 hA hk]
+      exact EqTm0.dataInjAt h0 (isList_subst h1 _ _) (isList_subst h2 _ _) {E('h3')}
+        (by rw [toList_subst h1, List.getElem?_map, h4]; rfl) (by rw [toList_subst h2, List.getElem?_map, h5]; rfl) h6
+        (by have := {T('h7')}; rwa [dataInjAt_ty_subst h1 hA hk] at this)
+        (by have := {T('h8')}; rwa [dataInjAt_ty_subst h1 hA hk] at this)""",
 'piInjDom': f"by simp only [{RN}]; exact EqTm0.piInjDom {SE('h0')}",
 'piInjCod': f"by simp only [{RN}]; exact EqTm0.piInjCod {SE('h0')} {T('h1')}",
 'sigmaInjDom': f"by simp only [{RN}]; exact EqTm0.sigmaInjDom {SE('h0')}",

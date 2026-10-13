@@ -133,6 +133,7 @@ eq = {
       exact ⟨h0, pathBeta_of hS hI hX hl hY hr r tb ch, pre_ty h0⟩""",
 'glueBeta': "⟨h0, h1, pre_ty h0⟩",
 'noConf': "⟨h2, h3, pre_ty h2⟩",
+'dataInjAt': "⟨h7, h8, pre_ty h7⟩",
 'piInjDom': """by
       obtain ⟨p, p', _⟩ := pre_eq h0
       exact ⟨HasTy0.piDom hS p, HasTy0.piDom hS p', (pre_eq h0).2.2⟩""",

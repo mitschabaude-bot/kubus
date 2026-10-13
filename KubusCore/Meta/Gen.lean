@@ -178,4 +178,10 @@ theorem gen_transp_data {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d ps φ a}
 theorem dinst_toList {ps : Tm} (h : IsList ps) (r : I) :
     (ps.dinst r).toList = ps.toList.map (·.dinst r) := toList_subst h _ _
 
+theorem dataInjAt_ty_subst {ps A : Tm} {k : Nat} (h : IsList ps) (hA : A.closedB k 0 = true)
+    (hk : k < ps.toList.length) (σ : Nat → Tm) (τ : Nat → I) :
+    (A.substList (ps.toList.take k).reverse).subst σ τ = A.substList ((ps.subst σ τ).toList.take k).reverse := by
+  have hl : ((ps.toList.take k).reverse).length = k := by simp [List.length_take]; omega
+  rw [substList_subst (by rw [hl]; exact hA), toList_subst h, ← List.map_take, List.map_reverse]
+
 end KubusCore.Meta
