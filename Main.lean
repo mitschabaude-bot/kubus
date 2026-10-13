@@ -146,7 +146,8 @@ def main (args : List String) : IO UInt32 := do
     match rest with
     | "--selfcheck" :: r => drv := { drv with selfcheck := true }; rest := r
     | "--selfcheck-main" :: r => drv := { drv with selfcheck := true, selfcheckImports := false }; rest := r
-    | "--verbose" :: r => drv := { drv with verbose := true }; rest := r
+    | "--verbose" :: r =>
+      drv := { drv with verbose := true, kernel := drv.kernel.map ({ · with verbose := true }) }; rest := r
     | "--no-kernel" :: r => drv := { drv with kernel := none }; rest := r
     | "--interactive" :: r => interactive := true; rest := r
     | "--budget" :: n :: r =>

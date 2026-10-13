@@ -1,0 +1,27 @@
+-- Programs the elaborator accepts that the certified kernel once rejected (found by the fuzzer).
+import loopspace
+import bool
+import hits
+
+-- a filler in a line of types given by composition in the universe: comparing `t3 (1 ∧ i)`
+-- with `t3 i` must not unfold `t3`
+def t3 (i : I) : U := hcomp j U [i = 0 -> Int, i = 1 -> sucPathInt j] Int
+def fillHcompU (j : I) (x : t3 0) : t3 j := fill m (t3 m) [] x j
+def compFillHcompU : Int := comp k (t3 k) [1 -> fill m (t3 m) [] (pos zero) k] (pos zero)
+
+def u1 (i : I) : U := hcomp j U [i = 0 -> Bool, i = 1 -> Bool] Bool
+def fillHcompU2 (j : I) (x : u1 0) : u1 j := fill m (u1 m) [] x j
+
+-- a path abstraction re-inferred inside the kernel must keep its endpoints
+def windingFill (i : I) : Int :=
+  winding (fill k (Path S1 base base) [i = 0 -> \j -> base, i = 1 -> \j -> base] (\j -> base) (~i))
+
+-- a β-redex whose λ has no annotation in the core term
+def betaRedex (A : U) (a : A) : A := (\(x : A) -> x) a
+
+-- constructors of parameterized types without an expected type in the core term
+def conParams : Int := pos (((zero, (inc true)) : (Nat × (Trunc Bool))).1)
+def conProj : Susp Bool := ((north, zero) : (Susp Bool × Nat)).1
+
+-- a λ under a path abstraction applied to an interval
+def lamUnderPlam (i : I) : Int -> Nat := (\(x : I) -> ((\y -> zero) : (Int -> Nat))) (~i)
