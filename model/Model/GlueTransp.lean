@@ -891,6 +891,49 @@ theorem gt_result_face (hψh : ψ.holds) : gtResult A φ Tp ep ψ u0 = u0 := by
 
 end gtExt
 
+section reduce
+
+variable {A : V} {φ : Cof m} {Tp ep : V} (hG : GlueOK A φ Tp ep)
+include hG
+
+omit hG in
+theorem transp_glueC_holds {n : ℕ} {f : Hom (n + 1) m} (hf : (φ.restr f).holds) (ψ : Cof n) (a0 : V) :
+    transpAt (glueC m A φ Tp ep) f ψ a0 = transpAt (dat Tp (n + 1) f) (Hom.id (n + 1)) ψ a0 := by
+  simp only [transpAt, trG_glueC, if_pos hf]
+
+theorem GlueOK.El_holds {n : ℕ} {f : Hom (n + 1) m} (hf : (φ.restr f).holds) (g : Hom k (n + 1)) :
+    El (glueC m A φ Tp ep) (f.comp g) = El (dat Tp (n + 1) f) g := by
+  have hfg : (φ.restr (f.comp g)).holds := cof_holds_comp hG.cof hf g
+  rw [El_glueC, if_pos hfg, ← hG.Tcoh _ f hf k g, El_res, Hom.comp_id]
+
+theorem GlueOK.const_holds {n : ℕ} {f : Hom (n + 1) m} (hf : (φ.restr f).holds) {ψ : Cof n}
+    (hc : ConstOn (glueC m A φ Tp ep) f ψ) : ConstOn (dat Tp (n + 1) f) (Hom.id (n + 1)) ψ := by
+  intro n' h hh r
+  have := hc n' h hh r
+  rw [← res_res, ← res_res, res_glueC hG.Tcoh (fun k f hf => (hG.fibT k f hf).kv) hG.cof f, if_pos hf] at this
+  rwa [Hom.id_comp, Hom.id_comp]
+
+theorem GlueOK.code_not {n : ℕ} {f : Hom (n + 1) m} (hf : ¬ (φ.restr f).holds) (g : Hom k (n + 1)) :
+    El (glueC m A φ Tp ep) (f.comp g) = El (glueC (n + 1) (res f A) (φ.restr f) (res f Tp) (res f ep)) g := by
+  rw [← El_res, hG.res_code hf]
+
+theorem GlueOK.const_not {n : ℕ} {f : Hom (n + 1) m} (hf : ¬ (φ.restr f).holds) {ψ : Cof n}
+    (hc : ConstOn (glueC m A φ Tp ep) f ψ) :
+    ConstOn (glueC (n + 1) (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id (n + 1)) ψ := by
+  intro n' h hh r
+  have := hc n' h hh r
+  rw [← res_res, ← res_res, hG.res_code hf] at this
+  rwa [Hom.id_comp, Hom.id_comp]
+
+theorem GlueOK.transp_not {n : ℕ} {f : Hom (n + 1) m} (hf : ¬ (φ.restr f).holds) (ψ : Cof n) {a0 : V}
+    (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (eZ n))) :
+    transpAt (glueC m A φ Tp ep) f ψ a0 = gtResult (res f A) (φ.restr f) (res f Tp) (res f ep) ψ a0 := by
+  rw [hG.code_not hf, El_glueC] at ha
+  simp only [transpAt, trG_glueC, if_neg hf, glueTr]
+  exact apZ_trGraph _ ha
+
+end reduce
+
 /-! ### Changing the data along `lift h`
 
 The transport at a restricted stage uses the restricted data `A·(lift h)`, `φ·(lift h)`, ...;
@@ -1010,6 +1053,67 @@ theorem gd_A1 :
     ← hcompAt_res_id', res_res, TranspPi.lift_comp_endpt1, hcompAt_res_id', gd_A1Tube hG hψ hu0 hcon,
     gd_A1' hG hψ hu0 hcon, Cof.or_restr, Cof.restr_restr, Cof.restr_restr, TranspPi.lift_comp_endpt1]
 
+include hG hψ hu0 hcon in
+/-- On `δ`, `ext = (t1', ω)`. -/
+theorem gt_ext_δ {g : Hom k n} (hg : ((gtδ φ).restr g).holds) :
+    gtExt A φ Tp ep ψ u0 g = pairV k (gtT1' Tp ψ u0 g) (gtω A φ Tp ep ψ u0 g) := by
+  have hφg : (φ.restr ((eO n).comp g)).holds := by rw [← snoc_one_eq]; exact gt_δ_snoc hG.cof hg _
+  obtain ⟨hX, hcen, hctr, -⟩ := gt_c hG hψ hu0 hcon hφg
+  have hok := gt_ext_tube_ok hG hψ hu0 hcon hφg
+  rw [gtExt, hX.hcFace _ _ _ _ _ ((gt_δ_cof hG.cof).restr g |>.or (hψ.restr g)) hcen hok
+    (Cof.holds_or.2 (Or.inl hg))]
+  simp only [gtExtTube]
+  rw [Hom.comp_id, if_pos hg]
+  obtain ⟨hT, hA, hp, -⟩ := gt_e1 hG hφg
+  exact contr_tube_one hX hctr (pairV_mem_fiberM hT.kv hA.kv (mem_piEl.1 (mem_arrowM hT.kv hp)).1 (isKV_res _ _)
+    (gt_T1'_mem hG hψ hu0 hcon hg) (gt_ω_mem hG hψ hu0 hcon hg))
+
+include hG hψ hu0 hcon in
+theorem gt_result_res_φ1 {h : Hom k n} (hφh : (φ.restr ((eO n).comp h)).holds) :
+    res h (gtResult A φ Tp ep ψ u0) = fstV k (gtExt A φ Tp ep ψ u0 h) := by
+  rw [gtResult]
+  by_cases hφ : (φ.restr (eO n)).holds
+  · have hφ' : (φ.restr ((eO n).comp (Hom.id n))).holds := by rw [Hom.comp_id]; exact hφ
+    rw [if_pos hφ, ← fstV_res_of_pair (gt_ext_split hG hψ hu0 hcon hφ').1, gt_ext_res hG hψ hu0 hcon hφ',
+      Hom.id_comp]
+  · rw [if_neg hφ]
+    have hh : ((φ.restr (eO n)).restr h).holds := by rwa [Cof.restr_restr]
+    have hcoh : ∀ n' (h' : Hom n' k), res h' (dat (partialKV n (φ.restr (eO n))
+        fun k g => fstV k (gtExt A φ Tp ep ψ u0 g)) k h) =
+        dat (partialKV n (φ.restr (eO n)) fun k g => fstV k (gtExt A φ Tp ep ψ u0 g)) n' (h.comp h') := by
+      intro n' h'
+      have hh' : ((φ.restr (eO n)).restr (h.comp h')).holds := by
+        rw [Cof.restr_restr, ← Hom.comp_assoc]; exact cof_holds_comp hG.cof hφh h'
+      rw [dat_partialKV_holds hh, dat_partialKV_holds hh', ← fstV_res_of_pair (gt_ext_split hG hψ hu0 hcon hφh).1,
+        gt_ext_res hG hψ hu0 hcon hφh]
+    rw [res_glueV_holds (hG.cof.restr _) hh hcoh (by rw [← Hom.comp_id h, ← hcoh]; exact isKV_res _ _),
+      dat_partialKV_holds hh]
+
+include hG hψ hu0 hcon in
+/-- Naturality of Glue transport (at the generic line). -/
+theorem gt_result_res (h : Hom k n) :
+    res h (gtResult A φ Tp ep ψ u0) =
+      transpAt (glueC (n + 1) A φ Tp ep) (Hom.lift h) (ψ.restr h) (res h u0) := by
+  by_cases hδ : ((gtδ φ).restr h).holds
+  · have hφh : (φ.restr ((eO n).comp h)).holds := by rw [← snoc_one_eq]; exact gt_δ_snoc hG.cof hδ _
+    rw [transp_glueC_holds ((gt_δ_lift h).1 hδ), gt_result_res_φ1 hG hψ hu0 hcon hφh, gt_ext_δ hG hψ hu0 hcon hδ,
+      fstV_pairV ((hG.fibT _ _ hφh).elKV _ _ _ (gt_T1'_mem hG hψ hu0 hcon hδ))]
+    rfl
+  · have hu0' : res h u0 ∈ El (glueC (n + 1) A φ Tp ep) ((Hom.lift h).comp (eZ k)) := by
+      rw [TranspPi.lift_comp_endpt0]; exact hG.elRes hu0 h
+    have hL : ¬ (φ.restr (Hom.lift h)).holds := fun hh => hδ ((gt_δ_lift h).2 hh)
+    have hface : (φ.restr (Hom.lift h)).restr (eO k) = (φ.restr (eO n)).restr h := by
+      rw [Cof.restr_restr, Cof.restr_restr, TranspPi.lift_comp_endpt1]
+    rw [hG.transp_not hL _ hu0']
+    conv_rhs => rw [gtResult, hface, Cof.restr_restr]
+    by_cases hφh : (φ.restr ((eO n).comp h)).holds
+    · rw [if_pos hφh, gt_result_res_φ1 hG hψ hu0 hcon hφh, gd_Ext hG hψ hu0 hcon, Hom.comp_id]
+    · have hφ : ¬ (φ.restr (eO n)).holds := fun hh => hφh (by
+        rw [← Cof.restr_restr]; exact (hG.cof.restr _).holds_restr hh h)
+      rw [if_neg hφh, gtResult, if_neg hφ, res_glueV, res_partialKV, gd_A1 hG hψ hu0 hcon, Cof.restr_restr, ← Cof.restr_restr]
+      congr 1
+      congr 1; funext k' g; rw [gd_Ext hG hψ hu0 hcon]
+
 end gtData
 
 section fields
@@ -1018,42 +1122,6 @@ variable {A : V} {φ : Cof m} {Tp ep : V} (hG : GlueOK A φ Tp ep)
 include hG
 
 /-! ### The transport fields of the fibration structure -/
-
-omit hG in
-theorem transp_glueC_holds {n : ℕ} {f : Hom (n + 1) m} (hf : (φ.restr f).holds) (ψ : Cof n) (a0 : V) :
-    transpAt (glueC m A φ Tp ep) f ψ a0 = transpAt (dat Tp (n + 1) f) (Hom.id (n + 1)) ψ a0 := by
-  simp only [transpAt, trG_glueC, if_pos hf]
-
-theorem GlueOK.El_holds {n : ℕ} {f : Hom (n + 1) m} (hf : (φ.restr f).holds) (g : Hom k (n + 1)) :
-    El (glueC m A φ Tp ep) (f.comp g) = El (dat Tp (n + 1) f) g := by
-  have hfg : (φ.restr (f.comp g)).holds := cof_holds_comp hG.cof hf g
-  rw [El_glueC, if_pos hfg, ← hG.Tcoh _ f hf k g, El_res, Hom.comp_id]
-
-theorem GlueOK.const_holds {n : ℕ} {f : Hom (n + 1) m} (hf : (φ.restr f).holds) {ψ : Cof n}
-    (hc : ConstOn (glueC m A φ Tp ep) f ψ) : ConstOn (dat Tp (n + 1) f) (Hom.id (n + 1)) ψ := by
-  intro n' h hh r
-  have := hc n' h hh r
-  rw [← res_res, ← res_res, res_glueC hG.Tcoh (fun k f hf => (hG.fibT k f hf).kv) hG.cof f, if_pos hf] at this
-  rwa [Hom.id_comp, Hom.id_comp]
-
-theorem GlueOK.code_not {n : ℕ} {f : Hom (n + 1) m} (hf : ¬ (φ.restr f).holds) (g : Hom k (n + 1)) :
-    El (glueC m A φ Tp ep) (f.comp g) = El (glueC (n + 1) (res f A) (φ.restr f) (res f Tp) (res f ep)) g := by
-  rw [← El_res, hG.res_code hf]
-
-theorem GlueOK.const_not {n : ℕ} {f : Hom (n + 1) m} (hf : ¬ (φ.restr f).holds) {ψ : Cof n}
-    (hc : ConstOn (glueC m A φ Tp ep) f ψ) :
-    ConstOn (glueC (n + 1) (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id (n + 1)) ψ := by
-  intro n' h hh r
-  have := hc n' h hh r
-  rw [← res_res, ← res_res, hG.res_code hf] at this
-  rwa [Hom.id_comp, Hom.id_comp]
-
-theorem GlueOK.transp_not {n : ℕ} {f : Hom (n + 1) m} (hf : ¬ (φ.restr f).holds) (ψ : Cof n) {a0 : V}
-    (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (eZ n))) :
-    transpAt (glueC m A φ Tp ep) f ψ a0 = gtResult (res f A) (φ.restr f) (res f Tp) (res f ep) ψ a0 := by
-  rw [hG.code_not hf, El_glueC] at ha
-  simp only [transpAt, trG_glueC, if_neg hf, glueTr]
-  exact apZ_trGraph _ ha
 
 theorem GlueOK.trMem (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : ψ.IsCof)
     (hc : ConstOn (glueC m A φ Tp ep) f ψ) (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.zero n)))) :
@@ -1083,7 +1151,16 @@ theorem GlueOK.trRes (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : 
     (n' : ℕ) (h : Hom n' n) :
     res h (transpAt (glueC m A φ Tp ep) f ψ a0) =
       transpAt (glueC m A φ Tp ep) (f.comp (Hom.lift h)) (ψ.restr h) (res h a0) := by
-  sorry
+  by_cases hf : (φ.restr f).holds
+  · have hfh : (φ.restr (f.comp (Hom.lift h))).holds := cof_holds_comp hG.cof hf _
+    rw [hG.El_holds hf] at ha
+    rw [transp_glueC_holds hf, transp_glueC_holds hfh,
+      (hG.fibT _ f hf).trRes n _ ψ a0 hψ (hG.const_holds hf hc) (by rwa [Hom.id_comp]) n' h, Hom.id_comp,
+      transpAt_eq_res_id, hG.Tcoh _ f hf _ (Hom.lift h)]
+  · rw [hG.transp_not hf ψ ha]
+    rw [hG.code_not hf] at ha
+    rw [gt_result_res (hG.restr f) hψ ha (hG.const_not hf hc) h, ← hG.res_code hf, transpAt_eq_res_id,
+      res_res, ← transpAt_eq_res_id]
 
 /-- Glue codes are fibrant. -/
 theorem GlueOK.fib : Fib (glueC m A φ Tp ep) m where
