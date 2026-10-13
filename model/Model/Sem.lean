@@ -58,6 +58,21 @@ def argTySem (σ : SigV) (D : DataDecl) (d c j n : ℕ) (psv : V) (pre : List V)
       argPreValid σ D d c j n psv pre
   then argTyRaw σ D d c j n psv pre else emptyC n
 
+/-- `v` is a list value (nested pairs) of length `n`. -/
+def ListLen : V → ℕ → Prop
+  | v, 0 => v = ∅
+  | v, n + 1 => (∃ a b, v = ZFSet.pair a b) ∧ ListLen (π2 v) n
+
+/-- Parameter values (given at all restrictions, as list values) of the declaration `D`: lists of
+the right length whose components have their types (at the earlier parameters, interpreted in
+`σ`) and are natural. -/
+def ParamsOK (σ : SigV) (D : DataDecl) (m : ℕ) (ps : RV m) : Prop :=
+  ∀ n (g : Hom n m), ListLen (ps n g) D.params.length ∧
+    (∀ i (hi : i < D.params.length), IsKV n (vnth (ps n g) i) ∧
+      vnth (ps n g) i ∈ El (interp σ univC TyCode (D.params[i]) n (fun _ => DM.zero n)
+        (argEnv [] (plist (ps n g) i))) (Hom.id n)) ∧
+    ∀ n' (h : Hom n' n), ∀ i < D.params.length, vnth (ps n' (g.comp h)) i = res h (vnth (ps n g) i)
+
 /-- The semantic inductive type at the parameters `ps` (given at all restrictions). -/
 def dataSD (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) : SData m where
   ctors := D.ctors
@@ -65,11 +80,12 @@ def dataSD (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) : SData m where
   ty c j n g pre := argTySem σ D d c j n (ps n g) pre
 
 /-- The semantics of the inductive type `d` with declaration `D`, given the semantics `σ` of the
-entries before it: the type former (the data code at the parameters), the constructors (values
-of the arguments at the stage itself; parameters are not recorded) and the eliminator. -/
+entries before it: the type former (the data code at valid parameters, junk otherwise, so that
+a well-typed type former has valid parameters), the constructors (values of the arguments at
+the stage itself; parameters are not recorded) and the eliminator. -/
 def dataSem (σ : SigV) (D : DataDecl) (d : ℕ) : SigV where
   cst _ _ := ∅
-  dat m _ ps := dataC (dataSD σ D d m ps)
+  dat m _ ps := if ParamsOK σ D m ps then dataC (dataSD σ D d m ps) else ∅
   con m _ c _ args rs := conV D.ctors m c (plist (args m (Hom.id m)) (D.ctors.getD c default).args.length) rs
   elim m _ ps P bs t := elimD (dataSD σ D d m ps) P bs m (Hom.id m) (t m (Hom.id m))
 
@@ -170,17 +186,17 @@ def SemEqTele (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) : Tm → Tm → List Tm �
     SemEq S Ψ Φ Γ a a' (A.substList prev) ∧ SemEqTele S Ψ Φ Γ as as' Δ (a :: prev)
   | _, _, _, _ => False
 
-/-- Parameter values (given at all restrictions, as list values) of the declaration `D`: each
-has its type (at the earlier parameters) and they are natural. -/
-def ParamsOK (S : Sig) (D : DataDecl) (m : ℕ) (ps : RV m) : Prop :=
-  ∀ n (g : Hom n m), (∀ i (hi : i < D.params.length), IsKV n (vnth (ps n g) i) ∧
-      vnth (ps n g) i ∈ El (sem S (D.params[i]) n (fun _ => DM.zero n) (argEnv [] (plist (ps n g) i))) (Hom.id n)) ∧
-    ∀ n' (h : Hom n' n), ∀ i < D.params.length, vnth (ps n' (g.comp h)) i = res h (vnth (ps n g) i)
+/-- The syntactic facts about a declaration used by the model (from `DataDecl.Wf`). -/
+def DataSyn (d : ℕ) (D : DataDecl) : Prop :=
+  D.level + 1 ≤ maxLevel ∧
+  (∀ (j : ℕ) (A : Tm), D.params[j]? = some A → A.closedB j 0 = true ∧ A.ConstsLt d) ∧
+  (∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C → ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
+    A.closedB (D.params.length + k) 0 = true ∧ A.ConstsLt d ∧ C.noRecDeps k A = true)
 
 /-- The inductive type `d` with declaration `D` is semantically valid: at valid parameters, its
 semantic data is well-formed and its argument types are well-formed codes of the declared level. -/
 def DataOK (S : Sig) (d : ℕ) (D : DataDecl) : Prop :=
-  ∀ m (ps : RV m), ParamsOK S D m ps →
+  DataSyn d D ∧ ∀ m (ps : RV m), ParamsOK (sigUpTo S d) D m ps →
     (dataSD (sigUpTo S d) D d m ps).Good ∧
     ∀ c j n (g : Hom n m) pre, (dataSD (sigUpTo S d) D d m ps).ty c j n g pre ∈ Vt D.level ∧
       ((dataSD (sigUpTo S d) D d m ps).PtValid c n g pre → WF D.level n ((dataSD (sigUpTo S d) D d m ps).ty c j n g pre))

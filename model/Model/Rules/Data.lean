@@ -1,4 +1,4 @@
-import Model.Rules.Basic
+import Model.Rules.DataSem
 
 /-!
 # Rules of inductive types (phase 2)
@@ -15,7 +15,7 @@ open KubusCore KubusCore.Tm
 
 noncomputable section
 
-variable {S : Sig}
+variable {S : Sig} {k m n : ℕ}
 
 /-! ### Telescopes -/
 
@@ -32,9 +32,38 @@ theorem sem_EqTele_cons {Ψ Φ Γ a a' as as' A Δ prev} (h0 : SemEq S Ψ Φ Γ 
 
 /-! ### Typing -/
 
+theorem constsLt_ofList {n : ℕ} : ∀ {L : List Tm}, (∀ t ∈ L, t.ConstsLt n) → (Tm.ofList L).ConstsLt n
+  | [], _ => trivial
+  | t :: L, h => ⟨h t List.mem_cons_self, constsLt_ofList fun u hu => h u (List.mem_cons_of_mem _ hu)⟩
+
+theorem SemTele.constsLt {Ψ Φ Γ ts Δ prev} (h : SemTele S Ψ Φ Γ ts Δ prev) : ts.ConstsLt S.length := by
+  obtain ⟨hlen, he, hty⟩ := h.toList
+  rw [he]
+  refine constsLt_ofList fun t ht => ?_
+  obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ht
+  exact (hty i (by omega) hi).2.1
+
+theorem tyOK_univ {l : ℕ} (hl : l + 1 ≤ maxLevel) (ρ : IEnv m) (γ : ℕ → V) : TyOK S (.univ l) m ρ γ :=
+  ⟨l, by omega, Or.inr rfl⟩
+
+theorem natural_univ (l : ℕ) (ρ : IEnv m) (γ : ℕ → V) : Natural S (.univ l) m ρ γ := fun k f => by
+  simp [res_univC]
+
+theorem dataSD_restr (σ : SigV) (D : DataDecl) (d : ℕ) (ps : Tm) (ρ : IEnv m) (γ : ℕ → V) (f : Hom k m) :
+    dataSD σ D d k (psRV S ps k (ρ.restr f) (TEnv.restr γ f)) = (dataSD σ D d m (psRV S ps m ρ γ)).restr f := by
+  simp only [dataSD, SData.restr, psRV, IEnv.restr_restr, TEnv.restr_restr]
+
 theorem sem_HasTy_data {Ψ Φ Γ d D ps} (hS : SigOK S) (h0 : S[d]? = some (.data D)) (h1 : D.level + 1 ≤ maxLevel)
     (h2 : SemTele S Ψ Φ Γ ps D.params []) : SemTy S Ψ Φ Γ (data d ps) (univ D.level) := by
-  sorry
+  have hd : d < S.length := (List.getElem?_eq_some_iff.1 h0).1
+  have hok := hS.2 d D h0
+  refine ⟨h2.wf, ⟨hd, h2.constsLt⟩, trivial, fun m ρ γ hp => ⟨?_, fun k f => ?_, tyOK_univ h1 ρ γ, natural_univ _ ρ γ⟩⟩
+  · obtain ⟨hgood, hty⟩ := hok.2 m _ (paramsOK_of_tele hd.le hok.1 h2 hp)
+    rw [sem_data_of h0 (paramsOK_of_tele hd.le hok.1 h2 hp), sem_univ, mem_El_univ_iff]
+    exact ⟨dataC_mem_Vt (by unfold maxLevel at h1; omega) fun c j n g pre => (hty c j n g pre).1,
+      WFI.data _ hgood.toGoodCore fun c j n g pre hpv => (hty c j n g pre).2 hpv⟩
+  · rw [sem_data_of h0 (paramsOK_of_tele hd.le hok.1 h2 (hp.restr h2.wf f)),
+      sem_data_of h0 (paramsOK_of_tele hd.le hok.1 h2 hp), res_dataC, dataSD_restr]
 
 theorem sem_HasTy_con {Ψ Φ Γ d D c C ps args rs} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : D.ctors[c]? = some C) (h2 : SemTy S Ψ Φ Γ (data d ps) (univ D.level))
