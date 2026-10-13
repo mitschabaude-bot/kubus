@@ -460,4 +460,48 @@ theorem hcompCon_inv :
 
 end
 
+theorem dims_of_not_hit {D : DataDecl} {c : Nat} {C : Ctor} (h1 : D.isHIT = false)
+    (h2 : D.ctors[c]? = some C) : C.dims = 0 := by
+  simp only [DataDecl.isHIT, List.any_eq_false] at h1
+  have := h1 C (List.mem_of_getElem? h2)
+  simp only [Bool.or_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true'] at this
+  omega
+
+theorem hcompCon_of (hS : SigClosed S) (hW : WfSig S) {Ψ Φ Γ d D c C ps φ u qs uargs args T}
+    (htr : ∀ {Ψ' Φ' Γ' t A}, HasTy (S.take d) Ψ' Φ' Γ' t A → HasTy0 S Ψ' Φ' Γ' t A)
+    (h0 : S[d]? = some (.data D)) (h1 : D.isHIT = false) (h2 : D.ctors[c]? = some C)
+    (h3 : ps = Tm.ofList ps.toList) (h4 : args = Tm.ofList args.toList)
+    (h5 : uargs = Tm.ofList uargs.toList)
+    (h6 : HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
+    (h7 : HasTele0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift uargs (C.argTys d D.params.length) ps.dshift.toList.reverse)
+    (h8 : EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (con d c ps.dshift uargs []) (data d ps.dshift))
+    (h9 : EqTele0 S Ψ (cof Φ φ) Γ (uargs.dinst .zero) args (C.argTys d D.params.length) ps.toList.reverse)
+    (h10 : HasTy0 S Ψ Φ Γ (hcomp (data d ps) φ u (con d c qs args [])) T) :
+    HasTy0 S Ψ Φ Γ (con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (data d ps)
+      ps.dshift.toList φ 0 [] uargs.toList args.toList)) []) T := by
+  obtain ⟨l0, ⟨hdT, hφ, -, -, -⟩, ch⟩ := gen_hcomp h10 rfl
+  obtain ⟨-, -, -, -, -, Tel⟩ := hcompCon_inv hS hW htr h0 h2 h3 h4 h5 h6 h7 h9 hdT hφ _ (Nat.le_refl _)
+  have hw : Wf0 S Ψ Φ Γ := wf_of_tele h6
+  have hal : args.toList.length = C.args.length := by
+    have := tele_length h6; rwa [argTys_length] at this
+  have hul : uargs.toList.length = C.args.length := by
+    have := tele_length h7; rwa [argTys_length] at this
+  obtain ⟨D', hD', hpt⟩ := gen_data_tele hdT rfl
+  rw [h0] at hD'; cases hD'
+  have heq := hcompTele_eq C (C.argTy d D.params.length) (data d ps) ps.dshift.toList φ uargs.toList
+    args.toList uargs.toList args.toList 0 rfl rfl (by rw [hul, hal])
+  simp only [hal, ← List.range_eq_range'] at heq
+  rw [show ([] : List Tm) = (hFills C (C.argTy d D.params.length) (data d ps) ps.dshift.toList φ uargs.toList
+    args.toList 0).reverse from rfl, heq]
+  refine ch.transport (HasTy0.con h0 h2 h3 (HasTy0.data h0 (hW.2 d D h0).1 hpt) hpt ?_
+    (by rw [dims_of_not_hit h1 h2]; rfl) (by simp))
+  apply HasTele0.ofList_of hw _ _ _ (by simp [argTys_length])
+  intro k a B ha hB
+  have hk : k < C.args.length := by
+    have := (List.getElem?_eq_some_iff.1 ha).1; simpa using this
+  rw [argTys_get hk] at hB; cases hB
+  have := Tel k hk
+  rw [List.getD_eq_getElem?_getD, ha] at this
+  exact this
+
 end KubusCore.Meta
