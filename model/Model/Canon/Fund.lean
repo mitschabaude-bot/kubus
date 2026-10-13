@@ -1,4 +1,5 @@
 import Model.Canon.Kan
+import Model.Canon.FormersData
 
 /-!
 # Canonicity: the fundamental lemma
@@ -29,6 +30,30 @@ def TeleCompS (S : Sig) (k : ℕ) (γ : ℕ → Tm) (τ : ℕ → I) : Tm → Li
   | .tnil, [], _ => True
   | .tcons a as, A :: Δ, prev => RE S k ((A.substList prev).subst γ τ) (a.subst γ τ) ∧ TeleCompS S k γ τ as Δ (a :: prev)
   | _, _, _ => False
+
+
+theorem tele_isList {Ψ : ℕ} {Φ : I} {Γ : Ctx} : ∀ {ts : Tm} {Δ prev : List Tm}, HasTele0 S Ψ Φ Γ ts Δ prev →
+    ts = Tm.ofList ts.toList
+  | _, _, _, .nil _ => rfl
+  | _, _, _, .cons _ h1 => by simp only [Tm.toList, Tm.ofList]; rw [← tele_isList h1]
+
+theorem tele_length {Ψ : ℕ} {Φ : I} {Γ : Ctx} : ∀ {ts : Tm} {Δ prev : List Tm}, HasTele0 S Ψ Φ Γ ts Δ prev →
+    ts.toList.length = Δ.length
+  | _, _, _, .nil _ => rfl
+  | _, _, _, .cons _ h1 => by simp only [Tm.toList, List.length_cons]; rw [tele_length h1]
+
+theorem teleCompS_get {γ : ℕ → Tm} {τ : ℕ → I} : ∀ {ts : Tm} {Δ prev : List Tm}, TeleCompS S k γ τ ts Δ prev →
+    ∀ j (hj : j < ts.toList.length) (hΔ : j < Δ.length),
+      RE S k ((Δ[j].substList ((ts.toList.take j).reverse ++ prev)).subst γ τ) (ts.toList[j].subst γ τ)
+  | .tcons a as, A :: Δ, prev, ⟨h1, h2⟩ => fun j hj hΔ => by
+    cases j with
+    | zero => simpa [Tm.toList] using h1
+    | succ j =>
+      have := teleCompS_get h2 j (by simp [Tm.toList] at hj; omega) (by simp at hΔ; omega)
+      simpa [Tm.toList, List.take_succ_cons, List.reverse_cons, List.append_assoc] using this
+  | .tnil, [], _, _ => fun j hj => by simp [Tm.toList] at hj
+  | .tnil, _ :: _, _, h => h.elim
+  | .tcons _ _, [], _, h => h.elim
 
 variable (hW : WfSig S) {n : ℕ} (hH : Hyp S n)
 include hW hH
@@ -239,10 +264,58 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
   | @HasTy0.data _ Ψ Φ Γ d D ps h0 h1 h2 => fun hc k c => by
     have ih := fund_tele h2
     sorry
-  | @HasTy0.con _ Ψ Φ Γ d D c C ps args rs h0 h1 h2 h3 h4 h5 h6 h7 => fun hc k c => by
-    have ihp := fund_tele h4
-    have iha := fund_tele h5
-    sorry
+  | @HasTy0.con _ Ψ Φ Γ d D c C ps args rs h0 h1 h2 h3 h4 h5 h6 h7 => fun hc k c' => by
+    have iha := fund_tele h5 hc.2.2 k c'
+    have hpsT : HasTy S k .one [] (.data d (ps.subst c'.γ c'.σ.τ)) (.univ D.level) := c'.ty hW h3
+    have hal := tele_isList h5
+    have hlen := tele_length h5
+    simp only [Ctor.argTys, List.length_map, List.length_range] at hlen
+    have hpl' : ps.subst c'.γ c'.σ.τ = Tm.ofList (ps.subst c'.γ c'.σ.τ).toList := isList_subst h2 _ _
+    have hpsl : ps.toList.length = D.params.length := by
+      have := tele_length h4; simpa using this
+    have hsyn := ((sigOK_of_wfSig _ S rfl hW).2 d D h0).1
+    have hty : HasTy S k .one [] (.con d c (ps.subst c'.γ c'.σ.τ) (args.subst c'.γ c'.σ.τ)
+        (rs.map (·.subst c'.σ.τ))) (.data d (ps.subst c'.γ c'.σ.τ)) := c'.ty hW (HasTy0.con h0 h1 h2 h3 h4 h5 h6 h7)
+    show RE S k (.data d (ps.subst c'.γ c'.σ.τ)) (.con d c (ps.subst c'.γ c'.σ.τ) (args.subst c'.γ c'.σ.τ)
+      (rs.map (·.subst c'.σ.τ)))
+    have hal' : args.subst c'.γ c'.σ.τ = Tm.ofList (args.toList.map (·.subst c'.γ c'.σ.τ)) := by
+      conv_lhs => rw [hal]
+      exact ofList_subst _ _ _
+    rw [hal'] at hty ⊢
+    have hargC : ∀ j (hj : j < args.toList.length),
+        RE S k ((C.argTy d D.params.length j).substList
+          (((args.toList.map (·.subst c'.γ c'.σ.τ)).take j).reverse ++ (ps.subst c'.γ c'.σ.τ).toList.reverse))
+          ((args.toList.map (·.subst c'.γ c'.σ.τ))[j]'(by simpa using hj)) := by
+      intro j hj
+      have h := teleCompS_get iha j hj (by simp [Ctor.argTys]; omega)
+      simp only [Ctor.argTys, List.getElem_map, List.getElem_range] at h
+      have hcl : (C.argTy d D.params.length j).closedB
+          (((args.toList.take j).reverse ++ ps.toList.reverse)).length 0 = true := by
+        simp only [List.length_append, List.length_reverse, List.length_take, hpsl]
+        rw [Nat.min_eq_left hj.le]
+        unfold Ctor.argTy; split
+        · rename_i A hA
+          have := (hsyn.2.2.1 c C h1 j A hA).1
+          rw [Nat.add_comm]; exact this
+        · rw [Nat.add_comm]; exact paramVars_closed _ _
+      rw [substList_subst hcl, List.map_append, List.map_reverse, List.map_reverse, ← toList_subst h2] at h
+      simp only [List.getElem_map, List.map_take]
+      rwa [List.map_take] at h
+    refine RE_con hW h0 hpsT hpl' h1 (by simp; omega) (by simp [h6]) (fun r hr => ?_) hty (fun j hj hr => ?_)
+      (fun j hj hr => hargC j (by simpa using hj))
+    · obtain ⟨r0, hr0, rfl⟩ := List.mem_map.1 hr; exact I.scoped_subst (h7 r0 hr0) c'.σ.sc
+    · have := hargC j (by simpa using hj)
+      have harg : C.argTy d D.params.length j = .data d (Ctor.paramVars D.params.length j) := by
+        have hjC : j < C.args.length := by simp at hj; omega
+        cases h' : C.args[j]'hjC with
+        | point A => simp [Ctor.isRec, List.getElem?_eq_getElem hjC, h'] at hr
+        | recur => simp [Ctor.argTy, List.getElem?_eq_getElem hjC, h']
+      rw [harg, Tm.substList] at this
+      rw [show (Tm.data d (Ctor.paramVars D.params.length j)).subst _ I.var =
+          Tm.data d ((Ctor.paramVars D.params.length j).substList _) from rfl] at this
+      have hjl : j < args.toList.length := by simpa using hj
+      rwa [Meta.paramVars_substList (isList_subst h2 _ _) (by rw [toList_subst h2]; simp [hpsl])
+        (by rw [List.length_reverse, List.length_take, List.length_map]; exact Nat.min_eq_left hjl.le)] at this
   | @HasTy0.elim _ Ψ Φ Γ d D ps P bs t m h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => fun hc k c => by
     have iht := fund_ty h9
     sorry
