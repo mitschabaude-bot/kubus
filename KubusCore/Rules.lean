@@ -387,8 +387,11 @@ def paramCtx (D : DataDecl) (j : Nat) : Ctx := (D.params.take j).reverse
 def argCtx (D : DataDecl) (d : Nat) (C : Ctor) (k : Nat) : Ctx :=
   (List.range k).reverse.map (C.argTy d D.params.length) ++ D.paramCtx D.params.length
 
-/-- The declaration with only the constructors before `c`. -/
-def truncate (D : DataDecl) (c : Nat) : DataDecl := { D with ctors := D.ctors.take c }
+/-- The declaration with only the constructors before `c`, and an extra nullary constructor
+(at index `c`, which no boundary of constructor `c` can refer to) so that the type is inhabited:
+judgments in a context with an empty type would hold vacuously in the model. -/
+def truncate (D : DataDecl) (c : Nat) : DataDecl :=
+  { D with ctors := D.ctors.take c ++ [{ args := [], dims := 0, bnd := [] }] }
 
 /-- A well-formed declaration of the inductive type `d = S.length`, checked against the
 signature `S` before it: the parameters in `S` itself, the point arguments in `S` extended by
@@ -396,8 +399,9 @@ the declaration without constructors, and the boundary of constructor `c` and it
 overlaps in `S` extended by the declaration truncated to the constructors before `c`, so that neither `c`'s own boundary rule nor later constructors are
 available (otherwise `conBnd` would make the boundary check vacuous). Parameters and point
 arguments do not mention `d` (so `d` occurs only as the type of recursive arguments: strictly
-positive, not nested), point arguments live in the declared universe, and boundaries are
-simple, well-typed and agree on overlaps. -/
+positive, not nested), point arguments do not mention earlier recursive arguments and live in
+the declared universe, and boundaries are simple, well-typed (with the argument types of their
+nested constructors, `Ctor.bndTyped`) and agree on overlaps. -/
 def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   let np := D.params.length
   D.level + 1 ≤ maxLevel ∧
@@ -406,7 +410,8 @@ def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   ∀ (c : Nat) (C : Ctor), D.ctors[c]? = some C →
     let Sc := S ++ [.data (D.truncate c)]
     (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
-      A.mentionsData d = false ∧ HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+      A.mentionsData d = false ∧ C.noRecDeps k A = true ∧
+      HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
     (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
       b.closedB (np + C.args.length) C.dims = true ∧
       Ctor.simpleB D.ctors d np c C.args.length C b = true ∧

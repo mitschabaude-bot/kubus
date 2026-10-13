@@ -24,6 +24,8 @@ Data types are declared in the signature, next to definitions: a signature is a 
 
 **Decision: boundary arguments have the constructor's argument types judgmentally** (`Ctor.bndTyped`, part of `DataDecl.Wf`). For every boundary element and every point argument `var j` at position `k` of a nested constructor `con d c' ps as rs`, the type of `var j` must be judgmentally equal (at the declared level, under the boundary face) to argument type `k` of `c'`, instantiated as in the `con` rule (the earlier nested arguments, then the parameters). Typing the boundary is not enough: `HasTy` only says that the argument is an element of that type, and types with the same elements can have different transports. `transpCon` transports `c1 x 1` componentwise along `c1`'s argument type `B`, and its boundary `c0 x` along `c0`'s argument type `A'`. These must agree. *Example* (model red team): a constant `Bool` and `ua not` have the same elements but different transports.
 
+**Decision: the checking types are inhabited** (model red team). Judgments in a context containing an empty type hold vacuously in every model, so they cannot validate anything. The truncated declarations used by `DataDecl.Wf` (no constructors for point argument types, constructors `0 … c-1` for constructor `c`) therefore get one extra nullary, boundary-free constructor. It is appended at index `c`, which no boundary of `c` can refer to. For the same reason point argument types must not mention earlier recursive arguments (`Ctor.noRecDeps`, a syntactic check); they could not use them meaningfully anyway. `Ctor.simpleB` also checks that nested constructors get the right number of interval arguments.
+
 ## Terms
 
 | term | typing |

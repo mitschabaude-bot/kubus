@@ -525,6 +525,19 @@ def mentionsData (d : Nat) : Tm → Bool
   | elim d' ps P bs t => d' == d || ps.mentionsData d || P.mentionsData d || bs.mentionsData d ||
       t.mentionsData d
 
+/-- Whether the term variable `x` occurs free in `t`. -/
+def freeIn (x : Nat) : Tm → Bool
+  | var y => y == x
+  | const _ | univ _ | abort | tnil => false
+  | pi A B | sigma A B | lam A B => A.freeIn x || B.freeIn (x + 1)
+  | app A B | pair A B | tcons A B => A.freeIn x || B.freeIn x
+  | fst t | snd t | plam t | ipi t | papp t _ | data _ t => t.freeIn x
+  | path A a b | glueEl _ A a b => A.freeIn x || a.freeIn x || b.freeIn x
+  | unglue _ a b | split _ a _ b | transp a _ b => a.freeIn x || b.freeIn x
+  | hcomp A _ u a | glue A _ u a => A.freeIn x || u.freeIn x || a.freeIn x
+  | con _ _ ps args _ => ps.freeIn x || args.freeIn x
+  | elim _ ps P bs t => ps.freeIn x || P.freeIn (x + 1) || bs.freeIn x || t.freeIn x
+
 end Tm
 
 /-- A constructor argument: a point argument of a type not mentioning the inductive type, or a
@@ -577,6 +590,11 @@ def argTy (C : Ctor) (d np k : Nat) : Tm :=
   | some (.point A) => A
   | _ => .data d (paramVars np k)
 
+/-- The point argument type `A` at position `k` does not mention the recursive arguments
+before it. -/
+def noRecDeps (C : Ctor) (k : Nat) (A : Tm) : Bool :=
+  (List.range k).all fun j => !C.isRec j || !A.freeIn (k - 1 - j)
+
 def argTys (C : Ctor) (d np : Nat) : List Tm := (List.range C.args.length).map (C.argTy d np)
 
 /-- The boundary element `b` at parameters `ps`, arguments `args` and interval arguments `rs`. -/
@@ -595,10 +613,11 @@ recursive arguments are simple and whose point arguments are point arguments of 
 mutual
 def simpleB (ctors : List Ctor) (d np c n : Nat) (C : Ctor) : Tm → Bool
   | .var j => decide (j < n) && C.isRec (n - 1 - j)
-  | .con d' c' ps as _ =>
+  | .con d' c' ps as rs =>
     d' == d && decide (c' < c) && ps == paramVars np n &&
       (match ctors[c']? with
-       | some C' => as.toList.length == C'.args.length && simpleArgs ctors d np c n C C' 0 as
+       | some C' => as.toList.length == C'.args.length && rs.length == C'.dims &&
+           simpleArgs ctors d np c n C C' 0 as
        | none => false)
   | _ => false
 def simpleArgs (ctors : List Ctor) (d np c n : Nat) (C C' : Ctor) (k : Nat) : Tm → Bool
