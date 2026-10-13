@@ -329,7 +329,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   /- inductive types: elimination -/
   | elimCon {Ψ Φ Γ d D c C ps P bs b qs args rs T} : S[d]? = some (.data D) →
       D.ctors[c]? = some C → bs.toList[c]? = some b →
-      args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
+      ps = Tm.ofList ps.toList → args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
       HasTele S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
       HasTy S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T →
       EqTm S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
