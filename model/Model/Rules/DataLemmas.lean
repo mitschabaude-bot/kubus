@@ -24,6 +24,12 @@ theorem argEnv_eq_of_lt' {ps pre : List V} {x : ℕ} (hx : x < pre.length + ps.l
     argEnv ps pre x = (pre.reverse ++ ps.reverse)[x]'(by simp; omega) := by
   simp [argEnv, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by simp; omega : x < (pre.reverse ++ ps.reverse).length)]
 
+theorem sem_ofList_vlist (S : Sig) (L : List Tm) (ρ : IEnv m) (γ : ℕ → V) :
+    sem S (Tm.ofList L) m ρ γ = vlist (L.map fun t => sem S t m ρ γ) := by
+  induction L with
+  | nil => rfl
+  | cons t L ih => simp only [Tm.ofList, List.map_cons, vlist]; rw [← ih]; rfl
+
 /-- Substitution only depends on the free variables. -/
 theorem Tm.subst_congr_free : ∀ (t : Tm) (σ σ' : ℕ → Tm) (τ : ℕ → I),
     (∀ x, t.freeIn x = true → σ x = σ' x) → t.subst σ τ = t.subst σ' τ := by

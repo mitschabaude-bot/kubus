@@ -94,12 +94,6 @@ theorem listLen_vlist : ∀ {v : V} {n : ℕ}, ListLen v n → v = vlist (plist 
     simp only [π2_pair] at h2
     rw [plist_pair, vlist, ← listLen_vlist h2]
 
-theorem sem_ofList_vlist (S : Sig) (L : List Tm) (ρ : IEnv m) (γ : ℕ → V) :
-    sem S (Tm.ofList L) m ρ γ = vlist (L.map fun t => sem S t m ρ γ) := by
-  induction L with
-  | nil => rfl
-  | cons t L ih => simp only [Tm.ofList, List.map_cons, vlist]; rw [← ih]; rfl
-
 theorem ParamsOK.restr {σ : SigV} {D : DataDecl} {ps : RV m} (h : ParamsOK σ D m ps) (g : Hom n m) :
     ParamsOK σ D n (fun k f => ps k (g.comp f)) := fun k f => h k (g.comp f)
 
