@@ -979,13 +979,13 @@ theorem sigOK_ext {S0 : Sig} (hS0 : SigOK S0) {E : DataDecl} (hE : DataOK (S0 ++
 section assembly
 
 variable (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0.length)
-  (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
   (X : List Ctor) (B : ℕ) (hB : B ≤ D.ctors.length) (hXB : ∀ c' < B, X[c']? = D.ctors[c']?)
   (hXr : ∀ c', B ≤ c' → ∀ C', X[c']? = some C' → C' = genCtor)
   (hokB : ∀ c' < B, SigOK (S0 ++ [.data (D.truncate c')]))
 
-include hS0 hWf hok0 hXB hXr in
-theorem dataSyn_X : DataSyn S0.length { D with ctors := X } := by
+include hS0 hWf hXB hXr in
+theorem dataSyn_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
+    DataSyn S0.length { D with ctors := X } := by
   refine ⟨hWf.1, fun j A hA => ⟨(hWf.2.1 j A hA).1, ?_⟩, fun c C hC k A hA => ?_⟩
   · obtain ⟨l, hl⟩ := (hWf.2.1 j A hA).2.2
     exact (sound_ty hS0 hl).2.1
@@ -993,7 +993,7 @@ theorem dataSyn_X : DataSyn S0.length { D with ctors := X } := by
     · rw [show ({ D with ctors := X } : DataDecl).ctors = X from rfl, hXB c hcB] at hC
       obtain ⟨h1, h2, h3, h4⟩ := (hWf.2.2 c C hC).1 k A hA
       refine ⟨h1, ?_, h2, h3⟩
-      have := (sound_ty hok0 h4).2.1
+      have := (sound_ty (hok0 (by omega)) h4).2.1
       simpa using this
     · have := hXr c (by omega) C hC
       subst this; simp at hA
@@ -1007,7 +1007,83 @@ theorem hck_X : ∀ (c : ℕ) (C : Ctor), ({ D with ctors := X } : DataDecl).cto
   rw [show ({ D with ctors := X } : DataDecl).ctors = X from rfl, hXB c hcB] at hC
   exact ((hWf.2.2 c C hC).1 k A hA).2.2.2
 
+include hS0 hWf hXB hXr in
+theorem argTysOK_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
+    ArgTysOK S0 { D with ctors := X } := by
+  intro c C hC j A hA m ps hps n g pre hjp hpre
+  by_cases hcB : c < B
+  · exact argTy_univ S0 { D with ctors := X } (dataSyn_X S0 hS0 D hWf X B hXB hXr hok0) hC hps (hok0 (by omega))
+      (fun k A' hA' => hck_X S0 D hWf X B hXB c C hC hcB k A' hA')
+      j A hA n g pre hjp hpre
+  · have := hXr c (by omega) C hC
+    subst this; simp at hA
+
+include hS0 hWf hXB hXr hokB hB in
+theorem bnd_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) (ps : RV m)
+    (hps : ParamsOK (sigV S0) { D with ctors := X } m ps) :
+    ∀ c C, (dataSD (sigV S0) { D with ctors := X } S0.length m ps).ctors[c]? = some C → ∀ ψ b, (ψ, b) ∈ C.bnd →
+      ∀ n (rs : List (DM n)), (ival (renv rs) ψ).holds →
+        BTy (dataSD (sigV S0) { D with ctors := X } S0.length m ps) c C b := by
+  intro c C hC ψ b hb n rs hh
+  by_cases hcB : c < B
+  · have hCD : D.ctors[c]? = some C := by rw [← hXB c hcB]; exact hC
+    have hsynD : DataSyn S0.length D :=
+      dataSyn_X S0 hS0 D hWf D.ctors D.ctors.length (fun _ _ => rfl)
+        (fun c' h C' hC' => by rw [List.getElem?_eq_none (by omega)] at hC'; cases hC') (fun _ => hok0 (by omega))
+    have hckD : ∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C → ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
+        HasTy (S0 ++ [.data (D.truncate 0)]) 0 .one (D.argCtx S0.length C k) A (.univ D.level) :=
+      fun c C hC k A hA => ((hWf.2.2 c C hC).1 k A hA).2.2.2
+    obtain ⟨k, hk⟩ := List.getElem?_of_mem hb
+    obtain ⟨-, -, hsimple, -, hbt⟩ := (hWf.2.2 c C hCD).2.1 k ψ b hk
+    exact ((bty_of_wf S0 D hsynD hCD hps (hok0 (by omega)) hckD (hokB c hcB)
+      (by have := (List.getElem?_eq_some_iff.1 hCD).1; omega) hh (E := { D with ctors := X }) rfl
+      (fun c' hc' => hXB c' (by omega)) b).1 hsimple hbt).2
+  · have := hXr c (by omega) C hC
+    subst this; simp at hb
+
+include hS0 hWf hXB hXr hokB hB in
+theorem ovl_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) (ps : RV m)
+    (hps : ParamsOK (sigV S0) { D with ctors := X } m ps) :
+    ∀ c C, (dataSD (sigV S0) { D with ctors := X } S0.length m ps).ctors[c]? = some C → ∀ ψ b ψ' b',
+      (ψ, b) ∈ C.bnd → (ψ', b') ∈ C.bnd → ∀ n (g : Hom n m) args (rs : List (DM n)),
+        (dataSD (sigV S0) { D with ctors := X } S0.length m ps).ArgsTyped c C n g args → rs.length = C.dims →
+        (ival (renv rs) ψ).holds → (ival (renv rs) ψ').holds →
+        evalBnd (conBefore (dataSD (sigV S0) { D with ctors := X } S0.length m ps).ctors c n) args rs b =
+          evalBnd (conBefore (dataSD (sigV S0) { D with ctors := X } S0.length m ps).ctors c n) args rs b' := by
+  sorry
+
+include hS0 hWf hXB hXr hokB hB in
+theorem dataOK_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
+    DataOK (S0 ++ [.data { D with ctors := X }]) S0.length { D with ctors := X } :=
+  dataOK_of S0 _ (dataSyn_X S0 hS0 D hWf X B hXB hXr hok0) (argTysOK_X S0 hS0 D hWf X B hXB hXr hok0)
+    fun m ps hps => ⟨bnd_X S0 hS0 D hWf X B hB hXB hXr hokB hok0 m ps hps,
+      ovl_X S0 hS0 D hWf X B hB hXB hXr hokB hok0 m ps hps⟩
+
 end assembly
+
+theorem sigOK_trunc (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0.length) :
+    ∀ c ≤ D.ctors.length, SigOK (S0 ++ [.data (D.truncate c)]) := by
+  intro c
+  induction c using Nat.strong_induction_on with
+  | _ c ih =>
+    intro hc
+    have hX : D.truncate c = { D with ctors := D.ctors.take c ++ [genCtor] } := rfl
+    rw [hX]
+    refine sigOK_ext hS0 (dataOK_X S0 hS0 D hWf _ c hc (fun c' hc' => ?_) (fun c' hc' C' hC' => ?_)
+      (fun c' hc' => ih c' hc' (by omega)) (fun h0 => ih 0 h0 (by omega)))
+    · simp [List.getElem?_append_left (by simp; omega : c' < (D.ctors.take c).length), hc']
+    · rw [List.getElem?_append_right (by simp; omega)] at hC'
+      simp only [List.length_take, Nat.min_eq_left hc] at hC'
+      rcases Nat.lt_or_ge (c' - c) 1 with h | h
+      · rw [show c' - c = 0 by omega] at hC'; simp at hC'; exact hC'.symm
+      · rw [List.getElem?_eq_none (by simp; omega)] at hC'; cases hC'
+
+theorem dataOK_decl (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0.length) :
+    DataOK (S0 ++ [.data D]) S0.length D := by
+  have := dataOK_X S0 hS0 D hWf D.ctors D.ctors.length le_rfl (fun _ _ => rfl)
+    (fun c' hc' C' hC' => by rw [List.getElem?_eq_none (by omega)] at hC'; cases hC')
+    (fun c' hc' => sigOK_trunc S0 hS0 D hWf c' hc'.le) (fun _ => sigOK_trunc S0 hS0 D hWf 0 (Nat.zero_le _))
+  exact this
 
 end
 
