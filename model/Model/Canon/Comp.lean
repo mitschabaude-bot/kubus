@@ -178,6 +178,9 @@ inductive DR {m : ℕ} (d : ℕ) (D : DataDecl)
 
 /-! ### Decoding codes -/
 
+/-- The declaration of the inductive type `d`. -/
+def dataD (d : ℕ) : DataDecl := match S[d]? with | some (.data D) => D | _ => default
+
 /-- The natural number encoded by `v`. -/
 def natOf (v : V) : ℕ := if h : ∃ n, natZ n = v then Classical.choose h else 0
 
@@ -209,10 +212,10 @@ theorem rank_appV_res_le (B : V) (g : Hom k' k) (a : V) : rank (appV k' (res g B
   refine (rank_apZ_le _ _).trans ?_
   rw [dat_res]; exact rank_dat_le _ _
 
-/-- One step of the definition: the relations of the type whose data at the restrictions of
+/-- One step of the definition (without the typing of elements): the relations of the type whose data at the restrictions of
 stage `k` are `Dt` and which is the code `self`, given the relations `rec` of the codes of rank
 below `ρ`. -/
-def body (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal)
+def core (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal)
     (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ)
     (rec : (Y : V) → rank Y < ρ → (m k : ℕ) → Hom k m → Pack) : Pack :=
   let sh := π1 (Dt k (Hom.id k))
@@ -281,7 +284,7 @@ def body (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal
           ∀ k' (σ : ISub k' k), (φ.restr σ.hom).holds → (RT k' σ).el (T1.isub σ) (g.isub σ) }
   else if π1 sh = natZ tData then
     let d := natOf (π1 (π2 sh))
-    let D : DataDecl := match S[d]? with | some (.data D) => D | _ => default
+    let D : DataDecl := dataD S d
     let P : (k' : ℕ) → Hom k' k → ℕ → ℕ → List V → Tm → Tm → Prop := fun k' g c j pre A t =>
       (rec (tyLook (π2 (π2 (π2 (π1 (Dt k' g))))) c j pre) (tyLook_rank_lt (hD k' g)) k' k' (Hom.id k')).el A t
     { ty := fun A => base A ∧ ∃ ps, TyEq S k A (.data d ps) ∧ ps = Tm.ofList ps.toList ∧
@@ -297,6 +300,13 @@ def body (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal
               ((C.argTy d D.params.length args.length).substList (args.reverse ++ (ps.isub σ).toList.reverse))
       el := fun A t => HasTy S k .one [] t A ∧ DR S d D P k (Hom.id k) A t }
   else Pack.bot
+
+/-- The relations, with the elements typed and in the code's element set. -/
+def body (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal)
+    (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ)
+    (rec : (Y : V) → rank Y < ρ → (m k : ℕ) → Hom k m → Pack) : Pack :=
+  ⟨(core S k Dt self ρ hD rec).ty, fun A t => HasTy S k .one [] t A ∧ semK S k t ∈ El self (Hom.id k) ∧
+    (core S k Dt self ρ hD rec).el A t⟩
 
 /-- The recursion step: the relations of `X` restricted along `f`. -/
 def compF (X : V) (rec : (Y : V) → rank Y < rank X → (m k : ℕ) → Hom k m → Pack) (m k : ℕ) (f : Hom k m) : Pack :=
