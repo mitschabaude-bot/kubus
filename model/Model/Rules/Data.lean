@@ -4,8 +4,8 @@ import Model.Rules.CompLemmas
 /-!
 # Rules of inductive types (phase 2)
 
-One lemma per rule of inductive types. Work in progress: the lemmas proved by `sorry` are the
-rules not yet validated (the model of inductive types is being built).
+One lemma per rule of inductive types (the eliminator's typing rule is in `DataElimRule`,
+`transpCon` in `DataTransp`).
 -/
 
 set_option autoImplicit false

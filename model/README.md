@@ -185,6 +185,8 @@ Design decisions:
 
 ## Status
 
+Phase 2 (inductive types and HITs): `Model.consistent` and `Model.kernel_consistent` are sorry-free for the phase-2 spec (with P1–P10 and M4/M5); `#print axioms` shows only `propext`, `Classical.choice`, `Quot.sound`. Data declarations are validated in `Model/DataOKProof.lean` (argument types, boundaries, and their overlaps via generic atoms and corresponding values), the rules of inductive types in `Model/Rules/Data.lean`, `DataElimRule.lean` (eliminator typing: constructor equations by induction on constructors) and `DataTransp.lean` (`transpCon`).
+
 `Model/Consistency.lean` proves `consistent : KubusCore.Consistent` unconditionally: the model has no `sorry`s, and `#print axioms Model.consistent` shows only `propext`, `Classical.choice`, `Quot.sound`.
 
 All rules of `KubusCore/Rules.lean` are validated (sorry-free lemma in `Model/Rules/Stubs.lean`); `transpGlue` is in `Model/Rules/TranspGlue.lean` (the contractum denotes the Glue code's transport `gtResult`), `hcompU` in `Model/Rules/HcompU.lean` (the contractum denotes the universe's `hcomp`, `univHcF`).
