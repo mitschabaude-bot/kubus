@@ -1,4 +1,5 @@
 import Model.Whnf.Unfold2
+import Model.Canon.KanDerived
 
 /-!
 # PER properties of the relations of `Π`, `Σ` and path types, from those of their parts
@@ -15,7 +16,7 @@ open KubusCore KubusCore.Meta Model.Canon
 
 noncomputable section
 
-variable {S : Sig} {k : ℕ}
+variable {S : Sig} {k k' : ℕ}
 
 /-- The PER properties of a pair of relations. -/
 structure PERP (R : Pack2) : Prop where
@@ -339,52 +340,125 @@ theorem path_conv {A A' t t' : Tm} (hT : pathT (S := S) Lp A A') (hE : TyEq S k 
 
 end path
 
+/-! ### Restriction of the relations of families -/
+
+theorem ISub.up_comp_cons {k'' : ℕ} (σ : ISub k' k) (r : I) (hr : r.Scoped k'') (σ' : ISub k'' k') :
+    σ.up.comp (ISub.cons r hr σ') = ISub.cons r hr (σ.comp σ') := by
+  ext i
+  rcases i with _ | i
+  · rfl
+  · show ((σ.τ i).shift).subst (ISub.cons r hr σ').τ = (σ.τ i).subst σ'.τ
+    rw [I_shift_cons]
+
+
+section isub
+variable {k'' : ℕ} (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k3 : ℕ) → ISub k3 k' → Pack2)
+
+theorem piT_isub (σ : ISub k'' k) {X X' : Tm} (h : piT (S := S) D C X X') :
+    piT (S := S) (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (X'.isub σ) := by
+  intro k4 σ4
+  have := h k4 (σ.comp σ4)
+  rwa [← Tm.isub_isub, ← Tm.isub_isub] at this
+
+theorem sigT_isub (σ : ISub k'' k) {X X' : Tm} (h : sigT (S := S) D C X X') :
+    sigT (S := S) (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (X'.isub σ) := by
+  intro k4 σ4
+  have := h k4 (σ.comp σ4)
+  rwa [← Tm.isub_isub, ← Tm.isub_isub] at this
+
+theorem piEl_isub (hW : WfSig S) (σ : ISub k'' k) {X t t' : Tm} (h : piEl (S := S) D C X t t') :
+    piEl (S := S) (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (t.isub σ) (t'.isub σ) := by
+  obtain ⟨he, hall⟩ := h
+  refine ⟨⟨HasTy.isubS hW he.1 σ, HasTy.isubS hW he.2.1 σ, EqTm.isubS hW he.2.2 σ⟩, fun k4 σ4 => ?_⟩
+  have := hall k4 (σ.comp σ4)
+  simp only [ISub.id_comp] at this ⊢
+  rwa [← Tm.isub_isub, ← Tm.isub_isub, ← Tm.isub_isub] at this
+
+theorem sigEl_isub (hW : WfSig S) (σ : ISub k'' k) {X t t' : Tm} (h : sigEl (S := S) D C X t t') :
+    sigEl (S := S) (fun k4 σ4 => D k4 (σ.comp σ4)) (fun k4 σ4 => C k4 (σ.comp σ4)) (X.isub σ) (t.isub σ) (t'.isub σ) := by
+  obtain ⟨he, hall⟩ := h
+  refine ⟨⟨HasTy.isubS hW he.1 σ, HasTy.isubS hW he.2.1 σ, EqTm.isubS hW he.2.2 σ⟩, fun k4 σ4 => ?_⟩
+  have := hall k4 (σ.comp σ4)
+  simp only [ISub.id_comp] at this ⊢
+  rwa [← Tm.isub_isub, ← Tm.isub_isub, ← Tm.isub_isub] at this
+end isub
+
+section isubPath
+variable {k'' : ℕ} (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2)
+
+theorem pathT_isub (σ : ISub k'' k) {X X' : Tm} (h : pathT (S := S) Lp X X') :
+    pathT (S := S) (fun k4 σ4 => Lp k4 (σ.up.comp σ4)) (X.isub σ) (X'.isub σ) := by
+  intro k4 σ4
+  have := h k4 (σ.comp σ4)
+  rw [← Tm.isub_isub, ← Tm.isub_isub] at this
+  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := this
+  refine ⟨L1, b0, b1, L1', b0', b1', h1, h2, ?_, ?_, ?_⟩
+  · show (Lp (k4 + 1) (σ.up.comp σ4.up)).ty L1 L1'
+    rw [← ISub.up_comp]; exact h3
+  · show (Lp k4 (σ.up.comp (ISub.cons .zero trivial σ4))).el _ _ _
+    rw [ISub.up_comp_cons]; exact h4
+  · show (Lp k4 (σ.up.comp (ISub.cons .one trivial σ4))).el _ _ _
+    rw [ISub.up_comp_cons]; exact h5
+
+theorem pathEl_isub (hW : WfSig S) (σ : ISub k'' k) {X t t' : Tm} (h : pathEl (S := S) Lp X t t') :
+    pathEl (S := S) (fun k4 σ4 => Lp k4 (σ.up.comp σ4)) (X.isub σ) (t.isub σ) (t'.isub σ) := by
+  obtain ⟨he, hall⟩ := h
+  refine ⟨⟨HasTy.isubS hW he.1 σ, HasTy.isubS hW he.2.1 σ, EqTm.isubS hW he.2.2 σ⟩, fun k4 σ4 => ?_⟩
+  have := hall k4 (σ.comp σ4)
+  rw [← Tm.isub_isub] at this
+  obtain ⟨L1, b0, b1, h1, h2⟩ := this
+  refine ⟨L1, b0, b1, h1, fun r hr => ?_⟩
+  have := h2 r hr
+  simp only [ISub.id_comp] at this ⊢
+  rw [ISub.up_comp_cons, Tm.isub_isub, Tm.isub_isub]; exact this
+end isubPath
+
 variable (hW : WfSig S)
 include hW
 
 /-- The pack of a `Π` family, with judgmentally equal types. -/
 def piPack (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2) :
-    Pack2 := ⟨fun A A' => TyEq S k A A' ∧ piT (S := S) D C A A', piEl (S := S) D C⟩
+    Pack2 := ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ TyEq S k A A') ∧ piT (S := S) D C A A', piEl (S := S) D C⟩
 
 theorem piPack_per (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
     (hD : ∀ k' (σ : ISub k' k), PERP (D k' σ))
     (hC : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → PERP (C k' σ a k' (ISub.id k')))
     (hCa : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → C k' σ a = C k' σ a') :
     PERP (piPack (S := S) D C) :=
-  ⟨fun hT => ⟨hT.1.symm, pi_symTy D C hD hC hCa hT.2⟩,
-    fun hT hT' => ⟨hT.1.trans hW hT'.1, pi_transTy D C hD hC hCa hT.2 hT'.2⟩,
+  ⟨fun hT => ⟨⟨hT.1.2.1, hT.1.1, hT.1.2.2.symm⟩, pi_symTy D C hD hC hCa hT.2⟩,
+    fun hT hT' => ⟨⟨hT.1.1, hT'.1.2.1, hT.1.2.2.trans hW hT'.1.2.2⟩, pi_transTy D C hD hC hCa hT.2 hT'.2⟩,
     fun hT ht => pi_symEl D C hD hC hCa hT.2 ht,
     fun hT ht ht' => pi_transEl D C hD hC hCa hT.2 ht ht',
-    fun hT ht => pi_conv D C hD hC hT.2 hT.1 ht⟩
+    fun hT ht => pi_conv D C hD hC hT.2 hT.1.2.2 ht⟩
 
 /-- The pack of a `Σ` family, with judgmentally equal types. -/
 def sigPack (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2) :
-    Pack2 := ⟨fun A A' => TyEq S k A A' ∧ sigT (S := S) D C A A', sigEl (S := S) D C⟩
+    Pack2 := ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ TyEq S k A A') ∧ sigT (S := S) D C A A', sigEl (S := S) D C⟩
 
 theorem sigPack_per (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
     (hD : ∀ k' (σ : ISub k' k), PERP (D k' σ))
     (hC : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → PERP (C k' σ a k' (ISub.id k')))
     (hCa : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → C k' σ a = C k' σ a') :
     PERP (sigPack (S := S) D C) :=
-  ⟨fun hT => ⟨hT.1.symm, sig_symTy D C hD hC hCa hT.2⟩,
-    fun hT hT' => ⟨hT.1.trans hW hT'.1, sig_transTy D C hD hC hCa hT.2 hT'.2⟩,
+  ⟨fun hT => ⟨⟨hT.1.2.1, hT.1.1, hT.1.2.2.symm⟩, sig_symTy D C hD hC hCa hT.2⟩,
+    fun hT hT' => ⟨⟨hT.1.1, hT'.1.2.1, hT.1.2.2.trans hW hT'.1.2.2⟩, sig_transTy D C hD hC hCa hT.2 hT'.2⟩,
     fun hT ht => sig_symEl D C hD hC hCa hT.2 ht,
     fun hT ht ht' => sig_transEl D C hD hC hCa hT.2 ht ht',
-    fun hT ht => sig_conv D C hD hC hT.2 hT.1 ht⟩
+    fun hT ht => sig_conv D C hD hC hT.2 hT.1.2.2 ht⟩
 
 /-- The pack of path types over a family of lines, with judgmentally equal types. -/
 def pathPack (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) : Pack2 :=
-  ⟨fun A A' => TyEq S k A A' ∧ pathT (S := S) Lp A A', pathEl (S := S) Lp⟩
+  ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ TyEq S k A A') ∧ pathT (S := S) Lp A A', pathEl (S := S) Lp⟩
 
 theorem pathPack_per (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (hL : ∀ k' (σ : ISub k' (k + 1)), PERP (Lp k' σ))
     (hLt : ∀ k' (σ : ISub k' k) (L1 L1' : Tm), (Lp (k' + 1) σ.up).ty L1 L1' → ∀ (r : I) (hr : r.Scoped k'),
       (Lp k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r)) :
     PERP (pathPack (S := S) Lp) :=
-  ⟨fun hT => ⟨hT.1.symm, path_symTy Lp hL hLt hT.2⟩,
-    fun hT hT' => ⟨hT.1.trans hW hT'.1, path_transTy Lp hL hLt hT.2 hT'.2⟩,
+  ⟨fun hT => ⟨⟨hT.1.2.1, hT.1.1, hT.1.2.2.symm⟩, path_symTy Lp hL hLt hT.2⟩,
+    fun hT hT' => ⟨⟨hT.1.1, hT'.1.2.1, hT.1.2.2.trans hW hT'.1.2.2⟩, path_transTy Lp hL hLt hT.2 hT'.2⟩,
     fun hT ht => path_symEl Lp hL hLt hT.2 ht,
     fun hT ht ht' => path_transEl Lp hL hLt hT.2 ht ht',
-    fun hT ht => path_conv Lp hL hLt hT.2 hT.1 ht⟩
+    fun hT ht => path_conv Lp hL hLt hT.2 hT.1.2.2 ht⟩
 
 end
 
