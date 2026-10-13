@@ -143,6 +143,22 @@ theorem holds_iff_entails {φ : I} (hφ : φ.Scoped k) : (ival (idEnv k) φ).hol
     show (ival (idEnv k) φ).fn (Pt.allA k) = _
     rw [ival_idEnv_fn]; exact this
 
+/-- Cofibrations with the same face entail each other. -/
+theorem ent_of_face_eq {φ ψ : I} (hφ : φ.Scoped k) (hψ : ψ.Scoped k)
+    (h : (ival (idEnv k) φ).face = (ival (idEnv k) ψ).face) : I.Entails φ ψ := by
+  rw [Meta.entails_iff]
+  intro ρ hρ h1
+  let p : Pt k := fun j => ρ (k - 1 - j)
+  have e : ∀ χ : I, χ.Scoped k → (ival (idEnv k) χ).fn p = χ.eval ρ := by
+    intro χ hχ
+    rw [ival_idEnv_fn]
+    apply Cof.eval_congr hχ
+    intro n hn
+    simp only [Pt.rev, dif_pos hn, p]
+    congr 1; omega
+  have hp : p ∈ (ival (idEnv k) ψ).face := h ▸ ⟨fun j => hρ _, by rw [e φ hφ]; exact h1⟩
+  rw [← e ψ hψ]; exact hp.2
+
 /-- A cofibration holding at the generic point is constantly `1` in the De Morgan algebra. -/
 theorem ieq_one_of_holds {φ : I} (hφ : φ.Scoped k) (h : (ival (idEnv k) φ).holds) : I.Eq φ .one := by
   intro ρ

@@ -146,8 +146,10 @@ theorem RE_glue_elim (hGC : GlueCompat S) {A T e g : Tm} {φ : I} {l : ℕ}
     rcases hE with hE | ⟨l0, hE⟩
     · injection hE with h1 h2 h3 h4; subst h1 h2 h3 h4
       exact ⟨TyEq.refl _, EqTm.refl hu⟩
-    · obtain ⟨hAA, h12, h21, hee⟩ := hGC k A A1 T T1 e e1 φ φ1 l0 hE
-        (fun h => hn ((holds_iff_entails hφ).2 h))
+    · have h12 := ent_of_face_eq hφ hφ1 hf1.symm
+      have h21 := ent_of_face_eq hφ1 hφ hf1
+      obtain ⟨hAA, hee⟩ := hGC k A A1 T T1 e e1 φ φ1 l0 hE
+        (fun h => hn ((holds_iff_entails hφ).2 h)) h12 h21
       have hu1 : HasTy S k .one [] (.unglue φ1 e1 g) A :=
         (unglue_ty hW hG1 hdata1 (hgt.tyConv (.inr ⟨l0, hE⟩))).tyConv (show TyEq S k A A1 from .inr ⟨l0, hAA⟩).symm
       exact ⟨.inr ⟨l0, hAA⟩, (EqTm.unglue hu hu1 h12 h21 hee (EqTm.refl hgt)).symm⟩

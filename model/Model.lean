@@ -30,3 +30,4 @@ import Model.Consistency
 import Model.EndToEnd
 import Model.Minimal
 import Model.Canon.CanonForm
+import Model.Whnf.Sound

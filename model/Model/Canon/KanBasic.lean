@@ -18,6 +18,18 @@ noncomputable section
 
 variable {S : Sig} {k k' m : ℕ}
 
+theorem forall0_scoped {φ : I} (h : φ.Scoped (k + 1)) : φ.forall0.Scoped k := by
+  apply scoped_ofFaces
+  intro c hc l hl
+  simp only [List.mem_map, List.mem_filter] at hc
+  obtain ⟨α, ⟨hα, hall⟩, rfl⟩ := hc
+  obtain ⟨⟨i, d⟩, hil, rfl⟩ := List.mem_map.1 hl
+  have h1 := faces_scoped h α hα _ hil
+  have h2 := List.all_eq_true.1 hall _ hil
+  simp only [bne_iff_ne, ne_eq] at h2
+  simp only at h1 ⊢
+  omega
+
 /-- Computable tubes for `hcomp` at `A` with face `φ`. -/
 def TubeC (S : Sig) (k : ℕ) (A : Tm) (φ : I) (u : Tm) : Prop :=
   ∀ k' (σ : ISub k' k) (r : I), r.Scoped k' → (ival (idEnv k') (φ.subst σ.τ)).holds →
