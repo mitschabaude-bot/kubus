@@ -752,6 +752,59 @@ theorem gt_ext_psi {g : Hom k n} (hφg : (φ.restr ((eO n).comp g)).holds) (hψg
     · rfl
   rw [e, contr_tube_one hX hctr (gt_refl_mem hG hψ hu0 hcon hψg hφg)]
 
+include hG hψ hu0 hcon in
+/-- `ext` is a pair `(t, q)`, with `q` a path in `A(1)` from `e(1).1 t` to `a1'`. -/
+theorem gt_ext_split {g : Hom k n} (hφg : (φ.restr ((eO n).comp g)).holds) :
+    gtExt A φ Tp ep ψ u0 g = pairV k (fstV k (gtExt A φ Tp ep ψ u0 g)) (sndV k (gtExt A φ Tp ep ψ u0 g)) ∧
+    fstV k (gtExt A φ Tp ep ψ u0 g) ∈ El (gtT1 Tp g) (Hom.id k) ∧
+    ∃ q, q ∈ El A (((eO n).comp g).comp (Hom.wk k)) ∧ sndV k (gtExt A φ Tp ep ψ u0 g) = pathOfLine k q ∧
+      res (Hom.endpt k (DM.zero k)) q = eqFun k (gtE1 ep g) (fstV k (gtExt A φ Tp ep ψ u0 g)) ∧
+      res (Hom.endpt k (DM.one k)) q = res g (gtA1' A φ ep ψ u0) := by
+  obtain ⟨hT, hA, hp, -⟩ := gt_e1 hG hφg
+  obtain ⟨t, ht, p, hpm, he⟩ := mem_fiberM hT.kv hA.kv (mem_piEl.1 (mem_arrowM hT.kv hp)).1 (isKV_res _ _)
+    (gt_ext_mem hG hψ hu0 hcon hφg)
+  obtain ⟨q, hq, rfl, h0, h1⟩ := mem_pathC.1 hpm
+  have hqkv : IsKV k (pathOfLine k q) := by unfold pathOfLine; exact isKV_mkKV _
+  rw [he, fstV_pairV (hT.elKV _ _ _ ht), sndV_pairV hqkv]
+  refine ⟨rfl, ht, q, ?_, rfl, ?_, ?_⟩
+  · rw [Hom.lift_id, El_res, Hom.comp_id, gtAA1, El_res] at hq; exact hq
+  · rw [h0, res_id (hA.elKV _ _ _ (appV_arrowM hT.kv hp ht))]; rfl
+  · rw [h1, res_id (isKV_res _ _)]
+
+include hG hψ hu0 hcon in
+theorem gt_a1_tube_ok :
+    TubeOK A (eO n) (Cof.or (φ.restr (eO n)) ψ) (gtA1Tube A φ Tp ep ψ u0) (gtA1' A φ ep ψ u0) := by
+  refine ⟨fun n' h r hd => ?_, fun n' h r hd n'' g' => ?_, fun n' h hd => ?_⟩
+  · rw [Cof.or_restr, Cof.holds_or, Cof.restr_restr] at hd
+    unfold gtA1Tube
+    split_ifs with hφ
+    · obtain ⟨-, -, q, hq, e, -, -⟩ := gt_ext_split hG hψ hu0 hcon hφ
+      rw [e, pappV_pathOfLine]
+      have := hG.fibA.elRes _ _ _ hq _ (Hom.endpt n' (DM.neg r))
+      rwa [Hom.comp_assoc, Hom.wk_comp_endpt, Hom.comp_id] at this
+    · have := gt_A1'_g hG hψ hu0 hcon h
+      rwa [gtAA1, El_res, Hom.comp_id] at this
+  · rw [Cof.or_restr, Cof.holds_or, Cof.restr_restr] at hd
+    have hc : ∀ {h : Hom n' n}, (φ.restr ((eO n).comp h)).holds → (φ.restr ((eO n).comp (h.comp g'))).holds :=
+      fun hh => by rw [← Hom.comp_assoc]; exact cof_holds_comp hG.cof hh g'
+    unfold gtA1Tube
+    by_cases hφ : (φ.restr ((eO n).comp h)).holds
+    · rw [if_pos hφ, if_pos (hc hφ)]
+      obtain ⟨hpair, -, q, -, e, -, -⟩ := gt_ext_split hG hψ hu0 hcon hφ
+      rw [e, res_pappV_pathOfLine, ← e, ← sndV_res_of_pair hpair, gt_ext_res hG hψ hu0 hcon hφ]; rfl
+    · rw [if_neg hφ, res_res]
+      split_ifs with hφ'
+      · rw [gt_ext_psi hG hψ hu0 hcon hφ' (cof_holds_comp hψ (hd.resolve_left hφ) g'),
+          sndV_pairV (by unfold pathOfLine; exact isKV_mkKV _), pappV_pathOfLine, res_res, Hom.wk_comp_endpt,
+          res_id (isKV_res _ _)]
+      · rfl
+  · rw [Cof.or_restr, Cof.holds_or, Cof.restr_restr] at hd
+    unfold gtA1Tube
+    split_ifs with hφ
+    · obtain ⟨-, -, q, -, e, -, h1⟩ := gt_ext_split hG hψ hu0 hcon hφ
+      rw [e, pappV_pathOfLine, DM.neg_zero', h1]
+    · rfl
+
 end gtExt
 
 section fields
