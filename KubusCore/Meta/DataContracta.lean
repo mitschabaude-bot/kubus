@@ -1,4 +1,4 @@
-import KubusCore.Meta.DataTele
+import KubusCore.Meta.TranspCon
 
 /-!
 # Metatheory: typing the contracta of the computation rules of inductive types
@@ -148,9 +148,9 @@ theorem transpCon_of (hS : SigClosed S) (hW : WfSig S) {Ψ Φ Γ d D c C ps φ q
     (ch : TyChainC S Ψ Φ Γ ((data d ps).dinst .one) T) :
     HasTy0 S Ψ Φ Γ (con d c (ps.dinst .one)
       (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T := by
-  -- The argument types along the line are typed by the `DataDecl.Wf` clause for point arguments
-  -- over the prefix signature (`D.pointCtx`), carried to `S` by `htr`.
-  sorry
+  obtain ⟨-, D0, C0, hD0, hC0, -, -, -, -, hrs, hrsc⟩ := hI
+  rw [hD] at hD0; cases hD0; rw [hC] at hC0; cases hC0
+  exact ch.transport (transpCon_typed hS hW htr hD hC hps htele hL hφ hc hrs hrsc)
 
 theorem skip1I_dinst0_dshift (A : Tm) : ((A.dsubst skip1I).dinst .zero).dshift = (A.dinst .zero).dshift.dshift := by
   ssub
