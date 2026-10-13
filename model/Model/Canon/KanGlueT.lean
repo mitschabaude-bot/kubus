@@ -773,6 +773,87 @@ theorem L_Ppsi {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ)
     exact (L_a1'_isub hW hGC D σ).conv hW (TyEq.refl _) eβ.symm
   exact RE_contr hW (L_c hW hGC D hφ1) hpair
 
+omit hW in
+theorem tg_isub (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (δ : I) (σ : ISub k' k) :
+    (tgFib A φ T e ψ u0).isub σ = tgFib (A.isub σ.up) (φ.subst σ.up.τ) (T.isub σ.up) (e.isub σ.up) (ψ.subst σ.τ) (u0.isub σ) ∧
+    (tgC A φ e ψ u0).isub σ = tgC (A.isub σ.up) (φ.subst σ.up.τ) (e.isub σ.up) (ψ.subst σ.τ) (u0.isub σ) ∧
+    (tgPd A φ T e ψ u0).isub σ = tgPd (A.isub σ.up) (φ.subst σ.up.τ) (T.isub σ.up) (e.isub σ.up) (ψ.subst σ.τ) (u0.isub σ) ∧
+    (tgPpsi A φ e ψ u0).isub σ = tgPpsi (A.isub σ.up) (φ.subst σ.up.τ) (e.isub σ.up) (ψ.subst σ.τ) (u0.isub σ) ∧
+    (tgExt A φ T e ψ u0 δ).isub σ =
+      tgExt (A.isub σ.up) (φ.subst σ.up.τ) (T.isub σ.up) (e.isub σ.up) (ψ.subst σ.τ) (u0.isub σ) (δ.subst σ.τ) ∧
+    (tgA1 A φ T e ψ u0 δ).isub σ =
+      tgA1 (A.isub σ.up) (φ.subst σ.up.τ) (T.isub σ.up) (e.isub σ.up) (ψ.subst σ.τ) (u0.isub σ) (δ.subst σ.τ) := by
+  have h1 := tg_subst_top δ A φ T e ψ u0 Tm.var σ.τ
+  have h2 := tg_subst_mid A φ T e ψ u0 Tm.var σ.τ
+  rw [dupS_var] at h1 h2
+  exact ⟨h2.1, h2.2.1, h2.2.2.1, h2.2.2.2.1, h1.1, h1.2⟩
+
+omit hW in
+theorem I_phi1_isub (φ : I) (σ : ISub k' k) :
+    (φ.subst (I.inst0 .one)).subst σ.τ = (φ.subst σ.up.τ).subst (I.inst0 .one) := by
+  rw [I_subst_subst, I_subst_subst]; congr 1; funext i; rcases i with _ | i
+  · rfl
+  · show σ.τ i = ((σ.τ i).shift).subst _; rw [I_shift_inst0]
+
+omit hW in
+theorem psys_isub (δ ψ : I) (X Y : Tm) (σ : ISub k' k) (r : I) :
+    ((Tm.split δ.shift (.papp X.dshift (.var 0)) ψ.shift (.papp Y.dshift (.var 0))).isub σ.up).dinst r =
+      .split (δ.subst σ.τ) (.papp (X.isub σ) r) (ψ.subst σ.τ) (.papp (Y.isub σ) r) := by
+  have e : (Tm.split δ.shift (.papp X.dshift (.var 0)) ψ.shift (.papp Y.dshift (.var 0))).isub σ.up =
+      .split (δ.subst σ.τ).shift (.papp (X.isub σ).dshift (.var 0)) (ψ.subst σ.τ).shift
+        (.papp (Y.isub σ).dshift (.var 0)) := by
+    show Tm.split (δ.shift.subst (I.up σ.τ)) (.papp (X.dshift.isub σ.up) (.var 0)) (ψ.shift.subst (I.up σ.τ))
+      (.papp (Y.dshift.isub σ.up) (.var 0)) = _
+    rw [I_shift_subst_up, I_shift_subst_up, dshift_isub_up, dshift_isub_up]
+  rw [e, psys_dinst]
+
+omit hW in
+theorem asys_isub (φ1 ψ : I) (X Y : Tm) (σ : ISub k' k) (r : I) :
+    ((Tm.split φ1.shift (.papp X.dshift (.neg (.var 0))) ψ.shift Y.dshift).isub σ.up).dinst r =
+      .split (φ1.subst σ.τ) (.papp (X.isub σ) (.neg r)) (ψ.subst σ.τ) (Y.isub σ) := by
+  have e : (Tm.split φ1.shift (.papp X.dshift (.neg (.var 0))) ψ.shift Y.dshift).isub σ.up =
+      .split (φ1.subst σ.τ).shift (.papp (X.isub σ).dshift (.neg (.var 0))) (ψ.subst σ.τ).shift (Y.isub σ).dshift := by
+    show Tm.split (φ1.shift.subst (I.up σ.τ)) (.papp (X.dshift.isub σ.up) (.neg (.var 0))) (ψ.shift.subst (I.up σ.τ))
+      (Y.dshift.isub σ.up) = _
+    rw [I_shift_subst_up, I_shift_subst_up, dshift_isub_up, dshift_isub_up]
+  rw [e, asys_dinst]
+
+include hGC in
+theorem L_ext {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ)
+    (hφ1 : (ival (idEnv k) (φ.subst (I.inst0 .one))).holds) :
+    RE S k (tgFib A φ T e ψ u0) (tgExt A φ T e ψ u0 δ) := by
+  obtain ⟨l, H⟩ := D.tg hW
+  have hφ1s : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have hent1 : I.Entails .one (cof .one (φ.subst (I.inst0 .one))) := ent_cof_one hW (entails_of_holds hφ1s hφ1)
+  have hext := HasTy.restrict (Φ' := .one) trivial hent1 (minimal_to_spec H.hext)
+  have hc := L_c hW hGC D hφ1
+  unfold Tm.isContr at hc
+  rw [tgExt_eq] at hext ⊢
+  refine L_fibK hW hGC D hφ1 _ _ _ hext (fun k' σ r hr hh => ?_) (RE_sigma_elim hW hc).1
+  have hφ1σ := holds_isub hW hφ1s hφ1 σ
+  rw [I_phi1_isub] at hφ1σ
+  have hsp := HasTy.isubF hW (show ((cof (cof .one (φ.subst (I.inst0 .one))) (.or δ ψ)).shift).Scoped (k + 1) from
+    I.scoped_shift ⟨⟨trivial, hφ1s⟩, D.hδs, H.hψ⟩) (minimal_to_spec H.hpsys) (ISub.cons r hr σ)
+  rw [I_shift_cons, dshift_isub_cons, ← isub_up_dinst _ _ _ hr, psys_isub] at hsp
+  have hsp' := HasTy.restrict (Φ' := .one) trivial (ent_and_intro (ent_subst hent1 σ.τ)
+    (entails_of_holds (I.scoped_subst (show (I.or δ ψ).Scoped k from ⟨D.hδs, H.hψ⟩) σ.sc) hh)) hsp
+  rw [psys_isub]
+  obtain ⟨hF, hC, hPd, hPpsi, -, -⟩ := tg_isub A φ T e ψ u0 δ σ
+  rw [hF, hPd, hPpsi] at hsp' ⊢
+  rcases holds_or hh with h1 | h2
+  · have e1 := EqTm.splitL (entails_of_holds (I.scoped_subst D.hδs σ.sc) h1) hsp'
+    have hP := L_Pd hW hGC (D.isub hW σ) hφ1σ h1
+    unfold Tm.pathC at hP
+    have := RE_path_elim hW hP r hr
+    rw [Meta.dshift_dinst] at this
+    exact this.conv hW (TyEq.refl _) e1.symm
+  · have e1 := EqTm.splitR (entails_of_holds (I.scoped_subst H.hψ σ.sc) h2) hsp'
+    have hP := L_Ppsi hW hGC (D.isub hW σ) hφ1σ h2
+    unfold Tm.pathC at hP
+    have := RE_path_elim hW hP r hr
+    rw [Meta.dshift_dinst] at this
+    exact this.conv hW (TyEq.refl _) e1.symm
+
 end
 
 end Model.Canon
