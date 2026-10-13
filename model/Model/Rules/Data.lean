@@ -852,6 +852,12 @@ theorem sem_EqTm_transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} (hS : SigOK S) 
         (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T := by
   sorry
 
+theorem sem_dsubst_σ2 (A : Tm) (ρ : IEnv m) {n : ℕ} (h : Hom n m) (r : DM n) {k' : ℕ} (g' : Hom k' (n + 1))
+    (γ'' : ℕ → V) :
+    sem S (A.dsubst fun | 0 => .var 0 | j + 1 => .var (j + 2)) k' (((ρ.restr h).cons r).ext.restr g') γ'' =
+      sem S A k' ((ρ.restr h).ext.restr g') γ'' := by
+  rw [sem_dsubst]; congr 1; funext i; cases i <;> rfl
+
 theorem sem_EqTm_transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : D.params ≠ []) (hh : SemTy S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero)))
     (h2 : SemTy S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T) :
@@ -859,7 +865,165 @@ theorem sem_EqTm_transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} (hS : SigOK S) (h0
       (hcomp (data d (ps.dinst .one)) ψ
         (transp ((data d ps).dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)) φ.shift u)
         (transp (data d ps) φ a)) T := by
-  sorry
+  set σ2 : ℕ → I := fun | 0 => .var 0 | n + 1 => .var (n + 2) with hσ2
+  have hcl : (hcomp (data d (ps.dinst .one)) ψ (transp ((data d ps).dsubst σ2) φ.shift u)
+      (transp (data d ps) φ a)).ConstsLt S.length := by
+    obtain ⟨⟨hdl, hpc⟩, -, huc, hac⟩ := h2.2.1
+    exact ⟨⟨hdl, hpc.dsubst _⟩, ⟨⟨hdl, hpc.dsubst _⟩, huc⟩, ⟨⟨hdl, hpc⟩, hac⟩⟩
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (hcomp (data d (ps.dinst .one)) ψ (transp ((data d ps).dsubst σ2) φ.shift u)
+        (transp (data d ps) φ a)) m ρ γ = sem S (transp (data d ps) φ (hcomp (data d qs) ψ u a)) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h2.2.2.2 m ρ γ hp
+    have hcT := cond_of_sem_transp (hty.ne_empty hmem)
+    obtain ⟨hLty, hconst, hVmem, hLN, hVnat⟩ := id hcT
+    set L := lineV S (data d ps) m ρ γ with hL
+    have hpL := paramsOK_of_code h0 hLty
+    set ΘL := dataSD (sigUpTo S d) D d (m + 1) (psRV S ps (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) with hΘL
+    have hLd : L = dataC ΘL := sem_data_of h0 hpL
+    have hgL := ((hS.2 d D h0).2 _ _ hpL).1
+    have hpar : ΘL.params = true := by simp [hΘL, dataSD, h1]
+    have hF := isCof_ival_face ρ φ
+    have hΨ := isCof_ival_face ρ ψ
+    have hconst' : ConstOn (dataC ΘL) (Hom.id (m + 1)) (ival ρ φ).face := hLd ▸ hconst
+    have e0 : sem S (data d (ps.dinst .zero)) m ρ γ = res (Hom.endpt m (DM.zero m)) L := by
+      show sem S ((data d ps).dinst .zero) m ρ γ = _
+      rw [sem_dinst, ival_zero, line_endpt hp.kv hLN]
+    have e1 : sem S (data d (ps.dinst .one)) m ρ γ = res (Hom.endpt m (DM.one m)) L := by
+      show sem S ((data d ps).dinst .one) m ρ γ = _
+      rw [sem_dinst, ival_one, line_endpt hp.kv hLN]
+    -- the composition at ps(0)
+    obtain ⟨hmh, -, htyh, -⟩ := hh.2.2.2 m ρ γ hp
+    have hcz := cond_of_sem_hcomp (htyh.ne_empty hmh)
+    have hU := hcz.2.1
+    have hA0 := hcz.2.2.1
+    have hA0n := hcz.2.2.2.2
+    rw [e0] at hU hA0
+    -- elements at the start of the line
+    have hstart : ∀ {n : ℕ} (h : Hom n m) {v : V}, v ∈ El (res (Hom.endpt m (DM.zero m)) L) h →
+        DElem ΘL n ((Hom.lift h).comp (Hom.endpt n (DM.zero n))) v := by
+      intro n h v hv
+      rw [El_res, hLd, mem_El_dataC, Hom.endpt_comp] at hv
+      simpa using hv
+    have hUd : ∀ n (h : Hom n m) r, (Cof.restr (ival ρ ψ).face h).holds →
+        DElem ΘL n ((Hom.lift h).comp (Hom.endpt n (DM.zero n))) (tubeV S u ρ γ n h r) := by
+      intro n h r hh'
+      have := hU.mem n h r hh'; rw [Hom.id_comp] at this; exact hstart h this
+    have hA0d : DElem ΘL m ((Hom.id (m + 1)).comp (Hom.endpt m (DM.zero m))) (sem S a m ρ γ) := by
+      have := hstart (Hom.id m) hA0; simpa using this
+    -- transports
+    obtain ⟨wA, hwA⟩ := hA0d.tr_exists hgL (ival ρ φ).face
+    have hpA := hwA.props hgL hF hconst' hA0d
+    have hTRU : ∀ n (h : Hom n m) r, (Cof.restr (ival ρ ψ).face h).holds →
+        TR ΘL n (Hom.lift h) (Cof.restr (ival ρ φ).face h) (tubeV S u ρ γ n h r)
+          (tubeV S (transp ((data d ps).dsubst σ2) φ.shift u) ρ γ n h r) := by
+      intro n h r hh'
+      obtain ⟨w, hw⟩ := (hUd n h r hh').tr_exists hgL (Cof.restr (ival ρ φ).face h)
+      convert hw using 1
+      have hlv : lineV S ((data d ps).dsubst σ2) n ((ρ.restr h).cons r) (TEnv.restr γ h) =
+          lineV S (data d ps) n (ρ.restr h) (TEnv.restr γ h) := by
+        have := sem_dsubst_σ2 (S := S) (data d ps) ρ h r (Hom.id (n + 1))
+          (TEnv.restr (TEnv.restr γ h) (Hom.wk n))
+        rwa [IEnv.restr_id, IEnv.restr_id] at this
+      have hface : (ival ((ρ.restr h).cons r) φ.shift).face = Cof.restr (ival ρ φ).face h := by
+        rw [ival_shift, IEnv.tail_cons, face_ival_restr]
+      have hcu : TranspCond S ((data d ps).dsubst σ2) φ.shift u n ((ρ.restr h).cons r) (TEnv.restr γ h) := by
+        have hcr := hcT.restr h
+        refine ⟨by rw [hlv]; exact hcr.1, by rw [hlv, hface, ← face_ival_restr]; exact hcr.2.1, ?_, fun k g => ?_,
+          fun k g => ?_⟩
+        · rw [hlv, line_restr hLN h, El_res, Hom.id_comp, Hom.lift_comp_endpt]
+          have := hU.mem n h r hh'
+          rw [Hom.id_comp, El_res, Hom.endpt_comp] at this
+          simpa [Hom.lift_comp_endpt] using this
+        · rw [sem_dsubst_σ2, hcr.2.2.2.1 k g]
+          congr 1
+          have := sem_dsubst_σ2 (S := S) (data d ps) ρ h r (Hom.id (n + 1)) (TEnv.restr (TEnv.restr γ h) (Hom.wk n))
+          rw [IEnv.restr_id, IEnv.restr_id] at this
+          exact this.symm
+        · show sem S u k (((ρ.restr h).cons r).restr g) _ = _
+          rw [IEnv.cons_restr, IEnv.restr_restr, TEnv.restr_restr]
+          exact (hU.coh n h r hh' k g).symm
+      simp only [tubeV]
+      rw [sem_transp hcu, hlv, line_restr hLN h, hface, transpAt_res, Hom.comp_id,
+        show lineV S (data d ps) m ρ γ = dataC ΘL from hLd]
+      exact (transpAt_dataC_eq hgL (mem_El_dataC.2 (hUd n h r hh'))).2 hpar w hw
+    have hconstU : ∀ n (h : Hom n m), ConstOn (dataC ΘL) (Hom.lift h) (Cof.restr (ival ρ φ).face h) := by
+      intro n h; have := hconst'.restr h; rwa [Hom.id_comp] at this
+    have hpU : ∀ n (h : Hom n m) r (hh' : (Cof.restr (ival ρ ψ).face h).holds),
+        TRProps ΘL n (Hom.lift h) (Cof.restr (ival ρ φ).face h) (tubeV S u ρ γ n h r)
+          (tubeV S (transp ((data d ps).dsubst σ2) φ.shift u) ρ γ n h r) :=
+      fun n h r hh' => (hTRU n h r hh').props hgL
+    -- the base
+    have hcA : TranspCond S (data d ps) φ a m ρ γ := by
+      refine ⟨hLty, hconst, ?_, hLN, hA0n⟩
+      have := hA0; rw [El_res, Hom.comp_id] at this; rwa [Hom.id_comp]
+    have hA0' : sem S (transp (data d ps) φ a) m ρ γ = wA := by
+      rw [sem_transp hcA, show lineV S (data d ps) m ρ γ = dataC ΘL from hLd]
+      exact (transpAt_dataC_eq hgL (mem_El_dataC.2 hA0d)).2 hpar wA hwA
+    obtain ⟨hwAd, -, hwAn⟩ := hpA
+    -- the right-hand side composition
+    have hend1 : ∀ {n : ℕ} (h : Hom n m) {v : V}, DElem ΘL n ((Hom.lift h).comp (Hom.endpt n (DM.one n))) v →
+        v ∈ El (res (Hom.endpt m (DM.one m)) L) h := by
+      intro n h v hv
+      rw [El_res, hLd, mem_El_dataC, Hom.endpt_comp]
+      simpa using hv
+    have hTub : TubeOK (res (Hom.endpt m (DM.one m)) L) (Hom.id m) (ival ρ ψ).face
+        (tubeV S (transp ((data d ps).dsubst σ2) φ.shift u) ρ γ) wA := by
+      refine ⟨fun n h r hh' => ?_, fun n h r hh' n' h' => ?_, fun n h hh' => ?_⟩
+      · rw [Hom.id_comp]
+        exact hend1 h ((hpU n h r hh' (hF.restr h) (hconstU n h) (hUd n h r hh')).1)
+      · have hh2 : (Cof.restr (ival ρ ψ).face (h.comp h')).holds := by
+          rw [← Cof.restr_restr]; exact (hΨ.restr h).holds_restr hh' h'
+        have t1 := (hpU n h r hh' (hF.restr h) (hconstU n h) (hUd n h r hh')).2.2 n' h'
+        rw [Hom.lift_comp, Cof.restr_restr, hU.coh n h r hh' n' h'] at t1
+        exact t1.unique (hTRU n' (h.comp h') (r.restr h') hh2) rfl
+      · have t1 := hTRU n h (DM.zero n) hh'
+        rw [hU.base n h hh'] at t1
+        have t2 := hwAn n h
+        rw [Hom.id_comp] at t2
+        exact (t1.unique t2 rfl)
+    have hcR : HcompCond S (data d (ps.dinst .one)) ψ (transp ((data d ps).dsubst σ2) φ.shift u)
+        (transp (data d ps) φ a) m ρ γ := by
+      refine ⟨by rw [e1]; exact hLty.res _, by rw [e1, hA0']; exact hTub, ?_,
+        Natural.dinst (by rw [ival_one]; exact line_endpt_nat hp.kv hLN _), hcA.natural⟩
+      rw [e1, hA0']
+      exact hend1 (Hom.id m) (by simpa using hwAd)
+    have hTub' := hTub
+    rw [show res (Hom.endpt m (DM.one m)) L = dataC (ΘL.restr (Hom.endpt m (DM.one m))) by
+      rw [show L = dataC ΘL from hLd, res_dataC]] at hTub'
+    have hwAm : wA ∈ El (dataC (ΘL.restr (Hom.endpt m (DM.one m)))) (Hom.id m) := by
+      rw [← res_dataC, ← show L = dataC ΘL from hLd]; exact hend1 (Hom.id m) (by simpa using hwAd)
+    rw [sem_hcomp hcR, e1, hA0', show res (Hom.endpt m (DM.one m)) L = dataC (ΘL.restr (Hom.endpt m (DM.one m))) by
+      rw [show L = dataC ΘL from hLd, res_dataC], hcompAt_dataC hTub' hwAm]
+    -- the left-hand side
+    have hV : sem S (hcomp (data d qs) ψ u a) m ρ γ =
+        hcV m (ival ρ ψ).face (Tube.canon (ival ρ ψ).face (tubeV S u ρ γ)) (sem S a m ρ γ) := by
+      have hne' : sem S (hcomp (data d qs) ψ u a) m ρ γ ≠ ∅ := fun h => by
+        rw [h] at hVmem; exact hLty.fib.empty_notMem _ hVmem
+      have hcq := cond_of_sem_hcomp hne'
+      have hpq := paramsOK_of_code h0 hcq.1
+      have huq := hcq.2.1
+      have hu0q := hcq.2.2.1
+      rw [sem_data_of h0 hpq] at huq hu0q
+      rw [sem_hcomp hcq, sem_data_of h0 hpq, hcompAt_dataC huq hu0q]
+    have hVm := hVmem
+    rw [hV] at hVm
+    rw [sem_transp ⟨hLty, hconst, hVmem, hLN, hVnat⟩, hV, show lineV S (data d ps) m ρ γ = dataC ΘL from hLd]
+    rw [show L = dataC ΘL from hLd] at hVm
+    refine ((transpAt_dataC_eq hgL hVm).2 hpar _ ?_).symm
+    by_cases hΨh : Cof.holds (ival ρ ψ).face
+    · have hid : (Cof.restr (ival ρ ψ).face (Hom.id m)).holds := hΨ.holds_restr hΨh _
+      have hd1 := (hpU m (Hom.id m) (DM.one m) hid (hF.restr _) (hconstU m _) (hUd m _ _ hid)).1
+      rw [hcV_congr _ fun n h r hh' => tube_canon_eq hh' r, hcV_congr (u := Tube.canon _ _) _
+        fun n h r hh' => tube_canon_eq hh' r,
+        hcV_eq_of_holds _ hΨ hΨh (hUd m (Hom.id m) (DM.one m) hid).kv (fun n h r hh' => hU.coh n h r hh'),
+        hcV_eq_of_holds _ hΨ hΨh hd1.kv (fun n h r hh' => hTub.coh n h r hh')]
+      have := hTRU m (Hom.id m) (DM.one m) hid
+      simpa [hF.restr_id] using this
+    · refine TR.hc hΨ hΨh hA0d.kv (by simpa using hwA) fun n g r hg => ?_
+      rw [tube_canon_eq hg, tube_canon_eq hg, Hom.id_comp]
+      exact hTRU n g r hg
+  exact ⟨h2, h2.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 end
 
