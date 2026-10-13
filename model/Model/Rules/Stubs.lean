@@ -13,6 +13,8 @@ namespace Model
 
 open KubusCore KubusCore.Tm
 
+attribute [local instance] Classical.propDecidable
+
 theorem sem_Wf_nil {S : Sig} {Ψ Φ}
     (h0 : Φ.Scoped Ψ) :
     SemWf S Ψ Φ [] := by
@@ -144,12 +146,19 @@ theorem sem_HasTy_glueFib {S : Sig} {Ψ Φ Γ A φ T e l}
 theorem sem_HasTy_univ {S : Sig} {Ψ Φ Γ l}
     (h0 : l + 1 ≤ maxLevel) (h1 : SemWf S Ψ Φ Γ) :
     SemTy S Ψ Φ Γ (univ l) (univ (l + 1)) := by
-  sorry
+  refine ⟨h1, trivial, trivial, fun m ρ γ hp => ?_⟩
+  refine ⟨?_, fun k f => by simp [res_univC], ⟨l + 1, h0, Or.inr rfl⟩, fun k f => by simp [res_univC]⟩
+  rw [sem_univ, sem_univ, El_univC, ZFSet.mem_sep]
+  exact ⟨univC_mem_Vt (by simp [maxLevel] at h0; omega), wf_univC⟩
 
 theorem sem_HasTy_cumul {S : Sig} {Ψ Φ Γ A l}
     (h0 : l + 1 ≤ maxLevel) (h1 : SemTy S Ψ Φ Γ A (univ l)) :
     SemTy S Ψ Φ Γ A (univ (l + 1)) := by
-  sorry
+  refine ⟨h1.1, h1.2.1, trivial, fun m ρ γ hp => ?_⟩
+  obtain ⟨hmem, hnat, -, -⟩ := h1.2.2.2 m ρ γ hp
+  refine ⟨?_, hnat, ⟨l + 1, h0, Or.inr rfl⟩, fun k f => by simp [res_univC]⟩
+  rw [sem_univ, El_univC, ZFSet.mem_sep] at hmem ⊢
+  exact ⟨Vt_subset_succ l (by simp [maxLevel] at h0; omega) hmem.1, hmem.2.cumul⟩
 
 theorem sem_HasTy_pi {S : Sig} {Ψ Φ Γ A B l}
     (h0 : SemTy S Ψ Φ Γ A (univ l)) (h1 : SemTy S Ψ Φ (A :: Γ) B (univ l)) :
@@ -224,12 +233,35 @@ theorem sem_HasTy_ipiLine {S : Sig} {Ψ Φ Γ A l}
 theorem sem_HasTy_split {S : Sig} {Ψ Φ Γ A φ ψ t u l}
     (h0 : φ.Scoped Ψ) (h1 : ψ.Scoped Ψ) (h2 : I.Entails Φ (.or φ ψ)) (h3 : SemTy S Ψ Φ Γ A (univ l)) (h4 : SemTy S Ψ (cof Φ φ) Γ t A) (h5 : SemTy S Ψ (cof Φ ψ) Γ u A) (h6 : SemEq S Ψ (cof (cof Φ φ) ψ) Γ t u A) :
     SemTy S Ψ Φ Γ (split φ t ψ u) A := by
-  sorry
+  have hsplit : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (.split φ t ψ u) m ρ γ = if (ival ρ φ).holds then sem S t m ρ γ else sem S u m ρ γ :=
+    fun m ρ γ hp => sem_split (holds_or (entails_holds h2 hp.cof))
+      (fun hφ hψ => h6.2.2 m ρ γ (isPoint_cof_iff.2 ⟨isPoint_cof_iff.2 ⟨hp, hφ⟩, hψ⟩))
+  refine ⟨h3.1, ⟨h4.2.1, h5.2.1⟩, h4.2.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hty, hnatA⟩ := h3.ty_at hp
+  rw [hsplit m ρ γ hp]
+  refine ⟨?_, fun k f => ?_, hty, hnatA⟩
+  · split
+    · exact (h4.2.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp, ‹_›⟩)).1
+    · exact (h5.2.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp,
+        (holds_or (entails_holds h2 hp.cof)).resolve_left ‹_›⟩)).1
+  · rw [hsplit k _ _ (hp.restr h3.1 f), hsplit m ρ γ hp]
+    by_cases hφ : (ival ρ φ).holds
+    · rw [if_pos hφ, if_pos (by rw [ival.restr]; exact hφ.restr f)]
+      exact (h4.2.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp, hφ⟩)).2.1 k f
+    · rw [if_neg hφ]
+      have hψ := (holds_or (entails_holds h2 hp.cof)).resolve_left hφ
+      have hnu := (h5.2.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp, hψ⟩)).2.1 k f
+      split
+      · rename_i hφk
+        rw [h6.2.2 k _ _ (isPoint_cof_iff.2 ⟨isPoint_cof_iff.2 ⟨hp.restr h3.1 f, hφk⟩,
+          by rw [ival.restr]; exact hψ.restr f⟩), hnu]
+      · exact hnu
 
 theorem sem_HasTy_abort {S : Sig} {Ψ Φ Γ A l}
     (h0 : I.Entails Φ .zero) (h1 : SemTy S Ψ Φ Γ A (univ l)) :
     SemTy S Ψ Φ Γ abort A := by
-  sorry
+  exact ⟨h1.1, trivial, h1.2.1, fun m ρ γ hp => absurd (entails_holds h0 hp.cof) not_holds_zero⟩
 
 theorem sem_HasTy_transp {S : Sig} {Ψ Φ Γ A φ a l}
     (h0 : SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) (h1 : φ.Scoped Ψ) (h2 : SemEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (univ l)) (h3 : SemTy S Ψ Φ Γ a (A.dinst .zero)) :
@@ -285,7 +317,7 @@ theorem sem_EqTm_restrict {S : Sig} {Ψ Φ Φ' Γ t u A}
 theorem sem_EqTm_cumul {S : Sig} {Ψ Φ Γ A B l}
     (h0 : l + 1 ≤ maxLevel) (h1 : SemEq S Ψ Φ Γ A B (univ l)) :
     SemEq S Ψ Φ Γ A B (univ (l + 1)) := by
-  sorry
+  exact ⟨sem_HasTy_cumul h0 h1.1, sem_HasTy_cumul h0 h1.2.1, h1.2.2⟩
 
 theorem sem_EqTm_wk {S : Sig} {Ψ Φ Γ t u A B l}
     (h0 : SemTy S Ψ Φ Γ B (univ l)) (h1 : SemEq S Ψ Φ Γ t u A) :
@@ -303,7 +335,14 @@ theorem sem_EqTm_dwk {S : Sig} {Ψ Φ Γ t u A}
 theorem sem_EqTm_subst {S : Sig} {Ψ Φ Γ A B t t' a a'}
     (h0 : SemEq S Ψ Φ (A :: Γ) t t' B) (h1 : SemEq S Ψ Φ Γ a a' A) :
     SemEq S Ψ Φ Γ (t.inst a) (t'.inst a') (B.inst a) := by
-  sorry
+  refine ⟨sem_HasTy_subst h0.1 h1.1, ?_, fun m ρ γ hp => ?_⟩
+  · refine (sem_HasTy_subst h0.2.1 h1.2.1).retype (h0.1.2.2.1.inst h1.1.2.1) fun m ρ γ hp => ?_
+    obtain ⟨-, hanat, -, -⟩ := h1.1.2.2.2 m ρ γ hp
+    obtain ⟨-, hanat', -, -⟩ := h1.2.1.2.2.2 m ρ γ hp
+    rw [sem_inst hanat, sem_inst hanat', h1.2.2 m ρ γ hp]
+  · obtain ⟨hamem, hanat, -, -⟩ := h1.1.2.2.2 m ρ γ hp
+    obtain ⟨-, hanat', -, -⟩ := h1.2.1.2.2.2 m ρ γ hp
+    rw [sem_inst hanat, sem_inst hanat', h0.2.2 m ρ _ (hp.cons hamem), h1.2.2 m ρ γ hp]
 
 theorem sem_EqTm_dsubst {S : Sig} {Ψ Φ Γ t t' A r}
     (h0 : SemEq S (Ψ + 1) Φ.shift Γ.dshift t t' A) (h1 : r.Scoped Ψ) :
@@ -319,17 +358,26 @@ theorem sem_EqTm_delta {S : Sig} {Ψ Φ Γ k t A}
 theorem sem_EqTm_absurd {S : Sig} {Ψ Φ Γ t u A}
     (h0 : I.Entails Φ .zero) (h1 : SemTy S Ψ Φ Γ t A) (h2 : SemTy S Ψ Φ Γ u A) :
     SemEq S Ψ Φ Γ t u A := by
-  sorry
+  exact ⟨h1, h2, fun m ρ γ hp => absurd (entails_holds h0 hp.cof) not_holds_zero⟩
 
 theorem sem_EqTm_local {S : Sig} {Ψ Φ Γ φ ψ t u A}
     (h0 : φ.Scoped Ψ) (h1 : ψ.Scoped Ψ) (h2 : I.Entails Φ (.or φ ψ)) (h3 : SemTy S Ψ Φ Γ t A) (h4 : SemTy S Ψ Φ Γ u A) (h5 : SemEq S Ψ (cof Φ φ) Γ t u A) (h6 : SemEq S Ψ (cof Φ ψ) Γ t u A) :
     SemEq S Ψ Φ Γ t u A := by
-  sorry
+  refine ⟨h3, h4, fun m ρ γ hp => ?_⟩
+  rcases holds_or (entails_holds h2 hp.cof) with h | h
+  · exact h5.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp, h⟩)
+  · exact h6.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp, h⟩)
 
 theorem sem_EqTm_face {S : Sig} {Ψ Φ Γ t A i d}
     (h0 : i < Ψ) (h1 : I.Entails Φ (I.lit i d)) (h2 : SemTy S Ψ Φ Γ t A) :
     SemEq S Ψ Φ Γ t (t.dset i (I.ofDir d)) A := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S (t.dset i (I.ofDir d)) m ρ γ = sem S t m ρ γ := by
+    intro m ρ γ hp
+    rw [sem_dset]
+    congr 1; funext n; split
+    · subst n; exact (holds_lit (entails_holds h1 hp.cof)).symm
+    · rfl
+  exact ⟨h2, h2.of_eq (h2.2.1.dsubst _) he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_pi {S : Sig} {Ψ Φ Γ A A' B B' l}
     (h0 : SemEq S Ψ Φ Γ A A' (univ l)) (h1 : SemEq S Ψ Φ (A :: Γ) B B' (univ l)) :
@@ -384,7 +432,15 @@ theorem sem_EqTm_papp {S : Sig} {Ψ Φ Γ A a b p p' r r'}
 theorem sem_EqTm_split {S : Sig} {Ψ Φ Γ A φ ψ t t' u u'}
     (h0 : SemTy S Ψ Φ Γ (split φ t ψ u) A) (h1 : SemTy S Ψ Φ Γ (split φ t' ψ u') A) (h2 : SemEq S Ψ (cof Φ φ) Γ t t' A) (h3 : SemEq S Ψ (cof Φ ψ) Γ u u' A) :
     SemEq S Ψ Φ Γ (split φ t ψ u) (split φ t' ψ u') A := by
-  sorry
+  refine ⟨h0, h1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+  obtain ⟨hmem', -, hty', -⟩ := h1.2.2.2 m ρ γ hp
+  rcases sem_split_cases (hty.ne_empty hmem) with ⟨hφ, e1, -⟩ | ⟨hφ, hψ, e1⟩ <;>
+    rcases sem_split_cases (hty'.ne_empty hmem') with ⟨hφ', e2, -⟩ | ⟨hφ', hψ', e2⟩
+  · rw [e1, e2]; exact h2.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp, hφ⟩)
+  · exact absurd hφ hφ'
+  · exact absurd hφ' hφ
+  · rw [e1, e2]; exact h3.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp, hψ⟩)
 
 theorem sem_EqTm_transp {S : Sig} {Ψ Φ Γ A A' φ φ' a a' l}
     (h0 : SemTy S Ψ Φ Γ (transp A φ a) (A.dinst .one)) (h1 : SemTy S Ψ Φ Γ (transp A' φ' a') (A.dinst .one)) (h2 : SemEq S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l)) (h3 : I.Entails φ φ') (h4 : I.Entails φ' φ) (h5 : SemEq S Ψ Φ Γ a a' (A.dinst .zero)) :
@@ -479,12 +535,24 @@ theorem sem_EqTm_pathOne {S : Sig} {Ψ Φ Γ A a b p}
 theorem sem_EqTm_splitL {S : Sig} {Ψ Φ Γ φ ψ t u T}
     (h0 : I.Entails Φ φ) (h1 : SemTy S Ψ Φ Γ (split φ t ψ u) T) :
     SemEq S Ψ Φ Γ (split φ t ψ u) t T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S t m ρ γ = sem S (.split φ t ψ u) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h1.2.2.2 m ρ γ hp
+    rcases sem_split_cases (hty.ne_empty hmem) with ⟨-, h, -⟩ | ⟨hn, -, -⟩
+    · exact h.symm
+    · exact absurd (entails_holds h0 hp.cof) hn
+  exact ⟨h1, h1.of_eq h1.2.1.1 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_splitR {S : Sig} {Ψ Φ Γ φ ψ t u T}
     (h0 : I.Entails Φ ψ) (h1 : SemTy S Ψ Φ Γ (split φ t ψ u) T) :
     SemEq S Ψ Φ Γ (split φ t ψ u) u T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S u m ρ γ = sem S (.split φ t ψ u) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h1.2.2.2 m ρ γ hp
+    rcases sem_split_cases (hty.ne_empty hmem) with ⟨-, h, hov⟩ | ⟨-, -, h⟩
+    · rw [h, hov (entails_holds h0 hp.cof)]
+    · exact h.symm
+  exact ⟨h1, h1.of_eq h1.2.1.2 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_transpFace {S : Sig} {Ψ Φ Γ A φ a T}
     (h0 : I.Entails Φ φ) (h1 : SemTy S Ψ Φ Γ (transp A φ a) T) :

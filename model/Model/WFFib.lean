@@ -179,3 +179,35 @@ theorem WF.res {l : ℕ} {c : V} (hc : WF l m c) (h : Hom k m) : WF l k (res h c
 end
 
 end Model
+
+namespace Model
+
+open ZFSet KubusCore
+
+noncomputable section
+
+variable {k m n : ℕ}
+
+/-- Cumulativity of well-formedness. -/
+theorem WF.cumul {l : ℕ} {c : V} (h : WF l m c) : WF (l + 1) m c := by
+  unfold WF at h ⊢
+  induction h with
+  | empty => exact WFI.empty
+  | pi _ hBkv hgraph _ hcoh ihA ihfam => exact WFI.pi ihA hBkv hgraph ihfam hcoh
+  | sigma _ hBkv hgraph _ hcoh ihA ihfam => exact WFI.sigma ihA hBkv hgraph ihfam hcoh
+  | path _ ha0 ha1 ihL => exact WFI.path ihL ha0 ha1
+  | ipi _ ihL => exact WFI.ipi ihL
+  | @univ m l' hl' =>
+    rw [Ucodes_lt m hl', ← Ucodes_lt (l := l + 1) m (by omega)]; exact WFI.univ (by omega)
+  | glue _ hφ hn hTp hep _ hTcoh he hecoh ihA ihT => exact WFI.glue ihA hφ hn hTp hep ihT hTcoh he hecoh
+
+/-- The universe of level `l` is a small set of level `l + 1`. TODO (closure plumbing for `Vt`). -/
+theorem univC_mem_Vt {l : ℕ} (hl : l < 4) : univC m l ∈ Vt (l + 1) := by
+  sorry
+
+theorem wf_univC {l : ℕ} : WF (l + 1) m (univC m l) := by
+  unfold WF; rw [← Ucodes_lt m (Nat.lt_succ_self l)]; exact WFI.univ (Nat.lt_succ_self l)
+
+end
+
+end Model

@@ -375,3 +375,102 @@ theorem SemWf.of_dshift {Ψ : ℕ} {Φ : I} {Γ : Ctx} (h : SemWf S (Ψ + 1) Φ.
 end
 
 end Model
+
+namespace Model
+
+open KubusCore
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {S : Sig} {k m n : ℕ}
+
+theorem not_isKV_empty : ¬ IsKV m (∅ : V) := by
+  rintro ⟨F, h⟩
+  have : ZFSet.pair (enc (⟨m, Hom.id m⟩ : Dom m)) (F m (Hom.id m)) ∈ (∅ : V) := by
+    rw [h]; exact mem_fnC.2 ⟨⟨m, Hom.id m⟩, rfl⟩
+  exact ZFSet.notMem_empty _ this
+
+theorem Fib.empty_notMem {c : V} (hc : Fib c m) (f : Hom k m) : (∅ : V) ∉ El c f :=
+  fun h => not_isKV_empty (hc.elKV _ _ _ h)
+
+theorem TyOK.ne_empty {A : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S A m ρ γ) {v : V}
+    (hv : v ∈ El (sem S A m ρ γ) (Hom.id m)) : v ≠ ∅ := by
+  rintro rfl; exact (TyCode.fib h).empty_notMem _ hv
+
+theorem isPoint_cof_iff {Φ φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V} :
+    IsPoint S (cof Φ φ) Γ m ρ γ ↔ IsPoint S Φ Γ m ρ γ ∧ (ival ρ φ).holds := by
+  constructor
+  · intro hp; exact ⟨⟨(holds_and.1 hp.cof).1, hp.typ⟩, (holds_and.1 hp.cof).2⟩
+  · rintro ⟨hp, h⟩; exact ⟨holds_and.2 ⟨hp.cof, h⟩, hp.typ⟩
+
+/-- Transfer typing along equal denotations. -/
+theorem SemTy.of_eq {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t t' A : Tm} (h : SemTy S Ψ Φ Γ t A)
+    (ht' : t'.ConstsLt S.length)
+    (he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S t' m ρ γ = sem S t m ρ γ) :
+    SemTy S Ψ Φ Γ t' A := by
+  refine ⟨h.1, ht', h.2.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hmem, hnat, hty, hnatA⟩ := h.2.2.2 m ρ γ hp
+  refine ⟨he m ρ γ hp ▸ hmem, fun k f => ?_, hty, hnatA⟩
+  rw [he k _ _ (hp.restr h.1 f), he m ρ γ hp, hnat k f]
+
+/-- Transfer typing along equal denotations of the type. -/
+theorem SemTy.retype {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t A B : Tm} (h : SemTy S Ψ Φ Γ t A)
+    (hB : B.ConstsLt S.length)
+    (he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S A m ρ γ = sem S B m ρ γ) :
+    SemTy S Ψ Φ Γ t B := by
+  refine ⟨h.1, h.2.1, hB, fun m ρ γ hp => ?_⟩
+  obtain ⟨hmem, hnat, hty, hnatA⟩ := h.2.2.2 m ρ γ hp
+  refine ⟨he m ρ γ hp ▸ hmem, hnat, by unfold TyOK; rw [← he m ρ γ hp]; exact hty, fun k f => ?_⟩
+  rw [← he k _ _ (hp.restr h.1 f), ← he m ρ γ hp, hnatA k f]
+
+theorem sem_dset {t : Tm} {i : ℕ} {d : I} {ρ : IEnv m} {γ : ℕ → V} :
+    sem S (t.dset i d) m ρ γ = sem S t m (fun n => if n = i then ival ρ d else ρ n) γ := by
+  rw [Tm.dset, Tm.dsubst, sem_subst S t m ρ γ _ _ (fun x => natural_var S x ρ γ)]
+  congr 1; funext n; split <;> rfl
+
+/-- The denotation of a system at a point where one of the faces holds and the branches agree on
+the overlap. -/
+theorem sem_split {φ ψ : I} {t u : Tm} {ρ : IEnv m} {γ : ℕ → V}
+    (hcov : (ival ρ φ).holds ∨ (ival ρ ψ).holds)
+    (hover : (ival ρ φ).holds → (ival ρ ψ).holds → sem S t m ρ γ = sem S u m ρ γ) :
+    sem S (.split φ t ψ u) m ρ γ = if (ival ρ φ).holds then sem S t m ρ γ else sem S u m ρ γ := by
+  simp only [sem, interp]
+  split
+  · rw [if_pos (hover ‹_›)]
+  · rw [if_pos (hcov.resolve_left ‹_›)]
+
+theorem DM.restr_holds_of {r : DM m} (h : r.holds) (f : Hom k m) : (r.restr f).holds := h.restr f
+
+end
+
+end Model
+
+namespace Model
+
+open KubusCore
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {S : Sig} {k m n : ℕ}
+
+theorem sem_split_cases {φ ψ : I} {t u : Tm} {ρ : IEnv m} {γ : ℕ → V}
+    (hne : sem S (.split φ t ψ u) m ρ γ ≠ ∅) :
+    ((ival ρ φ).holds ∧ sem S (.split φ t ψ u) m ρ γ = sem S t m ρ γ ∧
+        ((ival ρ ψ).holds → sem S t m ρ γ = sem S u m ρ γ)) ∨
+      (¬ (ival ρ φ).holds ∧ (ival ρ ψ).holds ∧ sem S (.split φ t ψ u) m ρ γ = sem S u m ρ γ) := by
+  simp only [sem, interp] at hne ⊢
+  split at hne
+  · split at hne
+    · left; rw [if_pos ‹_›, if_pos ‹_›]; exact ⟨‹_›, rfl, ‹_›⟩
+    · exact absurd rfl hne
+  · split at hne
+    · right; rw [if_neg ‹_›, if_pos ‹_›]; exact ⟨‹_›, ‹_›, rfl⟩
+    · exact absurd rfl hne
+
+end
+
+end Model

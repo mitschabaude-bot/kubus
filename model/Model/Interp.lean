@@ -19,6 +19,8 @@ the rule needs and otherwise returns `∅`. `∅` is not a Kripke value, so it b
 hence a redex with a value in a type satisfies the checks. Concretely:
 
 * `glueEl φ e t a` denotes `t` on `φ` only if `e.1 t = a` there (spec issue 5);
+* `split φ t ψ u` requires one of the faces to hold and `t = u` where both hold (for `splitR`
+  and the congruence rule, whose premises do not say that the faces cover);
 * `pair a b` requires Kripke values (for `fstBeta`/`sndBeta`);
 * `app f a` requires the argument to be natural (for the substitution in `piBeta`);
 * `plam t` requires the body to be natural (for `pathBeta`);
@@ -82,7 +84,10 @@ def interp (cst : ℕ → ℕ → V) (uc : ℕ → ℕ → V) (good : (m : ℕ) 
   | .papp p r, m, ρ, γ => pappV m (interp cst uc good p m ρ γ) (ival ρ r)
   | .ipi A, m, ρ, γ => ipiC m (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)))
   | .split φ t ψ u, m, ρ, γ =>
-    if (ival ρ φ).holds then interp cst uc good t m ρ γ else interp cst uc good u m ρ γ
+    if (ival ρ φ).holds then
+      (if (ival ρ ψ).holds → interp cst uc good t m ρ γ = interp cst uc good u m ρ γ
+        then interp cst uc good t m ρ γ else ∅)
+    else if (ival ρ ψ).holds then interp cst uc good u m ρ γ else ∅
   | .abort, _, _, _ => ∅
   | .transp A φ a, m, ρ, γ =>
     if good (m + 1) (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) ∧
