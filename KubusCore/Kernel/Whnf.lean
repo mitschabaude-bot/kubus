@@ -138,7 +138,7 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     if h : I.Entails Φ φ then pure (some (⟨t1, EqTm.glueElFace h ht⟩, false)) else pure none
   | .const k, _ =>
     match h : S[k]?, hl : E.sig.lv[k]? with
-    | some (b, Ak), some lk => do
+    | some (.defn b Ak), some lk => do
       let ⟨e⟩ ← bridge R E (E.constOk k b Ak lk h hl) hA (EqTm.delta (HasTy.const E.wf h) h)
       pure (some (⟨b, e⟩, false))
     | _, _ => fail s!"kernel: unknown constant c{k}"

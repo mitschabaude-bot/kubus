@@ -33,7 +33,7 @@ inductive HasTy (S : Sig) : Nat → I → Ctx → Tm → Tm → Prop
   | var {Ψ Φ Γ x A} : Wf S Ψ Φ Γ → Γ.lookup x = some A → HasTy S Ψ Φ Γ (var x) A
   | conv {Ψ Φ Γ t A B l} : HasTy S Ψ Φ Γ t A → EqTm S Ψ Φ Γ A B (univ l) → HasTy S Ψ Φ Γ t B
   | restrict {Ψ Φ Φ' Γ t A} : Φ'.Scoped Ψ → I.Entails Φ' Φ → HasTy S Ψ Φ Γ t A → HasTy S Ψ Φ' Γ t A
-  | const {Ψ Φ Γ k t A} : Wf S Ψ Φ Γ → S[k]? = some (t, A) → HasTy S Ψ Φ Γ (const k) A
+  | const {Ψ Φ Γ k t A} : Wf S Ψ Φ Γ → S[k]? = some (.defn t A) → HasTy S Ψ Φ Γ (const k) A
   | wk {Ψ Φ Γ t A B l} : HasTy S Ψ Φ Γ B (univ l) → HasTy S Ψ Φ Γ t A →
       HasTy S Ψ Φ (B :: Γ) t.shift A.shift
   | dwk {Ψ Φ Γ t A} : HasTy S Ψ Φ Γ t A → HasTy S (Ψ + 1) Φ.shift Γ.dshift t.dshift A.dshift
@@ -114,6 +114,37 @@ inductive HasTy (S : Sig) : Nat → I → Ctx → Tm → Tm → Prop
       HasTy S Ψ Φ Γ A (univ l) → HasTy S Ψ (cof Φ φ) Γ e (equiv T A) →
       HasTy S Ψ Φ Γ g (glue A φ T e) → HasTy S Ψ Φ Γ (unglue φ e g) A
 
+  /- inductive types -/
+  | data {Ψ Φ Γ d D ps} : S[d]? = some (.data D) → D.level + 1 ≤ maxLevel →
+      HasTele S Ψ Φ Γ ps D.params [] → HasTy S Ψ Φ Γ (data d ps) (univ D.level)
+  | con {Ψ Φ Γ d D c C ps args rs} : S[d]? = some (.data D) → D.ctors[c]? = some C →
+      HasTy S Ψ Φ Γ (data d ps) (univ D.level) →
+      HasTele S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
+      rs.length = C.dims → (∀ r ∈ rs, r.Scoped Ψ) →
+      HasTy S Ψ Φ Γ (con d c ps args rs) (data d ps)
+  | elim {Ψ Φ Γ d D ps P bs t m} : S[d]? = some (.data D) →
+      HasTy S Ψ Φ Γ (data d ps) (univ D.level) → HasTy S Ψ Φ (data d ps :: Γ) P (univ m) →
+      bs = Tm.ofList bs.toList → bs.toList.length = D.ctors.length →
+      (∀ (c : Nat) (C : Ctor) (b : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
+        HasTy S Ψ Φ Γ b (D.branchTy d c C ps P)) →
+      (∀ (c : Nat) (C : Ctor) (b : Tm) (k : Nat) (ψ : I) (e : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b → C.bnd[k]? = some (ψ, e) →
+        EqTm S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps P Γ)
+          (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P)) →
+      HasTy S Ψ Φ Γ t (data d ps) → HasTy S Ψ Φ Γ (elim d ps P bs t) (P.inst t)
+
+/-- `as : Δ`: the list term `as` matches the telescope `Δ`, whose types are instantiated by
+`prev` (the earlier elements and the outer instantiation, most recent first). -/
+inductive HasTele (S : Sig) : Nat → I → Ctx → Tm → List Tm → List Tm → Prop
+  | nil {Ψ Φ Γ prev} : Wf S Ψ Φ Γ → HasTele S Ψ Φ Γ .tnil [] prev
+  | cons {Ψ Φ Γ a as A Δ prev} : HasTy S Ψ Φ Γ a (A.substList prev) →
+      HasTele S Ψ Φ Γ as Δ (a :: prev) → HasTele S Ψ Φ Γ (.tcons a as) (A :: Δ) prev
+
+/-- Equality of list terms in a telescope. -/
+inductive EqTele (S : Sig) : Nat → I → Ctx → Tm → Tm → List Tm → List Tm → Prop
+  | nil {Ψ Φ Γ prev} : Wf S Ψ Φ Γ → EqTele S Ψ Φ Γ .tnil .tnil [] prev
+  | cons {Ψ Φ Γ a a' as as' A Δ prev} : EqTm S Ψ Φ Γ a a' (A.substList prev) →
+      EqTele S Ψ Φ Γ as as' Δ (a :: prev) → EqTele S Ψ Φ Γ (.tcons a as) (.tcons a' as') (A :: Δ) prev
+
 inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   /- equivalence and structure -/
   | refl {Ψ Φ Γ t A} : HasTy S Ψ Φ Γ t A → EqTm S Ψ Φ Γ t t A
@@ -132,7 +163,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (t.inst a) (t'.inst a') (B.inst a)
   | dsubst {Ψ Φ Γ t t' A r} : EqTm S (Ψ + 1) Φ.shift Γ.dshift t t' A → r.Scoped Ψ →
       EqTm S Ψ Φ Γ (t.dinst r) (t'.dinst r) (A.dinst r)
-  | delta {Ψ Φ Γ k t A} : HasTy S Ψ Φ Γ (const k) A → S[k]? = some (t, A) →
+  | delta {Ψ Φ Γ k t A} : HasTy S Ψ Φ Γ (const k) A → S[k]? = some (.defn t A) →
       EqTm S Ψ Φ Γ (const k) t A
   /- cofibrations -/
   | absurd {Ψ Φ Γ t u A} : I.Entails Φ .zero → HasTy S Ψ Φ Γ t A → HasTy S Ψ Φ Γ u A →
@@ -263,15 +294,101 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
   | glueEta {Ψ Φ Γ A φ T e g} : HasTy S Ψ Φ Γ g (glue A φ T e) →
       EqTm S Ψ Φ Γ g (glueEl φ e g (unglue φ e g)) (glue A φ T e)
+  /- inductive types: congruence -/
+  | data {Ψ Φ Γ d D ps ps'} : S[d]? = some (.data D) →
+      HasTy S Ψ Φ Γ (data d ps) (univ D.level) → HasTy S Ψ Φ Γ (data d ps') (univ D.level) →
+      EqTele S Ψ Φ Γ ps ps' D.params [] → EqTm S Ψ Φ Γ (data d ps) (data d ps') (univ D.level)
+  | con {Ψ Φ Γ d D c C ps ps' args args' rs rs'} : S[d]? = some (.data D) → D.ctors[c]? = some C →
+      HasTy S Ψ Φ Γ (con d c ps args rs) (data d ps) →
+      HasTy S Ψ Φ Γ (con d c ps' args' rs') (data d ps) →
+      EqTele S Ψ Φ Γ ps ps' D.params [] →
+      EqTele S Ψ Φ Γ args args' (C.argTys d D.params.length) ps.toList.reverse →
+      rs.length = rs'.length → (∀ (k : Nat) (r r' : I), rs[k]? = some r → rs'[k]? = some r' → I.Eq r r') →
+      EqTm S Ψ Φ Γ (con d c ps args rs) (con d c ps' args' rs') (data d ps)
+  | elim {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} : S[d]? = some (.data D) →
+      HasTy S Ψ Φ Γ (elim d ps P bs t) (P.inst t) → HasTy S Ψ Φ Γ (elim d ps' P' bs' t') (P.inst t) →
+      EqTele S Ψ Φ Γ ps ps' D.params [] → EqTm S Ψ Φ (data d ps :: Γ) P P' (univ m) →
+      bs.toList.length = bs'.toList.length →
+      (∀ (c : Nat) (C : Ctor) (b b' : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
+        bs'.toList[c]? = some b' →
+        EqTm S Ψ Φ Γ b b' (D.branchTy d c C ps P)) →
+      EqTm S Ψ Φ Γ t t' (data d ps) →
+      EqTm S Ψ Φ Γ (elim d ps P bs t) (elim d ps' P' bs' t') (P.inst t)
+  /- inductive types: boundaries of path constructors -/
+  | conBnd {Ψ Φ Γ d D c C ps args rs} {k : Nat} {ψ b T} : S[d]? = some (.data D) → D.ctors[c]? = some C →
+      C.bnd[k]? = some (ψ, b) → I.Entails Φ (Ctor.cofAt ψ rs) →
+      HasTy S Ψ Φ Γ (con d c ps args rs) T →
+      EqTm S Ψ Φ Γ (con d c ps args rs) (Ctor.bndAt b ps.toList args.toList rs) T
+  /- inductive types: elimination -/
+  | elimCon {Ψ Φ Γ d D c C ps P bs b qs args rs T} : S[d]? = some (.data D) →
+      D.ctors[c]? = some C → bs.toList[c]? = some b →
+      HasTy S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T →
+      EqTm S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
+        (Tm.papps (Tm.apps b (args.toList ++
+          C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T
+  | elimHcomp {Ψ Φ Γ d ps P bs qs φ u a T} :
+      HasTy S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T →
+      EqTm S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a))
+        (comp (P.subst (fun | 0 => hfill (data d ps) φ u a | j + 1 => var j) (fun i => .var (i + 1))) φ
+          (elim d ps.dshift P.dshift bs.dshift u) (elim d ps P bs a)) T
+  /- inductive types: transport (`hcomp` in an inductive type is a canonical form) -/
+  | transpData0 {Ψ Φ Γ d D ps φ a T} : S[d]? = some (.data D) → D.params = [] →
+      HasTy S Ψ Φ Γ (transp (data d ps) φ a) T → EqTm S Ψ Φ Γ (transp (data d ps) φ a) a T
+  | transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} : S[d]? = some (.data D) → D.params ≠ [] →
+      D.ctors[c]? = some C → HasTy S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T →
+      EqTm S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs))
+        (con d c (ps.dinst .one)
+          (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
+  | transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} : S[d]? = some (.data D) → D.params ≠ [] →
+      HasTy S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T →
+      EqTm S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a))
+        (hcomp (data d (ps.dinst .one)) ψ
+          (transp ((data d ps).dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)) φ.shift u)
+          (transp (data d ps) φ a)) T
 
 end
 
+namespace DataDecl
+
+/-- The context of the parameters before parameter `j`. -/
+def paramCtx (D : DataDecl) (j : Nat) : Ctx := (D.params.take j).reverse
+
+/-- The context of the parameters and the arguments of `C` before argument `k`. -/
+def argCtx (D : DataDecl) (d : Nat) (C : Ctor) (k : Nat) : Ctx :=
+  (List.range k).reverse.map (C.argTy d D.params.length) ++ D.paramCtx D.params.length
+
+/-- A well-formed declaration of the inductive type `d`, checked in a signature `S` that
+contains it (its type former and constructors are used to type recursive arguments and
+boundaries): parameters and point arguments do not mention `d` (so `d` occurs only as the
+type of recursive arguments: strictly positive, not nested), point arguments live in the
+declared universe, and boundaries are simple, well-typed and agree on overlaps. -/
+def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
+  let np := D.params.length
+  D.level + 1 ≤ maxLevel ∧
+  (∀ (j : Nat) (A : Tm), D.params[j]? = some A → A.closedB j 0 = true ∧ A.mentionsData d = false ∧
+    ∃ l, HasTy S 0 .one (D.paramCtx j) A (.univ l)) ∧
+  ∀ (c : Nat) (C : Ctor), D.ctors[c]? = some C →
+    (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
+      A.mentionsData d = false ∧ HasTy S 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+    (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
+      b.closedB (np + C.args.length) C.dims = true ∧
+      Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
+      HasTy S C.dims ψ (D.argCtx d C C.args.length) b
+        (.data d (Ctor.paramVars np C.args.length))) ∧
+    (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
+      EqTm S C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
+        (.data d (Ctor.paramVars np C.args.length)))
+
+end DataDecl
+
 /-- A well-formed signature: definition `k` is a closed term of a closed type, checked
-against the definitions before it. -/
+against the entries before it; a data declaration is checked against the entries up to and
+including itself. -/
 def WfSig (S : Sig) : Prop :=
-  ∀ k t A, S[k]? = some (t, A) →
+  (∀ (k : Nat) (t A : Tm), S[k]? = some (.defn t A) →
     t.closedB 0 0 ∧ A.closedB 0 0 ∧
-    (∃ l, HasTy (S.take k) 0 .one [] A (.univ l)) ∧ HasTy (S.take k) 0 .one [] t A
+    (∃ l, HasTy (S.take k) 0 .one [] A (.univ l)) ∧ HasTy (S.take k) 0 .one [] t A) ∧
+  (∀ (k : Nat) (D : DataDecl), S[k]? = some (.data D) → D.Wf (S.take (k + 1)) k)
 
 /-- Consistency: in a well-formed signature there is no closed term of `(A : U₀) → A`. -/
 def Consistent : Prop :=

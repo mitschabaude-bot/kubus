@@ -108,7 +108,25 @@ def defaultFuel : Nat := 20000
 def SigInfo.next (R : Rec S) (si : SigInfo S) : K (Option (SigInfo S)) :=
   match h : S[si.lv.length]? with
   | none => pure none
-  | some (b, A) =>
+  | some (.data _) =>
+    -- inductive types are not supported by the kernel yet: a placeholder level, never used
+    pure (some
+      { lv := si.lv ++ [0]
+        closed := by
+          intro k t A' hk hlt
+          simp only [List.length_append, List.length_singleton] at hlt
+          rcases Nat.lt_succ_iff_lt_or_eq.mp hlt with hlt | heq
+          · exact si.closed k t A' hk hlt
+          · subst heq; rw [h] at hk; cases hk
+        ok := by
+          intro k t A' l' hk hl
+          have hlt := KCtx.lt_of_getElem? hl
+          simp only [List.length_append, List.length_singleton] at hlt
+          rcases Nat.lt_succ_iff_lt_or_eq.mp hlt with hlt | heq
+          · rw [List.getElem?_append_left hlt] at hl
+            exact si.ok k t A' l' hk hl
+          · subst heq; rw [h] at hk; cases hk })
+  | some (.defn b A) =>
     if hc : A.closedB 0 0 = true then do
       let ⟨l, ⟨hA⟩⟩ ← inferType R (KCtx.root si) A
       pure (some
@@ -164,47 +182,59 @@ def checkEntry (S : Sig) (t A : Tm) (fuel : Nat := defaultFuel) :
 theorem wfSig_append {S : Sig} {t A : Tm} (hS : WfSig S)
     (h : t.closedB 0 0 = true ∧ A.closedB 0 0 = true ∧
       (∃ l, HasTy S 0 .one [] A (.univ l)) ∧ HasTy S 0 .one [] t A) :
-    WfSig (S ++ [(t, A)]) := by
-  intro k t' A' hk
-  by_cases hlt : k < S.length
-  · rw [List.getElem?_append_left hlt] at hk
-    rw [List.take_append_of_le_length (Nat.le_of_lt hlt)]
-    exact hS k t' A' hk
-  · have hge : S.length ≤ k := Nat.le_of_not_lt hlt
-    rw [List.getElem?_append_right hge] at hk
-    have hk0 : k - S.length = 0 := by
+    WfSig (S ++ [.defn t A]) := by
+  refine ⟨?_, ?_⟩
+  · intro k t' A' hk
+    by_cases hlt : k < S.length
+    · rw [List.getElem?_append_left hlt] at hk
+      rw [List.take_append_of_le_length (Nat.le_of_lt hlt)]
+      exact hS.1 k t' A' hk
+    · have hge : S.length ≤ k := Nat.le_of_not_lt hlt
+      rw [List.getElem?_append_right hge] at hk
+      have hk0 : k - S.length = 0 := by
+        cases h' : k - S.length with
+        | zero => rfl
+        | succ n => rw [h'] at hk; simp at hk
+      have hkeq : k = S.length := by omega
+      subst hkeq
+      simp at hk
+      obtain ⟨rfl, rfl⟩ := hk
+      rw [List.take_left' rfl]
+      exact h
+  · intro k D hk
+    by_cases hlt : k < S.length
+    · rw [List.getElem?_append_left hlt] at hk
+      rw [List.take_append_of_le_length hlt]
+      exact hS.2 k D hk
+    · have hge : S.length ≤ k := Nat.le_of_not_lt hlt
+      rw [List.getElem?_append_right hge] at hk
       cases h' : k - S.length with
-      | zero => rfl
+      | zero => rw [h'] at hk; simp at hk
       | succ n => rw [h'] at hk; simp at hk
-    have hkeq : k = S.length := by omega
-    subst hkeq
-    simp at hk
-    obtain ⟨rfl, rfl⟩ := hk
-    rw [List.take_left' rfl]
-    exact h
 
 /-- A signature together with a proof that it is well-formed. -/
 structure CheckedSig where
   sig : Sig
   wf : WfSig sig
 
-def CheckedSig.empty : CheckedSig := ⟨[], fun k _ _ h => by simp at h⟩
+def CheckedSig.empty : CheckedSig := ⟨[], fun k _ _ h => by simp at h, fun k _ h => by simp at h⟩
 
 /-- Check one more definition. -/
 def CheckedSig.extend (C : CheckedSig) (t A : Tm) (fuel : Nat := defaultFuel) : K CheckedSig := do
   let ⟨h⟩ ← checkEntry C.sig t A fuel
-  pure ⟨C.sig ++ [(t, A)], wfSig_append C.wf h⟩
+  pure ⟨C.sig ++ [.defn t A], wfSig_append C.wf h⟩
 
 def checkSigAux (pre : Sig) (hpre : WfSig pre) : (rest : Sig) → K (PLift (WfSig (pre ++ rest)))
   | [] => pure ⟨by simpa using hpre⟩
-  | (t, A) :: rest => do
+  | .defn t A :: rest => do
     let ⟨h⟩ ← checkEntry pre t A
-    let ⟨h'⟩ ← checkSigAux (pre ++ [(t, A)]) (wfSig_append hpre h) rest
+    let ⟨h'⟩ ← checkSigAux (pre ++ [.defn t A]) (wfSig_append hpre h) rest
     pure ⟨by simpa using h'⟩
+  | .data _ :: _ => fail "kernel: inductive types are not supported yet"
 
 /-- Check a whole signature. -/
 def checkSig (S : Sig) : K (PLift (WfSig S)) := do
-  let ⟨h⟩ ← checkSigAux [] (fun k _ _ h => by simp at h) S
+  let ⟨h⟩ ← checkSigAux [] ⟨fun k _ _ h => by simp at h, fun k _ h => by simp at h⟩ S
   pure ⟨by simpa using h⟩
 
 /-- Soundness of the kernel: by construction, `checkSig` only succeeds with a proof. -/

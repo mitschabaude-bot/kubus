@@ -187,6 +187,18 @@ inductive Tm where
   | glueEl (φ : I) (e t a : Tm)
   /-- `unglue` carries the equivalence `e` of the Glue type -/
   | unglue (φ : I) (e g : Tm)
+  /-- argument lists (parameters, constructor arguments, branches) are terms built from `tnil`
+  and `tcons`, so that `Tm` is not a nested inductive; they have no typing rules of their own -/
+  | tnil
+  | tcons (t ts : Tm)
+  /-- the inductive type `d` of the signature at the parameters `ps` (a list) -/
+  | data (d : Nat) (ps : Tm)
+  /-- constructor `c` of `d` at the parameters `ps`, with arguments `args` (a list) and interval
+  arguments `rs` -/
+  | con (d c : Nat) (ps args : Tm) (rs : List I)
+  /-- `elim d ps (x. P) bs t`: the eliminator of `d` at the parameters `ps` with motive `P`
+  (binding `x : data d ps`) and branches `bs` (a list, one per constructor) -/
+  | elim (d : Nat) (ps P bs t : Tm)
   deriving DecidableEq, Repr, Inhabited
 
 namespace Tm
@@ -218,6 +230,11 @@ def ren (ρ δ : Nat → Nat) : Tm → Tm
   | glue A φ T e => glue (A.ren ρ δ) (φ.ren δ) (T.ren ρ δ) (e.ren ρ δ)
   | glueEl φ e t a => glueEl (φ.ren δ) (e.ren ρ δ) (t.ren ρ δ) (a.ren ρ δ)
   | unglue φ e g => unglue (φ.ren δ) (e.ren ρ δ) (g.ren ρ δ)
+  | tnil => tnil
+  | tcons t ts => tcons (t.ren ρ δ) (ts.ren ρ δ)
+  | data d ps => data d (ps.ren ρ δ)
+  | con d c ps args rs => con d c (ps.ren ρ δ) (args.ren ρ δ) (rs.map (·.ren δ))
+  | elim d ps P bs t => elim d (ps.ren ρ δ) (P.ren (upRen ρ) δ) (bs.ren ρ δ) (t.ren ρ δ)
 
 /-- Weaken by a term variable. -/
 def shift (t : Tm) : Tm := t.ren Nat.succ id
@@ -253,6 +270,11 @@ def subst (σ : Nat → Tm) (τ : Nat → I) : Tm → Tm
   | glue A φ T e => glue (A.subst σ τ) (φ.subst τ) (T.subst σ τ) (e.subst σ τ)
   | glueEl φ e t a => glueEl (φ.subst τ) (e.subst σ τ) (t.subst σ τ) (a.subst σ τ)
   | unglue φ e g => unglue (φ.subst τ) (e.subst σ τ) (g.subst σ τ)
+  | tnil => tnil
+  | tcons t ts => tcons (t.subst σ τ) (ts.subst σ τ)
+  | data d ps => data d (ps.subst σ τ)
+  | con d c ps args rs => con d c (ps.subst σ τ) (args.subst σ τ) (rs.map (·.subst τ))
+  | elim d ps P bs t => elim d (ps.subst σ τ) (P.subst (up σ) τ) (bs.subst σ τ) (t.subst σ τ)
 
 /-- Substitute interval variables only. -/
 def dsubst (τ : Nat → I) (t : Tm) : Tm := t.subst var τ
@@ -283,6 +305,11 @@ def closedB (n m : Nat) : Tm → Bool
   | glue A φ T e => A.closedB n m && φ.scopedB m && T.closedB n m && e.closedB n m
   | glueEl φ e t a => φ.scopedB m && e.closedB n m && t.closedB n m && a.closedB n m
   | unglue φ e g => φ.scopedB m && e.closedB n m && g.closedB n m
+  | tnil => true
+  | tcons t ts => t.closedB n m && ts.closedB n m
+  | data _ ps => ps.closedB n m
+  | con _ _ ps args rs => ps.closedB n m && args.closedB n m && rs.all (·.scopedB m)
+  | elim _ ps P bs t => ps.closedB n m && P.closedB (n + 1) m && bs.closedB n m && t.closedB n m
 
 /-- Non-dependent function type. -/
 def arrow (A B : Tm) : Tm := pi A B.shift
@@ -433,9 +460,233 @@ def transpGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm :=
 
 end Tm
 
-/-- A signature of global definitions `(body, type)`; constant `k` refers to entry `k`.
-Bodies and types are closed. -/
-abbrev Sig := List (Tm × Tm)
+/-! ## Inductive types (phase 2, `docs/inductive-types.md`) -/
+
+namespace Tm
+
+def ofList : List Tm → Tm
+  | [] => tnil
+  | t :: ts => tcons t (ofList ts)
+
+/-- The elements of a list term (other terms give `[]`). -/
+def toList : Tm → List Tm
+  | tcons t ts => t :: ts.toList
+  | _ => []
+
+/-- Substitute the term variables `j < L.length` by `L[j]` (most recent first) and lower the
+others. -/
+def substList (L : List Tm) (t : Tm) : Tm :=
+  t.subst (fun j => L.getD j (var (j - L.length))) I.var
+
+/-- Weaken by `n` term and `m` interval variables. -/
+def wkN (n m : Nat) (t : Tm) : Tm := t.ren (· + n) (· + m)
+
+def apps (f : Tm) (as : List Tm) : Tm := as.foldl app f
+
+def papps (f : Tm) (rs : List I) : Tm := rs.foldl papp f
+
+/-- Whether `t` mentions the inductive type `d` (its type former, constructors or eliminator). -/
+def mentionsData (d : Nat) : Tm → Bool
+  | var _ | const _ | univ _ | abort | tnil => false
+  | pi A B | lam A B | app A B | sigma A B | pair A B | tcons A B => A.mentionsData d || B.mentionsData d
+  | fst t | snd t | plam t | ipi t | papp t _ => t.mentionsData d
+  | path A a b | glueEl _ A a b => A.mentionsData d || a.mentionsData d || b.mentionsData d
+  | unglue _ a b => a.mentionsData d || b.mentionsData d
+  | split _ t _ u | transp t _ u => t.mentionsData d || u.mentionsData d
+  | hcomp A _ u a => A.mentionsData d || u.mentionsData d || a.mentionsData d
+  | glue A _ T e => A.mentionsData d || T.mentionsData d || e.mentionsData d
+  | data d' ps => d' == d || ps.mentionsData d
+  | con d' _ ps args _ => d' == d || ps.mentionsData d || args.mentionsData d
+  | elim d' ps P bs t => d' == d || ps.mentionsData d || P.mentionsData d || bs.mentionsData d ||
+      t.mentionsData d
+
+end Tm
+
+/-- A constructor argument: a point argument of a type not mentioning the inductive type, or a
+recursive argument (of the inductive type itself, at the same parameters). -/
+inductive Arg where
+  | point (A : Tm)
+  | recur
+  deriving DecidableEq, Repr, Inhabited
+
+/-- A constructor `c (x₁ : A₁) … (xₙ : Aₙ) (i₁ … iₘ : I) [ψ ↦ b]`. The type of argument `k` lives
+in the context of the parameters and the arguments before it. The boundary is a system over
+the interval arguments (`iₘ` is interval variable 0), with elements in the context of the
+parameters and all arguments. -/
+structure Ctor where
+  args : List Arg
+  dims : Nat
+  bnd : List (I × Tm)
+  deriving DecidableEq, Repr, Inhabited
+
+/-- `data D (Δ) : U l := ctors`. Parameter `j` lives in the context of the parameters before it. -/
+structure DataDecl where
+  level : Nat
+  params : List Tm
+  ctors : List Ctor
+  deriving DecidableEq, Repr, Inhabited
+
+/-- An entry of the signature: a definition `(body, type)` or an inductive type. -/
+inductive Entry where
+  | defn (t A : Tm)
+  | data (D : DataDecl)
+  deriving DecidableEq, Repr, Inhabited
+
+/-- A signature; constant `k` and inductive type `k` refer to entry `k`. -/
+abbrev Sig := List Entry
+
+namespace Ctor
+
+def isRec (C : Ctor) (k : Nat) : Bool := C.args[k]? == some .recur
+
+/-- The positions of the recursive arguments. -/
+def recPos (C : Ctor) : List Nat := (List.range C.args.length).filter C.isRec
+
+/-- The parameters of `d` as variables, in a context with `depth` variables after them. -/
+def paramVars (np depth : Nat) : Tm := Tm.ofList ((List.range np).map fun p => .var (depth + np - 1 - p))
+
+/-- The type of argument `k` of a constructor of `d` with `np` parameters, in the context of
+the parameters and the arguments before it. -/
+def argTy (C : Ctor) (d np k : Nat) : Tm :=
+  match C.args[k]? with
+  | some (.point A) => A
+  | _ => .data d (paramVars np k)
+
+def argTys (C : Ctor) (d np : Nat) : List Tm := (List.range C.args.length).map (C.argTy d np)
+
+/-- The boundary element `b` at parameters `ps`, arguments `args` and interval arguments `rs`. -/
+def bndAt (b : Tm) (ps args : List Tm) (rs : List I) : Tm :=
+  b.subst (fun j => (args.reverse ++ ps.reverse).getD j (.var j)) (fun i => rs.reverse.getD i (.var i))
+
+/-- The boundary cofibration `ψ` at interval arguments `rs`. -/
+def cofAt (ψ : I) (rs : List I) : I := ψ.subst fun i => rs.reverse.getD i (.var i)
+
+/-! ### Simple boundaries
+
+A boundary element of constructor `c` (with `n` arguments) is *simple* if it is a recursive
+argument of `c`, or a constructor `c' < c` of the same type at the same parameters whose
+recursive arguments are simple and whose point arguments are point arguments of `c`. -/
+
+mutual
+def simpleB (ctors : List Ctor) (d np c n : Nat) (C : Ctor) : Tm → Bool
+  | .var j => decide (j < n) && C.isRec (n - 1 - j)
+  | .con d' c' ps as _ =>
+    d' == d && decide (c' < c) && ps == paramVars np n &&
+      (match ctors[c']? with
+       | some C' => as.toList.length == C'.args.length && simpleArgs ctors d np c n C C' 0 as
+       | none => false)
+  | _ => false
+def simpleArgs (ctors : List Ctor) (d np c n : Nat) (C C' : Ctor) (k : Nat) : Tm → Bool
+  | .tcons a as =>
+    (if C'.isRec k then simpleB ctors d np c n C a
+     else match a with
+       | .var j => decide (j < n) && !C.isRec (n - 1 - j)
+       | _ => false) &&
+    simpleArgs ctors d np c n C C' (k + 1) as
+  | _ => true
+end
+
+end Ctor
+
+namespace DataDecl
+
+/-! ### The eliminator
+
+The branch for constructor `c` is a function of the arguments, an induction hypothesis for each
+recursive argument, and the interval arguments. In its body (the *branch context*) argument `k`
+is variable `r + n - 1 - k` and hypothesis `s` is variable `r - 1 - s` (with `n` arguments and `r`
+recursive ones), and interval argument `l` is interval variable `m - 1 - l`. -/
+
+/-- `P[con d c ps xs is]` in the branch context, for `P` and `ps` over the outer context. -/
+def branchBody (d c : Nat) (C : Ctor) (ps P : Tm) : Tm :=
+  let n := C.args.length
+  let r := C.recPos.length
+  let m := C.dims
+  let xs := (List.range n).map fun k => Tm.var (r + n - 1 - k)
+  let is := (List.range m).map fun l => I.var (m - 1 - l)
+  let conTm := Tm.con d c (ps.wkN (n + r) m) (Tm.ofList xs) is
+  P.subst (fun | 0 => conTm | j + 1 => .var (j + n + r)) (fun i => .var (i + m))
+
+/-- The type of argument `k` in the context extended by the arguments before it. -/
+def branchArgTy (d np : Nat) (C : Ctor) (ps : Tm) (k : Nat) : Tm :=
+  (C.argTy d np k).substList ((List.range k).map Tm.var ++ ps.toList.reverse.map (·.wkN k 0))
+
+/-- The type of hypothesis `s` in the context extended by the arguments and hypotheses before it. -/
+def branchIhTy (C : Ctor) (P : Tm) (s : Nat) : Tm :=
+  let n := C.args.length
+  P.subst (fun | 0 => .var (s + n - 1 - C.recPos.getD s 0) | j + 1 => .var (j + n + s)) I.var
+
+/-- The type of the branch for constructor `c`. -/
+def branchTy (D : DataDecl) (d c : Nat) (C : Ctor) (ps P : Tm) : Tm :=
+  let n := C.args.length
+  let r := C.recPos.length
+  let inner := (List.range C.dims).foldl (fun acc _ => Tm.ipi acc) (branchBody d c C ps P)
+  let withIhs := (List.range r).foldr (fun s acc => Tm.pi (branchIhTy C P s) acc) inner
+  (List.range n).foldr (fun k acc => Tm.pi (branchArgTy d D.params.length C ps k) acc) withIhs
+
+/-- The branch context (arguments, hypotheses; innermost first) over `Γ`, under the
+interval arguments. -/
+def branchCtx (D : DataDecl) (d : Nat) (C : Ctor) (ps P : Tm) (Γ : List Tm) : List Tm :=
+  let n := C.args.length
+  let r := C.recPos.length
+  (((List.range r).reverse.map (branchIhTy C P)) ++
+    ((List.range n).reverse.map (branchArgTy d D.params.length C ps)) ++ Γ).map
+    (·.ren id (· + C.dims))
+
+/-- The branch `b` applied to the variables of the branch context. -/
+def branchApp (C : Ctor) (b : Tm) : Tm :=
+  let n := C.args.length
+  let r := C.recPos.length
+  let m := C.dims
+  Tm.papps (Tm.apps (b.wkN (n + r) m)
+    ((List.range n).map (fun k => Tm.var (r + n - 1 - k)) ++ (List.range r).map fun s => Tm.var (r - 1 - s)))
+    ((List.range m).map fun l => I.var (m - 1 - l))
+
+/-- A boundary element as a point of the branch context. -/
+def bndPoint (C : Ctor) (ps : Tm) (b : Tm) : Tm :=
+  let n := C.args.length
+  let r := C.recPos.length
+  b.subst (fun j => if j < n then .var (j + r) else (ps.toList.reverse.getD (j - n) (.var 0)).wkN (n + r) C.dims)
+    I.var
+
+mutual
+/-- The eliminator on a simple boundary element, computed from the branches in the branch
+context: a recursive argument gives its hypothesis, a constructor its branch. -/
+def bndElim (D : DataDecl) (C : Ctor) (ps bs : Tm) : Tm → Tm
+  | .var j =>
+    let n := C.args.length
+    let r := C.recPos.length
+    match C.recPos.idxOf? (n - 1 - j) with
+    | some s => .var (r - 1 - s)
+    | none => .abort
+  | .con _ c' _ as rs =>
+    match D.ctors[c']?, bs.toList[c']? with
+    | some C', some b =>
+      Tm.papps (Tm.apps (b.wkN (C.args.length + C.recPos.length) C.dims)
+        (as.toList.map (bndPoint C ps) ++ bndElimArgs D C ps bs C' 0 as)) rs
+    | _, _ => .abort
+  | _ => .abort
+/-- The hypotheses for the recursive arguments of a boundary constructor. -/
+def bndElimArgs (D : DataDecl) (C : Ctor) (ps bs : Tm) (C' : Ctor) (k : Nat) : Tm → List Tm
+  | .tcons a as =>
+    (if C'.isRec k then [bndElim D C ps bs a] else []) ++ bndElimArgs D C ps bs C' (k + 1) as
+  | _ => []
+end
+
+end DataDecl
+
+namespace Tm
+
+/-- Transport of a telescope of constructor arguments along the parameter line `psL` (in the
+context extended by the interval variable 0): each argument is transported along its type
+line, whose earlier arguments are the transport fillers of the earlier arguments. -/
+def transpTele (argTy : Nat → Tm) (psL : List Tm) (φ : I) : Nat → List Tm → List Tm → List Tm
+  | _, _, [] => []
+  | k, fills, a :: as =>
+    let L := (argTy k).substList (fills ++ psL.reverse)
+    transp L φ a :: transpTele argTy psL φ (k + 1) (transpFill L φ a :: fills) as
+
+end Tm
 
 /-- Universe levels are bounded, so that the model can be built from finitely many
 Grothendieck universes (an unbounded tower is not constructible in Lean). -/

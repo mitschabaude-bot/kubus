@@ -81,12 +81,20 @@ def Tm.pp : Tm → String
   | .glue A φ T e => s!"(Glue {Tm.pp A} [{I.pp φ} ↦ ({Tm.pp T}, {Tm.pp e})])"
   | .glueEl φ _ t a => s!"(glue [{I.pp φ} ↦ {Tm.pp t}] {Tm.pp a})"
   | .unglue φ _ g => s!"(unglue {I.pp φ} {Tm.pp g})"
+  | .tnil => "[]"
+  | .tcons t ts => s!"{Tm.pp t} :: {Tm.pp ts}"
+  | .data d ps => s!"(D{d} {Tm.pp ps})"
+  | .con d c ps args _ => s!"(D{d}.{c} {Tm.pp ps} {Tm.pp args})"
+  | .elim d ps P bs t => s!"(elim D{d} {Tm.pp ps} (x. {Tm.pp P}) {Tm.pp bs} {Tm.pp t})"
 
 def _root_.KubusCore.Tm.size : Tm → Nat
   | .var _ | .const _ | .univ _ | .abort => 1
   | .fst t | .snd t | .plam t | .ipi t | .papp t _ => t.size + 1
   | .pi A B | .sigma A B | .app A B | .pair A B | .split _ A _ B | .transp A _ B | .glueEl _ _ A B
-  | .lam A B | .unglue _ A B => A.size + B.size + 1
+  | .lam A B | .unglue _ A B | .tcons A B | .con _ _ A B _ => A.size + B.size + 1
+  | .tnil => 1
+  | .data _ ps => ps.size + 1
+  | .elim _ ps P bs t => ps.size + P.size + bs.size + t.size + 1
   | .path A a b => A.size + a.size + b.size + 1
   | .hcomp A _ u a => A.size + u.size + a.size + 1
   | .glue A _ T e => A.size + T.size + e.size + 1

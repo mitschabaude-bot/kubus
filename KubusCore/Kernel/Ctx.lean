@@ -14,8 +14,8 @@ namespace KubusCore
 empty context. -/
 structure SigInfo (S : Sig) where
   lv : List Nat
-  closed : ∀ (k : Nat) (t A : Tm), S[k]? = some (t, A) → k < lv.length → A.closedB 0 0 = true
-  ok : ∀ (k : Nat) (t A : Tm) (l : Nat), S[k]? = some (t, A) → lv[k]? = some l → HasTy S 0 .one [] A (.univ l)
+  closed : ∀ (k : Nat) (t A : Tm), S[k]? = some (.defn t A) → k < lv.length → A.closedB 0 0 = true
+  ok : ∀ (k : Nat) (t A : Tm) (l : Nat), S[k]? = some (.defn t A) → lv[k]? = some l → HasTy S 0 .one [] A (.univ l)
 
 structure KCtx (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) where
   sig : SigInfo S
@@ -23,7 +23,7 @@ structure KCtx (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) where
   wf : Wf S Ψ Φ Γ
   hsc : Φ.Scoped Ψ
   varOk : ∀ (x : Nat) (A : Tm) (l : Nat), Γ.lookup x = some A → lv[x]? = some l → HasTy S Ψ Φ Γ A (.univ l)
-  constOk : ∀ (k : Nat) (t A : Tm) (l : Nat), S[k]? = some (t, A) → sig.lv[k]? = some l → HasTy S Ψ Φ Γ A (.univ l)
+  constOk : ∀ (k : Nat) (t A : Tm) (l : Nat), S[k]? = some (.defn t A) → sig.lv[k]? = some l → HasTy S Ψ Φ Γ A (.univ l)
 
 namespace KCtx
 

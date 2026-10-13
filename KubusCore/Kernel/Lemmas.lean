@@ -221,6 +221,26 @@ theorem ren_closed (t : Tm) : ∀ (n m : Nat) (ρ δ : Nat → Nat), t.closedB n
     simp only [ren]
     rw [I.ren_id_of_scoped δ φ m ((I.scopedB_iff _ _).mp h.1.1) hδ, ihe n m ρ δ h.1.2 hρ hδ,
       ih n m ρ δ h.2 hρ hδ]
+  | tnil => intros; rfl
+  | tcons t ts iht ihts =>
+    intro n m ρ δ h hρ hδ; simp only [closedB, Bool.and_eq_true] at h
+    simp only [ren]; rw [iht n m ρ δ h.1 hρ hδ, ihts n m ρ δ h.2 hρ hδ]
+  | data d ps ih =>
+    intro n m ρ δ h hρ hδ; simp only [closedB] at h
+    simp only [ren]; rw [ih n m ρ δ h hρ hδ]
+  | con d c ps args rs ihps iha =>
+    intro n m ρ δ h hρ hδ; simp only [closedB, Bool.and_eq_true] at h
+    have hrs : rs.map (·.ren δ) = rs := by
+      conv => rhs; rw [← List.map_id rs]
+      apply List.map_congr_left
+      intro r hr
+      exact I.ren_id_of_scoped δ r m ((I.scopedB_iff _ _).mp (List.all_eq_true.mp h.2 r hr)) hδ
+    simp only [ren]; rw [ihps n m ρ δ h.1.1 hρ hδ, iha n m ρ δ h.1.2 hρ hδ, hrs]
+  | elim d ps P bs t ihps ihP ihbs iht =>
+    intro n m ρ δ h hρ hδ; simp only [closedB, Bool.and_eq_true] at h
+    simp only [ren]
+    rw [ihps n m ρ δ h.1.1.1 hρ hδ, ihP (n + 1) m _ δ h.1.1.2 (upRen_fix ρ n hρ) hδ,
+      ihbs n m ρ δ h.1.2 hρ hδ, iht n m ρ δ h.2 hρ hδ]
 
 theorem shift_closed {t : Tm} (h : t.closedB 0 0 = true) : t.shift = t :=
   ren_closed t 0 0 _ _ h (fun _ h => absurd h (Nat.not_lt_zero _)) (fun _ _ => rfl)
@@ -238,6 +258,11 @@ def mentionsI (i : Nat) : Tm → Bool
   | papp p r => p.mentionsI i || r.vars.contains i
   | split φ t ψ u => φ.vars.contains i || t.mentionsI i || ψ.vars.contains i || u.mentionsI i
   | transp A φ a => A.mentionsI (i + 1) || φ.vars.contains i || a.mentionsI i
+  | tnil => false
+  | tcons t ts => t.mentionsI i || ts.mentionsI i
+  | data _ ps => ps.mentionsI i
+  | con _ _ ps args rs => ps.mentionsI i || args.mentionsI i || rs.any (·.vars.contains i)
+  | elim _ ps P bs t => ps.mentionsI i || P.mentionsI i || bs.mentionsI i || t.mentionsI i
   | hcomp A φ u a => A.mentionsI i || φ.vars.contains i || u.mentionsI (i + 1) || a.mentionsI i
   | glue A φ T e => A.mentionsI i || φ.vars.contains i || T.mentionsI i || e.mentionsI i
   | glueEl φ e t a => φ.vars.contains i || e.mentionsI i || t.mentionsI i || a.mentionsI i

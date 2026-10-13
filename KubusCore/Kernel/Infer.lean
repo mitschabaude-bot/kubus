@@ -141,7 +141,7 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K (Inf
     | _, _ => fail s!"kernel: unbound variable x{x}"
   | .const k =>
     match h : S[k]?, hl : E.sig.lv[k]? with
-    | some (b, A), some l => pure ⟨A, l, E.constOk k b A l h hl, HasTy.const E.wf h⟩
+    | some (.defn b A), some l => pure ⟨A, l, E.constOk k b A l h hl, HasTy.const E.wf h⟩
     | _, _ => fail s!"kernel: unknown constant c{k}"
   | .univ l => do
     let ⟨h1⟩ ← ensureLvl (l + 2)
@@ -270,6 +270,8 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K (Inf
     let ⟨A, T, ⟨hA, eG⟩⟩ ← toGlueE R E i.ty i.lvl i.hty φ e
     let ⟨he⟩ ← checkEquiv R E A φ T e i.lvl
     pure ⟨A, i.lvl, hA, HasTy.unglue (HasTy.eqR eG) hA he (HasTy.conv i.htm eG)⟩
+  | .tnil | .tcons .. => fail "kernel: a list is not a term"
+  | .data .. | .con .. | .elim .. => fail "kernel: inductive types are not supported yet"
 
 def checkByInfer (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (PLift (HasTy S Ψ Φ Γ t A)) := do
