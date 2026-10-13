@@ -457,6 +457,102 @@ theorem bnd_rec (hS : SigClosed S) {d : Nat}
   | _ =>
     exact ⟨fun h => by simp [Ctor.simpleB] at h, fun _ _ _ _ _ _ h => by simp [Ctor.simpleArgs] at h⟩
 
+
+theorem rev_shift (as R : List Tm) (k y : Nat) :
+    (as.reverse ++ R)[y + (as.length - k)]? = ((as.take k).reverse ++ R)[y]? := by
+  have e : as.reverse = (as.drop k).reverse ++ (as.take k).reverse := by
+    rw [← List.reverse_append, List.take_append_drop]
+  rw [e, List.append_assoc, List.getElem?_append_right (by simp only [List.length_reverse, List.length_drop]; omega)]
+  simp only [List.length_reverse, List.length_drop]
+  rw [show y + (as.length - k) - (as.length - k) = y by omega]
+
+theorem argTys_get {C : Ctor} {d np k : Nat} (h : k < C.args.length) :
+    (C.argTys d np)[k]? = some (C.argTy d np k) := by
+  simp [Ctor.argTys, h]
+
+theorem tySub_nil {Ψs Φs Ψ Φ Γ σ τ} (hb : ∀ i < Ψs, (τ i).Scoped Ψ) (he : I.Entails Φ (Φs.subst τ))
+    (hw : Wf0 S Ψ Φ Γ) : TySub S Ψs Φs [] Ψ Φ Γ σ τ :=
+  { bound := hb, hscoped := scoped_of_wf hw, ent := he, wf := hw
+    look := fun x A h => by simp [Ctx.lookup] at h }
+
+/-- The parameters as a substitution out of the parameter context. -/
+theorem tySub_params (hS : SigClosed S) {d : Nat} {D : DataDecl} (hD : S[d]? = some (.data D))
+    {Ψs Φs Ψ Φ Γ τ} {ps : Tm} (hpt : HasTele0 S Ψ Φ Γ ps D.params []) (e : Nat)
+    (h0 : ∀ σ, TySub S Ψs Φs [] Ψ Φ Γ σ τ) :
+    ∀ j, j ≤ D.params.length → TySub S Ψs Φs (D.paramCtx j) Ψ Φ Γ (lsub (ps.toList.take j).reverse e) τ
+  | 0, _ => by simpa [DataDecl.paramCtx] using h0 _
+  | j + 1, hj => by
+    have hpl : ps.toList.length = D.params.length := by simpa using tele_length hpt
+    have ih := tySub_params hS hD hpt e h0 j (by omega)
+    have hpj : ps.toList[j]? = some ps.toList[j] := List.getElem?_eq_getElem (by omega)
+    have hA : D.params[j]? = some D.params[j] := List.getElem?_eq_getElem (by omega)
+    have ha := tele_get hpt j _ _ hpj hA
+    have hcl := hS.params d D j _ hD hA
+    have hlen : ((ps.toList.take j).reverse).length = j := by simp; omega
+    rw [List.append_nil, substList_eq_lsub,
+      closed_subst_eq _ j 0 _ (lsub (ps.toList.take j).reverse e) _ τ hcl
+        (fun x hx => by rw [lsub_lt (by omega), lsub_lt (by omega)]) (fun i hi => by omega)] at ha
+    have := ih.cons ha
+    rw [consT_lsub] at this
+    have ht : (ps.toList.take (j + 1)).reverse = ps.toList[j] :: (ps.toList.take j).reverse := by
+      rw [List.take_add_one, List.getElem?_eq_getElem (by omega)]; simp
+    rw [paramCtx_succ D (by omega), ht]
+    exact this
+
+/-- The parameters and the point arguments as a substitution out of the point context. -/
+theorem tySub_points (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {Ψs Φs Ψ Φ Γ τ} {ps args : Tm} {e : Nat}
+    (hP : TySub S Ψs Φs (D.paramCtx D.params.length) Ψ Φ Γ (lsub ps.toList.reverse e) τ)
+    (hat : HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
+    (hpl : ps.toList.length = D.params.length) :
+    ∀ k, k ≤ C.args.length →
+      TySub S Ψs Φs (D.pointCtx d C k) Ψ Φ Γ (lsub (ptL C args.toList ps.toList.reverse k) e) τ
+  | 0, _ => by simpa [DataDecl.pointCtx, ptL] using hP
+  | k + 1, hk => by
+    have ih := tySub_points hS hW hD hC hP hat hpl k (by omega)
+    have hal : args.toList.length = C.args.length := by
+      have := tele_length hat; rwa [argTys_length] at this
+    rw [pointCtx_succ]
+    cases hr : C.isRec k
+    · simp only [hr, Bool.false_eq_true, if_false, ptL]
+      have hk' : k < C.args.length := by omega
+      obtain ⟨A, hA⟩ : ∃ A, C.args[k]? = some (.point A) := by
+        simp only [Ctor.isRec, List.getElem?_eq_getElem hk'] at hr ⊢
+        cases h : C.args[k] with
+        | point A => exact ⟨A, rfl⟩
+        | recur => simp [h] at hr
+      obtain ⟨hcl, -, hnr, -⟩ := ((hW.2 d D hD).2.2 c C hC).1 k A hA
+      have hty : C.argTy d D.params.length k = A := by simp [Ctor.argTy, hA]
+      have hak : args.toList[k]? = some args.toList[k] := List.getElem?_eq_getElem (by omega)
+      have ha := tele_get hat k _ (C.argTy d D.params.length k) hak (argTys_get hk')
+      have hFl : ((args.toList.take k).reverse ++ ps.toList.reverse).length = k + D.params.length := by
+        simp [hpl]; omega
+      have heq : (A.ren (C.pointRen k) id).subst (lsub (ptL C args.toList ps.toList.reverse k) e) τ =
+          A.substList ((args.toList.take k).reverse ++ ps.toList.reverse) := by
+        rw [subst_ren, substList_eq_lsub,
+          closed_subst_eq A _ 0 _ (fun y => lsub (ptL C args.toList ps.toList.reverse k) e (C.pointRen k y))
+            _ I.var hcl (fun _ _ => rfl) (fun i hi => by omega)]
+        apply subst_freeIn_congr
+        intro y hy
+        have hyl := freeIn_lt A _ _ _ hcl hy
+        have hc : y < k → C.isRec (k - 1 - y) = false := by
+          intro hy'
+          simp only [Ctor.noRecDeps, List.all_eq_true, List.mem_range] at hnr
+          have := hnr (k - 1 - y) (by omega)
+          rw [show k - 1 - (k - 1 - y) = y by omega, hy] at this
+          simpa using this
+        have h1 := ptL_get C args.toList ps.toList.reverse k (by omega) y (by simp [hpl]; omega) hc
+        have h2 : ((args.toList.take k).reverse ++ ps.toList.reverse)[y]? =
+            some ((args.toList.take k).reverse ++ ps.toList.reverse)[y] :=
+          List.getElem?_eq_getElem (by omega)
+        rw [lsub_of_getElem? (h1.trans h2), lsub_lt (by omega)]
+      rw [← hty] at heq
+      rw [← heq] at ha
+      have := ih.cons ha
+      rw [consT_lsub] at this
+      simpa [List.getD_eq_getElem?_getD, hak] using this
+    · simpa [hr, ptL] using ih
+
 theorem conBnd_typed (hW : WfSig S) {d : Nat}
     (htr : ∀ {Ψ' Φ' Γ' t u A}, EqTm (S.take d) Ψ' Φ' Γ' t u A → EqTm0 S Ψ' Φ' Γ' t u A)
     {Ψ Φ Γ} {D : DataDecl} {c : Nat} {C : Ctor} {ps args : Tm} {rs : List I} {k : Nat} {ψ : I} {b : Tm}
@@ -467,6 +563,82 @@ theorem conBnd_typed (hW : WfSig S) {d : Nat}
     (hat : HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
     (hrs : rs.length = C.dims) (hrsc : ∀ r ∈ rs, r.Scoped Ψ) :
     HasTy0 S Ψ Φ Γ (Ctor.bndAt b ps.toList args.toList rs) (data d ps) := by
-  sorry
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨-, -, hctors⟩ := hW.2 d D hD
+  obtain ⟨-, hbndW, -⟩ := hctors c C hC
+  obtain ⟨-, hbcl, hsimp, -, hbt⟩ := hbndW k ψ b hk
+  have hpl : ps.toList.length = D.params.length := by simpa using tele_length hpt
+  have hal : args.toList.length = C.args.length := by
+    have := tele_length hat; rwa [argTys_length] at this
+  have hw := wf_of_ty hdata
+  have hτ : ∀ i < C.dims, ((fun i => rs.reverse.getD i (.var i)) i).Scoped Ψ := fun i hi => by
+    show (rs.reverse.getD i (.var i)).Scoped Ψ
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by simp; omega)]
+    exact hrsc _ (List.mem_reverse.1 (List.getElem_mem _))
+  have h0 : ∀ σ, TySub S C.dims ψ [] Ψ Φ Γ σ (fun i => rs.reverse.getD i (.var i)) :=
+    fun σ => tySub_nil hτ hent hw
+  have hP := tySub_params hS hD hpt (C.args.length + D.params.length) h0 _ (Nat.le_refl _)
+  rw [List.take_of_length_le (by omega)] at hP
+  have hσ := tySub_points hS hW hD hC hP hat hpl _ (Nat.le_refl _)
+  have hag : ∀ X, C.mentionsRec C.args.length X = false →
+      (X.ren (C.pointRen C.args.length) id).subst
+        (lsub (ptL C args.toList ps.toList.reverse C.args.length) (C.args.length + D.params.length))
+        (fun i => rs.reverse.getD i (.var i)) =
+      X.subst (fun j => (args.toList.reverse ++ ps.toList.reverse).getD j (.var j))
+        (fun i => rs.reverse.getD i (.var i)) := by
+    intro X hm
+    rw [subst_ren]
+    apply subst_freeIn_congr
+    intro y hy
+    have hc : y < C.args.length → C.isRec (C.args.length - 1 - y) = false := by
+      intro hy'
+      simp only [Ctor.mentionsRec, List.any_eq_false, List.mem_range] at hm
+      have := hm y hy'
+      cases h : C.isRec (C.args.length - 1 - y)
+      · rfl
+      · simp [h, hy] at this
+    have := pt_agree C (R := ps.toList.reverse) hal hc
+    rw [List.length_reverse, hpl] at this
+    exact this
+  have hlook : ∀ j T, j < C.args.length → (D.argCtx d C C.args.length).lookup j = some T →
+      HasTy0 S Ψ Φ Γ ((fun j => (args.toList.reverse ++ ps.toList.reverse).getD j (.var j)) j)
+        (T.subst (fun j => (args.toList.reverse ++ ps.toList.reverse).getD j (.var j))
+          (fun i => rs.reverse.getD i (.var i))) := by
+    intro j T hj hT
+    rw [lookup_of_get _ _ _ (argCtx_get D d C hj), Option.some.injEq] at hT
+    subst hT
+    have hkl : C.args.length - 1 - j < args.toList.length := by omega
+    have hak : args.toList[C.args.length - 1 - j]? = some args.toList[C.args.length - 1 - j] :=
+      List.getElem?_eq_getElem hkl
+    have ha := tele_get hat _ _ (C.argTy d D.params.length (C.args.length - 1 - j)) hak
+      (argTys_get (by omega))
+    have hcl := argTy_closed hS hD hC (C.args.length - 1 - j)
+    have hx : (args.toList.reverse ++ ps.toList.reverse).getD j (.var j) =
+        args.toList[C.args.length - 1 - j] := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_append_left (by simp; omega),
+        List.getElem?_reverse (by omega)]
+      simp only [hal, hak, Option.getD_some]
+    show HasTy0 S Ψ Φ Γ ((args.toList.reverse ++ ps.toList.reverse).getD j (.var j)) _
+    rw [hx, subst_ren]
+    rw [substList_eq_lsub, closed_subst_eq _ _ 0 _
+      (fun y => (args.toList.reverse ++ ps.toList.reverse).getD (y + (j + 1)) (.var (y + (j + 1)))) _
+      (fun i => rs.reverse.getD (id i) (.var (id i))) hcl (fun y hy => ?_) (fun i hi => by omega)] at ha
+    · exact ha
+    · have := rev_shift args.toList ps.toList.reverse (C.args.length - 1 - j) y
+      rw [show args.toList.length - (C.args.length - 1 - j) = j + 1 by omega] at this
+      have hyl : y < ((args.toList.take (C.args.length - 1 - j)).reverse ++ ps.toList.reverse).length := by
+        simp [hpl, hal]; omega
+      show _ = (args.toList.reverse ++ ps.toList.reverse).getD (y + (j + 1)) (.var (y + (j + 1)))
+      rw [lsub_lt hyl, List.getD_eq_getElem?_getD, this, List.getElem?_eq_getElem hyl]
+      rfl
+  have hpv : (Ctor.paramVars D.params.length C.args.length).subst
+      (fun j => (args.toList.reverse ++ ps.toList.reverse).getD j (.var j))
+      (fun i => rs.reverse.getD i (.var i)) = ps := by
+    rw [paramVars_subst hpl, ← hps]
+    intro p hp
+    have := getElem?_params (X := args.toList.reverse) hp
+    rw [List.length_reverse, hal, hpl] at this
+    rw [List.getD_eq_getElem?_getD, this]; rfl
+  exact (bnd_rec hS htr hD hps hdata hpt hσ hag hlook hpv hτ b).1 hsimp hbt hbcl
 
 end KubusCore.Meta
