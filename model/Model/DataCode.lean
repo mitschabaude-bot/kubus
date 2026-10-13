@@ -165,6 +165,20 @@ theorem res_hcV (φ : Cof n) (u : Tube n) (a : V) (h : Hom k n) :
   simp only [hcV, res_mkKV, Cof.restr_restr, res_res]
   rfl
 
+theorem hcV_congr {φ : Cof n} {u u' : Tube n} (a : V)
+    (h : ∀ n' (h : Hom n' n) r, (φ.restr h).holds → u n' h r = u' n' h r) : hcV n φ u a = hcV n φ u' a := by
+  unfold hcV
+  congr 1; funext k f
+  split
+  · rw [h k f _ ‹_›]
+  · congr 3
+    rw [tubeZ_eq_iff]
+    funext n' g r
+    simp only [Tube.canon, Tube.restr]
+    split
+    · rw [Cof.restr_restr] at *; rw [h _ _ _ ‹_›]
+    · rfl
+
 /-! ### Semantic inductive types -/
 
 /-- An inductive type at stage `m` (at some parameters): the constructors (from the declaration)
