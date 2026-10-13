@@ -112,6 +112,10 @@ theorem isContr_fiber_inst (T A f a : Tm) :
 theorem pathC_var0_inst (X c p : Tm) : (pathC X.shift c.shift (var 0)).inst p = pathC X c p := by
   simp only [pathC]; scalc
 
+theorem tgFib_eq (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : tgFib A φ T e ψ u0 =
+    sigma (T.dinst .one) (pathC (A.dinst .one).shift (app (fst (e.dinst .one)).shift (var 0)) (tgA1' A φ e ψ u0).shift) :=
+  rfl
+
 /-- The cofibration of the composition in `ω`: `ψ ∨ j = 0 ∨ j = 1`. -/
 abbrev tgChi (ψ : I) : I := .or ψ.shift (.or (.neg (.var 0)) (.var 0))
 
@@ -500,6 +504,62 @@ theorem hcpEq {X : I} (hXs : X.Scoped Ψ) (hX : I.Entails X (cof Φ (φ.subst (I
   rw [K_inst] at h1
   have := EqTm0.app (EqTm0.refl h1) hp
   rwa [pathC_var0_inst] at this
+
+theorem hWδs : (cof (cof Φ (φ.subst (I.inst0 .one))) δ).Scoped Ψ := ⟨H.hWs, H.hδ⟩
+theorem hWψs : (cof (cof Φ (φ.subst (I.inst0 .one))) ψ).Scoped Ψ := ⟨H.hWs, H.hψ⟩
+theorem hWδZ : I.Entails (cof (cof Φ (φ.subst (I.inst0 .one))) δ) (cof Φ δ) :=
+  ent_and_mono (ent_and_left _ _) (ent_refl _)
+
+/-- The partial element of the fibre on `δ`: `(t1', ω)`. -/
+theorem hpd : HasTy0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) δ) Γ
+    (pair (tgT1 T ψ u0) (tgOmega A φ T e ψ u0)) (tgFib A φ T e ψ u0) := by
+  have hf := HasTy0.restrict H.hWδs (ent_and_left _ _) H.hfib
+  rw [tgFib_eq] at hf ⊢
+  exact HasTy0.pair hf (HasTy0.restrict H.hWδs H.hWδZ H.ht1)
+    (by rw [P_inst]; exact HasTy0.restrict H.hWδs H.hWδZ H.hω)
+
+theorem hu0T1 : HasTy0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ u0 (T.dinst .one) := by
+  have hX : I.Entails (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) (cof Φ ψ) := ent_and_mono (ent_and_left _ _) (ent_refl _)
+  have hGψ := EqTm0.dsubst H.hS H.hconst (r := .one) trivial
+  rw [dshift_dinst] at hGψ
+  have hG1T1 := EqTm0.glueFace (ent_trans (ent_and_left _ _) (ent_and_right _ _))
+    (HasTy0.restrict H.hWψs (ent_trans (ent_and_left _ _) (ent_and_left _ _)) (H.hGr (r := .one) trivial))
+  exact HasTy0.conv (HasTy0.conv (HasTy0.restrict H.hWψs (ent_trans hX (ent_and_left _ _)) H.hu0)
+    (EqTm0.symm (EqTm0.restrict H.hWψs hX hGψ))) hG1T1
+
+theorem he1W {X : I} (hXs : X.Scoped Ψ) (hX : I.Entails X (cof Φ (φ.subst (I.inst0 .one)))) :
+    HasTy0 S Ψ X Γ (e.dinst .one) (equiv (T.dinst .one) (A.dinst .one)) := HasTy0.restrict hXs hX H.he1
+
+theorem hA1X {X : I} (hXs : X.Scoped Ψ) (hX : I.Entails X Φ) : HasTy0 S Ψ X Γ (A.dinst .one) (univ l) :=
+  HasTy0.restrict hXs hX (H.hAr (r := .one) trivial)
+
+/-- On `ψ`, `a1' ≡ e(1).1 u0`. -/
+theorem ha1'eq : EqTm0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ (tgA1' A φ e ψ u0)
+    (app (fst (e.dinst .one)) u0) (A.dinst .one) := by
+  have hX : I.Entails (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Φ := ent_trans (ent_and_left _ _) (ent_and_left _ _)
+  have e1 := comp_face H.hS (HasTy0.restrict H.hWψs hX H.ha1') (ent_and_right _ _)
+  rw [tgTube_dinst] at e1
+  have hu0G1 : HasTy0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ u0 ((glue A φ T e).dinst .one) := by
+    have hGψ := EqTm0.dsubst H.hS H.hconst (r := .one) trivial
+    rw [dshift_dinst] at hGψ
+    exact HasTy0.conv (HasTy0.restrict H.hWψs hX H.hu0)
+      (EqTm0.symm (EqTm0.restrict H.hWψs (ent_and_mono (ent_and_left _ _) (ent_refl _)) hGψ))
+  have e2 := EqTm0.unglueFace (ent_trans (ent_and_left _ _) (ent_and_right _ _)) hu0G1
+    (H.hA1X H.hWψs hX) (H.he1W H.hWψs (ent_and_left _ _))
+  exact EqTm0.trans e1 e2
+
+theorem hpl : HasTy0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ (plam (tgA1' A φ e ψ u0).dshift)
+    (pathC (A.dinst .one) (app (fst (e.dinst .one)) u0) (tgA1' A φ e ψ u0)) := by
+  have hX : I.Entails (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Φ := ent_trans (ent_and_left _ _) (ent_and_left _ _)
+  exact plam_const H.hS (H.hA1X H.hWψs hX)
+    (app_fst_equiv (H.he1W H.hWψs (ent_and_left _ _)) H.hu0T1) (HasTy0.restrict H.hWψs hX H.ha1') H.ha1'eq
+
+/-- The partial element of the fibre on `ψ`: `(u0, ⟨_⟩ a1')`. -/
+theorem hpψ : HasTy0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ
+    (pair u0 (plam (tgA1' A φ e ψ u0).dshift)) (tgFib A φ T e ψ u0) := by
+  have hf := HasTy0.restrict H.hWψs (ent_and_left _ _) H.hfib
+  rw [tgFib_eq] at hf ⊢
+  exact HasTy0.pair hf H.hu0T1 (by rw [P_inst]; exact H.hpl)
 
 end TG
 
