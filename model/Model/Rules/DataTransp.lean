@@ -283,7 +283,7 @@ theorem sem_EqTm_transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} (hS : SigOK S) 
         have tc : TranspCond S (Lt j) φ (args.toList.getD j .abort) m ρ γ := by
           refine ⟨?_, ?_, ?_, fun k' g' => ?_, hanat⟩
           · rw [hline]
-            obtain ⟨hV, hW⟩ := (hok.2 (m + 1) _ hpL).2 c j (m + 1) (Hom.id (m + 1)) (fills.take j)
+            obtain ⟨hV, hW⟩ := (hok.2 (m + 1) _ hpL).2.1 c j (m + 1) (Hom.id (m + 1)) (fills.take j)
             exact ⟨D.level, hlvl, Or.inl ⟨hW hpvj, hV⟩⟩
           · rw [hline]; exact hcon
           · rw [hline, hav]; exact hbase hr0

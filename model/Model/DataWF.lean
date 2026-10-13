@@ -74,6 +74,7 @@ structure SData.GoodCore (Θ : SData m) : Prop where
   bnd : ∀ c C, Θ.ctors[c]? = some C → ∀ ψ b, (ψ, b) ∈ C.bnd → ∀ n (rs : List (DM n)),
     (ival (renv rs) ψ).holds → BTy Θ c C b
   const : Θ.params = false → ∀ c j n (g g' : Hom n m) pre, Θ.ty c j n g pre = Θ.ty c j n g' pre
+  nonhit : Θ.hit = false → ∀ (c : ℕ) (C : Ctor), Θ.ctors[c]? = some C → C.dims = 0 ∧ C.bnd = []
   ovl : ∀ c C, Θ.ctors[c]? = some C → ∀ ψ b ψ' b', (ψ, b) ∈ C.bnd → (ψ', b') ∈ C.bnd →
     ∀ n (g : Hom n m) args (rs : List (DM n)), Θ.ArgsTyped c C n g args → rs.length = C.dims →
       (ival (renv rs) ψ).holds → (ival (renv rs) ψ').holds →
@@ -133,6 +134,45 @@ theorem SData.Basic.pt_kv {Θ : SData m} (hΘ : Θ.Basic) {c n : ℕ} {g : Hom n
     have := hp i' (by omega) hr'
     rw [List.getElem_take, List.take_take, Nat.min_eq_left (by omega)]; exact this
   exact (hΘ.fib c i n g _ hpi).elKV n (Hom.id n) _ (hp i hi hr)
+
+
+/-! ### Restriction -/
+
+theorem argsTyped_restr_iff (Θ : SData m) (h : Hom k m) {c : ℕ} {C : Ctor} {n : ℕ} (g : Hom n k) (args : List V) :
+    (Θ.restr h).ArgsTyped c C n g args ↔ Θ.ArgsTyped c C n (h.comp g) args := by
+  unfold SData.ArgsTyped
+  simp only [delem_restr_iff]
+  rfl
+
+theorem bty_restr (Θ : SData m) (h : Hom k m) (c : ℕ) (C : Ctor) : ∀ t : Tm,
+    (BTy Θ c C t → BTy (Θ.restr h) c C t) ∧
+    (∀ C' c' j prev, BTyArgs Θ c C C' c' j prev t → BTyArgs (Θ.restr h) c C C' c' j prev t) := by
+  intro t
+  induction t with
+  | var x => exact ⟨fun hb => hb, fun _ _ _ _ hb => by simp [BTyArgs] at hb ⊢⟩
+  | con d c' ps as rs' _ ihas =>
+    refine ⟨fun hb => ?_, fun _ _ _ _ hb => by simp [BTyArgs] at hb ⊢⟩
+    obtain ⟨h1, C', h2, h3, h4, h5⟩ := hb
+    exact ⟨h1, C', h2, h3, h4, ihas.2 _ _ _ _ h5⟩
+  | tcons a as iha ihas =>
+    refine ⟨fun hb => by simp [BTy] at hb, fun C' c' j prev hb => ?_⟩
+    obtain ⟨h1, h2, h3⟩ := hb
+    refine ⟨fun hr => iha.1 (h1 hr), fun hr => ?_, ihas.2 _ _ _ _ h3⟩
+    obtain ⟨x, hx1, hx2, hx3, hx4⟩ := h2 hr
+    exact ⟨x, hx1, hx2, hx3, fun n g pre hl hp => hx4 n (h.comp g) pre hl hp⟩
+  | _ => exact ⟨fun hb => by simp [BTy] at hb, fun _ _ _ _ hb => by simp [BTyArgs] at hb ⊢⟩
+
+theorem SData.GoodCore.restr {Θ : SData m} (hΘ : Θ.GoodCore) (h : Hom k m) : (Θ.restr h).GoodCore where
+  nat c j n g pre hp n' h' := hΘ.nat c j n (h.comp g) pre hp n' h'
+  recIrr c j n g pre pre' hl he := hΘ.recIrr c j n (h.comp g) pre pre' hl he
+  bnd c C hC ψ b hb n rs hh := (bty_restr Θ h c C b).1 (hΘ.bnd c C hC ψ b hb n rs hh)
+  const hp c j n g g' pre := hΘ.const hp c j n (h.comp g) (h.comp g') pre
+  nonhit := hΘ.nonhit
+  ovl c C hC ψ b ψ' b' hb hb' n g args rs ht hrs h1 h2 :=
+    hΘ.ovl c C hC ψ b ψ' b' hb hb' n (h.comp g) args rs ((argsTyped_restr_iff Θ h g args).1 ht) hrs h1 h2
+
+theorem SData.Good.restr {Θ : SData m} (hΘ : Θ.Good) (h : Hom k m) : (Θ.restr h).Good :=
+  { hΘ.toGoodCore.restr h with fib := fun c j n g pre hp => hΘ.fib c j n (h.comp g) pre hp }
 
 end
 

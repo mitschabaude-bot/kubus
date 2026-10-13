@@ -55,9 +55,9 @@ theorem sem_HasTy_data {Ψ Φ Γ d D ps} (hS : SigOK S) (h0 : S[d]? = some (.dat
   have hd : d < S.length := (List.getElem?_eq_some_iff.1 h0).1
   have hok := hS.2 d D h0
   refine ⟨h2.wf, ⟨hd, h2.constsLt⟩, trivial, fun m ρ γ hp => ⟨?_, fun k f => ?_, tyOK_univ h1 ρ γ, natural_univ _ ρ γ⟩⟩
-  · obtain ⟨hgood, hty⟩ := hok.2 m _ (paramsOK_of_tele hd.le hok.1 h2 hp)
+  · obtain ⟨hgood, hty, hpv⟩ := hok.2 m _ (paramsOK_of_tele hd.le hok.1 h2 hp)
     rw [sem_data_of h0 (paramsOK_of_tele hd.le hok.1 h2 hp), sem_univ, mem_El_univ_iff]
-    exact ⟨dataC_mem_Vt (by unfold maxLevel at h1; omega) fun c j n g pre => (hty c j n g pre).1,
+    exact ⟨dataC_mem_Vt (by unfold maxLevel at h1; omega) (fun c j n g pre => (hty c j n g pre).1) hpv,
       WFI.data _ hgood.toGoodCore fun c j n g pre hpv => (hty c j n g pre).2 hpv⟩
   · rw [sem_data_of h0 (paramsOK_of_tele hd.le hok.1 h2 (hp.restr h2.wf f)),
       sem_data_of h0 (paramsOK_of_tele hd.le hok.1 h2 hp), res_dataC, dataSD_restr]
@@ -659,7 +659,7 @@ theorem paramsOK_of_code {d : ℕ} {D : DataDecl} (h0 : S[d]? = some (.data D)) 
   paramsOK_of_sem_data h0 fun he => not_isKV_empty (he ▸ h.fib.kv)
 
 theorem sem_EqTm_elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} (hS : SigOK S)
-    (hd : S[d]? = some (.data D)) (hh : SemTy S Ψ Φ Γ (hcomp (data d ps) φ u a) (data d ps))
+    (hd : S[d]? = some (.data D)) (hH : D.isHIT = true) (hh : SemTy S Ψ Φ Γ (hcomp (data d ps) φ u a) (data d ps))
     (h0 : SemTy S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T) :
     SemEq S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a))
       (comp (P.subst (fun | 0 => hfill (data d ps) φ u a | j + 1 => var j) (fun i => .var (i + 1))) φ
@@ -710,7 +710,7 @@ theorem sem_EqTm_elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} (hS : SigOK S)
       have huq := hcq.2.1
       have hu0q := hcq.2.2.1
       rw [sem_data_of hd hpq] at huq hu0q
-      rw [sem_hcomp hcq, sem_data_of hd hpq, hcompAt_dataC huq hu0q]
+      rw [sem_hcomp hcq, sem_data_of hd hpq, hcompAt_dataC hH huq hu0q]
     have hde0 := g.2.1
     simp only [psRV, hρ, hγ] at hde0
     rw [hscr] at hde0
@@ -819,7 +819,7 @@ theorem sem_EqTm_elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} (hS : SigOK S)
     · rw [elimD_hcV _ _ _ (Hom.id m) hφ hF hA0d.kv]
       have hWv : hcV (m + 1) (fillFace (ival ρ φ).face) (fillTube (ival ρ φ).face (tubeV S u ρ γ) (sem S a m ρ γ))
           (res (Hom.wk m) (sem S a m ρ γ)) = W := by
-        rw [hW, hfillF, hcompAt_dataC (fillTube_ok hfib hφ hu0 hu) (hfib.elRes _ _ _ hu0 _ _)]
+        rw [hW, hfillF, hcompAt_dataC hH (fillTube_ok hfib hφ hu0 hu) (hfib.elRes _ _ _ hu0 _ _)]
         exact hcV_congr _ fun n' h r hh' => by simp [Tube.canon, hh']
       rw [hWv]
       simp only [Hom.id_comp]
@@ -849,7 +849,7 @@ theorem sem_dsubst_σ2 (A : Tm) (ρ : IEnv m) {n : ℕ} (h : Hom n m) (r : DM n)
   rw [sem_dsubst]; congr 1; funext i; cases i <;> rfl
 
 theorem sem_EqTm_transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
-    (h1 : D.params ≠ []) (hh : SemTy S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero)))
+    (h1 : D.params ≠ []) (hH : D.isHIT = true) (hh : SemTy S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero)))
     (h2 : SemTy S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T) :
     SemEq S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a))
       (hcomp (data d (ps.dinst .one)) ψ
@@ -984,7 +984,7 @@ theorem sem_EqTm_transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} (hS : SigOK S) (h0
     have hwAm : wA ∈ El (dataC (ΘL.restr (Hom.endpt m (DM.one m)))) (Hom.id m) := by
       rw [← res_dataC, ← show L = dataC ΘL from hLd]; exact hend1 (Hom.id m) (by simpa using hwAd)
     rw [sem_hcomp hcR, e1, hA0', show res (Hom.endpt m (DM.one m)) L = dataC (ΘL.restr (Hom.endpt m (DM.one m))) by
-      rw [show L = dataC ΘL from hLd, res_dataC], hcompAt_dataC hTub' hwAm]
+      rw [show L = dataC ΘL from hLd, res_dataC], hcompAt_dataC hH hTub' hwAm]
     -- the left-hand side
     have hV : sem S (hcomp (data d qs) ψ u a) m ρ γ =
         hcV m (ival ρ ψ).face (Tube.canon (ival ρ ψ).face (tubeV S u ρ γ)) (sem S a m ρ γ) := by
@@ -995,7 +995,7 @@ theorem sem_EqTm_transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} (hS : SigOK S) (h0
       have huq := hcq.2.1
       have hu0q := hcq.2.2.1
       rw [sem_data_of h0 hpq] at huq hu0q
-      rw [sem_hcomp hcq, sem_data_of h0 hpq, hcompAt_dataC huq hu0q]
+      rw [sem_hcomp hcq, sem_data_of h0 hpq, hcompAt_dataC hH huq hu0q]
     have hVm := hVmem
     rw [hV] at hVm
     rw [sem_transp ⟨hLty, hconst, hVmem, hLN, hVnat⟩, hV, show lineV S (data d ps) m ρ γ = dataC ΘL from hLd]

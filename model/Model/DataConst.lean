@@ -68,7 +68,7 @@ theorem ty_const {n : ℕ} {h : Hom n k} (hh : (φ.restr h).holds) (r : DM n) {c
   have hs := congrArg (here n) (dataC_const hc hh r)
   rw [here_dataC, here_dataC, dataDatum, dataDatum, quad, quad] at hs
   simp only [pair_inj', tagZ_inj] at hs
-  obtain ⟨⟨-, hs⟩, -⟩ := hs
+  obtain ⟨⟨-, -, -, hs⟩, -⟩ := hs
   have hcl : c < Θ.ctors.length := (List.getElem?_eq_some_iff.1 hC).1
   have hCe : Θ.ctors[c] = C := (List.getElem?_eq_some_iff.1 hC).2
   let g0 := f.comp (Hom.snoc h (DM.zero n))

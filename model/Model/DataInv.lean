@@ -156,7 +156,7 @@ def RepHcOK (n : ℕ) (g : Hom n m) (v : V) : Prop :=
     (∀ n' (h : Hom n' n) r, (ψ.restr h).holds → DElem Θ n' (g.comp h) (u n' h r)) ∧
     (∀ n' (h : Hom n' n) r, (ψ.restr h).holds → ∀ n'' (h' : Hom n'' n'),
       res h' (u n' h r) = u n'' (h.comp h') (r.restr h')) ∧
-    (∀ n' (h : Hom n' n), (ψ.restr h).holds → u n' h (DM.zero n') = res h a)
+    (∀ n' (h : Hom n' n), (ψ.restr h).holds → u n' h (DM.zero n') = res h a) ∧ Θ.hit = true
 
 def HasRep (n : ℕ) (g : Hom n m) (v : V) : Prop := RepConOK Θ n g v ∨ RepHcOK Θ n g v
 
@@ -233,14 +233,14 @@ theorem DElem.hasRep {n : ℕ} {g : Hom n m} {v : V} (hv : DElem Θ n g v) : Has
   induction hv with
   | @con n g c C args rs hC hlen hrs hrec hpt ih =>
     exact hasRep_conV hΘ c C hC n g args rs ⟨hlen, hrec, hpt⟩ hrs ih
-  | @hcomp n g φ u a hφ ha hu hcoh hbase iha ihu =>
+  | @hcomp n g φ u a hH hφ ha hu hcoh hbase iha ihu =>
     by_cases hh : φ.holds
     · have hh' : (φ.restr (Hom.id n)).holds := hφ.holds_restr hh _
       have hkv := (hu n (Hom.id n) (DM.one n) hh').kv
       rw [hcV_eq_of_holds a hφ hh hkv hcoh]
       have := ihu n (Hom.id n) (DM.one n) hh'
       rwa [Hom.comp_id] at this
-    · exact Or.inr ⟨φ, u, a, rfl, hφ, hh, ha, hu, hcoh, hbase⟩
+    · exact Or.inr ⟨φ, u, a, rfl, hφ, hh, ha, hu, hcoh, hbase, hH⟩
 
 end
 

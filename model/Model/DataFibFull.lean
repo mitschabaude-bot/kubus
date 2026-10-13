@@ -1,4 +1,4 @@
-import Model.DataTrFib
+import Model.DataHR
 
 /-!
 # Inductive types: the code is fibrant
@@ -42,9 +42,9 @@ theorem delem_noparams {Θ : SData m} (hΘ : Θ.Good) (hp : Θ.params = false) {
     intro g'
     exact DElem.con hC hlen hrs (fun j a ha hr => ih j a ha hr g') (fun j a ha hr => by
       have := hpt j a ha hr; rwa [hΘ.const hp _ _ _ _ g'] at this)
-  | hcomp hφ _ _ hcoh hbase iha ihu =>
+  | hcomp hH hφ _ _ hcoh hbase iha ihu =>
     intro g'
-    exact DElem.hcomp hφ (iha g') (fun n' h r hh => ihu n' h r hh (g'.comp h)) hcoh hbase
+    exact DElem.hcomp hH hφ (iha g') (fun n' h r hh => ihu n' h r hh (g'.comp h)) hcoh hbase
 
 variable {Θ : SData m} (hΘ : Θ.Good)
 include hΘ
@@ -70,9 +70,18 @@ theorem fib_dataC : Fib (dataC Θ) m where
   kv := isKV_dataC Θ
   elKV k f v hv := dataC_elKV f v hv
   elRes k f v hv n h := dataC_elRes hΘ.resClosed f v hv n h
-  hcMem k f φ u u0 hφ hu0 hu := dataC_hcMem hφ hu0 hu
-  hcFace k f φ u u0 hφ hu0 hu hh := dataC_hcFace hφ hu0 hu hh
-  hcRes k f φ u u0 hφ hu0 hu n h := dataC_hcRes hΘ.resClosed hφ hu0 hu n h
+  hcMem k f φ u u0 hφ hu0 hu := by
+    cases hH : Θ.hit
+    · exact dataC_hcMem_nonHIT hΘ hH hφ hu0 hu
+    · exact dataC_hcMem hH hφ hu0 hu
+  hcFace k f φ u u0 hφ hu0 hu hh := by
+    cases hH : Θ.hit
+    · exact dataC_hcFace_nonHIT hΘ hH hφ hu0 hu hh
+    · exact dataC_hcFace hH hφ hu0 hu hh
+  hcRes k f φ u u0 hφ hu0 hu n h := by
+    cases hH : Θ.hit
+    · exact dataC_hcRes_nonHIT hΘ hH hφ hu0 hu n h
+    · exact dataC_hcRes hH hΘ.resClosed hφ hu0 hu n h
   trMem n f φ a0 hφ hc ha := by
     have hd := mem_El_dataC.1 ha
     cases hp : Θ.params

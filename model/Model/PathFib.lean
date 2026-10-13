@@ -322,12 +322,6 @@ theorem swap_comp_lift_lift (h : Hom n' n) :
     refine Fin.lastCases ?_ (fun j => ?_) j <;> simp [swapHom, iVar, jVar]
   · intro p; simp [swapHom, iVar, jVar]
 
-theorem compF_res_gen (c : V) (X : Hom (k + 1) m) (Y : Hom (n + 1) (k + 1)) (ψ : Cof n) (u : Tube n)
-    (u0 : V) : compF (res X c) Y ψ u u0 = compF c (X.comp Y) ψ u u0 := by
-  have : compTube (res X c) Y u = compTube c (X.comp Y) u := by
-    funext n' g r; simp only [compTube, transpAt, trG_res, Hom.comp_assoc]
-  simp only [compF, this, hcompAt, hcG_res, transpAt, trG_res, Hom.comp_assoc]
-
 theorem lift_comp_snoc_snoc (f : Hom (n + 1) m) (A : Hom n' n) (r x : DM n') :
     (Hom.lift f).comp (Hom.snoc (Hom.snoc A r) x) = Hom.snoc (f.comp (Hom.snoc A r)) x :=
   lift_comp_snoc f _ x

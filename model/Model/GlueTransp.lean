@@ -959,10 +959,6 @@ theorem gd_A1' : gtA1' (res (Hom.lift h) A) (φ.restr (Hom.lift h)) (res (Hom.li
   rw [gtA1', gtA1', compF_res hG.fibA hψ (gt_A0_mem hG hu0) (gt_tube_ok hG hu0 hcon) h, compF_res_id,
     gd_A0 hG hu0, gd_tube, Hom.id_comp]
 
-theorem fillF_res_id (c : V) (f : Hom (k + 1) m) (ψ : Cof k) (u : Tube k) (u0 : V) :
-    fillF (res f c) (Hom.id (k + 1)) ψ u u0 = fillF c f ψ u u0 := by
-  rw [fillF, fillF, compF_res_gen, Hom.id_comp]
-
 include hG hψ hu0 hcon in
 theorem gd_fillA : gtFillA (res (Hom.lift h) A) (φ.restr (Hom.lift h)) (res (Hom.lift h) ep) (ψ.restr h) (res h u0) =
     res (Hom.lift h) (gtFillA A φ ep ψ u0) := by

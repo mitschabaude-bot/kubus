@@ -305,7 +305,7 @@ theorem TR.props {k : ℕ} {f : Hom (k + 1) m} {φ : Cof k} {v w : V} (htr : TR 
     · exact absurd heq (conV_ne_hcV hb hn)
   | @hc k f φ ψ u u' a a' hψ hn hka ha htu iha ihu =>
     intro hφ hc hv
-    rcases hv.hasRep hΘ with ⟨c', C, args', rs', hC', heq, hb', -⟩ | ⟨ψ2, u2, a2, heq, hψ2, hn2, ha2, hu2, hcoh2, hbase2⟩
+    rcases hv.hasRep hΘ with ⟨c', C, args', rs', hC', heq, hb', -⟩ | ⟨ψ2, u2, a2, heq, hψ2, hn2, ha2, hu2, hcoh2, hbase2, hH⟩
     · exact absurd heq.symm (conV_ne_hcV (by rw [getD_ctors hC']; exact hb') hn)
     obtain ⟨rfl, hueq, rfl⟩ := hcV_inj hψ hψ2 hn hn2 hka ha2.kv heq
     have hu : ∀ n (g : Hom n k) r, (ψ.restr g).holds → DElem Θ n ((f.comp (Hom.endpt k (DM.zero k))).comp g) (u n g r) :=
@@ -336,7 +336,7 @@ theorem TR.props {k : ℕ} {f : Hom (k + 1) m} {φ : Cof k} {v w : V} (htr : TR 
       have h2 := htu n g (DM.zero n) hh
       rw [hbase n g hh] at h2
       exact h2.unique h1 rfl
-    refine ⟨DElem.hcomp hψ iha'.1 (fun n g r hh => ?_) hcoh' hbase', fun n' h hh => ?_, fun n' h => ?_⟩
+    refine ⟨DElem.hcomp hH hψ iha'.1 (fun n g r hh => ?_) hcoh' hbase', fun n' h hh => ?_, fun n' h => ?_⟩
     · have := (ihu' n g r hh).1
       rwa [Hom.comp_assoc, TranspPi.lift_comp_endpt1, ← Hom.comp_assoc] at this
     · rw [res_hcV, res_hcV, iha'.2.1 n' h hh]
