@@ -107,4 +107,60 @@ theorem spec_to_minimal (hS : WfSig S) {Ψ Φ Γ t A} (h : HasTy S Ψ Φ Γ t A)
 theorem spec_to_minimal_eq (hS : WfSig S) {Ψ Φ Γ t u A} (h : EqTm S Ψ Φ Γ t u A) : EqTm0 S Ψ Φ Γ t u A :=
   spec_to_minimal_eq_of hS (wf_typed _ S rfl hS).1 (wf_typed _ S rfl hS).2 h
 
+/-! ## The minimal statement -/
+
+mutual
+theorem bndTyped_of0 {m ψ Γ C Γp lvl ctors d np} :
+    ∀ t, Ctor.bndTyped0 S m ψ Γ C Γp lvl ctors d np t → Ctor.bndTyped S m ψ Γ C Γp lvl ctors d np t
+  | .con _ c' ps as _, h => by
+    unfold Ctor.bndTyped0 at h; unfold Ctor.bndTyped
+    split at h
+    · rename_i C' hc; rw [hc]; exact bndTypedArgs_of0 _ _ _ _ _ h
+    · rename_i hc; rw [hc]; trivial
+  | .var .., _ | .const .., _ | .univ .., _ | .pi .., _ | .lam .., _ | .app .., _ | .sigma .., _
+  | .pair .., _ | .fst .., _ | .snd .., _ | .path .., _ | .plam .., _ | .papp .., _ | .ipi .., _
+  | .split .., _ | .abort, _ | .transp .., _ | .hcomp .., _ | .glue .., _ | .glueEl .., _
+  | .unglue .., _ | .tnil, _ | .tcons .., _ | .data .., _ | .elim .., _ => by
+    simp [Ctor.bndTyped]
+theorem bndTypedArgs_of0 {m ψ Γ C Γp lvl ctors d np} (C' : Ctor) (ps : Tm) :
+    ∀ (k : Nat) (prev : List Tm) (t : Tm), Ctor.bndTypedArgs0 S m ψ Γ C Γp lvl ctors d np C' ps k prev t →
+      Ctor.bndTypedArgs S m ψ Γ C Γp lvl ctors d np C' ps k prev t
+  | k, prev, .tcons a as, h => by
+    unfold Ctor.bndTypedArgs0 at h; unfold Ctor.bndTypedArgs
+    obtain ⟨h1, h2, h3⟩ := h
+    exact ⟨fun j T ha hr hT => let ⟨x, y, e⟩ := h1 j T ha hr hT; ⟨x, y, toFull_eq e⟩,
+      fun hr => bndTyped_of0 a (h2 hr), bndTypedArgs_of0 C' ps (k + 1) (a :: prev) as h3⟩
+  | _, _, .var .., _ | _, _, .const .., _ | _, _, .univ .., _ | _, _, .pi .., _ | _, _, .lam .., _
+  | _, _, .app .., _ | _, _, .sigma .., _ | _, _, .pair .., _ | _, _, .fst .., _ | _, _, .snd .., _
+  | _, _, .path .., _ | _, _, .plam .., _ | _, _, .papp .., _ | _, _, .ipi .., _ | _, _, .split .., _
+  | _, _, .abort, _ | _, _, .transp .., _ | _, _, .hcomp .., _ | _, _, .glue .., _
+  | _, _, .glueEl .., _ | _, _, .unglue .., _ | _, _, .tnil, _ | _, _, .con .., _
+  | _, _, .data .., _ | _, _, .elim .., _ => by simp [Ctor.bndTypedArgs]
+end
+
+theorem wfSig_of_wfSig0 (h : WfSig0 S) : WfSig S := by
+  refine ⟨fun k t A hk => ?_, fun k D hk => ?_⟩
+  · obtain ⟨h1, h2, ⟨l, h3⟩, h4⟩ := h.1 k t A hk
+    exact ⟨h1, h2, ⟨l, toFull_ty h3⟩, toFull_ty h4⟩
+  · obtain ⟨hl, hp, hc⟩ := h.2 k D hk
+    refine ⟨hl, fun j A hj => ?_, fun c C hC => ?_⟩
+    · obtain ⟨a, b, e⟩ := hp j A hj
+      exact ⟨a, b, e.elim (fun e => .inl (toFull_ty e)) .inr⟩
+    · obtain ⟨ha, hb, ho⟩ := hc c C hC
+      refine ⟨fun k A hk => ?_, fun k ψ b hk => ?_, fun k k' ψ ψ' b b' h1 h2 => toFull_eq (ho k k' ψ ψ' b b' h1 h2)⟩
+      · obtain ⟨a1, a2, a3, a4, a5⟩ := ha k A hk
+        exact ⟨a1, a2, a3, toFull_ty a4, toFull_ty a5⟩
+      · obtain ⟨b1, b2, b3, b4, b5⟩ := hb k ψ b hk
+        exact ⟨b1, b2, b3, toFull_ty b4, bndTyped_of0 _ b5⟩
+
+/-- Consistency of the minimal judgments follows from consistency of the spec. -/
+theorem consistent0_of (h : Consistent) : Consistent0 :=
+  fun S t hS ht => h S t (wfSig_of_wfSig0 hS) (toFull_ty ht)
+
+/-- Over a signature that is well-formed in the spec's sense (e.g. one the kernel accepts),
+a closed term of `(A : U₀) → A` in the minimal judgments would be one in the spec. -/
+theorem no_bot0_of (h : Consistent) {S : Sig} (hS : WfSig S) (t : Tm) :
+    ¬ HasTy0 S 0 .one [] t (.pi (.univ 0) (.var 0)) :=
+  fun ht => h S t hS (toFull_ty ht)
+
 end KubusCore.Meta

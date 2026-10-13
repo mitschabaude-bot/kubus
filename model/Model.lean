@@ -28,3 +28,4 @@ import Model.SemBasic
 import Model.Sound
 import Model.Consistency
 import Model.EndToEnd
+import Model.Minimal

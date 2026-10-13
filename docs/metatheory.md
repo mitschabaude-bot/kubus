@@ -2,6 +2,23 @@
 
 The spec (`KubusCore/Rules.lean`) has primitive rules for weakening (`wk`, `dwk`), single substitution (`subst`, `dsubst`), presupposition (`eqL`, `eqR`) and inversion of type formers (`piDom`, …, `glueFib`). `KubusCore/Meta/` defines the judgments without these rules and proves which of them are admissible. Everything below is proven without `sorry` (axioms: `propext`, `Classical.choice`, `Quot.sound`); `KubusCore/Meta/Main.lean` has the summary and `KubusCore/Meta/Final.lean` the end result.
 
+## The trusted statement
+
+The minimal judgments are the user-facing specification: a textbook presentation, without primitive weakening, substitution, presupposition or inversion rules, and with everything else proven equivalent to the full spec. The end results, all depending only on Lean's standard axioms (`propext`, `Classical.choice`, `Quot.sound`):
+
+- `Model.consistent0 : KubusCore.Meta.Consistent0` (`model/Model/Minimal.lean`): over a signature well-formed in the minimal sense (`WfSig0`), the minimal judgments derive no closed term of `(A : U₀) → A`.
+- `Model.kernel_consistent0` (same file): if the kernel accepts a signature (`Kernel.checkSig S = .ok _`), the minimal judgments derive no closed term of `(A : U₀) → A` over it.
+
+To trust these one reads:
+
+1. `KubusCore/Syntax.lean`: terms, interval terms and the face lattice, substitution, and the derived operations the rules mention (`comp`, `hfill`, `fill`, `transpFill`, `equiv`, the CHM contracta `transpPi`, …, `hcompU`, `transpGlueWith`, the inductive-type helpers `branchTy`, `bndAt`, `transpTele`, `hcompTele`, …).
+2. The judgment-free definitions at the end of `KubusCore/Rules.lean` (`DataDecl.paramCtx`, `argCtx`, `pointCtx`, `truncate`) and `KubusCore/Meta/Defs.lean` (`consSub`, `skip1I`).
+3. `KubusCore/Meta/Minimal.lean`: the rules (`Wf0`, `HasTy0`, `HasTele0`, `EqTele0`, `EqTm0`), the well-formedness of signatures (`Ctor.bndTyped0`, `DataDecl.Wf0`, `WfSig0`) and `Consistent0`. It is generated from `Rules.lean` by `Meta/scripts/gen_minimal.py`, but checked in and self-contained.
+4. `model/Model/Minimal.lean`: the two statements.
+5. For `kernel_consistent0`, the signature of `Kernel.checkSig` (`KubusCore/Kernel/Main.lean`): it returns `PLift (WfSig S)`, so `checkSig S = .ok _` means acceptance.
+
+Nothing else needs to be read: the full spec (`Rules.lean`'s judgments), the kernel's code, the metatheory's proofs and the model are checked by Lean. `consistent0` goes through `wfSig_of_wfSig0` and `minimal_to_spec` (`Final.lean`, `Equiv.lean`) and the model's `consistent`; `kernel_consistent0` through `checkSig_sound`, `minimal_to_spec` and `consistent`. In the other direction, `spec_to_minimal` (`Final.lean`) shows that the minimal judgments lose nothing over the full spec for `WfSig` signatures.
+
 ## The minimal judgments
 
 `Wf0`, `HasTy0`, `HasTele0`, `EqTele0`, `EqTm0` (`Meta/Minimal.lean`) are generated from `Rules.lean` by `Meta/scripts/gen_minimal.py`, which drops the 19 primitive rules and applies the changes below. It fails if a spec change touches an edited rule. The two anonymous substitutions in `elimHcomp` and `transpHcomp` are named (`consSub`, `skip1I`, definitionally equal), so that lemmas can refer to them.
@@ -26,7 +43,9 @@ Five commits change only `Rules.lean`, `Syntax.lean` and the kernel, in order:
 4. "spec: transpGlue's δ is scoped": the contractum contains `hcomp _ (δ ∨ ψ) _ _`, typed only for a scoped `δ`, and `δ ≡ ∀i. φ` does not imply it (`δ ∨ (k ∧ ~k)` for an out-of-scope `k`). The kernel checks `φ.forall0` in scope. Otherwise `transpGlue` needs no change and no Glue injectivity: under `δ` the Glue line is `T` at every `i` (`glueFace`), so the line's constancy gives `T`'s (`KanTranspGlue.lean`).
 5. "spec: per-parameter injectivity of inductive types": `EqTm.dataInjAt` gives one parameter's equation, both sides typed at the left parameters' instance of the telescope. `EqTele.dataInj` cannot be split (nothing inverts `EqTele`), and `transpCon` needs each parameter's constancy on `φ`.
 
-Patches 1, 2 and 5 only add rules; the kernel never uses them. The lib certifies with all five patches. The model's `Sound.lean` needs cases for the new rules (injectivity via the code injectivity lemmas, `noConf` vacuously since equal codes have equal heads, `glueBeta`'s and `Wf`'s extra premises are only more assumptions).
+Patches 1, 2 and 5 only add rules; the kernel never uses them.
+
+6. "spec: C1 fixes" (on top of C1, 66c2fba): `hcompCon` composes recursive arguments in `data d ps` rather than `data d ps.dshift` (`hcomp`/`hfill` take their type in the base context; the shifted one is wrong when the parameters mention interval variables), and takes the componentwise side condition `uargs(0) ≡ args` under `φ` as a premise: `u(0) ≡ con … args` does not give it, since constructors are not injective in the spec. The lib certifies with all five patches. The model's `Sound.lean` needs cases for the new rules (injectivity via the code injectivity lemmas, `noConf` vacuously since equal codes have equal heads, `glueBeta`'s and `Wf`'s extra premises are only more assumptions).
 
 ## Results
 
@@ -56,7 +75,8 @@ The general theorems behind these:
   - `hcomp` in every type former (`HcompTyped.lean`, `KanPath.lean`, `KanSigma.lean`, `KanGlue.lean`, `KanU.lean`), resting on `hfill`, `comp`, `fill` (`KanFill.lean`) and the equivalence machinery `isContr`, `fiber`, `isEquiv`, `idIsEquiv`, `lineEquiv` (`KanU.lean`).
   - inductive types (`DataContracta.lean`, `DataTele.lean`, `TranspCon.lean`): `elimCon`, `elimHcomp`, `transpHcomp`, `transpCon`, with `dataInj` relating the scrutinee's parameters to the eliminator's; `transpCon` transports the argument telescope along the parameter line, with the argument types typed by P11 and their constancy on `φ` from `dataInjAt`.
   - `conBnd` (`ConBnd.lean`): the boundary is typed by recursion on the simple boundary, with the point arguments' type equations from `Ctor.bndTyped` (P8).
-  - `conBnd` and `transpCon` read the signature's checks in the prefix before the inductive type; `ContractaTyped` collects them and `Final.lean` discharges it for `WfSig S` by induction on the signature (the prefix's spec judgments are minimal ones by the induction hypothesis).
+  - `hcompCon` (`HcompCon.lean`): the argument telescope composed componentwise, with the point argument types typed by P11.
+  - `conBnd`, `transpCon` and `hcompCon` read the signature's checks in the prefix before the inductive type; `ContractaTyped` collects them and `Final.lean` discharges it for `WfSig S` by induction on the signature (the prefix's spec judgments are minimal ones by the induction hypothesis).
 - **Equivalence** (`Equiv.lean`, `SigWk.lean`, `Final.lean`).
 
 ## Spec issues (resolved)
