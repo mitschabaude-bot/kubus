@@ -38,12 +38,12 @@ def bad {A : U} {a b c : A} (p : Path A a b) (q : Path A b c) : Path A a c :=
 
 ## Fillers
 
-`fill j A [φ -> u] u0` is the whole box: a path from the base `u0` to the lid. With it, the composite comes with a square that relates it to its parts. Here, the square has `p` at the bottom, `trans p q` at the top, and `q` on the right:
+`hfill j A [φ -> u] u0` is the whole box: a path from the base `u0` to the lid of `hcomp`. With it, the composite comes with a square that relates it to its parts. Here, the square has `p` at the bottom, `trans p q` at the top, and `q` on the right:
 
 ```kubus
 def transSquare {A : U} {a b c : A} (p : Path A a b) (q : Path A b c)
   : PathP (\i -> Path A a (q i)) p (trans p q) :=
-  \i j -> fill k A [j = 0 -> a, j = 1 -> q k] (p j) i
+  \i j -> hfill k A [j = 0 -> a, j = 1 -> q k] (p j) i
 ```
 
 Squares like this one prove the laws of path algebra. The library proves that `refl` is a unit for `trans` on both sides:
@@ -53,8 +53,8 @@ Squares like this one prove the laws of path algebra. The library proves that `r
 
 ## Heterogeneous composition
 
-`comp i A [φ -> u] u0` composes along a *line of types* `A`, which may depend on `i`: the base lives in `A` at `i = 0`, the lid in `A` at `i = 1`, and the sides in `A` at `i`. `hcomp` is the case of a constant line. With an empty system, `comp` is transport, the subject of the next chapter.
+`comp i A [φ -> u] u0` composes along a *line of types* `A`, which may depend on `i`: the base lives in `A` at `i = 0`, the lid in `A` at `i = 1`, and the sides in `A` at `i`; `fill` is its filler. Kubus defines `comp` from `hcomp` and *transport* `transp i A [φ] u0`, which carries `u0` along the line `A` and is the identity where `φ` holds (the line must be constant there). With an empty system, `comp` is transport, the subject of the next chapter.
 
 ## How composition computes
 
-Composition is not a primitive with a mysterious meaning: it is defined by cases on the type. In a function type it composes the results pointwise, in a pair type componentwise, in a path type by adding the path's endpoints to the system, in a data type constructor-wise, and in Glue types and the universe by the constructions that make univalence work. Chapter 8 shows transport along `ua` computing through these rules.
+`hcomp` and `transp` are not primitives with a mysterious meaning: they compute by cases on the type, by the rules of Coquand, Huber and Mörtberg. In a function type they work pointwise, in a pair type componentwise, in a path type by adding the path's endpoints to the system, in a data type without path constructors constructor-wise (a higher inductive type has formal compositions as elements), and in Glue types and the universe by the constructions that make univalence work. The elaborator's evaluator implements exactly the rules of the kernel's specification. Chapter 8 shows transport along `ua` computing through these rules.

@@ -36,7 +36,8 @@
 | `[i = 0 -> u, i = 1 /\ j = 0 -> v]` | systems, defined on faces |
 | `hcomp j A [φ -> u] u0` | homogeneous composition: the lid of a box |
 | `comp i A [φ -> u] u0` | composition along a line of types |
-| `fill i A [φ -> u] u0` | the filler: the box as a path from `u0` to the lid |
+| `fill i A [φ -> u] u0`, `hfill i A [φ -> u] u0` | the fillers of `comp` and `hcomp`: the box as a path from `u0` to the lid |
+| `transp i A [φ] u0` | transport along the line `A`, constant (and the identity) where `φ` holds |
 | `Glue A [φ -> (T, e)]`, `glue [φ -> t] a`, `unglue g` | Glue types, with `e : Equiv T A` |
 
 ## The command line
