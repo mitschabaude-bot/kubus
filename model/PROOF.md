@@ -109,7 +109,7 @@ All face-dependent rules (`hcompFace`, `transpFace`, `glueFace`, `glueElFace`, `
 
 ## 5. How the spec issues showed up
 
-All six were found while validating rules and are fixed in the spec; `README.md` keeps the detailed write-ups.
+Issues 1–6 were found by the model while validating rules; issue 7 was found by an independent paper review of the spec. All are fixed; `README.md` keeps the detailed write-ups.
 
 1. `unglue φ g` without the equivalence: `unglueFace` identifies `e.1 g` and `e'.1 g` for any two equivalences (under `φ` the Glue type is `T` whatever `e` is); with `swap` on `Σ U₀ U₀` this derives `(X : U₀) → X`. Found while designing the interpretation of `unglue`, which must not depend on the type; the derivation above is a counterexample to the original spec. Fix: `unglue φ e g`.
 2. `glueBase`/`glueEquiv` (inverting a Glue type to its base and equivalence) have no model: under `φ` a Glue type denotes `T`, so its base can be junk. Found in the inversion lemmas. Fix: dropped.
@@ -117,6 +117,8 @@ All six were found while validating rules and are fixed in the spec; `README.md`
 4. Unbounded universe levels need ω inaccessibles. Fix: `maxLevel = 4` and the finite tower.
 5. `glueEl φ t a` without the equivalence: `conv` moves it into the Glue type of another equivalence, and `glueBeta`/`unglueFace` again identify two equivalences. Found when validating `glueBeta`. Fix: `glueEl φ e t a`, interpreted defensively (`t` on `φ` only if `e.1 t = a`).
 6. `transpGlue` used `transp A ψ a0`, which is ill-typed when the Glue line is constant on `ψ` only through its reduct (`A` may vary on `ψ ∧ φ`). Found when the model's Glue transport could not satisfy its face condition. Fix: compose the base along the unglued tube (`comp`, `fill`).
+
+7. `unglue`, `unglueFace`, `hcompGlue` and `transpGlue` lacked premises typing the Glue base and equivalence: their other premises can hold through the face reduct `T` alone, so the conclusions about `A` and `e` did not follow in the model. The same review noted that `WfSig` did not require closed definitions, which the interpretation of constants assumes. Fix: the premises were added, and `WfSig` requires `closedB`.
 
 ## 6. Map from concepts to Lean
 
