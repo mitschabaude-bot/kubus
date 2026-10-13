@@ -1,8 +1,8 @@
 # Kubus
 
-A small proof assistant for cubical type theory, written in Lean 4.
+Kubus is a proof assistant for cubical type theory, written in Lean 4. Its kernel is verified and its theory is proven consistent in Lean.
 
-Kubus implements a CCHM-style cubical type theory (De Morgan interval, Kan composition, Glue types) with univalence, higher inductive types and a cumulative universe hierarchy. Type checking is bidirectional; conversion is decided by type-directed normalization by evaluation, and `#eval` prints normal forms.
+It implements a CCHM-style cubical type theory with the De Morgan interval, Kan composition, Glue types and univalence, higher inductive types, and a cumulative universe hierarchy. Every definition is checked by a small kernel that builds a derivation in a formal specification of the theory. A cubical-sets model, also in Lean, proves that specification consistent.
 
 ```
 data S1 : U := base | loop (i : I) [i = 0 -> base, i = 1 -> base]
@@ -16,94 +16,37 @@ def winding (p : Path S1 base base) : Int := transport (\i -> helix (p i)) (pos 
 #eval winding (compS1 loopP loopP)   -- pos (suc (suc zero))
 ```
 
-The library proves, among other things, that the loop space of the circle is the integers (`lib/loopspace.ktt`), and that `Σ (T : U), Equiv T A` is contractible, i.e. univalence (`lib/univalence.ktt`). Transport along these paths computes.
+The library (`lib/`) proves among other things that the loop space of the circle is the integers (`loopspace.ktt`), and that `Σ (T : U), Equiv T A` is contractible, i.e. univalence (`univalence.ktt`). Transport along these equivalences computes.
 
-## Normalization by design
-
-The type theory is set up so that every well-typed term has a normal form:
-
-- **Universe hierarchy**: `U n : U (n+1)`, no `U : U`. Universe polymorphism is by displacement: `f^k` is the global `f` with all its universe levels raised by `k`.
-- **Strictly positive data types**, no nesting (a type may not occur inside a parameter of another type), and constructor fields must live in the declared universe.
-- **Structural recursion only**: pattern-matching definitions may call themselves only on a recursive argument of the matched constructor (possibly applied, for infinitary arguments). Ordinary definitions cannot refer to themselves.
-- **Higher inductive types** are eliminated by pattern matching on point and path constructors. Clauses for path constructors are checked against the boundary, and composition is a formal canonical form handled by the eliminator.
-
-The underlying theory is CCHM extended with higher inductive types following Coquand–Huber–Mörtberg. Canonicity is known for CCHM (Huber). Normalization has been proven for closely related cubical type theories (Sterling–Angiuli), but not specifically for this one, and the implementation is not verified.
-
-## Language
-
-`docs/tutorial.md` introduces the language, from paths to univalence and the circle; its examples are checked by the tests.
+## What is verified
 
 ```
-def name (x : A) (i : I) : T := body              -- definitions; (i : I) binds an interval variable
-def name {A : U} (x : A) : T := body               -- {A : U} is an implicit argument
-def name := body                                   -- the type is inferred
-def f (params) : (x : D) -> B                      -- pattern matching
-  | c x y => ...
-  | p x i => ...                                   -- path constructors bind interval variables
-def max : Nat -> Nat -> Nat                        -- several arguments, nested patterns
-  | zero, n => n
-  | suc m, zero => suc m
-  | suc m, suc n => suc (max m n)
-data D (params) : U n := c (x : A) | p (x : A) (i : I) [i = 0 -> ..., i = 1 -> ...]
-import name                                        -- loads name.ktt (file directory, then KUBUS_PATH)
-#eval t                                            -- print the normal form and type of t
-#check t
+                          ┌── KubusCore/Kernel: returns derivations ──┐
+.ktt ── elaborator ── bridge ──────────────────────────────────────────┴─→ WfSig S
+       (Kubus/)                                                              │
+                                                     model/: Consistent ─────┴─→ no closed term of (A : U₀) → A
 ```
 
-Terms: `U`, `U 1`, `(x : A) -> B`, `A -> B`, `(x : A) × B`, `(a, b)`, `p.1`, `p.2`, `\x y -> t`, `\(x : A) -> t`, `let x : A := t in u`, `(t : A)`, and `?` (a hole that reports its goal).
+- **Specification** (`KubusCore/`; `docs/core-theory.md`, `docs/inductive-types.md`). The theory is written as inductive typing and equality judgments over de Bruijn syntax with term and interval variables. It has the CCHM face lattice, `transp`/`hcomp` with the computation rules of Coquand–Huber–Mörtberg (CHM), Glue types, universes, data types and higher inductive types, and global definitions. `KubusCore/Meta/Minimal.lean` is its textbook form. The two presentations are proven equivalent over well-formed signatures (`docs/metatheory.md`).
+- **Kernel** (`KubusCore/Kernel/`; `KubusCore/KERNEL.md`). Its functions are total, and each returns a derivation of the judgment it checks. A signature that the kernel accepts therefore comes with a proof that it is well formed. `kubus FILE` runs the kernel on every definition and data type, and all of `lib/` is certified.
+- **Consistency** (`model/`; `model/PROOF.md`). A cubical-sets model built on Mathlib validates every rule. `Model.kernel_consistent0` states that if the kernel accepts a signature, no closed term of `(A : U₀) → A` exists in the textbook theory. It depends only on Lean's standard axioms (`propext`, `Classical.choice`, `Quot.sound`), and CI checks this on every push. `docs/metatheory.md` lists exactly what one has to read to trust the result.
 
-Implicit arguments: `{x : A} -> B` is an implicit Π-type, `\{x} -> t` an implicit lambda. At application sites, implicit arguments are inserted as metavariables and solved by unification (pattern unification, with a first-order fallback): `trans p (sym q)`, `transport (\i -> helix (p i)) x`. They can be given explicitly as `f {a}` or by name as `f {x := a}`, and `@f` takes all arguments explicitly. A term checked against an implicit Π-type gets an implicit lambda inserted. `_` in term position is a metavariable to be solved by unification; an unsolved metavariable is an error. Elaborated core terms are fully explicit: metavariables are replaced by their solutions before a definition is added. Solutions, goals, inferred types and error messages keep definitions folded (`Equiv A B`, not its unfolding).
+Building the model turned up seventeen bugs in earlier versions of the specification. Three of them made it inconsistent. All are recorded in `model/README.md`.
 
-Pattern matching: clauses `| p1, ..., pn => t` match the first `n` arguments (after the parameters) against nested constructor patterns, variables and `_`; the first matching clause applies. They are compiled to a case tree of single-argument splits (auxiliary definitions `f#n`), checking that every case is covered and every clause is reachable. Recursion is structural: recursive calls are allowed only on a recursive argument of the constructor matched at the root of the case tree (under nested patterns, with the same earlier arguments).
+The theory is also designed to normalize: universes are stratified, data types are strictly positive and not nested, recursion is structural, and closed terms of ordinary inductive types compute to constructors. Canonicity is being formalized (`model/CANONICITY.md`).
 
-Cubical primitives:
-
-| syntax | meaning |
-|---|---|
-| `0`, `1`, `~r`, `r /\ s`, `r \/ s` | interval (De Morgan algebra) |
-| `Path A a b`, `PathP (\i -> A) a b`, `a ≡ b` | path types; `\i -> t` and `p r` introduce/eliminate |
-| `(i : I) -> A` | interval-indexed families without fixed endpoints |
-| `[i = 0 -> u, j = 1 /\ k = 0 -> v]` | systems; faces are interval formulas (`r = 1`) |
-| `comp i A [φ -> u] u0` | heterogeneous composition (`A`, `u` bind `i`) |
-| `hcomp i A [φ -> u] u0` | homogeneous composition |
-| `fill i A [φ -> u] u0` | the filler, a path from `u0` to the composition |
-| `Glue A [φ -> (T, e)]`, `glue [φ -> t] a`, `unglue g` | Glue types; `e : Equiv T A` |
-| `f^k` | `f` with universe levels displaced by `k` |
-
-## Implementation
-
-| file | contents |
-|---|---|
-| `Kubus/Interval.lean` | De Morgan formulas in canonical DNF, faces, systems |
-| `Kubus/Syntax.lean` | core terms (de Bruijn) and surface syntax |
-| `Kubus/Value.lean` | semantic values: closures, nominal interval atoms, typed neutrals |
-| `Kubus/Eval.lean` | evaluation, nominal substitution, Kan operations for Π, Σ, paths, U, Glue, data and HITs |
-| `Kubus/Conv.lean` | type-directed conversion with η for Π, Σ, paths and Glue |
-| `Kubus/Quote.lean` | read-back to normal forms and pretty printing |
-| `Kubus/Check.lean` | bidirectional elaborator, including checking under faces |
-| `Kubus/Match.lean` | pattern matching: compilation to case trees, coverage, termination check |
-| `Kubus/Top.lean` | definitions, data types, positivity checks |
-| `Kubus/SelfCheck.lean` | invariant self-checks (`--selfcheck`) |
-| `Kubus/Lsp.lean` | language server (`--lsp`) |
-
-Evaluation follows the cubicaltt approach: interval variables in values are nominal atoms, and composition is defined by cases on the type. Neutral variables carry their types, so that `p 0` reduces to the endpoint of a neutral path. Composition in the universe produces a Glue-like composite type with an equivalence built from transport along the line. Values of applied globals are glued: they remember the global and its arguments next to the unfolded value, so that they can be printed folded and compared without unfolding when the arguments agree. Transport along a constant closed first-order data type (like `Nat` or `Int`) is the identity definitionally. This regularity holds stably for those types only.
-
-## Usage
+## Getting started
 
 ```
 lake build
-KUBUS_PATH=lib .lake/build/bin/kubus lib/loopspace.ktt
+KUBUS_PATH=lib .lake/build/bin/kubus lib/loopspace.ktt                  # check and certify
+KUBUS_PATH=lib .lake/build/bin/kubus --interactive lib/loopspace.ktt    # REPL
 tests/run.sh
-KUBUS_PATH=lib .lake/build/bin/kubus --interactive lib/loopspace.ktt
 ```
 
-`kubus --interactive` loads the given files and then reads declarations, `#eval`/`#check` commands and terms (which are evaluated) from standard input; pattern-matching definitions and data types end with an empty line. `#check t` prints the elaborated term (without implicit arguments) and its type.
+`docs/tutorial.md` introduces the language, from paths to univalence and the circle. Its examples are run by the tests.
 
-`tests/run.sh` checks the library, compares `tests/pass/*_test.ktt` against golden outputs, and checks that every file in `tests/fail/` is rejected with the expected error.
-
-## Editor support
-
-`editor/vscode` is a VS Code extension: syntax highlighting for `.ktt` files and a client for the language server `kubus --lsp`, which checks a file on open, change and save. Errors are reported with their source range, `#eval`/`#check` results and the goals of `?` holes as information (a definition with holes is checked to the end and then treated as an opaque constant), and hovering shows the type of the subterm under the cursor. The certified kernel checks every definition and data type too: rejections are errors, skips are warnings, and hovering over a certified declaration's first line says so. Kernel results are cached and reused while the declarations up to them are unchanged. To install:
+`editor/vscode` is a VS Code extension with syntax highlighting and a client for the language server `kubus --lsp`. The server reports errors with source ranges, shows `#eval` results and the goals of `?` holes, shows types on hover, and marks declarations the kernel has certified. To install:
 
 ```
 lake build                                  # then put .lake/build/bin on PATH, or set kubus.path
@@ -111,42 +54,76 @@ cd editor/vscode && npm install && npm run package
 code --install-extension kubus-0.1.0.vsix
 ```
 
-Imports are found in the file's directory, in `kubus.libraryPath` (default: the workspace's `lib` folder) and in `KUBUS_PATH`.
+## The language
 
-## Self-checks and fuzzing
+```
+def name (x : A) (i : I) : T := body              -- (i : I) binds an interval variable
+def name {A : U} (x : A) : T := body               -- {A : U} is an implicit argument
+def name := body                                   -- the type is inferred
+def max : Nat -> Nat -> Nat                        -- pattern matching, several arguments, nested patterns
+  | zero, n => n
+  | suc m, zero => suc m
+  | suc m, suc n => suc (max m n)
+data D (params) : U n := c (x : A) | p (x : A) (i : I) [i = 0 -> ..., i = 1 -> ...]
+import name                                        -- loads name.ktt (file directory, then KUBUS_PATH)
+#eval t                                            -- normal form and type
+#check t
+```
 
-`kubus --selfcheck FILE` checks invariants of the evaluator and conversion checker on every definition body, pattern-matching clause, `#eval`/`#check`, path or interval lambda body and system element:
+Terms: `U`, `U 1`, `(x : A) -> B`, `A -> B`, `(x : A) × B`, `(a, b)`, `p.1`, `p.2`, `\x y -> t`, `\(x : A) -> t`, `let x : A := t in u`, `(t : A)`, `_` (solved by unification), and `?` (a hole that reports its goal).
 
-| invariant | check |
+**Implicit arguments** are inserted at application sites and solved by pattern unification: `trans p (sym q)`, `transport (\i -> helix (p i)) x`. They can be given as `f {a}`, `f {x := a}`, or all explicitly as `@f`. Goals, solutions and error messages keep definitions folded.
+
+**Pattern matching** compiles nested, multi-argument clauses to case trees and checks coverage and reachability. Recursion must be structural.
+
+**Cubical primitives:**
+
+| syntax | meaning |
 |---|---|
-| `conv-refl` | every value is convertible to itself, and its type to itself |
-| `conv-symmetry` | every conversion check made by the elaborator gives the same answer with the arguments swapped |
-| `roundtrip` | `eval (quote v)` is convertible to `v`, both ways |
-| `recheck` | the printed normal form parses and elaborates again at the same type, to a value convertible to `v` (for `#eval`, also the printed type) |
-| `stability` | for each interval variable `i` in scope and `σ` among `i := 0, 1, ~i, i ∧ j, i ∨ j, k`: `(eval ρ t)σ` is convertible to `eval (ρσ) t` |
+| `0`, `1`, `~r`, `r /\ s`, `r \/ s` | the interval (a De Morgan algebra) |
+| `Path A a b`, `PathP (\i -> A) a b`, `a ≡ b` | path types; `\i -> t` introduces, `p r` eliminates |
+| `(i : I) -> A` | interval-indexed families without fixed endpoints |
+| `[i = 0 -> u, j = 1 /\ k = 0 -> v]` | systems; faces are interval formulas |
+| `comp i A [φ -> u] u0`, `hcomp i A [φ -> u] u0`, `fill i A [φ -> u] u0` | heterogeneous and homogeneous composition, and the filler |
+| `Glue A [φ -> (T, e)]`, `glue [φ -> t] a`, `unglue g` | Glue types, with `e : Equiv T A` |
+| `f^k` | `f` with all universe levels raised by `k` (universe polymorphism by displacement) |
 
-Violations are reported with the name of the invariant, and the exit code is 1. Each check has an evaluation budget (`--budget N`, default 1000000 steps); checks exceeding it are skipped and counted (`--verbose` lists them). `--selfcheck-main` checks only the files given on the command line, not their imports. Normal forms containing `compU`/`unglueU` (composition in the universe) have no surface syntax and are not re-checked. `tests/run.sh` runs the library and the passing tests under `--selfcheck`.
+## How it works
 
-`tests/fuzz.sh N SEED` generates `N` random well-typed files over the library (Π, Σ, paths, Glue and `ua`, Bool, Nat, Int, S1, Susp, Trunc, `hcomp`/`comp`/`fill` with systems, composition in the universe, pattern matching on HITs), checks them under `--selfcheck`, and checks that mutated variants (a flipped path boundary, swapped endpoints, a base that disagrees with its system, a glue element that disagrees with its base, a HIT clause that violates its boundary, a type error) are rejected. `tests/fuzz.py --seed SEED --case K --keep DIR` regenerates a single case.
+| directory | contents |
+|---|---|
+| `Kubus/` | parser, elaborator (bidirectional, with unification and checking under faces), NbE evaluator, pattern-match compiler, language server, self-checks; `Kubus/Bridge.lean` translates elaborated definitions to the kernel |
+| `KubusCore/` | the specification (`Syntax.lean`, `Rules.lean`), the kernel (`Kernel/`) and the metatheory (`Meta/`) |
+| `model/` | the cubical-sets model and the consistency theorems (separate Lake project, with Mathlib) |
+| `lib/` | the standard library |
+| `tests/` | golden tests, failure tests, kernel tests, fuzzer |
+| `docs/` | the theory, the tutorial and the metatheory |
 
-## Certified kernel
+The elaborator's evaluator follows cubicaltt. Interval variables in values are nominal atoms, composition is defined by cases on the type, neutral variables carry their types, and applications of globals keep their folded form. The evaluator only helps the elaborator: what counts is the kernel's certificate.
 
-`kubus FILE` translates every definition and data type into KubusCore (`KubusCore/Syntax.lean`, `KubusCore/Rules.lean`) after elaboration and checks it with a kernel whose functions return derivations of the specification's judgments, so that a certified signature comes with a proof of `WfSig` (`KubusCore/KERNEL.md`). The Kubus evaluator only helps the elaborator; a definition the kernel rejects is an error (exit code 1), one the translation cannot handle is reported as skipped. `--verbose` lists the certified definitions with their checking times, and `--no-kernel` turns the kernel off. Everything in `lib/` is certified, including `EquivContr` and `loopSpaceS1`; `kubus lib/loopspace.ktt` takes under 2 s end to end (1.4 s in the kernel), the other files about 0.1 s.
+## Testing
 
-## Verified kernel and consistency
+`tests/run.sh` runs:
+- the library, with self-checks and kernel certification;
+- golden tests;
+- failure tests, which must be rejected with a given error;
+- kernel regression tests;
+- tutorial, REPL and language-server tests.
 
-The language is backed by a verified kernel for its core theory, Kubus Core (`docs/core-theory.md`):
+`kubus --selfcheck FILE` checks invariants of the evaluator on every definition: conversion is reflexive and symmetric, read-back round-trips, printed normal forms re-check at the same type, and evaluation is stable under interval substitution.
 
-- `KubusCore/Syntax.lean`, `KubusCore/Rules.lean`: the formal specification. It has de Bruijn syntax with term and interval variables, the CCHM face lattice, and typing and equality judgments with the Coquand–Huber–Mörtberg (CHM) computation rules for `transp`/`hcomp`, Glue types, universes, and global definitions.
-- `KubusCore/Kernel/`: a small kernel whose functions return derivations of the specification's judgments. Its soundness holds by construction (`checkSig_sound`). `kubus FILE` translates the elaborated definitions and certifies them; all of `lib/` is certified.
-- `KubusCore/Meta/`: metatheory of the specification (`docs/metatheory.md`). `Meta/Minimal.lean` is the specification in textbook form, without primitive weakening, substitution, presupposition and inversion rules; all of these are admissible, and the two presentations derive the same judgments over well-formed signatures (`spec_to_minimal`, `minimal_to_spec`).
-- `model/`: the cubical-sets model in Lean (with Mathlib). It validates every rule of the specification and proves `KubusCore.Consistent`: in any well-formed signature there is no closed term of `(A : U₀) → A`. `Model.kernel_consistent` combines this with the kernel. Whatever the kernel certifies lives in a consistent theory. `Model.consistent0` and `Model.kernel_consistent0` (`model/Model/Minimal.lean`) state the same for the textbook rules of `Meta/Minimal.lean`; these are the trusted statements, and `docs/metatheory.md` lists exactly what one has to read to trust them. All these theorems depend only on Lean's standard axioms (`propext`, `Classical.choice`, `Quot.sound`).
+`tests/fuzz.sh N SEED` generates random well-typed programs over the library, together with ill-typed mutants that must be rejected.
 
-Data types and higher inductive types (`docs/inductive-types.md`) are covered by the specification, the kernel and the model alike. The whole library is certified and lives in a consistent theory, including ΩS¹ ≃ ℤ, truncations and suspensions.
+CI runs the tests, a fuzz run, and the model build with its axiom check.
 
 ## Limitations
 
-Pattern matching has no mutual or indexed definitions, and clauses for path constructors cannot use nested patterns or match on further arguments. For higher inductive types with parameters, path-constructor boundaries must be built from the constructor's point arguments and constructors. The evaluator is strict, and some composite Kan operations can still blow up.
+- **Universes:** levels are bounded (`U 0` to `U 4`), so the consistency theorem needs no large-cardinal assumptions.
+- **Data types:**
+  - they are finitary, with parameters that are small types or universes, and no indices or mutual definitions;
+  - path-constructor boundaries may only use the constructor's point arguments and other constructors, so pushouts can't be declared yet;
+  - clauses for path constructors can't use nested patterns.
+- **Elaborator vs. kernel:** some programs the elaborator accepts are still rejected or skipped by the kernel, mostly around composition in the universe. The fuzzer tracks them.
 
 ## License
 
