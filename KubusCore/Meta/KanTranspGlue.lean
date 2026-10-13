@@ -128,6 +128,19 @@ theorem tgExt_eq (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (δ : I) : tgEx
     hcomp (tgFib A φ T e ψ u0) (.or δ ψ) (split δ.shift (papp (tgPd A φ T e ψ u0).dshift (.var 0)) ψ.shift
       (papp (tgPpsi A φ e ψ u0).dshift (.var 0))) (fst (tgC A φ e ψ u0)) := rfl
 
+theorem asys_dinst (φ1 ψ : I) (X Y : Tm) (r : I) :
+    (split φ1.shift (papp X.dshift (.neg (.var 0))) ψ.shift Y.dshift).dinst r =
+      split φ1 (papp X (.neg r)) ψ Y := by
+  have h2 : ∀ x : I, x.shift.subst (I.inst0 r) = x := fun x => by
+    simp only [I.shift, I.ren, I_subst_subst]; exact I_subst_var x
+  show split (φ1.shift.subst _) (papp (X.dshift.dinst r) _) (ψ.shift.subst _) (Y.dshift.dinst r) = _
+  rw [h2, h2, dshift_dinst, dshift_dinst]; rfl
+
+theorem tgA1_eq (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (δ : I) : tgA1 A φ T e ψ u0 δ =
+    hcomp (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
+      (split (φ.subst (I.inst0 .one)).shift (papp (snd (tgExt A φ T e ψ u0 δ)).dshift (.neg (.var 0)))
+        ψ.shift (tgA1' A φ e ψ u0).dshift) (tgA1' A φ e ψ u0) := rfl
+
 /-- The cofibration of the composition in `ω`: `ψ ∨ j = 0 ∨ j = 1`. -/
 abbrev tgChi (ψ : I) : I := .or ψ.shift (.or (.neg (.var 0)) (.var 0))
 
@@ -691,6 +704,119 @@ theorem hextψ : EqTm0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ (tgEx
   have hs1' := HasTy0.restrict H.hWψs (ent_and_intro (ent_and_left _ _) (ent_trans (ent_and_right _ _) (ent_or_right _ _))) hs1
   rw [psys_dinst] at e1 hs1'
   exact EqTm0.trans e1 (EqTm0.trans (EqTm0.splitR (ent_and_right _ _) hs1') (pathC_one H.hPψ))
+
+/-! ### The base of the result -/
+
+theorem hfext : HasTy0 S Ψ (cof Φ (φ.subst (I.inst0 .one))) Γ (fst (tgExt A φ T e ψ u0 δ)) (T.dinst .one) := by
+  have := H.hext; rw [tgFib_eq] at this; exact HasTy0.fst this
+
+theorem hsext : HasTy0 S Ψ (cof Φ (φ.subst (I.inst0 .one))) Γ (snd (tgExt A φ T e ψ u0 δ))
+    (pathC (A.dinst .one) (app (fst (e.dinst .one)) (fst (tgExt A φ T e ψ u0 δ))) (tgA1' A φ e ψ u0)) := by
+  have := H.hext; rw [tgFib_eq] at this
+  have h := HasTy0.snd this; rwa [P_inst] at h
+
+theorem hsextψ : EqTm0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ (snd (tgExt A φ T e ψ u0 δ))
+    (plam (tgA1' A φ e ψ u0).dshift)
+    (pathC (A.dinst .one) (app (fst (e.dinst .one)) (fst (tgExt A φ T e ψ u0 δ))) (tgA1' A φ e ψ u0)) := by
+  have hX : I.Entails (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Φ := ent_trans (ent_and_left _ _) (ent_and_left _ _)
+  have he := H.hextψ
+  have hp := H.hpψ
+  rw [tgFib_eq] at he hp
+  have e1 := EqTm0.snd he
+  rw [P_inst] at e1
+  have hsp := HasTy0.snd hp
+  rw [P_inst] at hsp
+  have e2 := EqTm0.sndBeta hsp
+  have hfe := EqTm0.fst he
+  have hA1 := H.hA1X H.hWψs hX
+  have ha1 := HasTy0.restrict H.hWψs hX H.ha1'
+  have he1 := H.he1W H.hWψs (ent_and_left _ _)
+  have eP : EqTm0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ
+      (pathC (A.dinst .one) (app (fst (e.dinst .one)) (fst (pair u0 (plam (tgA1' A φ e ψ u0).dshift))))
+        (tgA1' A φ e ψ u0))
+      (pathC (A.dinst .one) (app (fst (e.dinst .one)) (fst (tgExt A φ T e ψ u0 δ))) (tgA1' A φ e ψ u0)) (univ l) :=
+    EqTm0.path (EqTm0.refl (HasTy0.dwk H.hS hA1))
+      (by rw [dshift_dinst]; exact app_fst_congr he1 (EqTm0.symm hfe))
+      (by rw [dshift_dinst]; exact EqTm0.refl ha1)
+  exact EqTm0.trans e1 (EqTm0.conv e2 eP)
+
+theorem hasys : HasTy0 S (Ψ + 1) (cof Φ (.or (φ.subst (I.inst0 .one)) ψ)).shift Γ.dshift
+    (split (φ.subst (I.inst0 .one)).shift (papp (snd (tgExt A φ T e ψ u0 δ)).dshift (.neg (.var 0)))
+      ψ.shift (tgA1' A φ e ψ u0).dshift) (A.dinst .one).dshift := by
+  have hv0 : (I.var 0).Scoped (Ψ + 1) := show 0 < Ψ + 1 by omega
+  have hφ1 : (φ.subst (I.inst0 .one)).Scoped Ψ := H.hφr (r := .one) trivial
+  have hΞs : (cof Φ (.or (φ.subst (I.inst0 .one)) ψ)).shift.Scoped (Ψ + 1) := scoped_shift ⟨H.hs, ⟨hφ1, H.hψ⟩⟩
+  have hΞΦ : I.Entails (cof Φ (.or (φ.subst (I.inst0 .one)) ψ)).shift Φ.shift := ent_shift (ent_and_left _ _)
+  have hΞχ : I.Entails (cof Φ (.or (φ.subst (I.inst0 .one)) ψ)).shift
+      (.or (φ.subst (I.inst0 .one)).shift ψ.shift) := ent_shift (ent_and_right _ (.or _ ψ))
+  have hd := HasTy0.dwk H.hS H.hsext
+  rw [pathC_dshift] at hd
+  have he := EqTm0.dwk H.hS H.hsextψ
+  rw [pathC_dshift, plam_dshift_dshift] at he
+  have hpl := HasTy0.dwk H.hS H.hpl
+  rw [pathC_dshift, plam_dshift_dshift] at hpl
+  have hA1 := HasTy0.dwk H.hS (H.hAr (r := .one) trivial)
+  have ha1 := HasTy0.dwk H.hS H.ha1'
+  generalize (cof Φ (.or (φ.subst (I.inst0 .one)) ψ)).shift = Ξ at hΞs hΞΦ hΞχ ⊢
+  have hφ1s : (φ.subst (I.inst0 .one)).shift.Scoped (Ψ + 1) := scoped_shift hφ1
+  have hψ1 : ψ.shift.Scoped (Ψ + 1) := scoped_shift H.hψ
+  have hX1s : (cof Ξ (φ.subst (I.inst0 .one)).shift).Scoped (Ψ + 1) := ⟨hΞs, hφ1s⟩
+  have hX2s : (cof Ξ ψ.shift).Scoped (Ψ + 1) := ⟨hΞs, hψ1⟩
+  have hX3s : (cof (cof Ξ (φ.subst (I.inst0 .one)).shift) ψ.shift).Scoped (Ψ + 1) := ⟨hX1s, hψ1⟩
+  have hX1 : I.Entails (cof Ξ (φ.subst (I.inst0 .one)).shift) (cof Φ (φ.subst (I.inst0 .one))).shift :=
+    show I.Entails _ (.and _ _) from ent_and_mono hΞΦ (ent_refl _)
+  have hX3 : I.Entails (cof (cof Ξ (φ.subst (I.inst0 .one)).shift) ψ.shift)
+      (cof (cof Φ (φ.subst (I.inst0 .one))) ψ).shift :=
+    show I.Entails _ (.and _ _) from ent_and_mono hX1 (ent_refl _)
+  have hneg : (I.neg (.var 0)).Scoped (Ψ + 1) := hv0
+  have hb1 := papp_pathC (HasTy0.restrict hX1s hX1 hd) hneg
+  have hb2 := HasTy0.restrict hX2s (ent_trans (ent_and_left _ _) hΞΦ) ha1
+  have e1 := EqTm0.papp (EqTm0.restrict hX3s hX3 he) hneg hneg (I_eq_refl _)
+  rw [dshift_dinst] at e1
+  have hpp := papp_pathC (HasTy0.restrict hX3s hX3 hpl) hneg
+  have e2 := EqTm0.pathBeta hpp
+  rw [dshift_dinst] at e2
+  exact HasTy0.split hφ1s hψ1 hΞχ (HasTy0.restrict hΞs hΞΦ hA1) hb1 hb2 (EqTm0.trans e1 e2)
+
+theorem ha1 : HasTy0 S Ψ Φ Γ (tgA1 A φ T e ψ u0 δ) (A.dinst .one) := by
+  have hφ1 : (φ.subst (I.inst0 .one)).Scoped Ψ := H.hφr (r := .one) trivial
+  have hΞs : (cof Φ (.or (φ.subst (I.inst0 .one)) ψ)).Scoped Ψ := ⟨H.hs, ⟨hφ1, H.hψ⟩⟩
+  have hs0 := HasTy0.dsubst H.hS H.hasys (r := .zero) trivial
+  rw [dshift_dinst, asys_dinst] at hs0
+  have hside : EqTm0 S Ψ (cof Φ (.or (φ.subst (I.inst0 .one)) ψ)) Γ
+      ((split (φ.subst (I.inst0 .one)).shift (papp (snd (tgExt A φ T e ψ u0 δ)).dshift (.neg (.var 0)))
+        ψ.shift (tgA1' A φ e ψ u0).dshift).dinst .zero) (tgA1' A φ e ψ u0) (A.dinst .one) := by
+    rw [asys_dinst]
+    refine EqTm0.local (φ := φ.subst (I.inst0 .one)) (ψ := ψ) hφ1 H.hψ (ent_and_right _ _) hs0
+      (HasTy0.restrict hΞs (ent_and_left _ _) H.ha1') ?_ ?_
+    · have hX : (cof (cof Φ (.or (φ.subst (I.inst0 .one)) ψ)) (φ.subst (I.inst0 .one))).Scoped Ψ := ⟨hΞs, hφ1⟩
+      have hsx := HasTy0.restrict hX (ent_and_mono (ent_and_left _ _) (ent_refl _)) H.hsext
+      exact EqTm0.trans (EqTm0.splitL (ent_and_right _ _) (HasTy0.restrict hX (ent_and_left _ _) hs0))
+        (EqTm0.trans (papp_pathC_eq hsx (r := .neg .zero) (r' := .one) trivial trivial I_eq_neg_zero) (pathC_one hsx))
+    · have hX : (cof (cof Φ (.or (φ.subst (I.inst0 .one)) ψ)) ψ).Scoped Ψ := ⟨hΞs, H.hψ⟩
+      exact EqTm0.splitR (ent_and_right _ _) (HasTy0.restrict hX (ent_and_left _ _) hs0)
+  rw [tgA1_eq]
+  exact HasTy0.hcomp (H.hAr (r := .one) trivial) ⟨hφ1, H.hψ⟩ H.hasys H.ha1' hside
+
+theorem hglueSide : EqTm0 S Ψ (cof Φ (φ.subst (I.inst0 .one))) Γ (app (fst (e.dinst .one)) (fst (tgExt A φ T e ψ u0 δ)))
+    (tgA1 A φ T e ψ u0 δ) (A.dinst .one) := by
+  have hW := HasTy0.restrict H.hWs (ent_and_left _ _) H.ha1
+  rw [tgA1_eq] at hW ⊢
+  have hWχ : I.Entails (cof Φ (φ.subst (I.inst0 .one))) (.or (φ.subst (I.inst0 .one)) ψ) :=
+    ent_trans (ent_and_right _ _) (ent_or_left _ _)
+  have e1 := EqTm0.hcompFace hWχ hW
+  have hs1 := HasTy0.dsubst H.hS H.hasys (r := .one) trivial
+  rw [dshift_dinst] at hs1
+  have hs1' := HasTy0.restrict H.hWs (ent_and_intro (ent_and_left _ _) hWχ) hs1
+  rw [asys_dinst] at e1 hs1'
+  have e2 := EqTm0.splitL (ent_and_right _ _) hs1'
+  have e3 := papp_pathC_eq H.hsext (r := .neg .one) (r' := .zero) trivial trivial I_eq_neg_one
+  exact EqTm0.symm (EqTm0.trans e1 (EqTm0.trans e2 (EqTm0.trans e3 (pathC_zero H.hsext))))
+
+/-- The contractum is typed at the end of the line. -/
+theorem typed : HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T e ψ u0) ((glue A φ T e).dinst .one) := by
+  rw [transpGlueWith_eq, glue_dinst]
+  exact HasTy0.glueEl (H.hGr (r := .one) trivial) H.he1 H.hfext H.ha1 H.hglueSide
 
 end TG
 
