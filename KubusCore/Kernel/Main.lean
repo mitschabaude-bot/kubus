@@ -484,11 +484,14 @@ def checkData (S : Sig) (d : Nat) (D : DataDecl) : K S (PLift (D.Wf S d)) := do
   let (R, E0) ← setup S
   let ⟨hl⟩ ← ensureLvl (D.level + 1)
   let ⟨hps⟩ ← forallElems D.params (fun j A => A.closedB j 0 = true ∧ A.mentionsData d = false ∧
-      ∃ l, HasTy S 0 .one (D.paramCtx j) A (.univ l)) fun j A _ => do
+      (HasTy S 0 .one (D.paramCtx j) A (.univ D.level) ∨ ∃ k ≤ D.level, A = .univ k)) fun j A _ => do
     let E1 ← extTypes R E0 (D.params.take j)
     if h : (D.params.take j).reverse ++ [] = D.paramCtx j then
       let ⟨l, ⟨hA⟩⟩ ← inferType R (castCtx E1 rfl h) A
-      if hc : A.closedB j 0 = true ∧ A.mentionsData d = false then pure ⟨hc.1, hc.2, l, hA⟩
+      if hc : A.closedB j 0 = true ∧ A.mentionsData d = false then
+        if hk : ∃ k ≤ D.level, A = .univ k then pure ⟨hc.1, hc.2, .inr hk⟩
+        else if hle : l ≤ D.level then pure ⟨hc.1, hc.2, .inl (HasTy.liftLe hA hle (by omega))⟩
+        else fail "kernel: parameter type larger than the inductive type"
       else fail "kernel: parameter type not closed or mentions the type"
     else fail "kernel: parameter context mismatch"
   let ⟨hcs⟩ ← forallElems D.ctors (fun c C =>

@@ -456,11 +456,14 @@ def pointCtx (D : DataDecl) (d : Nat) (C : Ctor) (n : Nat) : Ctx :=
   (((List.range n).filter fun k => !C.isRec k).map fun k =>
     (C.argTy d D.params.length k).ren (C.pointRen k) id).reverse ++ D.paramCtx D.params.length
 
-/-- The declaration with only the constructors before `c`, and an extra nullary constructor
-(at index `c`, which no boundary of constructor `c` can refer to) so that the type is inhabited:
-judgments in a context with an empty type would hold vacuously in the model. -/
+/-- The declaration with only the constructors before `c`, and an extra constructor without
+arguments or boundary (at index `c`, which no boundary of constructor `c` can refer to) so that
+the type is inhabited: judgments in a context with an empty type would hold vacuously in the
+model. The extra constructor has an interval argument exactly when `D` is a higher inductive
+type, so that the truncation is one exactly when `D` is (`isHIT`): only higher inductive types
+have formal compositions, which the model uses as generic elements. -/
 def truncate (D : DataDecl) (c : Nat) : DataDecl :=
-  { D with ctors := D.ctors.take c ++ [{ args := [], dims := 0, bnd := [] }] }
+  { D with ctors := D.ctors.take c ++ [{ args := [], dims := if D.isHIT then 1 else 0, bnd := [] }] }
 
 /-- A well-formed declaration of the inductive type `d = S.length`, checked against the
 signature `S` before it: the parameters in `S` itself, the point arguments in `S` extended by
@@ -476,7 +479,7 @@ def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   let np := D.params.length
   D.level + 1 ≤ maxLevel ∧
   (∀ (j : Nat) (A : Tm), D.params[j]? = some A → A.closedB j 0 = true ∧ A.mentionsData d = false ∧
-    ∃ l, HasTy S 0 .one (D.paramCtx j) A (.univ l)) ∧
+    (HasTy S 0 .one (D.paramCtx j) A (.univ D.level) ∨ ∃ k ≤ D.level, A = .univ k)) ∧
   ∀ (c : Nat) (C : Ctor), D.ctors[c]? = some C →
     let Sc := S ++ [.data (D.truncate c)]
     (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
