@@ -161,6 +161,137 @@ theorem fib_fiberM {T A f y : V} (hT : Fib T k) (hA : Fib A k) (hf : f ∈ El (a
       Hom.wk_comp_lift, ← res_res, ← res_res g, appV_arrowM_res (hT.restr g).kv hfg htg h, res_res, res_res,
       res_res, res_res, res_res]
 
+/-! ### The interpretation of the equivalence type formers -/
+
+section sem
+
+variable {S : Sig}
+
+theorem sem_fiber {T A f y : Tm} {ρ : IEnv k} {γ : ℕ → V} (hT : Natural S T k ρ γ) (hA : Natural S A k ρ γ)
+    (hf : Natural S f k ρ γ) (hy : Natural S y k ρ γ) (hTf : Fib (sem S T k ρ γ) k) (hAf : Fib (sem S A k ρ γ) k)
+    (hfm : sem S f k ρ γ ∈ El (arrowM k (sem S T k ρ γ) (sem S A k ρ γ)) (Hom.id k)) :
+    sem S (Tm.fiber T A f y) k ρ γ = fiberM k (sem S T k ρ γ) (sem S A k ρ γ) (sem S f k ρ γ) (sem S y k ρ γ) := by
+  unfold Tm.fiber Tm.pathC
+  rw [sem_sigma hTf.kv]
+  unfold fiberM
+  congr 1
+  apply famV_congr
+  intro k' g t ht
+  have hN : Natural S A.shift.dshift (k' + 1) (ρ.restr g).ext
+      (TEnv.restr (TEnv.cons (TEnv.restr γ g) t) (Hom.wk k')) := ((hA.restr g).shift t).dshift
+  have eL : lineV S A.shift.dshift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) t) = res (Hom.wk k') (res g (sem S A k ρ γ)) := by
+    show sem S A.shift.dshift (k' + 1) (ρ.restr g).ext _ = _
+    rw [sem_dshift, TEnv.restr_cons, sem_shift, hA.restr g (k' + 1) (Hom.wk k'), hA k' g]
+  have hfg := arrowM_elRes hTf.kv hfm g
+  have htg : t ∈ El (res g (sem S T k ρ γ)) (Hom.id k') := by rw [El_res, Hom.comp_id]; exact ht
+  have ea : sem S (.app f.shift (.var 0)) k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) t) =
+      appV k' (res g (sem S f k ρ γ)) t := by
+    rw [sem_app_of_nat (natural_var S 0 _ _), sem_shift, sem_var, TEnv.cons_zero, hf k' g]
+  have hakv : IsKV k' (appV k' (res g (sem S f k ρ γ)) t) :=
+    (hAf.restr g).elKV _ _ _ (appV_arrowM (isKV_res _ _) hfg htg)
+  rw [sem_path hN (by rw [eL]; exact isKV_res _ _) (by rw [ea]; exact hakv)
+    (by rw [sem_shift, hy k' g]; exact isKV_res _ _), eL, ea, sem_shift, hy k' g]
+
+theorem natural_fiber {T A f y : Tm} {ρ : IEnv k} {γ : ℕ → V} (hT : Natural S T k ρ γ) (hA : Natural S A k ρ γ)
+    (hf : Natural S f k ρ γ) (hy : Natural S y k ρ γ) (hTf : Fib (sem S T k ρ γ) k) (hAf : Fib (sem S A k ρ γ) k)
+    (hfm : sem S f k ρ γ ∈ El (arrowM k (sem S T k ρ γ) (sem S A k ρ γ)) (Hom.id k)) :
+    Natural S (Tm.fiber T A f y) k ρ γ := by
+  intro n g
+  have hfm' := arrowM_elRes hTf.kv hfm g
+  rw [← hT n g, ← hA n g, ← hf n g] at hfm'
+  rw [sem_fiber (hT.restr g) (hA.restr g) (hf.restr g) (hy.restr g) (by rw [hT n g]; exact hTf.restr g)
+    (by rw [hA n g]; exact hAf.restr g) hfm', sem_fiber hT hA hf hy hTf hAf hfm, res_fiberM, hT n g, hA n g,
+    hf n g, hy n g]
+
+theorem sem_isContr {X : Tm} {ρ : IEnv k} {γ : ℕ → V} (hX : Natural S X k ρ γ) (hXf : Fib (sem S X k ρ γ) k) :
+    sem S (Tm.isContr X) k ρ γ = isContrM k (sem S X k ρ γ) := by
+  unfold Tm.isContr Tm.pathC
+  rw [sem_sigma hXf.kv]
+  unfold isContrM
+  congr 1
+  apply famV_congr
+  intro k' g c hc
+  have eX : sem S X.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) c) = res g (sem S X k ρ γ) := by
+    rw [sem_shift, hX k' g]
+  rw [sem_pi (by rw [eX]; exact isKV_res _ _), eX]
+  congr 1
+  apply famV_congr
+  intro k'' h x hx
+  set env := TEnv.cons (TEnv.restr (TEnv.cons (TEnv.restr γ g) c) h) x
+  have hN : Natural S X.shift.shift.dshift (k'' + 1) ((ρ.restr g).restr h).ext (TEnv.restr env (Hom.wk k'')) :=
+    (((((hX.restr g).shift c).restr h).shift x)).dshift
+  have eL : lineV S X.shift.shift.dshift k'' ((ρ.restr g).restr h) env =
+      res (Hom.wk k'') (res h (res g (sem S X k ρ γ))) := by
+    show sem S X.shift.shift.dshift (k'' + 1) ((ρ.restr g).restr h).ext _ = _
+    rw [sem_dshift, TEnv.restr_cons, sem_shift, TEnv.restr_restr, TEnv.restr_cons, sem_shift, IEnv.restr_restr,
+      IEnv.restr_restr, TEnv.restr_restr, hX, res_res, res_res]
+  have hxkv : IsKV k'' x := (hXf.restr g).elKV _ _ _ hx
+  rw [sem_path (a := .var 1) (b := .var 0) hN (by rw [eL]; exact isKV_res _ _) (isKV_res _ _) hxkv, eL]
+  rfl
+
+theorem sem_isEquiv {T A f : Tm} {ρ : IEnv k} {γ : ℕ → V} (hT : Natural S T k ρ γ) (hA : Natural S A k ρ γ)
+    (hf : Natural S f k ρ γ) (hTf : Fib (sem S T k ρ γ) k) (hAf : Fib (sem S A k ρ γ) k)
+    (hfm : sem S f k ρ γ ∈ El (arrowM k (sem S T k ρ γ) (sem S A k ρ γ)) (Hom.id k)) :
+    sem S (Tm.isEquiv T A f) k ρ γ = isEquivM k (sem S T k ρ γ) (sem S A k ρ γ) (sem S f k ρ γ) := by
+  unfold Tm.isEquiv
+  rw [sem_pi hAf.kv]
+  unfold isEquivM
+  congr 1
+  apply famV_congr
+  intro k' g y hy
+  have eT : sem S T.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) y) = res g (sem S T k ρ γ) := by
+    rw [sem_shift, hT k' g]
+  have eA : sem S A.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) y) = res g (sem S A k ρ γ) := by
+    rw [sem_shift, hA k' g]
+  have ef : sem S f.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) y) = res g (sem S f k ρ γ) := by
+    rw [sem_shift, hf k' g]
+  have hTf' : Fib (sem S T.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) y)) k' := by rw [eT]; exact hTf.restr g
+  have hAf' : Fib (sem S A.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) y)) k' := by rw [eA]; exact hAf.restr g
+  have hfm' : sem S f.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) y) ∈
+      El (arrowM k' (sem S T.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) y))
+        (sem S A.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) y))) (Hom.id k') := by
+    rw [eT, eA, ef]; exact arrowM_elRes hTf.kv hfm g
+  have hnT := (hT.restr g).shift y
+  have hnA := (hA.restr g).shift y
+  have hnf := (hf.restr g).shift y
+  have hfib := sem_fiber (y := .var 0) hnT hnA hnf (natural_var S 0 _ _) hTf' hAf' hfm'
+  have hyA : y ∈ El (res g (sem S A k ρ γ)) (Hom.id k') := by rw [El_res, Hom.comp_id]; exact hy
+  rw [sem_isContr (natural_fiber hnT hnA hnf (natural_var S 0 _ _) hTf' hAf' hfm')
+    (by rw [hfib, eT, eA, ef]; exact fib_fiberM (hTf.restr g) (hAf.restr g) (arrowM_elRes hTf.kv hfm g) hyA),
+    hfib, eT, eA, ef]
+  rfl
+
+theorem sem_equivT {T A : Tm} {ρ : IEnv k} {γ : ℕ → V} (hT : Natural S T k ρ γ) (hA : Natural S A k ρ γ)
+    (hTf : Fib (sem S T k ρ γ) k) (hAf : Fib (sem S A k ρ γ) k) :
+    sem S (Tm.equiv T A) k ρ γ = equivM k (sem S T k ρ γ) (sem S A k ρ γ) := by
+  unfold Tm.equiv Tm.arrow
+  have eArr : sem S (.pi T A.shift) k ρ γ = arrowM k (sem S T k ρ γ) (sem S A k ρ γ) := by
+    rw [sem_pi hTf.kv]; unfold arrowM; congr 1; apply famV_congr; intro k' g t _; rw [sem_shift, hA k' g]
+  have hPkv : IsKV k (arrowM k (sem S T k ρ γ) (sem S A k ρ γ)) := by unfold arrowM piC; exact isKV_mkKV _
+  rw [sem_sigma (by rw [eArr]; exact hPkv), eArr]
+  unfold equivM
+  congr 1
+  apply famV_congr
+  intro k' g p hp
+  have eT : sem S T.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) p) = res g (sem S T k ρ γ) := by
+    rw [sem_shift, hT k' g]
+  have eA : sem S A.shift k' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) p) = res g (sem S A k ρ γ) := by
+    rw [sem_shift, hA k' g]
+  have hpm : p ∈ El (arrowM k' (res g (sem S T k ρ γ)) (res g (sem S A k ρ γ))) (Hom.id k') := by
+    rw [← res_arrowM, El_res, Hom.comp_id]; exact hp
+  rw [sem_isEquiv ((hT.restr g).shift p) ((hA.restr g).shift p) (natural_var S 0 _ _)
+    (by rw [eT]; exact hTf.restr g) (by rw [eA]; exact hAf.restr g) (by rw [eT, eA]; exact hpm), eT, eA]
+  rfl
+
+end sem
+
+/-- For fibrant `T`, `A`, the code `Equiv T A` is the model code `equivM`. -/
+theorem equivCode_eq_equivM {T A : V} (hT : Fib T m) (hA : Fib A m) : equivCode m T A = equivM m T A := by
+  unfold equivCode
+  rw [interp_congr_pure (fun _ _ => ∅) (cstFn []) (fun _ _ => ∅) univC (fun _ _ => True) TyCode _ (by decide)]
+  exact sem_equivT (S := []) (natural_var _ 1 _ _) (natural_var _ 0 _ _) hT hA
+
+
 end
 
 end Model
