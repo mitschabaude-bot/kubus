@@ -820,4 +820,32 @@ theorem typed : HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T e ψ u0) ((glue A φ
 
 end TG
 
+theorem TyChain.backEq {Ψ Φ Γ X Y} : TyChain S Ψ Φ Γ X Y → ∀ {t u}, EqTm0 S Ψ Φ Γ t u Y →
+    EqTm0 S Ψ Φ Γ t u X
+  | .refl _, _, _, h => h
+  | .step e ch, _, _, h => EqTm0.conv (ch.backEq h) (EqTm0.symm e)
+
+/-- The contractum is typed, given that `δ` is scoped. -/
+theorem transpGlue_typed_of_scoped (hS : SigClosed S) {Ψ Φ Γ A φ T' e ψ u0 T δ}
+    (h : HasTy0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T)
+    (hδ1 : I.Entails δ φ.forall0) (hδs : δ.Scoped Ψ) :
+    HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) T := by
+  obtain ⟨m, ⟨hG, hψ, hconst, hu0⟩, ch⟩ := gen_transpF h rfl
+  obtain ⟨l0, ⟨hA0, hφ, hT0, he0⟩, chg⟩ := gen_glue hS hG rfl
+  have hs := scoped_of_ty h
+  have hconst' := (chg.restrict (scoped_shift (show (cof Φ ψ).Scoped Ψ from ⟨hs, hψ⟩))
+    (ent_shift (ent_and_left Φ ψ))).backEq hconst
+  have H : TG S Ψ Φ Γ A φ T' e ψ u0 δ l0 :=
+    { hS := hS, hA := hA0, hφ := hφ, hT := hT0, he := he0, hψ := hψ, hδ := hδs, hδφ := hδ1,
+      hconst := hconst', hu0 := hu0 }
+  exact ch.transport H.typed
+
+theorem transpGlue_typed (hS : SigClosed S) {Ψ Φ Γ A φ T' e ψ u0 T l δ}
+    (h : HasTy0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T)
+    (hA : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l))
+    (he : HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A))
+    (hδ1 : I.Entails δ φ.forall0) (hδ2 : I.Entails φ.forall0 δ) :
+    HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) T := by
+  exact transpGlue_typed_of_scoped hS h hδ1 sorry
+
 end KubusCore.Meta
