@@ -21,5 +21,7 @@ import Model.Univ
 import Model.GlueElem
 import Model.GlueFib
 import Model.Sem
+import Model.InterpLemmas
+import Model.SemBasic
 import Model.Sound
 import Model.Consistency

@@ -1,4 +1,5 @@
-import Model.InterpLemmas
+import Model.SemBasic
+import Model.WFFib
 
 /-!
 # Helpers for the rule lemmas
@@ -185,15 +186,6 @@ theorem IsPoint.of_entails {Φ Φ' : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V
     (hp : IsPoint S Φ' Γ m ρ γ) : IsPoint S Φ Γ m ρ γ :=
   ⟨entails_holds h hp.cof, hp.typ, hp.kv⟩
 
-/-- The interval environment of a point of a context weakened by an interval variable. -/
-def IEnv.tail (ρ : IEnv m) : IEnv m := fun i => ρ (i + 1)
-
-theorem ival_shift (ρ : IEnv m) (r : I) : ival ρ r.shift = ival ρ.tail r := by
-  rw [I.shift, ival_ren]; rfl
-
-theorem sem_dshift_tail (t : Tm) (ρ : IEnv m) (γ : ℕ → V) : sem S t.dshift m ρ γ = sem S t m ρ.tail γ := by
-  rw [Tm.dshift, sem_ren]; rfl
-
 theorem isPoint_dshift_iff {Φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V} :
     IsPoint S Φ.shift Γ.dshift m ρ γ ↔ IsPoint S Φ Γ m ρ.tail γ := by
   constructor
@@ -206,10 +198,6 @@ theorem isPoint_dshift_iff {Φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V} :
     rw [Ctx.lookup_dshift, Option.map_eq_some_iff] at hl
     obtain ⟨A', hA', rfl⟩ := hl
     rw [sem_dshift_tail]; exact hp.typ x A' hA'
-
-theorem IEnv.tail_restr (ρ : IEnv m) (f : Hom k m) : (ρ.restr f).tail = ρ.tail.restr f := rfl
-
-theorem IEnv.tail_cons (ρ : IEnv m) (r : DM m) : (ρ.cons r).tail = ρ := rfl
 
 end
 
@@ -264,9 +252,6 @@ open KubusCore
 noncomputable section
 
 variable {S : Sig} {k m n : ℕ}
-
-@[simp] theorem sem_univ (l : ℕ) (ρ : IEnv m) (γ : ℕ → V) : sem S (.univ l) m ρ γ = univC m l := rfl
-@[simp] theorem sem_var (x : ℕ) (ρ : IEnv m) (γ : ℕ → V) : sem S (.var x) m ρ γ = γ x := rfl
 
 /-- A term of a universe denotes a good code. -/
 theorem SemTy.ty_at {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A : Tm} {l : ℕ} (h : SemTy S Ψ Φ Γ A (.univ l))
@@ -483,9 +468,6 @@ attribute [local instance] Classical.propDecidable
 
 variable {S : Sig} {k m n : ℕ}
 
-theorem TEnv.restr_id_of_kv {γ : ℕ → V} (h : ∀ x, IsKV m (γ x)) : TEnv.restr γ (Hom.id m) = γ := by
-  funext x; exact res_id (h x)
-
 theorem Vt_below {l : ℕ} {x c : V} (h : Below x c) (hc : c ∈ Vt l) : x ∈ Vt l := by
   induction h with
   | single h => exact Vt_trans l hc h
@@ -541,17 +523,6 @@ variable {S : Sig} {k m n : ℕ}
 theorem piC_mem_Vt {l : ℕ} {A B : V} (hA : A ∈ Vt l)
     (hB : ∀ k (f : Hom k m), ∀ a ∈ El A f, apZ (dat B k f) a ∈ Vt l) : piC m A B ∈ Vt l := by
   sorry
-
-theorem sem_pi {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (hA : IsKV m (sem S A m ρ γ)) :
-    sem S (.pi A B) m ρ γ = piC m (sem S A m ρ γ)
-      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := by
-  simp only [sem, interp] at hA ⊢; rw [if_pos hA]
-
-theorem kv_of_sem_pi {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.pi A B) m ρ γ ≠ ∅) :
-    IsKV m (sem S A m ρ γ) := by
-  simp only [sem, interp] at h ⊢; split at h
-  · assumption
-  · exact absurd rfl h
 
 /-- Extending a point of `Γ` by an element of `A`, restricted along `f`. -/
 theorem IsPoint.ext {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A : Tm} {ρ : IEnv m} {γ : ℕ → V}
@@ -695,14 +666,6 @@ attribute [local instance] Classical.propDecidable
 
 variable {S : Sig} {k m n : ℕ}
 
-theorem sem_lam (A t : Tm) (ρ : IEnv m) (γ : ℕ → V) :
-    sem S (.lam A t) m ρ γ = lamV m (fun _ f => El (sem S A m ρ γ) f)
-      (fun k f a => sem S t k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := rfl
-
-theorem sem_app_of_nat {f a : Tm} {ρ : IEnv m} {γ : ℕ → V} (ha : Natural S a m ρ γ) :
-    sem S (.app f a) m ρ γ = appV m (sem S f m ρ γ) (sem S a m ρ γ) := by
-  simp only [sem, interp]; exact if_pos ha
-
 theorem nat_of_sem_app {f a : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.app f a) m ρ γ ≠ ∅) :
     Natural S a m ρ γ := by
   simp only [sem, interp] at h; split at h
@@ -728,17 +691,6 @@ variable {S : Sig} {k m n : ℕ}
 theorem sigmaC_mem_Vt {l : ℕ} {A B : V} (hA : A ∈ Vt l)
     (hB : ∀ k (f : Hom k m), ∀ a ∈ El A f, apZ (dat B k f) a ∈ Vt l) : sigmaC m A B ∈ Vt l := by
   sorry
-
-theorem sem_sigma {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (hA : IsKV m (sem S A m ρ γ)) :
-    sem S (.sigma A B) m ρ γ = sigmaC m (sem S A m ρ γ)
-      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := by
-  simp only [sem, interp] at hA ⊢; rw [if_pos hA]
-
-theorem kv_of_sem_sigma {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.sigma A B) m ρ γ ≠ ∅) :
-    IsKV m (sem S A m ρ γ) := by
-  simp only [sem, interp] at h ⊢; split at h
-  · assumption
-  · exact absurd rfl h
 
 @[simp] theorem codeTag_sigmaC' (A B : V) : codeTag m (sigmaC m A B) = natZ tSigma := codeTag_sigmaC A B
 
@@ -877,19 +829,6 @@ theorem TyOK.sigma_data {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S (.
   refine ⟨hAkv, sem_sigma hAkv, hAWF.fib, ⟨isKV_famV _ _, hgraph, fun k f a ha => (hfam k f a ha).fib, hcoh⟩,
     l, hl, hV, hAWF, Vt_below (below_sigmaC_dom _ _ hAkv) hV, fun a ha => ⟨?_, hfam m _ a ha⟩⟩
   exact Vt_below (below_sigmaC_fam _ _ (isKV_famV _ _) _ ⟨_, by rw [dat_famV]; exact mem_fnZ.2 ⟨_, ha, rfl⟩⟩) hV
-
-theorem sem_pair_of_kv {a b : Tm} {ρ : IEnv m} {γ : ℕ → V} (ha : IsKV m (sem S a m ρ γ))
-    (hb : IsKV m (sem S b m ρ γ)) : sem S (.pair a b) m ρ γ = pairV m (sem S a m ρ γ) (sem S b m ρ γ) := by
-  simp only [sem, interp] at ha hb ⊢; rw [if_pos ⟨ha, hb⟩]
-
-theorem kv_of_sem_pair {a b : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.pair a b) m ρ γ ≠ ∅) :
-    IsKV m (sem S a m ρ γ) ∧ IsKV m (sem S b m ρ γ) := by
-  simp only [sem, interp] at h ⊢; split at h
-  · assumption
-  · exact absurd rfl h
-
-theorem sem_fst (p : Tm) (ρ : IEnv m) (γ : ℕ → V) : sem S (.fst p) m ρ γ = fstV m (sem S p m ρ γ) := rfl
-theorem sem_snd (p : Tm) (ρ : IEnv m) (γ : ℕ → V) : sem S (.snd p) m ρ γ = sndV m (sem S p m ρ γ) := rfl
 
 end
 

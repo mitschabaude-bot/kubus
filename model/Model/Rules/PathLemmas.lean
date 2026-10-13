@@ -26,56 +26,8 @@ theorem IsPoint.dext {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → 
     (hp : IsPoint S Φ Γ m ρ γ) : IsPoint S Φ.shift Γ.dshift (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) :=
   isPoint_dshift_iff.2 (hp.restr hwf (Hom.wk m))
 
-theorem IEnv.eq_cons_tail (ρ : IEnv m) : ρ = ρ.tail.cons (ρ 0) := by funext i; cases i <;> rfl
-
-theorem IEnv.exists_cons (ρ : IEnv m) : ∃ ρ' r, ρ = IEnv.cons ρ' r := ⟨_, _, ρ.eq_cons_tail⟩
-
-@[simp] theorem ival_zero (ρ : IEnv m) : ival ρ .zero = DM.zero m := by ext p; simp [I.eval]
-@[simp] theorem ival_one (ρ : IEnv m) : ival ρ .one = DM.one m := by ext p; simp [I.eval]
-
-/-- The line at the generic point, `⟦A⟧(ρ.ext, γ.wk)`. -/
-abbrev lineV (S : Sig) (A : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : V :=
-  sem S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))
-
-theorem line_endpt {A : Tm} {ρ : IEnv m} {γ : ℕ → V} (hγ : ∀ x, IsKV m (γ x))
-    (hN : Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) (r : DM m) :
-    sem S A m (ρ.cons r) γ = res (Hom.endpt m r) (lineV S A m ρ γ) := by
-  rw [← hN m (Hom.endpt m r), IEnv.ext_restr_endpt, TEnv.restr_restr, Hom.wk_comp_endpt,
-    TEnv.restr_id_of_kv hγ]
-
-theorem line_endpt_nat {A : Tm} {ρ : IEnv m} {γ : ℕ → V} (hγ : ∀ x, IsKV m (γ x))
-    (hN : Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) (r : DM m) :
-    Natural S A m (ρ.cons r) γ := by
-  have := hN.restr (Hom.endpt m r)
-  rwa [IEnv.ext_restr_endpt, TEnv.restr_restr, Hom.wk_comp_endpt, TEnv.restr_id_of_kv hγ] at this
-
-theorem line_restr {A : Tm} {ρ : IEnv m} {γ : ℕ → V}
-    (hN : Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) (f : Hom k m) :
-    lineV S A k (ρ.restr f) (TEnv.restr γ f) = res (Hom.lift f) (lineV S A m ρ γ) := by
-  show sem S A (k + 1) _ (TEnv.restr (TEnv.restr γ f) (Hom.wk k)) = _
-  rw [← hN (k + 1) (Hom.lift f), IEnv.ext_restr_lift, TEnv.restr_restr, TEnv.restr_restr,
-    Hom.wk_comp_lift]
-
-theorem line_restr_nat {A : Tm} {ρ : IEnv m} {γ : ℕ → V}
-    (hN : Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) (f : Hom k m) :
-    Natural S A (k + 1) (ρ.restr f).ext (TEnv.restr (TEnv.restr γ f) (Hom.wk k)) := by
-  have := hN.restr (Hom.lift f)
-  rwa [IEnv.ext_restr_lift, TEnv.restr_restr, Hom.wk_comp_lift, ← TEnv.restr_restr] at this
 
 /-! ### Path types -/
-
-theorem sem_path {A a b : Tm} {ρ : IEnv m} {γ : ℕ → V}
-    (hN : Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) (hL : IsKV (m + 1) (lineV S A m ρ γ))
-    (ha : IsKV m (sem S a m ρ γ)) (hb : IsKV m (sem S b m ρ γ)) :
-    sem S (.path A a b) m ρ γ = pathC m (lineV S A m ρ γ) (sem S a m ρ γ) (sem S b m ρ γ) := by
-  simp only [sem, interp]; exact if_pos ⟨hN, hL, ha, hb⟩
-
-theorem kv_of_sem_path {A a b : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.path A a b) m ρ γ ≠ ∅) :
-    Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) ∧ IsKV (m + 1) (lineV S A m ρ γ) ∧
-      IsKV m (sem S a m ρ γ) ∧ IsKV m (sem S b m ρ γ) := by
-  simp only [sem, interp] at h; split at h
-  · assumption
-  · exact absurd rfl h
 
 theorem below_pathC_line (L a0 a1 : V) (hL : IsKV (m + 1) L) : Below L (pathC m L a0 a1) := by
   have h2 : Below (res (Hom.lift (Hom.id m)) L) (pathC m L a0 a1) := by
@@ -177,20 +129,6 @@ theorem mem_El_pathC {L a0 a1 v : V} (hL : IsKV (m + 1) L) (ha : IsKV m a0) (hb 
     v ∈ El (pathC m L a0 a1) (Hom.id m) ↔ ∃ p ∈ El L (Hom.id (m + 1)), v = pathOfLine m p ∧
       res (Hom.endpt m (DM.zero m)) p = a0 ∧ res (Hom.endpt m (DM.one m)) p = a1 := by
   rw [El_pathC, Hom.lift_id, res_id hL, res_id ha, res_id hb]; exact mem_pathEl
-
-theorem sem_plam {t : Tm} {ρ : IEnv m} {γ : ℕ → V}
-    (h : Natural S t (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) :
-    sem S (.plam t) m ρ γ = pathOfLine m (lineV S t m ρ γ) := by
-  simp only [sem, interp]; exact if_pos h
-
-theorem nat_of_sem_plam {t : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.plam t) m ρ γ ≠ ∅) :
-    Natural S t (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := by
-  simp only [sem, interp] at h; split at h
-  · assumption
-  · exact absurd rfl h
-
-theorem sem_papp (p : Tm) (r : I) (ρ : IEnv m) (γ : ℕ → V) :
-    sem S (.papp p r) m ρ γ = pappV m (sem S p m ρ γ) (ival ρ r) := rfl
 
 /-- What a good path type gives at a point. -/
 theorem TyOK.path_at {A a b : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S (.path A a b) m ρ γ) :
