@@ -375,8 +375,8 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
     ⟨h0, transpSigma_typed hS h0, pre_ty h0⟩
   | @EqTm0.transpPath _ Ψ Φ Γ A a b φ p0 T h0 =>
     ⟨h0, transpPath_typed hS h0, pre_ty h0⟩
-  | @EqTm0.transpGlue _ Ψ Φ Γ A φ T' e ψ u0 T l δ h0 h1 h2 h3 h4 =>
-    ⟨h0, transpGlue_typed hS h0 h1 h2 h3 h4, pre_ty h0⟩
+  | @EqTm0.transpGlue _ Ψ Φ Γ A φ T' e ψ u0 T l δ h0 h1 h2 h3 h4 h5 =>
+    ⟨h0, transpGlue_typed hS h0 h4 h3, pre_ty h0⟩
   | @EqTm0.transpIPi _ Ψ Φ Γ A φ u0 T h0 =>
     ⟨h0, transpIPi_typed hS h0, pre_ty h0⟩
   | @EqTm0.hcompIPi _ Ψ Φ Γ A φ u u0 T h0 =>

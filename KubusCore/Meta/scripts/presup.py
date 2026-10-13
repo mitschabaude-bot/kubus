@@ -167,7 +167,7 @@ eq = {
 'transpIPi': "⟨h0, transpIPi_typed hS h0, pre_ty h0⟩", 'hcompIPi': "⟨h0, hcompIPi_typed hS h0, pre_ty h0⟩", 'hcompPi': "⟨h0, hcompPi_typed hS h0, pre_ty h0⟩",
 'hcompSigma': "⟨h0, hcompSigma_typed hS h0, pre_ty h0⟩", 'hcompPath': "⟨h0, hcompPath_typed hS h0, pre_ty h0⟩", 'hcompU': "⟨h0, hcompU_typed hS h0, pre_ty h0⟩",
 'hcompGlue': "⟨h0, hcompGlue_typed hS h0, pre_ty h0⟩",
-'transpGlue': "⟨h0, transpGlue_typed hS h0 h1 h2 h3 h4, pre_ty h0⟩",
+'transpGlue': "⟨h0, transpGlue_typed hS h0 h4 h3, pre_ty h0⟩",
 'piEta': """by
       rcases pre_ty h0 with ⟨l, hpi⟩ | ⟨l, hpi, -⟩
       · have hA := HasTy0.piDom hS hpi

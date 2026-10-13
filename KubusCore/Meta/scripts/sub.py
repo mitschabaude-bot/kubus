@@ -304,9 +304,9 @@ eq = {
 'transpGlue': f"""by
       have hφ := scoped_cof_right (scoped_of_ty h2)
       rw [transpGlueWith_subst]; simp only [{SB}]
-      exact EqTm0.transpGlue {ST('h0')} {T('h1',DUP)} {ST('h2','((hσ.dup hS).underCof hφ)')}
-        (ent_trans (ent_subst h3 _) (forall0_subst _ τ).1)
-        (ent_trans (forall0_subst _ τ).2 (ent_subst h4 _))""",
+      exact EqTm0.transpGlue {ST('h0')} {T('h1',DUP)} {ST('h2','((hσ.dup hS).underCof hφ)')} (hσ.sc h3)
+        (ent_trans (ent_subst h4 _) (forall0_subst _ τ).1)
+        (ent_trans (forall0_subst _ τ).2 (ent_subst h5 _))""",
 'glueFace': f"by simp only [{SB}]; exact EqTm0.glueFace {ENT('h0')} {ST('h1')}",
 'glueElFace': f"by simp only [{SB}]; exact EqTm0.glueElFace {ENT('h0')} {ST('h1')}",
 'unglueFace': f"by simp only [{SB}]; exact EqTm0.unglueFace {ENT('h0')} {ST('h1')} {T('h2')} {ST('h3')}",

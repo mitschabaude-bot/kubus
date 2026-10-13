@@ -826,7 +826,7 @@ theorem TyChain.backEq {Ψ Φ Γ X Y} : TyChain S Ψ Φ Γ X Y → ∀ {t u}, Eq
   | .step e ch, _, _, h => EqTm0.conv (ch.backEq h) (EqTm0.symm e)
 
 /-- The contractum is typed, given that `δ` is scoped. -/
-theorem transpGlue_typed_of_scoped (hS : SigClosed S) {Ψ Φ Γ A φ T' e ψ u0 T δ}
+theorem transpGlue_typed (hS : SigClosed S) {Ψ Φ Γ A φ T' e ψ u0 T δ}
     (h : HasTy0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T)
     (hδ1 : I.Entails δ φ.forall0) (hδs : δ.Scoped Ψ) :
     HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) T := by
@@ -895,15 +895,5 @@ theorem ent_or_contra (δ : I) (k : Nat) :
   ⟨ent_or_elim (ent_refl _) (ent_of_sem fun ρ _ h => by
     simp only [I.eval, meet_one_iff, neg_one_iff] at h
     rw [h.1] at h; cases h.2), ent_or_left _ _⟩
-
-theorem transpGlue_typed (hS : SigClosed S) {Ψ Φ Γ A φ T' e ψ u0 T l δ}
-    (h : HasTy0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T)
-    (hA : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l))
-    (he : HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A))
-    (hδ1 : I.Entails δ φ.forall0) (hδ2 : I.Entails φ.forall0 δ) :
-    HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) T := by
-  -- Not provable as stated: the premises do not make `δ` scoped (`ent_or_contra`), and a typed
-  -- contractum needs it (`transpGlueWith_scoped`). The rule needs the premise `δ.Scoped Ψ`.
-  exact transpGlue_typed_of_scoped hS h hδ1 sorry
 
 end KubusCore.Meta

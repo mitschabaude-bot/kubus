@@ -267,7 +267,7 @@ inductive EqTm0 (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T l δ} : HasTy0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
       HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
       HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
-      I.Entails δ φ.forall0 → I.Entails φ.forall0 δ →
+      δ.Scoped Ψ → I.Entails δ φ.forall0 → I.Entails φ.forall0 δ →
       EqTm0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlueWith δ A φ T' e ψ u0) T
   | transpIPi {Ψ Φ Γ A φ u0 T} : HasTy0 S Ψ Φ Γ (transp (ipi A) φ u0) T →
       EqTm0 S Ψ Φ Γ (transp (ipi A) φ u0) (transpIPi A φ u0) T

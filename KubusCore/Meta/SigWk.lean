@@ -118,7 +118,7 @@ theorem sigwk_eq (hpre : ∀ (k : Nat) (e : Entry), S'[k]? = some e → S[k]? = 
   | .transpPi h0 => EqTm0.transpPi (sigwk_ty hpre h0)
   | .transpSigma h0 => EqTm0.transpSigma (sigwk_ty hpre h0)
   | .transpPath h0 => EqTm0.transpPath (sigwk_ty hpre h0)
-  | .transpGlue h0 h1 h2 h3 h4 => EqTm0.transpGlue (sigwk_ty hpre h0) (sigwk_ty hpre h1) (sigwk_ty hpre h2) h3 h4
+  | .transpGlue h0 h1 h2 h3 h4 h5 => EqTm0.transpGlue (sigwk_ty hpre h0) (sigwk_ty hpre h1) (sigwk_ty hpre h2) h3 h4 h5
   | .transpIPi h0 => EqTm0.transpIPi (sigwk_ty hpre h0)
   | .hcompIPi h0 => EqTm0.hcompIPi (sigwk_ty hpre h0)
   | .hcompPi h0 => EqTm0.hcompPi (sigwk_ty hpre h0)

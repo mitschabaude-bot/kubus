@@ -287,13 +287,13 @@ theorem ren_eq (hS : SigClosed S) {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → 
     by rw [transpSigma_subst]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]; exact EqTm0.transpSigma (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h0).2 hR)⟩
   | .transpPath h0 => ⟨(ren_ty hS h0).1, fun {Ψ' Φ' Δ ρ δ} hR =>
     by rw [transpPath_subst]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]; exact EqTm0.transpPath (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h0).2 hR)⟩
-  | .transpGlue h0 h1 h2 h3 h4 => ⟨(ren_ty hS h0).1, fun {Ψ' Φ' Δ ρ δ} hR =>
+  | .transpGlue h0 h1 h2 h3 h4 h5 => ⟨(ren_ty hS h0).1, fun {Ψ' Φ' Δ ρ δ} hR =>
     by
       have hφ := scoped_cof_right (scoped_of_ty h2)
       rw [transpGlueWith_subst]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]
-      exact EqTm0.transpGlue (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h0).2 hR) ((ren_ty hS h1).2 hR.dup) (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h2).2 (hR.dup.underCof hφ))
-        (ent_trans (ent_subst h3 _) (by simpa only [Iup_rI] using (forall0_subst _ (rI δ)).1))
-        (ent_trans (by simpa only [Iup_rI] using (forall0_subst _ (rI δ)).2) (ent_subst h4 _))⟩
+      exact EqTm0.transpGlue (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h0).2 hR) ((ren_ty hS h1).2 hR.dup) (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h2).2 (hR.dup.underCof hφ)) (hR.sc h3)
+        (ent_trans (ent_subst h4 _) (by simpa only [Iup_rI] using (forall0_subst _ (rI δ)).1))
+        (ent_trans (by simpa only [Iup_rI] using (forall0_subst _ (rI δ)).2) (ent_subst h5 _))⟩
   | .transpIPi h0 => ⟨(ren_ty hS h0).1, fun {Ψ' Φ' Δ ρ δ} hR =>
     by rw [transpIPi_subst]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]; exact EqTm0.transpIPi (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h0).2 hR)⟩
   | .hcompIPi h0 => ⟨(ren_ty hS h0).1, fun {Ψ' Φ' Δ ρ δ} hR =>

@@ -272,8 +272,8 @@ theorem toMin_eq {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t
     EqTm0.transpSigma (toMin_ty h0)
   | .transpPath h0 =>
     EqTm0.transpPath (toMin_ty h0)
-  | .transpGlue h0 h1 h2 h3 h4 =>
-    EqTm0.transpGlue (toMin_ty h0) (toMin_ty h1) (toMin_ty h2) h3 h4
+  | .transpGlue h0 h1 h2 h3 h4 h5 =>
+    EqTm0.transpGlue (toMin_ty h0) (toMin_ty h1) (toMin_ty h2) h3 h4 h5
   | .transpIPi h0 =>
     EqTm0.transpIPi (toMin_ty h0)
   | .hcompIPi h0 =>
@@ -522,8 +522,8 @@ theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ 
     EqTm.transpSigma (toFull_ty h0)
   | .transpPath h0 =>
     EqTm.transpPath (toFull_ty h0)
-  | .transpGlue h0 h1 h2 h3 h4 =>
-    EqTm.transpGlue (toFull_ty h0) (toFull_ty h1) (toFull_ty h2) h3 h4
+  | .transpGlue h0 h1 h2 h3 h4 h5 =>
+    EqTm.transpGlue (toFull_ty h0) (toFull_ty h1) (toFull_ty h2) h3 h4 h5
   | .transpIPi h0 =>
     EqTm.transpIPi (toFull_ty h0)
   | .hcompIPi h0 =>

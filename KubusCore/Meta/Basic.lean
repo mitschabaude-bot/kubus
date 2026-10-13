@@ -108,7 +108,7 @@ theorem wf_of_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → Wf0 S Ψ Φ Γ
   | .transpPi h0 => wf_of_ty h0
   | .transpSigma h0 => wf_of_ty h0
   | .transpPath h0 => wf_of_ty h0
-  | .transpGlue h0 _ _ _ _ => wf_of_ty h0
+  | .transpGlue h0 _ _ _ _ _ => wf_of_ty h0
   | .transpIPi h0 => wf_of_ty h0
   | .hcompIPi h0 => wf_of_ty h0
   | .hcompPi h0 => wf_of_ty h0

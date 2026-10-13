@@ -164,9 +164,9 @@ bodies['EqTm0'] = {
 'transpGlue': f"""by
       have hφ := scoped_cof_right (scoped_of_ty h2)
       rw [transpGlueWith_subst]; simp only [{RN}]
-      exact EqTm0.transpGlue {ST('h0')} {T('h1','hR.dup')} {ST('h2','(hR.dup.underCof hφ)')}
-        (ent_trans (ent_subst h3 _) (by simpa only [Iup_rI] using (forall0_subst _ (rI δ)).1))
-        (ent_trans (by simpa only [Iup_rI] using (forall0_subst _ (rI δ)).2) (ent_subst h4 _))""",
+      exact EqTm0.transpGlue {ST('h0')} {T('h1','hR.dup')} {ST('h2','(hR.dup.underCof hφ)')} (hR.sc h3)
+        (ent_trans (ent_subst h4 _) (by simpa only [Iup_rI] using (forall0_subst _ (rI δ)).1))
+        (ent_trans (by simpa only [Iup_rI] using (forall0_subst _ (rI δ)).2) (ent_subst h5 _))""",
 'glueFace': f"by simp only [{RN}]; exact EqTm0.glueFace {ENT('h0')} {ST('h1')}",
 'glueElFace': f"by simp only [{RN}]; exact EqTm0.glueElFace {ENT('h0')} {ST('h1')}",
 'unglueFace': f"by simp only [{RN}]; exact EqTm0.unglueFace {ENT('h0')} {ST('h1')} {T('h2')} {ST('h3')}",
