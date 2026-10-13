@@ -239,6 +239,11 @@ theorem kan_transp {A a : Tm} {φ : I} {l : ℕ} (hA : RT S (k + 1) A)
     have hl := gen_univ hU rfl
     exact (kanP_tyCode hW ⟨l, by omega, .inr rfl⟩).2 k (Hom.id (k + 1)) _ hA φ a hty ha
 
+/-- Types computable at all restrictions are Kan. -/
+theorem kanAll_of_RT {n : ℕ} {A : Tm} (h : ∀ k' (ρ : ISub k' n), RT S k' (A.isub ρ)) : KanAll S n A :=
+  ⟨fun k' ρ _ _ _ hty hu ha => kan_hcomp hW (h k' ρ) hty hu ha,
+    fun k' ρ _ _ hty ha => kan_transp hW (l := 0) (h (k' + 1) ρ) hty ha⟩
+
 end
 
 end Model.Canon

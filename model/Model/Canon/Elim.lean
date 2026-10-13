@@ -67,10 +67,22 @@ theorem tyEq_data_eq {d : ℕ} {qs ps : Tm} {l : ℕ} (h : TyEq S k (.data d qs)
   · rw [h]; exact ⟨l, EqTm.refl hp⟩
   · exact h
 
+/-- An element related at a restriction of a closed inductive type is computable there. -/
+theorem RE_of_DR_K {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : ℕ} {ps : Tm} (σ : ISub k k0)
+    {X t : Tm} {l : ℕ} (hpsT : HasTy S k .one [] (.data d (ps.isub σ)) (.univ l))
+    (hr : DR S d D (dataMem S (ΘK S D d k0 ps) (Hom.id k0)) (dataP S (ΘK S D d k0 ps) (Hom.id k0)) k σ.hom X t)
+    (hX : TyEq S k X (.data d (ps.isub σ))) : RE S k (.data d (ps.isub σ)) t := by
+  have hr1 := DR.rebase (Hom.id k0) hr σ.hom (Hom.id k) (Hom.comp_id _).symm
+  rw [dataMem_restr, dataP_restr] at hr1
+  have hr2 := hr1.conv hW (fun k1 f t1 t1' A1 e1 hm1 => by unfold dataMem at hm1 ⊢; rwa [← semK_eq hW e1])
+    hX (EqTm.refl ((hr1.typed).tyConv hX))
+  exact (RE_data_iff hW hd hpsT).2 ⟨hr2.typed, hr2⟩
+
 /-- The eliminator is computable on computable elements (by induction on the relation). -/
 theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : ℕ} {ps P bs : Tm} {m : ℕ}
     (hE : ∀ k (σ : ISub k k0), ElimPrem S k .one [] d D (ps.isub σ) (P.isub σ) (bs.isub σ) m)
     (hPc : ∀ k (σ : ISub k k0) t, RE S k (.data d (ps.isub σ)) t → RE S k (.univ m) ((P.isub σ).inst t))
+    (hRT : ∀ k (σ : ISub k k0), RT S k (.data d (ps.isub σ)))
     (hbr : ∀ k (σ : ISub k k0) (c : ℕ) (C : Ctor) (b : Tm), D.ctors[c]? = some C → (bs.isub σ).toList[c]? = some b →
       RE S k (D.branchTy d c C (ps.isub σ) (P.isub σ)) b) :
     ∀ {k : ℕ} {g : Hom k k0} {A t : Tm},
@@ -204,7 +216,103 @@ theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : 
       .inr ⟨m, minimal_to_spec_eq eP⟩
     exact h3.conv hW eP' (EqTm.trans ((EqTm.symm e2).tyConv eP') (EqTm.symm (minimal_to_spec_eq e1)))
   | @hcomp k g A t qs u a φ hm hH hsc hn hqs hAeq he ha hu iha ihu =>
-    sorry
+    intro σ hg hA
+    subst hg
+    have hEk := hE k σ
+    have hpsT' : HasTy S k .one [] (.data d (ps.isub σ)) (.univ D.level) := minimal_to_spec hEk.hdata
+    have hqp : TyEq S k (.data d qs) (.data d (ps.isub σ)) := hAeq.symm.trans hW hA
+    obtain ⟨lq, eq⟩ := tyEq_eq hW hqp ⟨_, hpsT'⟩
+    have hhq : HasTy S k .one [] (.hcomp (.data d qs) φ u a) (.data d qs) := (HasTy.eqR he).tyConv hAeq
+    obtain ⟨hhp, ehc⟩ := hcomp_retype hW hhq eq
+    have htc : EqTm S k .one [] t (.hcomp (.data d qs) φ u a) (.data d (ps.isub σ)) := he.tyConv hA
+    have ht0 := spec_to_minimal hW (HasTy.eqL htc)
+    have hh0 := spec_to_minimal hW (HasTy.eqR htc)
+    have e1 := hEk.elim_congr hS ht0 hh0 (spec_to_minimal_eq hW htc)
+    have hel := minimal_to_spec (hEk.elim_ty hh0)
+    have e2 := EqTm.elimHcomp hd hH hhp hel
+    -- the filler of the composition
+    obtain ⟨l0, ⟨hdps, hφ', hut, hat, hside⟩, -⟩ := gen_hcomp (Φ := .one) (Γ := []) (spec_to_minimal hW hhp) rfl
+    obtain ⟨hH0, hHe0, hHe1, hHu⟩ := hfill_typed hS hdps hφ' hut hat hside
+    have hrel : ∀ k' (σ' : ISub k' k) x X, DR S d D (dataMem S (ΘK S D d k0 ps) (Hom.id k0))
+        (dataP S (ΘK S D d k0 ps) (Hom.id k0)) k' (σ.comp σ').hom X x →
+        TyEq S k' X (.data d (ps.isub (σ.comp σ'))) → RE S k' (.data d (ps.isub (σ.comp σ'))) x :=
+      fun k' σ' x X hr hX => RE_of_DR_K hW hd (σ.comp σ') (minimal_to_spec (hE k' (σ.comp σ')).hdata) hr hX
+    have hu' : TubeC S k (.data d (ps.isub σ)) φ u := fun k' σ' r hr hh => by
+      have h1 := hu k' σ' r hr hh
+      rw [← ISub.hom_comp] at h1
+      have := hrel k' σ' _ _ h1 (by
+        have := hqp.isub hW σ'
+        rw [show (Tm.data d (ps.isub σ)).isub σ' = Tm.data d (ps.isub (σ.comp σ')) by
+          show Tm.data d ((ps.isub σ).isub σ') = _; rw [Tm.isub_isub]] at this
+        exact this)
+      rw [show Tm.data d (ps.isub (σ.comp σ')) = (Tm.data d (ps.isub σ)).isub σ' by
+        show _ = Tm.data d ((ps.isub σ).isub σ'); rw [Tm.isub_isub]] at this
+      exact this
+    have ha' : RE S k (.data d (ps.isub σ)) a := by
+      have := hrel k (ISub.id k) a _ (by rw [ISub.comp_id]; exact ha) (by rw [ISub.comp_id]; exact hqp)
+      rwa [ISub.comp_id] at this
+    have hKH : ∀ k' (ρ : ISub k' k), KanH S k' ((Tm.data d (ps.isub σ)).isub ρ) := fun k' ρ => by
+      intro φ'' u'' a'' hty'' hu'' ha''
+      have hR := hRT k' (σ.comp ρ)
+      rw [show Tm.data d (ps.isub (σ.comp ρ)) = (Tm.data d (ps.isub σ)).isub ρ by
+        show _ = Tm.data d ((ps.isub σ).isub ρ); rw [Tm.isub_isub]] at hR
+      exact kan_hcomp hW hR hty'' hu'' ha''
+    have hRH := RE_hfill hW hKH hhp hu' ha'
+    -- the line of the composition: the motive along the filler
+    have hPσ : ∀ k' (ρ : ISub k' (k + 1)), ((P.isub σ).dshift.inst (Tm.hfill (.data d (ps.isub σ)) φ u a)).isub ρ =
+        (P.isub (σ.comp ρ.tail)).inst ((Tm.hfill (.data d (ps.isub σ)) φ u a).isub ρ) := by
+      intro k' ρ
+      rw [isub_inst, dshift_isub_tail, Tm.isub_isub]
+    have hHρ : ∀ k' (ρ : ISub k' (k + 1)), RE S k' (.data d (ps.isub (σ.comp ρ.tail)))
+        ((Tm.hfill (.data d (ps.isub σ)) φ u a).isub ρ) := by
+      intro k' ρ
+      have := hRH.isub hW ρ
+      rw [dshift_isub_tail] at this
+      rw [show Tm.data d (ps.isub (σ.comp ρ.tail)) = (Tm.data d (ps.isub σ)).isub ρ.tail by
+        show _ = Tm.data d ((ps.isub σ).isub ρ.tail); rw [Tm.isub_isub]]
+      exact this
+    have hKC : KanAll S (k + 1) ((P.isub σ).dshift.inst (Tm.hfill (.data d (ps.isub σ)) φ u a)) :=
+      kanAll_of_RT hW fun k' ρ => by
+        rw [hPσ]; exact ((RE_univ_iff hW).1 (hPc k' (σ.comp ρ.tail) _ (hHρ k' ρ))).2.2
+    have e2' : EqTm S k .one [] (.elim d (ps.isub σ) (P.isub σ) (bs.isub σ) (.hcomp (.data d qs) φ u a))
+        (Tm.comp ((P.isub σ).dshift.inst (Tm.hfill (.data d (ps.isub σ)) φ u a)) φ
+          (.elim d (ps.isub σ).dshift (P.isub σ).dshift (bs.isub σ).dshift u) (.elim d (ps.isub σ) (P.isub σ) (bs.isub σ) a))
+        ((P.isub σ).inst (.hcomp (.data d qs) φ u a)) := by
+      rw [← elimHcomp_C_eq]; exact e2
+    have hP'' := minimal_to_spec hEk.hP
+    have eH1 : EqTm S k .one [] ((Tm.hfill (.data d (ps.isub σ)) φ u a).dinst .one) t (.data d (ps.isub σ)) :=
+      EqTm.trans (minimal_to_spec_eq hHe1)
+        (EqTm.trans (EqTm.symm ((ehc.conv eq))) (EqTm.symm htc))
+    have eT1 : TyEq S k ((P.isub σ).inst t) (((P.isub σ).dshift.inst (Tm.hfill (.data d (ps.isub σ)) φ u a)).dinst .one) := by
+      rw [dshift_inst_dinst]; exact .inr ⟨m, EqTm.subst (EqTm.refl hP'') (EqTm.symm eH1)⟩
+    have eTh : TyEq S k ((P.isub σ).inst (.hcomp (.data d qs) φ u a)) ((P.isub σ).inst t) :=
+      .inr ⟨m, EqTm.subst (EqTm.refl hP'') (EqTm.symm htc)⟩
+    have htyC := (HasTy.eqR e2').tyConv (eTh.trans hW eT1)
+    refine (RE_comp hW hKC htyC (fun k' σ' r hr hh => ?_) ?_).conv hW (TyEq.symm eT1)
+      (EqTm.trans ((EqTm.symm e2').tyConv eTh) (EqTm.symm (minimal_to_spec_eq e1)))
+    · rw [isub_up_dinst _ σ' r hr, isub_up_dinst _ σ' r hr, isub_inst, dshift_isub_cons]
+      have hU : (Tm.elim d (ps.isub σ).dshift (P.isub σ).dshift (bs.isub σ).dshift u).isub (ISub.cons r hr σ') =
+          .elim d ((ps.isub σ).isub σ') ((P.isub σ).isub σ') ((bs.isub σ).isub σ') (u.isub (ISub.cons r hr σ')) := by
+        show Tm.elim d ((ps.isub σ).dshift.isub _) ((P.isub σ).dshift.subst (Tm.up Tm.var) (ISub.cons r hr σ').τ)
+          ((bs.isub σ).dshift.isub _) _ = _
+        rw [up_var, dshift_isub_cons, dshift_isub_cons]
+        exact congrArg (fun x => Tm.elim d _ x _ _) (dshift_isub_cons _ r hr σ')
+      rw [hU]
+      have h1 := ihu k' σ' r hr hh (σ.comp σ') (by rw [ISub.hom_comp]) (by
+        have := hqp.isub hW σ'
+        rw [show (Tm.data d (ps.isub σ)).isub σ' = Tm.data d (ps.isub (σ.comp σ')) by
+          show Tm.data d ((ps.isub σ).isub σ') = _; rw [Tm.isub_isub]] at this
+        exact this)
+      rw [isub_up_dinst _ σ' r hr, ← Tm.isub_isub, ← Tm.isub_isub, ← Tm.isub_isub] at h1
+      have hPk := minimal_to_spec (hE k' (σ.comp σ')).hP
+      rw [← Tm.isub_isub, ← Tm.isub_isub] at hPk
+      have eHu := EqTm0.isub hS (Ψ' := k') (Φ' := .one) (τ := (ISub.cons r hr σ').τ) hHu
+        (fun i hi => (ISub.cons r hr σ').sc i hi) (ent_cof_cons hW hφ' r hr σ' hh) (Wf0.nil trivial)
+      have eHu' := minimal_to_spec_eq eHu
+      rw [← isub_eq_subst, ← isub_eq_subst, ← isub_eq_subst, dshift_isub_cons] at eHu'
+      exact h1.conv_ty hW (.inr ⟨m, EqTm.subst (EqTm.refl hPk) (EqTm.symm eHu')⟩)
+    · rw [dshift_inst_dinst]
+      exact (iha σ rfl hqp).conv_ty hW (.inr ⟨m, EqTm.subst (EqTm.refl hP'') (EqTm.symm (minimal_to_spec_eq hHe0))⟩)
 
 end
 
