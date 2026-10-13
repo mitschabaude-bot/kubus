@@ -1,4 +1,4 @@
-import KubusCore.Meta.PresupB
+import KubusCore.Meta.DataTele
 
 /-!
 # Metatheory: typing the contracta of the computation rules of inductive types
