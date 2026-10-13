@@ -372,6 +372,29 @@ theorem argTy_univ (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
       exact ((hps n g).2.2 n' h p hp).symm
     rw [e1, e2, List.map_take]
 
+include hsyn hC in
+omit hps in
+theorem sem_lookup_point (E : DataDecl) {j x : ℕ} (hx : x < j) (hjC : j ≤ C.args.length)
+    (hr : C.isRec (j - 1 - x) = false) {T : Tm} (hT : (D.argCtx S0.length C j).lookup x = some T)
+    (ρ : IEnv n) (psv gv : V) {pre : List V} (hjp : j ≤ pre.length) :
+    sem (S0 ++ [.data E]) T n ρ (argEnvKV n (plist psv D.params.length) (genPre C gv (pre.take j))) =
+      argTyRaw (sigV S0) D S0.length c (j - 1 - x) n psv pre := by
+  rw [Ctx.lookup_eq, argCtx_lt D _ C j x hx] at hT
+  simp only [Option.map_some, Option.some.injEq] at hT
+  subst hT
+  have hgl : (genPre C gv (pre.take j)).length = j := by simp [genPre_length]; omega
+  rw [sem_ren, show (fun y => argEnvKV n (plist psv D.params.length) (genPre C gv (pre.take j)) (y + (x + 1))) =
+      argEnvKV n (plist psv D.params.length) (genPre C gv (pre.take (j - 1 - x))) by
+    rw [argEnvKV_shift _ _ (by omega), hgl, genPre_take, List.take_take, Nat.min_eq_left (by omega)]]
+  obtain ⟨A, hA⟩ : ∃ A, C.args[j - 1 - x]? = some (.point A) := by
+    have hi : j - 1 - x < C.args.length := by omega
+    cases h' : C.args[j - 1 - x]'hi with
+    | point A => exact ⟨A, by rw [List.getElem?_eq_getElem hi, h']⟩
+    | recur => simp [Ctor.isRec, List.getElem?_eq_getElem hi, h'] at hr
+  have harg : C.argTy S0.length D.params.length (j - 1 - x) = A := by simp [Ctor.argTy, hA]
+  rw [harg, sem_rho_irrel _ (hsyn.2.2 c C hC _ A hA).1 _ (fun _ => DM.zero n),
+    sem_argTy_eq S0 _ D hsyn hC hA psv pre (by omega)]
+
 end argty
 
 /-! ### Simple boundary terms are natural -/
@@ -595,6 +618,113 @@ theorem dataOK_of
       rw [h]; exact ⟨emptyC_mem_Vt' hl, fun _ => WFI.empty⟩
 
 end dataok
+
+section tyeq
+
+variable (S0 : Sig) (D : DataDecl) (hsyn : DataSyn S0.length D)
+  {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) D m ps)
+
+theorem toList_ofList : ∀ L : List Tm, (Tm.ofList L).toList = L
+  | [] => rfl
+  | t :: L => by simp [Tm.ofList, Tm.toList, toList_ofList L]
+
+theorem nestPre_length (pre : List V) (prev : List Tm) : (nestPre pre prev).length = prev.length := by
+  simp [nestPre]
+
+include hsyn hC hps in
+/-- The type equality of a boundary point argument, from its judgmental version. -/
+theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ctors.length)
+    {ψ : I} {n0 : ℕ} {rs0 : List (DM n0)} (hrs0 : (ival (renv rs0) ψ).holds)
+    {c' : ℕ} {C' : Ctor} (hC' : D.ctors[c']? = some C') {k : ℕ} {A' : Tm} (hA' : C'.args[k]? = some (.point A'))
+    {prev : List Tm} (hpl : prev.length = k)
+    (Hprev : ∀ q (hq : q < k), C'.isRec q = false → ∃ y, prev.reverse[q]'(by simp; omega) = .var y ∧
+      y < C.args.length ∧ C.isRec (C.args.length - 1 - y) = false)
+    (hprevS : ∀ t ∈ prev, SimpleShape (D.truncate c).ctors S0.length t)
+    {x : ℕ} (hx : x < C.args.length) (hxr : C.isRec (C.args.length - 1 - x) = false) {T : Tm}
+    (hT : (D.argCtx S0.length C C.args.length).lookup x = some T)
+    (heq : EqTm (S0 ++ [.data (D.truncate c)]) C.dims ψ (D.argCtx S0.length C C.args.length) T
+      ((C'.argTy S0.length D.params.length k).substList
+        (prev ++ (Ctor.paramVars D.params.length C.args.length).toList.reverse)) (.univ D.level))
+    {n2 : ℕ} (g : Hom n2 m) (pre : List V) (hpre : pre.length = C.args.length)
+    (hpt : ∀ i (hi : i < C.args.length), C.isRec i = false →
+      pre[i]'(by omega) ∈ El (argTyRaw (sigV S0) D S0.length c i n2 (ps n2 g) pre) (Hom.id n2) ∧
+        IsKV n2 (pre[i]'(by omega))) :
+    argTyRaw (sigV S0) D S0.length c' k n2 (ps n2 g) (nestPre pre prev) =
+      argTyRaw (sigV S0) D S0.length c (C.args.length - 1 - x) n2 (ps n2 g) pre := by
+  set n := C.args.length
+  set np := D.params.length
+  set Sc := S0 ++ [Entry.data (D.truncate c)]
+  set ρ2 : IEnv n2 := (renv rs0).restr (fun _ => DM.zero n2)
+  have hρ2 : (ival ρ2 ψ).holds := by rw [ival.restr]; exact hrs0.restr _
+  set gv := genV c n2 (D.truncate c).ctors
+  set γ2 := argEnvKV n2 (plist (ps n2 g) np) (genPre C gv (pre.take n))
+  have hp := isPoint_argCtx S0 D hsyn hC hps c hc g ρ2 hρ2 (j := n) (by omega) le_rfl
+    (fun i hi hr => hpt i hi hr)
+  have hE := (sound_eq hokc heq).2.2 n2 ρ2 γ2 hp
+  rw [sem_lookup_point S0 D hsyn hC _ hx le_rfl hxr hT ρ2 (ps n2 g) gv (by omega)] at hE
+  rw [hE]
+  -- the right-hand side
+  have harg : C'.argTy S0.length np k = A' := by simp [Ctor.argTy, hA']
+  obtain ⟨hcl, hcs, hnr⟩ := hsyn.2.2 c' C' hC' k A' hA'
+  set L := prev ++ (Ctor.paramVars np n).toList.reverse
+  have hPV : (Ctor.paramVars np n).toList = (List.range np).map fun p => Tm.var (n + np - 1 - p) := by
+    rw [Ctor.paramVars, toList_ofList]
+  have hLl : L.length = k + np := by simp [L, hpl, hPV]
+  have hkv2 : ∀ y, IsKV n2 (γ2 y) := hp.kv
+  have hnat : ∀ y, Natural Sc ((fun j => L.getD j (.var (j - L.length))) y) n2 ρ2 γ2 := by
+    intro y
+    by_cases hy : y < L.length
+    · simp only [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hy, Option.getD_some]
+      by_cases hyk : y < prev.length
+      · rw [List.getElem_append_left hyk]
+        exact (natural_simple (entry_ext S0 _) hkv2 _).1 (hprevS _ (List.getElem_mem _))
+      · rw [List.getElem_append_right (by omega)]
+        simp only [hPV, List.getElem_reverse, List.getElem_map]
+        intro k' f; rfl
+    · have e : L.getD y (.var (y - L.length)) = .var (y - L.length) := by
+        simp [List.getD_eq_getElem?_getD, List.getElem?_eq_none (Nat.le_of_not_lt hy)]
+      show Natural Sc (L.getD y _) n2 ρ2 γ2
+      rw [e]; intro k' f; rfl
+  rw [harg, Tm.substList, sem_subst Sc A' n2 ρ2 γ2 _ _ hnat,
+    sem_rho_irrel _ hcl _ (fun _ => DM.zero n2), sem_ext S0 _ hcs]
+  have harg' : (D.ctors.getD c' default).argTy S0.length np k = A' := by rw [getD_ctors hC']; exact harg
+  rw [argTyRaw, harg']
+  refine interp_congr_free _ _ _ A' n2 _ _ _ fun y hy => ?_
+  have hyl := freeIn_lt_of_closedB A' _ 0 y hcl hy
+  have hnl : (nestPre pre prev).length = k := by rw [nestPre_length, hpl]
+  simp only [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega : y < L.length), Option.getD_some]
+  simp only [argEnv, List.getD_eq_getElem?_getD, List.take_of_length_le (by rw [hnl] : (nestPre pre prev).length ≤ k)]
+  by_cases hyk : y < k
+  · have hq := noRecDeps_point hnr hyk hy
+    obtain ⟨y', hy'e, hy'l, hy'r⟩ := Hprev (k - 1 - y) (by omega) hq
+    have e1 : L[y]'(by omega) = .var y' := by
+      rw [List.getElem_append_left (by omega)]
+      rw [← hy'e, List.getElem_reverse]; congr 1; omega
+    rw [e1, sem_var]
+    have hL : γ2 y' = pre[n - 1 - y']'(by omega) := by
+      simp only [γ2]
+      rw [argEnvKV_eq_of_lt (by simp [genPre_length, plist]; omega),
+        List.getElem_append_left (by simp [genPre_length]; omega), List.getElem_reverse, genPre_getElem]
+      simp only [genPre_length, List.length_take, Nat.min_eq_left (show n ≤ pre.length by omega)]
+      rw [if_neg (by simp [hy'r]), List.getElem_take]
+    rw [hL, List.getElem?_append_left (by simp [hnl]; omega), List.getElem?_reverse (by simp [hnl]; omega)]
+    have hq' : prev.reverse[k - 1 - y]? = some (.var y') := by
+      rw [List.getElem?_eq_getElem (by simp; omega), hy'e]
+    simp only [hnl, nestPre, List.getElem?_map, List.length_map, List.length_reverse, hpl, hq', Option.map_some,
+      Option.getD_some]
+    rw [getD_reverse_eq (by omega)]
+    simp [hpre]
+  · rw [List.getElem_append_right (by omega)]
+    simp only [hPV, List.getElem_reverse, List.getElem_map, List.getElem_range, List.length_map,
+      List.length_range, hpl, sem_var]
+    simp only [γ2]
+    rw [argEnvKV_eq_of_lt (by simp [genPre_length, plist]; omega), List.getElem_append_right (by simp [genPre_length]; omega),
+      List.getElem?_append_right (by simp [hnl]; omega)]
+    simp only [genPre_length, List.length_take, Nat.min_eq_left (show n ≤ pre.length by omega), List.length_reverse, hnl]
+    rw [List.getElem?_eq_getElem (by simp [plist]; omega), Option.getD_some]
+    congr 1; omega
+
+end tyeq
 
 end
 
