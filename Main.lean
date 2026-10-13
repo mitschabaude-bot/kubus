@@ -1,4 +1,5 @@
 import Kubus
+import Kubus.Bridge
 
 open Kubus
 
@@ -10,6 +11,8 @@ structure Driver where
   selfcheck : Bool := false
   /-- self-check imported files too -/
   selfcheckImports : Bool := true
+  /-- `--kernel`: check definitions with the certified kernel -/
+  kernel : Option Bridge.State := none
 
 partial def runFile (path : System.FilePath) (top : Bool := true) : StateT Driver (ExceptT String IO) Unit := do
   let path ← IO.FS.realPath path
@@ -42,6 +45,13 @@ partial def runFile (path : System.FilePath) (top : Bool := true) : StateT Drive
         modify fun dr => { dr with st := { st' with violations := #[], skips := #[] },
                                    violations := dr.violations + st'.violations.size }
         if let some s := out then IO.println s
+        if let some ks := (← get).kernel then
+          if let .defn n .. := d then
+            let (msgs, ks') := (Bridge.addGlobal st'.globals n 0).run ks
+            for m in msgs do IO.println m
+            modify fun dr => { dr with kernel := some ks' }
+          if let .defSplit n .. := d then
+            IO.println s!"kernel: skipped {n}: pattern matching (phase 2)"
       | .error e => throw s!"{path}:{e}"
 
 def usage : String :=
@@ -49,7 +59,8 @@ def usage : String :=
   "  --selfcheck  check evaluator/checker invariants on every definition and #eval\n" ++
   "  --selfcheck-main  the same, but only for the given files, not their imports\n" ++
   "  --budget N   evaluation steps per self-check before it is skipped (default 1000000)\n" ++
-  "  --verbose    list the self-checks that were skipped"
+  "  --verbose    list the self-checks that were skipped\n" ++
+  "  --kernel     also check every definition with the certified KubusCore kernel"
 
 def main (args : List String) : IO UInt32 := do
   let mut drv : Driver := {}
@@ -60,6 +71,7 @@ def main (args : List String) : IO UInt32 := do
     | "--selfcheck" :: r => drv := { drv with selfcheck := true }; rest := r
     | "--selfcheck-main" :: r => drv := { drv with selfcheck := true, selfcheckImports := false }; rest := r
     | "--verbose" :: r => drv := { drv with verbose := true }; rest := r
+    | "--kernel" :: r => drv := { drv with kernel := some {} }; rest := r
     | "--budget" :: n :: r =>
       match n.toNat? with
       | some b => drv := { drv with st.budget := b }; rest := r
@@ -79,4 +91,7 @@ def main (args : List String) : IO UInt32 := do
     let st := drv.st
     IO.eprintln s!"selfcheck: {st.nChecks} checks, {st.nSkipped} skipped (budget), {st.nGaps} re-checks skipped (no surface syntax), {drv.violations} violations"
     if drv.violations > 0 then return 1
+  if let some ks := drv.kernel then
+    IO.println s!"kernel: {ks.certified} certified, {ks.skipped.size - ks.rejected} skipped, {ks.rejected} rejected"
+    if ks.rejected > 0 then return 1
   return 0

@@ -12,16 +12,92 @@ namespace KubusCore.Kernel
 
 variable {S : Sig}
 
+/-! ## Canonical restrictions
+
+Each kernel call first replaces the restriction `Φ` by its canonical form `Φ'` (the
+disjunction of its maximal faces), checking `Φ ⊨ Φ'` and `Φ' ⊨ Φ`, and moves the results
+back with the restriction rule. This keeps `Φ` small under nested systems. -/
+
+/-- Proofs that `Φ'` is equivalent to `Φ`. -/
+structure Equiv' (Ψ : Nat) (Φ Φ' : I) : Type where
+  hs : Φ'.Scoped Ψ
+  h1 : I.Entails Φ' Φ
+  h2 : I.Entails Φ Φ'
+
+def canonical (Ψ : Nat) (Φ : I) : Option ((Φ' : I) × Equiv' Ψ Φ Φ') :=
+  let Φ' := canonPhi Φ
+  if Φ' = Φ then none else
+  if hs : Φ'.Scoped Ψ then
+    if h1 : I.Entails Φ' Φ then
+      if h2 : I.Entails Φ Φ' then some ⟨Φ', hs, h1, h2⟩ else none
+    else none
+  else none
+
+variable {Ψ : Nat} {Φ : I} {Γ : Ctx}
+
+def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K (Inf S Ψ Φ Γ t) :=
+  match canonical Ψ Φ with
+  | none => inferStep R E t
+  | some ⟨Φ', q⟩ => do
+    let i ← inferStep R (E.restrict Φ' q.hs q.h1) t
+    pure ⟨i.ty, i.lvl, HasTy.restrict E.hsc q.h2 i.hty, HasTy.restrict E.hsc q.h2 i.htm⟩
+
+def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (PLift (HasTy S Ψ Φ Γ t A)) :=
+  match canonical Ψ Φ with
+  | none => checkStep R E t A l hA
+  | some ⟨Φ', q⟩ => do
+    let ⟨h⟩ ← checkStep R (E.restrict Φ' q.hs q.h1) t A l (HasTy.restrict q.hs q.h1 hA)
+    pure ⟨HasTy.restrict E.hsc q.h2 h⟩
+
+def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K (Red S Ψ Φ Γ t A) :=
+  match canonical Ψ Φ with
+  | none => whnfMain R E t A l hA ht
+  | some ⟨Φ', q⟩ => do
+    let r ← whnfMain R (E.restrict Φ' q.hs q.h1) t A l (HasTy.restrict q.hs q.h1 hA)
+      (HasTy.restrict q.hs q.h1 ht)
+    pure ⟨r.tm, EqTm.restrict E.hsc q.h2 r.eq⟩
+
+def canonWhnfI (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
+    K ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) :=
+  match canonical Ψ Φ with
+  | none => whnfIStep R E t
+  | some ⟨Φ', q⟩ => do
+    let ⟨i, r⟩ ← whnfIStep R (E.restrict Φ' q.hs q.h1) t
+    pure ⟨⟨i.ty, i.lvl, HasTy.restrict E.hsc q.h2 i.hty, HasTy.restrict E.hsc q.h2 i.htm⟩,
+      ⟨r.tm, EqTm.restrict E.hsc q.h2 r.eq⟩⟩
+
+def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm) (ht : HasTy S Ψ Φ Γ t A)
+    (hu : HasTy S Ψ Φ Γ u A) : K (PLift (EqTm S Ψ Φ Γ t u A)) :=
+  if h : t = u then pure ⟨h ▸ EqTm.refl ht⟩ else
+  match canonical Ψ Φ with
+  | none => convStep R E A l hA t u ht hu
+  | some ⟨Φ', q⟩ => do
+    let ⟨e⟩ ← convStep R (E.restrict Φ' q.hs q.h1) A l (HasTy.restrict q.hs q.h1 hA) t u
+      (HasTy.restrict q.hs q.h1 ht) (HasTy.restrict q.hs q.h1 hu)
+    pure ⟨EqTm.restrict E.hsc q.h2 e⟩
+
+def canonConvNe (R : Rec S) (E : KCtx S Ψ Φ Γ) (t u : Tm) :
+    K ((i : Inf S Ψ Φ Γ t) × PLift (EqTm S Ψ Φ Γ t u i.ty)) :=
+  match canonical Ψ Φ with
+  | none => convNeStep R E t u
+  | some ⟨Φ', q⟩ => do
+    let ⟨i, ⟨e⟩⟩ ← convNeStep R (E.restrict Φ' q.hs q.h1) t u
+    pure ⟨⟨i.ty, i.lvl, HasTy.restrict E.hsc q.h2 i.hty, HasTy.restrict E.hsc q.h2 i.htm⟩,
+      ⟨EqTm.restrict E.hsc q.h2 e⟩⟩
+
 /-- The kernel with `n` levels of nested recursive calls. Each level is built lazily. -/
 def rec (S : Sig) : Nat → Rec S
   | 0 => Rec.bot S
   | n + 1 =>
-    { infer := fun E t => inferStep (rec S n) E t
-      check := fun E t A l hA => checkStep (rec S n) E t A l hA
-      whnf := fun E t A l hA ht => whnfMain (rec S n) E t A l hA ht
-      whnfI := fun E t => whnfIStep (rec S n) E t
-      conv := fun E A l hA t u ht hu => convStep (rec S n) E A l hA t u ht hu
-      convNe := fun E t u => convNeStep (rec S n) E t u }
+    { infer := fun E t => canonInfer (rec S n) E t
+      check := fun E t A l hA => canonCheck (rec S n) E t A l hA
+      whnf := fun E t A l hA ht => canonWhnf (rec S n) E t A l hA ht
+      whnfI := fun E t => canonWhnfI (rec S n) E t
+      conv := fun E A l hA t u ht hu => canonConv (rec S n) E A l hA t u ht hu
+      convNe := fun E t u => canonConvNe (rec S n) E t u }
 
 /-- Default nesting depth. -/
 def defaultFuel : Nat := 20000
@@ -68,12 +144,16 @@ def SigInfo.build (R : Rec S) : Nat → SigInfo S → K (SigInfo S)
     | none => pure si
     | some si' => SigInfo.build R n si'
 
+/-- The kernel and the empty context for the signature `S`. -/
+def setup (S : Sig) (fuel : Nat := defaultFuel) : K (Rec S × KCtx S 0 .one []) := do
+  let R := rec S fuel
+  let si ← SigInfo.build R S.length (SigInfo.empty S)
+  pure (R, KCtx.root si)
+
 /-- Check one definition `(t, A)` against the signature `S`. -/
 def checkEntry (S : Sig) (t A : Tm) (fuel : Nat := defaultFuel) :
     K (PLift ((∃ l, HasTy S 0 .one [] A (.univ l)) ∧ HasTy S 0 .one [] t A)) := do
-  let R := rec S fuel
-  let si ← SigInfo.build R S.length (SigInfo.empty S)
-  let E := KCtx.root si
+  let (R, E) ← setup S fuel
   let ⟨l, ⟨hA⟩⟩ ← inferType R E A
   let ⟨ht⟩ ← R.check E t A l hA
   pure ⟨⟨l, hA⟩, ht⟩

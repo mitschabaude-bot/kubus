@@ -64,7 +64,7 @@ def Tm.pp : Tm → String
   | .const k => s!"c{k}"
   | .univ l => s!"U{l}"
   | .pi A B => s!"(Π {Tm.pp A}. {Tm.pp B})"
-  | .lam t => s!"(λ. {Tm.pp t})"
+  | .lam A t => s!"(λ {Tm.pp A}. {Tm.pp t})"
   | .app f a => s!"({Tm.pp f} {Tm.pp a})"
   | .sigma A B => s!"(Σ {Tm.pp A}. {Tm.pp B})"
   | .pair a b => s!"({Tm.pp a}, {Tm.pp b})"
@@ -80,7 +80,16 @@ def Tm.pp : Tm → String
   | .hcomp A φ u a => s!"(hcomp {Tm.pp A} [{I.pp φ} ↦ i. {Tm.pp u}] {Tm.pp a})"
   | .glue A φ T e => s!"(Glue {Tm.pp A} [{I.pp φ} ↦ ({Tm.pp T}, {Tm.pp e})])"
   | .glueEl φ t a => s!"(glue [{I.pp φ} ↦ {Tm.pp t}] {Tm.pp a})"
-  | .unglue φ g => s!"(unglue {I.pp φ} {Tm.pp g})"
+  | .unglue φ _ g => s!"(unglue {I.pp φ} {Tm.pp g})"
+
+def _root_.KubusCore.Tm.size : Tm → Nat
+  | .var _ | .const _ | .univ _ | .abort => 1
+  | .fst t | .snd t | .plam t | .ipi t | .papp t _ => t.size + 1
+  | .pi A B | .sigma A B | .app A B | .pair A B | .split _ A _ B | .transp A _ B | .glueEl _ A B
+  | .lam A B | .unglue _ A B => A.size + B.size + 1
+  | .path A a b => A.size + a.size + b.size + 1
+  | .hcomp A _ u a => A.size + u.size + a.size + 1
+  | .glue A _ T e => A.size + T.size + e.size + 1
 
 def short (t : Tm) : String :=
   let s := Tm.pp t
@@ -121,8 +130,17 @@ theorem EqTm.rs {t u A φ} (E : KCtx S Ψ Φ Γ) (hφ : φ.Scoped Ψ) (h : EqTm 
     EqTm S Ψ (cof Φ φ) Γ t u A :=
   EqTm.restrict (scoped_cof E.hsc hφ) (I.entails_and_left Φ φ) h
 
-theorem _root_.KubusCore.KCtx.univTy (E : KCtx S Ψ Φ Γ) (l : Nat) : HasTy S Ψ Φ Γ (.univ l) (.univ (l + 1)) :=
-  HasTy.univ E.wf
+theorem _root_.KubusCore.KCtx.univTy (E : KCtx S Ψ Φ Γ) (l : Nat) (h : l + 1 ≤ maxLevel) :
+    HasTy S Ψ Φ Γ (.univ l) (.univ (l + 1)) :=
+  HasTy.univ h E.wf
+
+def ensureLvl (l : Nat) : K (PLift (l ≤ maxLevel)) :=
+  if h : l ≤ maxLevel then pure ⟨h⟩ else fail s!"kernel: universe level {l} exceeds the maximum {maxLevel}"
+
+/-- `U l : U (l + 1)`, if the level is allowed. -/
+def univTyK (E : KCtx S Ψ Φ Γ) (l : Nat) : K (PLift (HasTy S Ψ Φ Γ (.univ l) (.univ (l + 1)))) := do
+  let ⟨h⟩ ← ensureLvl (l + 1)
+  pure ⟨E.univTy l h⟩
 
 /-- Weaken a type derivation to the shifted restriction `(Φ ∧ φ).shift` -/
 theorem HasTy.dwkCof {t A φ} (E : KCtx S Ψ Φ Γ) (hφ : φ.Scoped Ψ) (h : HasTy S Ψ Φ Γ t A) :
@@ -149,9 +167,11 @@ variable (R : Rec S) (E : KCtx S Ψ Φ Γ)
 
 /-- Compare two types (at the larger of their levels). -/
 def convTy (X Y : Tm) (lX lY : Nat) (hX : HasTy S Ψ Φ Γ X (.univ lX))
-    (hY : HasTy S Ψ Φ Γ Y (.univ lY)) : K (PLift (EqTm S Ψ Φ Γ X Y (.univ (max lX lY)))) :=
-  R.conv E (.univ (max lX lY)) (max lX lY + 1) (E.univTy _) X Y
-    (hX.liftLe (Nat.le_max_left _ _)) (hY.liftLe (Nat.le_max_right _ _))
+    (hY : HasTy S Ψ Φ Γ Y (.univ lY)) : K (PLift (EqTm S Ψ Φ Γ X Y (.univ (max lX lY)))) := do
+  let ⟨h1⟩ ← ensureLvl (max lX lY + 1)
+  have hm : max lX lY ≤ maxLevel := Nat.le_of_succ_le h1
+  R.conv E (.univ (max lX lY)) (max lX lY + 1) (E.univTy _ h1) X Y
+    (hX.liftLe (Nat.le_max_left _ _) hm) (hY.liftLe (Nat.le_max_right _ _) hm)
 
 /-- Move an equation from type `T` to type `A`. -/
 def bridge {t t' T A : Tm} {lT lA : Nat} (hT : HasTy S Ψ Φ Γ T (.univ lT))
@@ -160,7 +180,9 @@ def bridge {t t' T A : Tm} {lT lA : Nat} (hT : HasTy S Ψ Φ Γ T (.univ lT))
   if h : T = A then pure ⟨h ▸ e⟩ else
   match T, A, e, hT, hA with
   | .univ a, .univ b, e, _, _ =>
-    if hab : a ≤ b then pure ⟨e.liftLe hab⟩
+    if hab : a ≤ b then do
+      let ⟨hb⟩ ← ensureLvl b
+      pure ⟨e.liftLe hab hb⟩
     else fail s!"kernel: universe U{a} does not fit into U{b}"
   | T, A, e, hT, hA => do
     let ⟨eTA⟩ ← convTy R E T A lT lA hT hA
@@ -172,15 +194,18 @@ def bridgeHas {t T A : Tm} {lT lA : Nat} (hT : HasTy S Ψ Φ Γ T (.univ lT))
   if hTA : T = A then pure ⟨hTA ▸ h⟩ else
   match T, A, h, hT, hA with
   | .univ a, .univ b, h, _, _ =>
-    if hab : a ≤ b then pure ⟨h.liftLe hab⟩
+    if hab : a ≤ b then do
+      let ⟨hb⟩ ← ensureLvl b
+      pure ⟨h.liftLe hab hb⟩
     else fail s!"kernel: universe U{a} does not fit into U{b}"
   | T, A, h, hT, hA => do
     let ⟨eTA⟩ ← convTy R E T A lT lA hT hA
     pure ⟨HasTy.conv h eTA⟩
 
 /-- Weak-head normal form of a type. -/
-def whnfTy (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (Red S Ψ Φ Γ A (.univ l)) :=
-  R.whnf E A (.univ l) (l + 1) (E.univTy l) hA
+def whnfTy (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (Red S Ψ Φ Γ A (.univ l)) := do
+  let ⟨hU⟩ ← univTyK E l
+  R.whnf E A (.univ l) (l + 1) hU hA
 
 /-- Infer a type and bring it to weak-head normal form. -/
 def inferW (t : Tm) : K (Inf S Ψ Φ Γ t) := do
@@ -195,8 +220,9 @@ def inferType (A : Tm) : K ((l : Nat) × PLift (HasTy S Ψ Φ Γ A (.univ l))) :
   | ⟨T, _, _, _⟩ => fail s!"kernel: expected a type, but {short A} has type {short T}"
 
 /-- Check a type at a given level. -/
-def checkType (A : Tm) (l : Nat) : K (PLift (HasTy S Ψ Φ Γ A (.univ l))) :=
-  R.check E A (.univ l) (l + 1) (E.univTy l)
+def checkType (A : Tm) (l : Nat) : K (PLift (HasTy S Ψ Φ Γ A (.univ l))) := do
+  let ⟨hU⟩ ← univTyK E l
+  R.check E A (.univ l) (l + 1) hU
 
 end
 
@@ -217,7 +243,8 @@ def inferTransp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (a : Tm) :
   let hA0 : HasTy S Ψ Φ Γ (A.dinst .zero) (.univ l) := HasTy.dsubst hA trivial
   let ⟨ha⟩ ← R.check E a (A.dinst .zero) l hA0
   let E' := (E.cof φ hφ).dext
-  let ⟨heq⟩ ← R.conv E' (.univ l) (l + 1) (E'.univTy l) A (A.dinst .zero).dshift
+  let ⟨hU⟩ ← univTyK E' l
+  let ⟨heq⟩ ← R.conv E' (.univ l) (l + 1) hU A (A.dinst .zero).dshift
     (HasTy.rsd E hφ hA) (HasTy.dwkCof E hφ hA0)
   pure ⟨l, hA, hφ, heq, ha, HasTy.transp hA hφ heq ha⟩
 

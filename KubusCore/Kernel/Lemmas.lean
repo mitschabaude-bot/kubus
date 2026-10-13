@@ -160,7 +160,7 @@ def closedB (n m : Nat) : Tm → Bool
   | var x => decide (x < n)
   | const _ | univ _ | abort => true
   | pi A B | sigma A B => A.closedB n m && B.closedB (n + 1) m
-  | lam t => t.closedB (n + 1) m
+  | lam A t => A.closedB n m && t.closedB (n + 1) m
   | app f a | pair f a => f.closedB n m && a.closedB n m
   | fst p | snd p => p.closedB n m
   | path A a b => A.closedB n (m + 1) && a.closedB n m && b.closedB n m
@@ -171,7 +171,7 @@ def closedB (n m : Nat) : Tm → Bool
   | hcomp A φ u a => A.closedB n m && φ.scopedB m && u.closedB n (m + 1) && a.closedB n m
   | glue A φ T e => A.closedB n m && φ.scopedB m && T.closedB n m && e.closedB n m
   | glueEl φ t a => φ.scopedB m && t.closedB n m && a.closedB n m
-  | unglue φ g => φ.scopedB m && g.closedB n m
+  | unglue φ e g => φ.scopedB m && e.closedB n m && g.closedB n m
 
 theorem upRen_fix (ρ : Nat → Nat) (n : Nat) (h : ∀ x < n, ρ x = x) :
     ∀ x < n + 1, upRen ρ x = x := by
@@ -188,9 +188,9 @@ theorem ren_closed (t : Tm) : ∀ (n m : Nat) (ρ δ : Nat → Nat), t.closedB n
   | pi A B ihA ihB | sigma A B ihA ihB =>
     intro n m ρ δ h hρ hδ; simp only [closedB, Bool.and_eq_true] at h
     simp only [ren]; rw [ihA n m ρ δ h.1 hρ hδ, ihB (n + 1) m _ δ h.2 (upRen_fix ρ n hρ) hδ]
-  | lam t ih =>
-    intro n m ρ δ h hρ hδ; simp only [closedB] at h
-    simp only [ren]; rw [ih (n + 1) m _ δ h (upRen_fix ρ n hρ) hδ]
+  | lam A t ihA ih =>
+    intro n m ρ δ h hρ hδ; simp only [closedB, Bool.and_eq_true] at h
+    simp only [ren]; rw [ihA n m ρ δ h.1 hρ hδ, ih (n + 1) m _ δ h.2 (upRen_fix ρ n hρ) hδ]
   | app f a ihf iha | pair f a ihf iha =>
     intro n m ρ δ h hρ hδ; simp only [closedB, Bool.and_eq_true] at h
     simp only [ren]; rw [ihf n m ρ δ h.1 hρ hδ, iha n m ρ δ h.2 hρ hδ]
@@ -234,10 +234,11 @@ theorem ren_closed (t : Tm) : ∀ (n m : Nat) (ρ δ : Nat → Nat), t.closedB n
     simp only [ren]
     rw [I.ren_id_of_scoped δ φ m ((I.scopedB_iff _ _).mp h.1.1) hδ, iht n m ρ δ h.1.2 hρ hδ,
       iha n m ρ δ h.2 hρ hδ]
-  | unglue φ g ih =>
+  | unglue φ e g ihe ih =>
     intro n m ρ δ h hρ hδ; simp only [closedB, Bool.and_eq_true] at h
     simp only [ren]
-    rw [I.ren_id_of_scoped δ φ m ((I.scopedB_iff _ _).mp h.1) hδ, ih n m ρ δ h.2 hρ hδ]
+    rw [I.ren_id_of_scoped δ φ m ((I.scopedB_iff _ _).mp h.1.1) hδ, ihe n m ρ δ h.1.2 hρ hδ,
+      ih n m ρ δ h.2 hρ hδ]
 
 theorem shift_closed {t : Tm} (h : t.closedB 0 0 = true) : t.shift = t :=
   ren_closed t 0 0 _ _ h (fun _ h => absurd h (Nat.not_lt_zero _)) (fun _ _ => rfl)
@@ -248,8 +249,8 @@ theorem dshift_closed {t : Tm} (h : t.closedB 0 0 = true) : t.dshift = t :=
 /-- Whether interval variable `i` occurs in `t` (free). -/
 def mentionsI (i : Nat) : Tm → Bool
   | var _ | const _ | univ _ | abort => false
-  | pi A B | sigma A B | app A B | pair A B => A.mentionsI i || B.mentionsI i
-  | lam t | fst t | snd t => t.mentionsI i
+  | pi A B | sigma A B | app A B | pair A B | lam A B => A.mentionsI i || B.mentionsI i
+  | fst t | snd t => t.mentionsI i
   | path A a b => A.mentionsI (i + 1) || a.mentionsI i || b.mentionsI i
   | plam t | ipi t => t.mentionsI (i + 1)
   | papp p r => p.mentionsI i || r.vars.contains i
@@ -258,7 +259,7 @@ def mentionsI (i : Nat) : Tm → Bool
   | hcomp A φ u a => A.mentionsI i || φ.vars.contains i || u.mentionsI (i + 1) || a.mentionsI i
   | glue A φ T e => A.mentionsI i || φ.vars.contains i || T.mentionsI i || e.mentionsI i
   | glueEl φ t a => φ.vars.contains i || t.mentionsI i || a.mentionsI i
-  | unglue φ g => φ.vars.contains i || g.mentionsI i
+  | unglue φ e g => φ.vars.contains i || e.mentionsI i || g.mentionsI i
 
 end Tm
 
@@ -335,17 +336,17 @@ theorem Ctx.lookup_cons_succ (A : Tm) (Γ : Ctx) (x : Nat) :
 section
 variable {S : Sig}
 
-theorem HasTy.liftLe {Ψ Φ Γ A l l'} (h : HasTy S Ψ Φ Γ A (.univ l)) (hl : l ≤ l') :
-    HasTy S Ψ Φ Γ A (.univ l') := by
+theorem HasTy.liftLe {Ψ Φ Γ A l l'} (h : HasTy S Ψ Φ Γ A (.univ l)) (hl : l ≤ l')
+    (hm : l' ≤ maxLevel) : HasTy S Ψ Φ Γ A (.univ l') := by
   induction hl with
   | refl => exact h
-  | step _ ih => exact HasTy.cumul ih
+  | step hle ih => exact HasTy.cumul hm (ih (Nat.le_of_succ_le hm))
 
-theorem EqTm.liftLe {Ψ Φ Γ A B l l'} (h : EqTm S Ψ Φ Γ A B (.univ l)) (hl : l ≤ l') :
-    EqTm S Ψ Φ Γ A B (.univ l') := by
+theorem EqTm.liftLe {Ψ Φ Γ A B l l'} (h : EqTm S Ψ Φ Γ A B (.univ l)) (hl : l ≤ l')
+    (hm : l' ≤ maxLevel) : EqTm S Ψ Φ Γ A B (.univ l') := by
   induction hl with
   | refl => exact h
-  | step _ ih => exact EqTm.cumul ih
+  | step hle ih => exact EqTm.cumul hm (ih (Nat.le_of_succ_le hm))
 
 theorem Wf.restrict {Ψ Φ Φ' Γ} (h : Wf S Ψ Φ Γ) (hs : Φ'.Scoped Ψ) (he : I.Entails Φ' Φ) :
     Wf S Ψ Φ' Γ := by

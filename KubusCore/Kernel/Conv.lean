@@ -23,6 +23,14 @@ def canonFaces (Φ : I) : List I.Face :=
   (Φ.faces.foldl (fun acc c =>
     if acc.any (fun d => faceLe d c) then acc else c :: acc.filter (fun d => !faceLe c d)) []).reverse
 
+def litLt (a b : Nat × Bool) : Bool := a.1 < b.1 || (a.1 == b.1 && !a.2 && b.2)
+
+/-- A face with sorted, distinct literals. -/
+def normFace (α : I.Face) : I.Face := (α.mergeSort fun a b => !litLt b a).eraseDups
+
+/-- The canonical form of a cofibration: the disjunction of its maximal faces. -/
+def canonPhi (Φ : I) : I := I.ofFaces ((canonFaces Φ).map normFace)
+
 /-- Substitute the endpoints of the face `α` into `t` (for variables that occur). -/
 def faceSubst {Ψ Φ Γ} (A : Tm) (t0 : Tm) : I.Face → (t : Tm) → EqTm S Ψ Φ Γ t0 t A →
     K (Red S Ψ Φ Γ t0 A)
@@ -64,20 +72,21 @@ variable (R : Rec S) {Ψ : Nat} {Φ : I} {Γ : Ctx} (E : KCtx S Ψ Φ Γ)
 /-- Structural comparison of two types in weak-head normal form. -/
 def convTyWhnf (m : Nat) (X Y : Tm) (hX : HasTy S Ψ Φ Γ X (.univ m))
     (hY : HasTy S Ψ Φ Γ Y (.univ m)) : K (PLift (EqTm S Ψ Φ Γ X Y (.univ m))) :=
-  if h : X = Y then pure ⟨h ▸ EqTm.refl hX⟩ else
+  if h : X = Y then pure ⟨h ▸ EqTm.refl hX⟩ else do
+  let ⟨hm⟩ ← ensureLvl (m + 1)
   match X, Y, hX, hY with
   | .pi A1 B1, .pi A2 B2, hX, hY => do
-    let ⟨eA⟩ ← R.conv E (.univ m) (m + 1) (E.univTy m) A1 A2 (HasTy.piDom hX) (HasTy.piDom hY)
-    let ⟨eB⟩ ← R.conv (E.ext A1 m (HasTy.piDom hX)) (.univ m) (m + 1) (HasTy.univ (Wf.cons (HasTy.piDom hX)))
-      B1 B2 (HasTy.piCod hX) (ctxConvPi hX hY eA)
+    let ⟨eA⟩ ← R.conv E (.univ m) (m + 1) (E.univTy m hm) A1 A2 (HasTy.piDom hX) (HasTy.piDom hY)
+    let ⟨eB⟩ ← R.conv (E.ext A1 m (HasTy.piDom hX)) (.univ m) (m + 1)
+      (HasTy.univ hm (Wf.cons (HasTy.piDom hX))) B1 B2 (HasTy.piCod hX) (ctxConvPi hX hY eA)
     pure ⟨EqTm.pi eA eB⟩
   | .sigma A1 B1, .sigma A2 B2, hX, hY => do
-    let ⟨eA⟩ ← R.conv E (.univ m) (m + 1) (E.univTy m) A1 A2 (HasTy.sigmaDom hX) (HasTy.sigmaDom hY)
+    let ⟨eA⟩ ← R.conv E (.univ m) (m + 1) (E.univTy m hm) A1 A2 (HasTy.sigmaDom hX) (HasTy.sigmaDom hY)
     let ⟨eB⟩ ← R.conv (E.ext A1 m (HasTy.sigmaDom hX)) (.univ m) (m + 1)
-      (HasTy.univ (Wf.cons (HasTy.sigmaDom hX))) B1 B2 (HasTy.sigmaCod hX) (ctxConvSigma hX hY eA)
+      (HasTy.univ hm (Wf.cons (HasTy.sigmaDom hX))) B1 B2 (HasTy.sigmaCod hX) (ctxConvSigma hX hY eA)
     pure ⟨EqTm.sigma eA eB⟩
   | .path A1 a1 b1, .path A2 a2 b2, hX, hY => do
-    let ⟨eA⟩ ← R.conv E.dext (.univ m) (m + 1) (E.dext.univTy m) A1 A2 (HasTy.pathLine hX)
+    let ⟨eA⟩ ← R.conv E.dext (.univ m) (m + 1) (E.dext.univTy m hm) A1 A2 (HasTy.pathLine hX)
       (HasTy.pathLine hY)
     have e0 : EqTm S Ψ Φ Γ (A1.dinst .zero) (A2.dinst .zero) (.univ m) := EqTm.dsubst eA trivial
     have e1 : EqTm S Ψ Φ Γ (A1.dinst .one) (A2.dinst .one) (.univ m) := EqTm.dsubst eA trivial
@@ -87,28 +96,30 @@ def convTyWhnf (m : Nat) (X Y : Tm) (hX : HasTy S Ψ Φ Γ X (.univ m))
       (HasTy.pathRight hX) (HasTy.conv (HasTy.pathRight hY) (EqTm.symm e1))
     pure ⟨EqTm.path eA ea eb⟩
   | .ipi A1, .ipi A2, hX, hY => do
-    let ⟨eA⟩ ← R.conv E.dext (.univ m) (m + 1) (E.dext.univTy m) A1 A2 (HasTy.ipiLine hX)
+    let ⟨eA⟩ ← R.conv E.dext (.univ m) (m + 1) (E.dext.univTy m hm) A1 A2 (HasTy.ipiLine hX)
       (HasTy.ipiLine hY)
     pure ⟨EqTm.ipi eA⟩
   | .glue A1 φ1 T1 e1, .glue A2 φ2 T2 e2, hX, hY => do
-    let ⟨eA⟩ ← R.conv E (.univ m) (m + 1) (E.univTy m) A1 A2 (HasTy.glueBase hX)
-      (HasTy.glueBase hY)
+    let ⟨hA1⟩ ← checkType R E A1 m
+    let ⟨hA2⟩ ← checkType R E A2 m
+    let ⟨eA⟩ ← R.conv E (.univ m) (m + 1) (E.univTy m hm) A1 A2 hA1 hA2
     let ⟨h12⟩ ← ensureEnt φ1 φ2
     let ⟨h21⟩ ← ensureEnt φ2 φ1
     let ⟨hφ1⟩ ← ensureScoped φ1 Ψ
     let E1 := E.cof φ1 hφ1
     let ⟨hc⟩ ← ensureEnt (cof Φ φ1) (cof Φ φ2)
-    let ⟨eT⟩ ← R.conv E1 (.univ m) (m + 1) (E1.univTy m) T1 T2 (HasTy.glueFib hX)
+    let ⟨eT⟩ ← R.conv E1 (.univ m) (m + 1) (E1.univTy m hm) T1 T2 (HasTy.glueFib hX)
       (HasTy.restrict E1.hsc hc (HasTy.glueFib hY))
     let ⟨l1, ⟨hq1⟩⟩ ← inferType R E1 (Tm.equiv T1 A1)
     let ⟨l2, ⟨hq2⟩⟩ ← inferType R E1 (Tm.equiv T2 A2)
     let ⟨eq⟩ ← convTy R E1 (Tm.equiv T2 A2) (Tm.equiv T1 A1) l2 l1 hq2 hq1
-    let ⟨ee⟩ ← R.conv E1 (Tm.equiv T1 A1) l1 hq1 e1 e2 (HasTy.glueEquiv hX)
-      (HasTy.conv (HasTy.restrict E1.hsc hc (HasTy.glueEquiv hY)) eq)
+    let ⟨he1⟩ ← R.check E1 e1 (Tm.equiv T1 A1) l1 hq1
+    let ⟨he2⟩ ← R.check E1 e2 (Tm.equiv T2 A2) l2 hq2
+    let ⟨ee⟩ ← R.conv E1 (Tm.equiv T1 A1) l1 hq1 e1 e2 he1 (HasTy.conv he2 eq)
     pure ⟨EqTm.glue hX hY eA h12 h21 eT ee⟩
   | X, Y, _, _ => do
     let ⟨ni, ⟨en⟩⟩ ← R.convNe E X Y
-    bridge R E ni.hty (E.univTy m) en
+    bridge R E ni.hty (E.univTy m hm) en
 
 /-- Compare two types. -/
 def convTypes (m : Nat) (X Y : Tm) (hX : HasTy S Ψ Φ Γ X (.univ m))
@@ -167,7 +178,8 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
     pure ⟨EqTm.trans (EqTm.ipiEta ht) (EqTm.trans (EqTm.ilam hP eb) (EqTm.symm (EqTm.ipiEta hu)))⟩
   | .glue A1 φ T e, hP, ht, hu => do
     let ⟨hφ⟩ ← ensureScoped φ Ψ
-    let ⟨e1⟩ ← R.conv E A1 l (HasTy.glueBase hP) _ _ (HasTy.unglue hP ht) (HasTy.unglue hP hu)
+    let ⟨hA1⟩ ← checkType R E A1 l
+    let ⟨e1⟩ ← R.conv E A1 l hA1 _ _ (HasTy.unglue hP ht) (HasTy.unglue hP hu)
     have eGT : EqTm S Ψ (cof Φ φ) Γ (.glue A1 φ T e) T (.univ l) :=
       EqTm.glueFace (I.entails_and_right Φ φ) (HasTy.rs E hφ hP)
     let ⟨e2⟩ ← R.conv (E.cof φ hφ) T l (HasTy.glueFib hP) t u (HasTy.conv (HasTy.rs E hφ ht) eGT)
@@ -181,7 +193,7 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
     let ru ← R.whnf E u A l hA hu
     if h : rt.tm = ru.tm then
       return ⟨EqTm.trans rt.eq (EqTm.symm (h ▸ ru.eq))⟩
-    let ⟨ni, ⟨en⟩⟩ ← R.convNe E rt.tm ru.tm
+    let ⟨ni, ⟨en⟩⟩ ← (R.convNe E rt.tm ru.tm).mapError (· ++ s!"\n  at type {short A}")
     let ⟨en'⟩ ← bridge R E ni.hty hA en
     pure ⟨EqTm.trans rt.eq (EqTm.trans en' (EqTm.symm ru.eq))⟩
 
@@ -228,6 +240,19 @@ def convStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     let ⟨e1⟩ ← R.conv (E.cof φ hφ) A l (HasTy.rs E hφ hA) t u (HasTy.rs E hφ ht) (HasTy.rs E hφ hu)
     let ⟨e2⟩ ← R.conv (E.cof ψ hψ) A l (HasTy.rs E hψ hA) t u (HasTy.rs E hψ ht) (HasTy.rs E hψ hu)
     pure ⟨EqTm.local hφ hψ hcov ht hu e1 e2⟩
+
+def convNeUnglue (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : Tm) (φ' : I) (g' : Tm) :
+    K ((i : Inf S Ψ Φ Γ (.unglue φ e g)) × PLift (EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ' e g') i.ty)) := do
+  let ⟨gi, ⟨eg⟩⟩ ← R.convNe E g g'
+  let ⟨A1, T, ⟨hA1, eG⟩⟩ ← toGlueE R E gi.ty gi.lvl gi.hty φ e
+  have hG := HasTy.eqR eG
+  have eg2 := EqTm.conv eg eG
+  let ⟨h1⟩ ← ensureEnt φ φ'
+  let ⟨h2⟩ ← ensureEnt φ' φ
+  let ⟨eG'⟩ ← reglue R E A1 φ T e φ' e gi.lvl hG hA1
+  have hu := HasTy.unglue (HasTy.eqR eG') (HasTy.conv (HasTy.eqR eg2) eG')
+  return ⟨⟨A1, gi.lvl, hA1, HasTy.unglue hG (HasTy.conv gi.htm eG)⟩,
+    ⟨EqTm.unglue (HasTy.unglue hG (HasTy.conv gi.htm eG)) hu h1 h2 eg2⟩⟩
 
 /-- Comparison of neutral terms in weak-head normal form; returns the type of the first. -/
 def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
@@ -285,8 +310,10 @@ def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
     let ti ← inferTransp R E A φ a
     let ⟨l2, ⟨hA'⟩⟩ ← inferType R E.dext A'
     let m := max ti.l l2
-    let ⟨eL⟩ ← R.conv E.dext (.univ m) (m + 1) (E.dext.univTy m) A A'
-      (ti.hA.liftLe (Nat.le_max_left _ _)) (hA'.liftLe (Nat.le_max_right _ _))
+    let ⟨hm⟩ ← ensureLvl (m + 1)
+    have hm' := Nat.le_of_succ_le hm
+    let ⟨eL⟩ ← R.conv E.dext (.univ m) (m + 1) (E.dext.univTy m hm) A A'
+      (ti.hA.liftLe (Nat.le_max_left _ _) hm') (hA'.liftLe (Nat.le_max_right _ _) hm')
     let ⟨h1⟩ ← ensureEnt φ φ'
     let ⟨h2⟩ ← ensureEnt φ' φ
     have hA0 : HasTy S Ψ Φ Γ (A.dinst .zero) (.univ ti.l) := HasTy.dsubst ti.hA trivial
@@ -300,8 +327,10 @@ def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
     let ti ← inferHcomp R E A φ v a
     let ui ← inferHcomp R E A' φ' v' a'
     let m := max ti.l ui.l
-    let ⟨eA⟩ ← R.conv E (.univ m) (m + 1) (E.univTy m) A A'
-      (ti.hA.liftLe (Nat.le_max_left _ _)) (ui.hA.liftLe (Nat.le_max_right _ _))
+    let ⟨hm⟩ ← ensureLvl (m + 1)
+    have hm' := Nat.le_of_succ_le hm
+    let ⟨eA⟩ ← R.conv E (.univ m) (m + 1) (E.univTy m hm) A A'
+      (ti.hA.liftLe (Nat.le_max_left _ _) hm') (ui.hA.liftLe (Nat.le_max_right _ _) hm')
     let ⟨h1⟩ ← ensureEnt φ φ'
     let ⟨h2⟩ ← ensureEnt φ' φ
     let E1 := E.cof φ ti.hφ
@@ -311,17 +340,9 @@ def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
     let ⟨ea⟩ ← R.conv E A ti.l ti.hA a a' ti.ha (HasTy.conv ui.ha (EqTm.symm eA))
     return ⟨⟨A, ti.l, ti.hA, ti.ht⟩,
       ⟨EqTm.hcomp ti.ht (HasTy.conv ui.ht (EqTm.symm eA)) eA h1 h2 ev ea⟩⟩
-  | .unglue φ g, .unglue φ' g' => do
-    let ⟨gi, ⟨eg⟩⟩ ← R.convNe E g g'
-    let ⟨A1, T, e, ⟨eG⟩⟩ ← toGlue R E gi.ty gi.lvl gi.hty φ
-    have hG := HasTy.eqR eG
-    have eg2 := EqTm.conv eg eG
-    let ⟨h1⟩ ← ensureEnt φ φ'
-    let ⟨h2⟩ ← ensureEnt φ' φ
-    let ⟨eG'⟩ ← rephi E A1 φ T e φ' gi.lvl hG
-    have hu := HasTy.unglue (HasTy.eqR eG') (HasTy.conv (HasTy.eqR eg2) eG')
-    return ⟨⟨A1, gi.lvl, HasTy.glueBase hG, HasTy.unglue hG (HasTy.conv gi.htm eG)⟩,
-      ⟨EqTm.unglue (HasTy.unglue hG (HasTy.conv gi.htm eG)) hu h1 h2 eg2⟩⟩
+  | .unglue φ e g, .unglue φ' e' g' =>
+    if he : e' = e then by subst he; exact convNeUnglue R E φ _ g φ' g'
+    else fail s!"kernel: unglue with different equivalences:\n  {short e}\n  {short e'}"
   | t, u => fail s!"kernel: not convertible:\n  {short t}\n  {short u}"
 
 end KubusCore.Kernel

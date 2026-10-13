@@ -40,7 +40,7 @@ def transpRule {Ψ Φ Γ} (L : Tm) (φ : I) (a T : Tm) (ht : HasTy S Ψ Φ Γ (.
 def hcompRule {Ψ Φ Γ} (A : Tm) (φ : I) (u a T : Tm) (ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) T) :
     Option (Red S Ψ Φ Γ (.hcomp A φ u a) T) :=
   match A, ht with
-  | .pi _ B, ht => some ⟨Tm.hcompPi B φ u a, EqTm.hcompPi ht⟩
+  | .pi A B, ht => some ⟨Tm.hcompPi A B φ u a, EqTm.hcompPi ht⟩
   | .sigma A B, ht => some ⟨Tm.hcompSigma A B φ u a, EqTm.hcompSigma ht⟩
   | .path A b0 b1, ht => some ⟨Tm.hcompPath A b0 b1 φ u a, EqTm.hcompPath ht⟩
   | .glue A ψ T' e, ht => some ⟨Tm.hcompGlue A ψ T' e φ u a, EqTm.hcompGlue ht⟩
@@ -58,13 +58,14 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
     return (transpRule L φ a A ht).map (·, false)
   let i ← inferTransp R E L φ a
   let m := max l1 i.l
-  have eL : EqTm S (Ψ + 1) Φ.shift Γ.dshift L r.tm (.univ m) := r.eq.liftLe (Nat.le_max_left _ _)
+  let ⟨hm⟩ ← ensureLvl m
+  have eL : EqTm S (Ψ + 1) Φ.shift Γ.dshift L r.tm (.univ m) := r.eq.liftLe (Nat.le_max_left _ _) hm
   have hL' := HasTy.eqR eL
   have e0 : EqTm S Ψ Φ Γ (L.dinst .zero) (r.tm.dinst .zero) (.univ m) := EqTm.dsubst eL trivial
   have e1 : EqTm S Ψ Φ Γ (L.dinst .one) (r.tm.dinst .one) (.univ m) := EqTm.dsubst eL trivial
   have heq' : EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift r.tm (r.tm.dinst .zero).dshift (.univ m) :=
     EqTm.trans (EqTm.symm (EqTm.rsd E i.hφ eL))
-      (EqTm.trans (i.heq.liftLe (Nat.le_max_right _ _)) (EqTm.dwkCof E i.hφ e0))
+      (EqTm.trans (i.heq.liftLe (Nat.le_max_right _ _) hm) (EqTm.dwkCof E i.hφ e0))
   have ht' := HasTy.transp hL' i.hφ heq' (HasTy.conv i.ha e0)
   have e := EqTm.transp i.ht (HasTy.conv ht' (EqTm.symm e1)) eL (I.entails_refl φ)
     (I.entails_refl φ) (EqTm.refl i.ha)
@@ -84,7 +85,8 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
     return (hcompRule B φ u a A ht).map (·, false)
   let i ← inferHcomp R E B φ u a
   let m := max l1 i.l
-  have eB : EqTm S Ψ Φ Γ B r.tm (.univ m) := r.eq.liftLe (Nat.le_max_left _ _)
+  let ⟨hm⟩ ← ensureLvl m
+  have eB : EqTm S Ψ Φ Γ B r.tm (.univ m) := r.eq.liftLe (Nat.le_max_left _ _) hm
   have hB' := HasTy.eqR eB
   have hu' := HasTy.conv i.hu (EqTm.dwkCof E i.hφ eB)
   have heq' := EqTm.conv i.heq (EqTm.rs E i.hφ eB)
@@ -99,7 +101,7 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
 /-- Reduce an elimination whose head is not a redex. -/
 def elimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (Option (Red S Ψ Φ Γ t A × Bool)) := do
-  let ⟨i, r⟩ ← R.whnfI E t
+  let ⟨i, r⟩ ← (R.whnfI E t).mapError (· ++ s!"\n  reducing {short t}")
   if r.tm = t then pure none
   else
     let ⟨e⟩ ← bridge R E i.hty hA r.eq
@@ -111,7 +113,7 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) :
     K (Option (Red S Ψ Φ Γ t A × Bool)) :=
   match t, ht with
-  | .app (.lam b) a, ht => pure (some (⟨b.inst a, EqTm.piBeta ht⟩, false))
+  | .app (.lam _ b) a, ht => pure (some (⟨b.inst a, EqTm.piBeta ht⟩, false))
   | .fst (.pair a _), ht => pure (some (⟨a, EqTm.fstBeta ht⟩, false))
   | .snd (.pair _ b), ht => pure (some (⟨b, EqTm.sndBeta ht⟩, false))
   | .papp (.plam b) r, ht => pure (some (⟨b.dinst r, EqTm.pathBeta ht⟩, false))
@@ -121,6 +123,9 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     else pure none
   | .glue _ φ T _, ht =>
     if h : I.Entails Φ φ then pure (some (⟨T, EqTm.glueFace h ht⟩, false)) else pure none
+  | .unglue φ e (.glueEl φ' t1 a1), ht =>
+    if h : φ' = φ then pure (some (⟨a1, by subst h; exact EqTm.glueBeta ht⟩, false))
+    else elimStep R E (.unglue φ e (.glueEl φ' t1 a1)) A l hA
   | .glueEl φ t1 _, ht =>
     if h : I.Entails Φ φ then pure (some (⟨t1, EqTm.glueElFace h ht⟩, false)) else pure none
   | .const k, _ =>
@@ -135,7 +140,7 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .fst p, _ => elimStep R E (.fst p) A l hA
   | .snd p, _ => elimStep R E (.snd p) A l hA
   | .papp p r, _ => elimStep R E (.papp p r) A l hA
-  | .unglue φ g, _ => elimStep R E (.unglue φ g) A l hA
+  | .unglue φ e g, _ => elimStep R E (.unglue φ e g) A l hA
   | _, _ => pure none
 
 def whnfLoop (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
@@ -155,7 +160,7 @@ def whnfMain (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
 /-- Infer and reduce; eliminations reduce their head first. -/
 def whnfIDefault (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
     K ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) := do
-  let i ← R.infer E t
+  let i ← (R.infer E t).mapError (· ++ s!"\n  inferring {short t}")
   let r ← R.whnf E t i.ty i.lvl i.hty i.htm
   pure ⟨i, r⟩
 
@@ -164,7 +169,7 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
   match t with
   | .app f a =>
     match f with
-    | .lam b => whnfIDefault R E (.app (.lam b) a)
+    | .lam A' b => whnfIDefault R E (.app (.lam A' b) a)
     | f => do
       let ⟨fi, fr⟩ ← R.whnfI E f
       match ← whnfTy R E fi.ty fi.lvl fi.hty with
@@ -177,13 +182,15 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
         have e1 : EqTm S Ψ Φ Γ (.app f a) (.app fr.tm a) (B1.inst a) :=
           EqTm.app (EqTm.conv fr.eq eF) (EqTm.refl ha)
         match h : fr.tm with
-        | .lam b =>
-          have e1' : EqTm S Ψ Φ Γ (.app f a) (.app (.lam b) a) (B1.inst a) := h ▸ e1
+        | .lam A' b =>
+          have e1' : EqTm S Ψ Φ Γ (.app f a) (.app (.lam A' b) a) (B1.inst a) := h ▸ e1
           have e2 := EqTm.piBeta (HasTy.eqR e1')
           let r3 ← R.whnf E (b.inst a) (B1.inst a) fi.lvl inf.hty (HasTy.eqR e2)
           return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩
         | f' => return ⟨inf, ⟨.app f' a, h ▸ e1⟩⟩
       | ⟨T, _⟩ => fail s!"kernel: applying {short f} of non-function type {short T}"
+  | .fst (.pair a b) => whnfIDefault R E (.fst (.pair a b))
+  | .snd (.pair a b) => whnfIDefault R E (.snd (.pair a b))
   | .fst p => do
     let ⟨pi, pr⟩ ← R.whnfI E p
     match ← whnfTy R E pi.ty pi.lvl pi.hty with
@@ -284,30 +291,34 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
           return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩
         | p' => return ⟨inf, ⟨.papp p' r, h ▸ e1⟩⟩
       | ⟨T, _⟩ => fail s!"kernel: path application of {short p} of type {short T}"
-  | .unglue φ g => do
-    let ⟨gi, gr⟩ ← R.whnfI E g
-    let ⟨A1, T, e, ⟨eG⟩⟩ ← toGlue R E gi.ty gi.lvl gi.hty φ
+  | .unglue φ e g => do
+    let ⟨gi, gr⟩ ← match R.whnfI E g with
+      | .ok r => pure r
+      | .error _ => do
+        let gi ← inferUnglueArg R E φ e g
+        pure ⟨gi, ← R.whnf E g gi.ty gi.lvl gi.hty gi.htm⟩
+    let ⟨A1, _, ⟨hA1, eG⟩⟩ ← toGlueE R E gi.ty gi.lvl gi.hty φ e
     have hG := HasTy.eqR eG
     have hg := HasTy.conv gi.htm eG
-    let inf : Inf S Ψ Φ Γ (.unglue φ g) := ⟨A1, gi.lvl, HasTy.glueBase hG, HasTy.unglue hG hg⟩
+    let inf : Inf S Ψ Φ Γ (.unglue φ e g) := ⟨A1, gi.lvl, hA1, HasTy.unglue hG hg⟩
     if hφ : I.Entails Φ φ then
       have e1 := EqTm.unglueFace hφ hg
       let r2 ← R.whnf E _ A1 gi.lvl inf.hty (HasTy.eqR e1)
       return ⟨inf, ⟨r2.tm, EqTm.trans e1 r2.eq⟩⟩
     if gr.tm = g then return ⟨inf, ⟨_, EqTm.refl inf.htm⟩⟩
     have eg := EqTm.conv gr.eq eG
-    have e1 : EqTm S Ψ Φ Γ (.unglue φ g) (.unglue φ gr.tm) A1 :=
+    have e1 : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e gr.tm) A1 :=
       EqTm.unglue inf.htm (HasTy.unglue hG (HasTy.eqR eg)) (I.entails_refl φ) (I.entails_refl φ) eg
     match h : gr.tm with
     | .glueEl φ' t1 a1 =>
       if hφ' : φ' = φ then
-        have e1' : EqTm S Ψ Φ Γ (.unglue φ g) (.unglue φ (.glueEl φ t1 a1)) A1 := by
+        have e1' : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e (.glueEl φ t1 a1)) A1 := by
           rw [h, hφ'] at e1; exact e1
         have e2 := EqTm.glueBeta (HasTy.eqR e1')
         let r3 ← R.whnf E a1 A1 gi.lvl inf.hty (HasTy.eqR e2)
         return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩
       else return ⟨inf, ⟨_, h ▸ e1⟩⟩
-    | g' => return ⟨inf, ⟨.unglue φ g', h ▸ e1⟩⟩
+    | g' => return ⟨inf, ⟨.unglue φ e g', h ▸ e1⟩⟩
   | t => whnfIDefault R E t
 
 end KubusCore.Kernel
