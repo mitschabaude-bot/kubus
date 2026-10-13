@@ -350,6 +350,34 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
 
 end
 
+namespace Ctor
+
+mutual
+/-- The point arguments of the nested constructors of a boundary element have, judgmentally,
+the argument types of those constructors (instantiated as in the `con` rule), not merely
+types the arguments also belong to: transport of a constructor is computed from its argument
+types (`transpCon`), so the boundary and the constructor must agree on them. -/
+def bndTyped (S : Sig) (m : Nat) (ψ : I) (Γ : Ctx) (lvl : Nat) (ctors : List Ctor) (d np : Nat) :
+    Tm → Prop
+  | .con _ c' ps as _ =>
+    match ctors[c']? with
+    | some C' => bndTypedArgs S m ψ Γ lvl ctors d np C' ps 0 [] as
+    | none => True
+  | _ => True
+/-- The same for the arguments of a nested constructor `C'`, from position `k` on, with the
+earlier arguments `prev` (most recent first). -/
+def bndTypedArgs (S : Sig) (m : Nat) (ψ : I) (Γ : Ctx) (lvl : Nat) (ctors : List Ctor) (d np : Nat)
+    (C' : Ctor) (ps : Tm) (k : Nat) (prev : List Tm) : Tm → Prop
+  | .tcons a as =>
+    (∀ (j : Nat) (T : Tm), a = .var j → C'.isRec k = false → Γ.lookup j = some T →
+      EqTm S m ψ Γ T ((C'.argTy d np k).substList (prev ++ ps.toList.reverse)) (.univ lvl)) ∧
+    (C'.isRec k = true → bndTyped S m ψ Γ lvl ctors d np a) ∧
+    bndTypedArgs S m ψ Γ lvl ctors d np C' ps (k + 1) (a :: prev) as
+  | _ => True
+end
+
+end Ctor
+
 namespace DataDecl
 
 /-- The context of the parameters before parameter `j`. -/
@@ -383,7 +411,8 @@ def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
       b.closedB (np + C.args.length) C.dims = true ∧
       Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
       HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b
-        (.data d (Ctor.paramVars np C.args.length))) ∧
+        (.data d (Ctor.paramVars np C.args.length)) ∧
+      Ctor.bndTyped Sc C.dims ψ (D.argCtx d C C.args.length) D.level D.ctors d np b) ∧
     (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
       EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
         (.data d (Ctor.paramVars np C.args.length)))
