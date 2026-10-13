@@ -619,6 +619,21 @@ theorem dataOK_of
 
 end dataok
 
+theorem argTySem_congr {σ : SigV} {E D : DataDecl} {d c : ℕ} (hp : E.params = D.params)
+    (hg : E.ctors.getD c default = D.ctors.getD c default) :
+    argTySem σ E d c = argTySem σ D d c := by
+  funext j n psv pre
+  simp only [argTySem, argPreValid, argTyRaw, hp, hg]
+
+theorem nestPre_cons (pre : List V) (a : Tm) (prev : List Tm) :
+    nestPre pre (a :: prev) = nestPre pre prev ++ [nestVal pre a] := by
+  simp [nestPre]
+
+theorem argTyRaw_take_eq {σ : SigV} {D : DataDecl} {d c j n : ℕ} {psv : V} {pre pre' : List V}
+    (h : pre.take j = pre'.take j) : argTyRaw σ D d c j n psv pre = argTyRaw σ D d c j n psv pre' := by
+  simp only [argTyRaw, h]
+
+
 section tyeq
 
 variable (S0 : Sig) (D : DataDecl) (hsyn : DataSyn S0.length D)
@@ -724,21 +739,189 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
     rw [List.getElem?_eq_getElem (by simp [plist]; omega), Option.getD_some]
     congr 1; omega
 
+include hsyn hC hps in
+theorem bty_of_wf (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
+    (hck : ∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C → ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
+      HasTy (S0 ++ [.data (D.truncate 0)]) 0 .one (D.argCtx S0.length C k) A (.univ D.level))
+    (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ctors.length)
+    {ψ : I} {n0 : ℕ} {rs0 : List (DM n0)} (hrs0 : (ival (renv rs0) ψ).holds)
+    {E : DataDecl} (hEp : E.params = D.params) (hEc : ∀ c' ≤ c, E.ctors[c']? = D.ctors[c']?) :
+    ∀ t : Tm,
+      (Ctor.simpleB D.ctors S0.length D.params.length c C.args.length C t = true →
+        Ctor.bndTyped (S0 ++ [.data (D.truncate c)]) C.dims ψ (D.argCtx S0.length C C.args.length) D.level
+          D.ctors S0.length D.params.length t →
+        SimpleShape (D.truncate c).ctors S0.length t ∧ BTy (dataSD (sigV S0) E S0.length m ps) c C t) ∧
+      (∀ (C' : Ctor) (c' k : ℕ) (prev : List Tm), c' < c → D.ctors[c']? = some C' →
+        k + t.toList.length = C'.args.length →
+        Ctor.simpleArgs D.ctors S0.length D.params.length c C.args.length C C' k t = true →
+        Ctor.bndTypedArgs (S0 ++ [.data (D.truncate c)]) C.dims ψ (D.argCtx S0.length C C.args.length) D.level
+          D.ctors S0.length D.params.length C' (Ctor.paramVars D.params.length C.args.length) k prev t →
+        ∀ (hpl : prev.length = k), (∀ u ∈ prev, SimpleShape (D.truncate c).ctors S0.length u) →
+        (∀ q (hq : q < k), C'.isRec q = false → ∃ y, prev.reverse[q]'(by simp; omega) = .var y ∧
+          y < C.args.length ∧ C.isRec (C.args.length - 1 - y) = false ∧
+          ∀ n2 (g : Hom n2 m) (pre : List V) (hpre : pre.length = C.args.length),
+            (∀ i (hi : i < C.args.length), C.isRec i = false →
+              pre[i]'(by omega) ∈ El (argTyRaw (sigV S0) D S0.length c i n2 (ps n2 g) pre) (Hom.id n2) ∧
+                IsKV n2 (pre[i]'(by omega))) →
+            argTyRaw (sigV S0) D S0.length c' q n2 (ps n2 g) (nestPre pre prev) =
+              argTyRaw (sigV S0) D S0.length c (C.args.length - 1 - y) n2 (ps n2 g) pre) →
+        SimpleShape.SimpleShapeL (D.truncate c).ctors S0.length t ∧
+          BTyArgs (dataSD (sigV S0) E S0.length m ps) c C C' c' k prev t) := by
+  have hgC := getD_ctors hC
+  have hgetD : ∀ c', c' ≤ c → E.ctors.getD c' default = D.ctors.getD c' default := fun c' h => by
+    rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD, hEc c' h]
+  have hty : ∀ c', c' ≤ c → ∀ j n2 (g : Hom n2 m) pre, (dataSD (sigV S0) E S0.length m ps).ty c' j n2 g pre =
+      argTySem (sigV S0) D S0.length c' j n2 (ps n2 g) pre := fun c' h j n2 g pre => by
+    show argTySem (sigV S0) E S0.length c' j n2 (ps n2 g) pre = _
+    rw [argTySem_congr hEp (hgetD c' h)]
+  have hraw : ∀ c', c' ≤ c → argTyRaw (sigV S0) E S0.length c' = argTyRaw (sigV S0) D S0.length c' := by
+    intro c' h; funext j n psv pre; simp only [argTyRaw, hEp, hgetD c' h]
+  -- valid arguments of `c` are typed
+  have htyped : ∀ n2 (g : Hom n2 m) (pre : List V), (dataSD (sigV S0) E S0.length m ps).PtValid c n2 g pre →
+      ∀ i (hi : i < pre.length), i < C.args.length → C.isRec i = false →
+        pre[i] ∈ El (argTyRaw (sigV S0) D S0.length c i n2 (ps n2 g) pre) (Hom.id n2) ∧ IsKV n2 pre[i] := by
+    intro n2 g pre hp i hi hiC hr
+    have hv := ptValid_argPreValid hp (j := pre.length) le_rfl
+    have hr' : (E.ctors.getD c default).isRec i = false := by rw [hgetD c le_rfl, hgC]; exact hr
+    have hmem := hv.2 i hi hi hr'
+    rw [hraw c le_rfl] at hmem
+    refine ⟨hmem, ?_⟩
+    obtain ⟨A, hA⟩ : ∃ A, C.args[i]? = some (.point A) := by
+      cases h' : C.args[i]'hiC with
+      | point A => exact ⟨A, by rw [List.getElem?_eq_getElem hiC, h']⟩
+      | recur => simp [Ctor.isRec, List.getElem?_eq_getElem hiC, h'] at hr
+    have hU := (argTy_univ S0 D hsyn hC hps hok0 (hck c C hC) i A hA n2 g pre hi.le fun i' hi' hr' => by
+      have := hv.2 i' (by omega) (by omega) (by rw [hgetD c le_rfl, hgC]; exact hr')
+      rwa [hraw c le_rfl] at this).1
+    rw [mem_El_univ_iff] at hU
+    exact hU.2.fib.elKV n2 (Hom.id n2) _ hmem
+  intro t
+  induction t with
+  | var x =>
+    refine ⟨fun hs _ => ⟨trivial, ?_⟩, fun _ _ _ _ _ _ _ _ _ _ _ _ => ⟨trivial, trivial⟩⟩
+    simp only [Ctor.simpleB, Bool.and_eq_true, decide_eq_true_eq] at hs
+    exact hs
+  | con d' c' ps' as rs' _ ihas =>
+    refine ⟨fun hs hb => ?_, fun _ _ _ _ _ _ _ _ _ _ _ _ => ⟨trivial, trivial⟩⟩
+    simp only [Ctor.simpleB, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at hs
+    obtain ⟨⟨⟨hd', hc'⟩, hps'⟩, hrest⟩ := hs
+    cases hC' : D.ctors[c']? with
+    | none => simp [hC'] at hrest
+    | some C' =>
+      simp only [hC', Bool.and_eq_true, beq_iff_eq] at hrest
+      obtain ⟨⟨hlen, hdims⟩, hsa⟩ := hrest
+      simp only [Ctor.bndTyped, hC'] at hb
+      subst hps'
+      obtain ⟨hsh, hbt⟩ := ihas.2 C' c' 0 [] hc' hC' (by omega) hsa hb rfl (by simp) (fun q hq => absurd hq (by omega))
+      have hgt : (D.truncate c).ctors.getD c' default = C' := by
+        rw [List.getD_eq_getElem?_getD]
+        simp [DataDecl.truncate, List.getElem?_append_left (by simp; omega : c' < (D.ctors.take c).length), hc', hC']
+      refine ⟨⟨hd', by rw [hgt, hlen], hsh⟩, hc', C', ?_, hlen, hdims, hbt⟩
+      show E.ctors[c']? = some C'
+      rw [hEc c' hc'.le, hC']
+  | tcons a as iha ihas =>
+    refine ⟨fun hs _ => by simp [Ctor.simpleB] at hs, fun C' c' k prev hc' hC' hkl hsa hb hpl hprevS Hprev => ?_⟩
+    simp only [Ctor.simpleArgs, Bool.and_eq_true] at hsa
+    obtain ⟨hsa1, hsa2⟩ := hsa
+    obtain ⟨hb1, hb2, hb3⟩ := hb
+    have hpl' : (a :: prev).length = k + 1 := by simp [hpl]
+    have hrevq : ∀ q (hq : q < k), (a :: prev).reverse[q]'(by simp; omega) = prev.reverse[q]'(by simp; omega) := by
+      intro q hq; simp [List.reverse_cons, List.getElem_append_left (by simp; omega : q < prev.reverse.length)]
+    have hrevk : (a :: prev).reverse[k]'(by simp; omega) = a := by
+      simp [List.reverse_cons, List.getElem_append_right (by simp; omega : prev.reverse.length ≤ k), hpl]
+    have hnest : ∀ pre q, q ≤ k → (nestPre pre (a :: prev)).take q = (nestPre pre prev).take q := by
+      intro pre q hq
+      rw [nestPre_cons, List.take_append_of_le_length (by rw [nestPre_length]; omega)]
+    cases hr : C'.isRec k
+    · -- a point argument: a variable of `c` of the right type
+      simp only [hr, if_false, Bool.false_eq_true] at hsa1
+      obtain ⟨x, rfl, hx, hxr⟩ : ∃ x, a = .var x ∧ x < C.args.length ∧ C.isRec (C.args.length - 1 - x) = false := by
+        cases a with
+        | var x => simp only [Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true'] at hsa1; exact ⟨x, rfl, hsa1⟩
+        | _ => simp at hsa1
+      obtain ⟨A', hA'⟩ : ∃ A', C'.args[k]? = some (.point A') := by
+        have hkC : k < C'.args.length := by simp [Tm.toList] at hkl; omega
+        cases h' : C'.args[k]'hkC with
+        | point A' => exact ⟨A', by rw [List.getElem?_eq_getElem hkC, h']⟩
+        | recur => simp [Ctor.isRec, List.getElem?_eq_getElem hkC, h'] at hr
+      obtain ⟨T, hT⟩ : ∃ T, (D.argCtx S0.length C C.args.length).lookup x = some T := by
+        rw [Ctx.lookup_eq, argCtx_lt D _ C _ x hx]; exact ⟨_, rfl⟩
+      have heq := hb1 x T rfl hr hT
+      have hcore := fun n2 (g : Hom n2 m) pre hpre htp => tyEq_core S0 D hsyn hC hps hokc hc hrs0 hC' hA' hpl
+        (fun q hq hrq => by obtain ⟨y, h1, h2, h3, -⟩ := Hprev q hq hrq; exact ⟨y, h1, h2, h3⟩) hprevS hx hxr hT heq
+        g pre hpre htp
+      have hgC' := getD_ctors hC'
+      have hrec := ihas.2 C' c' (k + 1) (.var x :: prev) hc' hC' (by simp [Tm.toList] at hkl; omega)
+        hsa2 hb3 hpl'
+        (fun u hu => by
+          rcases List.mem_cons.1 hu with rfl | hu
+          · trivial
+          · exact hprevS u hu)
+        (fun q hq hrq => by
+          rcases Nat.lt_succ_iff_lt_or_eq.1 hq with hqk | hqk
+          · obtain ⟨y, h1, h2, h3, h4⟩ := Hprev q hqk hrq
+            refine ⟨y, by rw [hrevq q hqk]; exact h1, h2, h3, fun n2 g pre hpre htp => ?_⟩
+            rw [← h4 n2 g pre hpre htp]
+            exact argTyRaw_take_eq (hnest pre q hqk.le)
+          · subst hqk
+            refine ⟨x, hrevk, hx, hxr, fun n2 g pre hpre htp => ?_⟩
+            rw [← hcore n2 g pre hpre htp]
+            exact argTyRaw_take_eq (hnest pre q le_rfl))
+      refine ⟨⟨trivial, hrec.1⟩, fun h => absurd (hr.symm.trans h) (by decide), fun _ => ⟨x, rfl, hx, hxr,
+        fun n2 g pre hpre hpv => ?_⟩, hrec.2⟩
+      have htp : ∀ i (hi : i < C.args.length), C.isRec i = false →
+          pre[i]'(by omega) ∈ El (argTyRaw (sigV S0) D S0.length c i n2 (ps n2 g) pre) (Hom.id n2) ∧
+            IsKV n2 (pre[i]'(by omega)) := fun i hi hri => htyped n2 g pre hpv i (by omega) hi hri
+      rw [hty c' hc'.le, hty c le_rfl]
+      have hrhs : argTySem (sigV S0) D S0.length c (C.args.length - 1 - x) n2 (ps n2 g)
+          (pre.take (C.args.length - 1 - x)) =
+          argTyRaw (sigV S0) D S0.length c (C.args.length - 1 - x) n2 (ps n2 g) pre := by
+        have hcond : C.args.length - 1 - x < (D.ctors.getD c default).args.length ∧
+            (D.ctors.getD c default).isRec (C.args.length - 1 - x) = false ∧
+            argPreValid (sigV S0) D S0.length c (C.args.length - 1 - x) n2 (ps n2 g)
+              (pre.take (C.args.length - 1 - x)) := by
+          refine ⟨by rw [hgC]; omega, by rw [hgC]; exact hxr, by simp; omega, fun i hi hip hri => ?_⟩
+          rw [argTyRaw_take_eq (pre' := pre) (by simp [List.take_take]; omega), List.getElem_take]
+          exact (htp i (by omega) (by rw [hgC] at hri; exact hri)).1
+        rw [argTySem_eq, if_pos hcond]
+        exact argTyRaw_take_eq (by simp [List.take_take])
+      have hcond' : k < (D.ctors.getD c' default).args.length ∧ (D.ctors.getD c' default).isRec k = false ∧
+          argPreValid (sigV S0) D S0.length c' k n2 (ps n2 g) (nestPre pre prev) := by
+        refine ⟨by rw [hgC']; simp [Tm.toList] at hkl; omega, by rw [hgC']; exact hr, by rw [nestPre_length]; omega,
+          fun q hq hqp hrq => ?_⟩
+        rw [hgC'] at hrq
+        obtain ⟨y, h1, h2, h3, h4⟩ := Hprev q hq hrq
+        rw [h4 n2 g pre hpre htp]
+        have e : (nestPre pre prev)[q] = pre[C.args.length - 1 - y]'(by omega) := by
+          simp only [nestPre, List.getElem_map, h1, nestVal]
+          rw [getD_reverse_eq (by omega)]; simp [hpre]
+        rw [e]
+        exact (htp _ (by omega) h3).1
+      rw [hrhs, argTySem_eq, if_pos hcond']
+      exact hcore n2 g pre hpre htp
+    · -- a recursive argument: a simple term
+      simp only [hr, if_true] at hsa1
+      obtain ⟨hsh, hbt⟩ := iha.1 hsa1 (hb2 hr)
+      obtain ⟨hsh', hbt'⟩ := ihas.2 C' c' (k + 1) (a :: prev) hc' hC' (by simp [Tm.toList] at hkl; omega)
+        hsa2 hb3 hpl'
+        (fun u hu => by
+          rcases List.mem_cons.1 hu with rfl | hu
+          · exact hsh
+          · exact hprevS u hu)
+        (fun q hq hrq => by
+          have hqk : q < k := by
+            rcases Nat.lt_succ_iff_lt_or_eq.1 hq with h | h
+            · exact h
+            · subst h; rw [hr] at hrq; exact absurd hrq (by decide)
+          obtain ⟨y, h1, h2, h3, h4⟩ := Hprev q hqk hrq
+          refine ⟨y, by rw [hrevq q hqk]; exact h1, h2, h3, fun n2 g pre hpre htp => ?_⟩
+          rw [← h4 n2 g pre hpre htp]
+          exact argTyRaw_take_eq (hnest pre q hqk.le))
+      exact ⟨⟨hsh, hsh'⟩, fun _ => hbt, fun h => absurd (hr.symm.trans h) (by decide), hbt'⟩
+  | _ =>
+    exact ⟨fun hs _ => by simp [Ctor.simpleB] at hs, fun _ _ _ _ _ _ _ _ _ _ _ _ => ⟨trivial, trivial⟩⟩
+
 end tyeq
-
-theorem argTySem_congr {σ : SigV} {E D : DataDecl} {d c : ℕ} (hp : E.params = D.params)
-    (hg : E.ctors.getD c default = D.ctors.getD c default) :
-    argTySem σ E d c = argTySem σ D d c := by
-  funext j n psv pre
-  simp only [argTySem, argPreValid, argTyRaw, hp, hg]
-
-theorem nestPre_cons (pre : List V) (a : Tm) (prev : List Tm) :
-    nestPre pre (a :: prev) = nestPre pre prev ++ [nestVal pre a] := by
-  simp [nestPre]
-
-theorem argTyRaw_take_eq {σ : SigV} {D : DataDecl} {d c j n : ℕ} {psv : V} {pre pre' : List V}
-    (h : pre.take j = pre'.take j) : argTyRaw σ D d c j n psv pre = argTyRaw σ D d c j n psv pre' := by
-  simp only [argTyRaw, h]
 
 end
 
