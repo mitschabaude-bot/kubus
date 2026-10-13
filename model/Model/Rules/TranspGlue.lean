@@ -949,6 +949,119 @@ theorem sem_ext (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ ρ 
   · rw [h.sem_fib h1, sem_fst, h.sem_c h1, hface, gtExt, (gt_δ_cof (isCof_ival_face ρ.ext φ)).restr_id, hψ.restr_id]
     exact hcompAt_congr fun n h' r hh => h.sem_extTube h1 hτ0 hτs n h' r hh
 
+/-- The extension `ext` of the contractum. -/
+abbrev tExt (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (τ : ℕ → I) : Tm :=
+  .hcomp (Tm.fiber (T.dinst .one) (A.dinst .one) (.fst (e.dinst .one))
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))
+    (.or (I.forall0 φ) ψ)
+    (.split (I.forall0 φ).shift
+      (.papp (.app (Tm.snd (.app (.snd (e.dinst .one))
+        (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))).dshift
+        (.pair (Tm.transp T ψ u0).dshift (Tm.plam (Tm.comp (A.dsubst τ) (.or ψ.shift (.or (.neg (.var 0)) (.var 0)))
+          (.split ψ.shift.shift (.app (.fst (e.dsubst τ)) u0.dshift.dshift) (.or (.neg (.var 1)) (.var 1))
+            (.split (.neg (.var 1)) (.app (.fst (e.dsubst τ)) ((Tm.transpFill T ψ u0).dsubst τ)) (.var 1)
+              ((Tm.fill A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dsubst τ)))
+          (.app (.fst (e.dinst .zero).dshift) u0.dshift))).dshift)) (.var 0))
+      ψ.shift
+      (.papp (.app (Tm.snd (.app (.snd (e.dinst .one))
+        (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))).dshift
+        (.pair u0.dshift (.plam
+          (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift.dshift)))
+        (.var 0)))
+    (.fst (.app (.snd (e.dinst .one))
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))))
+
+theorem sem_ext_id (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds)
+    {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2)) :
+    sem S (tExt A φ T e ψ u0 τ) m ρ γ =
+      gtExt (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) (Hom.id m) := by
+  have := h.sem_ext h1 hτ0 hτs
+  rw [tExt, sem_hcomp this.1]; exact this.2
+
+theorem sem_ext_at (h : TGCond S A φ T e ψ u0 m ρ γ) {f : Hom k m} (hf : (Cof.restr (tgφ ρ φ) ((eO m).comp f)).holds)
+    {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2)) :
+    sem S (tExt A φ T e ψ u0 τ) k (ρ.restr f) (TEnv.restr γ f) =
+      gtExt (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) f := by
+  rw [(h.restr f).sem_ext_id (h.h1_restr hf) hτ0 hτs, line_restr h.Anat f, tgφ_restr, tgP_restr, tgP_restr,
+    face_ival_restr, h.nat_u0, gd_Ext h.G (isCof_ival_face ρ ψ) h.u0mem h.con, Hom.comp_id]
+
+theorem sem_A1o (h : TGCond S A φ T e ψ u0 m ρ γ) :
+    sem S (A.dinst .one) m ρ γ = res (eO m) (lineV S A m ρ γ) := by
+  rw [sem_dinst, ival_one, line_endpt h.kv h.Anat]
+
+theorem nat_A1o (h : TGCond S A φ T e ψ u0 m ρ γ) : Natural S (A.dinst .one) m ρ γ :=
+  Natural.dinst (by rw [ival_one]; exact line_endpt_nat h.kv h.Anat _)
+
+theorem face_φ1 (ρ : IEnv m) (φ : I) : (ival ρ (φ.subst (I.inst0 .one))).face = Cof.restr (tgφ ρ φ) (eO m) := by
+  rw [face_subst_inst0, ival_one]
+
+theorem sem_a1Tube (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2))
+    (n : ℕ) (h' : Hom n m) (r : DM n)
+    (hh : ((Cof.or (Cof.restr (tgφ ρ φ) (eO m)) (ival ρ ψ).face).restr h').holds) :
+    tubeV S (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+      ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
+      ρ γ n h' r =
+    gtA1Tube (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) n h' r := by
+  have hψ := isCof_ival_face ρ ψ
+  simp only [tubeV]
+  set E := (ρ.restr h').cons r
+  have hφ' : (ival E (φ.subst (I.inst0 .one)).shift).holds ↔ (Cof.restr (tgφ ρ φ) ((eO m).comp h')).holds := by
+    rw [ival_shift, IEnv.tail_cons, ← holds_face_restr_iff, face_φ1, Cof.restr_restr]
+  have hψ' : (ival E ψ.shift).holds ↔ (Cof.restr (ival ρ ψ).face h').holds := by
+    rw [ival_shift, IEnv.tail_cons, ← holds_face_restr_iff]
+  have hneg : ival E (.neg (.var 0)) = DM.neg r := by ext p; simp [I.eval, E, IEnv.cons]
+  have eX : (Cof.restr (tgφ ρ φ) ((eO m).comp h')).holds →
+      sem S (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0))) n E (TEnv.restr γ h') =
+        pappV n (sndV n (gtExt (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face
+          (sem S u0 m ρ γ) h')) (DM.neg r) := by
+    intro hf
+    rw [sem_papp, sem_dshift_cons, sem_snd, h.sem_ext_at hf hτ0 hτs, hneg]
+  have eY : sem S (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift
+      n E (TEnv.restr γ h') = res h' (gtA1' (lineV S A m ρ γ) (tgφ ρ φ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ)) := by
+    rw [sem_dshift_cons, h.sem_a1'_at]
+  unfold gtA1Tube
+  by_cases hf : (Cof.restr (tgφ ρ φ) ((eO m).comp h')).holds
+  · rw [sem_split (Or.inl (hφ'.2 hf)) (fun _ hψh => ?_), if_pos (hφ'.2 hf), if_pos hf, eX hf]
+    rw [eX hf, eY, gt_ext_psi h.G hψ h.u0mem h.con hf (hψ'.1 hψh),
+      sndV_pairV (by unfold pathOfLine; exact isKV_mkKV _), pappV_pathOfLine, res_res, Hom.wk_comp_endpt,
+      res_id (isKV_res _ _)]
+  · have hψh : (Cof.restr (ival ρ ψ).face h').holds := by
+      rw [Cof.or_restr, Cof.holds_or, Cof.restr_restr] at hh; exact hh.resolve_left hf
+    rw [sem_split (Or.inr (hψ'.2 hψh)) (fun a => absurd (hφ'.1 a) hf), if_neg (fun a => hf (hφ'.1 a)),
+      if_neg hf, eY]
+
+theorem sem_a1 (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2)) :
+    HcompCond S (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
+      (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+        ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)) m ρ γ ∧
+    sem S (.hcomp (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
+      (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+        ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))) m ρ γ =
+    gtA1 (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) := by
+  have hψ := isCof_ival_face ρ ψ
+  have hface : (ival ρ (.or (φ.subst (I.inst0 .one)) ψ)).face = Cof.or (Cof.restr (tgφ ρ φ) (eO m)) (ival ρ ψ).face := by
+    rw [face_ival_or, face_φ1]
+  have hok := gt_a1_tube_ok h.G hψ h.u0mem h.con
+  have h0 := gt_A1'_mem h.G hψ h.u0mem h.con
+  rw [Hom.id_comp] at h0
+  have hc : HcompCond S (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
+      (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+        ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
+      (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)) m ρ γ := by
+    refine ⟨?_, ?_, ?_, h.nat_A1o, h.nat_a1'⟩
+    · rw [h.sem_A1o]; exact h.Aty.res _
+    · rw [h.sem_A1o, h.sem_a1', hface]
+      exact (hok.congr ((isCof_ival_face ρ.ext φ).restr _ |>.or hψ)
+        fun n h' r hh => (h.sem_a1Tube hτ0 hτs n h' r hh).symm).res_id
+    · rw [h.sem_A1o, h.sem_a1', El_res, Hom.comp_id]; exact h0
+  refine ⟨hc, ?_⟩
+  rw [sem_hcomp hc, h.sem_A1o, h.sem_a1', hface, hcompAt_res_id', gtA1]
+  exact hcompAt_congr fun n h' r hh => h.sem_a1Tube hτ0 hτs n h' r hh
+
 end TGCond
 
 end tg
