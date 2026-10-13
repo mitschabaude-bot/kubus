@@ -46,12 +46,13 @@ partial def runFile (path : System.FilePath) (top : Bool := true) : StateT Drive
                                    violations := dr.violations + st'.violations.size }
         if let some s := out then IO.println s
         if let some ks := (← get).kernel then
-          if let .defn n .. := d then
+          let name? := match d with
+            | .defn n .. | .defSplit n .. => some n
+            | _ => none
+          if let some n := name? then
             let (msgs, ks') := (Bridge.addGlobal st'.globals n 0).run ks
             for m in msgs do IO.println m
             modify fun dr => { dr with kernel := some ks' }
-          if let .defSplit n .. := d then
-            IO.println s!"kernel: skipped {n}: pattern matching (phase 2)"
       | .error e => throw s!"{path}:{e}"
 
 def usage : String :=

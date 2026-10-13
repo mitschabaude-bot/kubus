@@ -66,6 +66,18 @@ theorem ctxConvSigma {Ψ Φ Γ A1 B1 A2 B2 m} (hX : HasTy S Ψ Φ Γ (.sigma A1 
   have := HasTy.subst (HasTy.sigmaCod h1) hv
   rwa [Tm.upShift_inst0] at this
 
+/-- The first projection of `t`, contracted if `t` is a pair. -/
+def projFst {Ψ Φ Γ} (t A : Tm) (h : HasTy S Ψ Φ Γ (.fst t) A) : Red S Ψ Φ Γ (.fst t) A :=
+  match t, h with
+  | .pair a _, h => ⟨a, EqTm.fstBeta h⟩
+  | t, h => ⟨.fst t, EqTm.refl h⟩
+
+/-- The second projection of `t`, contracted if `t` is a pair. -/
+def projSnd {Ψ Φ Γ} (t A : Tm) (h : HasTy S Ψ Φ Γ (.snd t) A) : Red S Ψ Φ Γ (.snd t) A :=
+  match t, h with
+  | .pair _ b, h => ⟨b, EqTm.sndBeta h⟩
+  | t, h => ⟨.snd t, EqTm.refl h⟩
+
 section
 variable (R : Rec S) {Ψ : Nat} {Φ : I} {Γ : Ctx} (E : KCtx S Ψ Φ Γ)
 
@@ -147,11 +159,18 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
     pure ⟨EqTm.trans (EqTm.piEta ht) (EqTm.trans (EqTm.lam hP eb) (EqTm.symm (EqTm.piEta hu)))⟩
   | .sigma A1 B1, hP, ht, hu => do
     have hft := HasTy.fst ht
-    let ⟨e1⟩ ← R.conv E A1 l (HasTy.sigmaDom hP) _ _ hft (HasTy.fst hu)
+    let rft := projFst t A1 hft
+    let rfu := projFst u A1 (HasTy.fst hu)
+    let ⟨e1'⟩ ← R.conv E A1 l (HasTy.sigmaDom hP) _ _ (HasTy.eqR rft.eq) (HasTy.eqR rfu.eq)
+    have e1 := EqTm.trans rft.eq (EqTm.trans e1' (EqTm.symm rfu.eq))
     have hC := HasTy.sigmaCod hP
     have hsu : HasTy S Ψ Φ Γ (.snd u) (B1.inst (.fst t)) :=
       HasTy.conv (HasTy.snd hu) (EqTm.subst (EqTm.refl hC) (EqTm.symm e1))
-    let ⟨e2⟩ ← R.conv E (B1.inst (.fst t)) l (HasTy.subst hC hft) _ _ (HasTy.snd ht) hsu
+    let rst := projSnd t _ (HasTy.snd ht)
+    let rsu := projSnd u _ hsu
+    let ⟨e2'⟩ ← R.conv E (B1.inst (.fst t)) l (HasTy.subst hC hft) _ _ (HasTy.eqR rst.eq)
+      (HasTy.eqR rsu.eq)
+    have e2 := EqTm.trans rst.eq (EqTm.trans e2' (EqTm.symm rsu.eq))
     pure ⟨EqTm.trans (EqTm.sigmaEta ht)
       (EqTm.trans (EqTm.pair hP e1 e2) (EqTm.symm (EqTm.sigmaEta hu)))⟩
   | .path A1 a0 a1, hP, ht, hu => do

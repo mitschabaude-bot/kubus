@@ -24,6 +24,13 @@ if [ "${SELFCHECK:-1}" = 1 ]; then
     fi
   done
 fi
+# certified kernel: every definition of the core library without data types is certified
+if ! out=$(timeout 300 $bin --kernel lib/univalence.ktt 2>&1) \
+    || grep "kernel: skipped" <<< "$out" | grep -qvE "phase 2|not in the kernel signature"; then
+  echo "FAIL kernel"; grep -E "REJECTED|skipped" <<< "$out" | head -10; fails=$((fails+1))
+else
+  echo "$(tail -1 <<< "$out")"
+fi
 for f in tests/pass/*.ktt; do
   exp="${f%.ktt}.out"
   out=$(timeout 60 $bin "$f" 2>&1)

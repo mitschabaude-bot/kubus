@@ -13,7 +13,8 @@ def idEquiv (A : U) : Equiv A A := (id A, idIsEquiv A)
 def ua (A B : U) (e : Equiv A B) : Path U A B :=
   \i -> Glue B [i = 0 -> (A, e), i = 1 -> (B, idEquiv B)]
 
-def uaβ (A B : U) (e : Equiv A B) (x : A) : Path B (transport A B (ua A B e) x) (comp i B [] (comp i B [] (e.1 x))) :=
+-- transport along ua computes (CCHM): the outer composition is homogeneous
+def uaβ (A B : U) (e : Equiv A B) (x : A) : Path B (transport A B (ua A B e) x) (hcomp i B [] (comp i B [] (e.1 x))) :=
   \i -> transport A B (ua A B e) x
 
 -- isomorphisms are equivalences
