@@ -231,7 +231,20 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K (Inf
       let ⟨e⟩ ← R.conv E2 iu.ty iu.lvl (HasTy.cofcof E hφ hψ iu.hty) t u
         (HasTy.rs (E.cof φ hφ) hψ ht) (HasTy.cofcof E hφ hψ iu.htm)
       pure ⟨iu.ty, iu.lvl, iu.hty, HasTy.split hφ hψ hcov iu.hty ht (HasTy.rs E hψ iu.htm) e⟩
-    else fail "kernel: cannot infer the type of a system"
+    else
+      -- neither branch holds: use the common type of the branches (e.g. a universe)
+      let it ← (R.infer (E.cof φ hφ) t).mapError (· ++ "\n  (inferring a system branchwise)")
+      let iu ← R.infer (E.cof ψ hψ) u
+      let A ← match it.ty, iu.ty with
+        | .univ a, .univ b => pure (Tm.univ (max a b))
+        | T1, T2 => if T1 = T2 then pure T1 else fail "kernel: cannot infer the type of a system"
+      let ⟨l, ⟨hA⟩⟩ ← inferType R E A
+      let ⟨ht⟩ ← R.check (E.cof φ hφ) t A l (HasTy.rs E hφ hA)
+      let ⟨hu⟩ ← R.check (E.cof ψ hψ) u A l (HasTy.rs E hψ hA)
+      let ⟨hc⟩ ← ensureEnt (cof (cof Φ φ) ψ) (cof Φ ψ)
+      let ⟨e⟩ ← R.conv E2 A l (HasTy.cofcof E hφ hψ hA) t u (HasTy.rs (E.cof φ hφ) hψ ht)
+        (HasTy.restrict E2.hsc hc hu)
+      pure ⟨A, l, hA, HasTy.split hφ hψ hcov hA ht hu e⟩
   | .abort => fail "kernel: cannot infer the type of the empty system"
   | .transp A φ a => do
     let i ← inferTransp R E A φ a

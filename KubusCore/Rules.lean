@@ -359,38 +359,45 @@ def paramCtx (D : DataDecl) (j : Nat) : Ctx := (D.params.take j).reverse
 def argCtx (D : DataDecl) (d : Nat) (C : Ctor) (k : Nat) : Ctx :=
   (List.range k).reverse.map (C.argTy d D.params.length) ++ D.paramCtx D.params.length
 
-/-- A well-formed declaration of the inductive type `d`, checked in a signature `S` that
-contains it (its type former and constructors are used to type recursive arguments and
-boundaries): parameters and point arguments do not mention `d` (so `d` occurs only as the
-type of recursive arguments: strictly positive, not nested), point arguments live in the
-declared universe, and boundaries are simple, well-typed and agree on overlaps. -/
+/-- The declaration with only the constructors before `c`. -/
+def truncate (D : DataDecl) (c : Nat) : DataDecl := { D with ctors := D.ctors.take c }
+
+/-- A well-formed declaration of the inductive type `d = S.length`, checked against the
+signature `S` before it: the parameters in `S` itself, and constructor `c` (its argument
+types, boundary and boundary agreement) in `S` extended by the declaration truncated to the
+constructors before `c`, so that neither `c`'s own boundary rule nor later constructors are
+available (otherwise `conBnd` would make the boundary check vacuous). Parameters and point
+arguments do not mention `d` (so `d` occurs only as the type of recursive arguments: strictly
+positive, not nested), point arguments live in the declared universe, and boundaries are
+simple, well-typed and agree on overlaps. -/
 def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   let np := D.params.length
   D.level + 1 ≤ maxLevel ∧
   (∀ (j : Nat) (A : Tm), D.params[j]? = some A → A.closedB j 0 = true ∧ A.mentionsData d = false ∧
     ∃ l, HasTy S 0 .one (D.paramCtx j) A (.univ l)) ∧
   ∀ (c : Nat) (C : Ctor), D.ctors[c]? = some C →
+    let Sc := S ++ [.data (D.truncate c)]
     (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
-      A.mentionsData d = false ∧ HasTy S 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+      A.mentionsData d = false ∧ HasTy Sc 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
     (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
       b.closedB (np + C.args.length) C.dims = true ∧
       Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
-      HasTy S C.dims ψ (D.argCtx d C C.args.length) b
+      HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b
         (.data d (Ctor.paramVars np C.args.length))) ∧
     (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
-      EqTm S C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
+      EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
         (.data d (Ctor.paramVars np C.args.length)))
 
 end DataDecl
 
 /-- A well-formed signature: definition `k` is a closed term of a closed type, checked
-against the entries before it; a data declaration is checked against the entries up to and
-including itself. -/
+against the entries before it; a data declaration is well-formed against the entries before
+it (`DataDecl.Wf`). -/
 def WfSig (S : Sig) : Prop :=
   (∀ (k : Nat) (t A : Tm), S[k]? = some (.defn t A) →
     t.closedB 0 0 ∧ A.closedB 0 0 ∧
     (∃ l, HasTy (S.take k) 0 .one [] A (.univ l)) ∧ HasTy (S.take k) 0 .one [] t A) ∧
-  (∀ (k : Nat) (D : DataDecl), S[k]? = some (.data D) → D.Wf (S.take (k + 1)) k)
+  (∀ (k : Nat) (D : DataDecl), S[k]? = some (.data D) → D.Wf (S.take k) k)
 
 /-- Consistency: in a well-formed signature there is no closed term of `(A : U₀) → A`. -/
 def Consistent : Prop :=
