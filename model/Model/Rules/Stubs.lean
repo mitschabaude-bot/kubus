@@ -1,4 +1,4 @@
-import Model.InterpLemmas
+import Model.Rules.Basic
 
 /-!
 # Semantic validity of the rules
@@ -16,27 +16,35 @@ open KubusCore KubusCore.Tm
 theorem sem_Wf_nil {S : Sig} {Ψ Φ}
     (h0 : Φ.Scoped Ψ) :
     SemWf S Ψ Φ [] := by
-  sorry
+  refine ⟨h0, fun x A hl => by simp [Ctx.lookup] at hl, fun m ρ γ hp x A hl => by simp [Ctx.lookup] at hl⟩
 
 theorem sem_Wf_cons {S : Sig} {Ψ Φ Γ A l}
     (h0 : SemTy S Ψ Φ Γ A (univ l)) :
     SemWf S Ψ Φ (A :: Γ) := by
-  sorry
+  exact SemWf.cons h0
 
 theorem sem_HasTy_var {S : Sig} {Ψ Φ Γ x A}
     (h0 : SemWf S Ψ Φ Γ) (h1 : Γ.lookup x = some A) :
     SemTy S Ψ Φ Γ (var x) A := by
-  sorry
+  refine ⟨h0, trivial, h0.2.1 x A h1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hty, hnat⟩ := h0.2.2 m ρ γ hp x A h1
+  exact ⟨hp.typ x A h1, natural_var S x ρ γ, hty, hnat⟩
 
 theorem sem_HasTy_conv {S : Sig} {Ψ Φ Γ t A B l}
     (h0 : SemTy S Ψ Φ Γ t A) (h1 : SemEq S Ψ Φ Γ A B (univ l)) :
     SemTy S Ψ Φ Γ t B := by
-  sorry
+  refine ⟨h0.1, h0.2.1, h1.2.1.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hmem, hnat, -, -⟩ := h0.2.2.2 m ρ γ hp
+  have heq := h1.2.2 m ρ γ hp
+  obtain ⟨hty, hnatB⟩ := h1.2.1.ty_at hp
+  rw [heq] at hmem
+  exact ⟨hmem, hnat, hty, hnatB⟩
 
 theorem sem_HasTy_restrict {S : Sig} {Ψ Φ Φ' Γ t A}
     (h0 : Φ'.Scoped Ψ) (h1 : I.Entails Φ' Φ) (h2 : SemTy S Ψ Φ Γ t A) :
     SemTy S Ψ Φ' Γ t A := by
-  sorry
+  exact ⟨⟨h0, h2.1.2.1, fun m ρ γ hp => h2.1.2.2 m ρ γ (hp.of_entails h1)⟩, h2.2.1, h2.2.2.1,
+    fun m ρ γ hp => h2.2.2.2 m ρ γ (hp.of_entails h1)⟩
 
 theorem sem_HasTy_const {S : Sig} {Ψ Φ Γ k t A}
     (hS : SigOK S) (h0 : SemWf S Ψ Φ Γ) (h1 : S[k]? = some (t, A)) :
@@ -46,32 +54,52 @@ theorem sem_HasTy_const {S : Sig} {Ψ Φ Γ k t A}
 theorem sem_HasTy_wk {S : Sig} {Ψ Φ Γ t A B l}
     (h0 : SemTy S Ψ Φ Γ B (univ l)) (h1 : SemTy S Ψ Φ Γ t A) :
     SemTy S Ψ Φ (B :: Γ) t.shift A.shift := by
-  sorry
+  refine ⟨SemWf.cons h0, h1.2.1.ren _ _, h1.2.2.1.ren _ _, fun m ρ γ hp => ?_⟩
+  obtain ⟨hpt, -⟩ := hp.tail
+  obtain ⟨hmem, hnat, hty, hnatA⟩ := h1.2.2.2 m ρ _ hpt
+  rw [TEnv.eq_cons γ]
+  refine ⟨?_, hnat.shift _, ?_, hnatA.shift _⟩
+  · rw [sem_shift, sem_shift]; exact hmem
+  · unfold TyOK; rw [sem_shift]; exact hty
 
 theorem sem_HasTy_dwk {S : Sig} {Ψ Φ Γ t A}
     (h0 : SemTy S Ψ Φ Γ t A) :
     SemTy S (Ψ + 1) Φ.shift Γ.dshift t.dshift A.dshift := by
-  sorry
+  refine ⟨h0.1.dshift, h0.2.1.ren _ _, h0.2.2.1.ren _ _, fun m ρ γ hp => ?_⟩
+  obtain ⟨hmem, hnat, hty, hnatA⟩ := h0.2.2.2 m ρ.tail γ (isPoint_dshift_iff.1 hp)
+  refine ⟨?_, hnat.dshift_tail, ?_, hnatA.dshift_tail⟩
+  · rw [sem_dshift_tail, sem_dshift_tail]; exact hmem
+  · unfold TyOK; rw [sem_dshift_tail]; exact hty
 
 theorem sem_HasTy_subst {S : Sig} {Ψ Φ Γ A B t a}
     (h0 : SemTy S Ψ Φ (A :: Γ) t B) (h1 : SemTy S Ψ Φ Γ a A) :
     SemTy S Ψ Φ Γ (t.inst a) (B.inst a) := by
-  sorry
+  refine ⟨h1.1, h0.2.1.inst h1.2.1, h0.2.2.1.inst h1.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hamem, hanat, -, -⟩ := h1.2.2.2 m ρ γ hp
+  obtain ⟨hmem, hnat, hty, hnatB⟩ := h0.2.2.2 m ρ _ (hp.cons hamem)
+  refine ⟨?_, hanat.inst hnat, ?_, hanat.inst hnatB⟩
+  · rw [sem_inst hanat, sem_inst hanat]; exact hmem
+  · unfold TyOK; rw [sem_inst hanat]; exact hty
 
 theorem sem_HasTy_dsubst {S : Sig} {Ψ Φ Γ t A r}
     (h0 : SemTy S (Ψ + 1) Φ.shift Γ.dshift t A) (h1 : r.Scoped Ψ) :
     SemTy S Ψ Φ Γ (t.dinst r) (A.dinst r) := by
-  sorry
+  refine ⟨h0.1.of_dshift, h0.2.1.dinst _, h0.2.2.1.dinst _, fun m ρ γ hp => ?_⟩
+  have hp' : IsPoint S Φ.shift Γ.dshift m (ρ.cons (ival ρ r)) γ := isPoint_dshift_iff.2 hp
+  obtain ⟨hmem, hnat, hty, hnatA⟩ := h0.2.2.2 m _ γ hp'
+  refine ⟨?_, hnat.dinst, ?_, hnatA.dinst⟩
+  · rw [sem_dinst, sem_dinst]; exact hmem
+  · unfold TyOK; rw [sem_dinst]; exact hty
 
 theorem sem_HasTy_eqL {S : Sig} {Ψ Φ Γ t u A}
     (h0 : SemEq S Ψ Φ Γ t u A) :
     SemTy S Ψ Φ Γ t A := by
-  sorry
+  exact h0.1
 
 theorem sem_HasTy_eqR {S : Sig} {Ψ Φ Γ t u A}
     (h0 : SemEq S Ψ Φ Γ t u A) :
     SemTy S Ψ Φ Γ u A := by
-  sorry
+  exact h0.2.1
 
 theorem sem_HasTy_piDom {S : Sig} {Ψ Φ Γ A B l}
     (h0 : SemTy S Ψ Φ Γ (pi A B) (univ l)) :
@@ -231,27 +259,28 @@ theorem sem_HasTy_unglue {S : Sig} {Ψ Φ Γ A φ T e g l}
 theorem sem_EqTm_refl {S : Sig} {Ψ Φ Γ t A}
     (h0 : SemTy S Ψ Φ Γ t A) :
     SemEq S Ψ Φ Γ t t A := by
-  sorry
+  exact ⟨h0, h0, fun _ _ _ _ => rfl⟩
 
 theorem sem_EqTm_symm {S : Sig} {Ψ Φ Γ t u A}
     (h0 : SemEq S Ψ Φ Γ t u A) :
     SemEq S Ψ Φ Γ u t A := by
-  sorry
+  exact ⟨h0.2.1, h0.1, fun m ρ γ hp => (h0.2.2 m ρ γ hp).symm⟩
 
 theorem sem_EqTm_trans {S : Sig} {Ψ Φ Γ t u v A}
     (h0 : SemEq S Ψ Φ Γ t u A) (h1 : SemEq S Ψ Φ Γ u v A) :
     SemEq S Ψ Φ Γ t v A := by
-  sorry
+  exact ⟨h0.1, h1.2.1, fun m ρ γ hp => (h0.2.2 m ρ γ hp).trans (h1.2.2 m ρ γ hp)⟩
 
 theorem sem_EqTm_conv {S : Sig} {Ψ Φ Γ t u A B l}
     (h0 : SemEq S Ψ Φ Γ t u A) (h1 : SemEq S Ψ Φ Γ A B (univ l)) :
     SemEq S Ψ Φ Γ t u B := by
-  sorry
+  exact ⟨sem_HasTy_conv h0.1 h1, sem_HasTy_conv h0.2.1 h1, h0.2.2⟩
 
 theorem sem_EqTm_restrict {S : Sig} {Ψ Φ Φ' Γ t u A}
     (h0 : Φ'.Scoped Ψ) (h1 : I.Entails Φ' Φ) (h2 : SemEq S Ψ Φ Γ t u A) :
     SemEq S Ψ Φ' Γ t u A := by
-  sorry
+  exact ⟨sem_HasTy_restrict h0 h1 h2.1, sem_HasTy_restrict h0 h1 h2.2.1,
+    fun m ρ γ hp => h2.2.2 m ρ γ (hp.of_entails h1)⟩
 
 theorem sem_EqTm_cumul {S : Sig} {Ψ Φ Γ A B l}
     (h0 : l + 1 ≤ maxLevel) (h1 : SemEq S Ψ Φ Γ A B (univ l)) :
@@ -261,12 +290,15 @@ theorem sem_EqTm_cumul {S : Sig} {Ψ Φ Γ A B l}
 theorem sem_EqTm_wk {S : Sig} {Ψ Φ Γ t u A B l}
     (h0 : SemTy S Ψ Φ Γ B (univ l)) (h1 : SemEq S Ψ Φ Γ t u A) :
     SemEq S Ψ Φ (B :: Γ) t.shift u.shift A.shift := by
-  sorry
+  refine ⟨sem_HasTy_wk h0 h1.1, sem_HasTy_wk h0 h1.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hpt, -⟩ := hp.tail
+  rw [TEnv.eq_cons γ, sem_shift, sem_shift]; exact h1.2.2 m ρ _ hpt
 
 theorem sem_EqTm_dwk {S : Sig} {Ψ Φ Γ t u A}
     (h0 : SemEq S Ψ Φ Γ t u A) :
     SemEq S (Ψ + 1) Φ.shift Γ.dshift t.dshift u.dshift A.dshift := by
-  sorry
+  refine ⟨sem_HasTy_dwk h0.1, sem_HasTy_dwk h0.2.1, fun m ρ γ hp => ?_⟩
+  rw [sem_dshift_tail, sem_dshift_tail]; exact h0.2.2 m ρ.tail γ (isPoint_dshift_iff.1 hp)
 
 theorem sem_EqTm_subst {S : Sig} {Ψ Φ Γ A B t t' a a'}
     (h0 : SemEq S Ψ Φ (A :: Γ) t t' B) (h1 : SemEq S Ψ Φ Γ a a' A) :
@@ -276,7 +308,8 @@ theorem sem_EqTm_subst {S : Sig} {Ψ Φ Γ A B t t' a a'}
 theorem sem_EqTm_dsubst {S : Sig} {Ψ Φ Γ t t' A r}
     (h0 : SemEq S (Ψ + 1) Φ.shift Γ.dshift t t' A) (h1 : r.Scoped Ψ) :
     SemEq S Ψ Φ Γ (t.dinst r) (t'.dinst r) (A.dinst r) := by
-  sorry
+  refine ⟨sem_HasTy_dsubst h0.1 h1, sem_HasTy_dsubst h0.2.1 h1, fun m ρ γ hp => ?_⟩
+  rw [sem_dinst, sem_dinst]; exact h0.2.2 m _ γ (isPoint_dshift_iff.2 hp)
 
 theorem sem_EqTm_delta {S : Sig} {Ψ Φ Γ k t A}
     (hS : SigOK S) (h0 : SemTy S Ψ Φ Γ (const k) A) (h1 : S[k]? = some (t, A)) :
