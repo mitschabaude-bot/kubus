@@ -44,6 +44,140 @@ theorem face_all (hW : WfSig S) {Ψ : ℕ} {Ξ : I} {Γ : Ctx} {t A : Tm} {l : �
     exact e1.trans e2
 
 
+/-! ## Argument telescopes along equal arguments -/
+
+theorem EqTele0.ofList_of' {Ψ : ℕ} {Φ : I} {Γ : Ctx} (hw : Wf0 S Ψ Φ Γ) :
+    ∀ (as as' Δ prev : List Tm), as.length = Δ.length → as'.length = Δ.length →
+    (∀ (k : ℕ) (a a' A : Tm), as[k]? = some a → as'[k]? = some a' → Δ[k]? = some A →
+      EqTm0 S Ψ Φ Γ a a' (A.substList ((as.take k).reverse ++ prev))) →
+    EqTele0 S Ψ Φ Γ (Tm.ofList as) (Tm.ofList as') Δ prev
+  | [], [], [], _, _, _, _ => .nil hw
+  | a :: as, a' :: as', A :: Δ, prev, hl, hl', h => by
+    refine .cons (by simpa using h 0 a a' A rfl rfl rfl)
+      (EqTele0.ofList_of' hw as as' Δ (a :: prev) (by simpa using hl) (by simpa using hl') ?_)
+    intro k b b' B hb hb' hB
+    have := h (k + 1) b b' B (by simpa using hb) (by simpa using hb') (by simpa using hB)
+    simpa using this
+  | [], _ :: _, _, _, hl, hl', _ => by simp at hl hl'; omega
+  | _ :: _, [], _, _, hl, hl', _ => by simp at hl hl'; omega
+  | [], [], _ :: _, _, hl, _, _ => by simp at hl
+  | _ :: _, _ :: _, [], _, hl, _, _ => by simp at hl
+
+/-- Arguments judgmentally equal to typed arguments form a telescope, equal to them. -/
+theorem tele_conv (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps : Tm}
+    (hps : IsList ps) (hpt : HasTele0 S Ψ Φ Γ ps D.params []) {X Y : List Tm}
+    (hX : HasTele0 S Ψ Φ Γ (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse) (hYl : Y.length = X.length)
+    (hXY : ∀ j (hj : j < X.length) (hj' : j < Y.length), EqTm0 S Ψ Φ Γ Y[j] X[j]
+      ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse))) :
+    HasTele0 S Ψ Φ Γ (Tm.ofList Y) (C.argTys d D.params.length) ps.toList.reverse ∧
+    EqTele0 S Ψ Φ Γ (Tm.ofList Y) (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨hT, hCt⟩ := wf_typed _ S rfl hW
+  have hw := wf_of_tele hpt
+  have hpl : ps.toList.length = D.params.length := by simpa using tele_length hpt
+  have hXl : X.length = C.args.length := by
+    have := tele_length hX; rwa [toList_ofList, argTys_length] at this
+  have h0 : ∀ σ, TySub S 0 .one [] Ψ Φ Γ σ I.var :=
+    fun σ => tySub_nil (fun i hi => absurd hi (Nat.not_lt_zero _)) (ent_one _) hw
+  have TP := tySub_params hS hD hpt 0 h0 _ (Nat.le_refl _)
+  rw [List.take_of_length_le (by omega)] at TP
+  have hXget : ∀ j (hj : j < X.length), HasTy0 S Ψ Φ Γ X[j]
+      ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse)) := fun j hj => by
+    have := tele_get hX j X[j] _ (by rw [toList_ofList]; exact List.getElem?_eq_getElem hj) (argTys_get (by omega))
+    rwa [toList_ofList] at this
+  have TX := tySub_pointsP hS hW hD hC TP (fun k hk _ => hXget k hk) hpl
+  -- the induction along the arguments
+  have key : ∀ k, k ≤ C.args.length →
+      TySub S 0 .one (D.pointCtx d C k) Ψ Φ Γ (lsub (ptL C Y ps.toList.reverse k) 0) I.var ∧
+      EqSub S 0 (D.pointCtx d C k) Ψ Φ Γ (lsub (ptL C Y ps.toList.reverse k) 0) I.var
+        (lsub (ptL C X ps.toList.reverse k) 0) I.var ∧
+      ∀ j (hj : j < k) (hj' : j < Y.length), HasTy0 S Ψ Φ Γ Y[j]
+        ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse)) ∧
+        ∃ l', EqTm0 S Ψ Φ Γ ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse))
+          ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse)) (.univ l') := by
+    intro k
+    induction k with
+    | zero =>
+      intro _
+      refine ⟨by simpa [DataDecl.pointCtx, ptL] using TP, ?_, fun j hj _ => absurd hj (Nat.not_lt_zero _)⟩
+      simpa [DataDecl.pointCtx, ptL] using EqSub.of_eq TP (fun _ => rfl) (τ2 := I.var)
+    | succ k ih =>
+      intro hk
+      obtain ⟨TY, E, HY⟩ := ih (by omega)
+      have hk' : k < C.args.length := by omega
+      have hkX : k < X.length := by omega
+      have hkY : k < Y.length := by omega
+      have hxy := hXY k hkX hkY
+      have hyX := (pre_eq hS hT hCt hxy).1
+      have hap : HasTy0 S Ψ Φ Γ Y[k]
+          ((C.argTy d D.params.length k).substList ((Y.take k).reverse ++ ps.toList.reverse)) ∧
+          ∃ l', EqTm0 S Ψ Φ Γ ((C.argTy d D.params.length k).substList ((Y.take k).reverse ++ ps.toList.reverse))
+            ((C.argTy d D.params.length k).substList ((X.take k).reverse ++ ps.toList.reverse)) (.univ l') := by
+        cases hr : C.isRec k
+        · obtain ⟨A, hA⟩ := point_of_not_rec hk' hr
+          have hAk : C.argTy d D.params.length k = A := by simp [Ctor.argTy, hA]
+          rw [hAk] at hyX ⊢
+          have hP := pt_typed hW (htr_of hW d) hD hC hA
+          have F := (sub_ty hS hP).2.2 TY (TX k (by omega) (by omega)) E
+          rw [pt_inst hW hD hC hA (by omega) (by simp [hpl]) 0 I.var,
+            pt_inst hW hD hC hA (by omega) (by simp [hpl]) 0 I.var] at F
+          exact ⟨HasTy0.conv hyX (EqTm0.symm F), _, F⟩
+        · have hsl : ∀ L, (Tm.data d (Ctor.paramVars D.params.length k)).substList L =
+              Tm.data d ((Ctor.paramVars D.params.length k).substList L) := fun L => rfl
+          simp only [argTy_rec hr, hsl] at hyX ⊢
+          rw [Meta.paramVars_substList hps hpl (by simp; omega)] at hyX ⊢
+          rw [Meta.paramVars_substList hps hpl (by simp; omega)]
+          obtain ⟨l1, hdt⟩ : ∃ l1, HasTy0 S Ψ Φ Γ (.data d ps) (.univ l1) := by
+            rcases pre_ty hS hT hCt hyX with ⟨l1, h⟩ | ⟨l1, h, -⟩
+            · exact ⟨l1, h⟩
+            · cases h
+          exact ⟨hyX, _, EqTm0.refl hdt⟩
+      have hFj : ∀ j (hj : j < k + 1) (hj' : j < Y.length), HasTy0 S Ψ Φ Γ Y[j]
+          ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse)) ∧
+          ∃ l', EqTm0 S Ψ Φ Γ ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse))
+            ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse)) (.univ l') := by
+        intro j hj hj'
+        by_cases hjk : j < k
+        · exact HY j hjk hj'
+        · obtain rfl : j = k := by omega
+          exact hap
+      rw [pointCtx_succ]
+      cases hr : C.isRec k
+      · simp only [hr, Bool.false_eq_true, if_false, ptL]
+        obtain ⟨A, hA⟩ := point_of_not_rec hk' hr
+        have hAk : C.argTy d D.params.length k = A := by simp [Ctor.argTy, hA]
+        have hgY : Y.getD k .abort = Y[k] := by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hkY]; rfl
+        have hgX : X.getD k .abort = X[k] := by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hkX]; rfl
+        rw [hAk, hgY, hgX]
+        obtain ⟨hapY, l', hapE⟩ := hap
+        rw [hAk] at hapY hapE hxy
+        refine ⟨?_, ?_, hFj⟩
+        · have := TY.cons (A := A.ren (C.pointRen k) id) (a := Y[k])
+            (by rw [pt_inst hW hD hC hA (by omega) (by simp [hpl]) 0 I.var]; exact hapY)
+          rwa [consT_lsub] at this
+        · have := E.cons (A := A.ren (C.pointRen k) id) (a1 := Y[k]) (a2 := X[k])
+            (by rw [pt_inst hW hD hC hA (by omega) (by simp [hpl]) 0 I.var]; exact EqTm0.conv hxy (EqTm0.symm hapE))
+          rwa [consT_lsub, consT_lsub] at this
+      · simp only [hr, if_true, ptL]
+        exact ⟨TY, E, hFj⟩
+  obtain ⟨-, -, HY⟩ := key C.args.length (Nat.le_refl _)
+  refine ⟨HasTele0.ofList_of hw Y _ _ (by simp [argTys_length]; omega) (fun k a A ha hA => ?_),
+    EqTele0.ofList_of' hw Y X _ _ (by simp [argTys_length]; omega) (by simp [argTys_length]; omega)
+      (fun k a a' A ha ha' hA => ?_)⟩
+  · have hkY := (List.getElem?_eq_some_iff.1 ha).1
+    obtain ⟨-, rfl⟩ := List.getElem?_eq_some_iff.1 ha
+    have hkC : k < C.args.length := by omega
+    rw [argTys_get hkC, Option.some.injEq] at hA; subst hA
+    exact (HY k hkC hkY).1
+  · have hkY := (List.getElem?_eq_some_iff.1 ha).1
+    obtain ⟨-, rfl⟩ := List.getElem?_eq_some_iff.1 ha
+    obtain ⟨-, rfl⟩ := List.getElem?_eq_some_iff.1 ha'
+    have hkC : k < C.args.length := by omega
+    rw [argTys_get hkC, Option.some.injEq] at hA; subst hA
+    obtain ⟨-, l', e⟩ := HY k hkC hkY
+    exact EqTm0.conv (hXY k (by omega) hkY) (EqTm0.symm e)
+
 /-! ## Projections under interval substitutions -/
 
 theorem upN_var : ∀ k, upN k Tm.var = Tm.var

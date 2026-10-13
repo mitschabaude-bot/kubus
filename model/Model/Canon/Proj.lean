@@ -1,4 +1,5 @@
-import Model.Canon.KanUniv
+import Model.Canon.KanBasic
+import Model.Canon.ArgConv
 
 /-!
 # Canonicity: projections out of constructors of an inductive type
