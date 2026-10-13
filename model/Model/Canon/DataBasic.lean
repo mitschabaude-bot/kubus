@@ -24,11 +24,11 @@ theorem DR.conv {m : ℕ} {d : ℕ} {D : DataDecl} {Mem : (k : ℕ) → Hom k m 
     {k : ℕ} {f : Hom k m} {A A' t t' : Tm} (h : DR S d D Mem P k f A t) (hA : TyEq S k A A')
     (ht : EqTm S k .one [] t t' A') : DR S d D Mem P k f A' t' := by
   cases h with
-  | con hm hC hrs hsc hAeq he hlen hrec hpt =>
-    exact DR.con (hMem _ _ _ _ _ (ht.tyConv hA.symm) hm) hC hrs hsc (hA.symm.trans hW hAeq)
+  | con hm hC hrs hsc hpl hAeq he hlen hrec hpt =>
+    exact DR.con (hMem _ _ _ _ _ (ht.tyConv hA.symm) hm) hC hrs hsc hpl (hA.symm.trans hW hAeq)
       (EqTm.trans (EqTm.symm ht) (he.tyConv hA)) hlen hrec hpt
-  | hcomp hm hH hsc hn hAeq he ha hu =>
-    exact DR.hcomp (hMem _ _ _ _ _ (ht.tyConv hA.symm) hm) hH hsc hn (hA.symm.trans hW hAeq)
+  | hcomp hm hH hsc hn hpl hAeq he ha hu =>
+    exact DR.hcomp (hMem _ _ _ _ _ (ht.tyConv hA.symm) hm) hH hsc hn hpl (hA.symm.trans hW hAeq)
       (EqTm.trans (EqTm.symm ht) (he.tyConv hA)) ha hu
 
 theorem cv_dataC (Θ : SData m) : CV S m (dataC Θ) := by

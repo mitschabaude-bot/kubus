@@ -159,7 +159,7 @@ inductive DR {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m →
     (P : (k : ℕ) → Hom k m → ℕ → ℕ → List V → Tm → Tm → Prop) : (k : ℕ) → Hom k m → Tm → Tm → Prop
   | con {k : ℕ} {f : Hom k m} {A t ps : Tm} {c : ℕ} {C : Ctor} {args : List Tm} {rs : List I} :
       Mem k f t → D.ctors[c]? = some C → rs.length = C.dims → (∀ r ∈ rs, r.Scoped k) →
-      TyEq S k A (.data d ps) →
+      ps = Tm.ofList ps.toList → TyEq S k A (.data d ps) →
       EqTm S k .one [] t (.con d c ps (Tm.ofList args) rs) A →
       args.length = C.args.length →
       (∀ j (hj : j < args.length), C.isRec j = true → DR d D Mem P k f (.data d ps) args[j]) →
@@ -169,7 +169,7 @@ inductive DR {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m →
       DR d D Mem P k f A t
   | hcomp {k : ℕ} {f : Hom k m} {A t ps u a : Tm} {φ : I} :
       Mem k f t → D.isHIT = true → φ.Scoped k → ¬ (ival (idEnv k) φ).holds →
-      TyEq S k A (.data d ps) →
+      ps = Tm.ofList ps.toList → TyEq S k A (.data d ps) →
       EqTm S k .one [] t (.hcomp (.data d ps) φ u a) A →
       DR d D Mem P k f (.data d ps) a →
       (∀ k' (σ : ISub k' k) (r : I), r.Scoped k' → (ival (idEnv k') (φ.subst σ.τ)).holds →
