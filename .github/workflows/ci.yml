@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          build-args: kubus
+          test: false
+          lint: false
+      - name: Tests (with --selfcheck)
+        run: tests/run.sh
+      - name: Fuzz
+        run: tests/fuzz.sh 16 ci-${{ github.run_number }} --keep fuzz-out
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fuzz-out
+          path: fuzz-out

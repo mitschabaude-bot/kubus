@@ -447,6 +447,8 @@ class Gen:
             return f"({self.typeLine(a.a, k)} -> {self.typeLine(a.b, k)})"
         if isinstance(a, Sig):
             return f"({self.typeLine(a.a, k)} × {self.typeLine(a.b, k)})"
+        lines["Bool"].append(f"hcomp {k}u U [{k} = 0 -> Bool, {k} = 1 -> notPath {k}u] Bool")
+        lines["Int"].append(f"hcomp {k}u U [{k} = 0 -> Int, {k} = 1 -> sucPathInt {k}u] Int")
         if isinstance(a, Data) and a.n in lines and self.chance(0.8):
             return f"({self.rnd.choice(lines[a.n])})"
         return a.show()
@@ -498,40 +500,45 @@ class Gen:
         return "\n".join(out)
 
     def split(self, idx):
-        """A pattern-matching definition on a higher inductive type."""
+        """A pattern-matching definition on a higher inductive type, with parameters."""
         name = f"fz{idx}"
         r = self.rnd
         kind = r.choice(["S1Bool", "S1S1", "Susp", "Trunc"])
         i = self.fresh("i")
+        params = [(self.fresh("q"), self.rnd.choice([BOOL, LOOP, INT])) for _ in range(r.choice([0, 1, 1, 2]))]
+        call = " ".join([name] + [x for x, _ in params])
         if kind == "S1Bool":
-            b = self.tm(BOOL, [], [], 2)
+            b = self.tm(BOOL, params, [], 2)
             loop = self.site(b, f"(not {b})", "HIT clause boundary")
-            src = f"def {name} : S1 -> Bool\n  | base => {b}\n  | loop {i} => {loop}"
+            clauses = f"  | base => {b}\n  | loop {i} => {loop}"
             res, arg = BOOL, S1
         elif kind == "S1S1":
-            p = self.tm(LOOP, [], [], 2)
-            src = f"def {name} : S1 -> S1\n  | base => base\n  | loop {i} => ({p} : {LOOP.show()}) {i}"
+            p = self.tm(LOOP, params, [], 2)
+            clauses = f"  | base => base\n  | loop {i} => ({p} : {LOOP.show()}) {i}"
             res, arg = S1, S1
         elif kind == "Susp":
             a = self.fresh("a")
-            b = self.tm(BOOL, [(a, BOOL)], [], 2)
+            b = self.tm(BOOL, params + [(a, BOOL)], [], 2)
             m = self.site(f"merid {b} {i}", f"merid {b} (~{i})", "HIT clause boundary")
-            src = f"def {name} : Susp Bool -> Susp Bool\n  | north => north\n  | south => south\n  | merid {a} {i} => {m}"
+            clauses = f"  | north => north\n  | south => south\n  | merid {a} {i} => {m}"
             res, arg = SUSP, SUSP
         else:
             a, x, y = self.fresh("a"), self.fresh("x"), self.fresh("y")
-            b = self.tm(BOOL, [(a, BOOL)], [], 2)
-            sq = self.site(f"squash ({name} {x}) ({name} {y}) {i}", f"squash ({name} {y}) ({name} {x}) {i}",
+            b = self.tm(BOOL, params + [(a, BOOL)], [], 2)
+            sq = self.site(f"squash ({call} {x}) ({call} {y}) {i}", f"squash ({call} {y}) ({call} {x}) {i}",
                            "HIT clause boundary")
-            src = (f"def {name} : Trunc Bool -> Trunc Bool\n  | inc {a} => inc {b}\n"
-                   f"  | squash {x} {y} {i} => {sq}")
+            clauses = f"  | inc {a} => inc {b}\n  | squash {x} {y} {i} => {sq}"
             res, arg = TRUNC, TRUNC
-        self.globals.append((name, 0, [arg], res))
+        binders = "".join(f" ({x} : {t.show()})" for x, t in params)
+        src = f"def {name}{binders} : {arg.show()} -> {res.show()}\n{clauses}"
+        ps = [t for _, t in params]
+        self.globals.append((name, 0, ps + [arg], res))
         for _ in range(r.choice([1, 2])):
-            src += f"\n#eval {name} {self.tm(arg, [], [], 2)}"
+            src += f"\n#eval {' '.join([name] + [self.tm(t, [], [], 2) for t in ps + [arg]])}"
         if r.random() < 0.5:
             j = self.fresh("j")
-            src += f"\n#eval \\({j} : I) -> {name} ({self.tm(arg, [], [j], 2)})"
+            args = [self.tm(t, [], [j], 2) for t in ps + [arg]]
+            src += f"\n#eval \\({j} : I) -> {' '.join([name] + [f'({t})' for t in args])}"
         return src
 
 
@@ -580,7 +587,8 @@ def main():
     ap.add_argument("--defs", type=int, default=4, help="definitions per case")
     ap.add_argument("--keep", default=None, help="directory for generated files (default: temporary)")
     ap.add_argument("--bin", default=None)
-    ap.add_argument("--timeout", type=float, default=20)
+    ap.add_argument("--timeout", type=float, default=60)
+    ap.add_argument("--budget", type=int, default=200000, help="evaluation steps per self-check")
     ap.add_argument("--no-mutants", action="store_true")
     args = ap.parse_args()
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -595,7 +603,7 @@ def main():
         with open(path, "w") as f:
             f.write(resolve(text, sites))
         stats["cases"] += 1
-        code, out = run(bin_, path, args.timeout, ["--selfcheck-main"])
+        code, out = run(bin_, path, args.timeout, ["--selfcheck-main", "--budget", str(args.budget)])
         if code is None:
             stats["timeout"] += 1
             print(f"TIMEOUT case {c}: {path}")

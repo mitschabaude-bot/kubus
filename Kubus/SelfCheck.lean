@@ -98,7 +98,8 @@ def scTerm (ctx : Ctx) (tm : Tm) (ty : Val) (label : String) (checkTy : Bool := 
   scRun pos "recheck" label do
     let v ← eval ctx.env tm
     let nf ← quote ctx.qctx v
-    if !nf.hasSurface then
+    -- `compU`/`unglueU` have no surface syntax, and neither do `glue` elements of a `compU` type
+    if !nf.hasSurface || !(← quote ctx.qctx ty).hasSurface then
       modify fun s => { s with nGaps := s.nGaps + 1 }
       return
     let ctx' ← uniqueCtx ctx

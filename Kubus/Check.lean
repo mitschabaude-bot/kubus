@@ -207,7 +207,15 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
             err ctx "glue: the system does not agree with the base element"
         | none => err ctx "glue: internal face error"
       return .glue tsys ta
-    | _ => err ctx s!"glue cannot have type {← ppVal ctx ty}"
+    | _ =>
+      -- Under a face where the Glue type has already reduced to `T` (system elements are
+      -- checked under their faces), `glue [φ ↦ t] a` is `t`. The base type is not known
+      -- any more, so `a` is only inferred.
+      let total ← sys.anyM fun (key, _) => do return (← evalI ctx.env (← elabI ctx key)).isOne
+      if !total then err ctx s!"glue cannot have type {← ppVal ctx ty}"
+      let (tsys, _) ← checkSys ctx none sys fun _ α _ => faceV ty α
+      let (ta, _) ← infer ctx a
+      return .glue tsys ta
   | .letE x tyR t b =>
     let (tt, a) ← inferLet ctx tyR t
     let vt ← eval ctx.env tt

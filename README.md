@@ -70,6 +70,7 @@ Cubical primitives:
 | `Kubus/Quote.lean` | read-back to normal forms and pretty printing |
 | `Kubus/Check.lean` | bidirectional elaborator, including checking under faces |
 | `Kubus/Top.lean` | definitions, data types, termination and positivity checks |
+| `Kubus/SelfCheck.lean` | invariant self-checks (`--selfcheck`) |
 
 Evaluation follows the cubicaltt approach: interval variables in values are nominal atoms, and composition is defined by cases on the type. Neutral variables carry their types, so that `p 0` reduces to the endpoint of a neutral path. Composition in the universe produces a Glue-like composite type with an equivalence built from transport along the line. Transport along a constant closed first-order data type (like `Nat` or `Int`) is the identity definitionally. This regularity holds stably for those types only.
 
@@ -82,6 +83,22 @@ tests/run.sh
 ```
 
 `tests/run.sh` checks the library, compares `tests/pass/*_test.ktt` against golden outputs, and checks that every file in `tests/fail/` is rejected with the expected error.
+
+## Self-checks and fuzzing
+
+`kubus --selfcheck FILE` checks invariants of the evaluator and conversion checker on every definition body, pattern-matching clause, `#eval`/`#check`, path or interval lambda body and system element:
+
+| invariant | check |
+|---|---|
+| `conv-refl` | every value is convertible to itself, and its type to itself |
+| `conv-symmetry` | every conversion check made by the elaborator gives the same answer with the arguments swapped |
+| `roundtrip` | `eval (quote v)` is convertible to `v`, both ways |
+| `recheck` | the printed normal form parses and elaborates again at the same type, to a value convertible to `v` (for `#eval`, also the printed type) |
+| `stability` | for each interval variable `i` in scope and `σ` among `i := 0, 1, ~i, i ∧ j, i ∨ j, k`: `(eval ρ t)σ` is convertible to `eval (ρσ) t` |
+
+Violations are reported with the name of the invariant, and the exit code is 1. Each check has an evaluation budget (`--budget N`, default 1000000 steps); checks exceeding it are skipped and counted (`--verbose` lists them). `--selfcheck-main` checks only the files given on the command line, not their imports. Normal forms containing `compU`/`unglueU` (composition in the universe) have no surface syntax and are not re-checked. `tests/run.sh` runs the library and the passing tests under `--selfcheck`.
+
+`tests/fuzz.sh N SEED` generates `N` random well-typed files over the library (Π, Σ, paths, Glue and `ua`, Bool, Nat, Int, S1, Susp, Trunc, `hcomp`/`comp`/`fill` with systems, composition in the universe, pattern matching on HITs), checks them under `--selfcheck`, and checks that mutated variants (a flipped path boundary, swapped endpoints, a base that disagrees with its system, a glue element that disagrees with its base, a HIT clause that violates its boundary, a type error) are rejected. `tests/fuzz.py --seed SEED --case K --keep DIR` regenerates a single case.
 
 ## Limitations
 
