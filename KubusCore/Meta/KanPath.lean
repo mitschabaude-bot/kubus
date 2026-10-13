@@ -16,16 +16,21 @@ def endS (d : Bool) : Nat → I
   | 1 => I.ofDir d
   | n + 2 => .var n
 
+/-- Substitutions `0 ↦ r, n + 1 ↦ var (n + k)`. -/
+def sk (r : I) (k : Nat) : Nat → I
+  | 0 => r
+  | n + 1 => .var (n + k)
+
 /-- Compare two substitutions of the same term pointwise. -/
 macro "ssub" : tactic => `(tactic| (
-  simp only [Tm.dinst, Tm.dsubst, Tm.dset, dshift_eq, shift_eq, ren_eq_subst, subst_subst, I_subst_subst];
+  (try simp only [Tm.dinst, Tm.dsubst, Tm.dset, dshift_eq, shift_eq, ren_eq_subst, subst_subst, I_subst_subst]);
   first
     | refine subst_congr (fun n => ?_) (fun n => ?_) _
     | refine (subst_congr (fun n => ?_) (fun n => ?_) _).trans (subst_var _)
     | refine (subst_var _).symm.trans (subst_congr (fun n => ?_) (fun n => ?_) _)
   all_goals (rcases n with _ | _ | _ | n <;>
     simp [Tm.subst, I.subst, I.inst0, insI, skip1, skip1I, rS, rI, I.up, Tm.up, upRen, I.ofDir, I.shift,
-      I.ren, endS] <;> omega)))
+      I.ren, endS, Tm.bind2, sk] <;> omega)))
 
 /-- The line of a path type, under the tube variable and renamed past the path variable. -/
 def Xp (A : Tm) : Tm := A.subst Tm.var (fun i => match i with | 0 => .var 0 | n + 1 => .var (n + 3))
