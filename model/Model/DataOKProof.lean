@@ -1321,6 +1321,111 @@ theorem sem_simple_eval {S : Sig} {d : ℕ} {E : DataDecl} (hd : S[d]? = some (.
   | tnil => exact ⟨fun hs => by simp [Ctor.simpleB] at hs, fun _ _ _ _ i hi => by simp [Tm.toList] at hi⟩
   | _ => exact ⟨fun hs => by simp [Ctor.simpleB] at hs, fun _ _ hs => by simp [Ctor.simpleArgs] at hs⟩
 
+
+/-- Boundary trees at corresponding arguments are corresponding (given this for the constructor
+values of the earlier constructors). -/
+theorem ovl_tree {ΘX : SData m} (hbX : ΘX.Basic) {ΘT : SData n} {g : Hom n m}
+    {gen act : ℕ → V} {P : ℕ → Prop} {k0 : ℕ} {C0 : Ctor} (hC0 : ΘX.ctors[k0]? = some C0)
+    (hct : ∀ k < k0, ΘT.ctors.getD k default = ΘX.ctors.getD k default)
+    (hctO : ∀ k < k0, ΘT.ctors[k]? = ΘX.ctors[k]?)
+    (hty : ∀ k < k0, ∀ j pre, ΘT.ty k j n (Hom.id n) pre = ΘX.ty k j n g pre)
+    (hQ : ∀ k < k0, ∀ C', ΘX.ctors[k]? = some C' → ∀ (vT vX : List V) (rs : List (DM n)),
+      ΘX.ArgsTyped k C' n g vX → ΘT.ArgsTyped k C' n (Hom.id n) vT → vT.length = vX.length →
+      (∀ j (hj : j < vT.length) (hj' : j < vX.length), C'.isRec j = true → Corr ΘX.ctors n gen act P vT[j] vX[j]) →
+      (∀ j (hj : j < vT.length) (hj' : j < vX.length), C'.isRec j = false → vT[j] = vX[j]) →
+      rs.length = C'.dims → Corr ΘX.ctors n gen act P (conV ΘX.ctors n k vT rs) (conV ΘX.ctors n k vX rs))
+    {aT aX : List V} (hatX : ΘX.ArgsTyped k0 C0 n g aX) (hlT : aT.length = C0.args.length)
+    (hrecT : ∀ j (hj : j < aT.length) (hj' : j < aX.length), C0.isRec j = true →
+      Corr ΘX.ctors n gen act P aT[j] aX[j] ∧ DElem ΘT n (Hom.id n) aT[j])
+    (hptT : ∀ j (hj : j < aT.length) (hj' : j < aX.length), C0.isRec j = false → aT[j] = aX[j])
+    (hkvT : ∀ a ∈ aT, IsKV n a) (rs : List (DM n)) : ∀ t : Tm,
+    (BTy ΘX k0 C0 t → Corr ΘX.ctors n gen act P (evalBnd (conBefore ΘX.ctors k0 n) aT rs t)
+        (evalBnd (conBefore ΘX.ctors k0 n) aX rs t) ∧
+      DElem ΘT n (Hom.id n) (evalBnd (conBefore ΘX.ctors k0 n) aT rs t)) ∧
+    (∀ C' k' j prev, BTyArgs ΘX k0 C0 C' k' j prev t → ∀ i (hi : i < t.toList.length),
+      (C'.isRec (j + i) = true → Corr ΘX.ctors n gen act P (evalBnd (conBefore ΘX.ctors k0 n) aT rs t.toList[i])
+          (evalBnd (conBefore ΘX.ctors k0 n) aX rs t.toList[i]) ∧
+        DElem ΘT n (Hom.id n) (evalBnd (conBefore ΘX.ctors k0 n) aT rs t.toList[i])) ∧
+      (C'.isRec (j + i) = false → evalBnd (conBefore ΘX.ctors k0 n) aT rs t.toList[i] =
+        evalBnd (conBefore ΘX.ctors k0 n) aX rs t.toList[i])) := by
+  have hlX : aX.length = C0.args.length := hatX.1
+  have hPVX : ΘX.PtValid k0 n g aX := by
+    have := SData.ptValid_take hC0 hatX.2.2 aX.length; rwa [List.take_length] at this
+  have hkvX : ∀ a ∈ aX, IsKV n a := by
+    intro a ha
+    obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem ha
+    cases hr : C0.isRec j
+    · exact hbX.pt_kv hPVX hj (by rw [getD_ctors hC0]; exact hr)
+    · exact (hatX.2.1 j _ (List.getElem?_eq_getElem hj) hr).kv
+  have hvar : ∀ x (hx : x < C0.args.length), evalBnd (conBefore ΘX.ctors k0 n) aT rs (.var x) = aT[C0.args.length - 1 - x]'(by omega) ∧
+      evalBnd (conBefore ΘX.ctors k0 n) aX rs (.var x) = aX[C0.args.length - 1 - x]'(by omega) := by
+    intro x hx
+    simp only [evalBnd]
+    rw [getD_reverse_eq (by omega), getD_reverse_eq (by omega), res_id (hkvT _ (List.getElem_mem _)),
+      res_id (hkvX _ (List.getElem_mem _))]
+    constructor <;> congr 1 <;> omega
+  intro t
+  induction t with
+  | var x =>
+    refine ⟨fun hb => ?_, fun _ _ _ _ _ i hi => by simp [Tm.toList] at hi⟩
+    obtain ⟨hx, hr⟩ := hb
+    rw [(hvar x hx).1, (hvar x hx).2]
+    exact hrecT _ (by omega) (by omega) hr
+  | con d' c' ps' as rs'' _ ihas =>
+    refine ⟨fun hb => ?_, fun _ _ _ _ _ i hi => by simp [Tm.toList] at hi⟩
+    obtain ⟨hc', C', hC', hlen', hrs', hargs⟩ := hb
+    have houtX := (bnd_delem_aux hbX hC0 hatX.1 hatX.2.1 hatX.2.2 rs as).2 C' c' 0 [] hargs
+    have htaX := nested_argsTyped hbX hC0 hatX.1 hatX.2.1 hatX.2.2 rs hC' hlen' houtX
+    have hIH := ihas.2 C' c' 0 [] hargs
+    simp only [evalBnd, conBefore, dif_pos hc', evalBndList_eq]
+    set vT := as.toList.map (evalBnd (fun c'' as' rs' => if _ : c'' < k0 then conV ΘX.ctors n c'' as' rs' else junkV n) aT rs)
+    set vX := as.toList.map (evalBnd (fun c'' as' rs' => if _ : c'' < k0 then conV ΘX.ctors n c'' as' rs' else junkV n) aX rs)
+    have hrecv : ∀ j (hj : j < vT.length) (hj' : j < vX.length), C'.isRec j = true →
+        Corr ΘX.ctors n gen act P vT[j] vX[j] ∧ DElem ΘT n (Hom.id n) vT[j] := by
+      intro j hj hj' hr
+      simp only [vT, vX, List.getElem_map]
+      exact (hIH j (by simpa [vT] using hj)).1 (by simpa using hr)
+    have hptv : ∀ j (hj : j < vT.length) (hj' : j < vX.length), C'.isRec j = false → vT[j] = vX[j] := by
+      intro j hj hj' hr
+      simp only [vT, vX, List.getElem_map]
+      exact (hIH j (by simpa [vT] using hj)).2 (by simpa using hr)
+    have hC'T : ΘT.ctors[c']? = some C' := by rw [hctO c' hc']; exact hC'
+    have htaT : ΘT.ArgsTyped c' C' n (Hom.id n) vT := by
+      refine ⟨by simp [vT, hlen'], fun j a ha hr => ?_, fun j a ha hr => ?_⟩
+      · obtain ⟨hj, rfl⟩ := List.getElem?_eq_some_iff.1 ha
+        exact (hrecv j hj (by simpa [vX, vT] using hj) hr).2
+      · obtain ⟨hj, rfl⟩ := List.getElem?_eq_some_iff.1 ha
+        have hjX : j < vX.length := by simpa [vX, vT] using hj
+        rw [hptv j hj hjX hr, hty c' hc']
+        have hmem := htaX.2.2 j _ (List.getElem?_eq_getElem hjX) hr
+        have heq : ΘX.ty c' j n g (vT.take j) = ΘX.ty c' j n g (vX.take j) := by
+          apply hbX.recIrr
+          · simp [vT, vX]
+          · intro i hi hi' hri
+            simp only [List.getElem_take]
+            exact hptv i (by simp at hi; omega) (by simp at hi'; omega) (by rw [getD_ctors hC'] at hri; exact hri)
+        rw [heq]; exact hmem
+    have hrsv : (rs''.map (ival (renv rs))).length = C'.dims := by simp [hrs']
+    refine ⟨hQ c' hc' C' hC' vT vX _ htaX htaT (by simp [vT, vX]) (fun j hj hj' hr => (hrecv j hj hj' hr).1) hptv hrsv, ?_⟩
+    have hd := DElem.con hC'T htaT.1 hrsv htaT.2.1 htaT.2.2 (rs := rs''.map (ival (renv rs)))
+    rwa [conV_congr_ctors n c' fun k'' hk'' => hct k'' (by omega)] at hd
+  | tcons a as iha ihas =>
+    refine ⟨fun hb => by simp [BTy] at hb, fun C' k' j prev hb i hi => ?_⟩
+    obtain ⟨hb1, hb2, hb3⟩ := hb
+    cases i with
+    | zero =>
+      simp only [Tm.toList, List.getElem_cons_zero, Nat.add_zero]
+      refine ⟨fun hr => iha.1 (hb1 hr), fun hr => ?_⟩
+      obtain ⟨x, rfl, hx, hxr, -⟩ := hb2 hr
+      rw [(hvar x hx).1, (hvar x hx).2]
+      exact hptT _ (by omega) (by omega) hxr
+    | succ i =>
+      simp only [Tm.toList, List.getElem_cons_succ]
+      have := ihas.2 C' k' (j + 1) (a :: prev) hb3 i (by simp [Tm.toList] at hi; omega)
+      rw [show j + 1 + i = j + (i + 1) by omega] at this
+      exact this
+  | _ => exact ⟨fun hb => by simp [BTy] at hb, fun _ _ _ _ _ i hi => by simp [Tm.toList] at hi⟩
+
 section assembly
 
 variable (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0.length)
