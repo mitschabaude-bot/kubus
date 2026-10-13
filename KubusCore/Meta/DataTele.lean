@@ -357,4 +357,56 @@ theorem ihs_tele {Ψ Φ Γ d D ps P bs m} (hE : ElimPrem S Ψ Φ Γ d D ps P bs 
   rw [toList_ofList] at ht
   exact HasTy0.elim hE.hD hE.hps hE.hdata hE.hpt hE.hP hE.hbs hE.hlen hE.hbr hE.hcoh ht
 
+/-! ## Generation for the eliminator, reflexivity of telescopes -/
+
+theorem EqTele0.refl {Ψ Φ Γ} : ∀ {ts Δ prev}, HasTele0 S Ψ Φ Γ ts Δ prev → EqTele0 S Ψ Φ Γ ts ts Δ prev
+  | _, _, _, .nil hw => .nil hw
+  | _, _, _, .cons ha hs => .cons (EqTm0.refl ha) (EqTele0.refl hs)
+
+theorem gen_elimP {Ψ Φ Γ s T} (h : HasTy0 S Ψ Φ Γ s T) {d ps P bs t} (ht : s = .elim d ps P bs t) :
+    ∃ D m, ElimPrem S Ψ Φ Γ d D ps P bs m ∧ HasTy0 S Ψ Φ Γ t (data d ps) :=
+  match h with
+  | .var _ _ => by cases ht
+  | .conv h0 _ => gen_elimP h0 ht
+  | .restrict h0 h1 h2 => by
+    obtain ⟨D, m, hE, h⟩ := gen_elimP h2 ht
+    exact ⟨D, m, hE.restrict h0 h1, HasTy0.restrict h0 h1 h⟩
+  | .const _ _ => by cases ht
+  | .univ _ _ => by cases ht
+  | .cumul _ h1 => gen_elimP h1 ht
+  | .pi _ _ => by cases ht
+  | .lam _ _ => by cases ht
+  | .app _ _ => by cases ht
+  | .sigma _ _ => by cases ht
+  | .pair _ _ _ => by cases ht
+  | .fst _ => by cases ht
+  | .snd _ => by cases ht
+  | .path _ _ _ => by cases ht
+  | .plam _ _ _ _ => by cases ht
+  | .papp _ _ => by cases ht
+  | .ipi _ _ => by cases ht
+  | .ilam _ _ => by cases ht
+  | .iapp _ _ => by cases ht
+  | .split _ _ _ _ _ _ _ => by cases ht
+  | .abort _ _ => by cases ht
+  | .transp _ _ _ _ => by cases ht
+  | .hcomp _ _ _ _ _ => by cases ht
+  | .glue _ _ _ _ => by cases ht
+  | .glueEl _ _ _ _ _ => by cases ht
+  | .unglue _ _ _ _ => by cases ht
+  | .data _ _ _ => by cases ht
+  | .con _ _ _ _ _ _ _ _ => by cases ht
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => by
+    cases ht
+    exact ⟨_, _, ⟨h0, h1, h2, h3, h4, h5, h6, h7, h8⟩, h9⟩
+
+/-- The premises of the eliminator, weakened by an interval variable. -/
+theorem ElimPrem.dwk (hS : SigClosed S) {Ψ Φ Γ d D ps P bs m} (hE : ElimPrem S Ψ Φ Γ d D ps P bs m)
+    {t : Tm} (ht : HasTy0 S Ψ Φ Γ t (data d ps)) :
+    ∃ D' m', ElimPrem S (Ψ + 1) Φ.shift Γ.dshift d D' ps.dshift P.dshift bs.dshift m' := by
+  have h := HasTy0.dwk hS (HasTy0.elim hE.hD hE.hps hE.hdata hE.hpt hE.hP hE.hbs hE.hlen hE.hbr hE.hcoh ht)
+  obtain ⟨D', m', hE', _⟩ := gen_elimP h rfl
+  rw [upRen_id_eq] at hE'
+  exact ⟨D', m', hE'⟩
+
 end KubusCore.Meta
