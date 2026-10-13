@@ -86,9 +86,12 @@ def ConGuard (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) (c : ℕ) (args 
     ParamsOK σ D m ps ∧ (dataSD σ D d m ps).ArgsTyped c C m (Hom.id m) (plist (args m (Hom.id m)) C.args.length)
 
 /-- The eliminator applies only at valid parameters, to an element, with branches satisfying the
-boundary conditions. -/
+boundary conditions, and where it is typed and natural on all elements. -/
 def ElimGuard (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) (P : (n : ℕ) → Hom n m → V → V) (bs t : RV m) : Prop :=
-  ParamsOK σ D m ps ∧ DElem (dataSD σ D d m ps) m (Hom.id m) (t m (Hom.id m)) ∧ BranchesOK (dataSD σ D d m ps) P bs
+  ParamsOK σ D m ps ∧ DElem (dataSD σ D d m ps) m (Hom.id m) (t m (Hom.id m)) ∧ BranchesOK (dataSD σ D d m ps) P bs ∧
+    ∀ n (g : Hom n m) v, DElem (dataSD σ D d m ps) n g v →
+      elimD (dataSD σ D d m ps) P bs n g v ∈ El (P n g v) (Hom.id n) ∧
+      ∀ n' (h : Hom n' n), res h (elimD (dataSD σ D d m ps) P bs n g v) = elimD (dataSD σ D d m ps) P bs n' (g.comp h) (res h v)
 
 /-- The semantics of the inductive type `d` with declaration `D`, given the semantics `σ` of the
 entries before it: the type former (the data code at valid parameters, junk otherwise, so that

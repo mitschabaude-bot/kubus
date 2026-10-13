@@ -871,7 +871,8 @@ theorem sem_elim_pt {ρ : IEnv m} {γ : ℕ → V} (hp : IsPoint S Φ Γ m ρ γ
   have hρ : ρ.restr (Hom.id m) = ρ := IEnv.restr_id ρ
   have hγ : TEnv.restr γ (Hom.id m) = γ := TEnv.restr_id_of_kv hp.kv
   have hg : ElimGuard (sigUpTo S d) D d m (psRV S ps m ρ γ) (motV S P ρ γ) (psRV S bs m ρ γ) (psRV S t m ρ γ) := by
-    refine ⟨hpok, ?_, elimPt_branchesOK hS hd hpl h1 h2 hbsl h5 h6 hp⟩
+    refine ⟨hpok, ?_, elimPt_branchesOK hS hd hpl h1 h2 hbsl h5 h6 hp,
+      fun n g v hv => elimPt_typed hS hd hpl h1 h2 hbsl h5 h6 hp hv⟩
     simp only [psRV, hρ, hγ]; exact ht
   refine ⟨?_, ht⟩
   rw [sem_elim hd]

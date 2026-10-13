@@ -299,7 +299,7 @@ theorem sem_EqTm_elim' {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} (hS : SigOK S) (
       have ett : sem S t m (ρ.restr (Hom.id m)) (TEnv.restr γ (Hom.id m)) =
           sem S t' m (ρ.restr (Hom.id m)) (TEnv.restr γ (Hom.id m)) := congrFun (congrFun et m) (Hom.id m)
       rw [← ett]
-      refine elimD_congr hgood g1.2.2 g2.2.2 (fun n g v hv => ?_) (fun n g c hc => ?_) g1.2.1
+      refine elimD_congr hgood g1.2.2.1 g2.2.2.1 (fun n g v hv => ?_) (fun n g c hc => ?_) g1.2.1
       · have hp' := hp.restr h1.1 g
         have hpok' : ParamsOK (sigUpTo S d) D n (psRV S ps n (ρ.restr g) (TEnv.restr γ g)) := by
           rw [psRV_restr]; exact g1.1.restr g
