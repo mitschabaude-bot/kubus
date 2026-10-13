@@ -128,6 +128,46 @@ theorem tube_tag (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.da
     (HasTy.eqR (inst .zero trivial)) (HasTy.eqR hs0) e0
   rw [← tagr, tag0]
 
+/-- A face holds at its own endpoints. -/
+theorem ent_ofFace_faceSub {α : I.Face} (hc : I.Face.consistent α = true) :
+    I.Entails .one ((I.ofFace α).subst (faceSub α)) := by
+  rw [entails_iff]
+  intro ρ _ _
+  rw [eval_subst]
+  exact (KubusCore.Meta.eval_ofFace _ α).2 fun l hl => by
+    show (faceSub α l.1).eval ρ = _
+    rw [faceSub_mem hc hl, eval_ofDir]
+
+theorem inst_dsubst (t a : Tm) (τ : ℕ → I) :
+    (t.inst a).subst Tm.var τ = (t.subst Tm.var τ).inst (a.subst Tm.var τ) := by
+  simp only [Tm.inst, subst_subst]
+  congr 1
+  · funext x; cases x with
+    | zero => rfl
+    | succ x => rfl
+  · funext i; exact (I_subst_var _).symm
+
+section
+variable {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {j : ℕ}
+
+/-- `proj_j` respects judgmental equality of its argument. -/
+theorem proj_congr (hS : SigClosed S) (hW : WfSig S) {Ψ : ℕ} {Φ : I} {ps : Tm} (H : PD S Ψ Φ d D ps)
+    (hcC : D.ctors[c]? = some C) (hj : j < C.args.length) {t t' : Tm} (e : EqTm0 S Ψ Φ [] t t' (.data d ps)) :
+    EqTm0 S Ψ Φ [] (proj d D ps c C j t) (proj d D ps c C j t') ((projQ d D ps c C j).inst t) := by
+  obtain ⟨hT, hCt⟩ := wf_typed _ S rfl hW
+  obtain ⟨ht, ht', -⟩ := pre_eq hS hT hCt e
+  have h1 := proj_typed hS hW H hcC hj H.hw ht
+  have h2 := proj_typed hS hW H hcC hj H.hw ht'
+  have eQ := HasTy0.inst_congr hS (projQ_typed hS hW H hcC hj) ht ht' e
+  refine EqTm0.elim H.hD h1 (HasTy0.conv h2 (EqTm0.symm eQ)) (EqTele0.refl H.hpt)
+    (EqTm0.refl (projQ_typed hS hW H hcC hj)) (branchesOf_isList _ _ _ _ _) (branchesOf_isList _ _ _ _ _) rfl
+    (fun c' C' b b' hc' hb hb' => ?_) e
+  rw [hb] at hb'; cases hb'
+  rw [branchesOf_get hc', Option.some.injEq] at hb; subst hb
+  exact EqTm0.refl (proj_branch_typed hS hW H hcC hj hc')
+
+end
+
 end
 
 end Model.Canon
