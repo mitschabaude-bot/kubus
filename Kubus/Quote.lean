@@ -149,12 +149,28 @@ partial def pp (names : List String) (p : Nat) (t : Tm) (im : PPI := {}) : Strin
   | .univ 0 => "U"
   | .univ l => paren (p > 2) s!"U {l}"
   | .pi x a b =>
-    if isImplName x then
-      let x' := freshName names (plainName x)
-      paren (p > 1) s!"\{{x'} : {pp names 0 a}} → {pp (x' :: names) 1 b}"
-    else if b.occurs 0 then
-      let x' := freshName names x
-      paren (p > 1) s!"({x'} : {pp names 0 a}) → {pp (x' :: names) 1 b}"
+    let impl := isImplName x
+    if impl || b.occurs 0 then
+      -- consecutive binders with the same domain are grouped: `(x y : A) → B`
+      let (xs, ns, body) := Id.run do
+        let x' := freshName names (plainName x)
+        let mut ns := x' :: names
+        let mut xs := #[x']
+        let mut body := b
+        repeat
+          match body with
+          | .pi y a2 b2 =>
+            if isImplName y == impl && (impl || b2.occurs 0) && a2 == a.shift xs.size then
+              let y' := freshName ns (plainName y)
+              ns := y' :: ns
+              xs := xs.push y'
+              body := b2
+            else break
+          | _ => break
+        return (xs, ns, body)
+      let bs := " ".intercalate xs.toList
+      let binder := if impl then "{" ++ bs ++ " : " ++ pp names 0 a ++ "}" else s!"({bs} : {pp names 0 a})"
+      paren (p > 1) s!"{binder} → {pp ns 1 body}"
     else paren (p > 1) s!"{pp names 2 a} → {pp ("_" :: names) 1 b}"
   | .sigma x a b =>
     if b.occurs 0 then
