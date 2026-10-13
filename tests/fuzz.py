@@ -597,6 +597,7 @@ def main():
     os.makedirs(outdir, exist_ok=True)
     cases = [args.case] if args.case is not None else range(args.cases)
     stats = {"cases": 0, "mutants": 0, "fail": 0, "timeout": 0}
+    kinds = {}
     for c in cases:
         text, sites = generate(args.seed, c, args.defs)
         path = os.path.join(outdir, f"fuzz_{args.seed}_{c}.ktt")
@@ -623,6 +624,7 @@ def main():
             with open(mpath, "w") as f:
                 f.write(mtext)
             stats["mutants"] += 1
+            kinds[kind] = kinds.get(kind, 0) + 1
             code, out = run(bin_, mpath, args.timeout, [])
             if code is None:
                 stats["timeout"] += 1
@@ -638,6 +640,8 @@ def main():
                 os.remove(mpath)
     print(f"fuzz seed {args.seed}: {stats['cases']} cases, {stats['mutants']} mutants, "
           f"{stats['fail']} failures, {stats['timeout']} timeouts (files in {outdir})")
+    if kinds:
+        print("mutants: " + ", ".join(f"{k} {n}" for k, n in sorted(kinds.items())))
     sys.exit(1 if stats["fail"] else 0)
 
 
