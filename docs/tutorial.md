@@ -256,7 +256,7 @@ negsuc zero
 loopSpaceS1 : Path U (Path S1 base base) Int
 pos (suc (suc zero))
   : Int
-λ i → hcomp k S1 [i = 0 -> base, i = 1 -> base] (loop ~i)
+λ i → hcomp k S1 [i = 0 -> base, i = 1 -> base] (hcomp k S1 [i = 0 -> base, i = 1 -> base] (loop ~i))
   : Path S1 base base
 ```
 

@@ -93,11 +93,11 @@ partial def mapTm (pre : Nat → Kubus.Tm → Option Kubus.Tm) (f : Nat → Nat 
   | .comp i a sys u0 => .comp i (go (c + 1) a) (sysUnder sys) (go c u0)
   | .hcomp i a sys u0 => .hcomp i (go c a) (sysUnder sys) (go c u0)
   | .fill i a sys u0 => .fill i (go (c + 1) a) (sysUnder sys) (go c u0)
+  | .hfill i a sys u0 => .hfill i (go c a) (sysUnder sys) (go c u0)
   | .glueTy a sys => .glueTy (go c a) (sys0 sys)
   | .glue sys a => .glue (sys0 sys) (go c a)
   | .unglue u b sys => .unglue (go c u) (go c b) (sys0 sys)
-  | .compU a sys => .compU (go c a) (sys0 sys)
-  | .unglueU u b sys => .unglueU (go c u) (go c b) (sys0 sys)
+  | .transp i a φ u0 => .transp i (go (c + 1) a) (mapI g c φ) (go c u0)
   | .data d k ps => .data d k (ps.map (go c))
   | .con n as ds => .con n (as.map (go c)) (ds.map (mapI g c))
   | .letE x t b => .letE x (go c t) (go (c + 1) b)
@@ -136,6 +136,8 @@ where
   | .comp i a sys u0 => .comp i (inlineLets a) (sys.map fun (r, t) => (r, inlineLets t)) (inlineLets u0)
   | .hcomp i a sys u0 => .hcomp i (inlineLets a) (sys.map fun (r, t) => (r, inlineLets t)) (inlineLets u0)
   | .fill i a sys u0 => .fill i (inlineLets a) (sys.map fun (r, t) => (r, inlineLets t)) (inlineLets u0)
+  | .hfill i a sys u0 => .hfill i (inlineLets a) (sys.map fun (r, t) => (r, inlineLets t)) (inlineLets u0)
+  | .transp i a φ u0 => .transp i (inlineLets a) φ (inlineLets u0)
   | .glueTy a sys => .glueTy (inlineLets a) (sys.map fun (r, t) => (r, inlineLets t))
   | .glue sys a => .glue (sys.map fun (r, t) => (r, inlineLets t)) (inlineLets a)
   | .unglue u b sys => .unglue (inlineLets u) (inlineLets b) (sys.map fun (r, t) => (r, inlineLets t))
@@ -372,6 +374,11 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
       | none => pure none
     return .plam (← elabT R env E.dext (.dim :: ks) b line)
   | .papp p r => return .papp (← elabT R env E ks p none) (← trI ks r)
+  | .transp _ a φ u0 => do
+    let L ← elabT R env E.dext (.dim :: ks) a none
+    let ⟨l, ⟨hL⟩⟩ ← KubusCore.Kernel.inferType R E.dext L
+    let u0' ← elabT R env E ks u0 (some ⟨L.dinst .zero, l, ⟨HasTy.dsubst hL trivial⟩⟩)
+    return .transp L (← trI ks φ) u0'
   | .comp _ a sys u0 => do
     let L ← elabT R env E.dext (.dim :: ks) a none
     let ⟨l, ⟨hL⟩⟩ ← KubusCore.Kernel.inferType R E.dext L
@@ -383,19 +390,17 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
     let ⟨l, ⟨hA⟩⟩ ← KubusCore.Kernel.inferType R E A
     let (ψ, u) ← elabSysUnder R env E ks sys fun _ hk => some ⟨A.dshift, l, ⟨HasTy.dwkCof E hk hA⟩⟩
     return .hcomp A ψ u (← elabT R env E ks u0 (some ⟨A, l, ⟨hA⟩⟩))
+  | .hfill _ a sys u0 => do
+    let A ← elabT R env E ks a none
+    let ⟨l, ⟨hA⟩⟩ ← KubusCore.Kernel.inferType R E A
+    let (ψ, u) ← elabSysUnder R env E ks sys fun _ hk => some ⟨A.dshift, l, ⟨HasTy.dwkCof E hk hA⟩⟩
+    return .plam (KubusCore.Tm.hfill A ψ u (← elabT R env E ks u0 (some ⟨A, l, ⟨hA⟩⟩)))
   | .fill _ a sys u0 => do
     let L ← elabT R env E.dext (.dim :: ks) a none
     let ⟨l, ⟨hL⟩⟩ ← KubusCore.Kernel.inferType R E.dext L
     let (ψ, u) ← elabSysUnder R env E ks sys fun _ hk => some ⟨L, l, ⟨HasTy.rsd E hk hL⟩⟩
     let u0' ← elabT R env E ks u0 (some ⟨L.dinst .zero, l, ⟨HasTy.dsubst hL trivial⟩⟩)
-    if !L.mentionsI 0 then
-      -- homogeneous filler, so that `fill … 1` is the `hcomp`
-      return .plam (KubusCore.Tm.hfill (L.dinst .zero) ψ u u0')
-    else
-      -- `⟨j⟩ comp (i. A(i ∧ j)) [ψ ↦ u(i ∧ j), j = 0 ↦ u0] u0`
-      let σ : Nat → KI := fun | 0 => .and (.var 0) (.var 1) | n + 1 => .var (n + 2)
-      let sys' := KubusCore.Tm.split ψ.shift.shift (u.dsubst σ) (.neg (.var 1)) u0'.dshift.dshift
-      return .plam (KubusCore.Tm.comp (L.dsubst σ) (.or ψ.shift (.neg (.var 0))) sys' u0'.dshift)
+    return .plam (KubusCore.Tm.fill L ψ u u0')
   | .glueTy a sys => do
     let A ← elabT R env E ks a none
     let ⟨l, _⟩ ← KubusCore.Kernel.inferType R E A
@@ -458,7 +463,6 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
   | .letE _ t b => do
     let t' ← elabT R env E ks t none
     elabT R env E (.defn t' :: ks) b exp
-  | .compU .. | .unglueU .. => throw "composition in the universe is not supported"
   | .data dn k ps => do
     let d ← env.dataIdx dn k
     let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d

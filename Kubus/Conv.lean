@@ -17,7 +17,7 @@ partial def levelOf (l : Nat) (v : Val) : M Nat := do
     let k ← freshAtom
     levelOf l (← papp line (atomF k))
   | .data d k _ => return (← lookupData d).level + k
-  | .glueTy b _ | .compU b _ => levelOf l b
+  | .glueTy b _ => levelOf l b
   | v =>
     match ← inferNe v with
     | some (.univ n) => pure n
@@ -52,10 +52,11 @@ partial def Tm.badSolution (m : Nat) (t : Tm) : Bool :=
   | .glob n _ => n.startsWith "?x" || n == metaName m
   | .papp t r => t.badSolution m || badI r
   | .con _ as ds => as.any (·.badSolution m) || ds.any badI
-  | .comp _ a sys u0 | .hcomp _ a sys u0 | .fill _ a sys u0 =>
+  | .comp _ a sys u0 | .hcomp _ a sys u0 | .fill _ a sys u0 | .hfill _ a sys u0 =>
     a.badSolution m || u0.badSolution m || sys.any fun (r, t) => badI r || t.badSolution m
-  | .glueTy a sys | .glue sys a | .compU a sys => a.badSolution m || sys.any fun (r, t) => badI r || t.badSolution m
-  | .unglue u b sys | .unglueU u b sys =>
+  | .transp _ a φ u0 => a.badSolution m || badI φ || u0.badSolution m
+  | .glueTy a sys | .glue sys a => a.badSolution m || sys.any fun (r, t) => badI r || t.badSolution m
+  | .unglue u b sys =>
     u.badSolution m || b.badSolution m || sys.any fun (r, t) => badI r || t.badSolution m
   | .pi _ a b | .sigma _ a b | .app a b | .pair a b | .letE _ a b | .ann a b => a.badSolution m || b.badSolution m
   | .lam _ b | .piI _ b | .plam _ b | .fst b | .snd b => b.badSolution m
@@ -117,8 +118,8 @@ mutual
 /-- Applications of the same global to convertible arguments are equal, without unfolding.
 (If the arguments differ, the caller unfolds; solutions made on the way are undone.) -/
 partial def gluedEq (l : Nat) (u v : Val) : M Bool := do
-  let .glued g k sp _ := u | return false
-  let .glued g' k' sp' _ := v | return false
+  let .glued g k sp := u | return false
+  let .glued g' k' sp' := v | return false
   if g != g' || k != k' || sp.length != sp'.length then return false
   let info ← lookupDef g
   let saved := (← get).metas
@@ -161,9 +162,6 @@ partial def conv (l : Nat) (ty u v : Val) : M Bool := do
   | .glueTy b sys =>
     if !(← conv l b (← unglueV u b sys) (← unglueV v b sys)) then return false
     sys.allM fun (α, te) => do conv l (← fstV te) (← faceV u α) (← faceV v α)
-  | .compU b es =>
-    if !(← conv l b (← unglueUV u b es) (← unglueUV v b es)) then return false
-    es.allM fun (α, e) => do conv l (← papp e Formula.one) (← faceV u α) (← faceV v α)
   | .data d k ps => convData l d k ps u v
   | _ => convNeB l u v
 
@@ -237,11 +235,6 @@ partial def convTy (l : Nat) (a b : Val) : M Bool := do
   | .glueTy b1 s1, .glueTy b2 s2 =>
     if !(← convTy l b1 b2) then return false
     convSysWith (fun α x y => do conv l (← equivPairTy 0 (← faceV b1 α)) x y) s1 s2
-  | .compU b1 s1, .compU b2 s2 =>
-    if !(← convTy l b1 b2) then return false
-    convSysWith (fun _ x y => do
-      let k ← freshAtom
-      convTy l (← papp x (atomF k)) (← papp y (atomF k))) s1 s2
   | _, _ => convNeB l a b
 
 /-- Compare neutral values; returns their type if equal. -/
@@ -283,7 +276,7 @@ partial def convNe' (l : Nat) (u v : Val) : M (Option Val) := do
     let ty0 ← if k == 0 then pure info.ty else eval [] (info.tyTm.lift k)
     let mut ty := ty0
     for (e, e') in env.reverse.zip env'.reverse do
-      match ty.unfold, e, e' with
+      match ← unfoldM ty, e, e' with
       | .pi _ dom envB cod, .v p, .v q =>
         if !(← conv l dom p q) then return none
         ty ← inst envB cod p
@@ -292,16 +285,20 @@ partial def convNe' (l : Nat) (u v : Val) : M (Option Val) := do
     | .pi _ dom envB cod =>
       if ← conv l dom a b then return some (← inst envB cod a) else return none
     | _ => pure none
-  | .comp l1 u1 s1, .comp l2 u2 s2 =>
+  | .transp l1 φ1 u1, .transp l2 φ2 u2 =>
+    if φ1 != φ2 then return none
     let k ← freshAtom
-    let a1 ← papp l1 (atomF k)
-    if !(← convTy l a1 (← papp l2 (atomF k))) then return none
+    if !(← convTy l (← papp l1 (atomF k)) (← papp l2 (atomF k))) then return none
     if !(← conv l (← papp l1 Formula.zero) u1 u2) then return none
+    return some (← papp l1 Formula.one)
+  | .hcomp a1 u1 s1, .hcomp a2 u2 s2 =>
+    if !(← convTy l a1 a2) then return none
+    if !(← conv l a1 u1 u2) then return none
     let ok ← convSysWith (fun α x y => do
       let k ← freshAtom
-      conv l (← faceV (← papp l1 (atomF k)) α) (← papp x (atomF k)) (← papp y (atomF k))) s1 s2
-    if ok then return some (← papp l1 Formula.one) else return none
-  | .unglue u b s, .unglue u' _ _ | .unglueU u b s, .unglueU u' _ _ =>
+      conv l (← faceV a1 α) (← papp x (atomF k)) (← papp y (atomF k))) s1 s2
+    if ok then return some a1 else return none
+  | .unglue u b s, .unglue u' _ _ =>
     let _ := s
     match ← convNe l u u' with
     | some _ => pure (some b)

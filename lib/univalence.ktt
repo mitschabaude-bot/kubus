@@ -19,16 +19,16 @@ def unglueIsEquivI {A : U} (w : (T : U) × Equiv T A) (i : I) : isEquiv (unglueI
     let c1 : fiber w.2.1 b := equivCtr w.2 b in
     let ctr : fiber (unglueI w i) b :=
       (glue [i = 0 -> c0.1, i = 1 -> c1.1] (hcomp j A [i = 0 -> c0.2 (~j), i = 1 -> c1.2 (~j)] b),
-       \j -> fill k A [i = 0 -> c0.2 (~k), i = 1 -> c1.2 (~k)] b (~j)) in
+       \j -> hfill k A [i = 0 -> c0.2 (~k), i = 1 -> c1.2 (~k)] b (~j)) in
     (ctr, \v l ->
       (glue [i = 0 -> (equivCtrPath (idEquiv A) b v l).1, i = 1 -> (equivCtrPath w.2 b v l).1]
          (hcomp j A [i = 0 -> (equivCtrPath (idEquiv A) b v l).2 (~j),
                      i = 1 -> (equivCtrPath w.2 b v l).2 (~j),
-                     l = 0 -> fill k A [i = 0 -> c0.2 (~k), i = 1 -> c1.2 (~k)] b j,
+                     l = 0 -> hfill k A [i = 0 -> c0.2 (~k), i = 1 -> c1.2 (~k)] b j,
                      l = 1 -> v.2 (~j)] b),
-       \j -> fill k A [i = 0 -> (equivCtrPath (idEquiv A) b v l).2 (~k),
+       \j -> hfill k A [i = 0 -> (equivCtrPath (idEquiv A) b v l).2 (~k),
                        i = 1 -> (equivCtrPath w.2 b v l).2 (~k),
-                       l = 0 -> fill m A [i = 0 -> c0.2 (~m), i = 1 -> c1.2 (~m)] b k,
+                       l = 0 -> hfill m A [i = 0 -> c0.2 (~m), i = 1 -> c1.2 (~m)] b k,
                        l = 1 -> v.2 (~k)] b (~j)))
 
 def EquivContr (A : U) : isContr^1 ((T : U) × Equiv T A) :=

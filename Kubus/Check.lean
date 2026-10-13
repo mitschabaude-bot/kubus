@@ -275,6 +275,8 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
     let tm ← check ctx' t ty
     recordHover ctx' p ty
     return tm
+  -- the expected type as given: inference compares against it before unfolding globals
+  let ty0 := ty
   let ty ← force ty
   -- against an implicit Π-type, insert an implicit lambda
   if let .pi x a env bTy := ty then
@@ -383,8 +385,8 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
       if (ctx.lookup c).isNone && (← getGlobals).ctors.contains c then
         let (tm, _) ← elabCon { ctx with pos := headPos ctx h } c (← explArgs ctx args) (some (d, k, ps))
         return tm
-      else checkInfer ctx t ty
-    | _, _ => checkInfer ctx t ty
+      else checkInfer ctx t ty0
+    | _, _ => checkInfer ctx t ty0
 
 partial def checkInfer (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
   let (tm, ty') ← inferIns ctx t
@@ -655,6 +657,30 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
     let (tsys, elems) ← checkSys ctx (some i) sys fun _ α _ => faceV av α
     checkBase ctx elems av vu0
     return (.hcomp i ta tsys tu0, av)
+  | .transp i a φ u0 =>
+    let (ctx', k) ← ctx.bindDim i
+    let (ta, _) ← inferType ctx' a
+    let tφ ← elabI ctx φ
+    let fφ ← evalI ctx.env tφ
+    let ak ← eval ctx'.env ta
+    let a0 ← act k Formula.zero ak
+    -- the line is constant where the cofibration holds
+    for α in fφ.faces do
+      if !(← convTyC ctx' (← faceV ak α) (← faceV a0 α)) then
+        err ctx s!"transp: the line {← ppVal ctx' ak} is not constant where the cofibration holds"
+    let tu0 ← check ctx u0 a0
+    return (.transp i ta tφ tu0, ← act k Formula.one ak)
+  | .hfill i a sys u0 =>
+    let (ta, _) ← inferType ctx a
+    let av ← eval ctx.env ta
+    let tu0 ← check ctx u0 av
+    let vu0 ← eval ctx.env tu0
+    let (tsys, elems) ← checkSys ctx (some i) sys fun _ α _ => faceV av α
+    checkBase ctx elems av vu0
+    let c ← eval ctx.env (.hcomp i ta tsys tu0)
+    let k ← freshAtom
+    let line : Val := .plam k av
+    return (.hfill i ta tsys tu0, .pathP line vu0 c)
   | .fill i a sys u0 =>
     let (ctx', _) ← ctx.bindDim i
     let (ta, _) ← inferType ctx' a
@@ -723,7 +749,7 @@ partial def inferAnnGlue (ctx : Ctx) (t a : Raw) : M (Tm × Val) := do
   let av ← eval ctx.env ta
   match ta with
   | .glueTy tA tsys =>
-    let g ← match av.unfold with
+    let g ← match ← unfoldM av with
       | .glueTy .. => pure av
       | _ => pure (.glueTy (← eval ctx.env tA) (← evalSys ctx.env tsys))
     match stripLoc t with

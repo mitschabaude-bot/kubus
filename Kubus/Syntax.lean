@@ -39,12 +39,13 @@ inductive Tm
   | hcomp (i : String) (a : Tm) (sys : List (ITm × Tm)) (u0 : Tm)
   /-- `fill i A [φ ↦ u] u0`: a path; `A` and the `u`s bind `i`. -/
   | fill (i : String) (a : Tm) (sys : List (ITm × Tm)) (u0 : Tm)
+  /-- `hfill i A [φ ↦ u] u0`: the homogeneous filler, a path; only the `u`s bind `i`. -/
+  | hfill (i : String) (a : Tm) (sys : List (ITm × Tm)) (u0 : Tm)
   | glueTy (a : Tm) (sys : List (ITm × Tm))
   | glue (sys : List (ITm × Tm)) (a : Tm)
   | unglue (u : Tm) (base : Tm) (sys : List (ITm × Tm))
-  /-- Composition in the universe; only produced by read-back. -/
-  | compU (a : Tm) (sys : List (ITm × Tm))
-  | unglueU (u : Tm) (base : Tm) (sys : List (ITm × Tm))
+  /-- `transp i A φ u0`: transport along the line `A` (binds `i`), constant where `φ` holds -/
+  | transp (i : String) (a : Tm) (φ : ITm) (u0 : Tm)
   | data (d : String) (k : Nat) (ps : List Tm)
   | con (c : String) (args : List Tm) (dims : List ITm)
   /-- The pattern-matching function body of the global `f`; its environment holds `f`'s parameters. -/
@@ -71,9 +72,10 @@ partial def Tm.occurs (k : Nat) : Tm → Bool
   | .pathP a u v => a.occurs k || u.occurs k || v.occurs k
   | .papp t r => t.occurs k || r.occurs k
   | .comp _ a sys u0 | .fill _ a sys u0 => a.occurs (k + 1) || sysOccurs (k + 1) k sys || u0.occurs k
-  | .hcomp _ a sys u0 => a.occurs k || sysOccurs (k + 1) k sys || u0.occurs k
-  | .glueTy a sys | .glue sys a | .compU a sys => a.occurs k || sysOccurs k k sys
-  | .unglue u b sys | .unglueU u b sys => u.occurs k || b.occurs k || sysOccurs k k sys
+  | .hcomp _ a sys u0 | .hfill _ a sys u0 => a.occurs k || sysOccurs (k + 1) k sys || u0.occurs k
+  | .glueTy a sys | .glue sys a => a.occurs k || sysOccurs k k sys
+  | .unglue u b sys => u.occurs k || b.occurs k || sysOccurs k k sys
+  | .transp _ a φ u0 => a.occurs (k + 1) || φ.occurs k || u0.occurs k
   | .data _ _ ps => ps.any (·.occurs k)
   | .con _ as ds => as.any (·.occurs k) || ds.any (·.occurs k)
   | .letE _ t b => t.occurs k || b.occurs (k + 1)
@@ -109,11 +111,11 @@ partial def Tm.lift (k : Nat) (t : Tm) : Tm :=
   | .comp i a sys u0 => .comp i (l a) (ls sys) (l u0)
   | .hcomp i a sys u0 => .hcomp i (l a) (ls sys) (l u0)
   | .fill i a sys u0 => .fill i (l a) (ls sys) (l u0)
+  | .hfill i a sys u0 => .hfill i (l a) (ls sys) (l u0)
   | .glueTy a sys => .glueTy (l a) (ls sys)
   | .glue sys a => .glue (ls sys) (l a)
   | .unglue u b sys => .unglue (l u) (l b) (ls sys)
-  | .compU a sys => .compU (l a) (ls sys)
-  | .unglueU u b sys => .unglueU (l u) (l b) (ls sys)
+  | .transp i a φ u0 => .transp i (l a) φ (l u0)
   | .con c as ds => .con c (as.map l) ds
   | .letE x t b => .letE x (l t) (l b)
   | .ann t ty => .ann (l t) (l ty)
@@ -159,11 +161,11 @@ partial def Tm.mapVars (f : Nat → Nat → Tm) (g : Nat → Nat → ITm) (c : N
   | .comp i a sys u0 => .comp i (a.mapVars f g (c + 1)) (sysUnder sys) (u0.mapVars f g c)
   | .hcomp i a sys u0 => .hcomp i (a.mapVars f g c) (sysUnder sys) (u0.mapVars f g c)
   | .fill i a sys u0 => .fill i (a.mapVars f g (c + 1)) (sysUnder sys) (u0.mapVars f g c)
+  | .hfill i a sys u0 => .hfill i (a.mapVars f g c) (sysUnder sys) (u0.mapVars f g c)
   | .glueTy a sys => .glueTy (a.mapVars f g c) (sys0 sys)
   | .glue sys a => .glue (sys0 sys) (a.mapVars f g c)
   | .unglue u b sys => .unglue (u.mapVars f g c) (b.mapVars f g c) (sys0 sys)
-  | .compU a sys => .compU (a.mapVars f g c) (sys0 sys)
-  | .unglueU u b sys => .unglueU (u.mapVars f g c) (b.mapVars f g c) (sys0 sys)
+  | .transp i a φ u0 => .transp i (a.mapVars f g (c + 1)) (φ.mapVars g c) (u0.mapVars f g c)
   | .data d k ps => .data d k (ps.map (·.mapVars f g c))
   | .con n as ds => .con n (as.map (·.mapVars f g c)) (ds.map (·.mapVars g c))
   | .letE x t b => .letE x (t.mapVars f g c) (b.mapVars f g (c + 1))
@@ -196,11 +198,11 @@ def Tm.mapChildrenM {m : Type → Type} [Monad m] (f : Nat → Tm → m Tm) : Tm
   | .comp i a sys u0 => return .comp i (← f 1 a) (← sysM 1 sys) (← f 0 u0)
   | .hcomp i a sys u0 => return .hcomp i (← f 0 a) (← sysM 1 sys) (← f 0 u0)
   | .fill i a sys u0 => return .fill i (← f 1 a) (← sysM 1 sys) (← f 0 u0)
+  | .hfill i a sys u0 => return .hfill i (← f 0 a) (← sysM 1 sys) (← f 0 u0)
   | .glueTy a sys => return .glueTy (← f 0 a) (← sysM 0 sys)
   | .glue sys a => return .glue (← sysM 0 sys) (← f 0 a)
   | .unglue u b sys => return .unglue (← f 0 u) (← f 0 b) (← sysM 0 sys)
-  | .compU a sys => return .compU (← f 0 a) (← sysM 0 sys)
-  | .unglueU u b sys => return .unglueU (← f 0 u) (← f 0 b) (← sysM 0 sys)
+  | .transp i a φ u0 => return .transp i (← f 1 a) φ (← f 0 u0)
   | .data d k ps => return .data d k (← ps.mapM (f 0))
   | .con n as ds => return .con n (← as.mapM (f 0)) ds
   | .letE x t b => return .letE x (← f 0 t) (← f 1 b)
@@ -277,6 +279,8 @@ inductive Raw
   | comp (i : String) (a : Raw) (sys : List (Raw × Raw)) (u0 : Raw)
   | hcomp (i : String) (a : Raw) (sys : List (Raw × Raw)) (u0 : Raw)
   | fill (i : String) (a : Raw) (sys : List (Raw × Raw)) (u0 : Raw)
+  | hfill (i : String) (a : Raw) (sys : List (Raw × Raw)) (u0 : Raw)
+  | transp (i : String) (a : Raw) (φ : Raw) (u0 : Raw)
   | glueTy (a : Raw) (sys : List (Raw × Raw))
   | glue (sys : List (Raw × Raw)) (a : Raw)
   | unglue (u : Raw)

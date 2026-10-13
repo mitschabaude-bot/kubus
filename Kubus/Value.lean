@@ -30,14 +30,12 @@ inductive Val
   | glueTy (base : Val) (sys : List (Face × Val))
   /-- `glue [φ ↦ t] a` -/
   | glue (a : Val) (sys : List (Face × Val))
-  /-- composition in the universe; `sys` holds lines of types -/
-  | compU (base : Val) (sys : List (Face × Val))
   /-- pattern-matching function `f` with parameters `env` -/
   | split (f : String) (k : Nat) (env : List EnvE)
-  /-- `v`, the value of the global `g^k` applied to the spine `sp` (innermost argument first).
-  Kept for printing definitions folded, and for comparing applications of the same global
-  without unfolding them. -/
-  | glued (g : String) (k : Nat) (sp : List EnvE) (v : Val)
+  /-- The global `g^k` applied to the spine `sp` (innermost argument first), unfolded only on
+  demand (`unfoldM`): definitions are printed folded, applications of the same global are
+  compared without unfolding them, and unfolding a body does not unfold the globals in it. -/
+  | glued (g : String) (k : Nat) (sp : List EnvE)
   -- neutrals
   | var (lvl : Nat) (ty : Val)
   | gvar (n : String) (ty : Val)
@@ -46,10 +44,13 @@ inductive Val
   | snd (p : Val)
   | papp (p : Val) (r : Formula)
   | splitApp (f : String) (k : Nat) (env : List EnvE) (arg : Val)
-  /-- stuck composition; `line` and `sys` hold lines -/
-  | comp (line : Val) (u0 : Val) (sys : List (Face × Val))
+  /-- stuck transport along `line` (a line of types), constant where `φ` holds; in a Π-type
+  it computes when applied -/
+  | transp (line : Val) (φ : Formula) (u0 : Val)
+  /-- stuck homogeneous composition (not in a higher inductive type); `sys` holds lines; in a
+  Π-type it computes when applied -/
+  | hcomp (ty : Val) (u0 : Val) (sys : List (Face × Val))
   | unglue (u : Val) (base : Val) (sys : List (Face × Val))
-  | unglueU (u : Val) (base : Val) (sys : List (Face × Val))
 
 inductive EnvE
   | v (v : Val)
@@ -61,46 +62,90 @@ instance : Inhabited EnvE := ⟨.d Formula.zero⟩
 
 abbrev Env := List EnvE
 
-/-- The value behind glued globals. -/
-def Val.unfold : Val → Val
-  | .glued _ _ _ v => v.unfold
-  | v => v
-
 mutual
 /-- Whether the atom `i` occurs free in a value (if not, substituting for it is the identity). -/
-partial def Val.hasAtom (i : Atom) : Val → Bool
+partial def Val.hasAtomRef (i : Atom) : Val → Bool
   | .univ _ => false
-  | .pi _ a env _ | .sigma _ a env _ => a.hasAtom i || envHasAtom i env
+  | .pi _ a env _ | .sigma _ a env _ => a.hasAtomRef i || envHasAtom i env
   | .lam _ env _ | .split _ _ env => envHasAtom i env
-  | .pair a b => a.hasAtom i || b.hasAtom i
-  | .piI l => l.hasAtom i
-  | .pathP l a b => l.hasAtom i || a.hasAtom i || b.hasAtom i
-  | .plam j b => j != i && b.hasAtom i
-  | .data _ _ ps | .con _ ps => ps.any (·.hasAtom i)
-  | .pcon _ as ds => as.any (·.hasAtom i) || ds.any (·.mentions i)
-  | .hcompF ty u sys => ty.hasAtom i || u.hasAtom i || sysHasAtom i sys
-  | .glueTy b sys | .glue b sys | .compU b sys => b.hasAtom i || sysHasAtom i sys
-  | .glued _ _ sp v => envHasAtom i sp || v.hasAtom i
-  | .var _ ty | .gvar _ ty => ty.hasAtom i
-  | .app f a => f.hasAtom i || a.hasAtom i
-  | .fst p | .snd p => p.hasAtom i
-  | .papp p r => p.hasAtom i || r.mentions i
-  | .splitApp _ _ env a => envHasAtom i env || a.hasAtom i
-  | .comp l u sys | .unglue u l sys | .unglueU u l sys => l.hasAtom i || u.hasAtom i || sysHasAtom i sys
+  | .pair a b => a.hasAtomRef i || b.hasAtomRef i
+  | .piI l => l.hasAtomRef i
+  | .pathP l a b => l.hasAtomRef i || a.hasAtomRef i || b.hasAtomRef i
+  | .plam j b => j != i && b.hasAtomRef i
+  | .data _ _ ps | .con _ ps => ps.any (·.hasAtomRef i)
+  | .pcon _ as ds => as.any (·.hasAtomRef i) || ds.any (·.mentions i)
+  | .hcompF ty u sys => ty.hasAtomRef i || u.hasAtomRef i || sysHasAtom i sys
+  | .glueTy b sys | .glue b sys => b.hasAtomRef i || sysHasAtom i sys
+  | .glued _ _ sp => envHasAtom i sp
+  | .var _ ty | .gvar _ ty => ty.hasAtomRef i
+  | .app f a => f.hasAtomRef i || a.hasAtomRef i
+  | .fst p | .snd p => p.hasAtomRef i
+  | .papp p r => p.hasAtomRef i || r.mentions i
+  | .splitApp _ _ env a => envHasAtom i env || a.hasAtomRef i
+  | .hcomp l u sys | .unglue u l sys => l.hasAtomRef i || u.hasAtomRef i || sysHasAtom i sys
+  | .transp l φ u => l.hasAtomRef i || φ.mentions i || u.hasAtomRef i
 
 partial def envHasAtom (i : Atom) : Env → Bool
   | [] => false
-  | .v v :: env => v.hasAtom i || envHasAtom i env
+  | .v v :: env => v.hasAtomRef i || envHasAtom i env
   | .d r :: env => r.mentions i || envHasAtom i env
 
 partial def sysHasAtom (i : Atom) : List (Face × Val) → Bool
   | [] => false
-  | (α, v) :: sys => α.mentions i || v.hasAtom i || sysHasAtom i sys
+  | (α, v) :: sys => α.mentions i || v.hasAtomRef i || sysHasAtom i sys
 end
 
+/-- `Val.hasAtomRef`, exploring each shared node only once (values are DAGs: closures share
+their environments). -/
+unsafe def Val.hasAtomUnsafe (i : Atom) (v : Val) : Bool :=
+  (go v).run' {}
+where
+  seen {α : Type} (x : α) : StateM (Std.HashSet USize) Bool := do
+    let p := ptrAddrUnsafe x
+    if (← get).contains p then return true
+    modify (·.insert p)
+    return false
+  go (v : Val) : StateM (Std.HashSet USize) Bool := do
+    if ← seen v then return false
+    match v with
+    | .univ _ => return false
+    | .pi _ a env _ | .sigma _ a env _ => return (← go a) || (← goEnv env)
+    | .lam _ env _ | .split _ _ env => goEnv env
+    | .pair a b => return (← go a) || (← go b)
+    | .piI l => go l
+    | .pathP l a b => return (← go l) || (← go a) || (← go b)
+    | .plam j b => return j != i && (← go b)
+    | .data _ _ ps | .con _ ps => ps.anyM go
+    | .pcon _ as ds => return (← as.anyM go) || ds.any (·.mentions i)
+    | .hcompF ty u sys => return (← go ty) || (← go u) || (← goSys sys)
+    | .glueTy b sys | .glue b sys => return (← go b) || (← goSys sys)
+    | .glued _ _ sp => goEnv sp
+    | .var _ ty | .gvar _ ty => go ty
+    | .app f a => return (← go f) || (← go a)
+    | .fst p | .snd p => go p
+    | .papp p r => return r.mentions i || (← go p)
+    | .splitApp _ _ env a => return (← goEnv env) || (← go a)
+    | .hcomp l u sys | .unglue u l sys => return (← go l) || (← go u) || (← goSys sys)
+    | .transp l φ u => return φ.mentions i || (← go l) || (← go u)
+  goEnv (env : Env) : StateM (Std.HashSet USize) Bool := do
+    match env with
+    | [] => return false
+    | e :: rest =>
+      if ← seen env then return false
+      let here ← match e with
+        | .v v => go v
+        | .d r => pure (r.mentions i)
+      return here || (← goEnv rest)
+  goSys (sys : List (Face × Val)) : StateM (Std.HashSet USize) Bool :=
+    sys.anyM fun (α, v) => do return α.mentions i || (← go v)
+
+/-- Whether the atom `i` occurs free in a value (if not, substituting for it is the identity). -/
+@[implemented_by Val.hasAtomUnsafe]
+def Val.hasAtom (i : Atom) (v : Val) : Bool := v.hasAtomRef i
+
 def Val.isNeutral : Val → Bool
-  | .var .. | .gvar .. | .app .. | .fst _ | .snd _ | .papp .. | .splitApp .. | .comp .. | .unglue ..
-  | .unglueU .. => true
+  | .var .. | .gvar .. | .app .. | .fst _ | .snd _ | .papp .. | .splitApp .. | .transp .. | .hcomp ..
+  | .unglue .. => true
   | _ => false
 
 /-! ## Global declarations -/
@@ -123,9 +168,6 @@ structure DataInfo where
   level : Nat
   ctors : List CtorInfo
   isHIT : Bool
-  /-- closed, no path constructors, and all fields are again closed first-order data:
-  then transport along a constant line is the identity (regularity) -/
-  firstOrder : Bool
   /-- the declaration mentions no universes, so displacing it changes nothing -/
   liftInvariant : Bool
   deriving Inhabited
