@@ -184,19 +184,21 @@ theorem eqSub_params (hS : SigClosed S) (hW : WfSig S) {d : Nat}
     have T1 := tySub_params hS hD ht c (h0 τ1) j (by omega)
     have T2 := tySub_params hS hD ht' c (h0 τ2) j (by omega)
     have hA : D.params[j]? = some D.params[j] := List.getElem?_eq_getElem (by omega)
-    obtain ⟨-, -, lA, hAt⟩ := (hW.2 d D hD).2.1 j _ hA
-    have hAt0 := htr hAt
     have hcl := hS.params d D j _ hD hA
-    have F := (sub_ty hS hAt0).2.2 T1 T2 ih
     have hl1 : ((ps.toList.take j).reverse).length = j := by simp; omega
     have hl2 : ((ps'.toList.take j).reverse).length = j := by simp; omega
-    rw [subst_lsub_closed (by rw [hl1]; exact hcl), subst_lsub_closed (by rw [hl2]; exact hcl)] at F
     have hp1 : ps.toList[j]? = some ps.toList[j] := List.getElem?_eq_getElem (by omega)
     have hp2 : ps'.toList[j]? = some ps'.toList[j] := List.getElem?_eq_getElem (by omega)
     have ha1 := tele_get ht j _ _ hp1 hA
     have ha2 := tele_get ht' j _ _ hp2 hA
     rw [List.append_nil] at ha1 ha2
-    have ha2' := HasTy0.conv ha2 (EqTm0.symm F)
+    have ha2' : HasTy0 S Ψ' Φ' Γ' ps'.toList[j] (D.params[j].substList (ps.toList.take j).reverse) := by
+      rcases ((hW.2 d D hD).2.1 j _ hA).2.2 with hAt | ⟨k, -, hAk⟩
+      · have hAt0 := htr hAt
+        have F := (sub_ty hS hAt0).2.2 T1 T2 ih
+        rw [subst_lsub_closed (by rw [hl1]; exact hcl), subst_lsub_closed (by rw [hl2]; exact hcl)] at F
+        exact HasTy0.conv ha2 (EqTm0.symm F)
+      · rw [hAk] at ha2 ⊢; exact ha2
     have hinj := EqTm0.dataInjAt hD hps hps' e hp1 hp2 hA ha1 ha2'
     have := ih.cons (A := D.params[j]) (a1 := ps.toList[j]) (a2 := ps'.toList[j])
       (by rw [subst_lsub_closed (by rw [hl1]; exact hcl)]; exact hinj)

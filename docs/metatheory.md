@@ -28,7 +28,7 @@ Five commits change only `Rules.lean`, `Syntax.lean` and the kernel, in order:
 
 Patches 1, 2 and 5 only add rules; the kernel never uses them.
 
-6. "spec: C1 fixes" (on top of C1, 66c2fba): `hcompCon` composes recursive arguments in `data d ps` rather than `data d ps.dshift` (`hcomp`/`hfill` take their type in the base context; the shifted one is wrong when the parameters mention interval variables), and takes the componentwise side condition `uargs(0) ≡ args` under `φ` as a premise: `u(0) ≡ con … args` does not give it, since constructors are not injective in the spec. The kernel does not reduce `hcompCon` yet. The lib certifies with all five patches. The model's `Sound.lean` needs cases for the new rules (injectivity via the code injectivity lemmas, `noConf` vacuously since equal codes have equal heads, `glueBeta`'s and `Wf`'s extra premises are only more assumptions).
+6. "spec: C1 fixes" (on top of C1, 66c2fba): `hcompCon` composes recursive arguments in `data d ps` rather than `data d ps.dshift` (`hcomp`/`hfill` take their type in the base context; the shifted one is wrong when the parameters mention interval variables), and takes the componentwise side condition `uargs(0) ≡ args` under `φ` as a premise: `u(0) ≡ con … args` does not give it, since constructors are not injective in the spec. The lib certifies with all five patches. The model's `Sound.lean` needs cases for the new rules (injectivity via the code injectivity lemmas, `noConf` vacuously since equal codes have equal heads, `glueBeta`'s and `Wf`'s extra premises are only more assumptions).
 
 ## Results
 
