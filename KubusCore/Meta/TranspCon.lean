@@ -157,4 +157,55 @@ theorem ptL_post (C : Ctor) (as R : List Tm) (τ' : Nat → I) :
     · simp only [List.map_cons, ptL_post C as R τ' k, List.getD_eq_getElem?_getD, List.getElem?_map]
       congr 1; cases as[k]? <;> rfl
 
+/-! ## Parameters: injectivity as an equality of substitutions -/
+
+theorem subst_lsub_closed {A : Tm} {L : List Tm} (h : A.closedB L.length 0 = true) (c : Nat) (τ : Nat → I) :
+    A.subst (lsub L c) τ = A.substList L := by
+  rw [substList_eq_lsub]
+  exact closed_subst_eq A _ 0 _ _ _ _ h (fun x hx => by rw [lsub_lt hx, lsub_lt hx]) (fun i hi => by omega)
+
+theorem eqSub_params (hS : SigClosed S) (hW : WfSig S) {d : Nat}
+    (htr : ∀ {Ψ' Φ' Γ' t A}, HasTy (S.take d) Ψ' Φ' Γ' t A → HasTy0 S Ψ' Φ' Γ' t A)
+    {D : DataDecl} (hD : S[d]? = some (.data D)) {Ψ' Φ' Γ'} {ps ps' : Tm} {l : Nat}
+    (hps : ps = Tm.ofList ps.toList) (hps' : ps' = Tm.ofList ps'.toList)
+    (e : EqTm0 S Ψ' Φ' Γ' (data d ps) (data d ps') (univ l))
+    (ht : HasTele0 S Ψ' Φ' Γ' ps D.params []) (ht' : HasTele0 S Ψ' Φ' Γ' ps' D.params [])
+    (c : Nat) (τ1 τ2 : Nat → I) :
+    ∀ j, j ≤ D.params.length → EqSub S 0 (D.paramCtx j) Ψ' Φ' Γ'
+      (lsub (ps.toList.take j).reverse c) τ1 (lsub (ps'.toList.take j).reverse c) τ2
+  | 0, _ => ⟨fun x A hx => by simp [DataDecl.paramCtx, Ctx.lookup] at hx, fun i hi => absurd hi (Nat.not_lt_zero _)⟩
+  | j + 1, hj => by
+    have hw := wf_of_tele ht
+    have hpl : ps.toList.length = D.params.length := by simpa using tele_length ht
+    have hpl' : ps'.toList.length = D.params.length := by simpa using tele_length ht'
+    have ih := eqSub_params hS hW htr hD hps hps' e ht ht' c τ1 τ2 j (by omega)
+    have h0 : ∀ τ σ, TySub S 0 .one [] Ψ' Φ' Γ' σ τ :=
+      fun τ σ => tySub_nil (fun i hi => absurd hi (Nat.not_lt_zero _)) (ent_one _) hw
+    have T1 := tySub_params hS hD ht c (h0 τ1) j (by omega)
+    have T2 := tySub_params hS hD ht' c (h0 τ2) j (by omega)
+    have hA : D.params[j]? = some D.params[j] := List.getElem?_eq_getElem (by omega)
+    obtain ⟨-, -, lA, hAt⟩ := (hW.2 d D hD).2.1 j _ hA
+    have hAt0 := htr hAt
+    have hcl := hS.params d D j _ hD hA
+    have F := (sub_ty hS hAt0).2.2 T1 T2 ih
+    have hl1 : ((ps.toList.take j).reverse).length = j := by simp; omega
+    have hl2 : ((ps'.toList.take j).reverse).length = j := by simp; omega
+    rw [subst_lsub_closed (by rw [hl1]; exact hcl), subst_lsub_closed (by rw [hl2]; exact hcl)] at F
+    have hp1 : ps.toList[j]? = some ps.toList[j] := List.getElem?_eq_getElem (by omega)
+    have hp2 : ps'.toList[j]? = some ps'.toList[j] := List.getElem?_eq_getElem (by omega)
+    have ha1 := tele_get ht j _ _ hp1 hA
+    have ha2 := tele_get ht' j _ _ hp2 hA
+    rw [List.append_nil] at ha1 ha2
+    have ha2' := HasTy0.conv ha2 (EqTm0.symm F)
+    have hinj := EqTm0.dataInjAt hD hps hps' e hp1 hp2 hA ha1 ha2'
+    have := ih.cons (A := D.params[j]) (a1 := ps.toList[j]) (a2 := ps'.toList[j])
+      (by rw [subst_lsub_closed (by rw [hl1]; exact hcl)]; exact hinj)
+    rw [consT_lsub, consT_lsub] at this
+    have ht1 : (ps.toList.take (j + 1)).reverse = ps.toList[j] :: (ps.toList.take j).reverse := by
+      rw [List.take_add_one, List.getElem?_eq_getElem (by omega)]; simp
+    have ht2 : (ps'.toList.take (j + 1)).reverse = ps'.toList[j] :: (ps'.toList.take j).reverse := by
+      rw [List.take_add_one, List.getElem?_eq_getElem (by omega)]; simp
+    rw [paramCtx_succ D (by omega), ht1, ht2]
+    exact this
+
 end KubusCore.Meta
