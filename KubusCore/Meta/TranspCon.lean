@@ -443,6 +443,34 @@ theorem transpCon_inv :
         exact this
       · exact hTel j hj hjk
 
+/-- The contractum of `transpCon`, typed at the end of the line. -/
+theorem transpCon_typed {rs : List I} (hrs : rs.length = C.dims) (hrsc : ∀ r ∈ rs, r.Scoped Ψ) :
+    HasTy0 S Ψ Φ Γ (con d c (ps.dinst .one)
+      (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs)
+      (data d (ps.dinst .one)) := by
+  obtain ⟨-, -, -, -, -, Tel⟩ := transpCon_inv hS hW htr hD hC hps htele hL hφ hc _ (Nat.le_refl _)
+  have hw : Wf0 S Ψ Φ Γ := wf_of_tele htele
+  have hal : args.toList.length = C.args.length := by
+    have := tele_length htele; rwa [argTys_length] at this
+  obtain ⟨D', hD', hptL⟩ := gen_data_tele hL rfl
+  rw [hD] at hD'; cases hD'
+  have hpt1 : HasTele0 S Ψ Φ Γ (ps.dinst .one) D.params [] := by
+    have := HasTele0.post (I.inst0 .one) hw (fun t B h => HasTy0.dsubst hS h (r := .one) trivial) hptL
+      (params_closed hS hD)
+    simpa using this
+  have heq := transpTele_eq (C.argTy d D.params.length) ps.toList φ args.toList args.toList 0 rfl
+  simp only [hal, ← List.range_eq_range'] at heq
+  rw [show ([] : List Tm) = (tFills (C.argTy d D.params.length) ps.toList φ args.toList 0).reverse from rfl, heq]
+  refine HasTy0.con hD hC (isList_subst hps _ _) (HasTy0.data hD (hW.2 d D hD).1 hpt1) hpt1 ?_ hrs hrsc
+  apply HasTele0.ofList_of hw _ _ _ (by simp [argTys_length])
+  intro k a B ha hB
+  have hk : k < C.args.length := by
+    have := (List.getElem?_eq_some_iff.1 ha).1; simpa using this
+  rw [argTys_get hk] at hB; cases hB
+  have := Tel k hk
+  rw [List.getD_eq_getElem?_getD, ha] at this
+  exact this
+
 end
 
 end KubusCore.Meta
