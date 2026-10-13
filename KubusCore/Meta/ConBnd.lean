@@ -336,6 +336,127 @@ theorem pt_agree (C : Ctor) {as R : List Tm} {n x : Nat} (hlen : as.length = n)
     simp only [Option.getD_none]
     congr 1; omega
 
+
+theorem isRec_true {C : Ctor} {k : Nat} (h : C.isRec k = true) : C.args[k]? = some .recur := by
+  simpa [Ctor.isRec] using h
+
+theorem argTy_rec {C : Ctor} {d np k : Nat} (h : C.isRec k = true) :
+    C.argTy d np k = .data d (Ctor.paramVars np k) := by
+  simp [Ctor.argTy, isRec_true h]
+
+/-- The boundary, typed by recursion on its simple structure. -/
+theorem bnd_rec (hS : SigClosed S) {d : Nat}
+    (htr : ∀ {Ψ' Φ' Γ' t u A}, EqTm (S.take d) Ψ' Φ' Γ' t u A → EqTm0 S Ψ' Φ' Γ' t u A)
+    {Ψ Φ Γ} {D : DataDecl} {c : Nat} {C : Ctor} {ps : Tm} {ψ : I} {σp σ : Nat → Tm} {τ : Nat → I}
+    (hD : S[d]? = some (.data D)) (hps : ps = Tm.ofList ps.toList)
+    (hdata : HasTy0 S Ψ Φ Γ (data d ps) (Tm.univ D.level)) (hpt : HasTele0 S Ψ Φ Γ ps D.params [])
+    (hσ : TySub S C.dims ψ (D.pointCtx d C C.args.length) Ψ Φ Γ σp τ)
+    (hag : ∀ X, C.mentionsRec C.args.length X = false →
+      (X.ren (C.pointRen C.args.length) id).subst σp τ = X.subst σ τ)
+    (hlook : ∀ j T, j < C.args.length → (D.argCtx d C C.args.length).lookup j = some T →
+      HasTy0 S Ψ Φ Γ (σ j) (T.subst σ τ))
+    (hpv : (Ctor.paramVars D.params.length C.args.length).subst σ τ = ps)
+    (hτ : ∀ i < C.dims, (τ i).Scoped Ψ) (t : Tm) :
+    (Ctor.simpleB D.ctors d D.params.length c C.args.length C t = true →
+      Ctor.bndTyped (S.take d) C.dims ψ (D.argCtx d C C.args.length) C (D.pointCtx d C C.args.length)
+        D.level D.ctors d D.params.length t →
+      t.closedB (D.params.length + C.args.length) C.dims = true →
+      HasTy0 S Ψ Φ Γ (t.subst σ τ) (data d ps)) ∧
+    (∀ (c' : Nat) (C' : Ctor) (k : Nat) (prev : List Tm), D.ctors[c']? = some C' → prev.length = k →
+      Ctor.simpleArgs D.ctors d D.params.length c C.args.length C C' k t = true →
+      Ctor.bndTypedArgs (S.take d) C.dims ψ (D.argCtx d C C.args.length) C (D.pointCtx d C C.args.length)
+        D.level D.ctors d D.params.length C' (Ctor.paramVars D.params.length C.args.length) k prev t →
+      t.closedB (D.params.length + C.args.length) C.dims = true →
+      HasTele0 S Ψ Φ Γ (t.subst σ τ) ((List.range' k t.toList.length).map (C'.argTy d D.params.length))
+        (prev.map (·.subst σ τ) ++ ps.toList.reverse)) := by
+  have hpl : ps.toList.length = D.params.length := by have := tele_length hpt; simpa using this
+  -- the parameters, instantiated by a list ending in `ps`
+  have hpvL : ∀ (L : List Tm) (k : Nat), L.length = k →
+      (Ctor.paramVars D.params.length k).substList (L ++ ps.toList.reverse) = ps := by
+    intro L k hL
+    rw [substList_eq_lsub, paramVars_subst hpl, ← hps]
+    intro p hp
+    apply lsub_of_getElem?
+    have := getElem?_params (X := L) hp
+    rwa [hL, hpl] at this
+  -- the type of a variable for a recursive argument
+  have hvar : ∀ j, j < C.args.length → C.isRec (C.args.length - 1 - j) = true →
+      HasTy0 S Ψ Φ Γ (σ j) (data d ps) := by
+    intro j hj hr
+    have hl := lookup_of_get _ _ _ (argCtx_get D d C hj)
+    have := hlook j _ hj hl
+    rwa [argTy_rec hr, Tm.ren, paramVars_ren,
+      show C.args.length - 1 - j + (j + 1) = C.args.length by omega, Tm.subst, hpv] at this
+  induction t with
+  | var j =>
+    refine ⟨fun h _ _ => ?_, fun _ _ _ _ _ _ h => by simp [Ctor.simpleArgs] at h⟩
+    simp only [Ctor.simpleB, Bool.and_eq_true, decide_eq_true_eq] at h
+    exact hvar j h.1 h.2
+  | con d' c' ps' as' rs' _ ihas =>
+    refine ⟨fun h hb hcl => ?_, fun _ _ _ _ _ _ h => by simp [Ctor.simpleArgs] at h⟩
+    simp only [Ctor.simpleB, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
+    obtain ⟨⟨⟨rfl, hc'c⟩, rfl⟩, h⟩ := h
+    cases hc' : D.ctors[c']? with
+    | none => simp [hc'] at h
+    | some C' =>
+      simp only [hc', Bool.and_eq_true, beq_iff_eq] at h
+      obtain ⟨⟨hlen, hdims⟩, hsa⟩ := h
+      simp only [Ctor.bndTyped, hc'] at hb
+      simp only [closedB, Bool.and_eq_true, List.all_eq_true] at hcl
+      have ht := ihas.2 c' C' 0 [] hc' rfl hsa hb hcl.1.2
+      rw [hlen, ← List.range_eq_range'] at ht
+      simp only [Tm.subst, hpv]
+      exact HasTy0.con hD hc' hps hdata hpt ht (by simp [hdims])
+        (fun r hr => by
+          simp only [List.mem_map] at hr
+          obtain ⟨r0, hr0, rfl⟩ := hr
+          exact scoped_subst ((I.scopedB_iff _ _).1 (hcl.2 r0 hr0)) hτ)
+  | tnil =>
+    refine ⟨fun h => by simp [Ctor.simpleB] at h, fun _ _ _ _ _ _ _ _ _ => ?_⟩
+    exact HasTele0.nil (wf_of_ty hdata)
+  | tcons a as iha ihas =>
+    refine ⟨fun h => by simp [Ctor.simpleB] at h, fun c' C' k prev hc' hprev h hb hcl => ?_⟩
+    simp only [Ctor.simpleArgs, Bool.and_eq_true] at h
+    simp only [Ctor.bndTypedArgs] at hb
+    simp only [closedB, Bool.and_eq_true] at hcl
+    have htl := ihas.2 c' C' (k + 1) (a :: prev) hc' (by simp [hprev]) h.2 hb.2.2 hcl.2
+    show HasTele0 S Ψ Φ Γ (Tm.tcons (a.subst σ τ) (as.subst σ τ))
+      (C'.argTy d D.params.length k :: (List.range' (k + 1) as.toList.length).map (C'.argTy d D.params.length))
+      (prev.map (·.subst σ τ) ++ ps.toList.reverse)
+    refine HasTele0.cons ?_ (by simpa using htl)
+    cases hr : C'.isRec k
+    · simp only [hr, Bool.false_eq_true, if_false] at h
+      obtain ⟨hsa, -⟩ := h
+      cases a with
+      | var j =>
+        simp only [Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true'] at hsa
+        obtain ⟨hj, hjr⟩ := hsa
+        have hl := lookup_of_get _ _ _ (argCtx_get D d C hj)
+        obtain ⟨hmT, hmY, he⟩ := hb.1 j _ rfl hr hl
+        have he0 := (sub_eq hS (htr he)).2 hσ
+        rw [hag _ hmT, hag _ hmY] at he0
+        have hx := HasTy0.conv (hlook j _ hj hl) he0
+        have hcl' : (C'.argTy d D.params.length k).closedB
+            ((prev ++ (Ctor.paramVars D.params.length C.args.length).toList.reverse).length) 0 = true := by
+          have := argTy_closed hS hD hc' k
+          simp only [List.length_append, List.length_reverse, paramVars_toList, List.length_map,
+            List.length_range, hprev]
+          rwa [Nat.add_comm]
+        rw [substList_subst hcl', List.map_append, List.map_reverse] at hx
+        have hpvl : (Ctor.paramVars D.params.length C.args.length).toList.map (·.subst σ τ) = ps.toList := by
+          rw [← hpv, toList_subst (by unfold IsList; rw [Ctor.paramVars, toList_ofList])]
+        rw [hpvl] at hx
+        exact hx
+      | _ => simp at hsa
+    · simp only [hr, if_true] at h
+      have := (iha.1 h.1 (hb.2.1 hr) hcl.1)
+      rw [argTy_rec hr, substList_eq_lsub]
+      simp only [Tm.subst]
+      rw [← substList_eq_lsub, hpvL _ k (by simp [hprev])]
+      exact this
+  | _ =>
+    exact ⟨fun h => by simp [Ctor.simpleB] at h, fun _ _ _ _ _ _ h => by simp [Ctor.simpleArgs] at h⟩
+
 theorem conBnd_typed (hW : WfSig S) {d : Nat}
     (htr : ∀ {Ψ' Φ' Γ' t u A}, EqTm (S.take d) Ψ' Φ' Γ' t u A → EqTm0 S Ψ' Φ' Γ' t u A)
     {Ψ Φ Γ} {D : DataDecl} {c : Nat} {C : Ctor} {ps args : Tm} {rs : List I} {k : Nat} {ψ : I} {b : Tm}
