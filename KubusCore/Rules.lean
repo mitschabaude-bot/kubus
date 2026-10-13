@@ -478,7 +478,7 @@ def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   let np := D.params.length
   D.level + 1 ≤ maxLevel ∧
   (∀ (j : Nat) (A : Tm), D.params[j]? = some A → A.closedB j 0 = true ∧ A.mentionsData d = false ∧
-    ∃ l, HasTy S 0 .one (D.paramCtx j) A (.univ l)) ∧
+    (HasTy S 0 .one (D.paramCtx j) A (.univ D.level) ∨ ∃ k ≤ D.level, A = .univ k)) ∧
   ∀ (c : Nat) (C : Ctor), D.ctors[c]? = some C →
     let Sc := S ++ [.data (D.truncate c)]
     (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
