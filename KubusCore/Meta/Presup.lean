@@ -1,4 +1,4 @@
-import KubusCore.Meta.KanGlue
+import KubusCore.Meta.KanU
 
 /-!
 # Metatheory: presupposition
@@ -7,9 +7,9 @@ import KubusCore.Meta.KanGlue
 contracta of the computation rules listed in `ContractaTyped` are typed whenever the redex is.
 These are the rules whose contractum's typing would have to be read off the redex's typing
 through conversions, which needs injectivity of type formers (`docs/metatheory.md`), or which
-are long typing derivations not yet done (`hcomp` in `U`). All other rules are proven here:
+are not yet done (boundaries of constructors). All other rules are proven here:
 structural rules, congruences, η-rules, the face rules and the boundary rules of systems,
-`transp` and `hcomp`, `hcomp` in `Π`, `(i : I) → A` (`HcompTyped.lean`), `PathP` (`KanPath.lean`), `Σ` (`KanSigma.lean`) and Glue types (`KanGlue.lean`), and the Glue face
+`transp` and `hcomp`, `hcomp` in `Π`, `(i : I) → A` (`HcompTyped.lean`), `PathP` (`KanPath.lean`), `Σ` (`KanSigma.lean`) Glue types (`KanGlue.lean`) and `U` (`KanU.lean`), and the Glue face
 and η rules.
 -/
 
@@ -38,8 +38,6 @@ structure ContractaTyped (S : Sig) : Prop where
     HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
     HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
     I.Entails δ φ.forall0 → I.Entails φ.forall0 δ → HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) T
-  hcompU : ∀ {Ψ Φ Γ φ u u0 T l}, HasTy0 S Ψ Φ Γ (hcomp (univ l) φ u u0) T →
-    HasTy0 S Ψ Φ Γ (hcompU φ u u0) T
   conBnd : ∀ {Ψ Φ Γ d D c C ps args rs} {k : Nat} {ψ : I} {b T : Tm}, S[d]? = some (.data D) →
     D.ctors[c]? = some C →
     C.bnd[k]? = some (ψ, b) → I.Entails Φ (Ctor.cofAt ψ rs) →
@@ -365,7 +363,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.hcompGlue _ Ψ Φ Γ A φ T' e ψ u u0 T l h0 h1 h2 =>
     ⟨h0, hcompGlue_typed hS h0, pre_ty h0⟩
   | @EqTm0.hcompU _ Ψ Φ Γ φ u u0 T l h0 =>
-    ⟨h0, hC.hcompU h0, pre_ty h0⟩
+    ⟨h0, hcompU_typed hS h0, pre_ty h0⟩
   | @EqTm0.glueFace _ Ψ Φ Γ A φ T e G h0 h1 =>
     by
       obtain ⟨l, ⟨_, hφ, hT', _⟩, ch⟩ := gen_glue hS h1 rfl
