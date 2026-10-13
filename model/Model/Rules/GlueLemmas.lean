@@ -372,6 +372,86 @@ theorem eqFun_res' {T A v x : V} (hT : IsKV m T) (hv : v ∈ El (equivCode m T A
   obtain ⟨p, q, hp, rfl⟩ := equiv_pair hT hv
   rw [fstV_res_pairV, fstV_pairV hp]
 
+theorem sem_glueEl_cases {e t a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
+    (hne : sem S (.glueEl φ e t a) m ρ γ ≠ ∅) :
+    ((ival ρ φ).holds ∧ eqFun m (sem S e m ρ γ) (sem S t m ρ γ) = sem S a m ρ γ ∧
+        sem S (.glueEl φ e t a) m ρ γ = sem S t m ρ γ) ∨
+      (¬ (ival ρ φ).holds ∧ IsKV m (sem S a m ρ γ) ∧ sem S (.glueEl φ e t a) m ρ γ =
+        glueV m (ival ρ φ).face (partialKV m (ival ρ φ).face (faceVals S t ρ γ)) (sem S a m ρ γ)) := by
+  simp only [sem, interp] at hne ⊢
+  split at hne
+  · split at hne
+    · left; rw [if_pos ‹_›, if_pos ‹_›]; exact ⟨‹_›, ‹_›, rfl⟩
+    · exact absurd rfl hne
+  · split at hne
+    · right; rw [if_neg ‹_›, if_pos ‹_›]; exact ⟨‹_›, ‹_›, rfl⟩
+    · exact absurd rfl hne
+
+theorem here_empty : here m (∅ : V) = ∅ := dat_empty' _
+
+theorem ungAt_empty (φ : Cof m) (e : V) : ungAt m φ e ∅ = ∅ := by
+  unfold ungAt
+  split
+  · rw [if_neg (not_isKV_empty)]
+  · rw [here_empty, π2_empty, π2_empty]
+
+theorem glueC_shape {A : V} {φ : Cof m} {Tp ep : V} (hn : ¬ φ.holds) (hφ : φ.IsCof) :
+    shapeOf (glueC m A φ Tp ep) (Hom.id m) =
+      tagZ tGlue (ZFSet.pair (res (Hom.id m) A) (ZFSet.pair (enc φ) (ZFSet.pair (res (Hom.id m) Tp)
+        (res (Hom.id m) ep)))) := by
+  unfold glueC
+  rw [shapeOf_mkKV, hφ.restr_id, if_neg hn]
+  simp [glueDatum]
+
+theorem glueC_ne_univC (A : V) {φ : Cof m} (Tp ep : V) (hn : ¬ φ.holds) (hφ : φ.IsCof) (l : ℕ) :
+    glueC m A φ Tp ep ≠ univC m l := by
+  intro h
+  have := congrArg (codeTag m) h
+  rw [codeTag_glueC hn hφ, codeTag_univC] at this
+  simp [tGlue, tUniv] at this
+
+/-- Inversion of well-formedness for Glue codes (at a stage where the face fails). -/
+theorem WF.glue_inv {l : ℕ} {A : V} {φ : Cof m} {Tp ep : V} (hn : ¬ φ.holds) (hφ : φ.IsCof)
+    (h : WF l m (glueC m A φ Tp ep)) : WF l m (Model.res (Hom.id m) A) := by
+  generalize hc : glueC m A φ Tp ep = c at h
+  have htag : codeTag m c = natZ tGlue := by rw [← hc]; exact codeTag_glueC hn hφ
+  unfold WF at h
+  cases h with
+  | empty => simp [tEmpty, tGlue] at htag
+  | pi => simp [tPi, tGlue] at htag
+  | sigma => simp [tSigma, tGlue] at htag
+  | path => simp [codeTag, pathC, pathDatum, tagZ, tPath, tGlue] at htag
+  | ipi => simp [codeTag, ipiC, ipiDatum, tagZ, tIPi, tGlue] at htag
+  | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tGlue] at htag
+  | @glue _ A' φ' Tp' ep' hA' hφ' hn' _ _ _ _ _ _ =>
+    have h1 := congrArg (fun c => shapeOf c (Hom.id m)) hc
+    simp only at h1
+    rw [glueC_shape hn' hφ', glueC_shape hn hφ, tagZ_inj] at h1
+    have h2 := (pair_inj'.1 h1.2).1
+    rw [res_id (wf_props l m A' hA').1.kv] at h2
+    rw [h2]; exact hA'
+
+theorem El_glueC_id' {A : V} {φ : Cof m} {Tp ep : V} (hn : ¬ φ.holds) (hφ : φ.IsCof)
+    (hTp : IsKV m Tp) (hep : IsKV m ep) :
+    El (glueC m A φ Tp ep) (Hom.id m) = glueElSet m (Model.res (Hom.id m) A) φ Tp ep := by
+  simp only [El, glueC, dat_mkKV, hφ.restr_id, if_neg hn, glueDatum, π1π2_quad, res_id hTp, res_id hep]
+
+/-- The unglued component of an element of a Glue type (at a stage where the face fails). -/
+theorem glue_elem {A : V} {φ : Cof m} {Tp ep g : V} {l : ℕ} (hn : ¬ φ.holds) (hφ : φ.IsCof)
+    (hTp : IsKV m Tp) (hep : IsKV m ep) (hW : WF l m (glueC m A φ Tp ep))
+    (hg : g ∈ El (glueC m A φ Tp ep) (Hom.id m)) :
+    ∃ tp a, g = glueV m φ tp a ∧ a ∈ El A (Hom.id m) ∧ IsKV m a ∧
+      tp = partialKV m φ (fun n g => dat tp n g) ∧
+      (∀ n (g : Hom n m), (φ.restr g).holds → dat tp n g ∈ El (dat Tp n g) (Hom.id n)) ∧
+      (∀ n (g : Hom n m), (φ.restr g).holds → ∀ n' (h : Hom n' n), Model.res h (dat tp n g) = dat tp n' (g.comp h)) ∧
+      (∀ n (g' : Hom n m), (φ.restr g').holds → eqFun n (dat ep n g') (dat tp n g') = Model.res g' a) := by
+  rw [El_glueC_id' hn hφ hTp hep, mem_glueElSet] at hg
+  obtain ⟨tp, a, h1, ha, h2, h3, h4, h5⟩ := hg
+  have hAfib := (WF.glue_inv hn hφ hW).fib
+  refine ⟨tp, a, h1, ?_, hAfib.elKV _ _ _ ha, h2, h3, h4, fun n g' hg' => ?_⟩
+  · rwa [El_res, Hom.id_comp] at ha
+  · rw [h5 n g' hg']
+
 end
 
 end Model

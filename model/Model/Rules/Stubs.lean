@@ -967,7 +967,8 @@ theorem sem_EqTm_glueEl {S : Sig} {Ψ Φ Γ φ φ' t t' a a' A T e}
 theorem sem_EqTm_unglue {S : Sig} {Ψ Φ Γ A φ φ' T e g g'}
     (h0 : SemTy S Ψ Φ Γ (unglue φ e g) A) (h1 : SemTy S Ψ Φ Γ (unglue φ' e g') A) (h2 : I.Entails φ φ') (h3 : I.Entails φ' φ) (h4 : SemEq S Ψ Φ Γ g g' (glue A φ T e)) :
     SemEq S Ψ Φ Γ (unglue φ e g) (unglue φ' e g') A := by
-  sorry
+  refine ⟨h0, h1, fun m ρ γ hp => ?_⟩
+  rw [sem_unglue, sem_unglue, face_eq_of_entails h2 h3 ρ, h4.2.2 m ρ γ hp]
 
 theorem sem_EqTm_ipi {S : Sig} {Ψ Φ Γ A A' l}
     (h0 : SemEq S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l)) :
@@ -1373,7 +1374,13 @@ theorem sem_EqTm_glueFace {S : Sig} {Ψ Φ Γ A φ T e G}
 theorem sem_EqTm_glueElFace {S : Sig} {Ψ Φ Γ φ e t a G}
     (h0 : I.Entails Φ φ) (h1 : SemTy S Ψ Φ Γ (glueEl φ e t a) G) :
     SemEq S Ψ Φ Γ (glueEl φ e t a) t G := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S t m ρ γ = sem S (glueEl φ e t a) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h1.2.2.2 m ρ γ hp
+    rcases sem_glueEl_cases (hty.ne_empty hmem) with ⟨-, -, h⟩ | ⟨hn, -⟩
+    · exact h.symm
+    · exact absurd (entails_holds h0 hp.cof) hn
+  exact ⟨h1, h1.of_eq h1.2.1.2.1 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_unglueFace {S : Sig} {Ψ Φ Γ A φ T e g l}
     (h0 : I.Entails Φ φ) (h1 : SemTy S Ψ Φ Γ g (glue A φ T e)) (h2 : SemTy S Ψ Φ Γ A (univ l)) (h3 : SemTy S Ψ Φ Γ e (equiv T A)) :
@@ -1383,11 +1390,62 @@ theorem sem_EqTm_unglueFace {S : Sig} {Ψ Φ Γ A φ T e g l}
 theorem sem_EqTm_glueBeta {S : Sig} {Ψ Φ Γ φ e t a G}
     (h0 : SemTy S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) G) :
     SemEq S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S a m ρ γ = sem S (unglue φ e (glueEl φ e t a)) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    have hne := hty.ne_empty hmem
+    have hne' : sem S (glueEl φ e t a) m ρ γ ≠ ∅ := fun h => hne (by rw [sem_unglue, h, ungAt_empty])
+    rw [sem_unglue]
+    rcases sem_glueEl_cases hne' with ⟨hh, heq, hv⟩ | ⟨hn, hakv, hv⟩
+    · rw [sem_unglue] at hne
+      unfold ungAt at hne ⊢
+      rw [if_pos ((holds_iff_face ρ φ).1 hh)] at hne ⊢
+      split at hne
+      · rw [if_pos ‹_›, hv, heq]
+      · exact absurd rfl hne
+    · unfold ungAt
+      rw [if_neg (fun h => hn ((holds_iff_face ρ φ).2 h)), hv,
+        unglue_glueV (fun h => hn ((holds_iff_face ρ φ).2 h)) (isCof_ival_face ρ φ) _ hakv]
+  exact ⟨h0, h0.of_eq h0.2.1.2.2.2 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_glueEta {S : Sig} {Ψ Φ Γ A φ T e g}
     (h0 : SemTy S Ψ Φ Γ g (glue A φ T e)) :
     SemEq S Ψ Φ Γ g (glueEl φ e g (unglue φ e g)) (glue A φ T e) := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (glueEl φ e g (unglue φ e g)) m ρ γ = sem S g m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hgmem, hgnat, hGty, -⟩ := h0.2.2.2 m ρ γ hp
+    have hgkv := hGty.fib.elKV _ _ _ hgmem
+    have hne : sem S (glue A φ T e) m ρ γ ≠ ∅ := by
+      intro h; unfold TyOK at hGty; rw [h] at hGty; exact not_isKV_empty hGty.fib.kv
+    obtain ⟨hT, he⟩ := cond_of_sem_glue hne
+    by_cases hh : (ival ρ φ).holds
+    · apply sem_glueEl_holds hh
+      rw [sem_unglue, ungAt, if_pos ((holds_iff_face ρ φ).1 hh), if_pos hgkv]
+    · have hh' : ¬ Cof.holds (ival ρ φ).face := fun h => hh ((holds_iff_face ρ φ).2 h)
+      have hGty' := hGty
+      unfold TyOK at hGty'
+      rw [sem_glue hT he] at hGty' hgmem
+      obtain ⟨l, -, hW | hU⟩ := hGty'
+      swap
+      · exact absurd hU (glueC_ne_univC _ _ _ hh' (isCof_ival_face ρ φ) l)
+      obtain ⟨tp, a, hg, -, hakv, htp, -, hcoh, -⟩ :=
+        glue_elem hh' (isCof_ival_face ρ φ) (isKV_partialKV _ _) (isKV_partialKV _ _) hW.1 hgmem
+      have hu : sem S (unglue φ e g) m ρ γ = a := by
+        rw [sem_unglue, ungAt, if_neg hh', hg, unglue_glueV hh' (isCof_ival_face ρ φ) tp hakv]
+      rw [sem_glueEl_not hh (by rw [hu]; exact hakv), hu, hg]
+      congr 1
+      conv_rhs => rw [htp]
+      unfold partialKV; congr 1; funext k f
+      split
+      · rename_i hf
+        have htkv : IsKV k (dat tp k f) := by
+          have := hcoh k f hf k (Hom.id k); rw [Hom.comp_id] at this; rw [← this]; exact isKV_res _ _
+        rw [faceVals, hgnat k f, hg, res_glueV_holds (isCof_ival_face ρ φ) hf (hcoh k f hf) htkv]
+      · rfl
+  have hcl : (glueEl φ e g (unglue φ e g)).ConstsLt S.length :=
+    ⟨h0.2.2.1.2.2, h0.2.1, h0.2.2.1.2.2, h0.2.1⟩
+  exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 end Model
