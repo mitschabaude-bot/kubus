@@ -54,7 +54,7 @@ theorem tr_conV_any : ∀ c C, Θ.ctors[c]? = some C → ∀ n (f : Hom (n + 1) 
     | some cl =>
       obtain ⟨ψ, b⟩ := cl
       rw [conV_eq_bnd hΘ hC hta hrs hb, conV_eq_bnd hΘ hC hto hrs hb]
-      have hbt := hΘ.bnd c C hC ψ b (bndAtMap_some hb).1
+      have hbt := hΘ.bnd c C hC ψ b (bndAtMap_some hb).1 _ _ (by simpa using (bndAtMap_some hb).2)
       have hauxa := bnd_delem_aux hΘ hC hta.1 hta.2.1 hta.2.2 rs
       have hlen : args.length = C.args.length := hta.1
       have hkvo : ∀ j (hj : j < outs.length), C.isRec j = true → IsKV n outs[j] := fun j hj hr =>

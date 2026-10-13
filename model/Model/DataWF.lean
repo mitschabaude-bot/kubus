@@ -70,7 +70,8 @@ structure SData.GoodCore (Θ : SData m) : Prop where
   recIrr : ∀ c j n (g : Hom n m) pre pre', pre.length = pre'.length →
     (∀ i (hi : i < pre.length) (hi' : i < pre'.length), (Θ.ctors.getD c default).isRec i = false →
       pre[i] = pre'[i]) → Θ.ty c j n g pre = Θ.ty c j n g pre'
-  bnd : ∀ c C, Θ.ctors[c]? = some C → ∀ ψ b, (ψ, b) ∈ C.bnd → BTy Θ c C b
+  bnd : ∀ c C, Θ.ctors[c]? = some C → ∀ ψ b, (ψ, b) ∈ C.bnd → ∀ n (rs : List (DM n)),
+    (ival (renv rs) ψ).holds → BTy Θ c C b
   const : Θ.params = false → ∀ c j n (g g' : Hom n m) pre, Θ.ty c j n g pre = Θ.ty c j n g' pre
   ovl : ∀ c C, Θ.ctors[c]? = some C → ∀ ψ b ψ' b', (ψ, b) ∈ C.bnd → (ψ', b') ∈ C.bnd →
     ∀ n (g : Hom n m) args (rs : List (DM n)), Θ.ArgsTyped c C n g args → rs.length = C.dims →

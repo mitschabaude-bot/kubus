@@ -170,7 +170,7 @@ theorem hasRep_conV : ∀ c C, Θ.ctors[c]? = some C → ∀ n (g : Hom n m) arg
     | some cl =>
       obtain ⟨ψ, b⟩ := cl
       rw [conV_eq_bnd hΘ hC ht hrs hb]
-      have hbt := hΘ.bnd c C hC ψ b (bndAtMap_some hb).1
+      have hbt := hΘ.bnd c C hC ψ b (bndAtMap_some hb).1 _ _ (by simpa using (bndAtMap_some hb).2)
       have haux := bnd_delem_aux hΘ hC ht.1 ht.2.1 ht.2.2 rs
       suffices ∀ t : Tm, (BTy Θ c C t → HasRep Θ n g (evalBnd (conBefore Θ.ctors c n) args rs t)) ∧
           (∀ C' c' k prev, BTyArgs Θ c C C' c' k prev t → ∀ i (hi : i < t.toList.length),

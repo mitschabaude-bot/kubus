@@ -43,7 +43,7 @@ theorem bty_restr (Θ : SData m) (h : Hom k m) (c : ℕ) (C : Ctor) : ∀ t : Tm
 theorem SData.GoodCore.restr {Θ : SData m} (hΘ : Θ.GoodCore) (h : Hom k m) : (Θ.restr h).GoodCore where
   nat c j n g pre hp n' h' := hΘ.nat c j n (h.comp g) pre hp n' h'
   recIrr c j n g pre pre' hl he := hΘ.recIrr c j n (h.comp g) pre pre' hl he
-  bnd c C hC ψ b hb := (bty_restr Θ h c C b).1 (hΘ.bnd c C hC ψ b hb)
+  bnd c C hC ψ b hb n rs hh := (bty_restr Θ h c C b).1 (hΘ.bnd c C hC ψ b hb n rs hh)
   const hp c j n g g' pre := hΘ.const hp c j n (h.comp g) (h.comp g') pre
   ovl c C hC ψ b ψ' b' hb hb' n g args rs ht hrs h1 h2 :=
     hΘ.ovl c C hC ψ b ψ' b' hb hb' n (h.comp g) args rs ((argsTyped_restr_iff Θ h g args).1 ht) hrs h1 h2

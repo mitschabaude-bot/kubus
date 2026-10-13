@@ -374,6 +374,42 @@ theorem argTy_univ (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
 
 end argty
 
+/-! ### Simple boundary terms are natural -/
+
+/-- The terms built from variables and constructors of `d` with the right number of arguments. -/
+def SimpleShape (ctors : List Ctor) (d : ℕ) : Tm → Prop
+  | .var _ => True
+  | .con d' c' _ as _ => d' = d ∧ as.toList.length = (ctors.getD c' default).args.length ∧ SimpleShapeL ctors d as
+  | _ => False
+where SimpleShapeL (ctors : List Ctor) (d : ℕ) : Tm → Prop
+  | .tcons a as => SimpleShape ctors d a ∧ SimpleShapeL ctors d as
+  | _ => True
+
+theorem natural_simple {S : Sig} {d : ℕ} {E : DataDecl} (hd : S[d]? = some (.data E)) {ρ : IEnv m} {γ : ℕ → V}
+    (hkv : ∀ x, IsKV m (γ x)) : ∀ t, (SimpleShape E.ctors d t → Natural S t m ρ γ) ∧
+      (SimpleShape.SimpleShapeL E.ctors d t → ∀ a ∈ t.toList, Natural S a m ρ γ) := by
+  intro t
+  induction t with
+  | var x => exact ⟨fun _ k f => rfl, fun _ a ha => by simp [Tm.toList] at ha⟩
+  | con d' c' ps as rs' _ ihas =>
+    refine ⟨fun hs => ?_, fun _ a ha => by simp [Tm.toList] at ha⟩
+    obtain ⟨rfl, hlen, hsl⟩ := hs
+    have hall := ihas.2 hsl
+    intro k f
+    rw [sem_con hd, sem_con hd, res_conV, IEnv.restr_id, IEnv.restr_id, TEnv.restr_id_of_kv hkv,
+      TEnv.restr_restr, Hom.comp_id, plist_sem _ _ _ hlen, plist_sem _ _ _ hlen, List.map_map,
+      List.map_map]
+    congr 1
+    exact List.map_congr_left fun a ha => hall a ha k f
+  | tcons a as iha ihas =>
+    refine ⟨fun hs => by simp [SimpleShape] at hs, fun hs b hb => ?_⟩
+    obtain ⟨h1, h2⟩ := hs
+    simp only [Tm.toList, List.mem_cons] at hb
+    rcases hb with rfl | hb
+    · exact iha.1 h1
+    · exact ihas.2 h2 b hb
+  | _ => exact ⟨fun hs => by simp [SimpleShape] at hs, fun _ a ha => by simp [Tm.toList] at ha⟩
+
 /-! ### The argument types of the semantic data -/
 
 theorem argTyRaw_recIrr {σ : SigV} {D : DataDecl} {d : ℕ} (hsyn : DataSyn d D) {c : ℕ} {C : Ctor}
@@ -530,7 +566,7 @@ theorem argTySem_noparams (hnp : E.params = []) (c j n : ℕ) (psv psv' : V) (pr
 theorem dataOK_of
     (hbo : ∀ m (ps : RV m), ParamsOK (sigV S0) E m ps →
       (∀ c C, (dataSD (sigV S0) E S0.length m ps).ctors[c]? = some C → ∀ ψ b, (ψ, b) ∈ C.bnd →
-        BTy (dataSD (sigV S0) E S0.length m ps) c C b) ∧
+        ∀ n (rs : List (DM n)), (ival (renv rs) ψ).holds → BTy (dataSD (sigV S0) E S0.length m ps) c C b) ∧
       (∀ c C, (dataSD (sigV S0) E S0.length m ps).ctors[c]? = some C → ∀ ψ b ψ' b', (ψ, b) ∈ C.bnd →
         (ψ', b') ∈ C.bnd → ∀ n (g : Hom n m) args (rs : List (DM n)),
           (dataSD (sigV S0) E S0.length m ps).ArgsTyped c C n g args → rs.length = C.dims →
