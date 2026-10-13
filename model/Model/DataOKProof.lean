@@ -1210,6 +1210,117 @@ theorem Corr.unique {ctors : List Ctor} {n : ℕ} {gen act : ℕ → V} {P : ℕ
       · rw [← hpt j (by omega) h1 hr, hpt' j (by omega) h2 hr]
       · exact ih j (by omega) h1 hr (hrec' j (by omega) h2 hr)
 
+
+theorem simpleArgs_ofList {ctors : List Ctor} {d np c n : ℕ} {C C' : Ctor} : ∀ {k : ℕ} {t : Tm},
+    Ctor.simpleArgs ctors d np c n C C' k t = true → t = Tm.ofList t.toList
+  | _, .tcons a as, h => by
+    simp only [Ctor.simpleArgs, Bool.and_eq_true] at h
+    simp only [Tm.toList, Tm.ofList]
+    rw [← simpleArgs_ofList h.2]
+  | _, .tnil, _ => rfl
+  | _, .var _, h | _, .const _, h | _, .univ _, h | _, .pi _ _, h | _, .lam _ _, h | _, .app _ _, h
+  | _, .sigma _ _, h | _, .pair _ _, h | _, .fst _, h | _, .snd _, h | _, .path _ _ _, h | _, .plam _, h
+  | _, .papp _ _, h | _, .ipi _, h | _, .abort, h | _, .split _ _ _ _, h | _, .transp _ _ _, h
+  | _, .hcomp _ _ _ _, h | _, .glue _ _ _ _, h | _, .glueEl _ _ _ _, h | _, .unglue _ _ _, h
+  | _, .data _ _, h | _, .con _ _ _ _ _, h | _, .elim _ _ _ _ _, h => by simp [Ctor.simpleArgs] at h
+
+/-- A simple boundary term denotes its boundary value wherever it denotes something (the
+guards of its constructors then hold). -/
+theorem sem_simple_eval {S : Sig} {d : ℕ} {E : DataDecl} (hd : S[d]? = some (.data E)) {c : ℕ} {C : Ctor}
+    {n : ℕ} {ρ : IEnv n} {γ : ℕ → V} (hγ : ∀ x, IsKV n (γ x)) (args : List V) (hl : args.length = C.args.length)
+    (hargs : ∀ x (hx : x < C.args.length), γ x = args.reverse[x]'(by simp; omega)) (rs : List (DM n))
+    (hρ : ∀ i < C.dims, ρ i = renv rs i) : ∀ t : Tm,
+    (Ctor.simpleB E.ctors d E.params.length c C.args.length C t = true →
+      t.closedB (E.params.length + C.args.length) C.dims = true → sem S t n ρ γ ≠ ∅ →
+      sem S t n ρ γ = evalBnd (conBefore E.ctors c n) args rs t) ∧
+    (∀ C' k, Ctor.simpleArgs E.ctors d E.params.length c C.args.length C C' k t = true →
+      t.closedB (E.params.length + C.args.length) C.dims = true →
+      ∀ i (hi : i < t.toList.length), (C'.isRec (k + i) = true → sem S (t.toList[i]) n ρ γ ≠ ∅ →
+        sem S (t.toList[i]) n ρ γ = evalBnd (conBefore E.ctors c n) args rs (t.toList[i])) ∧
+        (C'.isRec (k + i) = false → sem S (t.toList[i]) n ρ γ = evalBnd (conBefore E.ctors c n) args rs (t.toList[i]))) := by
+  have hvar : ∀ x (hx : x < C.args.length), sem S (.var x) n ρ γ = evalBnd (conBefore E.ctors c n) args rs (.var x) := by
+    intro x hx
+    simp only [sem_var, evalBnd]
+    rw [hargs x hx, getD_reverse_eq (by omega), List.getElem_reverse]
+    have hkv := hγ x
+    rw [hargs x hx, List.getElem_reverse] at hkv
+    rw [res_id hkv]
+  intro t
+  induction t with
+  | var x =>
+    refine ⟨fun hs _ _ => ?_, fun _ _ hs => by simp [Ctor.simpleArgs] at hs⟩
+    simp only [Ctor.simpleB, Bool.and_eq_true, decide_eq_true_eq] at hs
+    exact hvar x hs.1
+  | con d' c' ps' as rs'' _ ihas =>
+    refine ⟨fun hs hcl hne => ?_, fun _ _ hs => by simp [Ctor.simpleArgs] at hs⟩
+    simp only [Ctor.simpleB, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at hs
+    obtain ⟨⟨⟨rfl, hc'⟩, -⟩, hrest⟩ := hs
+    cases hC' : E.ctors[c']? with
+    | none => rw [hC'] at hrest; simp at hrest
+    | some C' =>
+    rw [hC'] at hrest
+    simp only [Bool.and_eq_true, beq_iff_eq] at hrest
+    obtain ⟨⟨hlen', -⟩, hsa⟩ := hrest
+    simp only [Tm.closedB, Bool.and_eq_true, List.all_eq_true] at hcl
+    obtain ⟨⟨-, hcla⟩, hclr⟩ := hcl
+    rw [sem_con hd] at hne ⊢
+    split at hne
+    swap; · exact absurd rfl hne
+    rename_i hg
+    rw [if_pos hg]
+    obtain ⟨C'', hC'', -, -, -, hat⟩ := hg
+    rw [hC'] at hC''; cases hC''
+    have hlit := simpleArgs_ofList hsa
+    have hsas : sem S as n (ρ.restr (Hom.id n)) (TEnv.restr γ (Hom.id n)) = vlist (as.toList.map fun t => sem S t n ρ γ) := by
+      rw [IEnv.restr_id, TEnv.restr_id_of_kv hγ, hlit, sem_ofList_vlist, toList_ofList]
+    have hplv : plist (sem S as n (ρ.restr (Hom.id n)) (TEnv.restr γ (Hom.id n))) (E.ctors.getD c' default).args.length =
+        as.toList.map fun t => sem S t n ρ γ := by
+      rw [hsas, getD_ctors hC', ← hlen', show as.toList.length = (as.toList.map fun t => sem S t n ρ γ).length by simp,
+        plist_vlist]
+    have hatv := hat
+    simp only [psRV, IEnv.restr_id, TEnv.restr_id_of_kv hγ] at hatv
+    have hsas' : sem S as n ρ γ = vlist (as.toList.map fun t => sem S t n ρ γ) := by
+      rw [hlit, sem_ofList_vlist, toList_ofList]
+    rw [hsas', show C'.args.length = (as.toList.map fun t => sem S t n ρ γ).length by simp [← hlen'], plist_vlist] at hatv
+    have hrs3 : rs''.map (ival ρ) = rs''.map (ival (renv rs)) :=
+      List.map_congr_left fun r hr => ival_congr_scoped ((I.scopedB_iff _ _).1 (hclr r hr)) fun i hi => hρ i hi
+    rw [hplv, hrs3]
+    simp only [evalBnd, conBefore, dif_pos hc', evalBndList_eq]
+    congr 1
+    apply List.ext_getElem (by simp)
+    intro i h1 h2
+    simp only [List.getElem_map]
+    have hi : i < as.toList.length := by simpa using h1
+    obtain ⟨hr, hp⟩ := ihas.2 C' 0 hsa hcla i hi
+    cases hri : C'.isRec i
+    · exact hp (by simpa using hri)
+    · have hd' := hatv.2.1 i _ (List.getElem?_eq_getElem (by simpa using hi)) hri
+      simp only [List.getElem_map] at hd'
+      exact hr (by simpa using hri) (fun h => not_isKV_empty (h ▸ hd'.kv))
+  | tcons a as iha ihas =>
+    refine ⟨fun hs => by simp [Ctor.simpleB] at hs, fun C' k hs hcl i hi => ?_⟩
+    simp only [Ctor.simpleArgs, Bool.and_eq_true] at hs
+    obtain ⟨hs1, hs2⟩ := hs
+    simp only [Tm.closedB, Bool.and_eq_true] at hcl
+    cases i with
+    | zero =>
+      simp only [Tm.toList, List.getElem_cons_zero, Nat.add_zero]
+      refine ⟨fun hr hne => ?_, fun hr => ?_⟩
+      · rw [if_pos hr] at hs1; exact iha.1 hs1 hcl.1 hne
+      · rw [if_neg (by simp [hr])] at hs1
+        cases a with
+        | var x =>
+          simp only [Bool.and_eq_true, decide_eq_true_eq] at hs1
+          exact hvar x hs1.1
+        | _ => simp at hs1
+    | succ i =>
+      simp only [Tm.toList, List.getElem_cons_succ]
+      have := ihas.2 C' (k + 1) hs2 hcl.2 i (by simp [Tm.toList] at hi; omega)
+      rw [show k + 1 + i = k + (i + 1) by omega] at this
+      exact this
+  | tnil => exact ⟨fun hs => by simp [Ctor.simpleB] at hs, fun _ _ _ _ i hi => by simp [Tm.toList] at hi⟩
+  | _ => exact ⟨fun hs => by simp [Ctor.simpleB] at hs, fun _ _ hs => by simp [Ctor.simpleArgs] at hs⟩
+
 section assembly
 
 variable (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0.length)
