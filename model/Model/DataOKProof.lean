@@ -72,6 +72,11 @@ theorem sem_ext {A : Tm} (hA : A.ConstsLt S0.length) :
 
 theorem entry_ext : (S0 ++ [.data E])[S0.length]? = some (.data E) := by simp
 
+theorem sem_ext' {A : Tm} (hA : A.ConstsLt (S0.length + 1)) (hm : A.mentionsData S0.length = false) :
+    sem (S0 ++ [.data E]) A = interp (sigV S0) univC TyCode A :=
+  (interp_congr_md _ _ (agree_ext S0 E) (fun m => by
+    rw [sigV_cst_data (entry_ext S0 E)]; exact sigUpTo_cst_ge S0 _ _ m le_rfl) A hA hm).symm
+
 end ext
 
 /-! ### List values -/
@@ -160,10 +165,10 @@ theorem sem_argTy_eq (S0 : Sig) (E D : DataDecl) (hsyn : DataSyn S0.length D) {c
     sem (S0 ++ [.data E]) A n (fun _ => DM.zero n)
       (argEnvKV n (plist psv D.params.length) (genPre C gf (pre.take i))) =
       argTyRaw (sigV S0) D S0.length c i n psv pre := by
-  obtain ⟨hcl, hcs, hnr⟩ := hsyn.2.2 c C hC i A hA
+  obtain ⟨hcl, hcs, hmd, hnr⟩ := hsyn.2.2 c C hC i A hA
   have harg : (D.ctors.getD c default).argTy S0.length D.params.length i = A := by
     rw [getD_ctors hC]; simp [Ctor.argTy, hA]
-  rw [argTyRaw, harg, sem_ext S0 E hcs]
+  rw [argTyRaw, harg, sem_ext' S0 E hcs hmd]
   refine interp_congr_free _ _ _ A n _ _ _ fun x hx => ?_
   have hxl := freeIn_lt_of_closedB A _ 0 x hcl hx
   have hgl : (genPre C gf (pre.take i)).length = i := by simp [genPre_length]; omega
@@ -444,7 +449,7 @@ theorem argTyRaw_recIrr {σ : SigV} {D : DataDecl} {d : ℕ} (hsyn : DataSyn d D
     {pre pre' : List V} (hj : j ≤ pre.length) (hj' : j ≤ pre'.length)
     (he : ∀ i (hi : i < j), C.isRec i = false → pre[i]'(by omega) = pre'[i]'(by omega)) :
     argTyRaw σ D d c j n psv pre = argTyRaw σ D d c j n psv pre' := by
-  obtain ⟨hcl, -, hnr⟩ := hsyn.2.2 c C hC j A hA
+  obtain ⟨hcl, -, -, hnr⟩ := hsyn.2.2 c C hC j A hA
   have harg : (D.ctors.getD c default).argTy d D.params.length j = A := by
     rw [getD_ctors hC]; simp [Ctor.argTy, hA]
   simp only [argTyRaw, harg]
@@ -684,7 +689,7 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
   rw [hE]
   -- the right-hand side
   have harg : C'.argTy S0.length np k = A' := by simp [Ctor.argTy, hA']
-  obtain ⟨hcl, hcs, hnr⟩ := hsyn.2.2 c' C' hC' k A' hA'
+  obtain ⟨hcl, hcs, hmd, hnr⟩ := hsyn.2.2 c' C' hC' k A' hA'
   set L := prev ++ (Ctor.paramVars np n).toList.reverse
   have hPV : (Ctor.paramVars np n).toList = (List.range np).map fun p => Tm.var (n + np - 1 - p) := by
     rw [Ctor.paramVars, toList_ofList]
@@ -705,7 +710,7 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
       show Natural Sc (L.getD y _) n2 ρ2 γ2
       rw [e]; intro k' f; rfl
   rw [harg, Tm.substList, sem_subst Sc A' n2 ρ2 γ2 _ _ hnat,
-    sem_rho_irrel _ hcl _ (fun _ => DM.zero n2), sem_ext S0 _ hcs]
+    sem_rho_irrel _ hcl _ (fun _ => DM.zero n2), sem_ext' S0 _ hcs hmd]
   have harg' : (D.ctors.getD c' default).argTy S0.length np k = A' := by rw [getD_ctors hC']; exact harg
   rw [argTyRaw, harg']
   refine interp_congr_free _ _ _ A' n2 _ _ _ fun y hy => ?_

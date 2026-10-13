@@ -181,3 +181,63 @@ theorem paramsOK_of_tele {d : ℕ} {D : DataDecl} (hd : d ≤ S.length) (hsyn : 
 end
 
 end Model
+
+namespace Model
+
+open KubusCore
+
+/-- Denotations agree for terms that only use the entries below `d`, constants at `d`, and do not
+mention the inductive type `d`. -/
+theorem interp_congr_md {cst cst' : SigV} (uc : ℕ → ℕ → V) (good : ℕ → V → Prop) {d : ℕ}
+    (hc : SigV.AgreeLt d cst cst') (hcd : ∀ m, cst.cst m d = cst'.cst m d) :
+    ∀ (t : Tm), t.ConstsLt (d + 1) → t.mentionsData d = false → interp cst uc good t = interp cst' uc good t := by
+  intro t
+  induction t with
+  | const j =>
+    intro h _; funext m ρ γ
+    simp only [Tm.ConstsLt] at h
+    rcases Nat.lt_succ_iff_lt_or_eq.1 h with h | rfl
+    · exact hc.1 m j h
+    · exact hcd m
+  | var _ | univ _ | abort | tnil => intros; rfl
+  | pi _ _ iA iB | sigma _ _ iA iB | lam _ _ iA iB | app _ _ iA iB | pair _ _ iA iB | tcons _ _ iA iB =>
+    intro h hm; simp only [Tm.mentionsData, Bool.or_eq_false_iff] at hm
+    funext m ρ γ; simp only [interp]; rw [iA h.1 hm.1, iB h.2 hm.2]
+  | fst _ ip | snd _ ip | plam _ ip | ipi _ ip | papp _ _ ip =>
+    intro h hm; simp only [Tm.mentionsData] at hm
+    funext m ρ γ; simp only [interp]; rw [ip h hm]
+  | unglue _ _ _ ie ig =>
+    intro h hm; simp only [Tm.mentionsData, Bool.or_eq_false_iff] at hm
+    funext m ρ γ; simp only [interp]; rw [ie h.1 hm.1, ig h.2 hm.2]
+  | path _ _ _ iA ia ib | hcomp _ _ _ _ iA ia ib | glue _ _ _ _ iA ia ib | glueEl _ _ _ _ iA ia ib =>
+    intro h hm; simp only [Tm.mentionsData, Bool.or_eq_false_iff] at hm
+    funext m ρ γ; simp only [interp]; rw [iA h.1 hm.1.1, ia h.2.1 hm.1.2, ib h.2.2 hm.2]
+  | split _ _ _ _ it iu | transp _ _ _ it iu =>
+    intro h hm; simp only [Tm.mentionsData, Bool.or_eq_false_iff] at hm
+    funext m ρ γ; simp only [interp]; rw [it h.1 hm.1, iu h.2 hm.2]
+  | data j _ ip =>
+    intro h hm; simp only [Tm.mentionsData, Bool.or_eq_false_iff, beq_eq_false_iff_ne] at hm
+    funext m ρ γ; simp only [interp]; rw [ip h.2 hm.2]; exact hc.2.1 _ _ _ (by have := h.1; omega)
+  | con j _ _ _ _ ip ia =>
+    intro h hm; simp only [Tm.mentionsData, Bool.or_eq_false_iff, beq_eq_false_iff_ne] at hm
+    funext m ρ γ; simp only [interp]; rw [ip h.2.1 hm.1.2, ia h.2.2 hm.2]
+    exact hc.2.2.1 _ _ _ _ _ _ (by have := h.1; omega)
+  | elim j _ _ _ _ ip iP ib it =>
+    intro h hm; simp only [Tm.mentionsData, Bool.or_eq_false_iff, beq_eq_false_iff_ne] at hm
+    funext m ρ γ; simp only [interp]
+    rw [ip h.2.1 hm.1.1.1.2, iP h.2.2.1 hm.1.1.2, ib h.2.2.2.1 hm.1.2, it h.2.2.2.2 hm.2]
+    exact hc.2.2.2 _ _ _ _ _ _ (by have := h.1; omega)
+
+theorem sigUpTo_cst_ge (S : Sig) : ∀ k j m, k ≤ j → (sigUpTo S k).cst m j = ∅
+  | 0, _, _, _ => rfl
+  | k + 1, j, m, h => by
+    simp only [sigUpTo, SigV.set, if_neg (show j ≠ k by omega)]
+    exact sigUpTo_cst_ge S k j m (by omega)
+
+theorem sigV_cst_data {S : Sig} {d : ℕ} {D : DataDecl} (h : S[d]? = some (.data D)) (m : ℕ) :
+    (sigV S).cst m d = ∅ := by
+  obtain ⟨hk, -⟩ := List.getElem?_eq_some_iff.1 h
+  rw [sigV, ← (sigUpTo_agree S S.length hk).1 m d (by omega)]
+  simp [sigUpTo, SigV.set, h, entrySem, dataSem]
+
+end Model
