@@ -31,9 +31,47 @@ def TyCode (m : ℕ) (c : V) : Prop := ∃ l ≤ maxLevel, (WF l m c ∧ c ∈ V
 
 /-! ### The signature -/
 
+/-! ### Inductive types -/
+
+/-- The first `np` components of a list value (nested pairs). -/
+def plist (v : V) (np : ℕ) : List V := (List.range np).map (vnth v)
+
+/-- The term environment of the context of a constructor argument: the earlier arguments and the
+parameters, most recent first. -/
+def argEnv (ps pre : List V) : ℕ → V := fun x => (pre.reverse ++ ps.reverse).getD x ∅
+
+/-- The type of argument `j` of constructor `c`, at the parameters `psv` (a list value) and the
+earlier arguments `pre`, at stage `n`, as interpreted in `σ`. -/
+def argTyRaw (σ : SigV) (D : DataDecl) (d c j n : ℕ) (psv : V) (pre : List V) : V :=
+  interp σ univC TyCode ((D.ctors.getD c default).argTy d D.params.length j) n (fun _ => DM.zero n)
+    (argEnv (plist psv D.params.length) (pre.take j))
+
+/-- The earlier point arguments in `pre` (before `j`) have their types. -/
+def argPreValid (σ : SigV) (D : DataDecl) (d c j n : ℕ) (psv : V) (pre : List V) : Prop :=
+  j ≤ pre.length ∧ ∀ i (hi : i < j) (hip : i < pre.length), (D.ctors.getD c default).isRec i = false →
+    pre[i] ∈ El (argTyRaw σ D d c i n psv pre) (Hom.id n)
+
+/-- The argument types of the semantic inductive type: junk (empty) unless at a point argument
+with valid earlier arguments. -/
+def argTySem (σ : SigV) (D : DataDecl) (d c j n : ℕ) (psv : V) (pre : List V) : V :=
+  if j < (D.ctors.getD c default).args.length ∧ (D.ctors.getD c default).isRec j = false ∧
+      argPreValid σ D d c j n psv pre
+  then argTyRaw σ D d c j n psv pre else emptyC n
+
+/-- The semantic inductive type at the parameters `ps` (given at all restrictions). -/
+def dataSD (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) : SData m where
+  ctors := D.ctors
+  params := !D.params.isEmpty
+  ty c j n g pre := argTySem σ D d c j n (ps n g) pre
+
 /-- The semantics of the inductive type `d` with declaration `D`, given the semantics `σ` of the
-entries before it. (Placeholder: the model of inductive types is in progress.) -/
-def dataSem (_σ : SigV) (_D : DataDecl) (_d : ℕ) : SigV := SigV.empty
+entries before it: the type former (the data code at the parameters), the constructors (values
+of the arguments at the stage itself; parameters are not recorded) and the eliminator. -/
+def dataSem (σ : SigV) (D : DataDecl) (d : ℕ) : SigV where
+  cst _ _ := ∅
+  dat m _ ps := dataC (dataSD σ D d m ps)
+  con m _ c _ args rs := conV D.ctors m c (plist (args m (Hom.id m)) (D.ctors.getD c default).args.length) rs
+  elim m _ ps P bs t := elimD (dataSD σ D d m ps) P bs m (Hom.id m) (t m (Hom.id m))
 
 /-- `σ` with the entry `k` taken from `τ`. -/
 def SigV.set (σ τ : SigV) (k : ℕ) : SigV where
