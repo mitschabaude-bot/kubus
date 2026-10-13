@@ -74,13 +74,28 @@ theorem TR.out_mem_Vt {Θ : SData m} (hty : ∀ c j n g pre, Θ.ty c j n g pre �
     obtain ⟨hav, huv⟩ := hcV_parts_mem_Vt hl hψ hn hka hv
     exact hcV_mem_Vt hl (fun n g r hg => ihu n g r hg (huv n g r hg)) (iha hav)
 
-theorem dataC_mem_Vt {Θ : SData m} (hty : ∀ c j n g pre, Θ.ty c j n g pre ∈ Vt l) : dataC Θ ∈ Vt l := by
+theorem HR.out_mem_Vt {Θ : SData m} (hty : ∀ c j n g pre, Θ.ty c j n g pre ∈ Vt l) {k : ℕ} {g : Hom k m}
+    {φ : Cof k} {u : Tube k} {v w : V} (hr : HR Θ k g φ u v w) (hv : v ∈ Vt l) : w ∈ Vt l := by
+  induction hr with
+  | con hb hkv hu hlo hlf hro hpt iho =>
+    rename_i c args outs fills ua
+    have ha := conV_args_mem_Vt hl (bndAtMap_of_nil hb _ _) hkv hv
+    refine conV_mem_Vt hl _ _ _ fun o ho => ?_
+    obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem ho
+    have e : outs[j] = outs.getD j ∅ := List.getElem_eq_getD ∅
+    rw [e]
+    cases hr : (Θ.ctors.getD c default).isRec j
+    · rw [(hpt j (by omega) hr).1]; exact compF_mem_Vt hl (hty _ _ _ _ _) _ _ _ _
+    · exact iho j (by omega) hr (ha _ (List.getElem_mem _))
+
+theorem dataC_mem_Vt {Θ : SData m} (hty : ∀ c j n g pre, Θ.ty c j n g pre ∈ Vt l) (hpv : ∀ n g, Θ.pv n g ∈ Vt l) :
+    dataC Θ ∈ Vt l := by
   refine mkKV_mem_Vt hl fun k f => ?_
   set Λ := Θ.restr f
   have htyΛ : ∀ c j n g pre, (∀ a ∈ pre, a ∈ Vt l) → Λ.ty c j n g pre ∈ Vt l := fun c j n g pre _ => hty _ _ _ _ _
   have hD : ∀ n g, delemSet Λ n g ∈ Vt l := fun n g => sep_mem_Vt (dataBound_mem_Vt hl htyΛ n g) _
-  refine quad_mem_Vt (tagZ_mem_Vt ?_) (hD k (Hom.id k)) ?_ (hcGraph_mem_Vt hl hD fun φ u u0 hu hu0 =>
-    hcV_mem_Vt hl (fun n h r _ => hu n h r) hu0)
+  refine quad_mem_Vt (tagZ_mem_Vt (pair_mem_Vt (natZ_mem_Vt hl _) (pair_mem_Vt (hpv _ _) ?_))) (hD k (Hom.id k)) ?_
+    (hcGraph_mem_Vt hl hD fun φ u u0 hu hu0 => ?_)
   · refine iUnion_mem_Vt IsSmallAt.of_countable (fun c => iUnion_mem_Vt IsSmallAt.of_countable (fun j => ?_) hl) hl
     haveI := vpref_small5 (Θ := Λ) (Y := delemSet Λ) (n := k) (g := Hom.id k) (c := c) (C := Λ.ctors[c]) j
     refine range_mem_Vt' (vpref_small hl hD htyΛ j).2 (fun p => ?_) hl
@@ -98,6 +113,11 @@ theorem dataC_mem_Vt {Θ : SData m} (hty : ∀ c j n g pre, Θ.ty c j n g pre �
       · split
         · exact TR.out_mem_Vt hl (Θ := Λ) (fun c j n g pre => hty _ _ _ _ _) (Classical.choose_spec ‹∃ w, _›) hav
         · exact hav
+  · unfold hcD; split
+    · exact hcV_mem_Vt hl (fun n h r _ => hu n h r) hu0
+    · split
+      · exact HR.out_mem_Vt hl (Θ := Λ) (fun c j n g pre => hty _ _ _ _ _) (Classical.choose_spec ‹∃ w, _›) hu0
+      · exact hu0
 
 end
 

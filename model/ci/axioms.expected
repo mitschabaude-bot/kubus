@@ -1,2 +1,4 @@
 'Model.consistent' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Model.kernel_consistent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Model.consistent0' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Model.kernel_consistent0' depends on axioms: [propext, Classical.choice, Quot.sound]

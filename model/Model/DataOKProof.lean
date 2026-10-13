@@ -79,7 +79,7 @@ theorem listLen_vlist : ∀ {v : V} {n : ℕ}, ListLen v n → v = vlist (plist 
     rw [plist_pair, vlist, ← listLen_vlist h2]
 
 /-- The generator of a truncated declaration, as an element. -/
-def genV (c n : ℕ) (ctors : List Ctor) : V := conV ctors n c [] []
+def genV (c n : ℕ) (ctors : List Ctor) : V := conV ctors n c [] (List.replicate (ctors.getD c default).dims (DM.zero n))
 
 /-! ### Environments of argument contexts -/
 
@@ -190,19 +190,103 @@ theorem argCtx_ge (D : DataDecl) (d : ℕ) (C : Ctor) (j x : ℕ) (hx : j ≤ x)
   simp only [List.length_map, List.length_reverse, List.length_range]
   rw [List.getElem?_reverse (by omega), List.getElem?_eq_getElem (by omega)]
 
+/-- The extra constructor of a truncation. -/
+abbrev genCtor (h : Bool) : Ctor := { args := [], dims := if h then 1 else 0, bnd := [] }
+
 theorem truncate_gen (D : DataDecl) {c0 : ℕ} (hc0 : c0 ≤ D.ctors.length) :
-    (D.truncate c0).ctors[c0]? = some { args := [], dims := 0, bnd := [] } := by
+    (D.truncate c0).ctors[c0]? = some (genCtor D.isHIT) := by
   simp [DataDecl.truncate, Nat.min_eq_left hc0]
 
 theorem genV_mem {S0 : Sig} {D : DataDecl} {c0 : ℕ} (hc0 : c0 ≤ D.ctors.length) {n : ℕ} {ps : RV n} :
     genV c0 n (D.truncate c0).ctors ∈ El (dataC (dataSD (sigV S0) (D.truncate c0) S0.length n ps)) (Hom.id n) := by
   rw [mem_El_dataC]
-  exact DElem.con (C := { args := [], dims := 0, bnd := [] }) (truncate_gen D hc0) rfl rfl
-    (fun j a ha => by simp at ha) (fun j a ha => by simp at ha)
+  exact DElem.con (C := genCtor D.isHIT) (truncate_gen D hc0) rfl
+    (by rw [List.length_replicate, getD_ctors (truncate_gen D hc0)]) (fun j a ha => by simp at ha) (fun j a ha => by simp at ha)
 
 theorem sem_rho_irrel (S : Sig) {A : Tm} {k : ℕ} (hA : A.closedB k 0 = true) (ρ ρ' : IEnv n) (γ : ℕ → V) :
     sem S A n ρ γ = sem S A n ρ' γ :=
   interp_congr_closed _ _ _ A k 0 hA n ρ ρ' γ γ (fun _ h => absurd h (by omega)) (fun _ _ => rfl)
+
+theorem Vt_mono : ∀ {l l' : ℕ}, l ≤ l' → l' ≤ 4 → ∀ {x : V}, x ∈ Vt l → x ∈ Vt l'
+  | l, l', h, h4, x, hx => by
+    induction l' with
+    | zero => have : l = 0 := by omega
+              subst this; exact hx
+    | succ l' ih =>
+      rcases Nat.lt_or_ge l (l' + 1) with hl | hl
+      · exact Vt_subset_succ l' (by omega) (ih (by omega) (by omega))
+      · have : l = l' + 1 := by omega
+        subst this; exact hx
+
+theorem isPoint_paramCtx {S0 : Sig} {D : DataDecl} (hcl : ∀ (j : ℕ) (A : Tm), D.params[j]? = some A → A.closedB j 0 = true)
+    {m : ℕ} {ps : RV m}
+    (hps : ParamsOK (sigV S0) D m ps) {n : ℕ} (g : Hom n m) (ρ : IEnv n) {Φ : I} (hρ : (ival ρ Φ).holds) :
+    ∀ i ≤ D.params.length, IsPoint S0 Φ (D.paramCtx i) n ρ (argEnvKV n (plist (ps n g) i) []) := by
+  intro i hi
+  have hpl : ∀ j, (plist (ps n g) j).length = j := fun j => by simp [plist]
+  refine ⟨hρ, fun x B hB => ?_, fun x => ?_⟩
+  · rw [Ctx.lookup_eq] at hB
+    obtain ⟨T, hT, rfl⟩ := Option.map_eq_some_iff.1 hB
+    have hxi : x < i := by
+      by_contra h
+      rw [List.getElem?_eq_none (by simp [DataDecl.paramCtx]; omega)] at hT; cases hT
+    have hT' : T = D.params[i - 1 - x]'(by omega) := by
+      simp only [DataDecl.paramCtx] at hT
+      rw [List.getElem?_reverse (by simp; omega)] at hT
+      simp only [List.length_take, Nat.min_eq_left hi] at hT
+      rw [List.getElem?_take, if_pos (by omega), List.getElem?_eq_getElem (by omega)] at hT
+      exact (Option.some.inj hT).symm
+    subst hT'
+    set p := i - 1 - x
+    rw [sem_ren]
+    rw [argEnvKV_shift_ps _ _ (by simp), hpl]
+    have hm := ((hps n g).2.1 p (by omega)).2
+    rw [argEnvKV_eq_of_lt (by simp [plist]; omega), List.getElem_append_right (by simp)]
+    simp only [List.getElem_reverse, List.length_reverse, hpl, List.reverse_nil, List.length_nil, Nat.sub_zero]
+    have e : (plist (ps n g) i)[i - 1 - x]'(by simp [plist]; omega) = vnth (ps n g) p := by simp [plist, p]
+    rw [e]
+    convert hm using 2
+    refine interp_congr_closed _ _ _ _ p 0 (hcl p _ (List.getElem?_eq_getElem _)) n _ _ _ _
+      (fun _ h => absurd h (by omega)) fun y hy => ?_
+    rw [argEnvKV_eq_of_lt (by simp [plist]; omega), argEnv_eq_of_lt (by simp [plist]; omega)]
+    simp [plist, List.take_take, show i - (x + 1) = p by omega, Nat.min_eq_left (show p ≤ i by omega)]
+  · by_cases hx : x < i
+    · rw [argEnvKV_eq_of_lt (by simp [plist]; omega)]
+      simp only [List.reverse_nil, List.nil_append, List.getElem_reverse, plist, List.getElem_map,
+        List.getElem_range, List.length_map, List.length_range]
+      exact ((hps n g).2.1 _ (by omega)).1
+    · simp only [argEnvKV, List.getD_eq_getElem?_getD]
+      rw [List.getElem?_eq_none (by simp [plist]; omega), Option.getD_none]
+      exact isKV_mkKV _
+
+/-- Parameter values are small (C2): elements of types of the declared level or of universes of at
+most that level. -/
+theorem params_small {S0 : Sig} (hS0 : SigOK S0) {D : DataDecl} (hWf : D.Wf S0 S0.length)
+    {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) D m ps) (n : ℕ) (g : Hom n m) :
+    ps n g ∈ Vt D.level := by
+  have hcl : ∀ (j : ℕ) (A : Tm), D.params[j]? = some A → A.closedB j 0 = true := fun j A h => (hWf.2.1 j A h).1
+  have hl : D.level ≤ 4 := by have := hWf.1; unfold maxLevel at this; omega
+  rw [listLen_vlist (hps n g).1]
+  refine vlist_mem_Vt hl fun a ha => ?_
+  obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ha
+  simp only [plist, List.length_map, List.length_range] at hi
+  simp only [plist, List.getElem_map, List.getElem_range]
+  have hm := ((hps n g).2.1 i hi).2
+  rcases (hWf.2.1 i _ (List.getElem?_eq_getElem hi)).2.2 with hA | ⟨k, hk, hA⟩
+  · have hp := isPoint_paramCtx hcl hps g (fun _ => DM.zero n) (Φ := .one) (by simp [DM.holds, ival.fn, I.eval]) i hi.le
+    obtain ⟨hmU, -, -, -⟩ := (sound_ty hS0 hA).2.2.2 n _ _ hp
+    rw [sem_univ, El_univC, ZFSet.mem_sep] at hmU
+    have e : sem S0 D.params[i] n (fun _ => DM.zero n) (argEnvKV n (plist (ps n g) i) []) =
+        interp (sigV S0) univC TyCode D.params[i] n (fun _ => DM.zero n) (argEnv [] (plist (ps n g) i)) := by
+      refine interp_congr_closed _ _ _ _ i 0 (hcl i _ (List.getElem?_eq_getElem _)) n _ _ _ _
+        (fun _ h => absurd h (by omega)) fun y hy => ?_
+      rw [argEnvKV_eq_of_lt (by simp [plist]; omega), argEnv_eq_of_lt (by simp [plist]; omega)]
+      simp
+    rw [e] at hmU
+    exact Vt_trans _ (El_mem_Vt hl hmU.1 _) hm
+  · rw [hA] at hm
+    simp only [interp, El_univC, ZFSet.mem_sep] at hm
+    exact Vt_mono hk hl hm.1
 
 section argty
 
@@ -310,7 +394,7 @@ theorem genPre_map (C : Ctor) (gf : ℕ → V) (pre : List V) (f : V → V) :
   split <;> rfl
 
 theorem res_genV (c : ℕ) (ctors : List Ctor) (h : Hom k n) : res h (genV c n ctors) = genV c k ctors := by
-  simp [genV, res_conV]
+  simp [genV, res_conV, List.map_replicate]
 
 include hsyn hC hps in
 theorem argTy_univ (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
@@ -427,6 +511,32 @@ theorem ctor_of_lt {D : DataDecl} {c j : ℕ} (h : j < (D.ctors.getD c default).
     | recur => simp [Ctor.isRec, List.getElem?_eq_getElem h, ha] at hr
   · rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none (by omega)] at h
     exact absurd h (by simp [show (default : Ctor).args = [] from rfl])
+
+theorem isHIT_false {D : DataDecl} (h : D.isHIT = false) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) :
+    C.dims = 0 ∧ C.bnd = [] := by
+  have := List.any_eq_false.1 h C (List.mem_of_getElem? hC)
+  simp only [Bool.or_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true', List.isEmpty_eq_false_iff, not_or,
+    not_not] at this
+  exact ⟨this.1, by simpa using this.2⟩
+
+theorem isHIT_of_bnd {D : DataDecl} {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {cl : I × Tm}
+    (hcl : cl ∈ C.bnd) : D.isHIT = true := by
+  refine List.any_eq_true.2 ⟨C, List.mem_of_getElem? hC, ?_⟩
+  cases hb : C.bnd with
+  | nil => rw [hb] at hcl; cases hcl
+  | cons _ _ => simp
+
+theorem isHIT_truncate {D : DataDecl} (h : D.isHIT = true) (c : ℕ) : (D.truncate c).isHIT = true :=
+  List.any_eq_true.2 ⟨genCtor D.isHIT, by simp [DataDecl.truncate], by simp [h]⟩
+
+theorem isHIT_truncate_eq (D : DataDecl) (c : ℕ) : (D.truncate c).isHIT = D.isHIT := by
+  cases h : D.isHIT
+  · refine List.any_eq_false.2 fun C hC => ?_
+    simp only [DataDecl.truncate, List.mem_append, List.mem_singleton] at hC
+    rcases hC with hC | rfl
+    · exact List.any_eq_false.1 h C (List.mem_of_mem_take hC)
+    · simp [h]
+  · exact isHIT_truncate h c
 
 section dataok
 
@@ -564,6 +674,7 @@ theorem dataSD_basic {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) E m ps) :
       rw [h]; exact fib_emptyC
 
 theorem dataOK_of
+    (hpv : ∀ m (ps : RV m), ParamsOK (sigV S0) E m ps → ∀ n (g : Hom n m), ps n g ∈ Vt E.level)
     (hbo : ∀ m (ps : RV m), ParamsOK (sigV S0) E m ps →
       (∀ c C, (dataSD (sigV S0) E S0.length m ps).ctors[c]? = some C → ∀ ψ b, (ψ, b) ∈ C.bnd →
         ∀ n (rs : List (DM n)), (ival (renv rs) ψ).holds → BTy (dataSD (sigV S0) E S0.length m ps) c C b) ∧
@@ -583,8 +694,9 @@ theorem dataOK_of
             bnd := hb
             const := fun hp c j n g g' pre => argTySem_noparams S0 E (by
               simpa [dataSD] using hp) c j n _ _ pre
+            nonhit := fun hh c C hC => isHIT_false hh hC
             ovl := ho
-            fib := fun c j n g pre _ => ?_ }, fun c j n g pre => ?_⟩
+            fib := fun c j n g pre _ => ?_ }, fun c j n g pre => ?_, hpv m ps hps⟩
   · rcases argTySem_facts S0 E hsyn hU hps c j n g pre with h | h
     · rw [mem_El_univ_iff] at h; exact h.2.fib
     · show Fib (argTySem _ _ _ _ _ _ _ _) n
@@ -1087,8 +1199,6 @@ end tyeq
 
 /-! ### Assembly -/
 
-/-- The generator constructor of truncated declarations. -/
-abbrev genCtor : Ctor := { args := [], dims := 0, bnd := [] }
 
 theorem sigOK_ext {S0 : Sig} (hS0 : SigOK S0) {E : DataDecl} (hE : DataOK (S0 ++ [.data E]) S0.length E) :
     SigOK (S0 ++ [.data E]) := by
@@ -1165,9 +1275,10 @@ theorem atomV_inj {a0 : V} (ha0 : IsKV n a0) (hne : ∀ ψ u a, ¬ ψ.holds → 
       (atomV_kv ha0 i) (atomV_kv ha0 j) h
     rw [atomV_inj ha0 hne i j hb]
 
-theorem atomV_DElem {Θ : SData m} {g : Hom n m} {a0 : V} (ha0 : DElem Θ n g a0) : ∀ i, DElem Θ n g (atomV n a0 i)
+theorem atomV_DElem {Θ : SData m} (hH : Θ.hit = true) {g : Hom n m} {a0 : V} (ha0 : DElem Θ n g a0) :
+    ∀ i, DElem Θ n g (atomV n a0 i)
   | 0 => ha0
-  | i + 1 => DElem.hcomp (Cof.isCof_bot n) (atomV_DElem ha0 i)
+  | i + 1 => DElem.hcomp hH (Cof.isCof_bot n) (atomV_DElem hH ha0 i)
       (fun n' h r hh => absurd hh (by rw [Cof.bot_restr]; exact not_bot_holds n'))
       (fun n' h r hh => absurd hh (by rw [Cof.bot_restr]; exact not_bot_holds n'))
       (fun n' h hh => absurd hh (by rw [Cof.bot_restr]; exact not_bot_holds n'))
@@ -1430,8 +1541,13 @@ section assembly
 
 variable (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0.length)
   (X : List Ctor) (B : ℕ) (hB : B ≤ D.ctors.length) (hXB : ∀ c' < B, X[c']? = D.ctors[c']?)
-  (hXr : ∀ c', B ≤ c' → ∀ C', X[c']? = some C' → C' = genCtor)
+  (hXr : ∀ c', B ≤ c' → ∀ C', X[c']? = some C' → C' = genCtor D.isHIT)
   (hokB : ∀ c' < B, SigOK (S0 ++ [.data (D.truncate c')]))
+  (hXH : ({ D with ctors := X } : DataDecl).isHIT = D.isHIT)
+
+include hXH in
+theorem truncate0_X : ({ D with ctors := X } : DataDecl).truncate 0 = D.truncate 0 := by
+  simp only [DataDecl.truncate, hXH]; rfl
 
 theorem simpleB_congr {ctors1 ctors2 : List Ctor} {d np c n : ℕ} {C : Ctor}
     (h : ∀ c' < c, ctors1[c']? = ctors2[c']?) : ∀ t : Tm,
@@ -1457,8 +1573,9 @@ include hS0 hWf hXB hXr in
 theorem dataSyn_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
     DataSyn S0.length { D with ctors := X } := by
   refine ⟨hWf.1, fun j A hA => ⟨(hWf.2.1 j A hA).1, ?_⟩, fun c C hC k A hA => ?_, fun c C hC ψ b hb => ?_⟩
-  · obtain ⟨l, hl⟩ := (hWf.2.1 j A hA).2.2
-    exact (sound_ty hS0 hl).2.1
+  · rcases (hWf.2.1 j A hA).2.2 with hl | ⟨k, -, rfl⟩
+    · exact (sound_ty hS0 hl).2.1
+    · trivial
   rotate_left
   · by_cases hcB : c < B
     · rw [show ({ D with ctors := X } : DataDecl).ctors = X from rfl, hXB c hcB] at hC
@@ -1472,29 +1589,31 @@ theorem dataSyn_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
       subst this; simp at hb
   · by_cases hcB : c < B
     · rw [show ({ D with ctors := X } : DataDecl).ctors = X from rfl, hXB c hcB] at hC
-      obtain ⟨h1, h2, h3, h4⟩ := (hWf.2.2 c C hC).1 k A hA
+      obtain ⟨h1, h2, h3, h4, -⟩ := (hWf.2.2 c C hC).1 k A hA
       refine ⟨h1, ?_, h2, h3⟩
       have := (sound_ty (hok0 (by omega)) h4).2.1
       simpa using this
     · have := hXr c (by omega) C hC
       subst this; simp at hA
 
-include hWf hXB in
+include hWf hXB hXH in
 theorem hck_X : ∀ (c : ℕ) (C : Ctor), ({ D with ctors := X } : DataDecl).ctors[c]? = some C → c < B →
     ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
     HasTy (S0 ++ [.data (({ D with ctors := X } : DataDecl).truncate 0)]) 0 .one
       (({ D with ctors := X } : DataDecl).argCtx S0.length C k) A (.univ D.level) := by
   intro c C hC hcB k A hA
   rw [show ({ D with ctors := X } : DataDecl).ctors = X from rfl, hXB c hcB] at hC
-  exact ((hWf.2.2 c C hC).1 k A hA).2.2.2
+  rw [truncate0_X D X hXH]
+  exact ((hWf.2.2 c C hC).1 k A hA).2.2.2.1
 
-include hS0 hWf hXB hXr in
+include hS0 hWf hXB hXr hXH in
 theorem argTysOK_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
     ArgTysOK S0 { D with ctors := X } := by
   intro c C hC j A hA m ps hps n g pre hjp hpre
   by_cases hcB : c < B
-  · exact argTy_univ S0 { D with ctors := X } (dataSyn_X S0 hS0 D hWf X B hXB hXr hok0) hC hps (hok0 (by omega))
-      (fun k A' hA' => hck_X S0 D hWf X B hXB c C hC hcB k A' hA')
+  · exact argTy_univ S0 { D with ctors := X } (dataSyn_X S0 hS0 D hWf X B hXB hXr hok0) hC hps
+      (by rw [truncate0_X D X hXH]; exact hok0 (by omega))
+      (fun k A' hA' => hck_X S0 D hWf X B hXB hXH c C hC hcB k A' hA')
       j A hA n g pre hjp hpre
   · have := hXr c (by omega) C hC
     subst this; simp at hA
@@ -1513,7 +1632,7 @@ theorem bnd_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
         (fun c' h C' hC' => by rw [List.getElem?_eq_none (by omega)] at hC'; cases hC') (fun _ => hok0 (by omega))
     have hckD : ∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C → ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
         HasTy (S0 ++ [.data (D.truncate 0)]) 0 .one (D.argCtx S0.length C k) A (.univ D.level) :=
-      fun c C hC k A hA => ((hWf.2.2 c C hC).1 k A hA).2.2.2
+      fun c C hC k A hA => ((hWf.2.2 c C hC).1 k A hA).2.2.2.1
     obtain ⟨k, hk⟩ := List.getElem?_of_mem hb
     obtain ⟨-, -, hsimple, -, hbt⟩ := (hWf.2.2 c C hCD).2.1 k ψ b hk
     exact ((bty_of_wf S0 D hsynD hCD hps (hok0 (by omega)) hckD hS0
@@ -1522,7 +1641,7 @@ theorem bnd_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
   · have := hXr c (by omega) C hC
     subst this; simp at hb
 
-include hS0 hWf hXB hXr hokB hB in
+include hS0 hWf hXB hXr hokB hB hXH in
 theorem ovl_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) (ps : RV m)
     (hps : ParamsOK (sigV S0) { D with ctors := X } m ps) :
     ∀ c C, (dataSD (sigV S0) { D with ctors := X } S0.length m ps).ctors[c]? = some C → ∀ ψ b ψ' b',
@@ -1541,7 +1660,7 @@ theorem ovl_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
     subst this; simp at hmem
   set E : DataDecl := { D with ctors := X } with hE
   have hsynX := dataSyn_X S0 hS0 D hWf X B hXB hXr hok0
-  have hUX := argTysOK_X S0 hS0 D hWf X B hXB hXr hok0
+  have hUX := argTysOK_X S0 hS0 D hWf X B hXB hXr hXH hok0
   have hbX := dataSD_basic S0 E hsynX hUX hps
   have hrcX := dataSD_resClosed S0 E hsynX hUX hps
   have hCD : D.ctors[c]? = some C := by rw [← hXB c hcB]; exact hC
@@ -1555,7 +1674,7 @@ theorem ovl_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
   have hctO : ∀ k < c, (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).ctors[k]? =
       (dataSD (sigV S0) E S0.length m ps).ctors[k]? := by
     intro k hk
-    show (D.ctors.take c ++ [genCtor])[k]? = X[k]?
+    show (D.ctors.take c ++ [genCtor D.isHIT])[k]? = X[k]?
     rw [List.getElem?_append_left (by simp; omega), List.getElem?_take_of_lt hk, hXB k (by omega)]
   have hct : ∀ k < c, (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).ctors.getD k default =
       (dataSD (sigV S0) E S0.length m ps).ctors.getD k default := by
@@ -1569,7 +1688,10 @@ theorem ovl_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
   -- generic atoms
   have ha0 : DElem (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))) n (Hom.id n)
       (genV c n (D.truncate c).ctors) := mem_El_dataC.1 (genV_mem hcD.le)
-  have hb0 : bndAtMap ((D.truncate c).ctors.getD c default) ([] : List (DM n)) (Hom.id n) = none := by
+  have hHT : (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).hit = true :=
+    isHIT_truncate (isHIT_of_bnd hCD hmem) c
+  have hb0 : bndAtMap ((D.truncate c).ctors.getD c default)
+      (List.replicate ((D.truncate c).ctors.getD c default).dims (DM.zero n)) (Hom.id n) = none := by
     rw [getD_ctors (truncate_gen D hcD.le)]; rfl
   have ha0ne : ∀ (ψ0 : Cof n) u a, ¬ ψ0.holds → genV c n (D.truncate c).ctors ≠ hcV n ψ0 u a :=
     fun ψ0 u a hn => conV_ne_hcV hb0 hn
@@ -1651,7 +1773,7 @@ theorem ovl_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
         DElem (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))) n (Hom.id n) aT[j] := by
     intro j hj hj' hr
     simp only [aT, genPre_getElem, hr, if_true]
-    refine ⟨?_, atomV_DElem ha0 (j + 1)⟩
+    refine ⟨?_, atomV_DElem hHT ha0 (j + 1)⟩
     have := Corr.atom (ctors := (dataSD (sigV S0) E S0.length m ps).ctors) (n := n) (gen := gf) (act := act)
       (P := P) (i := j) ⟨by omega, hr⟩
     simpa [act, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hj'] using this
@@ -1696,7 +1818,7 @@ theorem ovl_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
     rwa [e] at hm
   have hgfm : ∀ i, C.isRec i = true →
       gf i ∈ El (dataC (dataSD (sigV S0) (D.truncate c) S0.length n fun k f => ps k (g.comp f))) (Hom.id n) :=
-    fun i _ => mem_El_dataC.2 (atomV_DElem ha0 (i + 1))
+    fun i _ => mem_El_dataC.2 (atomV_DElem hHT ha0 (i + 1))
   have htk : genPre C gf (args.take C.args.length) = aT := by rw [List.take_of_length_le (by omega)]
   have hp1 := isPoint_argCtx S0 D hsynD hCD hps c g (renv rs) hψ gf hgfm (j := C.args.length) (pre := args)
     (by omega) le_rfl hptD
@@ -1713,7 +1835,7 @@ theorem ovl_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
       Ctor.simpleB (D.truncate c).ctors S0.length (D.truncate c).params.length c C.args.length C bb = true := by
     intro bb h
     rw [← (simpleB_congr (fun c' hc' => ?_) bb).1]; exact h
-    show D.ctors[c']? = (D.ctors.take c ++ [genCtor])[c']?
+    show D.ctors[c']? = (D.ctors.take c ++ [genCtor D.isHIT])[c']?
     rw [List.getElem?_append_left (by simp; omega), List.getElem?_take_of_lt hc']
   have hev := fun bb => (sem_simple_eval (S := S0 ++ [.data (D.truncate c)]) (entry_ext S0 _) (c := c) (C := C) hp12.kv aT hlT
     hargs rs (fun i _ => rfl) bb).1
@@ -1732,12 +1854,13 @@ theorem ovl_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
   rw [← hE] at h2
   exact Corr.unique hinj hne h1 h2
 
-include hS0 hWf hXB hXr hokB hB in
+include hS0 hWf hXB hXr hokB hB hXH in
 theorem dataOK_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
     DataOK (S0 ++ [.data { D with ctors := X }]) S0.length { D with ctors := X } :=
-  dataOK_of S0 _ (dataSyn_X S0 hS0 D hWf X B hXB hXr hok0) (argTysOK_X S0 hS0 D hWf X B hXB hXr hok0)
+  dataOK_of S0 _ (dataSyn_X S0 hS0 D hWf X B hXB hXr hok0) (argTysOK_X S0 hS0 D hWf X B hXB hXr hXH hok0)
+    (fun m ps hps n g => params_small hS0 hWf (D := D) hps n g)
     fun m ps hps => ⟨bnd_X S0 hS0 D hWf X B hB hXB hXr hokB hok0 m ps hps,
-      ovl_X S0 hS0 D hWf X B hB hXB hXr hokB hok0 m ps hps⟩
+      ovl_X S0 hS0 D hWf X B hB hXB hXr hokB hXH hok0 m ps hps⟩
 
 end assembly
 
@@ -1747,10 +1870,10 @@ theorem sigOK_trunc (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0
   induction c using Nat.strong_induction_on with
   | _ c ih =>
     intro hc
-    have hX : D.truncate c = { D with ctors := D.ctors.take c ++ [genCtor] } := rfl
+    have hX : D.truncate c = { D with ctors := D.ctors.take c ++ [genCtor D.isHIT] } := rfl
     rw [hX]
     refine sigOK_ext hS0 (dataOK_X S0 hS0 D hWf _ c hc (fun c' hc' => ?_) (fun c' hc' C' hC' => ?_)
-      (fun c' hc' => ih c' hc' (by omega)) (fun h0 => ih 0 h0 (by omega)))
+      (fun c' hc' => ih c' hc' (by omega)) (isHIT_truncate_eq D c) (fun h0 => ih 0 h0 (by omega)))
     · simp [List.getElem?_append_left (by simp; omega : c' < (D.ctors.take c).length), hc']
     · rw [List.getElem?_append_right (by simp; omega)] at hC'
       simp only [List.length_take, Nat.min_eq_left hc] at hC'
@@ -1762,7 +1885,7 @@ theorem dataOK_decl (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0
     DataOK (S0 ++ [.data D]) S0.length D := by
   have := dataOK_X S0 hS0 D hWf D.ctors D.ctors.length le_rfl (fun _ _ => rfl)
     (fun c' hc' C' hC' => by rw [List.getElem?_eq_none (by omega)] at hC'; cases hC')
-    (fun c' hc' => sigOK_trunc S0 hS0 D hWf c' hc'.le) (fun _ => sigOK_trunc S0 hS0 D hWf 0 (Nat.zero_le _))
+    (fun c' hc' => sigOK_trunc S0 hS0 D hWf c' hc'.le) rfl (fun _ => sigOK_trunc S0 hS0 D hWf 0 (Nat.zero_le _))
   exact this
 
 end

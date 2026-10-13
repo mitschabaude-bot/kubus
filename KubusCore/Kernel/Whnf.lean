@@ -48,7 +48,8 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
     -- the base and the equivalence of the Glue line, which the rule takes as premises
     let ⟨l, ⟨hA⟩⟩ ← inferType R E.dext A
     let ⟨he⟩ ← checkEquiv R E.dext A ψ T' e l
-    pure (some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht hA he (I.entails_refl _) (I.entails_refl _)⟩)
+    let ⟨hδ⟩ ← ensureScoped ψ.forall0 Ψ
+    pure (some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht hA he hδ (I.entails_refl _) (I.entails_refl _)⟩)
   | .ipi A, ht => pure (some ⟨Tm.transpIPi A φ a, EqTm.transpIPi ht⟩)
   | .data d ps, ht => do
     let ⟨D, ⟨hS⟩⟩ ← lookupData S d
@@ -58,13 +59,14 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
       | .con d' c qs args rs, ht =>
         if hd : d' = d then (by subst hd; exact transpConK R E D hS hp c ht) else pure none
       | .hcomp (.data d' qs) ψ u a0, ht =>
-        if hd : d' = d then (by
+        if hd : d' = d ∧ D.isHIT = true then (by
+          obtain ⟨hd, hH⟩ := hd
           subst hd
           exact do
             -- the composition at the parameters of the line's start
             let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d' (ps.dinst .zero))
             let ⟨hh⟩ ← R.check E (.hcomp (.data d' (ps.dinst .zero)) ψ u a0) _ l hD
-            pure (some ⟨_, EqTm.transpHcomp hS hp hh ht⟩))
+            pure (some ⟨_, EqTm.transpHcomp hS hp hH hh ht⟩))
         else pure none
       | _, _ => return none
   | _, _ => pure none
@@ -205,11 +207,13 @@ def elimConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps P bs q
 def elimHcompK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
     (ht : HasTy S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T) :
     K S (Option (Red S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T × Bool)) := do
-  let ⟨_, ⟨hS⟩⟩ ← lookupData S d
-  -- the composition at the eliminator's parameters
-  let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d ps)
-  let ⟨hh⟩ ← R.check E (.hcomp (.data d ps) φ u a) _ l hD
-  pure (some (⟨_, EqTm.elimHcomp hS hh ht⟩, false))
+  let ⟨D, ⟨hS⟩⟩ ← lookupData S d
+  if hH : D.isHIT = true then
+    -- the composition at the eliminator's parameters
+    let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d ps)
+    let ⟨hh⟩ ← R.check E (.hcomp (.data d ps) φ u a) _ l hD
+    pure (some (⟨_, EqTm.elimHcomp hS hH hh ht⟩, false))
+  else pure none
 
 /-- Reduce the target of an eliminator. -/
 def elimTargetStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t A : Tm) (l : Nat)
@@ -261,8 +265,10 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .glue _ φ T _, ht =>
     if h : E.Ent φ then pure (some (⟨T, EqTm.glueFace h ht⟩, false)) else pure none
   | .unglue φ e (.glueEl φ' e' t1 a1), ht =>
-    if h : φ' = φ ∧ e' = e then
-      pure (some (⟨a1, by obtain ⟨h1, h2⟩ := h; subst h1; subst h2; exact EqTm.glueBeta ht⟩, false))
+    if h : φ' = φ ∧ e' = e then do
+      -- the rule takes the typing of the base element as a premise
+      let ⟨ha⟩ ← R.check E a1 A l hA
+      pure (some (⟨a1, by obtain ⟨h1, h2⟩ := h; subst h1; subst h2; exact EqTm.glueBeta ht ha⟩, false))
     else elimStep R E (.unglue φ e (.glueEl φ' e' t1 a1)) A l hA
   | .glueEl φ _ t1 _, ht =>
     if h : E.Ent φ then pure (some (⟨t1, EqTm.glueElFace h ht⟩, false)) else pure none
@@ -492,7 +498,8 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
       if hφ' : φ' = φ ∧ e' = e then
         have e1' : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e (.glueEl φ e t1 a1)) A1 := by
           rw [h, hφ'.1, hφ'.2] at e1; exact e1
-        have e2 := EqTm.glueBeta (HasTy.eqR e1')
+        let ⟨ha⟩ ← R.check E a1 A1 gi.lvl inf.hty
+        have e2 := EqTm.glueBeta (HasTy.eqR e1') ha
         let r3 ← R.whnf E a1 A1 gi.lvl inf.hty (HasTy.eqR e2)
         return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩
       else return ⟨inf, ⟨_, h ▸ e1⟩⟩

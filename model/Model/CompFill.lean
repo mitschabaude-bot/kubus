@@ -23,6 +23,18 @@ variable {k m n n' : ℕ}
 def fillF (c : V) (f : Hom (k + 1) m) (ψ : Cof k) (u : Tube k) (u0 : V) : V :=
   compF c (f.comp (tfLine k)) (fillFace ψ) (fillTube ψ u u0) (res (Hom.wk k) u0)
 
+theorem fillTube_congr {ψ : Cof k} {u u' : Tube k} (a : V)
+    (h : ∀ n (g : Hom n k) r, (ψ.restr g).holds → u n g r = u' n g r) : fillTube ψ u a = fillTube ψ u' a := by
+  funext n g r
+  simp only [fillTube]
+  split
+  · rename_i hh; rw [h _ _ _ hh]
+  · rfl
+
+theorem fillF_res_id (c : V) (f : Hom (k + 1) m) (ψ : Cof k) (u : Tube k) (u0 : V) :
+    fillF (res f c) (Hom.id (k + 1)) ψ u u0 = fillF c f ψ u u0 := by
+  rw [fillF, fillF, compF_res_gen, Hom.id_comp]
+
 theorem LineTubeOK.restr {c : V} {f : Hom (k + 1) m} {ψ : Cof k} {u : Tube k} {u0 : V}
     (hu : LineTubeOK c f ψ u u0) (h : Hom n k) :
     LineTubeOK c (f.comp (Hom.lift h)) (ψ.restr h) (u.restr h) (res h u0) where

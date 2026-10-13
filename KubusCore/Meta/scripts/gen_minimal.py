@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""Generate KubusCore/Meta/Minimal.lean from the spec (KubusCore/Rules.lean).
+
+The minimal judgments are the spec's mutual block with the primitive structural,
+presupposition and inversion rules removed and the changes listed in CHANGES applied.
+Every edit is checked to apply exactly once, so a spec change that touches an edited rule
+makes this script fail instead of silently diverging. Run from the repository root:
+
+    python3 KubusCore/Meta/scripts/gen_minimal.py
+"""
+import re, sys
+
+SRC = "KubusCore/Rules.lean"
+DST = "KubusCore/Meta/Minimal.lean"
+
+src = open(SRC).read()
+start = src.index("\nmutual\n")
+end = src.index("\nend\n", start)
+block = src[start + 1:end + 5]
+
+# split into constructors: a constructor starts at a line "  | name" and extends to the next
+# constructor, comment line or inductive header
+lines = block.split("\n")
+out, removed = [], []
+DROP_TY = {"wk", "dwk", "subst", "dsubst", "eqL", "eqR", "piDom", "piCod", "sigmaDom",
+           "sigmaCod", "pathLine", "pathLeft", "pathRight", "glueFib", "ipiLine"}
+DROP_EQ = {"wk", "dwk", "subst", "dsubst"}
+current = None
+skipping = False
+for ln in lines:
+    m = re.match(r"inductive (\w+)", ln)
+    if m:
+        current = m.group(1)
+    m = re.match(r"  \| (\w+)", ln)
+    if m:
+        name = m.group(1)
+        drop = (current == "HasTy" and name in DROP_TY) or (current == "EqTm" and name in DROP_EQ)
+        skipping = drop
+        if drop:
+            removed.append(f"{current}.{name}")
+            continue
+    elif skipping and (ln.startswith("      ") or ln.strip() == ""):
+        if ln.strip() == "":
+            skipping = False
+            out.append(ln)
+        continue
+    else:
+        skipping = False
+    out.append(ln)
+block = "\n".join(out)
+assert len(removed) == len(DROP_TY) + len(DROP_EQ), removed
+
+# drop the comment headers of removed groups
+for hdr in ["  /- presupposition -/\n", "  /- inversion of type formers -/\n"]:
+    assert block.count(hdr) == 1, hdr
+    block = block.replace(hdr, "")
+
+for a, b in [("Wf", "Wf0"), ("HasTy", "HasTy0"), ("HasTele", "HasTele0"),
+             ("EqTele", "EqTele0"), ("EqTm", "EqTm0")]:
+    block = re.sub(r"\b%s\b" % a, b, block)
+
+def edit(old, new):
+    global block
+    n = block.count(old)
+    if n != 1:
+        sys.exit(f"edit does not apply exactly once ({n}):\n{old}")
+    block = block.replace(old, new)
+
+# (M1) `(i : I) → A` checks its context
+edit("""  | ipi {Ψ Φ Γ A l} : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) → HasTy0 S Ψ Φ Γ (ipi A) (univ l)""",
+     """  | ipi {Ψ Φ Γ A l} : Wf0 S Ψ Φ Γ → HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
+      HasTy0 S Ψ Φ Γ (ipi A) (univ l)""")
+edit("""  | ipi {Ψ Φ Γ A A' l} : EqTm0 S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l) →""",
+     """  | ipi {Ψ Φ Γ A A' l} : Wf0 S Ψ Φ Γ → EqTm0 S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l) →""")
+# (M2) `glue` elements: the equivalence is typed
+edit("""  | glueEl {Ψ Φ Γ A φ T e t a l} : HasTy0 S Ψ Φ Γ (glue A φ T e) (univ l) →
+      HasTy0 S Ψ (cof Φ φ) Γ t T →""",
+     """  | glueEl {Ψ Φ Γ A φ T e t a l} : HasTy0 S Ψ Φ Γ (glue A φ T e) (univ l) →
+      HasTy0 S Ψ (cof Φ φ) Γ e (equiv T A) → HasTy0 S Ψ (cof Φ φ) Γ t T →""")
+# (M3) the face rule: the type is a type (or a universe)
+edit("""  | face {Ψ Φ Γ t A i d} : i < Ψ → I.Entails Φ (I.lit i d) → HasTy0 S Ψ Φ Γ t A →
+      EqTm0 S Ψ Φ Γ t (t.dset i (I.ofDir d)) A""",
+     """  | face {Ψ Φ Γ t A i d l} : i < Ψ → I.Entails Φ (I.lit i d) → HasTy0 S Ψ Φ Γ A (univ l) →
+      HasTy0 S Ψ Φ Γ t A → EqTm0 S Ψ Φ Γ t (t.dset i (I.ofDir d)) A
+  | faceU {Ψ Φ Γ t i d l} : i < Ψ → I.Entails Φ (I.lit i d) → HasTy0 S Ψ Φ Γ t (univ l) →
+      EqTm0 S Ψ Φ Γ t (t.dset i (I.ofDir d)) (univ l)""")
+# (M0) name the two anonymous substitutions in rules, so that lemmas can refer to them
+# (definitionally equal: `consSub h = fun | 0 => h | j + 1 => var j`, `skip1I = fun | 0 => .var 0 | n + 1 => .var (n + 2)`)
+edit("(fun | 0 => hfill (data d ps) φ u a | j + 1 => var j)", "(consSub (hfill (data d ps) φ u a))")
+edit("(data d ps).dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)", "(data d ps).dsubst skip1I")
+
+# (M6) `con` and `elim`: the parameters match the parameter telescope (premise)
+edit("""      ps = Tm.ofList ps.toList → HasTy0 S Ψ Φ Γ (data d ps) (univ D.level) →
+      HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →""",
+     """      ps = Tm.ofList ps.toList → HasTy0 S Ψ Φ Γ (data d ps) (univ D.level) →
+      HasTele0 S Ψ Φ Γ ps D.params [] →
+      HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →""")
+edit("""      ps = Tm.ofList ps.toList →
+      HasTy0 S Ψ Φ Γ (data d ps) (univ D.level) → HasTy0 S Ψ Φ (data d ps :: Γ) P (univ m) →""",
+     """      ps = Tm.ofList ps.toList →
+      HasTy0 S Ψ Φ Γ (data d ps) (univ D.level) → HasTele0 S Ψ Φ Γ ps D.params [] →
+      HasTy0 S Ψ Φ (data d ps :: Γ) P (univ m) →""")
+
+header = '''import KubusCore.Meta.Defs
+
+/-!
+# Metatheory: the minimal judgments
+
+GENERATED by `KubusCore/Meta/scripts/gen_minimal.py` from `KubusCore/Rules.lean`; do not edit.
+
+`Wf0`, `HasTy0`, `HasTele0`, `EqTele0`, `EqTm0` are the spec's judgments without the
+primitive structural rules (`wk`, `dwk`, `subst`, `dsubst`), presupposition (`eqL`, `eqR`)
+and inversion of type formers (`piDom`, `piCod`, `sigmaDom`, `sigmaCod`, `pathLine`,
+`pathLeft`, `pathRight`, `ipiLine`, `glueFib`). All other rules are copied literally, except
+for the changes M1, M2, M3, M6 documented in `docs/metatheory.md`, and two anonymous substitutions in
+`elimHcomp`, `transpHcomp` are named (`consSub`, `skip1I`; definitionally the same). The
+well-formedness of signatures (`WfSig0`, `DataDecl.Wf0`, `Ctor.bndTyped0`) and the consistency
+statement (`Consistent0`) are copied with the minimal judgments in place of the spec's:
+
+- M1 `HasTy0.ipi`, `EqTm0.ipi`: the context is well-formed (`Wf0` premise).
+- M2 `HasTy0.glueEl`: the equivalence is typed (premise).
+- M3 `EqTm0.face`: the type is a type (premise); `EqTm0.faceU` for the face rule at a universe.
+- M6 `HasTy0.con`, `HasTy0.elim`: the parameters match the parameter telescope (premise).
+-/
+
+namespace KubusCore.Meta
+
+open Tm
+
+'''
+# the well-formedness of signatures and the consistency statement, over the minimal judgments
+i = src.index("\nnamespace Ctor\n", end)
+j = src.index("\nend KubusCore", i)
+tail = src[i + 1:j]
+k1 = tail.index("namespace DataDecl")
+k3 = tail.index("/-- A well-formed declaration")
+tail = tail[:k1] + "namespace DataDecl\n\n" + tail[k3:]   # drop the judgment-free definitions
+for a, b in [(r"\bHasTy\b", "HasTy0"), (r"\bEqTm\b", "EqTm0"), (r"\bbndTyped\b", "bndTyped0"),
+             (r"\bbndTypedArgs\b", "bndTypedArgs0"), (r"\bWfSig\b", "WfSig0"),
+             (r"\bConsistent\b", "Consistent0"), (r"def Wf \(D", "def Wf0 (D"),
+             (r"D\.Wf \(S\.take k\) k", "DataDecl.Wf0 D (S.take k) k"), (r"`DataDecl\.Wf`", "`DataDecl.Wf0`")]:
+    tail, n = re.subn(a, b, tail)
+    if n == 0:
+        sys.exit(f"gen_minimal: tail substitution {a} did not apply")
+open(DST, "w").write(header + block + "\n\n" + tail + "\nend KubusCore.Meta\n")
+print("removed:", ", ".join(removed))

@@ -543,6 +543,23 @@ def freeIn (x : Nat) : Tm → Bool
   | con _ _ ps args _ => ps.freeIn x || args.freeIn x
   | elim _ ps P bs t => ps.freeIn x || P.freeIn (x + 1) || bs.freeIn x || t.freeIn x
 
+/-- The head of a type former that no conversion can change: `Π`, `Σ`, path types,
+`(i : I) → A`, universes, and inductive types with their index. -/
+def tyHead : Tm → Option (Nat × Nat)
+  | pi .. => some (0, 0)
+  | sigma .. => some (1, 0)
+  | path .. => some (2, 0)
+  | ipi _ => some (3, 0)
+  | univ _ => some (4, 0)
+  | data d _ => some (5, d)
+  | _ => none
+
+/-- `X` and `Y` are type formers with different heads. -/
+def headClash (X Y : Tm) : Bool :=
+  match X.tyHead, Y.tyHead with
+  | some h, some h' => h != h'
+  | _, _ => false
+
 end Tm
 
 /-- A constructor argument: a point argument of a type not mentioning the inductive type, or a
@@ -652,6 +669,10 @@ end Ctor
 
 namespace DataDecl
 
+/-- A higher inductive type: some constructor has interval arguments or a boundary. Only these
+have formal compositions; the others compose componentwise (`hcompCon`). -/
+def isHIT (D : DataDecl) : Bool := D.ctors.any fun C => C.dims != 0 || !C.bnd.isEmpty
+
 /-! ### The eliminator
 
 The branch for constructor `c` is a function of the arguments, an induction hypothesis for each
@@ -747,6 +768,21 @@ def transpTele (argTy : Nat → Tm) (psL : List Tm) (φ : I) : Nat → List Tm �
   | k, fills, a :: as =>
     let L := (argTy k).substList (fills ++ psL.reverse)
     transp L φ a :: transpTele argTy psL φ (k + 1) (transpFill L φ a :: fills) as
+
+/-- Composition of a telescope of constructor arguments of a type without path constructors
+(CCHM): `us` are the tube's arguments (in the context extended by the interval variable 0), `as`
+the base's. A recursive argument is composed in the inductive type itself (`dataT`, in the
+base context), a point argument along its type line, whose earlier arguments are the
+fillers of the earlier arguments; `psL` are the parameters in the extended context. -/
+def hcompTele (C : Ctor) (argTy : Nat → Tm) (dataT : Tm) (psL : List Tm) (φ : I) :
+    Nat → List Tm → List Tm → List Tm → List Tm
+  | k, fills, u :: us, a :: as =>
+    if C.isRec k then
+      hcomp dataT φ u a :: hcompTele C argTy dataT psL φ (k + 1) (hfill dataT φ u a :: fills) us as
+    else
+      let L := (argTy k).substList (fills ++ psL.reverse)
+      comp L φ u a :: hcompTele C argTy dataT psL φ (k + 1) (fill L φ u a :: fills) us as
+  | _, _, _, _ => []
 
 end Tm
 

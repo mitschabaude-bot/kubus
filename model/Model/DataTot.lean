@@ -199,7 +199,7 @@ theorem DElem.trAll {n : ℕ} {g : Hom n m} {v : V} (hv : DElem Θ n g v) : TrAl
   induction hv with
   | @con n g c C args rs hC hlen hrs hrec hpt ih =>
     exact trAll_conV hΘ c C hC n g args rs ⟨hlen, hrec, hpt⟩ hrs ih
-  | @hcomp n g φ u a hφ ha hu hcoh hbase iha ihu =>
+  | @hcomp n g φ u a hH hφ ha hu hcoh hbase iha ihu =>
     intro n' h f ψ hf
     rw [res_hcV]
     by_cases hh : (φ.restr h).holds

@@ -410,6 +410,21 @@ def checkCtorBndTyped (R : Rec S) (E0 : KCtx S 0 .one []) (d : Nat) (D : DataDec
     checkBndTyped R Eb (D.argCtx d C C.args.length) C D.level D.ctors d D.params.length pb.2
   pure ⟨fun k ψ b hk => h k (ψ, b) hk⟩
 
+/-- The point argument types of constructor `C`, in the signature before the declaration over
+the parameters and the earlier point arguments. -/
+def checkCtorArgsPoint (R : Rec S) (E0 : KCtx S 0 .one []) (d : Nat) (D : DataDecl) (C : Ctor) :
+    K S (PLift (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) →
+      HasTy S 0 .one (D.pointCtx d C k) (A.ren (C.pointRen k) id) (.univ D.level))) := do
+  let ⟨h⟩ ← forallElems C.args (fun k a => ∀ A, a = .point A →
+      HasTy S 0 .one (D.pointCtx d C k) (A.ren (C.pointRen k) id) (.univ D.level)) fun k a _ =>
+    match a with
+    | .point A => do
+      let Ep ← pointCtxK R E0 D d C k
+      let ⟨hA⟩ ← checkType R Ep (A.ren (C.pointRen k) id) D.level
+      pure ⟨fun A' hA' => by cases hA'; exact hA⟩
+    | .recur => pure ⟨fun _ h => by cases h⟩
+  pure ⟨fun k A hk => h k (.point A) hk A rfl⟩
+
 /-- Check the point argument types of constructor `C` in `S0` (the declaration without
 constructors). -/
 def checkCtorArgs (S0 : Sig) (d : Nat) (D : DataDecl) (C : Ctor) :
@@ -474,11 +489,14 @@ def checkData (S : Sig) (d : Nat) (D : DataDecl) : K S (PLift (D.Wf S d)) := do
   let (R, E0) ← setup S
   let ⟨hl⟩ ← ensureLvl (D.level + 1)
   let ⟨hps⟩ ← forallElems D.params (fun j A => A.closedB j 0 = true ∧ A.mentionsData d = false ∧
-      ∃ l, HasTy S 0 .one (D.paramCtx j) A (.univ l)) fun j A _ => do
+      (HasTy S 0 .one (D.paramCtx j) A (.univ D.level) ∨ ∃ k ≤ D.level, A = .univ k)) fun j A _ => do
     let E1 ← extTypes R E0 (D.params.take j)
     if h : (D.params.take j).reverse ++ [] = D.paramCtx j then
       let ⟨l, ⟨hA⟩⟩ ← inferType R (castCtx E1 rfl h) A
-      if hc : A.closedB j 0 = true ∧ A.mentionsData d = false then pure ⟨hc.1, hc.2, l, hA⟩
+      if hc : A.closedB j 0 = true ∧ A.mentionsData d = false then
+        if hk : ∃ k ≤ D.level, A = .univ k then pure ⟨hc.1, hc.2, .inr hk⟩
+        else if hle : l ≤ D.level then pure ⟨hc.1, hc.2, .inl (HasTy.liftLe hA hle (by omega))⟩
+        else fail "kernel: parameter type larger than the inductive type"
       else fail "kernel: parameter type not closed or mentions the type"
     else fail "kernel: parameter context mismatch"
   let ⟨hcs⟩ ← forallElems D.ctors (fun c C =>
@@ -486,7 +504,8 @@ def checkData (S : Sig) (d : Nat) (D : DataDecl) : K S (PLift (D.Wf S d)) := do
       
       (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
         A.mentionsData d = false ∧ C.noRecDeps k A = true ∧
-        HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+        HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level) ∧
+        HasTy S 0 .one (D.pointCtx d C k) (A.ren (C.pointRen k) id) (.univ D.level)) ∧
       (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
         b.closedB (np + C.args.length) C.dims = true ∧
         Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
@@ -499,7 +518,8 @@ def checkData (S : Sig) (d : Nat) (D : DataDecl) : K S (PLift (D.Wf S d)) := do
       let ⟨ha⟩ ← liftM' (runK (checkCtorArgs (S ++ [.data (D.truncate 0)]) d D C))
       let ⟨hb⟩ ← liftM' (runK (checkCtorBnd (S ++ [.data (D.truncate c)]) d D c C))
       let ⟨hty⟩ ← checkCtorBndTyped R E0 d D C
-      pure ⟨ha, fun k ψ b hk => ⟨(hb.1 k ψ b hk).1, (hb.1 k ψ b hk).2.1, (hb.1 k ψ b hk).2.2.1,
+      let ⟨hpt⟩ ← checkCtorArgsPoint R E0 d D C
+      pure ⟨fun k A hk => ⟨(ha k A hk).1, (ha k A hk).2.1, (ha k A hk).2.2.1, (ha k A hk).2.2.2, hpt k A hk⟩, fun k ψ b hk => ⟨(hb.1 k ψ b hk).1, (hb.1 k ψ b hk).2.1, (hb.1 k ψ b hk).2.2.1,
         (hb.1 k ψ b hk).2.2.2, hty k ψ b hk⟩, hb.2⟩
   pure ⟨hl, hps, fun c C hC => hcs c C hC⟩
 
