@@ -1,6 +1,7 @@
 import Model.Rules.GlueComp
 import Model.Rules.TranspGlue
 import Model.Rules.HcompU
+import Model.Rules.DataTransp
 
 /-!
 # Semantic validity of the rules
@@ -51,7 +52,7 @@ theorem sem_HasTy_restrict {S : Sig} {Ψ Φ Φ' Γ t A}
     fun m ρ γ hp => h2.2.2.2 m ρ γ (hp.of_entails h1)⟩
 
 theorem sem_HasTy_const {S : Sig} {Ψ Φ Γ k t A}
-    (hS : SigOK S) (h0 : SemWf S Ψ Φ Γ) (h1 : S[k]? = some (t, A)) :
+    (hS : SigOK S) (h0 : SemWf S Ψ Φ Γ) (h1 : S[k]? = some (.defn t A)) :
     SemTy S Ψ Φ Γ (const k) A := by
   exact hS.const_sem h1 h0 _ (fun m ρ γ => (hS.const h1).2.2.2.2 m ρ γ |>.1) (hS.const h1).1
 
@@ -766,7 +767,7 @@ theorem sem_EqTm_dsubst {S : Sig} {Ψ Φ Γ t t' A r}
   rw [sem_dinst, sem_dinst]; exact h0.2.2 m _ γ (isPoint_dshift_iff.2 hp)
 
 theorem sem_EqTm_delta {S : Sig} {Ψ Φ Γ k t A}
-    (hS : SigOK S) (h0 : SemTy S Ψ Φ Γ (const k) A) (h1 : S[k]? = some (t, A)) :
+    (hS : SigOK S) (h0 : SemTy S Ψ Φ Γ (const k) A) (h1 : S[k]? = some (.defn t A)) :
     SemEq S Ψ Φ Γ (const k) t A := by
   obtain ⟨-, ht, -, -, hsem⟩ := hS.const h1
   refine ⟨h0, hS.const_sem h1 h0.1 _ (fun m ρ γ => (hsem m ρ γ).2.1) (ht.mono (hS.const h1).1.le),
@@ -855,8 +856,8 @@ theorem sem_EqTm_pair {S : Sig} {Ψ Φ Γ A B a a' b b' l}
     rw [sem_inst hanat, sem_inst hanat', h1.2.2 m ρ γ hp]
   refine ⟨sem_HasTy_pair h0 h1.1 h2.1, sem_HasTy_pair h0 h1.2.1 hb', fun m ρ γ hp => ?_⟩
   simp only [sem, interp]
-  rw [show interp (cstFn S) univC TyCode a m ρ γ = interp (cstFn S) univC TyCode a' m ρ γ from h1.2.2 m ρ γ hp,
-    show interp (cstFn S) univC TyCode b m ρ γ = interp (cstFn S) univC TyCode b' m ρ γ from h2.2.2 m ρ γ hp]
+  rw [show interp (sigV S) univC TyCode a m ρ γ = interp (sigV S) univC TyCode a' m ρ γ from h1.2.2 m ρ γ hp,
+    show interp (sigV S) univC TyCode b m ρ γ = interp (sigV S) univC TyCode b' m ρ γ from h2.2.2 m ρ γ hp]
 
 theorem sem_EqTm_fst {S : Sig} {Ψ Φ Γ A B p p'}
     (h0 : SemEq S Ψ Φ Γ p p' (sigma A B)) :
@@ -886,14 +887,14 @@ theorem sem_EqTm_path {S : Sig} {Ψ Φ Γ A A' a a' b b' l}
   refine ⟨sem_HasTy_path h0.1 h1.1 h2.1, sem_HasTy_path h0.2.1 ha' hb', fun m ρ γ hp => ?_⟩
   have hpe := hp.dext hwf
   have eA : ∀ k (g : Hom k (m + 1)),
-      interp (cstFn S) univC TyCode A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
-      interp (cstFn S) univC TyCode A' k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) :=
+      interp (sigV S) univC TyCode A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+      interp (sigV S) univC TyCode A' k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) :=
     fun k g => h0.2.2 k _ _ (hpe.restr h0.1.1 g)
-  have eA0 : interp (cstFn S) univC TyCode A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) =
-      interp (cstFn S) univC TyCode A' (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := h0.2.2 _ _ _ hpe
-  have ea : interp (cstFn S) univC TyCode a m ρ γ = interp (cstFn S) univC TyCode a' m ρ γ :=
+  have eA0 : interp (sigV S) univC TyCode A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) =
+      interp (sigV S) univC TyCode A' (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := h0.2.2 _ _ _ hpe
+  have ea : interp (sigV S) univC TyCode a m ρ γ = interp (sigV S) univC TyCode a' m ρ γ :=
     h1.2.2 m ρ γ hp
-  have eb : interp (cstFn S) univC TyCode b m ρ γ = interp (cstFn S) univC TyCode b' m ρ γ :=
+  have eb : interp (sigV S) univC TyCode b m ρ γ = interp (sigV S) univC TyCode b' m ρ γ :=
     h2.2.2 m ρ γ hp
   simp only [sem, interp, eA, eA0, ea, eb]
 
@@ -929,16 +930,16 @@ theorem sem_EqTm_transp {S : Sig} {Ψ Φ Γ A A' φ φ' a a' l}
     (h0 : SemTy S Ψ Φ Γ (transp A φ a) (A.dinst .one)) (h1 : SemTy S Ψ Φ Γ (transp A' φ' a') (A.dinst .one)) (h2 : SemEq S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l)) (h3 : I.Entails φ φ') (h4 : I.Entails φ' φ) (h5 : SemEq S Ψ Φ Γ a a' (A.dinst .zero)) :
     SemEq S Ψ Φ Γ (transp A φ a) (transp A' φ' a') (A.dinst .one) := by
   refine ⟨h0, h1, fun m ρ γ hp => ?_⟩
-  have eL : interp (cstFn S) univC TyCode A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) =
-      interp (cstFn S) univC TyCode A' (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) :=
+  have eL : interp (sigV S) univC TyCode A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) =
+      interp (sigV S) univC TyCode A' (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) :=
     h2.2.2 _ _ _ (hp.dext h0.1)
-  have ea : interp (cstFn S) univC TyCode a m ρ γ = interp (cstFn S) univC TyCode a' m ρ γ := h5.2.2 m ρ γ hp
+  have ea : interp (sigV S) univC TyCode a m ρ γ = interp (sigV S) univC TyCode a' m ρ γ := h5.2.2 m ρ γ hp
   have eA : ∀ k (g : Hom k (m + 1)),
-      interp (cstFn S) univC TyCode A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
-      interp (cstFn S) univC TyCode A' k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) :=
+      interp (sigV S) univC TyCode A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+      interp (sigV S) univC TyCode A' k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) :=
     fun k g => h2.2.2 k _ _ ((hp.dext h0.1).restr h2.1.1 g)
-  have ea' : ∀ k (g : Hom k m), interp (cstFn S) univC TyCode a k (ρ.restr g) (TEnv.restr γ g) =
-      interp (cstFn S) univC TyCode a' k (ρ.restr g) (TEnv.restr γ g) :=
+  have ea' : ∀ k (g : Hom k m), interp (sigV S) univC TyCode a k (ρ.restr g) (TEnv.restr γ g) =
+      interp (sigV S) univC TyCode a' k (ρ.restr g) (TEnv.restr γ g) :=
     fun k g => h5.2.2 k _ _ (hp.restr h0.1 g)
   simp only [sem, interp, eL, ea, eA, ea', face_eq_of_entails h3 h4 ρ]
 
@@ -976,9 +977,9 @@ theorem sem_EqTm_glue {S : Sig} {Ψ Φ Γ A A' φ φ' T T' e e' l}
     · exact h6.2.2 k _ _ (hfp k f ‹_›)
     · rfl
 
-theorem sem_EqTm_glueEl {S : Sig} {Ψ Φ Γ φ φ' t t' a a' A T e}
-    (h0 : SemTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e)) (h1 : SemTy S Ψ Φ Γ (glueEl φ' e t' a') (glue A φ T e)) (h2 : I.Entails φ φ') (h3 : I.Entails φ' φ) (h4 : SemEq S Ψ (cof Φ φ) Γ t t' T) (h5 : SemEq S Ψ Φ Γ a a' A) :
-    SemEq S Ψ Φ Γ (glueEl φ e t a) (glueEl φ' e t' a') (glue A φ T e) := by
+theorem sem_EqTm_glueEl {S : Sig} {Ψ Φ Γ φ φ' t t' a a' A T e e'}
+    (h0 : SemTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e)) (h1 : SemTy S Ψ Φ Γ (glueEl φ' e' t' a') (glue A φ T e)) (h2 : I.Entails φ φ') (h3 : I.Entails φ' φ) (h4 : SemEq S Ψ (cof Φ φ) Γ t t' T) (h5 : SemEq S Ψ Φ Γ a a' A) :
+    SemEq S Ψ Φ Γ (glueEl φ e t a) (glueEl φ' e' t' a') (glue A φ T e) := by
   refine ⟨h0, h1, fun m ρ γ hp => ?_⟩
   obtain ⟨hm0, -, hty0, -⟩ := h0.2.2.2 m ρ γ hp
   obtain ⟨hm1, -, hty1, -⟩ := h1.2.2.2 m ρ γ hp
@@ -997,11 +998,17 @@ theorem sem_EqTm_glueEl {S : Sig} {Ψ Φ Γ φ φ' t t' a a' A T e}
     · exact h4.2.2 k _ _ (hfp k f ‹_›)
     · rfl
 
-theorem sem_EqTm_unglue {S : Sig} {Ψ Φ Γ A φ φ' T e g g'}
-    (h0 : SemTy S Ψ Φ Γ (unglue φ e g) A) (h1 : SemTy S Ψ Φ Γ (unglue φ' e g') A) (h2 : I.Entails φ φ') (h3 : I.Entails φ' φ) (h4 : SemEq S Ψ Φ Γ g g' (glue A φ T e)) :
-    SemEq S Ψ Φ Γ (unglue φ e g) (unglue φ' e g') A := by
+theorem sem_EqTm_unglue {S : Sig} {Ψ Φ Γ A φ φ' T e e' g g'}
+    (h0 : SemTy S Ψ Φ Γ (unglue φ e g) A) (h1 : SemTy S Ψ Φ Γ (unglue φ' e' g') A) (h2 : I.Entails φ φ') (h3 : I.Entails φ' φ)
+    (he : SemEq S Ψ (cof Φ φ) Γ e e' (equiv T A)) (h4 : SemEq S Ψ Φ Γ g g' (glue A φ T e)) :
+    SemEq S Ψ Φ Γ (unglue φ e g) (unglue φ' e' g') A := by
   refine ⟨h0, h1, fun m ρ γ hp => ?_⟩
-  rw [sem_unglue, sem_unglue, face_eq_of_entails h2 h3 ρ, h4.2.2 m ρ γ hp]
+  rw [sem_unglue, sem_unglue, ← face_eq_of_entails h2 h3 ρ, h4.2.2 m ρ γ hp]
+  unfold ungAt
+  split
+  · rename_i hh
+    rw [he.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp, (holds_ival_iff_face ρ φ).2 hh⟩)]
+  · rfl
 
 theorem sem_EqTm_ipi {S : Sig} {Ψ Φ Γ A A' l}
     (h0 : SemEq S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l)) :
@@ -1010,11 +1017,11 @@ theorem sem_EqTm_ipi {S : Sig} {Ψ Φ Γ A A' l}
   refine ⟨sem_HasTy_ipi h0.1, sem_HasTy_ipi h0.2.1, fun m ρ γ hp => ?_⟩
   have hpe := hp.dext hwf
   have eA : ∀ k (g : Hom k (m + 1)),
-      interp (cstFn S) univC TyCode A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
-      interp (cstFn S) univC TyCode A' k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) :=
+      interp (sigV S) univC TyCode A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+      interp (sigV S) univC TyCode A' k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) :=
     fun k g => h0.2.2 k _ _ (hpe.restr h0.1.1 g)
-  have eA0 : interp (cstFn S) univC TyCode A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) =
-      interp (cstFn S) univC TyCode A' (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := h0.2.2 _ _ _ hpe
+  have eA0 : interp (sigV S) univC TyCode A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) =
+      interp (sigV S) univC TyCode A' (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := h0.2.2 _ _ _ hpe
   simp only [sem, interp, eA, eA0]
 
 theorem sem_EqTm_ilam {S : Sig} {Ψ Φ Γ A t t' l}
@@ -1310,24 +1317,27 @@ theorem sem_EqTm_transpPath {S : Sig} {Ψ Φ Γ A a b φ p0 T}
     exact ⟨hC.dinst _, ⟨hC.dsubst _, hsys⟩, ⟨hC, hp0.ren _ _⟩⟩
   exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
-theorem sem_EqTm_transpGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u0 T l}
-    (h0 : SemTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T) (h1 : SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) (h2 : SemTy S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A)) :
-    SemEq S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlue A φ T' e ψ u0) T := by
+theorem sem_EqTm_transpGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u0 T l δ}
+    (h0 : SemTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T) (h1 : SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) (h2 : SemTy S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A))
+    (h3 : I.Entails δ φ.forall0) (h4 : I.Entails φ.forall0 δ) :
+    SemEq S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlueWith δ A φ T' e ψ u0) T := by
+  have hδ : ∀ {k' : ℕ} (ρ' : IEnv k'), (ival ρ' δ).face = Cof.forall0 (ival ρ'.ext φ).face :=
+    fun ρ' => (face_eq_of_entails h3 h4 ρ').trans (face_ival_forall0 ρ' φ)
   have hwf : SemWf S Ψ Φ Γ := h0.1
   have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
-      sem S (Tm.transpGlue A φ T' e ψ u0) m ρ γ = sem S (transp (glue A φ T' e) ψ u0) m ρ γ := by
+      sem S (Tm.transpGlueWith δ A φ T' e ψ u0) m ρ γ = sem S (transp (glue A φ T' e) ψ u0) m ρ γ := by
     intro m ρ γ hp
     obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
     have hpe := hp.dext hwf
     obtain ⟨hAmem, hAnat, hUty, -⟩ := h1.2.2.2 _ _ _ hpe
     refine TGCond.sem_transpGlue ⟨hp.kv, cond_of_sem_transp (hty.ne_empty hmem), TyCode.of_mem_univ hUty hAmem,
-      hAnat, fun k f hf => ?_⟩
+      hAnat, fun k f hf => ?_⟩ hδ
     have hpt : IsPoint S (cof Φ.shift φ) Γ.dshift k (ρ.ext.restr f) (TEnv.restr (TEnv.restr γ (Hom.wk m)) f) :=
       isPoint_cof_iff.2 ⟨hpe.restr h1.1 f, (holds_face_restr_iff f).1 hf⟩
     exact ⟨(h2.2.2.2 k _ _ hpt).1, (h2.2.2.2 k _ _ hpt).2.2.1⟩
-  have hcl : (Tm.transpGlue A φ T' e ψ u0).ConstsLt S.length := by
+  have hcl : (Tm.transpGlueWith δ A φ T' e ψ u0).ConstsLt S.length := by
     obtain ⟨⟨hA, hT, he⟩, hu0⟩ := h0.2.1
-    simp only [Tm.transpGlue, Tm.ConstsLt, Tm.comp, Tm.fill, Tm.transpFill, Tm.fiber, Tm.dshift, Tm.dinst,
+    simp only [Tm.transpGlueWith, Tm.ConstsLt, Tm.comp, Tm.fill, Tm.transpFill, Tm.fiber, Tm.dshift, Tm.dinst,
       Tm.constsLt_ren_iff]
     simp [hA, hT, he, hu0, Tm.ConstsLt.dsubst, Tm.shift, Tm.pathC, Tm.ConstsLt, Tm.constsLt_ren_iff,
       Tm.dinst, Tm.dshift]

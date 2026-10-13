@@ -1,4 +1,4 @@
-import Model.Sound
+import Model.SoundSig
 import Model.Rules.Basic
 
 /-!

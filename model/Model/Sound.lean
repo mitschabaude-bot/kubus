@@ -61,6 +61,21 @@ theorem sound_ty {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t A : 
   | .glue h0 h1 h2 h3 => sem_HasTy_glue (sound_ty hS h0) h1 (sound_ty hS h2) (sound_ty hS h3)
   | .glueEl h0 h1 h2 h3 => sem_HasTy_glueEl (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2) (sound_eq hS h3)
   | .unglue h0 h1 h2 h3 => sem_HasTy_unglue (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2) (sound_ty hS h3)
+  | .data h0 h1 h2 => sem_HasTy_data hS h0 h1 (sound_tele hS h2)
+  | .con h0 h1 hpl h2 h3 h4 h5 => sem_HasTy_con hS h0 h1 hpl (sound_ty hS h2) (sound_tele hS h3) h4 h5
+  | .elim h0 hpl h1 h2 h3 h4 h5 h6 h7 => sem_HasTy_elim hS h0 hpl (sound_ty hS h1) (sound_ty hS h2) h3 h4
+      (fun c C b e1 e2 => sound_ty hS (h5 c C b e1 e2)) (fun c C b k ψ e e1 e2 e3 => sound_eq hS (h6 c C b k ψ e e1 e2 e3))
+      (sound_ty hS h7)
+
+theorem sound_tele {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {as : Tm} {Δ prev : List Tm} :
+    HasTele S Ψ Φ Γ as Δ prev → SemTele S Ψ Φ Γ as Δ prev
+  | .nil h0 => sem_HasTele_nil (sound_wf hS h0)
+  | .cons h0 h1 => sem_HasTele_cons (sound_ty hS h0) (sound_tele hS h1)
+
+theorem sound_eqtele {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {as as' : Tm} {Δ prev : List Tm} :
+    EqTele S Ψ Φ Γ as as' Δ prev → SemEqTele S Ψ Φ Γ as as' Δ prev
+  | .nil h0 => sem_EqTele_nil (sound_wf hS h0)
+  | .cons h0 h1 => sem_EqTele_cons (sound_eq hS h0) (sound_eqtele hS h1)
 
 theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A : Tm} : EqTm S Ψ Φ Γ t u A → SemEq S Ψ Φ Γ t u A
   | .refl h0 => sem_EqTm_refl (sound_ty hS h0)
@@ -91,8 +106,8 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
   | .transp h0 h1 h2 h3 h4 h5 => sem_EqTm_transp (sound_ty hS h0) (sound_ty hS h1) (sound_eq hS h2) h3 h4 (sound_eq hS h5)
   | .hcomp h0 h1 h2 h3 h4 h5 h6 => sem_EqTm_hcomp (sound_ty hS h0) (sound_ty hS h1) (sound_eq hS h2) h3 h4 (sound_eq hS h5) (sound_eq hS h6)
   | .glue h0 h1 h2 h3 h4 h5 h6 => sem_EqTm_glue (sound_ty hS h0) (sound_ty hS h1) (sound_eq hS h2) h3 h4 (sound_eq hS h5) (sound_eq hS h6)
-  | .glueEl h0 h1 h2 h3 h4 h5 => sem_EqTm_glueEl (sound_ty hS h0) (sound_ty hS h1) h2 h3 (sound_eq hS h4) (sound_eq hS h5)
-  | .unglue h0 h1 h2 h3 h4 => sem_EqTm_unglue (sound_ty hS h0) (sound_ty hS h1) h2 h3 (sound_eq hS h4)
+  | .glueEl h0 h1 h2 h3 _ h4 h5 => sem_EqTm_glueEl (sound_ty hS h0) (sound_ty hS h1) h2 h3 (sound_eq hS h4) (sound_eq hS h5)
+  | .unglue h0 h1 h2 h3 he h4 => sem_EqTm_unglue (sound_ty hS h0) (sound_ty hS h1) h2 h3 (sound_eq hS he) (sound_eq hS h4)
   | .ipi h0 => sem_EqTm_ipi (sound_eq hS h0)
   | .ilam h0 h1 => sem_EqTm_ilam (sound_ty hS h0) (sound_eq hS h1)
   | .iapp h0 h1 h2 h3 => sem_EqTm_iapp (sound_eq hS h0) h1 h2 h3
@@ -114,7 +129,7 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
   | .transpPi h0 => sem_EqTm_transpPi (sound_ty hS h0)
   | .transpSigma h0 => sem_EqTm_transpSigma (sound_ty hS h0)
   | .transpPath h0 => sem_EqTm_transpPath (sound_ty hS h0)
-  | .transpGlue h0 h1 h2 => sem_EqTm_transpGlue (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2)
+  | .transpGlue h0 h1 h2 h3 h4 => sem_EqTm_transpGlue (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2) h3 h4
   | .transpIPi h0 => sem_EqTm_transpIPi (sound_ty hS h0)
   | .hcompIPi h0 => sem_EqTm_hcompIPi (sound_ty hS h0)
   | .hcompPi h0 => sem_EqTm_hcompPi (sound_ty hS h0)
@@ -127,36 +142,19 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
   | .unglueFace h0 h1 h2 h3 => sem_EqTm_unglueFace h0 (sound_ty hS h1) (sound_ty hS h2) (sound_ty hS h3)
   | .glueBeta h0 => sem_EqTm_glueBeta (sound_ty hS h0)
   | .glueEta h0 => sem_EqTm_glueEta (sound_ty hS h0)
+  | .data h0 h1 h2 h3 => sem_EqTm_data hS h0 (sound_ty hS h1) (sound_ty hS h2) (sound_eqtele hS h3)
+  | .con h0 h1 h2 h3 h4 h5 h6 h7 => sem_EqTm_con hS h0 h1 (sound_ty hS h2) (sound_ty hS h3)
+      (sound_eqtele hS h4) (sound_eqtele hS h5) h6 h7
+  | .elim h0 h1 h2 h3 h4 hbl hbl' h5 h6 h7 => sem_EqTm_elim hS h0 (sound_ty hS h1) (sound_ty hS h2) (sound_eqtele hS h3)
+      (sound_eq hS h4) hbl hbl' h5 (fun c C b b' e1 e2 e3 => sound_eq hS (h6 c C b b' e1 e2 e3)) (sound_eq hS h7)
+  | .conBnd h0 h1 h2 h3 hpl hal h4 => sem_EqTm_conBnd hS h0 h1 h2 h3 hpl hal (sound_ty hS h4)
+  | .elimCon h0 h1 h2 hpl hal hbl hat h3 => sem_EqTm_elimCon hS h0 h1 h2 hpl hal hbl (sound_tele hS hat) (sound_ty hS h3)
+  | .elimHcomp hd hh h0 => sem_EqTm_elimHcomp hS hd (sound_ty hS hh) (sound_ty hS h0)
+  | .transpData0 h0 h1 h2 => sem_EqTm_transpData0 hS h0 h1 (sound_ty hS h2)
+  | .transpCon h0 h1 h2 hpl hal hat h3 => sem_EqTm_transpCon hS h0 h1 h2 hpl hal (sound_tele hS hat) (sound_ty hS h3)
+  | .transpHcomp h0 h1 hh h2 => sem_EqTm_transpHcomp hS h0 h1 (sound_ty hS hh) (sound_ty hS h2)
 
 end
 
-
-end Model
-
-namespace Model
-
-open KubusCore
-
-theorem take_take_eq {S : Sig} {k j : ℕ} (hj : j ≤ k) : (S.take k).take j = S.take j := by
-  rw [List.take_take, Nat.min_eq_left hj]
-
-/-- A well-formed signature is semantically valid. -/
-theorem sigOK_of_wfSig : ∀ (n : ℕ) (S : Sig), S.length = n → WfSig S → SigOK S := by
-  intro n
-  induction n using Nat.strong_induction_on with
-  | _ n ih =>
-    intro S hn hS k t A hk
-    have hklt : k < S.length := (List.getElem?_eq_some_iff.1 hk).1
-    have hwf := hS k t A hk
-    have htake : WfSig (S.take k) := by
-      intro j t' A' hj
-      have hjk : j < k := by
-        have := (List.getElem?_eq_some_iff.1 hj).1
-        simpa [List.length_take, hklt.le] using this
-      rw [List.getElem?_take_of_lt hjk] at hj
-      have := hS j t' A' hj
-      rwa [take_take_eq hjk.le]
-    have hok : SigOK (S.take k) := ih _ (by rw [← hn, List.length_take]; omega) _ rfl htake
-    exact ⟨hwf.1, hwf.2.1, sound_ty hok hwf.2.2.2⟩
 
 end Model

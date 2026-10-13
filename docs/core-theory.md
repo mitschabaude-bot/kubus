@@ -111,4 +111,4 @@ All four steps are done for the core fragment (Π, Σ, paths, `(i : I) → A`, u
 - the specification is in Lean, and the kernel builds a derivation of it for everything it accepts;
 - the model proves `KubusCore.Consistent` unconditionally, and `Model.kernel_consistent` connects it to the kernel.
 
-Six spec bugs were found along the way, by the model and by red-team reviews. Two of them, `unglue` and `glueEl` without their equivalence, made the spec inconsistent. All are fixed and recorded in `model/README.md`. Next is phase 2, inductive types and HITs (`docs/inductive-types.md`).
+Phase 2, inductive types and HITs (`docs/inductive-types.md`), is done as well: spec, kernel and model. The consistency theorem covers the whole library. Seventeen spec bugs were found along the way, by the model and by red-team reviews, and recorded in `model/README.md`. Three of them made the spec inconsistent: `unglue` and `glueEl` without their equivalence, and data declarations checked against themselves. The others were rules the model could not validate as stated.

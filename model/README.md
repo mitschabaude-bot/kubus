@@ -2,6 +2,83 @@
 
 This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) towards the theorem `KubusCore.Consistent`. It depends on Mathlib and on the root package (for `KubusCore`).
 
+## Phase 2 spec issues (read first)
+
+Status: P5 fixed in `ff388bc`. P4 fixed in `288a259`. P2 fixed in `dc30dbb` (`Ctor.bndTyped`), P3 in `2e8fc06`. P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
+
+### P9. Not sound in the model as stated: `elimHcomp` and `transpHcomp` use the base `a` of `hcomp (data d qs) φ u a` at `ps`
+
+Same gap as P6 for compositions. Where the face holds, `hcomp (data d qs) φ u a` denotes `u(1)`, so the left-hand side's typing says nothing about `a` being an element of `data d ps` (it is in `data d qs`, and `u` may be a path in `data d qs` from `a` to an element that is also in `data d ps`). The right-hand sides use `a` as the base of a composition (`elimHcomp`) or transport (`transpHcomp`) in `data d ps`, which is junk then.
+
+Suggested fix: add `HasTy S Ψ Φ Γ (hcomp (data d ps) φ u a) (data d ps)` to `elimHcomp` and `HasTy S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero))` to `transpHcomp`, or state them with `qs := ps` (resp. `ps.dinst .zero`).
+
+### P7. Not modelable as stated: the `elim` congruence rule reads `bs.toList`/`bs'.toList` without literal premises
+
+Same gap as P4. The congruence rule compares the branches only at the positions of `bs.toList`, but its premises (`HasTy` of both sides) do not say that `bs` and `bs'` are literals. With `bs = tcons b₀ x` and `bs' = tcons b₀ y` for variables `x y` of a type of (lists of) branches, all premises hold semantically (`b₀ ≡ b₀`, equal syntactic lengths) while the eliminators differ on the second constructor.
+
+Suggested fix: add `bs = Tm.ofList bs.toList` and `bs' = Tm.ofList bs'.toList` to the `elim` congruence rule (the kernel only produces literals). (`ps`, `ps'` are fine: `EqTele` forces literals.)
+
+### P6. Not sound in the model as stated: `elimCon` and `transpCon` compute on `con d c qs args rs` without the arguments being typed at the eliminator's/line's parameters `ps`
+
+The left-hand side `elim d ps P bs (con d c qs args rs)` only tells the model that the constructor value is an element of `data d ps`; the arguments are typed at `qs`. Where a boundary clause of `c` holds (e.g. `Φ` entails it), the constructor value *is* its boundary value, which does not determine the point arguments: with `data D (A : U₀) := nil | c0 (x : A) (y : D) (i : I) [i = 0 ↦ y]`, under `Φ = (i = 0)` the term `con D c0 qs [a, nil] [i]` denotes `nil ∈ D ps` for any `a : A[qs]`, so the left-hand side is typed at `ps` while the right-hand side `b a nil (elim nil) i` applies the branch to `a ∉ A[ps]` (junk in the model). Syntactically `qs ≡ ps` is forced by the conversion that types the scrutinee, but the rule's premise (`HasTy` of the left-hand side) does not carry it. `transpCon` has the same gap (it transports `args` along the `ps` line). `elimHcomp`/`transpHcomp` are fine (formal compositions are injective).
+
+Suggested fix (revised): add the argument telescope at `ps` as a premise: `HasTele S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse` for `elimCon`, and the same at `(ps.dinst .zero)` for `transpCon` (whose `ps` is a line). The typing of the constructor term at `ps` is not enough: where a boundary holds it says nothing about the point arguments, neither their type nor their naturality (which the applications in the right-hand side need). Alternatively state both rules for `con d c ps args rs` (resp. `ps.dinst .zero`) only.
+
+### P5. Not modelable as stated: nested constructor argument lists in simple boundaries may have a non-literal tail
+
+Modelability gap, small. `Ctor.simpleArgs` walks the nested argument list `as` of a boundary constructor `con d c' ps as rs'` through its `tcons` cells and accepts *any* tail (`| _ => true`), while `simpleB` compares `as.toList.length` (which ignores the tail) with the arity. So `con d c' ps (tcons x (split φ (tcons a tnil) ψ (tcons b tnil))) rs'` is simple. Syntactically such a boundary is never well-typed (its `HasTy` check needs `HasTele`, which forces a literal), but the model cannot see that, and the denotation of a constructor term must then tell well-formed from ill-formed argument lists by their values: the model guards constructor terms (they denote junk unless the arguments are a list of the right length, typed, with valid parameters — this is what lets `conBnd`/`elimCon` read off typed arguments from the typing of the left-hand side), and a tail that denotes a list (as `split` of literals does) fails the length guard, so the boundary term would not denote its value.
+
+Suggested fix: require nested argument lists to be literals, e.g. in `simpleArgs` replace the catch-all `| _ => true` by `| t => t == .tnil`. (Wf boundaries produced by the elaborator are literals already.)
+
+### P4. Not modelable as stated: rules read parameter/argument lists syntactically (`ps.toList`) without a premise that they are list literals
+
+Again a modelability gap, not an inconsistency. Several rules use the syntactic list of a list term: `con` types its arguments in the telescope instantiated by `ps.toList.reverse`, `elim` builds branch types from `ps.toList`, `conBnd` uses `bndAt b ps.toList args.toList rs`, `elimCon` uses `args.toList` and `bs.toList[c]?`, `transpCon` uses `ps.toList` and `args.toList`. But their premises only type the type former or the left-hand side (`HasTy (data d ps) (univ l)`, `HasTy (con d c ps args rs) T`, …), which in a model says something about the *value* of `ps`, not its syntax. A term that is not a list literal can denote a list: e.g. `ps := split (i = 0) (tcons Bool tnil) (i = 1) (tcons Bool tnil)` under `Φ = (i = 0 ∨ i = 1)` denotes `[Bool]`, so `data D ps` is semantically a type, while `ps.toList = []`. With `data D (A : U₀) := c (a : A)` and `Γ = (X : U₀)`, the `con` premise `HasTele [a] [A] ps.toList.reverse` then types `a` at `X` (the parameter variable is not substituted), and the conclusion `con D c ps [a] : D ps` (i.e. `a : Bool`) fails in the model. Syntactically such premises are not derivable (`data d ps` is typed only via `HasTele ps`, which forces a literal), but the model cannot see that without an inversion lemma for typing derivations, and the denotation cannot depend on syntax (it must commute with substitution, which can turn `tcons a (var 0)` into a literal).
+
+Suggested fix, in the style of the existing `bs = Tm.ofList bs.toList` premise of `elim`: add the premise `t = Tm.ofList t.toList` for every list term `t` whose `toList` a rule reads and which is not already a `HasTele`/`EqTele` subject: `ps` in `con`, `elim`, `conBnd`, `transpCon`; `args` in `conBnd`, `elimCon`, `transpCon`; `bs` in `elimCon`. (Alternatively, `con` and `elim` could take `HasTele S Ψ Φ Γ ps D.params []` instead of `HasTy (data d ps) (univ D.level)`; the computation rules still need the literal premises.) The kernel only produces literals, so this costs nothing there.
+
+### P3. Not modelable as stated: the checks of `DataDecl.Wf` happen in contexts whose recursive arguments have an empty (or too small) type
+
+Also a modelability gap, not an inconsistency. Point argument types are checked in `S ++ [.data (D.truncate 0)]`, and the boundary, its overlaps and the P2 type equalities of constructor `c` in `S ++ [.data (D.truncate c)]`. In both, the recursive arguments in the context have type `data d …` of the *truncated* declaration. In any model, a judgment in a context containing an empty type holds vacuously, and a judgment over a smaller type says nothing about the actual arguments, which may use constructors `≥ c`:
+
+- `D.truncate 0` has no constructors, so it is empty in the model: whenever a point argument follows a recursive argument (`node (l : T) (a : A) …`), the check of `A` gives the model nothing (it cannot even show that `A` is a type at the actual arguments).
+- `D.truncate c` is empty whenever the constructors before `c` have no base case (e.g. `c0 (x : D) | c1 (x y : D) (i : I) [i = 0 ↦ c0 x, …] | base`), and even when inhabited it does not contain the actual recursive arguments. The model needs the overlap agreement `b ≡ b'` for the actual arguments of `c` (for `conBnd` when two clauses hold).
+
+Syntactic derivations do not exploit the emptiness (no eta for empty types), so this is no inconsistency, but no model can see that.
+
+Suggested fix (three small changes):
+
+1. Point argument types must not mention the variables of earlier recursive arguments (a syntactic check, like `mentionsData`). They cannot use them meaningfully anyway, since every consumer of a value of type `data d …` mentions `d`.
+2. The truncated declarations used in `DataDecl.Wf` (`D.truncate 0` for point arguments, `D.truncate c` for constructor `c`) get one extra nullary constructor without boundary, appended at the end (index `c`, which no boundary of `c` can refer to). Then the data type of the checking signature is inhabited. From one inhabitant, the model builds infinitely many fresh elements (iterated formal compositions with an empty face), substitutes them for the recursive arguments, and transfers the overlap agreement to arbitrary arguments by a generic-element argument. With change 1, the point argument types and the P2 equalities do not depend on the recursive arguments at all.
+3. `Ctor.simpleB` also checks that a nested `con d c' ps as rs'` has `rs'.length = C'.dims` (currently only the argument count is checked; the model needs it to recognise boundary values as elements without inverting typing derivations).
+
+### P2. Not modelable as stated: boundary typing only gives membership, `transpCon` needs equal argument types
+
+This is a modelability gap, not (as far as I can see) an inconsistency. `transpCon` transports each point argument along its own type line (`Tm.transpTele`). Take a boundary clause of `c` that passes the point argument `x` of `c` (type `B` in `c`'s telescope) as point argument `k` of an earlier constructor `c'` (expected type `A' := (C'.argTy d np k)` instantiated at the nested arguments), as in `c1 (x : B) (i : I) [i = 1 ↦ c0 x]`. `transp` of `c1 x 1` is `c1 (transp_B x) 1 ≡ c0 (transp_B x)`, while `transp` of the equal term `c0 x` is `c0 (transp_A' x)`. So the rule set is only coherent if transport along the `B` line equals transport along the `A'` line, i.e. (in any model where transport is part of the type) if `B ≡ A'` along every line of parameters (and fillers of the earlier arguments). Syntactically this holds, because the derivation of the boundary's type must convert `B` to `A'`; but `DataDecl.Wf` only asks for `HasTy … b (data d …)`, and the soundness of a typing judgment in a model only says that the value of `x` lies in the element set of `A'`, not that the codes `B` and `A'` (hence their transports) agree. Types with the same elements and different transport exist (e.g. a constant line of `Bool` and the line `ua not`), so the model cannot recover the equality from `HasTy`, and a syntactic inversion lemma ("`var j : T` implies `Γ(j) ≡ T`") is out of reach (`eqL`/`eqR`, `subst`, `restrict`, … all produce typings of variables).
+
+Suggested fix: state the conversion that the kernel performs anyway. In `DataDecl.Wf`, for every boundary clause `(ψ, b)` of `c` and every point argument `var j` at position `k` of a nested `con d c' ps as rs'` in `b`: `EqTm Sc C.dims ψ (argCtx d C n) T_j A' (univ D.level)`, where `T_j` is the type of variable `j` in `argCtx d C n` (`n = C.args.length`) and `A' := (C'.argTy d np k).substList ((as.toList.take k).reverse ++ paramVars-instantiation)` is the type the `con` rule's `HasTele` assigns to position `k`. (Equivalently: a recursive Prop `Ctor.bndTyped` over the simple term, alongside `simpleB`.) With it, the model gets equal type codes from the soundness of `EqTm`, and `transpCon` is coherent with `conBnd`.
+
+### P1. Inconsistent: boundary typing in `DataDecl.Wf` is vacuous (it can use the constructor's own boundary)
+
+`DataDecl.Wf` checks a boundary `[ψ ↦ b]` of constructor `c` by `HasTy S C.dims ψ (argCtx …) b (data d (paramVars …))` in `S.take (k + 1)`, which contains the full declaration. That judgment is always derivable, whatever `b` is: in the boundary context, `con d c (paramVars) (vars) (ivars) : data d …` by the `con` rule (its arguments are variables of the right types), and `conBnd` for this very constructor and clause (`Φ = ψ` entails `ψ`) gives `con d c … ≡ bndAt b … = b`, so `b : data d …` by `eqR`. The overlap condition is equally vacuous. So simplicity (`Ctor.simpleB`) is the only real check, and simplicity does not check that the point arguments passed to an earlier constructor have the right types.
+
+Counterexample. Let `Bool` be the usual data type (no parameters) and declare
+
+```
+data D (A B : U₀) : U₀ :=
+  | c0 (a : A)
+  | c1 (b : B) (i : I) [i = 1 ↦ c0 b]
+```
+
+It satisfies `DataDecl.Wf` (the boundary `c0 b` is simple; its typing is derived as above, although `b : B` is passed where `A` is expected). Let `L i := ua not i : U₀` be the univalence line of `not : Bool ≃ Bool` (constructible with `Bool`'s eliminator and `Glue`), so `L 0 ≡ L 1 ≡ Bool` and `transp (i. L i) 0 true ≡ not true` (up to formal `hcomp`s in `Bool` with empty systems, which `elim` sees through by `elimHcomp`). In `D Bool Bool`:
+
+1. `con c1 [true] [1] ≡ c0 true` (`conBnd`).
+2. Transport along `i. D Bool (L i)` (parameters non-empty, so `transpCon` applies). On the left, `transpCon` transports `c1`'s argument along its type line `L`, then `conBnd`: `transp (i. D Bool (L i)) 0 (con c1 [true] [1]) ≡ con c1 [not true] [1] ≡ c0 (not true) ≡ c0 false`. On the right (by congruence with step 1), `transpCon` transports `c0`'s argument along its type line, the constant line `Bool`, which is the identity (`transpData0`): `transp (…) 0 (c0 true) ≡ c0 true`.
+3. Hence `c0 false ≡ c0 true : D Bool Bool`. The eliminator of `D Bool Bool` is available: with motive `Bool`, branches `λ a. a` and `λ b i. b`, the boundary condition `b ≡ b` holds because the parameters are equal. So `false ≡ true : Bool`, then `Empty ≡ Unit : U₀` by eliminating `Bool` into `U₀` (the `hcomp`s with empty systems in `U₀` become Glue types with a false face, which `unglue` removes), and every type is inhabited.
+
+So the spec is inconsistent as stated. The root cause is that the declaration is checked against itself: well-formedness of constructor `c` may use the rules (`conBnd`, `elimCon`, …) of `c` and of later constructors, which presuppose that very well-formedness. This is also a problem for the model independently of the counterexample: the soundness proof proceeds by induction on the signature and cannot use derivations whose soundness depends on the entry being validated.
+
+Suggested fix: check constructor `c` (its point argument types and its boundary) against the declaration truncated to the constructors before `c`, e.g. `D.Wf` quantifies over `c` and checks in `S.take k ++ [.data { D with ctors := D.ctors.take c }]` (boundaries only use earlier constructors, and point argument types do not mention `d` at all, so nothing is lost for the intended examples). Then `conBnd` for `c` is not available while checking `c`, and the model can validate declarations constructor by constructor.
+
 ## Spec issues (read first)
 
 Status: all issues below are fixed in the spec: 1–4 in `91505c9` (`unglue φ e g`, annotated `lam A t`, `glueBase`/`glueEquiv` removed, `maxLevel = 4`), 5–6 in `1c637f0` (`glueEl φ e t a`, `transpGlue` composes the base along the unglued tube). They are kept here as a record. New issues are added at the top of this section.
@@ -107,6 +184,8 @@ Design decisions:
 - **Universes**: `U_l` is `{c ∈ V_l | c is a well-formed level-l code}` where `V_l ⊆ ZFSet.{5}` is the embedded copy of `ZFSet.{l}` (a Grothendieck universe), `l ≤ maxLevel = 4`. Well-formedness is an inductive predicate on intensional codes, which validates `piDom`/`piCod`/… by inversion.
 
 ## Status
+
+Phase 2 (inductive types and HITs): `Model.consistent` and `Model.kernel_consistent` are sorry-free for the phase-2 spec (with P1–P10 and M4/M5); `#print axioms` shows only `propext`, `Classical.choice`, `Quot.sound`. Data declarations are validated in `Model/DataOKProof.lean` (argument types, boundaries, and their overlaps via generic atoms and corresponding values), the rules of inductive types in `Model/Rules/Data.lean`, `DataElimRule.lean` (eliminator typing: constructor equations by induction on constructors) and `DataTransp.lean` (`transpCon`).
 
 `Model/Consistency.lean` proves `consistent : KubusCore.Consistent` unconditionally: the model has no `sorry`s, and `#print axioms Model.consistent` shows only `propext`, `Classical.choice`, `Quot.sound`.
 

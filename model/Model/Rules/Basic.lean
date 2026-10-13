@@ -26,6 +26,9 @@ variable {S : Sig} {k m n : ℕ}
 /-- The tag of a code at its own stage. -/
 def codeTag (m : ℕ) (c : V) : V := π1 (shapeOf c (Hom.id m))
 
+@[simp] theorem codeTag_dataC (Θ : SData m) : codeTag m (dataC Θ) = natZ tData := by
+  simp [codeTag, shapeOf_dataC, tagZ]
+
 @[simp] theorem codeTag_emptyC : codeTag m (emptyC m) = natZ tEmpty := by
   simp [codeTag, emptyC, emptyDatum, tagZ]
 
@@ -70,6 +73,7 @@ theorem WF.univ_lt {l l' : ℕ} (h : WF l' m (univC m l)) : l < l' := by
   | @univ _ l'' hl'' =>
     rw [Ucodes_lt m hl''] at hc; rw [univC_level_inj hc]; exact hl''
   | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tUniv] at htag
+  | data => simp [tData, tUniv] at htag
 
 /-! ### Good codes -/
 
@@ -233,6 +237,10 @@ theorem Tm.ConstsLt.subst {n : ℕ} : ∀ {t : Tm} (_ : t.ConstsLt n) {σ : ℕ 
     intro h σ hσ τ; exact ⟨ihA h.1 (fun x => (hσ x).ren _ _) _, iha h.2 hσ τ⟩
   | hcomp A φ u a ihA ihu iha =>
     intro h σ hσ τ; exact ⟨ihA h.1 hσ τ, ihu h.2.1 (fun x => (hσ x).ren _ _) _, iha h.2.2 hσ τ⟩
+  | elim d ps P bs t ihp ihP ihb iht =>
+    intro h σ hσ τ
+    exact ⟨h.1, ihp h.2.1 hσ τ, ihP h.2.2.1 (fun x => by cases x <;> [trivial; exact (hσ _).ren _ _]) τ,
+      ihb h.2.2.2.1 hσ τ, iht h.2.2.2.2 hσ τ⟩
   | _ => intros; simp_all [Tm.subst, Tm.ConstsLt]
 
 theorem Tm.ConstsLt.inst {n : ℕ} {t a : Tm} (ht : t.ConstsLt n) (ha : a.ConstsLt n) :
@@ -506,6 +514,7 @@ theorem WF.pi_inv {l : ℕ} {A B : V} (hA : IsKV m A) (hB : IsKV m B) (h : WF l 
   | ipi => simp [tIPi, tPi] at htag
   | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tPi] at htag
   | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tPi] at htag
+  | data => simp [tData, tPi] at htag
 
 end
 
@@ -735,6 +744,7 @@ theorem WF.sigma_inv {l : ℕ} {A B : V} (hA : IsKV m A) (hB : IsKV m B) (h : WF
   | ipi => simp [tIPi, tSigma] at htag
   | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tSigma] at htag
   | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tSigma] at htag
+  | data => simp [tData, tSigma] at htag
 
 theorem TyCode.sigma_inv {A B : V} (h : TyCode m (sigmaC m A B)) :
     ∃ l ≤ maxLevel, sigmaC m A B ∈ Vt l ∧ WF l m (sigmaC m A B) := by
@@ -856,7 +866,7 @@ theorem ival_congr_scoped {r : I} {d : ℕ} (hr : r.Scoped d) {ρ ρ' : IEnv m} 
   exact Cof.eval_congr hr fun i hi => by rw [h i hi]
 
 /-- The denotation of a term only depends on the variables in scope. -/
-theorem interp_congr_closed (cst uc : ℕ → ℕ → V) (good : ℕ → V → Prop) :
+theorem interp_congr_closed (cst : SigV) (uc : ℕ → ℕ → V) (good : ℕ → V → Prop) :
     ∀ (t : Tm) (n d : ℕ), t.closedB n d = true → ∀ (m : ℕ) (ρ ρ' : IEnv m) (γ γ' : ℕ → V),
       (∀ i < d, ρ i = ρ' i) → (∀ x < n, γ x = γ' x) →
       interp cst uc good t m ρ γ = interp cst uc good t m ρ' γ' := by
@@ -1005,20 +1015,50 @@ theorem interp_congr_closed (cst uc : ℕ → ℕ → V) (good : ℕ → V → P
     intro n d hc m ρ ρ' γ γ' hρ hg
     simp only [Tm.closedB, Bool.and_eq_true] at hc
     simp only [interp, ie n d hc.1.2 m ρ ρ' γ γ' hρ hg, ig n d hc.2 m ρ ρ' γ γ' hρ hg, iv hc.1.1 hρ]
+  | tnil => intros; rfl
+  | tcons t ts it its =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    simp only [interp, it n d hc.1 m ρ ρ' γ γ' hρ hg, its n d hc.2 m ρ ρ' γ γ' hρ hg]
+  | data j ps ip =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB] at hc
+    simp only [interp]; congr 1; funext k f; exact ip n d hc k _ _ _ _ (hR f hρ) (gR f hg)
+  | con j c ps args rs ip ia =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true, List.all_eq_true] at hc
+    simp only [interp]; congr 1
+    · funext k f; exact ip n d hc.1.1 k _ _ _ _ (hR f hρ) (gR f hg)
+    · funext k f; exact ia n d hc.1.2 k _ _ _ _ (hR f hρ) (gR f hg)
+    · exact List.map_congr_left fun r hr => iv (hc.2 r hr) hρ
+  | elim j ps P bs t ip iP ib it =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    simp only [interp]; congr 1
+    · funext k f; exact ip n d hc.1.1.1 k _ _ _ _ (hR f hρ) (gR f hg)
+    · funext k f a; exact iP (n + 1) d hc.1.1.2 k _ _ _ _ (hR f hρ) (gC a (gR f hg))
+    · funext k f; exact ib n d hc.1.2 k _ _ _ _ (hR f hρ) (gR f hg)
+    · funext k f; exact it n d hc.2 k _ _ _ _ (hR f hρ) (gR f hg)
 
 theorem _root_.KubusCore.Tm.ConstsLt.mono {k n : ℕ} (hkn : k ≤ n) :
     ∀ {t : Tm}, t.ConstsLt k → t.ConstsLt n := by
   intro t; induction t <;> simp_all [Tm.ConstsLt] <;> omega
 
-/-- The denotation of a term only depends on the constants it mentions. -/
-theorem interp_congr_cst {cst cst' : ℕ → ℕ → V} (uc : ℕ → ℕ → V) (good : ℕ → V → Prop) {n : ℕ}
-    (hc : ∀ m j, j < n → cst m j = cst' m j) :
+/-- Two signature semantics agree on the entries below `n`. -/
+def SigV.AgreeLt (n : ℕ) (σ σ' : SigV) : Prop :=
+  (∀ m j, j < n → σ.cst m j = σ'.cst m j) ∧ (∀ m j ps, j < n → σ.dat m j ps = σ'.dat m j ps) ∧
+  (∀ m j c ps args rs, j < n → σ.con m j c ps args rs = σ'.con m j c ps args rs) ∧
+  (∀ m j ps P bs t, j < n → σ.elim m j ps P bs t = σ'.elim m j ps P bs t)
+
+/-- The denotation of a term only depends on the entries it mentions. -/
+theorem interp_congr_cst {cst cst' : SigV} (uc : ℕ → ℕ → V) (good : ℕ → V → Prop) {n : ℕ}
+    (hc : SigV.AgreeLt n cst cst') :
     ∀ (t : Tm), t.ConstsLt n → interp cst uc good t = interp cst' uc good t := by
   intro t
   induction t with
-  | const j => intro h; funext m ρ γ; exact hc m j h
-  | var _ | univ _ | abort => intro _; rfl
-  | pi _ _ iA iB | sigma _ _ iA iB | lam _ _ iA iB | app _ _ iA iB | pair _ _ iA iB =>
+  | const j => intro h; funext m ρ γ; exact hc.1 m j h
+  | var _ | univ _ | abort | tnil => intro _; rfl
+  | pi _ _ iA iB | sigma _ _ iA iB | lam _ _ iA iB | app _ _ iA iB | pair _ _ iA iB | tcons _ _ iA iB =>
     intro h; funext m ρ γ; simp only [interp]; rw [iA h.1, iB h.2]
   | fst _ ip | snd _ ip | plam _ ip | ipi _ ip | papp _ _ ip =>
     intro h; funext m ρ γ; simp only [interp]; rw [ip h]
@@ -1027,33 +1067,66 @@ theorem interp_congr_cst {cst cst' : ℕ → ℕ → V} (uc : ℕ → ℕ → V)
     intro h; funext m ρ γ; simp only [interp]; rw [iA h.1, ia h.2.1, ib h.2.2]
   | split _ _ _ _ it iu | transp _ _ _ it iu =>
     intro h; funext m ρ γ; simp only [interp]; rw [it h.1, iu h.2]
+  | data j _ ip =>
+    intro h; funext m ρ γ; simp only [interp]; rw [ip h.2]; exact hc.2.1 _ _ _ h.1
+  | con j _ _ _ _ ip ia =>
+    intro h; funext m ρ γ; simp only [interp]; rw [ip h.2.1, ia h.2.2]; exact hc.2.2.1 _ _ _ _ _ _ h.1
+  | elim j _ _ _ _ ip iP ib it =>
+    intro h; funext m ρ γ; simp only [interp]; rw [ip h.2.1, iP h.2.2.1, ib h.2.2.2.1, it h.2.2.2.2]
+    exact hc.2.2.2 _ _ _ _ _ _ h.1
 
-theorem cstFn_take {S : Sig} {k : ℕ} (hk : k ≤ S.length) :
-    ∀ j, j < k → ∀ m, cstFn (S.take k) m j = cstFn S m j := by
-  intro j
-  induction j using Nat.strong_induction_on with
-  | _ j ih =>
-    intro hj m
-    have hjS : j < S.length := by omega
-    have hjT : j < (S.take k).length := by simp; omega
-    rw [cstFn, cstFn, dif_pos hjT, dif_pos hjS]
-    have hfun : (fun m' j' => if j' < j then cstFn (S.take k) m' j' else ∅) =
-        (fun m' j' => if j' < j then cstFn S m' j' else ∅) := by
-      funext m' j'; split_ifs with h
-      · exact ih j' h (by omega) m'
-      · rfl
-    rw [hfun, List.getElem_take]
+theorem SigV.AgreeLt.mono {n n' : ℕ} {σ σ' : SigV} (h : SigV.AgreeLt n σ σ') (hn : n' ≤ n) :
+    SigV.AgreeLt n' σ σ' :=
+  ⟨fun m j hj => h.1 m j (by omega), fun m j ps hj => h.2.1 m j ps (by omega),
+    fun m j c ps a rs hj => h.2.2.1 m j c ps a rs (by omega), fun m j ps P bs t hj => h.2.2.2 m j ps P bs t (by omega)⟩
 
-theorem cstFn_eq {S : Sig} {k : ℕ} {t A : Tm} (h : S[k]? = some (t, A)) (ht : t.ConstsLt k) (m : ℕ) :
-    cstFn S m k = sem S t m (fun _ => DM.zero m) (fun _ => emptyC m) := by
-  obtain ⟨hk, hS⟩ := List.getElem?_eq_some_iff.1 h
-  rw [cstFn, dif_pos hk, hS]
-  exact congrFun (congrFun (congrFun (interp_congr_cst _ _ (fun m j hj => if_pos hj) t ht) m) _) _
+theorem SigV.AgreeLt.trans {n : ℕ} {σ σ' σ'' : SigV} (h : SigV.AgreeLt n σ σ') (h' : SigV.AgreeLt n σ' σ'') :
+    SigV.AgreeLt n σ σ'' :=
+  ⟨fun m j hj => (h.1 m j hj).trans (h'.1 m j hj), fun m j ps hj => (h.2.1 m j ps hj).trans (h'.2.1 m j ps hj),
+    fun m j c ps a rs hj => (h.2.2.1 m j c ps a rs hj).trans (h'.2.2.1 m j c ps a rs hj),
+    fun m j ps P bs t hj => (h.2.2.2 m j ps P bs t hj).trans (h'.2.2.2 m j ps P bs t hj)⟩
+
+theorem SigV.AgreeLt.set (n : ℕ) (σ τ : SigV) {k : ℕ} (hk : n ≤ k) : SigV.AgreeLt n σ (σ.set τ k) :=
+  ⟨fun m j hj => by simp [SigV.set, show j ≠ k by omega], fun m j ps hj => by simp [SigV.set, show j ≠ k by omega],
+    fun m j c ps a rs hj => by simp [SigV.set, show j ≠ k by omega],
+    fun m j ps P bs t hj => by simp [SigV.set, show j ≠ k by omega]⟩
+
+theorem sigUpTo_agree (S : Sig) {k : ℕ} : ∀ k', k ≤ k' → SigV.AgreeLt k (sigUpTo S k) (sigUpTo S k')
+  | k', hk => by
+    induction k' with
+    | zero =>
+      have : k = 0 := by omega
+      subst this; exact ⟨fun _ _ h => absurd h (by omega), fun _ _ _ h => absurd h (by omega),
+        fun _ _ _ _ _ _ h => absurd h (by omega), fun _ _ _ _ _ _ h => absurd h (by omega)⟩
+    | succ k' ih =>
+      rcases Nat.lt_or_ge k' k with h | h
+      · have : k = k' + 1 := by omega
+        subst this
+        exact ⟨fun _ _ _ => rfl, fun _ _ _ _ => rfl, fun _ _ _ _ _ _ _ => rfl, fun _ _ _ _ _ _ _ => rfl⟩
+      · exact (ih h).trans (SigV.AgreeLt.set k _ _ h)
+
+theorem sigUpTo_take (S : Sig) {K : ℕ} : ∀ j, j ≤ K → sigUpTo (S.take K) j = sigUpTo S j
+  | 0, _ => rfl
+  | j + 1, hj => by
+    simp only [sigUpTo]
+    rw [sigUpTo_take S j (by omega), List.getElem?_take, if_pos (by omega)]
+
+theorem sigV_take {S : Sig} {k : ℕ} (hk : k ≤ S.length) : sigV (S.take k) = sigUpTo S k := by
+  rw [sigV, show (S.take k).length = k by simp; omega, sigUpTo_take S k le_rfl]
 
 theorem sem_take {S : Sig} {k : ℕ} (hk : k ≤ S.length) {t : Tm} (ht : t.ConstsLt k) :
     sem (S.take k) t = sem S t := by
-  have : (S.take k).length = k := by simp; omega
-  exact interp_congr_cst _ _ (fun m j hj => cstFn_take hk j hj m) t ht
+  show interp (sigV (S.take k)) univC TyCode t = interp (sigV S) univC TyCode t
+  rw [sigV_take hk]
+  exact interp_congr_cst _ _ (sigUpTo_agree S S.length hk) t ht
+
+theorem cstFn_eq {S : Sig} {k : ℕ} {t A : Tm} (h : S[k]? = some (.defn t A)) (ht : t.ConstsLt k) (m : ℕ) :
+    cstFn S m k = sem S t m (fun _ => DM.zero m) (fun _ => emptyC m) := by
+  obtain ⟨hk, -⟩ := List.getElem?_eq_some_iff.1 h
+  have e1 : cstFn S m k = (sigUpTo S (k + 1)).cst m k := ((sigUpTo_agree S S.length hk).1 m k (by omega)).symm
+  rw [e1]
+  simp only [sigUpTo, SigV.set, if_pos rfl, h, entrySem]
+  exact congrFun (congrFun (congrFun (interp_congr_cst _ _ (sigUpTo_agree S S.length hk.le) t ht) m) _) _
 
 theorem sem_closed {S : Sig} {t : Tm} (ht : t.closedB 0 0 = true) {m : ℕ} (ρ ρ' : IEnv m) (γ γ' : ℕ → V) :
     sem S t m ρ γ = sem S t m ρ' γ' :=
@@ -1065,14 +1138,14 @@ theorem isPoint_base (S : Sig) (m : ℕ) : IsPoint S .one [] m (fun _ => DM.zero
 
 /-- What a valid signature says about a constant: its body and type are interpreted in the
 prefix signature at the base point. -/
-theorem SigOK.const {S : Sig} (hS : SigOK S) {k : ℕ} {t A : Tm} (h : S[k]? = some (t, A)) :
+theorem SigOK.const {S : Sig} (hS : SigOK S) {k : ℕ} {t A : Tm} (h : S[k]? = some (.defn t A)) :
     k < S.length ∧ t.ConstsLt k ∧ A.ConstsLt k ∧ SemTy (S.take k) 0 .one [] t A ∧
     ∀ m (ρ : IEnv m) γ,
       sem S (.const k) m ρ γ = sem (S.take k) t m (fun _ => DM.zero m) (fun _ => emptyC m) ∧
       sem S t m ρ γ = sem (S.take k) t m (fun _ => DM.zero m) (fun _ => emptyC m) ∧
       sem S A m ρ γ = sem (S.take k) A m (fun _ => DM.zero m) (fun _ => emptyC m) := by
   obtain ⟨hk, -⟩ := List.getElem?_eq_some_iff.1 h
-  obtain ⟨hct, hcA, hT⟩ := hS k t A h
+  obtain ⟨hct, hcA, hT⟩ := hS.1 k t A h
   have hlen : (S.take k).length = k := by simp; omega
   have ht : t.ConstsLt k := hlen ▸ hT.2.1
   have hA : A.ConstsLt k := hlen ▸ hT.2.2.1
@@ -1082,7 +1155,7 @@ theorem SigOK.const {S : Sig} (hS : SigOK S) {k : ℕ} {t A : Tm} (h : S[k]? = s
   show cstFn S m k = _
   exact cstFn_eq h ht m
 
-theorem SigOK.const_sem {S : Sig} (hS : SigOK S) {k : ℕ} {t A : Tm} (h : S[k]? = some (t, A))
+theorem SigOK.const_sem {S : Sig} (hS : SigOK S) {k : ℕ} {t A : Tm} (h : S[k]? = some (.defn t A))
     {Ψ : ℕ} {Φ : I} {Γ : Ctx} (hw : SemWf S Ψ Φ Γ) (e : Tm)
     (he : ∀ m (ρ : IEnv m) γ,
       sem S e m ρ γ = sem (S.take k) t m (fun _ => DM.zero m) (fun _ => emptyC m)) (hc : e.ConstsLt S.length) :
@@ -1090,7 +1163,7 @@ theorem SigOK.const_sem {S : Sig} (hS : SigOK S) {k : ℕ} {t A : Tm} (h : S[k]?
   obtain ⟨hk, -, hA, hT, hsem⟩ := hS.const h
   refine ⟨hw, hc, hA.mono hk.le, fun m ρ γ _ => ?_⟩
   obtain ⟨hmem, hnat, hty, hnatA⟩ := hT.2.2.2 m _ _ (isPoint_base _ m)
-  have hcl := hS k t A h
+  have hcl := hS.1 k t A h
   refine ⟨?_, fun k' f => ?_, ?_, fun k' f => ?_⟩
   · rw [he, (hsem m ρ γ).2.2]; exact hmem
   · rw [he, he, ← hnat k' f]

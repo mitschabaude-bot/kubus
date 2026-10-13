@@ -164,6 +164,10 @@ theorem wf_props : ∀ l, ∀ m c, WF l m c → Fib c m ∧ ∀ k (h : Hom k m),
       · rw [Cof.restr_restr] at hg; rw [dat_res, dat_res, hTcoh n _ hg n' g', Hom.comp_assoc]
       · rw [Cof.restr_restr] at hg; rw [dat_res, dat_res, res_res]; exact he n _ hg
       · rw [Cof.restr_restr] at hg; rw [dat_res, dat_res, hecoh n _ hg n' g', Hom.comp_assoc]
+  | @data m Θ hcore hty ihty =>
+    refine ⟨fib_dataC { hcore with fib := fun c j n g pre hp => (ihty c j n g pre hp).1 }, fun k h => ?_⟩
+    rw [res_dataC]
+    exact WFI.data _ (hcore.restr h) (fun c j n g pre hp => hty c j n (h.comp g) pre hp)
 
 /-- Well-formed codes are fibrant. -/
 theorem WF.fib {l : ℕ} {c : V} (h : WF l m c) : Fib c m := (wf_props l m c h).1
@@ -195,6 +199,7 @@ theorem WF.cumul {l : ℕ} {c : V} (h : WF l m c) : WF (l + 1) m c := by
   | @univ m l' hl' =>
     rw [Ucodes_lt m hl', ← Ucodes_lt (l := l + 1) m (by omega)]; exact WFI.univ (by omega)
   | glue _ hφ hn hTp hep _ hTcoh he hecoh ihA ihT => exact WFI.glue ihA hφ hn hTp hep ihT hTcoh he hecoh
+  | data Θ hcore _ ihty => exact WFI.data Θ hcore ihty
 
 /-- The universe of level `l` is a small set of level `l + 1`. -/
 theorem univC_mem_Vt {l : ℕ} (hl : l < 4) : univC m l ∈ Vt (l + 1) := univC_mem_Vt' hl

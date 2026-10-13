@@ -142,7 +142,7 @@ The language is backed by a verified kernel for its core theory, Kubus Core (`do
 - `KubusCore/Meta/`: metatheory of the specification (`docs/metatheory.md`). Over the judgments without the primitive structural, presupposition and inversion rules, renaming and substitution (with functionality) are admissible, and so are inversion of type formers and presupposition except for the computation rules whose contractum's typing needs injectivity of type formers.
 - `model/`: the cubical-sets model in Lean (with Mathlib). It validates every rule of the specification and proves `KubusCore.Consistent`: in any well-formed signature there is no closed term of `(A : U₀) → A`. `Model.kernel_consistent` combines this with the kernel. Whatever the kernel certifies lives in a consistent theory. Both theorems depend only on Lean's standard axioms (`propext`, `Classical.choice`, `Quot.sound`).
 
-Data types and higher inductive types are in the specification and the kernel (`docs/inductive-types.md`), but not yet in the model.
+Data types and higher inductive types (`docs/inductive-types.md`) are covered by the specification, the kernel and the model alike. The whole library is certified and lives in a consistent theory, including ΩS¹ ≃ ℤ, truncations and suspensions.
 
 ## Limitations
 
