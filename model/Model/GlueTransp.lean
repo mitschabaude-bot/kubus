@@ -805,6 +805,90 @@ theorem gt_a1_tube_ok :
       rw [e, pappV_pathOfLine, DM.neg_zero', h1]
     · rfl
 
+include hG hψ hu0 hcon in
+theorem gt_a1_cof : (Cof.or (φ.restr (eO n)) ψ).IsCof := (hG.cof.restr _).or hψ
+
+include hG hψ hu0 hcon in
+theorem gt_a1_mem : gtA1 A φ Tp ep ψ u0 ∈ El A (eO n) := by
+  have h0 := gt_A1'_mem hG hψ hu0 hcon
+  rw [Hom.id_comp] at h0
+  exact hG.fibA.hcMem _ _ _ _ _ (gt_a1_cof hG hψ hu0 hcon) h0 (gt_a1_tube_ok hG hψ hu0 hcon)
+
+include hG hψ hu0 hcon in
+/-- On `φ(1)`, `a1 = e(1).1 (fst ext)`. -/
+theorem gt_a1_face {g : Hom k n} (hφg : (φ.restr ((eO n).comp g)).holds) :
+    res g (gtA1 A φ Tp ep ψ u0) = eqFun k (gtE1 ep g) (fstV k (gtExt A φ Tp ep ψ u0 g)) := by
+  have h0 := gt_A1'_mem hG hψ hu0 hcon
+  rw [Hom.id_comp] at h0
+  have hok := gt_a1_tube_ok hG hψ hu0 hcon
+  rw [gtA1, hG.fibA.hcRes _ _ _ _ _ (gt_a1_cof hG hψ hu0 hcon) h0 hok k g,
+    hG.fibA.hcFace _ _ _ _ _ ((gt_a1_cof hG hψ hu0 hcon).restr g) (hG.fibA.elRes _ _ _ h0 k g) (hok.restr g)
+      (by rw [Cof.or_restr, Cof.holds_or, Cof.restr_restr]; exact Or.inl hφg)]
+  simp only [Tube.restr, gtA1Tube, Hom.comp_id]
+  rw [if_pos hφg]
+  obtain ⟨-, -, q, -, e, h0', -⟩ := gt_ext_split hG hψ hu0 hcon hφg
+  rw [e, pappV_pathOfLine, DM.neg_one', h0']
+
+theorem dat_partialKV_holds {φ : Cof m} {F : (k : ℕ) → Hom k m → V} {g : Hom k m} (hg : (φ.restr g).holds) :
+    dat (partialKV m φ F) k g = F k g := by
+  rw [partialKV, dat_mkKV, if_pos hg]
+
+include hG hψ hu0 hcon in
+theorem gt_result_mem : gtResult A φ Tp ep ψ u0 ∈ El (glueC (n + 1) A φ Tp ep) (eO n) := by
+  rw [El_glueC, gtResult]
+  by_cases hφ : (φ.restr (eO n)).holds
+  · rw [if_pos hφ, if_pos hφ]
+    have hφ' : (φ.restr ((eO n).comp (Hom.id n))).holds := by rw [Hom.comp_id]; exact hφ
+    have := (gt_ext_split hG hψ hu0 hcon hφ').2.1
+    rwa [gtT1, Hom.comp_id] at this
+  · rw [if_neg hφ, if_neg hφ, mem_glueElSet]
+    refine ⟨_, _, rfl, ?_, partialKV_self _ _, fun k g hg => ?_, fun k g hg k' h => ?_, fun k g hg => ?_⟩
+    · have := gt_a1_mem hG hψ hu0 hcon; rwa [El_eq_res_id] at this
+    · rw [Cof.restr_restr] at hg
+      rw [dat_partialKV_holds (by rwa [Cof.restr_restr]), dat_res]
+      exact (gt_ext_split hG hψ hu0 hcon hg).2.1
+    · rw [Cof.restr_restr] at hg
+      have hgh : (φ.restr ((eO n).comp (g.comp h))).holds := by
+        rw [← Hom.comp_assoc]; exact cof_holds_comp hG.cof hg h
+      rw [dat_partialKV_holds (by rwa [Cof.restr_restr]), dat_partialKV_holds (by rwa [Cof.restr_restr]),
+        ← fstV_res_of_pair (gt_ext_split hG hψ hu0 hcon hg).1, gt_ext_res hG hψ hu0 hcon hg]
+    · rw [Cof.restr_restr] at hg
+      rw [dat_partialKV_holds (by rwa [Cof.restr_restr]), dat_res, gt_a1_face hG hψ hu0 hcon hg]; rfl
+
+include hG hψ hu0 hcon in
+theorem gt_result_face (hψh : ψ.holds) : gtResult A φ Tp ep ψ u0 = u0 := by
+  have hψid : (ψ.restr (Hom.id n)).holds := by rw [hψ.restr_id]; exact hψh
+  have hu0kv : IsKV n u0 := hG.elKV hu0
+  rw [gtResult]
+  by_cases hφ : (φ.restr (eO n)).holds
+  · have hφ' : (φ.restr ((eO n).comp (Hom.id n))).holds := by rw [Hom.comp_id]; exact hφ
+    rw [if_pos hφ, gt_ext_psi hG hψ hu0 hcon hφ' hψid, fstV_pairV (isKV_res _ _), res_id hu0kv]
+  · rw [if_neg hφ]
+    have hm := gt_u_mem hG hu0 hcon hψid (DM.one n)
+    rw [res_id hu0kv, snoc_one_eq, Hom.comp_id, El_glueC, if_neg hφ] at hm
+    obtain ⟨tp, a, hu0e, -, hakv, htp, -, hcoh, -⟩ := (hG.restr (eO n)).elem hφ hm
+    -- a1 = a1' = unglue u0 = a
+    have hok := gt_a1_tube_ok hG hψ hu0 hcon
+    have h0 := gt_A1'_mem hG hψ hu0 hcon
+    rw [Hom.id_comp] at h0
+    have ha1 : gtA1 A φ Tp ep ψ u0 = a := by
+      rw [gtA1, hG.fibA.hcFace _ _ _ _ _ (gt_a1_cof hG hψ hu0 hcon) h0 hok (Cof.holds_or.2 (Or.inr hψh)),
+        gtA1Tube, Hom.comp_id, if_neg hφ, gt_A1'_restr_face hG hψ hu0 hcon hψid, ungAt, snoc_one_eq,
+        Hom.comp_id, if_neg hφ, res_id hu0kv, hu0e, unglue_glueV hφ (hG.cof.restr _) tp hakv]
+    rw [ha1]
+    conv_rhs => rw [hu0e]
+    congr 1
+    rw [htp]; unfold partialKV; congr 1; funext k g; split
+    · rename_i hg'
+      have hg := hg'
+      rw [Cof.restr_restr] at hg
+      show fstV k (gtExt A φ Tp ep ψ u0 g) = dat tp k g
+      rw [gt_ext_psi hG hψ hu0 hcon hg (by have := cof_holds_comp hψ hψid g; rwa [Hom.id_comp] at this),
+        fstV_pairV (isKV_res _ _)]
+      conv_lhs => rw [hu0e]
+      exact res_glueV_holds (hG.cof.restr _) hg' (hcoh k g hg') ((hG.restr _).face_kv hg' (hcoh k g hg'))
+    · rfl
+
 end gtExt
 
 section fields
