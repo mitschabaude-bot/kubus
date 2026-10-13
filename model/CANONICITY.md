@@ -135,3 +135,20 @@ Restriction does not commute with `step`. For `σ : ISub k' k` and `step S t = s
 In every case both results are `≡` to `t.isub σ`, by soundness and substitution.
 
 The PER of (c) does not need a commutation lemma. Like the current relation, it is Kripke by definition: each clause quantifies over all restrictions `σ` and reduces `t.isub σ` at stage `k'` from scratch. Closure under restriction is then composition of restrictions. The fundamental lemma handles each redex at each restriction separately: if the face holds after `σ`, the face rule applies and its reduct is related by the induction hypothesis; otherwise the computation rule applies. This is how `RE_hcomp_face`/`RE_transp_face` already split the Kan lemma. Weak-head normal forms with a type-former head (`univ`, `pi`, `sigma`, `path`, `ipi`, `data`) never step, so they stay normal under restriction. The heads that can start to step after restriction are `glue`, `glueEl`, `split`, `con` with boundaries, and stuck eliminations. These are exactly the cases above.
+
+### Milestone (c): design
+
+`Model/Whnf/Rel.lean` (sub-step c1, done) defines `Comp2 S X m k f : Pack2` by the same rank recursion as `Comp`. It has a type relation `ty A A'` and an element relation `el A t t'`; `RT2`/`RE2` are its instances at `semK A`.
+
+- Every element relation includes `EB`: both sides typed and judgmentally equal.
+- Every type relation includes typing, the code, and `TyEq A A'`.
+- Types of every former, and elements of inductive types, are observed through their weak-head normal forms at every restriction (`∀ σ, RedW S (A.isub σ) (head …)`). Normal forms are unique, so the relations are transitive without injectivity of type formers or constructors.
+- Elements of Π, Σ, path, `(i : I) → A` and Glue types are observed through their eliminations.
+- The Glue type clause relates the two whnfs' bases, faces (both equal to the code's face), fibres and equivalences. So `RT2 U (glue A φ T e) (glue A' φ' T' e')`, where both sides are their own whnfs, gives `A ≡ A'` and, from the equivalences at the restrictions where `φ` holds and `eq_local_faces`, `e ≡ e'` under `φ`.
+
+Remaining sub-steps:
+
+- (c2) Unfolding lemmas per code. Kripke restriction (re-indexing the `∀ σ` clauses). Symmetry and transitivity (rank induction, using uniqueness of whnfs). Transfer of elements along related types. Semantics and typing of related terms.
+- (c3) Head expansion along substitution-stable steps (`∀ σ, step (t.isub σ) = some (t1.isub σ)`). Faces that come to hold under restriction are handled per stage where the redex is known.
+- (c4) Introduction and elimination clauses per former, and the Kan lemma for related lines and data, including the binary `hcompCon` via projections, which also discharges `HCSound`.
+- (c5) The fundamental lemma for `HasTy0` and `EqTm0`, with related closing substitutions. `UGSound` and `GlueCompat` are corollaries.
