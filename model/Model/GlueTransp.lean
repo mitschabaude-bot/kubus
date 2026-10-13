@@ -28,8 +28,310 @@ noncomputable section
 
 attribute [local instance] Classical.propDecidable
 
-variable {k m n n' : ℕ}
+variable {k k' m n n' : ℕ}
 
+
+/-! ### The ingredients of Glue transport -/
+
+section gt
+
+variable {A : V} {φ : Cof (n + 1)} {Tp ep : V} (hG : GlueOK A φ Tp ep) {ψ : Cof n} (hψ : ψ.IsCof)
+  {u0 : V} (hu0 : u0 ∈ El (glueC (n + 1) A φ Tp ep) (eZ n))
+  (hcon : ConstOn (glueC (n + 1) A φ Tp ep) (Hom.id (n + 1)) ψ)
+
+include hG hu0 hcon in
+/-- On `ψ`, `u0` lies in the Glue type at every point of the line. -/
+theorem gt_u_mem {g : Hom k n} (hg : (ψ.restr g).holds) (r : DM k) :
+    res g u0 ∈ El (glueC (n + 1) A φ Tp ep) (Hom.snoc g r) := by
+  have h0 := hG.elRes hu0 g
+  rw [← snoc_zero_eq, El_eq_res_id] at h0
+  rw [El_eq_res_id]
+  have := hcon k g hg r
+  rw [Hom.id_comp, Hom.id_comp] at this
+  rwa [this]
+
+include hG hu0 in
+theorem gt_A0_mem : gtA0 φ ep u0 ∈ El A ((Hom.id (n + 1)).comp (eZ n)) := by
+  rw [Hom.id_comp]; exact hG.ung_mem hu0
+
+include hG hu0 hcon in
+theorem gt_tube_ok : LineTubeOK A (Hom.id (n + 1)) ψ (gtTube φ ep u0) (gtA0 φ ep u0) where
+  mem k g r hg := by rw [Hom.id_comp]; exact hG.ung_mem (gt_u_mem hG hu0 hcon hg r)
+  coh k g r hg k' h := by
+    simp only [gtTube]
+    rw [hG.ung_res (gt_u_mem hG hu0 hcon hg r) h, Hom.snoc_comp, res_res]
+  base k g hg := by
+    simp only [gtTube, gtA0]
+    rw [hG.ung_res hu0 g, snoc_zero_eq]
+
+include hG hψ hu0 hcon in
+theorem gt_A1'_mem : gtA1' A φ ep ψ u0 ∈ El A ((Hom.id (n + 1)).comp (eO n)) :=
+  compF_mem hG.fibA hψ (gt_A0_mem hG hu0) (gt_tube_ok hG hu0 hcon)
+
+include hG hψ hu0 hcon in
+theorem gt_A1'_face (hh : ψ.holds) :
+    gtA1' A φ ep ψ u0 = ungAt n (φ.restr (eO n)) (dat ep n (eO n)) u0 := by
+  rw [gtA1', compF_face hG.fibA hψ (gt_A0_mem hG hu0) (gt_tube_ok hG hu0 hcon) hh]
+  simp only [gtTube]
+  rw [res_id (hG.elKV hu0)]
+  rfl
+
+end gt
+
+/-! ### `δ = ∀ i. φ` -/
+
+theorem gt_δ_lift {φ : Cof (n + 1)} (g : Hom k n) :
+    ((gtδ φ).restr g).holds ↔ (φ.restr (Hom.lift g)).holds := by
+  simp only [gtδ, Cof.forall0, Cof.restr, Cof.holds, Set.mem_setOf_eq, Hom.app_lift]
+  constructor
+  · rintro ⟨-, -, hq⟩; refine ⟨Pt.allA_isK3 _, ?_⟩; simpa [Fin.init, Pt.allA] using hq
+  · rintro ⟨-, hq⟩
+    refine ⟨Pt.allA_isK3 _, Hom.app_isK3 g (Pt.allA_isK3 k), ?_⟩
+    simpa [Fin.init, Pt.allA] using hq
+
+theorem gt_δ_snoc {φ : Cof (n + 1)} (hφ : φ.IsCof) {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (r : DM k) :
+    (φ.restr (Hom.snoc g r)).holds :=
+  Cof.forall0_holds_snoc hφ hg r
+
+theorem gt_δ_cof {φ : Cof (n + 1)} (hφ : φ.IsCof) : (gtδ φ).IsCof := Cof.IsCof.forall0 hφ
+
+/-! ### The `T`-part, on `δ` -/
+
+section gtT
+
+variable {A : V} {φ : Cof (n + 1)} {Tp ep : V} (hG : GlueOK A φ Tp ep) {ψ : Cof n} (hψ : ψ.IsCof)
+  {u0 : V} (hu0 : u0 ∈ El (glueC (n + 1) A φ Tp ep) (eZ n))
+  (hcon : ConstOn (glueC (n + 1) A φ Tp ep) (Hom.id (n + 1)) ψ)
+
+include hG in
+theorem gt_TL_fib {g : Hom k n} (hg : ((gtδ φ).restr g).holds) : Fib (gtTL Tp g) (k + 1) :=
+  hG.fibT (k + 1) (Hom.lift g) ((gt_δ_lift g).1 hg)
+
+include hG in
+theorem gt_TL_res {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (h : Hom k' (k + 1)) :
+    res h (gtTL Tp g) = dat Tp k' ((Hom.lift g).comp h) :=
+  hG.Tcoh (k + 1) (Hom.lift g) ((gt_δ_lift g).1 hg) k' h
+
+include hG in
+/-- On `δ` the Glue type at a point of the line is `T` there. -/
+theorem gt_glue_T {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (r : DM k) :
+    res (Hom.snoc g r) (glueC (n + 1) A φ Tp ep) = dat Tp k (Hom.snoc g r) := by
+  rw [res_glueC hG.Tcoh (fun k f hf => (hG.fibT k f hf).kv) hG.cof, if_pos (gt_δ_snoc hG.cof hg r)]
+
+include hG hcon in
+theorem gt_TL_const {g : Hom k n} (hg : ((gtδ φ).restr g).holds) :
+    ConstOn (gtTL Tp g) (Hom.id (k + 1)) (ψ.restr g) := by
+  intro k' h hh r
+  rw [Cof.restr_restr] at hh
+  have hgh : ((gtδ φ).restr (g.comp h)).holds := by
+    rw [← Cof.restr_restr]; exact ((gt_δ_cof hG.cof).restr g).holds_restr hg h
+  rw [Hom.id_comp, Hom.id_comp, gt_TL_res hG hg, gt_TL_res hG hg, lift_comp_snoc, lift_comp_snoc,
+    ← gt_glue_T hG hgh, ← gt_glue_T hG hgh]
+  have := hcon k' (g.comp h) hh r
+  rwa [Hom.id_comp, Hom.id_comp] at this
+
+include hG hu0 in
+theorem gt_u0_TL {g : Hom k n} (hg : ((gtδ φ).restr g).holds) :
+    res g u0 ∈ El (gtTL Tp g) ((Hom.id (k + 1)).comp (eZ k)) := by
+  have h0 := hG.elRes hu0 g
+  rw [← snoc_zero_eq, El_eq_res_id, gt_glue_T hG hg] at h0
+  rw [Hom.id_comp, El_eq_res_id, gt_TL_res hG hg, TranspPi.lift_comp_endpt0, ← snoc_zero_eq]
+  exact h0
+
+include hG hψ hu0 hcon in
+theorem gt_T1'_mem {g : Hom k n} (hg : ((gtδ φ).restr g).holds) :
+    gtT1' Tp ψ u0 g ∈ El (gtT1 Tp g) (Hom.id k) := by
+  have := (gt_TL_fib hG hg).trMem k _ _ _ (hψ.restr g) (gt_TL_const hG hcon hg) (gt_u0_TL hG hu0 hg)
+  rw [Hom.id_comp, El_eq_res_id, gt_TL_res hG hg, TranspPi.lift_comp_endpt1] at this
+  unfold gtT1; rw [← snoc_one_eq] at this ⊢
+  rw [snoc_one_eq]; rw [snoc_one_eq] at this; exact this
+
+end gtT
+
+/-! ### The path `ω` -/
+
+theorem gtΩLine_snoc (g : Hom k n) (h : Hom n' (k + 1)) (r : DM n') :
+    (gtΩLine g).comp (Hom.snoc h r) = Hom.snoc ((g.comp (Hom.wk k)).comp h) r := by
+  apply Hom.ext_snoc
+  · intro p; apply funext; intro j; simp [gtΩLine]
+  · intro p; simp [gtΩLine]
+
+section gtΩ
+
+variable {A : V} {φ : Cof (n + 1)} {Tp ep : V} (hG : GlueOK A φ Tp ep) {ψ : Cof n} (hψ : ψ.IsCof)
+  {u0 : V} (hu0 : u0 ∈ El (glueC (n + 1) A φ Tp ep) (eZ n))
+  (hcon : ConstOn (glueC (n + 1) A φ Tp ep) (Hom.id (n + 1)) ψ)
+
+include hG in
+theorem gt_e_mem {P : Hom n' (n + 1)} (hP : (φ.restr P).holds) {x : V} (hx : x ∈ El (dat Tp n' P) (Hom.id n')) :
+    eqFun n' (dat ep n' P) x ∈ El A P := by
+  have := eqFun_mem (hG.fibT n' P hP).kv (isKV_res P A) (hG.mem_e n' P hP) hx
+  rwa [El_res, Hom.comp_id] at this
+
+include hG in
+theorem gt_e_res {P : Hom n' (n + 1)} (hP : (φ.restr P).holds) {x : V} (hx : x ∈ El (dat Tp n' P) (Hom.id n'))
+    (h : Hom k n') : res h (eqFun n' (dat ep n' P) x) = eqFun k (dat ep k (P.comp h)) (res h x) := by
+  rw [eqFun_res' (hG.fibT n' P hP).kv (hG.mem_e n' P hP) hx h, hG.ecoh n' P hP k h]
+
+include hG hu0 in
+/-- `u0` lies in `T(0)` on `δ`. -/
+theorem gt_u0_T0 {g : Hom k n} (hg : ((gtδ φ).restr g).holds) :
+    res g u0 ∈ El (dat Tp k (Hom.snoc g (DM.zero k))) (Hom.id k) := by
+  have h0 := hG.elRes hu0 g
+  rwa [← snoc_zero_eq, El_eq_res_id, gt_glue_T hG hg] at h0
+
+include hG hu0 hcon in
+/-- On `ψ ∧ δ`, `u0` lies in `T` at every point of the line. -/
+theorem gt_u0_T {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (hψg : (ψ.restr g).holds) (r : DM k) :
+    res g u0 ∈ El (dat Tp k (Hom.snoc g r)) (Hom.id k) := by
+  have h0 := gt_u_mem hG hu0 hcon hψg r
+  rwa [El_eq_res_id, gt_glue_T hG hg] at h0
+
+end gtΩ
+
+section gtΩ2
+
+variable {A : V} {φ : Cof (n + 1)} {Tp ep : V} (hG : GlueOK A φ Tp ep) {ψ : Cof n} (hψ : ψ.IsCof)
+  {u0 : V} (hu0 : u0 ∈ El (glueC (n + 1) A φ Tp ep) (eZ n))
+  (hcon : ConstOn (glueC (n + 1) A φ Tp ep) (Hom.id (n + 1)) ψ)
+
+include hG hψ hu0 hcon in
+/-- The transport filler of `u0` in `T`, above `g`. -/
+theorem gt_tfill {g : Hom k n} (hg : ((gtδ φ).restr g).holds) :
+    let tf := transpFillF (gtTL Tp g) (Hom.id (k + 1)) (ψ.restr g) (res g u0)
+    tf ∈ El (gtTL Tp g) (Hom.id (k + 1)) ∧
+    res (eZ k) tf = res g u0 ∧
+    (∀ {n'} (h : Hom n' k), ((ψ.restr g).restr h).holds → ∀ r, res (Hom.snoc h r) tf = res h (res g u0)) := by
+  have hfib := gt_TL_fib hG hg
+  have hc := gt_TL_const hG hcon hg
+  have hb := gt_u0_TL hG hu0 hg
+  exact ⟨transpFillF_mem hfib (hψ.restr g) hc hb, transpFillF_endpt0 hfib (hψ.restr g) hc hb,
+    fun h hh r => transpFillF_face hfib (hψ.restr g) hc hb h hh r⟩
+
+include hG hψ hu0 hcon in
+/-- The filler of the unglued tube in `A`. -/
+theorem gt_fillA :
+    gtFillA A φ ep ψ u0 ∈ El A (Hom.id (n + 1)) ∧
+    res (eZ n) (gtFillA A φ ep ψ u0) = gtA0 φ ep u0 ∧
+    res (eO n) (gtFillA A φ ep ψ u0) = gtA1' A φ ep ψ u0 ∧
+    (∀ {n'} (h : Hom n' n), (ψ.restr h).holds → ∀ r, res (Hom.snoc h r) (gtFillA A φ ep ψ u0) = gtTube φ ep u0 n' h r) := by
+  have hb := gt_A0_mem hG hu0
+  have ht := gt_tube_ok hG hu0 hcon
+  exact ⟨fillF_mem hG.fibA hψ hb ht, fillF_endpt0 hG.fibA hψ hb ht, fillF_endpt1 hG.fibA hψ hb ht,
+    fun h hh r => fillF_face hG.fibA hψ hb ht h hh r⟩
+
+end gtΩ2
+
+section gtΩ3
+
+variable {A : V} {φ : Cof (n + 1)} {Tp ep : V} (hG : GlueOK A φ Tp ep) {ψ : Cof n} (hψ : ψ.IsCof)
+  {u0 : V} (hu0 : u0 ∈ El (glueC (n + 1) A φ Tp ep) (eZ n))
+  (hcon : ConstOn (glueC (n + 1) A φ Tp ep) (Hom.id (n + 1)) ψ)
+
+include hG in
+theorem gt_δ_comp {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (h : Hom n' k) :
+    ((gtδ φ).restr (g.comp h)).holds := by
+  rw [← Cof.restr_restr]; exact ((gt_δ_cof hG.cof).restr g).holds_restr hg h
+
+include hG hu0 in
+theorem gt_ΩBase_mem {g : Hom k n} (hg : ((gtδ φ).restr g).holds) :
+    gtΩBase ep u0 g ∈ El A ((gtΩLine g).comp (Hom.endpt (k + 1) (DM.zero (k + 1)))) := by
+  have hgw := gt_δ_comp hG hg (Hom.wk k)
+  rw [show Hom.endpt (k + 1) (DM.zero (k + 1)) = Hom.snoc (Hom.id (k + 1)) (DM.zero (k + 1)) from rfl,
+    gtΩLine_snoc, Hom.comp_id]
+  exact gt_e_mem hG (gt_δ_snoc hG.cof hgw _) (gt_u0_T0 hG hu0 hgw)
+
+include hG hψ hu0 hcon in
+theorem gt_Ω_ok {g : Hom k n} (hg : ((gtδ φ).restr g).holds) :
+    LineTubeOK A (gtΩLine g) (pathFace (ψ.restr g)) (gtΩTube A φ Tp ep ψ u0 g) (gtΩBase ep u0 g) where
+  mem n' h r hh := by
+    have hb := gt_δ_comp hG hg ((Hom.wk k).comp h)
+    rw [← Hom.comp_assoc] at hb
+    have hP := gt_δ_snoc hG.cof hb r
+    obtain ⟨htf, -, -⟩ := gt_tfill hG hψ hu0 hcon hg
+    rw [gtΩLine_snoc]
+    unfold gtΩTube
+    split_ifs with h1 h2
+    · exact gt_e_mem hG hP (gt_u0_T hG hu0 hcon hb h1 r)
+    · apply gt_e_mem hG hP
+      have := (gt_TL_fib hG hg).elRes _ _ _ htf n' (Hom.snoc ((Hom.wk k).comp h) r)
+      rwa [Hom.id_comp, El_eq_res_id, gt_TL_res hG hg, lift_comp_snoc] at this
+    · have := hG.fibA.elRes _ _ _ (gt_fillA hG hψ hu0 hcon).1 n' (Hom.snoc ((g.comp (Hom.wk k)).comp h) r)
+      rwa [Hom.id_comp] at this
+  coh n' h r hh n'' g' := by
+    set b := (g.comp (Hom.wk k)).comp h with hbdef
+    have hb : ((gtδ φ).restr b).holds := by
+      rw [hbdef, Hom.comp_assoc]; exact gt_δ_comp hG hg ((Hom.wk k).comp h)
+    have hbg : ((gtδ φ).restr (b.comp g')).holds := gt_δ_comp hG hb g'
+    have hP := gt_δ_snoc hG.cof hb r
+    obtain ⟨htf, -, htfF⟩ := gt_tfill hG hψ hu0 hcon hg
+    obtain ⟨-, -, -, hfF⟩ := gt_fillA hG hψ hu0 hcon
+    have hbc : (g.comp (Hom.wk k)).comp (h.comp g') = b.comp g' := rfl
+    unfold gtΩTube
+    rw [hbc, ← hbdef]
+    by_cases h1 : (ψ.restr b).holds
+    · have h1' : (ψ.restr (b.comp g')).holds := by
+        rw [← Cof.restr_restr]; exact (hψ.restr _).holds_restr h1 g'
+      rw [if_pos h1, if_pos h1', gt_e_res hG hP (gt_u0_T hG hu0 hcon hb h1 r), Hom.snoc_comp, res_res]
+    · rw [if_neg h1]
+      by_cases h2 : ((Cof.eq0 (lastVar k)).restr h).holds
+      · have h2' : ((Cof.eq0 (lastVar k)).restr (h.comp g')).holds := by
+          rw [← Cof.restr_restr]; exact ((Cof.isCof_eq0 _).restr h).holds_restr h2 g'
+        have hx : res (Hom.snoc ((Hom.wk k).comp h) r) (transpFillF (gtTL Tp g) (Hom.id (k + 1)) (ψ.restr g) (res g u0))
+            ∈ El (dat Tp n' (Hom.snoc b r)) (Hom.id n') := by
+          have := (gt_TL_fib hG hg).elRes _ _ _ htf n' (Hom.snoc ((Hom.wk k).comp h) r)
+          rwa [Hom.id_comp, El_eq_res_id, gt_TL_res hG hg, lift_comp_snoc] at this
+        rw [if_pos h2, gt_e_res hG hP hx, Hom.snoc_comp, res_res, Hom.snoc_comp]
+        by_cases h3 : (ψ.restr (b.comp g')).holds
+        · rw [if_pos h3]
+          have h3' : ((ψ.restr g).restr ((Hom.wk k).comp (h.comp g'))).holds := by
+            rw [Cof.restr_restr]; exact h3
+          rw [show ((Hom.wk k).comp h).comp g' = (Hom.wk k).comp (h.comp g') from rfl,
+            htfF _ h3' (r.restr g'), res_res]
+          rfl
+        · rw [if_neg h3, if_pos h2']
+          rfl
+      · have h1' : (lastVar k).restr h = DM.one n' := by
+          rcases pathFace_cases hh with h3 | h3 | h3
+          · exact absurd (by rw [Cof.restr_restr, ← Hom.comp_assoc] at h3; exact h3) h1
+          · exact absurd (eq0_restr_holds_iff.2 h3) h2
+          · exact h3
+        have hno : ¬ ((Cof.eq0 (lastVar k)).restr (h.comp g')).holds := by
+          rw [eq0_restr_holds_iff, ← DM.restr_restr, h1', DM.one_restr]; exact DM.zero_ne_one'.symm
+        rw [if_neg h2, res_res, Hom.snoc_comp]
+        by_cases h3 : (ψ.restr (b.comp g')).holds
+        · rw [if_pos h3, hfF _ h3]
+          have hP' := gt_δ_snoc hG.cof hbg (r.restr g')
+          have hm := gt_u0_T hG hu0 hcon hbg h3 (r.restr g')
+          simp only [gtTube]
+          rw [ungAt, if_pos hP', if_pos ((hG.fibT _ _ hP').elKV _ _ _ hm)]
+        · rw [if_neg h3, if_neg hno]
+  base n' h hh := by
+    set b := (g.comp (Hom.wk k)).comp h with hbdef
+    have hb : ((gtδ φ).restr b).holds := by
+      rw [hbdef, Hom.comp_assoc]; exact gt_δ_comp hG hg ((Hom.wk k).comp h)
+    obtain ⟨htf, htf0, -⟩ := gt_tfill hG hψ hu0 hcon hg
+    obtain ⟨-, hf0, -, -⟩ := gt_fillA hG hψ hu0 hcon
+    have hgw := gt_δ_comp hG hg (Hom.wk k)
+    have eB : res h (gtΩBase ep u0 g) = eqFun n' (dat ep n' (Hom.snoc b (DM.zero n'))) (res b u0) := by
+      rw [gtΩBase, gt_e_res hG (gt_δ_snoc hG.cof hgw _) (gt_u0_T0 hG hu0 hgw) h, Hom.snoc_comp, DM.zero_restr,
+        res_res]
+    rw [eB]
+    unfold gtΩTube
+    rw [← hbdef]
+    split_ifs with h1 h2
+    · rfl
+    · congr 1
+      rw [show Hom.snoc ((Hom.wk k).comp h) (DM.zero n') = (eZ k).comp ((Hom.wk k).comp h) from snoc_zero_eq _,
+        ← res_res, htf0, res_res]
+      rfl
+    · rw [show Hom.snoc b (DM.zero n') = (eZ n).comp b from snoc_zero_eq _, ← res_res, hf0, gtA0,
+        hG.ung_res hu0, ← snoc_zero_eq]
+      have hP := gt_δ_snoc hG.cof hb (DM.zero n')
+      have hm := gt_u0_T0 hG hu0 hb
+      rw [ungAt, if_pos hP, if_pos ((hG.fibT _ _ hP).elKV _ _ _ hm)]
+
+end gtΩ3
 
 section fields
 
