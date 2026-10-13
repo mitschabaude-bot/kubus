@@ -113,6 +113,42 @@ def elimD (Θ : SData m) (P : (n : ℕ) → Hom n m → V → V) (bs : (k : ℕ)
 termination_by ZFSet.rank v
 decreasing_by all_goals first | assumption | (simp_wf; assumption) | simp_all
 
+/-! ### The code of an inductive type -/
+
+section code
+
+/-- The elements of `Λ` at the restriction `g`, as a set. -/
+def delemSet (Λ : SData m) (n : ℕ) (g : Hom n m) : V := ZFSet.sep (DElem Λ n g) (dataBound Λ n g)
+
+/-- The argument types of `Λ` at stage `m` on the valid argument lists: this makes the code
+determine its argument types (needed for transport), without recording the parameters. -/
+def shapeV (Λ : SData m) : V :=
+  ⋃ c : Fin Λ.ctors.length, ⋃ j : Fin (Λ.ctors[c].args.length + 1),
+    ZFSet.range fun p : VPref Λ (delemSet Λ) m (Hom.id m) c Λ.ctors[c] j =>
+      ZFSet.pair (natZ c) (ZFSet.pair (natZ j) (ZFSet.pair (vlist p.1) (Λ.ty c j m (Hom.id m) p.1)))
+
+/-- The transport graph of `Λ` along its last variable. -/
+def dataTr : (k : ℕ) → SData k → V
+  | 0, _ => ∅
+  | n + 1, Λ => trGraph n (delemSet Λ n (Hom.endpt n (DM.zero n))) fun φ a => transpD Λ n (Hom.id (n + 1)) φ a
+
+/-- The datum of the inductive type `Λ` at its own stage. -/
+def dataDatum (Λ : SData k) : V :=
+  quad (tagZ tData (shapeV Λ)) (delemSet Λ k (Hom.id k)) (dataTr k Λ)
+    (hcGraph k (fun n g => delemSet Λ n g) fun φ u a => hcV k φ u a)
+
+/-- The code of the inductive type `Θ` at stage `m`. -/
+def dataC (Θ : SData m) : V := mkKV m fun k f => dataDatum (Θ.restr f)
+
+theorem SData.restr_restr (Θ : SData m) (h : Hom k m) (g : Hom n k) : (Θ.restr h).restr g = Θ.restr (h.comp g) := rfl
+
+theorem res_dataC (Θ : SData m) (h : Hom k m) : res h (dataC Θ) = dataC (Θ.restr h) := by
+  simp only [dataC, res_mkKV]; rfl
+
+theorem isKV_dataC (Θ : SData m) : IsKV m (dataC Θ) := isKV_mkKV _
+
+end code
+
 end
 
 end Model
