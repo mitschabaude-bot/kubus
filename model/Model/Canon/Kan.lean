@@ -1,4 +1,5 @@
 import Model.Canon.KanIPi
+import Model.Canon.KanSigma
 import Model.Canon.KripkeAll
 
 /-!
@@ -84,6 +85,33 @@ theorem kanP_ipi (m : ℕ) (L : V) (hLne : L ≠ ∅) (hL : KR S (m + 1) L) (ihL
       have := closed_of_ty hW hipiT; simpa [Tm.closedB] using this)] at h0
     exact kanT_retype hW e (kanT_ipi hW hipiT (kanAll_of hW hL ihL h0).2)
 
+theorem kanP_sigma (l m : ℕ) (A B : V) (hA : WF l m A) (ihA : KR S m A ∧ KanP S m A)
+    (ihB : ∀ k (f : Hom k m), ∀ a ∈ El A f, KR S k (apZ (dat B k f) a) ∧ KanP S k (apZ (dat B k f) a)) :
+    KanP S m (sigmaC m A B) := by
+  have hAne : A ≠ ∅ := IsKV.ne_empty hA.fib.kv
+  have mem : ∀ {k} {f : Hom k m} {A1 a : Tm}, (Comp S A m k f).ty A1 → RE S k A1 a →
+      (Comp S A m k f).el A1 a ∧ semK S k a ∈ El A f := by
+    intro k f A1 a hA1 ha
+    have hael : (Comp S A m k f).el A1 a := by rw [Comp_eq_semK hA1]; exact ha
+    exact ⟨hael, by have := (Comp_el_typed hael).2; rwa [El_res, Hom.comp_id] at this⟩
+  constructor
+  · intro k f T hT
+    rw [Comp_sigmaC A B hAne] at hT
+    obtain ⟨⟨hTy, -⟩, A1, B1, hE, hall⟩ := hT
+    obtain ⟨l1, hsigT⟩ := ty_of_tyEq hW hTy hE (fun l h => by cases h)
+    refine kanH_retype hW hE (kanH_sigma hW hsigT (fun k' ρ => ihA.2.1 k' _ _ (hall k' ρ).1) fun k' σ a ha => ?_)
+    obtain ⟨hael, hmem⟩ := mem (hall k' σ).1 ha
+    exact kanAll_of hW (ihB k' _ _ hmem).1 (ihB k' _ _ hmem).2 ((hall k' σ).2 a hael)
+  · intro k f T hT
+    rw [Comp_sigmaC A B hAne] at hT
+    obtain ⟨⟨hTy, -⟩, A1, B1, hE, hall⟩ := hT
+    obtain ⟨l1, hsigT⟩ := ty_of_tyEq hW hTy hE (fun l h => by cases h)
+    obtain ⟨l2, e⟩ := tyEq_eq hW hE ⟨l1, hsigT⟩
+    refine kanT_retype hW e (kanT_sigma hW hsigT (fun k' ρ => ihA.2.2 k' _ _ (hall (k' + 1) ρ).1)
+      fun k' ρ w hw => ?_)
+    obtain ⟨hwel, hmem⟩ := mem (hall (k' + 1) ρ).1 hw
+    exact (ihB (k' + 1) _ _ hmem).2.2 k' (Hom.id (k' + 1)) _ ((hall (k' + 1) ρ).2 w hwel)
+
 theorem kanP_empty (m : ℕ) : KanP S m (emptyC m) := by
   constructor
   · intro k f T hT φ u a _ _ ha
@@ -98,7 +126,9 @@ theorem kanP_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KanP S m X := by
   · intro l m A B hA hB hBf hBw hBn ihA ihB
     exact ⟨kr_piC hW (WF.fib (show WF l m (piC m A B) from WFI.pi hA hB hBf hBw hBn)) (IsKV.ne_empty hA.fib.kv),
       kanP_pi hW l m A B hA ihA.2 fun k f a ha => (ihB k f a ha).2⟩
-  · sorry
+  · intro l m A B hA hB hBf hBw hBn ihA ihB
+    exact ⟨kr_sigmaC hW (WF.fib (show WF l m (sigmaC m A B) from WFI.sigma hA hB hBf hBw hBn))
+      (IsKV.ne_empty hA.fib.kv), kanP_sigma hW l m A B hA ihA ihB⟩
   · sorry
   · intro l m L hL ihL
     exact ⟨kr_ipiC hW (WF.fib (show WF l m (ipiC m L) from WFI.ipi hL)) (IsKV.ne_empty hL.fib.kv),
