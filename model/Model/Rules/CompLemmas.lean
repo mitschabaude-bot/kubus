@@ -179,6 +179,81 @@ theorem sem_hcompIPi {A u u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
   congr 1
   exact hcompAt_congr et
 
+/-! ### transpIPi -/
+
+theorem ConstOn.res_id {c : V} {f : Hom (n + 1) m} {φ : Cof n} (h : ConstOn c f φ) :
+    ConstOn (res f c) (Hom.id (n + 1)) φ := by
+  intro n' g hg r
+  rw [res_res, res_res, Hom.id_comp, Hom.id_comp]; exact h n' g hg r
+
+/-- The interval environment of the swapped line, at the doubly generic point. -/
+theorem ext_ext_swap (ρ : IEnv m) :
+    (fun i => ival (ρ.ext.ext) ((fun | 0 => I.var 1 | 1 => I.var 0 | n + 2 => I.var (n + 2) : ℕ → I) i)) =
+      ρ.ext.ext.restr (swapHom m) := by
+  funext i
+  rcases i with _ | _ | i
+  · ext p; simp [IEnv.ext, IEnv.restr, swapHom, iVar, Hom.snoc, Hom.app, Hom.wk]
+  · ext p; simp [IEnv.ext, IEnv.restr, swapHom, jVar, Hom.snoc, Hom.app, Hom.wk]
+  · simp only [ival.var, IEnv.ext, IEnv.restr, DM.restr_restr]
+    congr 1
+    simp only [swapHom, Hom.comp_assoc, Hom.wk_comp_snoc]
+
+theorem wk_wk_swap : (Hom.wk m).comp ((Hom.wk (m + 1)).comp (swapHom m)) = (Hom.wk m).comp (Hom.wk (m + 1)) := by
+  simp only [swapHom, Hom.wk_comp_snoc]
+
+theorem sem_transpIPi {A u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
+    (hc : TranspCond S (.ipi A) φ u0 m ρ γ) :
+    sem S (Tm.transpIPi A φ u0) m ρ γ = sem S (.transp (.ipi A) φ u0) m ρ γ := by
+  obtain ⟨hN2, hL2, hsem, l, hl, hV, hW⟩ := (show TyOK S (.ipi A) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) from hc.1).ipi_at
+  set L2 := lineV S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))
+  have hLfib := hW.fib
+  have hcon := hc.2.1
+  have hp0 := hc.2.2.1
+  have hu0nat := hc.2.2.2.2
+  unfold lineV at hcon hp0
+  rw [hsem] at hcon hp0
+  have hφ := isCof_ival_face ρ φ
+  have hp0' : sem S u0 m ρ γ ∈ El (ipiC (m + 1) L2) ((Hom.id (m + 1)).comp (Hom.endpt m (DM.zero m))) := hp0
+  obtain ⟨hp0eq, -⟩ := ipi_line hLfib hp0'
+  have hline := ipi_base_mem hLfib hp0'
+  rw [Hom.lift_id, Hom.id_comp] at hline
+  have hP := papp_dshift_var0_generic hu0nat hp0eq (hLfib.elKV _ _ _ (ipi_line hLfib hp0').2)
+  have hface : (ival ρ.ext φ.shift).face = Cof.restr (ival ρ φ).face (Hom.wk m) := by
+    rw [ival_shift]; exact face_ival_restr ρ φ (Hom.wk m)
+  set A' := A.dsubst (fun | 0 => I.var 1 | 1 => I.var 0 | n + 2 => I.var (n + 2) : ℕ → I)
+  have hγs : TEnv.restr (TEnv.restr (TEnv.restr γ (Hom.wk m)) (Hom.wk (m + 1))) (swapHom m) =
+      TEnv.restr (TEnv.restr γ (Hom.wk m)) (Hom.wk (m + 1)) := by
+    rw [TEnv.restr_restr, TEnv.restr_restr, TEnv.restr_restr, wk_wk_swap]
+  have eL : ∀ k (g : Hom k (m + 2)),
+      sem S A' k (ρ.ext.ext.restr g) (TEnv.restr (TEnv.restr (TEnv.restr γ (Hom.wk m)) (Hom.wk (m + 1))) g) =
+        res g (res (swapHom m) L2) := by
+    intro k g
+    have e1 : (fun i => ival (ρ.ext.ext.restr g)
+        ((fun | 0 => I.var 1 | 1 => I.var 0 | n + 2 => I.var (n + 2) : ℕ → I) i)) =
+        ρ.ext.ext.restr ((swapHom m).comp g) := by
+      rw [← IEnv.restr_restr, ← ext_ext_swap]; rfl
+    rw [sem_dsubst, e1, ← hγs, TEnv.restr_restr, hN2 k, res_res]
+  have eL0 : lineV S A' (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) = res (swapHom m) L2 := by
+    have := eL (m + 2) (Hom.id (m + 2))
+    rwa [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr (TEnv.restr γ (Hom.wk m)) (Hom.wk (m + 1)))
+      (fun x => isKV_res _ _), res_id (isKV_res _ _)] at this
+  have tc : TranspCond S A' φ.shift (.papp u0.dshift (.var 0)) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := by
+    refine ⟨?_, ?_, ?_, fun k g => ?_, hP.2⟩
+    · rw [eL0]; exact ⟨l, hl, Or.inl ⟨hW.res _, res_mem_Vt hV _⟩⟩
+    · rw [eL0, hface]
+      have := ipi_constOn hcon
+      rw [Hom.lift_id, Hom.id_comp] at this
+      exact this.res_id
+    · rw [eL0, hP.1, El_res, Hom.id_comp]; exact hline
+    · exact (eL k g).trans (by rw [← eL0])
+  have e1 : sem S (Tm.transpIPi A φ u0) m ρ γ =
+      pathOfLine m (lineV S (.transp A' φ.shift (.papp u0.dshift (.var 0))) m ρ γ) := sem_plam tc.natural
+  rw [e1, sem_transp hc]
+  unfold lineV
+  rw [sem_transp tc, eL0, hP.1, hface, transpAt_res, Hom.comp_id]
+  show _ = transpAt (sem S (Tm.ipi A) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) _ _ _
+  rw [hsem, transpAt_ipiC hLfib hp0', transpIPiF_eq, Hom.lift_id, Hom.id_comp]
+
 end
 
 end Model
