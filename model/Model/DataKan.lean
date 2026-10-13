@@ -4,9 +4,9 @@ import Mathlib.SetTheory.ZFC.Rank
 /-!
 # Inductive types: transport and the eliminator
 
-Both are defined by well-founded recursion on the rank of the element, reading off its
-representation as a constructor value (with no boundary at the stage itself) or a formal
-composition (whose face does not hold); the recursive calls are guarded by the rank.
+Both read off the representation of an element as a constructor value (with no boundary at the
+stage itself) or a formal composition (whose face does not hold). The eliminator is defined by
+well-founded recursion on the rank of the element.
 
 * Transport (with parameters) is componentwise on constructors: the arguments are transported
   along their type lines, in which the earlier arguments are their transport fillers (the
@@ -31,46 +31,47 @@ section repr
 
 variable (Θ : SData m)
 
-/-- `v` is a constructor value with no boundary at its own stage. -/
+/-- `v` is a constructor value with no boundary at its own stage (with Kripke-value arguments,
+so the representation is unique). -/
 def RepCon (k : ℕ) (v : V) : Prop :=
   ∃ c : ℕ, ∃ args : List V, ∃ rs : List (DM k),
-    v = conV Θ.ctors k c args rs ∧ bndAtMap (Θ.ctors.getD c default) rs (Hom.id k) = none
+    v = conV Θ.ctors k c args rs ∧ bndAtMap (Θ.ctors.getD c default) rs (Hom.id k) = none ∧ ∀ a ∈ args, IsKV k a
 
-/-- `v` is a formal composition whose face does not hold. -/
-def RepHc (k : ℕ) (v : V) : Prop := ∃ ψ : Cof k, ∃ u : Tube k, ∃ a : V, v = hcV k ψ u a ∧ ¬ ψ.holds
+/-- `v` is a formal composition whose face does not hold (with a Kripke-value base). -/
+def RepHc (k : ℕ) (v : V) : Prop := ∃ ψ : Cof k, ∃ u : Tube k, ∃ a : V, v = hcV k ψ u a ∧ ¬ ψ.holds ∧ IsKV k a
 
 end repr
 
-/-- The transported arguments of a constructor, given the transport `T` of the inductive type
-(along any line): argument `j` is transported along its type line, in which the earlier
-arguments are their fillers `fills` (oldest first). -/
-def trArgsF (Θ : SData m) (T : (k' : ℕ) → Hom (k' + 1) m → Cof k' → V → V) (c k : ℕ) (f : Hom (k + 1) m)
-    (φ : Cof k) : ℕ → List V → List V → List V
-  | _, _, [] => []
-  | j, fills, a :: as =>
-    if (Θ.ctors.getD c default).isRec j then
-      T k f φ a :: trArgsF Θ T c k f φ (j + 1) (fills ++ [T (k + 1) (f.comp (tfLine k)) (fillFace φ) (res (Hom.wk k) a)]) as
-    else
-      transpAt (Θ.ty c j (k + 1) f fills) (Hom.id (k + 1)) φ a ::
-        trArgsF Θ T c k f φ (j + 1) (fills ++ [transpFillF (Θ.ty c j (k + 1) f fills) (Hom.id (k + 1)) φ a]) as
+/-- Transport in an inductive type with parameters, as a relation: `TR Θ k f φ v w` says that
+`v` is transported along the line `f` (direction: the last variable) with face `φ` to `w`.
+Constructors are transported componentwise: point argument `j` along its type line, in which
+the earlier arguments are their transport fillers (the spec's `Tm.transpTele`); recursive
+arguments in the inductive type itself, with the filler given by transport along the squeezed
+line `tfLine` (as `transpFillF`). Formal compositions are transported by transporting tube and
+base. -/
+inductive TR (Θ : SData m) : (k : ℕ) → Hom (k + 1) m → Cof k → V → V → Prop
+  | con {k : ℕ} {f : Hom (k + 1) m} {φ : Cof k} {c : ℕ} {args : List V} {rs : List (DM k)}
+      {outs fills : List V} :
+      bndAtMap (Θ.ctors.getD c default) rs (Hom.id k) = none → (∀ a ∈ args, IsKV k a) →
+      outs.length = args.length → fills.length = args.length →
+      (∀ j (hj : j < args.length), (Θ.ctors.getD c default).isRec j = true →
+        TR Θ k f φ args[j] (outs.getD j ∅)) →
+      (∀ j (hj : j < args.length), (Θ.ctors.getD c default).isRec j = true →
+        TR Θ (k + 1) (f.comp (tfLine k)) (fillFace φ) (res (Hom.wk k) args[j]) (fills.getD j ∅)) →
+      (∀ j (hj : j < args.length), (Θ.ctors.getD c default).isRec j = false →
+        outs.getD j ∅ = transpAt (Θ.ty c j (k + 1) f (fills.take j)) (Hom.id (k + 1)) φ args[j] ∧
+        fills.getD j ∅ = transpFillF (Θ.ty c j (k + 1) f (fills.take j)) (Hom.id (k + 1)) φ args[j]) →
+      TR Θ k f φ (conV Θ.ctors k c args rs) (conV Θ.ctors k c outs rs)
+  | hc {k : ℕ} {f : Hom (k + 1) m} {φ : Cof k} {ψ : Cof k} {u u' : Tube k} {a a' : V} :
+      ¬ ψ.holds → IsKV k a → TR Θ k f φ a a' →
+      (∀ n (g : Hom n k) r, (ψ.restr g).holds → TR Θ n (f.comp (Hom.lift g)) (φ.restr g) (u n g r) (u' n g r)) →
+      TR Θ k f φ (hcV k ψ u a) (hcV k ψ u' a')
 
-/-- Transport in an inductive type along the line `f`. -/
+/-- Transport in an inductive type along the line `f`: the identity without parameters
+(`transpData0`), otherwise given by `TR`. -/
 def transpD (Θ : SData m) (k : ℕ) (f : Hom (k + 1) m) (φ : Cof k) (v : V) : V :=
   if ¬ Θ.params then v
-  else if h : RepCon Θ k v then
-    conV Θ.ctors k (Classical.choose h)
-      (trArgsF Θ (fun k' f' φ' x => if _ : ZFSet.rank x < ZFSet.rank v then transpD Θ k' f' φ' x else ∅)
-        (Classical.choose h) k f φ 0 [] (Classical.choose (Classical.choose_spec h)))
-      (Classical.choose (Classical.choose_spec (Classical.choose_spec h)))
-  else if h : RepHc k v then
-    hcV k (Classical.choose h)
-      (fun n' g r => if _ : ZFSet.rank ((Classical.choose (Classical.choose_spec h)) n' g r) < ZFSet.rank v then
-        transpD Θ n' (f.comp (Hom.lift g)) (φ.restr g) ((Classical.choose (Classical.choose_spec h)) n' g r) else ∅)
-      (if _ : ZFSet.rank (Classical.choose (Classical.choose_spec (Classical.choose_spec h))) < ZFSet.rank v then
-        transpD Θ k f φ (Classical.choose (Classical.choose_spec (Classical.choose_spec h))) else ∅)
-  else v
-termination_by ZFSet.rank v
-decreasing_by all_goals first | assumption | (simp_wf; assumption) | simp_all
+  else if h : ∃ w, TR Θ k f φ v w then Classical.choose h else v
 
 /-- The element `c` of a list encoded by nested pairs. -/
 def vnth : V → ℕ → V
