@@ -297,3 +297,101 @@ end comp
 end
 
 end Model
+
+/-! ### `transpFill` -/
+
+namespace Model
+
+open ZFSet
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {k m n n' : ℕ}
+
+/-- The line `j ↦ A(i ∧ j)` at stage `k + 2`, for a line `A` at stage `k + 1`. -/
+def tfLine (k : ℕ) : Hom (k + 2) (k + 1) :=
+  Hom.snoc ((Hom.wk k).comp (Hom.wk (k + 1))) (DM.min (iVar k) (jVar k))
+
+/-- `transpFill A φ a` (spec: `Tm.transpFill`), at stage `k + 1`: a line from `a` to
+`transp A φ a`. -/
+def transpFillF (c : V) (f : Hom (k + 1) m) (φ : Cof k) (a0 : V) : V :=
+  transpAt c (f.comp (tfLine k)) (fillFace φ) (res (Hom.wk k) a0)
+
+theorem tfLine_endpt0 : (tfLine k).comp (Hom.endpt (k + 1) (DM.zero _)) =
+    (Hom.endpt k (DM.zero k)).comp (Hom.wk k) := by
+  apply Hom.ext_snoc <;> intro p <;> simp [tfLine, iVar, jVar]
+
+theorem tfLine_endpt1 : (tfLine k).comp (Hom.endpt (k + 1) (DM.one _)) = Hom.id (k + 1) := by
+  apply Hom.ext_snoc <;> intro p <;> simp [tfLine, iVar, jVar]
+
+theorem tfLine_snoc (h : Hom n (k + 1)) (r : DM n) :
+    (tfLine k).comp (Hom.snoc h r) = Hom.snoc ((Hom.wk k).comp h) (DM.min ((lastVar k).restr h) r) := by
+  apply Hom.ext_snoc <;> intro p <;> simp [tfLine, iVar, jVar]
+
+theorem tfLine_lift_endpt1 : (tfLine k).comp (Hom.lift (Hom.endpt k (DM.one k))) = Hom.id (k + 1) := by
+  apply Hom.ext_snoc <;> intro p <;> simp [tfLine, iVar, jVar]
+
+theorem tfLine_lift_lift (h : Hom n k) :
+    (tfLine k).comp (Hom.lift (Hom.lift h)) = (Hom.lift h).comp (tfLine n) := by
+  apply Hom.ext_snoc <;> intro p <;> simp [tfLine, iVar, jVar]
+
+section transpFill
+
+variable {c : V} (hc : Fib c m) {f : Hom (k + 1) m} {φ : Cof k} (hφ : φ.IsCof)
+  (hcon : ConstOn c f φ) {a0 : V} (ha : a0 ∈ El c (f.comp (Hom.endpt k (DM.zero k))))
+include hc hφ hcon ha
+
+theorem constOn_tfLine : ConstOn c (f.comp (tfLine k)) (fillFace φ) := by
+  intro n h hh r
+  rw [Hom.comp_assoc, Hom.comp_assoc, tfLine_snoc, tfLine_snoc]
+  rw [fillFace, Cof.or_restr, Cof.holds_or] at hh
+  rcases hh with hh | hh
+  · rw [Cof.restr_restr] at hh
+    rw [hcon _ _ hh (DM.min _ r), hcon _ _ hh (DM.min _ (DM.zero n))]
+  · rw [Cof.eq0_restr] at hh
+    rw [DM.eq_zero_of_holds_eq0 hh, DM.min_zero_left, DM.min_zero_left]
+
+theorem tf_base : res (Hom.wk k) a0 ∈ El c ((f.comp (tfLine k)).comp (Hom.endpt (k + 1) (DM.zero _))) := by
+  rw [Hom.comp_assoc, tfLine_endpt0, ← Hom.comp_assoc]; exact hc.elRes _ _ a0 ha _ _
+
+theorem transpFillF_mem : transpFillF c f φ a0 ∈ El c f := by
+  have := hc.trMem (k + 1) _ _ _ (isCof_fillFace hφ) (constOn_tfLine hc hφ hcon ha) (tf_base hc hφ hcon ha)
+  rwa [Hom.comp_assoc, tfLine_endpt1, Hom.comp_id] at this
+
+theorem transpFillF_endpt0 : res (Hom.endpt k (DM.zero k)) (transpFillF c f φ a0) = a0 := by
+  rw [transpFillF, hc.transp_restr_face (isCof_fillFace hφ) (constOn_tfLine hc hφ hcon ha)
+    (tf_base hc hφ hcon ha)]
+  · rw [res_res, Hom.wk_comp_endpt, res_id (hc.elKV _ _ a0 ha)]
+  · rw [fillFace, Cof.or_restr, Cof.eq0_restr, lastVar_restr_endpt, Cof.eq0_zero]; exact Cof.or_top _
+
+theorem transpFillF_endpt1 :
+    res (Hom.endpt k (DM.one k)) (transpFillF c f φ a0) = transpAt c f φ a0 := by
+  rw [transpFillF, hc.trRes (k + 1) _ _ _ (isCof_fillFace hφ) (constOn_tfLine hc hφ hcon ha)
+    (tf_base hc hφ hcon ha), Hom.comp_assoc, tfLine_lift_endpt1, Hom.comp_id, res_res,
+    Hom.wk_comp_endpt, res_id (hc.elKV _ _ a0 ha)]
+  rw [fillFace, Cof.or_restr, Cof.eq0_restr, lastVar_restr_endpt, Cof.eq0_one, Cof.or_bot,
+    Cof.restr_restr, Hom.wk_comp_endpt, hφ.restr_id]
+
+theorem transpFillF_face (h : Hom n k) (hh : (φ.restr h).holds) (r : DM n) :
+    res (Hom.snoc h r) (transpFillF c f φ a0) = res h a0 := by
+  rw [transpFillF, hc.transp_restr_face (isCof_fillFace hφ) (constOn_tfLine hc hφ hcon ha)
+    (tf_base hc hφ hcon ha), res_res, Hom.wk_comp_snoc]
+  rw [fillFace, Cof.or_restr, Cof.holds_or]; left
+  rw [Cof.restr_restr, Hom.wk_comp_snoc]; exact hh
+
+theorem transpFillF_natural (h : Hom n k) :
+    res (Hom.lift h) (transpFillF c f φ a0) = transpFillF c (f.comp (Hom.lift h)) (φ.restr h) (res h a0) := by
+  rw [transpFillF, hc.trRes (k + 1) _ _ _ (isCof_fillFace hφ) (constOn_tfLine hc hφ hcon ha)
+    (tf_base hc hφ hcon ha) (n + 1) (Hom.lift h), transpFillF, Hom.comp_assoc, tfLine_lift_lift,
+    ← Hom.comp_assoc, res_res, Hom.wk_comp_lift, ← res_res]
+  congr 1
+  rw [fillFace, fillFace, Cof.or_restr, Cof.eq0_restr, lastVar_restr_lift, Cof.restr_restr,
+    Cof.restr_restr, Hom.wk_comp_lift]
+
+end transpFill
+
+end
+
+end Model
