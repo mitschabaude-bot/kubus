@@ -18,7 +18,9 @@ redex has a value in its type, the interpretation of the redex checks the side c
 the rule needs and otherwise returns `∅`. `∅` is not a Kripke value, so it belongs to no type;
 hence a redex with a value in a type satisfies the checks. Concretely:
 
-* `glueEl φ e t a` denotes `t` on `φ` only if `e.1 t = a` there (spec issue 5);
+* `glueEl φ e t a` denotes `t` on `φ` only if `e.1 t = a` there (spec issue 5), and off `φ`
+  requires `a` to be a Kripke value; `unglue` on `φ` requires a Kripke value (for `glueBeta`);
+* `glue A φ T e` requires `T` and `e` to be natural on the face `φ` (for `glueFib`);
 * `split φ t ψ u` requires one of the faces to hold and `t = u` where both hold (for `splitR`
   and the congruence rule, whose premises do not say that the faces cover);
 * `pair a b` requires Kripke values (for `fstBeta`/`sndBeta`), and so do the components of
@@ -128,16 +130,22 @@ def interp (cst : ℕ → ℕ → V) (uc : ℕ → ℕ → V) (good : (m : ℕ) 
       (fun n h r => interp cst uc good u n ((ρ.restr h).cons r) (TEnv.restr γ h)) (interp cst uc good a m ρ γ)
     else ∅
   | .glue A φ T e, m, ρ, γ =>
-    glueC m (interp cst uc good A m ρ γ) (ival ρ φ).face
+    if ∀ k (f : Hom k m), (Cof.restr (ival ρ φ).face f).holds → ∀ n (g : Hom n k),
+        interp cst uc good T n ((ρ.restr f).restr g) (TEnv.restr (TEnv.restr γ f) g) =
+          res g (interp cst uc good T k (ρ.restr f) (TEnv.restr γ f)) ∧
+        interp cst uc good e n ((ρ.restr f).restr g) (TEnv.restr (TEnv.restr γ f) g) =
+          res g (interp cst uc good e k (ρ.restr f) (TEnv.restr γ f))
+    then glueC m (interp cst uc good A m ρ γ) (ival ρ φ).face
       (partialKV m (ival ρ φ).face fun k f => interp cst uc good T k (ρ.restr f) (TEnv.restr γ f))
       (partialKV m (ival ρ φ).face fun k f => interp cst uc good e k (ρ.restr f) (TEnv.restr γ f))
+    else ∅
   | .glueEl φ e t a, m, ρ, γ =>
     if (ival ρ φ).holds then
       (if eqFun m (interp cst uc good e m ρ γ) (interp cst uc good t m ρ γ) = interp cst uc good a m ρ γ
         then interp cst uc good t m ρ γ else ∅)
-    else glueV m (ival ρ φ).face
+    else if IsKV m (interp cst uc good a m ρ γ) then glueV m (ival ρ φ).face
       (partialKV m (ival ρ φ).face fun k f => interp cst uc good t k (ρ.restr f) (TEnv.restr γ f))
-      (interp cst uc good a m ρ γ)
+      (interp cst uc good a m ρ γ) else ∅
   | .unglue φ e g, m, ρ, γ =>
     ungAt m (ival ρ φ).face (interp cst uc good e m ρ γ) (interp cst uc good g m ρ γ)
 

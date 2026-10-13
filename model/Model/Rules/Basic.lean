@@ -1074,7 +1074,15 @@ theorem interp_congr_closed (cst uc : ℕ → ℕ → V) (good : ℕ → V → P
     have ee : ∀ k (f : Hom k m), interp cst uc good e k (ρ.restr f) (TEnv.restr γ f) =
         interp cst uc good e k (ρ'.restr f) (TEnv.restr γ' f) := fun k f =>
       ie n d hc.2 k _ _ _ _ (hR f hρ) (gR f hg)
-    simp only [interp, eT, ee, iA n d hc.1.1.1 m ρ ρ' γ γ' hρ hg, iv hc.1.1.2 hρ]
+    have eT2 : ∀ k (f : Hom k m) n' (g : Hom n' k), interp cst uc good T n' ((ρ.restr f).restr g)
+        (TEnv.restr (TEnv.restr γ f) g) = interp cst uc good T n' ((ρ'.restr f).restr g)
+        (TEnv.restr (TEnv.restr γ' f) g) := fun k f n' g =>
+      iT n d hc.1.2 n' _ _ _ _ (hR g (hR f hρ)) (gR g (gR f hg))
+    have ee2 : ∀ k (f : Hom k m) n' (g : Hom n' k), interp cst uc good e n' ((ρ.restr f).restr g)
+        (TEnv.restr (TEnv.restr γ f) g) = interp cst uc good e n' ((ρ'.restr f).restr g)
+        (TEnv.restr (TEnv.restr γ' f) g) := fun k f n' g =>
+      ie n d hc.2 n' _ _ _ _ (hR g (hR f hρ)) (gR g (gR f hg))
+    simp only [interp, eT, ee, eT2, ee2, iA n d hc.1.1.1 m ρ ρ' γ γ' hρ hg, iv hc.1.1.2 hρ]
   | glueEl φ e t a ie it ia =>
     intro n d hc m ρ ρ' γ γ' hρ hg
     simp only [Tm.closedB, Bool.and_eq_true] at hc

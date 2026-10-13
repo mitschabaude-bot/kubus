@@ -35,7 +35,8 @@ def partialKV (m : ℕ) (φ : Cof m) (F : (k : ℕ) → Hom k m → V) : V :=
 def eqFun (n : ℕ) (e x : V) : V := appV n (fstV n e) x
 
 /-- `unglue` at stage `n`, for the face `φ` and the equivalence `e` (used only on `φ`). -/
-def ungAt (n : ℕ) (φ : Cof n) (e g : V) : V := if φ.holds then eqFun n e g else π2 (π2 (here n g))
+def ungAt (n : ℕ) (φ : Cof n) (e g : V) : V :=
+  if φ.holds then (if IsKV n g then eqFun n e g else ∅) else π2 (π2 (here n g))
 
 /-- A Glue element at stage `k` where `φ` fails: `glue [φ ↦ tp] a`. -/
 def glueV (k : ℕ) (φ : Cof k) (tp a : V) : V :=

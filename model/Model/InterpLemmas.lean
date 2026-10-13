@@ -357,7 +357,19 @@ theorem sem_subst (S : Sig) : ∀ (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ →
         interp (cstFn S) univC TyCode e k (IEnv.restr (fun i => ival ρ (τ i)) f)
           (TEnv.restr (fun x => sem S (σ x) m ρ γ) f) := by
       intro k f; rw [ihe _ _ _ _ _ (fun x => (hσ x).restr f)]; congr 1; funext x; exact (hσ x) k f
-    simp only [ihA _ _ _ _ _ hσ, ival.subst, hT, he]
+    have hT2 : ∀ k (f : Hom k m) n (g : Hom n k), interp (cstFn S) univC TyCode (T.subst σ τ) n
+        ((ρ.restr f).restr g) (TEnv.restr (TEnv.restr γ f) g) =
+        interp (cstFn S) univC TyCode T n ((IEnv.restr (fun i => ival ρ (τ i)) f).restr g)
+          (TEnv.restr (TEnv.restr (fun x => sem S (σ x) m ρ γ) f) g) := by
+      intro k f n g; rw [ihT _ _ _ _ _ (fun x => ((hσ x).restr f).restr g)]; congr 1; funext x
+      exact ((hσ x).restr f) n g |>.trans (by rw [(hσ x) k f]; rfl)
+    have he2 : ∀ k (f : Hom k m) n (g : Hom n k), interp (cstFn S) univC TyCode (e.subst σ τ) n
+        ((ρ.restr f).restr g) (TEnv.restr (TEnv.restr γ f) g) =
+        interp (cstFn S) univC TyCode e n ((IEnv.restr (fun i => ival ρ (τ i)) f).restr g)
+          (TEnv.restr (TEnv.restr (fun x => sem S (σ x) m ρ γ) f) g) := by
+      intro k f n g; rw [ihe _ _ _ _ _ (fun x => ((hσ x).restr f).restr g)]; congr 1; funext x
+      exact ((hσ x).restr f) n g |>.trans (by rw [(hσ x) k f]; rfl)
+    simp only [ihA _ _ _ _ _ hσ, ival.subst, hT, he, hT2, he2]
   | glueEl φ e t a ihe iht iha =>
     intro m ρ γ σ τ hσ
     simp only [sem, interp, Tm.subst] at *
