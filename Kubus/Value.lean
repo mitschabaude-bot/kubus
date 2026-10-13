@@ -66,6 +66,38 @@ def Val.unfold : Val → Val
   | .glued _ _ _ v => v.unfold
   | v => v
 
+mutual
+/-- Whether the atom `i` occurs free in a value (if not, substituting for it is the identity). -/
+partial def Val.hasAtom (i : Atom) : Val → Bool
+  | .univ _ => false
+  | .pi _ a env _ | .sigma _ a env _ => a.hasAtom i || envHasAtom i env
+  | .lam _ env _ | .split _ _ env => envHasAtom i env
+  | .pair a b => a.hasAtom i || b.hasAtom i
+  | .piI l => l.hasAtom i
+  | .pathP l a b => l.hasAtom i || a.hasAtom i || b.hasAtom i
+  | .plam j b => j != i && b.hasAtom i
+  | .data _ _ ps | .con _ ps => ps.any (·.hasAtom i)
+  | .pcon _ as ds => as.any (·.hasAtom i) || ds.any (·.mentions i)
+  | .hcompF ty u sys => ty.hasAtom i || u.hasAtom i || sysHasAtom i sys
+  | .glueTy b sys | .glue b sys | .compU b sys => b.hasAtom i || sysHasAtom i sys
+  | .glued _ _ sp v => envHasAtom i sp || v.hasAtom i
+  | .var _ ty | .gvar _ ty => ty.hasAtom i
+  | .app f a => f.hasAtom i || a.hasAtom i
+  | .fst p | .snd p => p.hasAtom i
+  | .papp p r => p.hasAtom i || r.mentions i
+  | .splitApp _ _ env a => envHasAtom i env || a.hasAtom i
+  | .comp l u sys | .unglue u l sys | .unglueU u l sys => l.hasAtom i || u.hasAtom i || sysHasAtom i sys
+
+partial def envHasAtom (i : Atom) : Env → Bool
+  | [] => false
+  | .v v :: env => v.hasAtom i || envHasAtom i env
+  | .d r :: env => r.mentions i || envHasAtom i env
+
+partial def sysHasAtom (i : Atom) : List (Face × Val) → Bool
+  | [] => false
+  | (α, v) :: sys => α.mentions i || v.hasAtom i || sysHasAtom i sys
+end
+
 def Val.isNeutral : Val → Bool
   | .var .. | .gvar .. | .app .. | .fst _ | .snd _ | .papp .. | .splitApp .. | .comp .. | .unglue ..
   | .unglueU .. => true

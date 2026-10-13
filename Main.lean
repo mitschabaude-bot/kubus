@@ -23,7 +23,7 @@ def kernelMsgs (msgs : List String) : DM Unit := do
   for m in msgs do
     if m.startsWith "kernel: certified" then
       if (← get).verbose then IO.println m
-    else IO.eprintln m
+    else do (← IO.getStdout).flush; IO.eprintln m
 
 mutual
 partial def runFile (path : System.FilePath) (top : Bool := true) : DM Unit := do
@@ -52,8 +52,14 @@ partial def runDecls (path : String) (dir : System.FilePath) (decls : List Decl)
     | _ =>
       let dr ← get
       let st := { dr.st with selfcheck := dr.selfcheck && (top || dr.selfcheckImports) }
-      match (checkDecl d).run st with
+      let t0 ← IO.monoMsNow
+      let res ← IO.lazyPure fun _ => (checkDecl d).run st
+      let t1 ← IO.monoMsNow
+      match res with
       | .ok (out, st') =>
+        if dr.verbose then
+          if let some n := (match d with | .defn n .. | .defSplit n .. | .data n .. => some n | _ => none) then
+            IO.println s!"elab: {n}: {t1 - t0} ms"
         for v in st'.violations do IO.eprintln s!"{path}:{v}"
         if (← get).verbose then
           for v in st'.skips do IO.eprintln s!"{path}:{v}: skipped (budget)"
@@ -166,6 +172,7 @@ def main (args : List String) : IO UInt32 := do
     if drv.violations > 0 then return 1
   if let some ks := drv.kernel then
     if drv.verbose || ks.skipped.size > 0 then
+      (← IO.getStdout).flush
       IO.eprintln s!"kernel: {ks.certified} certified, {ks.skipped.size - ks.rejected} skipped, {ks.rejected} rejected"
     if ks.rejected > 0 then return 1
   return 0
