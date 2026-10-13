@@ -1,4 +1,4 @@
-import KubusCore.Meta.PresupLemmas
+import KubusCore.Meta.HcompTyped
 
 /-!
 # Metatheory: presupposition
@@ -7,9 +7,10 @@ import KubusCore.Meta.PresupLemmas
 contracta of the computation rules listed in `ContractaTyped` are typed whenever the redex is.
 These are the rules whose contractum's typing would have to be read off the redex's typing
 through conversions, which needs injectivity of type formers (`docs/metatheory.md`), or which
-are long typing derivations not yet done (the `hcomp` rules). All other rules are proven here:
+are long typing derivations not yet done (`hcomp` in `Σ`, `PathP`, Glue types and `U`). All other rules are proven here:
 structural rules, congruences, η-rules, the face rules and the boundary rules of systems,
-`transp` and `hcomp`, and the Glue face and η rules.
+`transp` and `hcomp`, `hcomp` in `Π` and `(i : I) → A` (`HcompTyped.lean`), and the Glue face
+and η rules.
 -/
 
 namespace KubusCore.Meta
@@ -37,10 +38,6 @@ structure ContractaTyped (S : Sig) : Prop where
     HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
     HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
     I.Entails δ φ.forall0 → I.Entails φ.forall0 δ → HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) T
-  hcompIPi : ∀ {Ψ Φ Γ A φ u u0 T}, HasTy0 S Ψ Φ Γ (hcomp (ipi A) φ u u0) T →
-    HasTy0 S Ψ Φ Γ (hcompIPi A φ u u0) T
-  hcompPi : ∀ {Ψ Φ Γ A B φ u u0 T}, HasTy0 S Ψ Φ Γ (hcomp (pi A B) φ u u0) T →
-    HasTy0 S Ψ Φ Γ (hcompPi A B φ u u0) T
   hcompSigma : ∀ {Ψ Φ Γ A B φ u u0 T}, HasTy0 S Ψ Φ Γ (hcomp (sigma A B) φ u u0) T →
     HasTy0 S Ψ Φ Γ (hcompSigma A B φ u u0) T
   hcompPath : ∀ {Ψ Φ Γ A a b φ u p0 T}, HasTy0 S Ψ Φ Γ (hcomp (path A a b) φ u p0) T →
@@ -365,9 +362,9 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.transpIPi _ Ψ Φ Γ A φ u0 T h0 =>
     ⟨h0, hC.transpIPi h0, pre_ty h0⟩
   | @EqTm0.hcompIPi _ Ψ Φ Γ A φ u u0 T h0 =>
-    ⟨h0, hC.hcompIPi h0, pre_ty h0⟩
+    ⟨h0, hcompIPi_typed hS h0, pre_ty h0⟩
   | @EqTm0.hcompPi _ Ψ Φ Γ A B φ u u0 T h0 =>
-    ⟨h0, hC.hcompPi h0, pre_ty h0⟩
+    ⟨h0, hcompPi_typed hS h0, pre_ty h0⟩
   | @EqTm0.hcompSigma _ Ψ Φ Γ A B φ u u0 T h0 =>
     ⟨h0, hC.hcompSigma h0, pre_ty h0⟩
   | @EqTm0.hcompPath _ Ψ Φ Γ A a b φ u p0 T h0 =>
