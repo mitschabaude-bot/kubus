@@ -538,37 +538,6 @@ theorem GlueOK.hcRes (k : ℕ) (f : Hom k m) (ψ : Cof k) (u : Tube k) (u0 : V) 
     rw [e2, glueHc_res (hG.restr f) hf hψ hu0 hu' h, ← hG.res_code hf, hcompAt_eq_res_id, res_res,
       ← hcompAt_eq_res_id]
 
-/-! ### Transport (TODO: the spec's `Tm.transpGlue`, after CCHM) -/
-
-theorem GlueOK.trMem (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : ψ.IsCof)
-    (hc : ConstOn (glueC m A φ Tp ep) f ψ) (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.zero n)))) :
-    transpAt (glueC m A φ Tp ep) f ψ a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.one n))) := by
-  sorry
-
-theorem GlueOK.trFace (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : ψ.IsCof)
-    (hc : ConstOn (glueC m A φ Tp ep) f ψ) (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.zero n))))
-    (hh : ψ.holds) : transpAt (glueC m A φ Tp ep) f ψ a0 = a0 := by
-  sorry
-
-theorem GlueOK.trRes (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : ψ.IsCof)
-    (hc : ConstOn (glueC m A φ Tp ep) f ψ) (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.zero n))))
-    (n' : ℕ) (h : Hom n' n) :
-    res h (transpAt (glueC m A φ Tp ep) f ψ a0) =
-      transpAt (glueC m A φ Tp ep) (f.comp (Hom.lift h)) (ψ.restr h) (res h a0) := by
-  sorry
-
-/-- Glue codes are fibrant. -/
-theorem GlueOK.fib : Fib (glueC m A φ Tp ep) m where
-  kv := isKV_glueC _ _ _ _
-  elKV _ _ _ hv := hG.elKV hv
-  elRes _ _ _ hv _ h := hG.elRes hv h
-  hcMem := hG.hcMem
-  hcFace := hG.hcFace
-  hcRes := hG.hcRes
-  trMem := hG.trMem
-  trFace := hG.trFace
-  trRes := hG.trRes
-
 end fields
 
 end

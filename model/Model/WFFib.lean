@@ -1,4 +1,4 @@
-import Model.GlueFib
+import Model.GlueTransp
 
 /-!
 # Well-formed codes are fibrant
