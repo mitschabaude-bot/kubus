@@ -214,14 +214,15 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       I.Entails φ φ' → I.Entails φ' φ →
       EqTm S Ψ (cof Φ φ) Γ T T' (univ l) → EqTm S Ψ (cof Φ φ) Γ e e' (equiv T A) →
       EqTm S Ψ Φ Γ (glue A φ T e) (glue A' φ' T' e') (univ l)
-  | glueEl {Ψ Φ Γ φ φ' t t' a a' A T e} : HasTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e) →
-      HasTy S Ψ Φ Γ (glueEl φ' e t' a') (glue A φ T e) →
-      I.Entails φ φ' → I.Entails φ' φ →
+  | glueEl {Ψ Φ Γ φ φ' t t' a a' A T e e'} : HasTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e) →
+      HasTy S Ψ Φ Γ (glueEl φ' e' t' a') (glue A φ T e) →
+      I.Entails φ φ' → I.Entails φ' φ → EqTm S Ψ (cof Φ φ) Γ e e' (equiv T A) →
       EqTm S Ψ (cof Φ φ) Γ t t' T → EqTm S Ψ Φ Γ a a' A →
-      EqTm S Ψ Φ Γ (glueEl φ e t a) (glueEl φ' e t' a') (glue A φ T e)
-  | unglue {Ψ Φ Γ A φ φ' T e g g'} : HasTy S Ψ Φ Γ (unglue φ e g) A → HasTy S Ψ Φ Γ (unglue φ' e g') A →
-      I.Entails φ φ' → I.Entails φ' φ →
-      EqTm S Ψ Φ Γ g g' (glue A φ T e) → EqTm S Ψ Φ Γ (unglue φ e g) (unglue φ' e g') A
+      EqTm S Ψ Φ Γ (glueEl φ e t a) (glueEl φ' e' t' a') (glue A φ T e)
+  | unglue {Ψ Φ Γ A φ φ' T e e' g g'} : HasTy S Ψ Φ Γ (unglue φ e g) A →
+      HasTy S Ψ Φ Γ (unglue φ' e' g') A →
+      I.Entails φ φ' → I.Entails φ' φ → EqTm S Ψ (cof Φ φ) Γ e e' (equiv T A) →
+      EqTm S Ψ Φ Γ g g' (glue A φ T e) → EqTm S Ψ Φ Γ (unglue φ e g) (unglue φ' e' g') A
   | ipi {Ψ Φ Γ A A' l} : EqTm S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l) →
       EqTm S Ψ Φ Γ (ipi A) (ipi A') (univ l)
   | ilam {Ψ Φ Γ A t t' l} : HasTy S Ψ Φ Γ (ipi A) (univ l) →
@@ -266,10 +267,11 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (transp (sigma A B) φ u0) (transpSigma A B φ u0) T
   | transpPath {Ψ Φ Γ A a b φ p0 T} : HasTy S Ψ Φ Γ (transp (path A a b) φ p0) T →
       EqTm S Ψ Φ Γ (transp (path A a b) φ p0) (transpPath A a b φ p0) T
-  | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T l} : HasTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
+  | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T l δ} : HasTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
       HasTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
       HasTy S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
-      EqTm S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlue A φ T' e ψ u0) T
+      I.Entails δ φ.forall0 → I.Entails φ.forall0 δ →
+      EqTm S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlueWith δ A φ T' e ψ u0) T
   | transpIPi {Ψ Φ Γ A φ u0 T} : HasTy S Ψ Φ Γ (transp (ipi A) φ u0) T →
       EqTm S Ψ Φ Γ (transp (ipi A) φ u0) (transpIPi A φ u0) T
   | hcompIPi {Ψ Φ Γ A φ u u0 T} : HasTy S Ψ Φ Γ (hcomp (ipi A) φ u u0) T →

@@ -312,7 +312,7 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
     let ⟨e2⟩ ← R.conv (E.cof φ hφ) T l (HasTy.glueFib hP) t u (HasTy.conv (HasTy.rs E hφ ht) eGT)
       (HasTy.conv (HasTy.rs E hφ hu) eGT)
     have e := EqTm.glueEl (HasTy.eqR (EqTm.glueEta ht)) (HasTy.eqR (EqTm.glueEta hu))
-      (I.entails_refl φ) (I.entails_refl φ) e2 e1
+      (I.entails_refl φ) (I.entails_refl φ) (EqTm.refl he) e2 e1
     pure ⟨EqTm.trans (EqTm.glueEta ht) (EqTm.trans e (EqTm.symm (EqTm.glueEta hu)))⟩
   | .univ m, _, ht, hu => convTypes R E m t u ht hu
   | A, hA, ht, hu => do
@@ -383,7 +383,7 @@ def convNeUnglue (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : Tm
   let ⟨eG'⟩ ← reglue R E A1 φ T e φ' e gi.lvl hG hA1
   have hu := HasTy.unglue (HasTy.eqR eG') hA1 he' (HasTy.conv (HasTy.eqR eg2) eG')
   return ⟨⟨A1, gi.lvl, hA1, HasTy.unglue hG hA1 he (HasTy.conv gi.htm eG)⟩,
-    ⟨EqTm.unglue (HasTy.unglue hG hA1 he (HasTy.conv gi.htm eG)) hu h1 h2 eg2⟩⟩
+    ⟨EqTm.unglue (HasTy.unglue hG hA1 he (HasTy.conv gi.htm eG)) hu h1 h2 (EqTm.refl he) eg2⟩⟩
 
 def convNeCon (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps args : Tm) (rs : List I)
     (ps' args' : Tm) (rs' : List I) :
