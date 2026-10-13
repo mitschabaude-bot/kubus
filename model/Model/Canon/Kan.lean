@@ -1,5 +1,6 @@
 import Model.Canon.KanIPi
 import Model.Canon.KanSigma
+import Model.Canon.KanPath
 import Model.Canon.KripkeAll
 
 /-!
@@ -112,6 +113,56 @@ theorem kanP_sigma (l m : ℕ) (A B : V) (hA : WF l m A) (ihA : KR S m A ∧ Kan
     obtain ⟨hwel, hmem⟩ := mem (hall (k' + 1) ρ).1 hw
     exact (ihB (k' + 1) _ _ hmem).2.2 k' (Hom.id (k' + 1)) _ ((hall (k' + 1) ρ).2 w hwel)
 
+omit hW in
+theorem ISub.up_comp_cons_id (σ : ISub k' k) (r : I) (hr : r.Scoped k') :
+    σ.up.comp (ISub.cons r hr (ISub.id k')) = ISub.cons r hr σ := by
+  ext i
+  rcases i with _ | i
+  · rfl
+  · show ((σ.τ i).shift).subst (ISub.cons r hr (ISub.id k')).τ = σ.τ i
+    rw [I_shift_cons]
+    by_cases h : i < k
+    · exact ISub.I.subst_scoped_id (σ.sc i h) fun j hj => by simp [ISub.id, hj]
+    · rw [σ.hi i (by omega)]; rfl
+
+/-- An endpoint of a path type's line, at a restriction, is computable. -/
+theorem path_end_RE {L : V} (hL : KR S (m + 1) L) {f : Hom k m} {L1 b : Tm} (σ : ISub k' k) (r : I)
+    (hr : r.Scoped k') (h0 : (Comp S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty (L1.isub σ.up))
+    (hel : (Comp S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).el ((L1.isub σ.up).dinst r) b) :
+    RE S k' ((L1.isub σ.up).dinst r) b := by
+  have hty := ty_dinst hW hL h0 r hr
+  rw [Hom.comp_assoc, ← ISub.hom_comp, ISub.up_comp_cons_id] at hty
+  unfold RE; rw [← Comp_eq_semK hty]; exact hel
+
+theorem kanP_path (m : ℕ) (L a0 a1 : V) (hLne : L ≠ ∅) (hL : KR S (m + 1) L) (ihL : KanP S (m + 1) L) :
+    KanP S m (pathC m L a0 a1) := by
+  constructor
+  · intro k f T hT
+    rw [Comp_pathC L a0 a1 hLne] at hT
+    obtain ⟨⟨hTy, -⟩, L1, b0, b1, hE, hall⟩ := hT
+    obtain ⟨l1, hpathT⟩ := ty_of_tyEq hW hTy hE (fun l h => by cases h)
+    have hc := closed_of_ty hW hpathT
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    obtain ⟨h0, h0a, h0b⟩ := hall k (ISub.id k)
+    have ha := path_end_RE hW hL (ISub.id k) .zero trivial h0 h0a
+    have hb := path_end_RE hW hL (ISub.id k) .one trivial h0 h0b
+    rw [isub_up_id_of_closed hc.1.1, isub_id_of_closed hc.1.2] at ha
+    rw [isub_up_id_of_closed hc.1.1, isub_id_of_closed hc.2] at hb
+    rw [isub_up_id_of_closed hc.1.1] at h0
+    exact kanH_retype hW hE (kanH_path hW hpathT (kanAll_of hW hL ihL h0).1 ha hb)
+  · intro k f T hT
+    rw [Comp_pathC L a0 a1 hLne] at hT
+    obtain ⟨⟨hTy, -⟩, L1, b0, b1, hE, hall⟩ := hT
+    obtain ⟨l1, hpathT⟩ := ty_of_tyEq hW hTy hE (fun l h => by cases h)
+    obtain ⟨l2, e⟩ := tyEq_eq hW hE ⟨l1, hpathT⟩
+    have hc := closed_of_ty hW hpathT
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    have h0 := (hall (k + 1) (ISub.id (k + 1))).1
+    rw [isub_up_id_of_closed hc.1.1] at h0
+    exact kanT_retype hW e (kanT_path hW hpathT (kanAll_of hW hL ihL h0)
+      (fun k' σ => path_end_RE hW hL σ .zero trivial (hall k' σ).1 (hall k' σ).2.1)
+      (fun k' σ => path_end_RE hW hL σ .one trivial (hall k' σ).1 (hall k' σ).2.2))
+
 theorem kanP_empty (m : ℕ) : KanP S m (emptyC m) := by
   constructor
   · intro k f T hT φ u a _ _ ha
@@ -129,7 +180,9 @@ theorem kanP_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KanP S m X := by
   · intro l m A B hA hB hBf hBw hBn ihA ihB
     exact ⟨kr_sigmaC hW (WF.fib (show WF l m (sigmaC m A B) from WFI.sigma hA hB hBf hBw hBn))
       (IsKV.ne_empty hA.fib.kv), kanP_sigma hW l m A B hA ihA ihB⟩
-  · sorry
+  · intro l m L a0 a1 hL h0 h1 ihL
+    exact ⟨kr_pathC hW (WF.fib (show WF l m (pathC m L a0 a1) from WFI.path hL h0 h1)) (IsKV.ne_empty hL.fib.kv),
+      kanP_path hW m L a0 a1 (IsKV.ne_empty hL.fib.kv) ihL.1 ihL.2⟩
   · intro l m L hL ihL
     exact ⟨kr_ipiC hW (WF.fib (show WF l m (ipiC m L) from WFI.ipi hL)) (IsKV.ne_empty hL.fib.kv),
       kanP_ipi hW m L (IsKV.ne_empty hL.fib.kv) ihL.1 ihL.2⟩
