@@ -388,6 +388,69 @@ theorem hsideω : EqTm0 S (Ψ + 1) (cof (cof Φ δ).shift (tgChi ψ)) Γ.dshift 
       refine EqTm0.trans (EqTm0.splitR (ent_and_right _ _) (HasTy0.restrict hs1 (ent_and_left _ _) hin')) ?_
       exact EqTm0.restrict hs1 (ent_trans (ent_and_left _ _) hQ2Z) (EqTm0.dwk H.hS H.hfill0)
 
+theorem hbody : HasTy0 S (Ψ + 1) (cof Φ δ).shift Γ.dshift (tgBody A φ T e ψ u0) (A.dinst .one).dshift := by
+  have hv0 : (I.var 0).Scoped (Ψ + 1) := show 0 < Ψ + 1 by omega
+  have := comp_typed H.hS (H.hCIns (scoped_shift H.hZs1) (ent_shift (ent_shift (ent_and_left Φ δ))))
+    (show (tgChi ψ).Scoped (Ψ + 1) from ⟨scoped_shift H.hψ, ⟨hv0, hv0⟩⟩) H.hsys H.hbaseω H.hsideω
+  rwa [L_C1] at this
+
+theorem hA1Z : HasTy0 S Ψ (cof Φ δ) Γ (A.dinst .one) (univ l) :=
+  HasTy0.restrict H.hZs H.hZΦ (H.hAr (r := .one) trivial)
+
+/-- The ends of `ω`. -/
+theorem hωend (d : Bool) : EqTm0 S Ψ (cof Φ δ) Γ ((tgBody A φ T e ψ u0).dinst (I.ofDir d))
+    (split (.neg (I.ofDir d)) (app (fst (e.dinst .one)) ((transpFill T ψ u0).dinst .one)) (I.ofDir d)
+      ((fill A ψ (tgTube φ e u0) (tgA0 φ e u0)).dinst .one)) (A.dinst .one) ∧
+    HasTy0 S Ψ (cof Φ δ) Γ (split (.neg (I.ofDir d)) (app (fst (e.dinst .one)) ((transpFill T ψ u0).dinst .one))
+      (I.ofDir d) ((fill A ψ (tgTube φ e u0) (tgA0 φ e u0)).dinst .one)) (A.dinst .one) := by
+  have hdd : (I.ofDir d).Scoped Ψ := by cases d <;> trivial
+  have hor : I.Entails (cof Φ δ) (.or (.neg (I.ofDir d)) (I.ofDir d)) := by
+    cases d
+    · exact ent_negzero_or _
+    · exact ent_one_or _
+  have hb0 := HasTy0.dsubst H.hS H.hbody hdd
+  rw [dshift_dinst, tgBody_dinst] at hb0
+  have e1 := comp_face H.hS hb0 (ent_trans hor (ent_or_right _ _))
+  have hE := HasTy0.isub H.hS (τ := endS d) H.hsys (endS_scoped Ψ d)
+    (ent_and_intro (ent_shift2_endS (cof Φ δ) d) (ent_trans hor (ent_or_right _ _)))
+    (by rw [ctxI_endS]; exact H.hw.restrict H.hZs H.hZΦ)
+  rw [ctxI_endS, L_CE] at hE
+  have hsE : (tgSys A φ T e ψ u0).subst Tm.var (endS d) = split ψ (app (fst (e.dinst .one)) u0)
+      (.or (.neg (I.ofDir d)) (I.ofDir d)) (split (.neg (I.ofDir d)) (app (fst (e.dinst .one))
+        ((transpFill T ψ u0).dinst .one)) (I.ofDir d) ((fill A ψ (tgTube φ e u0) (tgA0 φ e u0)).dinst .one)) :=
+    sys_end _ _ _ _ _ d
+  have hu : ((tgSys A φ T e ψ u0).subst Tm.var (I.up (I.inst0 (I.ofDir d)))).dinst .one =
+      (tgSys A φ T e ψ u0).subst Tm.var (endS d) := by cases d <;> ssub
+  rw [hu, hsE] at e1
+  rw [hsE] at hE
+  obtain ⟨A', ⟨_, _, _, _, hin⟩, ch⟩ := gen_split hE rfl
+  have hin' := (ch.restrict (show (cof (cof Φ δ) (.or (.neg (I.ofDir d)) (I.ofDir d))).Scoped Ψ from
+    ⟨H.hZs, ⟨hdd, hdd⟩⟩) (ent_and_left _ _)).transport hin
+  have hin'' := HasTy0.restrict H.hZs (ent_and_intro (ent_refl _) hor) hin'
+  rw [tgBody_dinst]
+  exact ⟨EqTm0.trans e1 (EqTm0.splitR hor hE), hin''⟩
+
+theorem hω0 : EqTm0 S Ψ (cof Φ δ) Γ ((tgBody A φ T e ψ u0).dinst .zero)
+    (app (fst (e.dinst .one)) (tgT1 T ψ u0)) (A.dinst .one) := by
+  obtain ⟨e1, hin⟩ := H.hωend false
+  have e2 := EqTm0.splitL (ent_negzero _) hin
+  have e3 := app_fst_congr (H.he0Z .one trivial) (transpFill_typed H.hS H.hTZ H.hψ H.hconstT H.hu0T).2.2.1
+  exact EqTm0.trans e1 (EqTm0.trans e2 e3)
+
+theorem hω1 : EqTm0 S Ψ (cof Φ δ) Γ ((tgBody A φ T e ψ u0).dinst .one) (tgA1' A φ e ψ u0) (A.dinst .one) := by
+  obtain ⟨e1, hin⟩ := H.hωend true
+  have e2 := EqTm0.splitR (ent_one _) hin
+  have e3 := EqTm0.restrict H.hZs H.hZΦ (fill_typed H.hS H.hA H.hψ H.htube H.ha0 H.htube_side).2.2.1
+  exact EqTm0.trans e1 (EqTm0.trans e2 e3)
+
+theorem ha1'Z : HasTy0 S Ψ (cof Φ δ) Γ (tgA1' A φ e ψ u0) (A.dinst .one) := HasTy0.restrict H.hZs H.hZΦ H.ha1'
+
+/-- `ω : Path A(1) (e(1).1 t1') a1'` -/
+theorem hω : HasTy0 S Ψ (cof Φ δ) Γ (tgOmega A φ T e ψ u0)
+    (pathC (A.dinst .one) (app (fst (e.dinst .one)) (tgT1 T ψ u0)) (tgA1' A φ e ψ u0)) :=
+  HasTy0.plam (pathC_typed H.hS H.hA1Z (app_fst_equiv (H.he0Z .one trivial) H.ht1) H.ha1'Z) H.hbody
+    (by rw [dshift_dinst]; exact H.hω0) (by rw [dshift_dinst]; exact H.hω1)
+
 end TG
 
 end KubusCore.Meta
