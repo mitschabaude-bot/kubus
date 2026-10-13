@@ -437,6 +437,12 @@ theorem compF_congr {c : V} {f : Hom (k + 1) m} {ψ : Cof k} {u u' : Tube k} {u0
   intro n g r hg
   simp only [compTube, h n g r hg]
 
+theorem compF_res_gen (c : V) (X : Hom (k + 1) m) (Y : Hom (n + 1) (k + 1)) (ψ : Cof n) (u : Tube n)
+    (u0 : V) : compF (res X c) Y ψ u u0 = compF c (X.comp Y) ψ u u0 := by
+  have : compTube (res X c) Y u = compTube c (X.comp Y) u := by
+    funext n' g r; simp only [compTube, transpAt, trG_res, Hom.comp_assoc]
+  simp only [compF, this, hcompAt, hcG_res, transpAt, trG_res, Hom.comp_assoc]
+
 theorem compF_res_id (c : V) (f : Hom (k + 1) m) (ψ : Cof k) (u : Tube k) (u0 : V) :
     compF (res f c) (Hom.id (k + 1)) ψ u u0 = compF c f ψ u u0 := by
   have : compTube (res f c) (Hom.id (k + 1)) u = compTube c f u := by

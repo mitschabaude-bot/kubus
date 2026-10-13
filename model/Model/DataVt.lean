@@ -79,7 +79,7 @@ theorem HR.out_mem_Vt {Θ : SData m} (hty : ∀ c j n g pre, Θ.ty c j n g pre �
   induction hr with
   | con hb hkv hu hlo hlf hro hpt iho =>
     rename_i c args outs fills ua
-    have ha := conV_args_mem_Vt hl hb hkv hv
+    have ha := conV_args_mem_Vt hl (bndAtMap_of_nil hb _ _) hkv hv
     refine conV_mem_Vt hl _ _ _ fun o ho => ?_
     obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem ho
     have e : outs[j] = outs.getD j ∅ := List.getElem_eq_getD ∅

@@ -89,14 +89,6 @@ theorem not_repCon_hcV (Θ : SData m) {ψ : Cof k} {u : Tube k} {a : V} (hn : ¬
   rintro ⟨c, args, rs, h, hb, -⟩
   exact conV_ne_hcV hb hn h.symm
 
-theorem fillTube_congr {ψ : Cof k} {u u' : Tube k} (a : V)
-    (h : ∀ n (g : Hom n k) r, (ψ.restr g).holds → u n g r = u' n g r) : fillTube ψ u a = fillTube ψ u' a := by
-  funext n g r
-  simp only [fillTube]
-  split
-  · rename_i hh; rw [h _ _ _ hh]
-  · rfl
-
 theorem elimD_hcV (Θ : SData m) (P : (n : ℕ) → Hom n m → V → V) (bs : (k : ℕ) → Hom k m → V) (g : Hom k m)
     {ψ : Cof k} {u : Tube k} {a : V} (hψ : ψ.IsCof) (hn : ¬ ψ.holds) (hka : IsKV k a) :
     elimD Θ P bs k g (hcV k ψ u a) =

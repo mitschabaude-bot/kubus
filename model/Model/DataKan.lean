@@ -125,7 +125,7 @@ of the earlier arguments (`fills`; those at recursive positions are irrelevant).
 inductive HR (Θ : SData m) : (k : ℕ) → Hom k m → Cof k → Tube k → V → V → Prop
   | con {k : ℕ} {g : Hom k m} {φ : Cof k} {u : Tube k} {c : ℕ} {args outs fills : List V}
       {ua : (n : ℕ) → Hom n k → DM n → List V} :
-      bndAtMap (Θ.ctors.getD c default) ([] : List (DM k)) (Hom.id k) = none → (∀ a ∈ args, IsKV k a) →
+      (Θ.ctors.getD c default).bnd = [] → (∀ a ∈ args, IsKV k a) →
       (∀ n (h : Hom n k) r, (φ.restr h).holds →
         u n h r = conV Θ.ctors n c (ua n h r) [] ∧ (ua n h r).length = args.length ∧
           ∀ a ∈ ua n h r, IsKV n a) →
