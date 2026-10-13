@@ -346,6 +346,31 @@ partial def primary : P Raw := do
 
 end
 
+mutual
+partial def patAtom : P Pat := do
+  let pos ← curPos
+  match ← peek with
+  | .ident _ => return .var (← ident) pos
+  | .sym "(" =>
+    advance
+    let p ← pattern
+    expectSym ")"
+    return p
+  | _ => perr "expected a pattern"
+
+/-- `c p1 ... pn`, a variable, or `_` -/
+partial def pattern : P Pat := do
+  let pos ← curPos
+  let h ← patAtom
+  let mut args : Array Pat := #[]
+  while (← isSym "(") || (match ← peek with | .ident s => !keywords.contains s | _ => false) do
+    args := args.push (← patAtom)
+  if args.isEmpty then return h
+  match h with
+  | .var c _ => return .con c args.toList pos
+  | _ => throw s!"{pos.line}:{pos.col}: parse error: a constructor pattern must start with a constructor"
+end
+
 partial def binders : P (List Binder) := do
   match ← binderGroups? with
   | some bs => pure bs
@@ -377,11 +402,13 @@ partial def decl : P Decl := do
     while ← isSym "|" do
       let cpos ← curPos
       advance
-      let c ← ident
-      let mut vs : Array String := #[]
-      while !(← isMapsto) do vs := vs.push (← ident)
+      let mut ps : Array Pat := #[← pattern]
+      while ← isSym "," do
+        advance
+        ps := ps.push (← pattern)
+      if !(← isMapsto) then perr "expected '=>' after the patterns"
       advance
-      cls := cls.push ⟨c, vs.toList, ← expr, cpos⟩
+      cls := cls.push ⟨ps.toList, ← expr, cpos⟩
     if cls.isEmpty && !(← isDeclStart) then perr "expected ':=' or pattern-matching clauses"
     return .defSplit name ps ty cls.toList pos
   | .ident "data" =>

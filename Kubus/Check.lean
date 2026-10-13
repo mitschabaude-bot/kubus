@@ -121,7 +121,7 @@ partial def zonk (t : Tm) : M Tm := do
           | .tm a => SArg.tm <$> zonk a
           | .dim r => pure (SArg.dim r)
         return ← zonk (applySol sol args)
-  t.mapChildrenM zonk
+  t.mapChildrenM fun _ => zonk
 
 /-- Fail on the first unsolved metavariable. -/
 def checkMetas : M Unit := do

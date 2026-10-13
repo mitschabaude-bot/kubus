@@ -124,7 +124,7 @@ context it was created in. -/
 
 def implName (x : String) : String := "{" ++ x ++ "}"
 def isImplName (x : String) : Bool := x.startsWith "{" && x.endsWith "}" && x.length ≥ 2
-def plainName (x : String) : String := if isImplName x then ((x.drop 1).dropRight 1).toString else x
+def plainName (x : String) : String := if isImplName x then ((x.drop 1).dropEnd 1).toString else x
 
 def metaName (m : Nat) : String := s!"?m{m}"
 def metaId? (n : String) : Option Nat := if n.startsWith "?m" then (n.drop 2).toString.toNat? else none
@@ -174,33 +174,33 @@ def Tm.shift (n : Nat) (t : Tm) : Tm :=
 def ITm.shift (n : Nat) (r : ITm) : ITm :=
   r.mapVars (fun c i => .var (if i ≥ c then i + n else i)) 0
 
-/-- Apply `f` to the immediate subterms. -/
-def Tm.mapChildrenM {m : Type → Type} [Monad m] (f : Tm → m Tm) : Tm → m Tm
-  | .pi x a b => return .pi x (← f a) (← f b)
-  | .sigma x a b => return .sigma x (← f a) (← f b)
-  | .lam x b => return .lam x (← f b)
-  | .app a b => return .app (← f a) (← f b)
-  | .pair a b => return .pair (← f a) (← f b)
-  | .fst t => return .fst (← f t)
-  | .snd t => return .snd (← f t)
-  | .piI i a => return .piI i (← f a)
-  | .pathP a u v => return .pathP (← f a) (← f u) (← f v)
-  | .plam i b => return .plam i (← f b)
-  | .papp t r => return .papp (← f t) r
-  | .comp i a sys u0 => return .comp i (← f a) (← sysM sys) (← f u0)
-  | .hcomp i a sys u0 => return .hcomp i (← f a) (← sysM sys) (← f u0)
-  | .fill i a sys u0 => return .fill i (← f a) (← sysM sys) (← f u0)
-  | .glueTy a sys => return .glueTy (← f a) (← sysM sys)
-  | .glue sys a => return .glue (← sysM sys) (← f a)
-  | .unglue u b sys => return .unglue (← f u) (← f b) (← sysM sys)
-  | .compU a sys => return .compU (← f a) (← sysM sys)
-  | .unglueU u b sys => return .unglueU (← f u) (← f b) (← sysM sys)
-  | .data d k ps => return .data d k (← ps.mapM f)
-  | .con n as ds => return .con n (← as.mapM f) ds
-  | .letE x t b => return .letE x (← f t) (← f b)
+/-- Apply `f` to the immediate subterms; `f` also gets the number of binders crossed. -/
+def Tm.mapChildrenM {m : Type → Type} [Monad m] (f : Nat → Tm → m Tm) : Tm → m Tm
+  | .pi x a b => return .pi x (← f 0 a) (← f 1 b)
+  | .sigma x a b => return .sigma x (← f 0 a) (← f 1 b)
+  | .lam x b => return .lam x (← f 1 b)
+  | .app a b => return .app (← f 0 a) (← f 0 b)
+  | .pair a b => return .pair (← f 0 a) (← f 0 b)
+  | .fst t => return .fst (← f 0 t)
+  | .snd t => return .snd (← f 0 t)
+  | .piI i a => return .piI i (← f 1 a)
+  | .pathP a u v => return .pathP (← f 0 a) (← f 0 u) (← f 0 v)
+  | .plam i b => return .plam i (← f 1 b)
+  | .papp t r => return .papp (← f 0 t) r
+  | .comp i a sys u0 => return .comp i (← f 1 a) (← sysM 1 sys) (← f 0 u0)
+  | .hcomp i a sys u0 => return .hcomp i (← f 0 a) (← sysM 1 sys) (← f 0 u0)
+  | .fill i a sys u0 => return .fill i (← f 1 a) (← sysM 1 sys) (← f 0 u0)
+  | .glueTy a sys => return .glueTy (← f 0 a) (← sysM 0 sys)
+  | .glue sys a => return .glue (← sysM 0 sys) (← f 0 a)
+  | .unglue u b sys => return .unglue (← f 0 u) (← f 0 b) (← sysM 0 sys)
+  | .compU a sys => return .compU (← f 0 a) (← sysM 0 sys)
+  | .unglueU u b sys => return .unglueU (← f 0 u) (← f 0 b) (← sysM 0 sys)
+  | .data d k ps => return .data d k (← ps.mapM (f 0))
+  | .con n as ds => return .con n (← as.mapM (f 0)) ds
+  | .letE x t b => return .letE x (← f 0 t) (← f 1 b)
   | t => pure t
 where
-  sysM (sys : List (ITm × Tm)) : m (List (ITm × Tm)) := sys.mapM fun (r, t) => return (r, ← f t)
+  sysM (n : Nat) (sys : List (ITm × Tm)) : m (List (ITm × Tm)) := sys.mapM fun (r, t) => return (r, ← f n t)
 
 /-- An argument of an application spine. -/
 inductive SArg
@@ -280,9 +280,18 @@ structure Binder where
   ty : Raw
   deriving Inhabited, Repr
 
+/-- Patterns. A variable pattern whose name is a constructor is that constructor. -/
+inductive Pat
+  | var (x : String) (pos : Pos)
+  | con (c : String) (args : List Pat) (pos : Pos)
+  deriving Inhabited, Repr
+
+def Pat.pos : Pat → Pos
+  | .var _ p | .con _ _ p => p
+
+/-- A clause `| p1, ..., pn => body`. -/
 structure Clause' where
-  ctor : String
-  vars : List String
+  pats : List Pat
   body : Raw
   pos : Pos
   deriving Inhabited, Repr
