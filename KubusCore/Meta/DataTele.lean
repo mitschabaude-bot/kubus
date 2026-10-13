@@ -298,4 +298,41 @@ theorem recArg_typed {Ψ Φ Γ d np} {C : Ctor} {ps args : Tm} (hps : IsList ps)
   rw [← substList_eq, paramVars_substList hps hlen (by simp; omega)] at this
   rw [List.getD_eq_getElem?_getD, hget]; exact this
 
+/-- A branch applied to arguments (at the branch's parameters), hypotheses and interval
+arguments has the motive at the constructor. -/
+theorem branch_app_typed (hS : SigClosed S) {Ψ Φ Γ d D c C ps P b} (hD : S[d]? = some (.data D))
+    (hC : D.ctors[c]? = some C) (hlen : ps.toList.length = D.params.length)
+    (hb : HasTy0 S Ψ Φ Γ b (D.branchTy d c C ps P)) {args ihs : List Tm} {rs : List I}
+    (ha : HasTele0 S Ψ Φ Γ (Tm.ofList args) (C.argTys d D.params.length) ps.toList.reverse)
+    (hi : HasTele0 S Ψ Φ Γ (Tm.ofList ihs) ((List.range C.recPos.length).map (DataDecl.branchIhTy C P))
+      args.reverse)
+    (hrs : rs.length = C.dims) (hrsc : ∀ r ∈ rs, r.Scoped Ψ) :
+    HasTy0 S Ψ Φ Γ (Tm.papps (Tm.apps b (args ++ ihs)) rs) (P.inst (con d c ps (Tm.ofList args) rs)) := by
+  have hal : args.length = C.args.length := by
+    have := tele_length ha; rwa [toList_ofList, argTys_length] at this
+  have hil : ihs.length = C.recPos.length := by
+    have := tele_length hi; rwa [toList_ofList, List.length_map, List.length_range] at this
+  have ha' : HasTele0 S Ψ Φ Γ (Tm.ofList args)
+      ((List.range C.args.length).map (DataDecl.branchArgTy d D.params.length C ps)) [] :=
+    ha.retype (by simp [argTys_length]) (fun k A A' L hA hA' hL => by
+      simp only [Ctor.argTys, List.getElem?_map, Option.map_eq_some_iff] at hA hA'
+      obtain ⟨k1, hk1, rfl⟩ := hA
+      obtain ⟨k2, hk2, rfl⟩ := hA'
+      obtain ⟨_, rfl⟩ := List.getElem?_eq_some_iff.1 hk1
+      obtain ⟨_, rfl⟩ := List.getElem?_eq_some_iff.1 hk2
+      simp only [List.getElem_range]
+      rw [List.append_nil, branchArgTy_substList hS hD hC hlen hL])
+  have hb' : HasTy0 S Ψ Φ Γ b ((((List.range C.args.length).map
+      (DataDecl.branchArgTy d D.params.length C ps)).foldr pi
+        (((List.range C.recPos.length).map (DataDecl.branchIhTy C P)).foldr pi
+          (ipis C.dims (DataDecl.branchBody d c C ps P)))).substList []) := by
+    rw [substList_nil, ← branchTy_eq]; exact hb
+  have h1 := apps_tele ha' hb'
+  rw [toList_ofList, List.append_nil] at h1
+  have h2 := apps_tele hi h1
+  rw [toList_ofList, substList_eq, ← hrs] at h2
+  have h3 := papps_ipis rs hrsc h2
+  rw [branchBody_inst hil hal hrs] at h3
+  rw [Tm.apps, List.foldl_append]; exact h3
+
 end KubusCore.Meta
