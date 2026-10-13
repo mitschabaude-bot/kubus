@@ -331,6 +331,8 @@ theorem hcompCon_inv :
       have := tele_length h6; rwa [argTys_length] at this
     have hul : us.length = C.args.length := by
       have := tele_length h7; rwa [argTys_length] at this
+    have hal' : args.toList.length = C.args.length := hal
+    have hul' : uargs.toList.length = C.args.length := hul
     have hFl : Fall.length = C.args.length := hFills_length _ _ _ _ _ _ _ _
     have hFt : Fall.take k = hFills C A (data d ps) ps.dshift.toList φ us as k := by
       have := hFills_take C A (data d ps) ps.dshift.toList φ us as k (C.args.length - k)
@@ -371,7 +373,26 @@ theorem hcompCon_inv :
     rw [pointCtx_succ]
     cases hr : C.isRec k
     · sorry
-    · sorry
+    · simp only [hr, if_true, ptL]
+      refine ⟨T1, TO, E0, E1, Ec, fun j hj => ?_⟩
+      by_cases hjk : j = k
+      · subst hjk
+        have hAk : C.argTy d D.params.length j = data d (Ctor.paramVars D.params.length j) := argTy_rec' hr
+        have hdd : (data d ps).dshift = data d ps.dshift := rfl
+        rw [hAk, data_paramVars_substList hps1 hpl1 (k := j) (by simp; omega)] at hutk
+        rw [hAk, data_paramVars_substList hps hpl (k := j) (by simp; omega)] at hatk
+        have hsd : ((data d (Ctor.paramVars D.params.length j)).substList ((us.take j).reverse ++ R1)).dinst .zero
+            = data d ps := by
+          rw [data_paramVars_substList hps1 hpl1 (k := j) (by simp; omega)]
+          show data d (ps.dshift.dinst .zero) = _
+          rw [dshift_dinst]
+        rw [show A j = C.argTy d D.params.length j from rfl, hAk, hsd] at hside
+        have hc := HasTy0.hcomp hdT hφ (by rw [hdd]; exact hutk) hatk hside
+        rw [hOk]; simp only [hOut, hr, if_true]
+        rw [show A j = C.argTy d D.params.length j from rfl, hAk,
+          data_paramVars_substList hps hpl (k := j) (by simp [hOl]; omega)]
+        exact hc
+      · exact hTel j hj hjk
 
 end
 
