@@ -17,3 +17,10 @@ def windingFill (i : I) : Int :=
 
 -- a β-redex whose λ has no annotation in the core term
 def betaRedex (A : U) (a : A) : A := (\(x : A) -> x) a
+
+-- constructors of parameterized types without an expected type in the core term
+def conParams : Int := pos (((zero, (inc true)) : (Nat × (Trunc Bool))).1)
+def conProj : Susp Bool := ((north, zero) : (Susp Bool × Nat)).1
+
+-- a λ under a path abstraction applied to an interval
+def lamUnderPlam (i : I) : Int -> Nat := (\(x : I) -> ((\y -> zero) : (Int -> Nat))) (~i)

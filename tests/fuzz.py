@@ -596,7 +596,7 @@ def main():
     outdir = args.keep or tempfile.mkdtemp(prefix="kubus-fuzz-")
     os.makedirs(outdir, exist_ok=True)
     cases = [args.case] if args.case is not None else range(args.cases)
-    stats = {"cases": 0, "mutants": 0, "fail": 0, "timeout": 0, "kernel": 0}
+    stats = {"cases": 0, "mutants": 0, "fail": 0, "timeout": 0, "kernel": 0, "skipped": 0}
     kinds = {}
     for c in cases:
         text, sites = generate(args.seed, c, args.defs)
@@ -618,6 +618,10 @@ def main():
                 why = [l for l in out.splitlines() if "kernel: REJECTED" in l][0]
                 print(f"KERNEL case {c}: {path}\n  {why[:300]}")
                 code, out = code2, out2
+        skips = [l for l in out.splitlines() if l.startswith("kernel: skipped")]
+        if skips:
+            stats["skipped"] += 1
+            print(f"KERNEL-SKIP case {c}: {path}\n  {skips[0][:300]}")
         if code != 0 or VIOLATION.search(out):
             stats["fail"] += 1
             print(f"FAIL case {c} (well-typed program rejected or invariant violated): {path}")
@@ -649,7 +653,7 @@ def main():
                 os.remove(mpath)
     print(f"fuzz seed {args.seed}: {stats['cases']} cases, {stats['mutants']} mutants, "
           f"{stats['fail']} failures, {stats['timeout']} timeouts, "
-          f"{stats['kernel']} rejected only by the kernel (files in {outdir})")
+          f"{stats['kernel']} rejected only by the kernel, {stats['skipped']} with kernel skips (files in {outdir})")
     if kinds:
         print("mutants: " + ", ".join(f"{k} {n}" for k, n in sorted(kinds.items())))
     sys.exit(1 if stats["fail"] else 0)
