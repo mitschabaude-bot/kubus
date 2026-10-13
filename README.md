@@ -131,7 +131,7 @@ Violations are reported with the name of the invariant, and the exit code is 1. 
 
 ## Certified kernel
 
-`kubus FILE` translates every definition and data type into KubusCore (`KubusCore/Syntax.lean`, `KubusCore/Rules.lean`) after elaboration and checks it with a kernel whose functions return derivations of the specification's judgments, so that a certified signature comes with a proof of `WfSig` (`KubusCore/KERNEL.md`). The Kubus evaluator only helps the elaborator; a definition the kernel rejects is an error (exit code 1), one the translation cannot handle is reported as skipped. `--verbose` lists the certified definitions with their checking times, and `--no-kernel` turns the kernel off. Everything in `lib/` is certified, including `EquivContr` and `loopSpaceS1`; the kernel takes about 2.5 s for `lib/loopspace.ktt` and its imports and well under a second for the other files.
+`kubus FILE` translates every definition and data type into KubusCore (`KubusCore/Syntax.lean`, `KubusCore/Rules.lean`) after elaboration and checks it with a kernel whose functions return derivations of the specification's judgments, so that a certified signature comes with a proof of `WfSig` (`KubusCore/KERNEL.md`). The Kubus evaluator only helps the elaborator; a definition the kernel rejects is an error (exit code 1), one the translation cannot handle is reported as skipped. `--verbose` lists the certified definitions with their checking times, and `--no-kernel` turns the kernel off. Everything in `lib/` is certified, including `EquivContr` and `loopSpaceS1`; `kubus lib/loopspace.ktt` takes under 2 s end to end (1.4 s in the kernel), the other files about 0.1 s.
 
 ## Verified kernel and consistency
 
