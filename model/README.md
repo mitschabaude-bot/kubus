@@ -4,7 +4,22 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 ## Phase 2 spec issues (read first)
 
-Status: P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
+Status: P2 adopted (premise being added on `phase2`); P3 open. P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
+
+### P3. Not modelable as stated: the checks of `DataDecl.Wf` happen in contexts whose recursive arguments have an empty (or too small) type
+
+Also a modelability gap, not an inconsistency. Point argument types are checked in `S ++ [.data (D.truncate 0)]`, and the boundary, its overlaps and the P2 type equalities of constructor `c` in `S ++ [.data (D.truncate c)]`. In both, the recursive arguments in the context have type `data d …` of the *truncated* declaration. In any model, a judgment in a context containing an empty type holds vacuously, and a judgment over a smaller type says nothing about the actual arguments, which may use constructors `≥ c`:
+
+- `D.truncate 0` has no constructors, so it is empty in the model: whenever a point argument follows a recursive argument (`node (l : T) (a : A) …`), the check of `A` gives the model nothing (it cannot even show that `A` is a type at the actual arguments).
+- `D.truncate c` is empty whenever the constructors before `c` have no base case (e.g. `c0 (x : D) | c1 (x y : D) (i : I) [i = 0 ↦ c0 x, …] | base`), and even when inhabited it does not contain the actual recursive arguments. The model needs the overlap agreement `b ≡ b'` for the actual arguments of `c` (for `conBnd` when two clauses hold).
+
+Syntactic derivations do not exploit the emptiness (no eta for empty types), so this is no inconsistency, but no model can see that.
+
+Suggested fix (three small changes):
+
+1. Point argument types must not mention the variables of earlier recursive arguments (a syntactic check, like `mentionsData`). They cannot use them meaningfully anyway, since every consumer of a value of type `data d …` mentions `d`.
+2. The truncated declarations used in `DataDecl.Wf` (`D.truncate 0` for point arguments, `D.truncate c` for constructor `c`) get one extra nullary constructor without boundary, appended at the end (index `c`, which no boundary of `c` can refer to). Then the data type of the checking signature is inhabited. From one inhabitant, the model builds infinitely many fresh elements (iterated formal compositions with an empty face), substitutes them for the recursive arguments, and transfers the overlap agreement to arbitrary arguments by a generic-element argument. With change 1, the point argument types and the P2 equalities do not depend on the recursive arguments at all.
+3. `Ctor.simpleB` also checks that a nested `con d c' ps as rs'` has `rs'.length = C'.dims` (currently only the argument count is checked; the model needs it to recognise boundary values as elements without inverting typing derivations).
 
 ### P2. Not modelable as stated: boundary typing only gives membership, `transpCon` needs equal argument types
 
