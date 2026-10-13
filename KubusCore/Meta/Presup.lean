@@ -1,4 +1,7 @@
 import KubusCore.Meta.BetaTyped
+import KubusCore.Meta.KanTransp
+import KubusCore.Meta.KanTranspGlue
+import KubusCore.Meta.DataContracta
 
 /-!
 # Metatheory: presupposition
@@ -21,43 +24,12 @@ variable {S : Sig}
 
 /-- The contracta of these computation rules are typed whenever their redexes are. -/
 structure ContractaTyped (S : Sig) : Prop where
-  transpPi : ∀ {Ψ Φ Γ A B φ u0 T}, HasTy0 S Ψ Φ Γ (transp (pi A B) φ u0) T →
-    HasTy0 S Ψ Φ Γ (transpPi A B φ u0) T
-  transpSigma : ∀ {Ψ Φ Γ A B φ u0 T}, HasTy0 S Ψ Φ Γ (transp (sigma A B) φ u0) T →
-    HasTy0 S Ψ Φ Γ (transpSigma A B φ u0) T
-  transpPath : ∀ {Ψ Φ Γ A a b φ p0 T}, HasTy0 S Ψ Φ Γ (transp (path A a b) φ p0) T →
-    HasTy0 S Ψ Φ Γ (transpPath A a b φ p0) T
-  transpIPi : ∀ {Ψ Φ Γ A φ u0 T}, HasTy0 S Ψ Φ Γ (transp (ipi A) φ u0) T →
-    HasTy0 S Ψ Φ Γ (transpIPi A φ u0) T
-  transpGlue : ∀ {Ψ Φ Γ A φ T' e ψ u0 T l δ}, HasTy0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
-    HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
-    HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
-    I.Entails δ φ.forall0 → I.Entails φ.forall0 δ → HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) T
   conBnd : ∀ {Ψ Φ Γ d D c C ps args rs} {k : Nat} {ψ : I} {b T : Tm}, S[d]? = some (.data D) →
     D.ctors[c]? = some C →
     C.bnd[k]? = some (ψ, b) → I.Entails Φ (Ctor.cofAt ψ rs) →
     ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
     HasTy0 S Ψ Φ Γ (con d c ps args rs) T →
     HasTy0 S Ψ Φ Γ (Ctor.bndAt b ps.toList args.toList rs) T
-  elimCon : ∀ {Ψ Φ Γ d D c C ps P bs b qs args rs T}, S[d]? = some (.data D) →
-    D.ctors[c]? = some C → bs.toList[c]? = some b →
-    args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
-    HasTy0 S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T →
-    HasTy0 S Ψ Φ Γ (Tm.papps (Tm.apps b (args.toList ++
-      C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T
-  elimHcomp : ∀ {Ψ Φ Γ d D ps P bs qs φ u a T}, S[d]? = some (.data D) →
-    HasTy0 S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T →
-    HasTy0 S Ψ Φ Γ (comp (P.subst (consSub (hfill (data d ps) φ u a)) (fun i => .var (i + 1))) φ
-      (elim d ps.dshift P.dshift bs.dshift u) (elim d ps P bs a)) T
-  transpCon : ∀ {Ψ Φ Γ d D c C ps φ qs args rs T}, S[d]? = some (.data D) → D.params ≠ [] →
-    D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
-    HasTy0 S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T →
-    HasTy0 S Ψ Φ Γ (con d c (ps.dinst .one)
-      (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
-  transpHcomp : ∀ {Ψ Φ Γ d D ps φ qs ψ u a T}, S[d]? = some (.data D) → D.params ≠ [] →
-    HasTy0 S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T →
-    HasTy0 S Ψ Φ Γ (hcomp (data d (ps.dinst .one)) ψ
-      (transp ((data d ps).dsubst skip1I) φ.shift u) (transp (data d ps) φ a)) T
 
 section
 variable (hS : SigClosed S) (hT : SigTyped0 S) (hC : ContractaTyped S)
@@ -388,15 +360,15 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
       obtain ⟨l, ⟨_, _, _, ha⟩, ch⟩ := gen_transpF h0 rfl
       exact ⟨h0, ch.transport ha, pre_ty h0⟩
   | @EqTm0.transpPi _ Ψ Φ Γ A B φ u0 T h0 =>
-    ⟨h0, hC.transpPi h0, pre_ty h0⟩
+    ⟨h0, transpPi_typed hS h0, pre_ty h0⟩
   | @EqTm0.transpSigma _ Ψ Φ Γ A B φ u0 T h0 =>
-    ⟨h0, hC.transpSigma h0, pre_ty h0⟩
+    ⟨h0, transpSigma_typed hS h0, pre_ty h0⟩
   | @EqTm0.transpPath _ Ψ Φ Γ A a b φ p0 T h0 =>
-    ⟨h0, hC.transpPath h0, pre_ty h0⟩
+    ⟨h0, transpPath_typed hS h0, pre_ty h0⟩
   | @EqTm0.transpGlue _ Ψ Φ Γ A φ T' e ψ u0 T l δ h0 h1 h2 h3 h4 =>
-    ⟨h0, hC.transpGlue h0 h1 h2 h3 h4, pre_ty h0⟩
+    ⟨h0, transpGlue_typed hS h0 h1 h2 h3 h4, pre_ty h0⟩
   | @EqTm0.transpIPi _ Ψ Φ Γ A φ u0 T h0 =>
-    ⟨h0, hC.transpIPi h0, pre_ty h0⟩
+    ⟨h0, transpIPi_typed hS h0, pre_ty h0⟩
   | @EqTm0.hcompIPi _ Ψ Φ Γ A φ u u0 T h0 =>
     ⟨h0, hcompIPi_typed hS h0, pre_ty h0⟩
   | @EqTm0.hcompPi _ Ψ Φ Γ A B φ u u0 T h0 =>
@@ -461,9 +433,13 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.conBnd _ Ψ Φ Γ d D c C ps args rs k ψ b T h0 h1 h2 h3 h4 h5 h6 =>
     ⟨h6, hC.conBnd h0 h1 h2 h3 h4 h5 h6, pre_ty h6⟩
   | @EqTm0.elimCon _ Ψ Φ Γ d D c C ps P bs b qs args rs T h0 h1 h2 h3 h4 h5 =>
-    ⟨h5, hC.elimCon h0 h1 h2 h3 h4 h5, pre_ty h5⟩
+    by
+      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h5 rfl rfl
+      exact ⟨h5, elimCon_of hS h0 h1 h2 h3 h4 hE hI hX hl r tb ch, pre_ty h5⟩
   | @EqTm0.elimHcomp _ Ψ Φ Γ d D ps P bs qs φ u a T h0 h1 =>
-    ⟨h1, hC.elimHcomp h0 h1, pre_ty h1⟩
+    by
+      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h1 rfl rfl
+      exact ⟨h1, elimHcomp_of hS h0 hE hI hX hl r tb ch, pre_ty h1⟩
   | @EqTm0.transpData0 _ Ψ Φ Γ d D ps φ a T h0 h1 h2 =>
     by
       have hv := pre_ty h2
@@ -474,9 +450,13 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
       cases htele
       exact ⟨h2, ch.transport ha, hv⟩
   | @EqTm0.transpCon _ Ψ Φ Γ d D c C ps φ qs args rs T h0 h1 h2 h3 h4 h5 =>
-    ⟨h5, hC.transpCon h0 h1 h2 h3 h4 h5, pre_ty h5⟩
+    by
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h5 rfl rfl
+      exact ⟨h5, transpCon_of hS h0 h1 h2 h3 h4 hL hφ hc hI hX hl r tb ch, pre_ty h5⟩
   | @EqTm0.transpHcomp _ Ψ Φ Γ d D ps φ qs ψ u a T h0 h1 h2 =>
-    ⟨h2, hC.transpHcomp h0 h1 h2, pre_ty h2⟩
+    by
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h2 rfl rfl
+      exact ⟨h2, transpHcomp_of hS h0 h1 hL hφ hc hI hX hl r tb ch, pre_ty h2⟩
 
 theorem genI {Ψ Φ Γ s T} : HasTy0 S Ψ Φ Γ s T → isIntro s = true →
     ∃ X l, IntroTy S Ψ Φ Γ s X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧ Rel S Ψ Φ Γ X T ∧
@@ -681,6 +661,98 @@ theorem genPapp {Ψ Φ Γ s T p r} : HasTy0 S Ψ Φ Γ s T → s = .papp p r →
   | .split h0 h1 h2 h3 h4 h5 h6, hs, hf => by cases hs
   | .abort h0 h1, hs, hf => by cases hs
   | .transp h0 h1 h2 h3, hs, hf => by cases hs
+  | .hcomp h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .glue h0 h1 h2 h3, hs, hf => by cases hs
+  | .glueEl h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .unglue h0 h1 h2 h3, hs, hf => by cases hs
+  | .data h0 h1 h2, hs, hf => by cases hs
+  | .con h0 h1 h2 h3 h4 h5 h6 h7, hs, hf => by cases hs
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9, hs, hf => by cases hs
+
+theorem genElim {Ψ Φ Γ s T d ps P bs t} : HasTy0 S Ψ Φ Γ s T → s = .elim d ps P bs t →
+    isIntro t = true →
+    ∃ D m X l, ElimPrem S Ψ Φ Γ d D ps P bs m ∧ IntroTy S Ψ Φ Γ t X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧
+      l ≤ maxLevel ∧ Rel S Ψ Φ Γ X (data d ps) ∧ TB S Ψ Φ Γ (data d ps) ∧ TyChainC S Ψ Φ Γ (P.inst t) T
+  | .var h0 h1, hs, hf => by cases hs
+  | .conv h0 h1, hs, hf => by
+      obtain ⟨D, m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h0 hs hf
+      exact ⟨D, m, X, l, hE, hI, hX, hl, r, tb, ch.snoc h1⟩
+  | .restrict h0 h1 h2, hs, hf => by
+      obtain ⟨D, m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h2 hs hf
+      exact ⟨D, m, X, l, hE.restrict h0 h1, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, r.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩
+  | .const h0 h1, hs, hf => by cases hs
+  | .univ h0 h1, hs, hf => by cases hs
+  | .cumul h0 h1, hs, hf => by
+      obtain ⟨D, m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h1 hs hf
+      exact ⟨D, m, X, l, hE, hI, hX, hl, r, tb, ch.cumul h0⟩
+  | .pi h0 h1, hs, hf => by cases hs
+  | .lam h0 h1, hs, hf => by cases hs
+  | .app h0 h1, hs, hf => by cases hs
+  | .sigma h0 h1, hs, hf => by cases hs
+  | .pair h0 h1 h2, hs, hf => by cases hs
+  | .fst h0, hs, hf => by cases hs
+  | .snd h0, hs, hf => by cases hs
+  | .path h0 h1 h2, hs, hf => by cases hs
+  | .plam h0 h1 h2 h3, hs, hf => by cases hs
+  | .papp h0 h1, hs, hf => by cases hs
+  | .ipi h0 h1, hs, hf => by cases hs
+  | .ilam h0 h1, hs, hf => by cases hs
+  | .iapp h0 h1, hs, hf => by cases hs
+  | .split h0 h1 h2 h3 h4 h5 h6, hs, hf => by cases hs
+  | .abort h0 h1, hs, hf => by cases hs
+  | .transp h0 h1 h2 h3, hs, hf => by cases hs
+  | .hcomp h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .glue h0 h1 h2 h3, hs, hf => by cases hs
+  | .glueEl h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .unglue h0 h1 h2 h3, hs, hf => by cases hs
+  | .data h0 h1 h2, hs, hf => by cases hs
+  | .con h0 h1 h2 h3 h4 h5 h6 h7, hs, hf => by cases hs
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9, hs, hf => by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h9 (by injection hs with _ _ _ _ h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, ⟨h0, h1, h2, h3, h4, h5, h6, h7, h8⟩, hI, hX, hl, r, tb, .refl _⟩
+
+theorem genTransp {Ψ Φ Γ s T A φ a} : HasTy0 S Ψ Φ Γ s T → s = .transp A φ a → isIntro a = true →
+    ∃ l0 X l, HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l0) ∧ φ.Scoped Ψ ∧
+      EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (univ l0) ∧
+      IntroTy S Ψ Φ Γ a X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧ Rel S Ψ Φ Γ X (A.dinst .zero) ∧
+      TB S Ψ Φ Γ (A.dinst .zero) ∧ TyChainC S Ψ Φ Γ (A.dinst .one) T
+  | .var h0 h1, hs, hf => by cases hs
+  | .conv h0 h1, hs, hf => by
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX', hl, r, tb, ch⟩ := genTransp h0 hs hf
+      exact ⟨l0, X, l, hL, hφ, hc, hI, hX', hl, r, tb, ch.snoc h1⟩
+  | .restrict h0 h1 h2, hs, hf => by
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX', hl, r, tb, ch⟩ := genTransp h2 hs hf
+      exact by
+        have hs1 := scoped_shift h0
+        have hX : (cof _ φ).Scoped _ := ⟨h0, hφ⟩
+        exact ⟨l0, X, l, HasTy0.restrict hs1 (ent_shift h1) hL, hφ,
+          EqTm0.restrict (scoped_shift hX) (ent_shift (ent_and_mono h1 (ent_refl _))) hc,
+          hI.restrict h0 h1, HasTy0.restrict h0 h1 hX', hl, r.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩
+  | .const h0 h1, hs, hf => by cases hs
+  | .univ h0 h1, hs, hf => by cases hs
+  | .cumul h0 h1, hs, hf => by
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX', hl, r, tb, ch⟩ := genTransp h1 hs hf
+      exact ⟨l0, X, l, hL, hφ, hc, hI, hX', hl, r, tb, ch.cumul h0⟩
+  | .pi h0 h1, hs, hf => by cases hs
+  | .lam h0 h1, hs, hf => by cases hs
+  | .app h0 h1, hs, hf => by cases hs
+  | .sigma h0 h1, hs, hf => by cases hs
+  | .pair h0 h1 h2, hs, hf => by cases hs
+  | .fst h0, hs, hf => by cases hs
+  | .snd h0, hs, hf => by cases hs
+  | .path h0 h1 h2, hs, hf => by cases hs
+  | .plam h0 h1 h2 h3, hs, hf => by cases hs
+  | .papp h0 h1, hs, hf => by cases hs
+  | .ipi h0 h1, hs, hf => by cases hs
+  | .ilam h0 h1, hs, hf => by cases hs
+  | .iapp h0 h1, hs, hf => by cases hs
+  | .split h0 h1 h2 h3 h4 h5 h6, hs, hf => by cases hs
+  | .abort h0 h1, hs, hf => by cases hs
+  | .transp h0 h1 h2 h3, hs, hf => by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h3 (by injection hs with _ _ h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, X, l, h0, h1, h2, hI, hX, hl, r, tb, .refl _⟩
   | .hcomp h0 h1 h2 h3 h4, hs, hf => by cases hs
   | .glue h0 h1 h2 h3, hs, hf => by cases hs
   | .glueEl h0 h1 h2 h3 h4, hs, hf => by cases hs

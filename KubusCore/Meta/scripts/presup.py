@@ -163,11 +163,11 @@ eq = {
 'ipiInj': """by
       obtain ⟨p, p', _⟩ := pre_eq h0
       exact ⟨HasTy0.dsubst hS (HasTy0.ipiLine hS p) h1, HasTy0.dsubst hS (HasTy0.ipiLine hS p') h1, (pre_eq h0).2.2⟩""",
-'transpPi': C('transpPi'), 'transpSigma': C('transpSigma'), 'transpPath': C('transpPath'),
-'transpIPi': C('transpIPi'), 'hcompIPi': "⟨h0, hcompIPi_typed hS h0, pre_ty h0⟩", 'hcompPi': "⟨h0, hcompPi_typed hS h0, pre_ty h0⟩",
+'transpPi': "⟨h0, transpPi_typed hS h0, pre_ty h0⟩", 'transpSigma': "⟨h0, transpSigma_typed hS h0, pre_ty h0⟩", 'transpPath': "⟨h0, transpPath_typed hS h0, pre_ty h0⟩",
+'transpIPi': "⟨h0, transpIPi_typed hS h0, pre_ty h0⟩", 'hcompIPi': "⟨h0, hcompIPi_typed hS h0, pre_ty h0⟩", 'hcompPi': "⟨h0, hcompPi_typed hS h0, pre_ty h0⟩",
 'hcompSigma': "⟨h0, hcompSigma_typed hS h0, pre_ty h0⟩", 'hcompPath': "⟨h0, hcompPath_typed hS h0, pre_ty h0⟩", 'hcompU': "⟨h0, hcompU_typed hS h0, pre_ty h0⟩",
 'hcompGlue': "⟨h0, hcompGlue_typed hS h0, pre_ty h0⟩",
-'transpGlue': "⟨h0, hC.transpGlue h0 h1 h2 h3 h4, pre_ty h0⟩",
+'transpGlue': "⟨h0, transpGlue_typed hS h0 h1 h2 h3 h4, pre_ty h0⟩",
 'piEta': """by
       rcases pre_ty h0 with ⟨l, hpi⟩ | ⟨l, hpi, -⟩
       · have hA := HasTy0.piDom hS hpi
@@ -279,8 +279,12 @@ eq = {
 'con': "⟨h2, h3, pre_ty h2⟩",
 'elim': "⟨h1, h2, pre_ty h1⟩",
 'conBnd': "⟨h6, hC.conBnd h0 h1 h2 h3 h4 h5 h6, pre_ty h6⟩",
-'elimCon': "⟨h5, hC.elimCon h0 h1 h2 h3 h4 h5, pre_ty h5⟩",
-'elimHcomp': "⟨h1, hC.elimHcomp h0 h1, pre_ty h1⟩",
+'elimCon': """by
+      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h5 rfl rfl
+      exact ⟨h5, elimCon_of hS h0 h1 h2 h3 h4 hE hI hX hl r tb ch, pre_ty h5⟩""",
+'elimHcomp': """by
+      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h1 rfl rfl
+      exact ⟨h1, elimHcomp_of hS h0 hE hI hX hl r tb ch, pre_ty h1⟩""",
 'transpData0': """by
       have hv := pre_ty h2
       obtain ⟨l, ⟨hL, _, _, ha⟩, ch⟩ := gen_transpF h2 rfl
@@ -289,8 +293,12 @@ eq = {
       rw [h1] at htele
       cases htele
       exact ⟨h2, ch.transport ha, hv⟩""",
-'transpCon': "⟨h5, hC.transpCon h0 h1 h2 h3 h4 h5, pre_ty h5⟩",
-'transpHcomp': "⟨h2, hC.transpHcomp h0 h1 h2, pre_ty h2⟩",
+'transpCon': """by
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h5 rfl rfl
+      exact ⟨h5, transpCon_of hS h0 h1 h2 h3 h4 hL hφ hc hI hX hl r tb ch, pre_ty h5⟩""",
+'transpHcomp': """by
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h2 rfl rfl
+      exact ⟨h2, transpHcomp_of hS h0 h1 hL hφ hc hI hX hl r tb ch, pre_ty h2⟩""",
 }
 out=[]
 out.append("theorem pre_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → IsTypB S Ψ Φ Γ A")
@@ -396,7 +404,42 @@ consumer('genPapp', """theorem genPapp {Ψ Φ Γ s T p r} : HasTy0 S Ψ Φ Γ s 
   "⟨Y, A1, X, l, hY, hr, hI, hX, hl, rl, tb, ch.cumul h0⟩",
   "⟨Y, A1, X, l, hY, hr, hI, hX, hl, rl, tb, ch⟩")
 
+
+consumer('genElim', """theorem genElim {Ψ Φ Γ s T d ps P bs t} : HasTy0 S Ψ Φ Γ s T → s = .elim d ps P bs t →
+    isIntro t = true →
+    ∃ D m X l, ElimPrem S Ψ Φ Γ d D ps P bs m ∧ IntroTy S Ψ Φ Γ t X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧
+      l ≤ maxLevel ∧ Rel S Ψ Φ Γ X (data d ps) ∧ TB S Ψ Φ Γ (data d ps) ∧ TyChainC S Ψ Φ Γ (P.inst t) T""",
+  {'elim': """by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h9 (by injection hs with _ _ _ _ h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, ⟨h0, h1, h2, h3, h4, h5, h6, h7, h8⟩, hI, hX, hl, r, tb, .refl _⟩"""},
+  "⟨D, m, X, l, hE.restrict h0 h1, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, r.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩",
+  "⟨D, m, X, l, hE, hI, hX, hl, r, tb, ch.snoc h1⟩",
+  "⟨D, m, X, l, hE, hI, hX, hl, r, tb, ch.cumul h0⟩",
+  "⟨D, m, X, l, hE, hI, hX, hl, r, tb, ch⟩")
+consumer('genTransp', """theorem genTransp {Ψ Φ Γ s T A φ a} : HasTy0 S Ψ Φ Γ s T → s = .transp A φ a → isIntro a = true →
+    ∃ l0 X l, HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l0) ∧ φ.Scoped Ψ ∧
+      EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (univ l0) ∧
+      IntroTy S Ψ Φ Γ a X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧ Rel S Ψ Φ Γ X (A.dinst .zero) ∧
+      TB S Ψ Φ Γ (A.dinst .zero) ∧ TyChainC S Ψ Φ Γ (A.dinst .one) T""",
+  {'transp': """by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h3 (by injection hs with _ _ h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, X, l, h0, h1, h2, hI, hX, hl, r, tb, .refl _⟩"""},
+  """by
+        have hs1 := scoped_shift h0
+        have hX : (cof _ φ).Scoped _ := ⟨h0, hφ⟩
+        exact ⟨l0, X, l, HasTy0.restrict hs1 (ent_shift h1) hL, hφ,
+          EqTm0.restrict (scoped_shift hX) (ent_shift (ent_and_mono h1 (ent_refl _))) hc,
+          hI.restrict h0 h1, HasTy0.restrict h0 h1 hX', hl, r.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩""",
+  "⟨l0, X, l, hL, hφ, hc, hI, hX', hl, r, tb, ch.snoc h1⟩",
+  "⟨l0, X, l, hL, hφ, hc, hI, hX', hl, r, tb, ch.cumul h0⟩",
+  "⟨l0, X, l, hL, hφ, hc, hI, hX', hl, r, tb, ch⟩")
+
 hdr='''import KubusCore.Meta.BetaTyped
+import KubusCore.Meta.KanTransp
+import KubusCore.Meta.KanTranspGlue
+import KubusCore.Meta.DataContracta
 
 /-!
 # Metatheory: presupposition
@@ -419,43 +462,12 @@ variable {S : Sig}
 
 /-- The contracta of these computation rules are typed whenever their redexes are. -/
 structure ContractaTyped (S : Sig) : Prop where
-  transpPi : ∀ {Ψ Φ Γ A B φ u0 T}, HasTy0 S Ψ Φ Γ (transp (pi A B) φ u0) T →
-    HasTy0 S Ψ Φ Γ (transpPi A B φ u0) T
-  transpSigma : ∀ {Ψ Φ Γ A B φ u0 T}, HasTy0 S Ψ Φ Γ (transp (sigma A B) φ u0) T →
-    HasTy0 S Ψ Φ Γ (transpSigma A B φ u0) T
-  transpPath : ∀ {Ψ Φ Γ A a b φ p0 T}, HasTy0 S Ψ Φ Γ (transp (path A a b) φ p0) T →
-    HasTy0 S Ψ Φ Γ (transpPath A a b φ p0) T
-  transpIPi : ∀ {Ψ Φ Γ A φ u0 T}, HasTy0 S Ψ Φ Γ (transp (ipi A) φ u0) T →
-    HasTy0 S Ψ Φ Γ (transpIPi A φ u0) T
-  transpGlue : ∀ {Ψ Φ Γ A φ T' e ψ u0 T l δ}, HasTy0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
-    HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
-    HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
-    I.Entails δ φ.forall0 → I.Entails φ.forall0 δ → HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) T
   conBnd : ∀ {Ψ Φ Γ d D c C ps args rs} {k : Nat} {ψ : I} {b T : Tm}, S[d]? = some (.data D) →
     D.ctors[c]? = some C →
     C.bnd[k]? = some (ψ, b) → I.Entails Φ (Ctor.cofAt ψ rs) →
     ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
     HasTy0 S Ψ Φ Γ (con d c ps args rs) T →
     HasTy0 S Ψ Φ Γ (Ctor.bndAt b ps.toList args.toList rs) T
-  elimCon : ∀ {Ψ Φ Γ d D c C ps P bs b qs args rs T}, S[d]? = some (.data D) →
-    D.ctors[c]? = some C → bs.toList[c]? = some b →
-    args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
-    HasTy0 S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T →
-    HasTy0 S Ψ Φ Γ (Tm.papps (Tm.apps b (args.toList ++
-      C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T
-  elimHcomp : ∀ {Ψ Φ Γ d D ps P bs qs φ u a T}, S[d]? = some (.data D) →
-    HasTy0 S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T →
-    HasTy0 S Ψ Φ Γ (comp (P.subst (consSub (hfill (data d ps) φ u a)) (fun i => .var (i + 1))) φ
-      (elim d ps.dshift P.dshift bs.dshift u) (elim d ps P bs a)) T
-  transpCon : ∀ {Ψ Φ Γ d D c C ps φ qs args rs T}, S[d]? = some (.data D) → D.params ≠ [] →
-    D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
-    HasTy0 S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T →
-    HasTy0 S Ψ Φ Γ (con d c (ps.dinst .one)
-      (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
-  transpHcomp : ∀ {Ψ Φ Γ d D ps φ qs ψ u a T}, S[d]? = some (.data D) → D.params ≠ [] →
-    HasTy0 S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T →
-    HasTy0 S Ψ Φ Γ (hcomp (data d (ps.dinst .one)) ψ
-      (transp ((data d ps).dsubst skip1I) φ.shift u) (transp (data d ps) φ a)) T
 
 section
 variable (hS : SigClosed S) (hT : SigTyped0 S) (hC : ContractaTyped S)

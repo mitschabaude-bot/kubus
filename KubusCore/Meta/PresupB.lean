@@ -181,4 +181,37 @@ theorem IntroTy.restrict {Ψ Φ Φ' Γ s X} (hs : Φ'.Scoped Ψ) (he : I.Entails
       HasTy0.restrict (scoped_shift hs2) (ent_shift (ent_and_mono he (ent_refl _))) hu,
       HasTy0.restrict hs he ha, EqTm0.restrict hs2 (ent_and_mono he (ent_refl _)) hside⟩
 
+/-- The premises of the eliminator's typing rule (`HasTy0.elim`), except the scrutinee's. -/
+structure ElimPrem (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (d : Nat) (D : DataDecl) (ps P bs : Tm)
+    (m : Nat) : Prop where
+  hD : S[d]? = some (.data D)
+  hps : ps = Tm.ofList ps.toList
+  hdata : HasTy0 S Ψ Φ Γ (data d ps) (univ D.level)
+  hpt : HasTele0 S Ψ Φ Γ ps D.params []
+  hP : HasTy0 S Ψ Φ (data d ps :: Γ) P (univ m)
+  hbs : bs = Tm.ofList bs.toList
+  hlen : bs.toList.length = D.ctors.length
+  hbr : ∀ (c : Nat) (C : Ctor) (b : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
+    HasTy0 S Ψ Φ Γ b (D.branchTy d c C ps P)
+  hcoh : ∀ (c : Nat) (C : Ctor) (b : Tm) (k : Nat) (ψ : I) (e : Tm), D.ctors[c]? = some C →
+    bs.toList[c]? = some b → C.bnd[k]? = some (ψ, e) →
+    EqTm0 S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps P Γ)
+      (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P)
+
+theorem ElimPrem.restrict {Ψ Φ Φ' Γ d D ps P bs m} (hs : Φ'.Scoped Ψ) (he : I.Entails Φ' Φ)
+    (h : ElimPrem S Ψ Φ Γ d D ps P bs m) : ElimPrem S Ψ Φ' Γ d D ps P bs m where
+  hD := h.hD
+  hps := h.hps
+  hdata := HasTy0.restrict hs he h.hdata
+  hpt := HasTele0.restrict hs he h.hpt
+  hP := HasTy0.restrict hs he h.hP
+  hbs := h.hbs
+  hlen := h.hlen
+  hbr := fun c C b hc hb => HasTy0.restrict hs he (h.hbr c C b hc hb)
+  hcoh := fun c C b k ψ e hc hb hk => by
+    have e0 := h.hcoh c C b k ψ e hc hb hk
+    have hψ := scoped_cof_right (scoped_of_eq e0)
+    exact EqTm0.restrict ⟨scoped_ren hs (fun i hi => by omega), hψ⟩
+      (ent_and_mono (ent_ren he _) (ent_refl _)) e0
+
 end KubusCore.Meta
