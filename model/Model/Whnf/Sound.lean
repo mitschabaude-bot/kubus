@@ -370,4 +370,14 @@ theorem red_sound_spec (hW : WfSig S) (hHC : HCSound S) (hUG : UGSound S) {Ψ t 
     (hr : Red S t t') (h : HasTy S Ψ .one [] t A) : EqTm S Ψ .one [] t t' A :=
   minimal_to_spec_eq (red_sound hW hHC hUG hr (spec_to_minimal hW h))
 
+/-- Subject reduction for closed terms. -/
+theorem red_typed (hW : WfSig S) (hHC : HCSound S) (hUG : UGSound S) {Ψ Φ t t' A}
+    (hr : Red S t t') (h : HasTy0 S Ψ Φ [] t A) : HasTy0 S Ψ Φ [] t' A :=
+  (presup hW (red_sound hW hHC hUG hr h)).2
+
+/-- A face that holds stays true under interval substitution. -/
+theorem entails_one_subst {φ : I} (h : I.entails .one φ = true) (τ : ℕ → I) :
+    I.entails .one (φ.subst τ) = true := by
+  exact ent_subst (φ := .one) (ψ := φ) h τ
+
 end Model.Whnf

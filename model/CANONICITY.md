@@ -121,3 +121,17 @@ Reduction is not stable under interval substitution, so (c) has to commute reduc
 
 - `HCSound`: the `hcompCon` step, where the tube must be a constructor on its face (cf. `tube_canon`).
 - `UGSound`: `unglue φ e (glueEl φ' e' t a) ≡ a` with different annotations, which needs the annotations to agree up to `≡` under the face. This is `GlueCompat` again, at the element level.
+
+### Milestone (b): subject reduction and restriction
+
+Subject reduction for closed terms is `red_typed` (from soundness and presupposition), under the same side conditions as (a).
+
+Restriction does not commute with `step`. For `σ : ISub k' k` and `step S t = some t'`, the step of `t.isub σ` is `t'.isub σ` except in these cases:
+
+- A face decided false at stage `k` holds after `σ`, while true faces stay true (`entails_one_subst`). This happens for the face of `transp`/`hcomp` (`transpFace`, `hcompFace` instead of computing by the type), for `split`, for the face of `glue`/`glueEl`/`unglue` (`glueFace`, `glueElFace`, `unglueFace`), and for the boundaries of a constructor (`conBnd`), where an earlier boundary may come to hold.
+- The same deviations occur in head positions below, for the line of a Kan operation and the scrutinee of an eliminator.
+- `transpGlue` uses `δ := φ.forall0`. Restriction gives `(φ.forall0).subst τ`, which is equivalent (`forall0_subst`) but not equal to `(φ.subst τ⁺).forall0`.
+
+In every case both results are `≡` to `t.isub σ`, by soundness and substitution.
+
+The PER of (c) does not need a commutation lemma. Like the current relation, it is Kripke by definition: each clause quantifies over all restrictions `σ` and reduces `t.isub σ` at stage `k'` from scratch. Closure under restriction is then composition of restrictions. The fundamental lemma handles each redex at each restriction separately: if the face holds after `σ`, the face rule applies and its reduct is related by the induction hypothesis; otherwise the computation rule applies. This is how `RE_hcomp_face`/`RE_transp_face` already split the Kan lemma. Weak-head normal forms with a type-former head (`univ`, `pi`, `sigma`, `path`, `ipi`, `data`) never step, so they stay normal under restriction. The heads that can start to step after restriction are `glue`, `glueEl`, `split`, `con` with boundaries, and stuck eliminations. These are exactly the cases above.
