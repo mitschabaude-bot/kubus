@@ -170,8 +170,20 @@ def SemEqTele (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) : Tm → Tm → List Tm �
     SemEq S Ψ Φ Γ a a' (A.substList prev) ∧ SemEqTele S Ψ Φ Γ as as' Δ (a :: prev)
   | _, _, _, _ => False
 
-/-- The inductive type `k` with declaration `D` is semantically valid. (Placeholder.) -/
-def DataOK (_S : Sig) (_k : ℕ) (_D : DataDecl) : Prop := True
+/-- Parameter values (given at all restrictions, as list values) of the declaration `D`: each
+has its type (at the earlier parameters) and they are natural. -/
+def ParamsOK (S : Sig) (D : DataDecl) (m : ℕ) (ps : RV m) : Prop :=
+  ∀ n (g : Hom n m), (∀ i (hi : i < D.params.length), IsKV n (vnth (ps n g) i) ∧
+      vnth (ps n g) i ∈ El (sem S (D.params[i]) n (fun _ => DM.zero n) (argEnv [] (plist (ps n g) i))) (Hom.id n)) ∧
+    ∀ n' (h : Hom n' n), ∀ i < D.params.length, vnth (ps n' (g.comp h)) i = res h (vnth (ps n g) i)
+
+/-- The inductive type `d` with declaration `D` is semantically valid: at valid parameters, its
+semantic data is well-formed and its argument types are well-formed codes of the declared level. -/
+def DataOK (S : Sig) (d : ℕ) (D : DataDecl) : Prop :=
+  ∀ m (ps : RV m), ParamsOK S D m ps →
+    (dataSD (sigUpTo S d) D d m ps).Good ∧
+    ∀ c j n (g : Hom n m) pre, (dataSD (sigUpTo S d) D d m ps).ty c j n g pre ∈ Vt D.level ∧
+      ((dataSD (sigUpTo S d) D d m ps).PtValid c n g pre → WF D.level n ((dataSD (sigUpTo S d) D d m ps).ty c j n g pre))
 
 /-- The signature is semantically valid: every definition is well-typed in the model, and every
 inductive type is valid. -/

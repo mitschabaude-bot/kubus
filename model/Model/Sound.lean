@@ -172,7 +172,7 @@ theorem sigOK_of_wfSig : ∀ (n : ℕ) (S : Sig), S.length = n → WfSig S → S
   induction n using Nat.strong_induction_on with
   | _ n ih =>
     intro S hn hS
-    refine ⟨fun k t A hk => ?_, fun k D hk => trivial⟩
+    refine ⟨fun k t A hk => ?_, fun k D hk => sorry⟩
     have hklt : k < S.length := (List.getElem?_eq_some_iff.1 hk).1
     have hwf := hS.1 k t A hk
     have htake : WfSig (S.take k) := by
