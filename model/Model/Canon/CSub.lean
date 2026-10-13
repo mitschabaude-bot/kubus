@@ -303,6 +303,25 @@ theorem RE_univ_of (hW : WfSig S) {l : ℕ} {T : Tm} (ht : HasTy S k .one [] T (
   have := mem_of_ty hW ht
   rwa [show semK S k (.univ l) = univC k l from rfl, El_univC] at this
 
+namespace CSub
+
+variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
+
+theorem up_restr_subst (hW : WfSig S) (c : CSub S Ψ Φ Γ k) (σ : ISub k' k) (t : Tm) :
+    t.subst ((c.restr hW σ).up hW).γ ((c.restr hW σ).up hW).σ.τ = (t.subst (c.up hW).γ (c.up hW).σ.τ).isub σ.up := by
+  simp only [up, restr, Tm.isub, subst_subst, ISub.up, ISub.comp]
+  apply subst_congr
+  · intro x; exact (isub_dshift (c.γ x) σ).symm
+  · intro i; exact (I_up_comp _ _ i).symm
+
+theorem cons_restr_subst (hW : WfSig S) (c : CSub S Ψ Φ Γ k) (σ : ISub k' k) (r : I) (hr : r.Scoped k') (t : Tm) :
+    t.subst ((c.restr hW σ).cons r hr).γ ((c.restr hW σ).cons r hr).σ.τ =
+      ((t.subst (c.up hW).γ (c.up hW).σ.τ).isub σ.up).dinst r := by
+  rw [← up_restr_subst]
+  exact (dup_dinst t _ _ r).symm
+
+end CSub
+
 end
 
 end Model.Canon

@@ -149,17 +149,51 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
   | @HasTy0.snd _ Ψ Φ Γ A B p h0 => fun hc k c => by
     rw [inst_subst]; exact (RE_sigma_elim hW (fund_ty h0 hc k c)).2
   | @HasTy0.path _ Ψ Φ Γ A a b l h0 h1 h2 => fun hc k c => by
-    sorry
+    have hpath : HasTy S k .one [] (.path (A.subst (dupS c.γ) (I.up c.σ.τ)) (a.subst c.γ c.σ.τ) (b.subst c.γ c.σ.τ))
+        (.univ l) := c.ty hW (HasTy0.path h0 h1 h2)
+    refine RE_univ_of hW hpath (RT_path_intro hW hpath (fun k' σ => ?_) ?_ ?_)
+    · have := (RE_univ_iff hW).1 (fund_ty h0 hc.1 (k' + 1) ((c.restr hW σ).up hW))
+      rw [CSub.up_restr_subst] at this; exact this.2.2
+    · have := fund_ty h1 hc.2.1 k c; rwa [dinst_subst] at this
+    · have := fund_ty h2 hc.2.2 k c; rwa [dinst_subst] at this
   | @HasTy0.plam _ Ψ Φ Γ A a b t l h0 h1 h2 h3 => fun hc k c => by
-    sorry
+    have hpath : HasTy S k .one [] (.path (A.subst (dupS c.γ) (I.up c.σ.τ)) (a.subst c.γ c.σ.τ) (b.subst c.γ c.σ.τ))
+        (.univ l) := c.ty hW h0
+    have hp : HasTy S k .one [] (.plam (t.subst (dupS c.γ) (I.up c.σ.τ)))
+        (.path (A.subst (dupS c.γ) (I.up c.σ.τ)) (a.subst c.γ c.σ.τ) (b.subst c.γ c.σ.τ)) :=
+      c.ty hW (HasTy0.plam h0 h1 h2 h3)
+    show RE S k (.path (A.subst (dupS c.γ) (I.up c.σ.τ)) (a.subst c.γ c.σ.τ) (b.subst c.γ c.σ.τ))
+      (.plam (t.subst (dupS c.γ) (I.up c.σ.τ)))
+    refine RE_path_intro hW hpath hp fun k' σ r hr => ?_
+    have ih := fund_ty h1 hc k' ((c.restr hW σ).cons r hr)
+    rw [CSub.cons_restr_subst, CSub.cons_restr_subst] at ih
+    have hpσ := HasTy.isubS hW hp σ
+    rw [isub_path] at hpσ
+    have happ := HasTy.papp hpσ hr
+    exact ih.conv hW (TyEq.refl _) (EqTm.symm (EqTm.pathBeta happ))
   | @HasTy0.papp _ Ψ Φ Γ A a b p r h0 h1 => fun hc k c => by
-    sorry
+    rw [dinst_subst]
+    exact RE_path_elim hW (fund_ty h0 hc k c) _ (I.scoped_subst h1 c.σ.sc)
   | @HasTy0.ipi _ Ψ Φ Γ A l h0 h1 => fun hc k c => by
-    sorry
+    have hipi : HasTy S k .one [] (.ipi (A.subst (dupS c.γ) (I.up c.σ.τ))) (.univ l) := c.ty hW (HasTy0.ipi h0 h1)
+    refine RE_univ_of hW hipi (RT_ipi_intro hW hipi fun k' σ => ?_)
+    have := (RE_univ_iff hW).1 (fund_ty h1 hc (k' + 1) ((c.restr hW σ).up hW))
+    rw [CSub.up_restr_subst] at this; exact this.2.2
   | @HasTy0.ilam _ Ψ Φ Γ A t l h0 h1 => fun hc k c => by
-    sorry
+    have hipi : HasTy S k .one [] (.ipi (A.subst (dupS c.γ) (I.up c.σ.τ))) (.univ l) := c.ty hW h0
+    have hp : HasTy S k .one [] (.plam (t.subst (dupS c.γ) (I.up c.σ.τ))) (.ipi (A.subst (dupS c.γ) (I.up c.σ.τ))) :=
+      c.ty hW (HasTy0.ilam h0 h1)
+    show RE S k (.ipi (A.subst (dupS c.γ) (I.up c.σ.τ))) (.plam (t.subst (dupS c.γ) (I.up c.σ.τ)))
+    refine RE_ipi_intro hW hipi hp fun k' σ r hr => ?_
+    have ih := fund_ty h1 hc k' ((c.restr hW σ).cons r hr)
+    rw [CSub.cons_restr_subst, CSub.cons_restr_subst] at ih
+    have hpσ := HasTy.isubS hW hp σ
+    rw [isub_ipi] at hpσ
+    have happ := HasTy.iapp hpσ hr
+    exact ih.conv hW (TyEq.refl _) (EqTm.symm (EqTm.pathBeta happ))
   | @HasTy0.iapp _ Ψ Φ Γ A p r h0 h1 => fun hc k c => by
-    sorry
+    rw [dinst_subst]
+    exact RE_ipi_elim hW (fund_ty h0 hc k c) _ (I.scoped_subst h1 c.σ.sc)
   | @HasTy0.split _ Ψ Φ Γ A φ ψ t u l h0 h1 h2 h3 h4 h5 h6 => fun hc k c => by
     sorry
   | @HasTy0.abort _ Ψ Φ Γ A l h0 h1 => fun hc k c => by
