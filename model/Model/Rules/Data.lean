@@ -1,4 +1,5 @@
 import Model.Rules.DataLemmas
+import Model.Rules.CompLemmas
 
 /-!
 # Rules of inductive types (phase 2)
@@ -185,10 +186,34 @@ theorem sem_HasTy_elim {Ψ Φ Γ d D ps P bs t m} (hS : SigOK S) (h0 : S[d]? = s
 
 /-! ### Congruence -/
 
+theorem SemEqTele.sem_eq {Ψ Φ Γ} : ∀ {Δ : List Tm} {ts ts' : Tm} {prev : List Tm},
+    SemEqTele S Ψ Φ Γ ts ts' Δ prev → ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S ts m ρ γ = sem S ts' m ρ γ
+  | [], ts, ts', prev, h, m, ρ, γ, hp => by
+    cases ts <;> cases ts' <;> simp_all [SemEqTele] <;> rfl
+  | A :: Δ, ts, ts', prev, h, m, ρ, γ, hp => by
+    cases ts <;> cases ts' <;> simp only [SemEqTele] at h
+    all_goals first | exact absurd h id | skip
+    obtain ⟨h1, h2⟩ := h
+    have e1 := h1.2.2 m ρ γ hp
+    have e2 := SemEqTele.sem_eq h2 m ρ γ hp
+    simp only [sem] at e1 e2
+    show ZFSet.pair _ _ = ZFSet.pair _ _
+    rw [e1, e2]
+
+theorem SemEqTele.wf {Ψ Φ Γ} : ∀ {Δ : List Tm} {ts ts' : Tm} {prev : List Tm},
+    SemEqTele S Ψ Φ Γ ts ts' Δ prev → SemWf S Ψ Φ Γ
+  | [], ts, ts', prev, h => by cases ts <;> cases ts' <;> simp_all [SemEqTele]
+  | A :: Δ, ts, ts', prev, h => by
+    cases ts <;> cases ts' <;> simp only [SemEqTele] at h
+    all_goals first | exact absurd h id | exact h.1.1.1
+
 theorem sem_EqTm_data {Ψ Φ Γ d D ps ps'} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : SemTy S Ψ Φ Γ (data d ps) (univ D.level)) (h2 : SemTy S Ψ Φ Γ (data d ps') (univ D.level))
     (h3 : SemEqTele S Ψ Φ Γ ps ps' D.params []) : SemEq S Ψ Φ Γ (data d ps) (data d ps') (univ D.level) := by
-  sorry
+  refine ⟨h1, h2, fun m ρ γ hp => ?_⟩
+  have e : psRV S ps m ρ γ = psRV S ps' m ρ γ := by
+    funext k f; exact h3.sem_eq k _ _ (hp.restr h3.wf f)
+  rw [sem_data h0, sem_data h0, e]
 
 theorem sem_EqTm_con {Ψ Φ Γ d D c C ps ps' args args' rs rs'} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : D.ctors[c]? = some C) (h2 : SemTy S Ψ Φ Γ (con d c ps args rs) (data d ps))
@@ -196,7 +221,14 @@ theorem sem_EqTm_con {Ψ Φ Γ d D c C ps ps' args args' rs rs'} (hS : SigOK S) 
     (h5 : SemEqTele S Ψ Φ Γ args args' (C.argTys d D.params.length) ps.toList.reverse)
     (h6 : rs.length = rs'.length) (h7 : ∀ (k : Nat) (r r' : I), rs[k]? = some r → rs'[k]? = some r' → I.Eq r r') :
     SemEq S Ψ Φ Γ (con d c ps args rs) (con d c ps' args' rs') (data d ps) := by
-  sorry
+  refine ⟨h2, h3, fun m ρ γ hp => ?_⟩
+  rw [sem_con h0, sem_con h0, h5.sem_eq m _ _ (hp.restr h5.wf (Hom.id m))]
+  congr 1
+  apply List.ext_getElem (by simp [h6])
+  intro i hi hi'
+  simp only [List.getElem_map]
+  exact ival.congr_eq (h7 i _ _ (List.getElem?_eq_getElem (by simpa using hi))
+    (List.getElem?_eq_getElem (by simpa using hi'))) ρ
 
 theorem sem_EqTm_elim {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : SemTy S Ψ Φ Γ (elim d ps P bs t) (P.inst t)) (h2 : SemTy S Ψ Φ Γ (elim d ps' P' bs' t') (P.inst t))
@@ -231,10 +263,25 @@ theorem sem_EqTm_elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} (hS : SigOK S)
         (elim d ps.dshift P.dshift bs.dshift u) (elim d ps P bs a)) T := by
   sorry
 
+theorem paramsOK_of_code {d : ℕ} {D : DataDecl} (h0 : S[d]? = some (.data D)) {ps : Tm} {ρ : IEnv m} {γ : ℕ → V}
+    (h : TyCode m (sem S (.data d ps) m ρ γ)) : ParamsOK (sigUpTo S d) D m (psRV S ps m ρ γ) :=
+  paramsOK_of_sem_data h0 fun he => not_isKV_empty (he ▸ h.fib.kv)
+
 theorem sem_EqTm_transpData0 {Ψ Φ Γ d D ps φ a T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : D.params = []) (h2 : SemTy S Ψ Φ Γ (transp (data d ps) φ a) T) :
     SemEq S Ψ Φ Γ (transp (data d ps) φ a) a T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S a m ρ γ = sem S (transp (data d ps) φ a) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h2.2.2.2 m ρ γ hp
+    have hc := cond_of_sem_transp (hty.ne_empty hmem)
+    rw [sem_transp hc]
+    have hpok := paramsOK_of_code h0 hc.1
+    have hL : lineV S (data d ps) m ρ γ = dataC (dataSD (sigUpTo S d) D d (m + 1) _) := sem_data_of h0 hpok
+    have hgood := ((hS.2 d D h0).2 _ _ hpok).1
+    have ha := hc.2.2.1
+    rw [hL] at ha ⊢
+    exact ((transpAt_dataC_eq hgood ha).1 (by simp [dataSD, h1])).symm
+  exact ⟨h2, h2.of_eq h2.2.1.2 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : D.params ≠ []) (h2 : D.ctors[c]? = some C)
