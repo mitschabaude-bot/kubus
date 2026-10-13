@@ -84,7 +84,8 @@ Terms: `U`, `U 1`, `(x : A) -> B`, `A -> B`, `(x : A) × B`, `(a, b)`, `p.1`, `p
 | `Path A a b`, `PathP (\i -> A) a b`, `a ≡ b` | path types; `\i -> t` introduces, `p r` eliminates |
 | `(i : I) -> A` | interval-indexed families without fixed endpoints |
 | `[i = 0 -> u, j = 1 /\ k = 0 -> v]` | systems; faces are interval formulas |
-| `comp i A [φ -> u] u0`, `hcomp i A [φ -> u] u0`, `fill i A [φ -> u] u0` | heterogeneous and homogeneous composition, and the filler |
+| `transp i A [φ] u0` | transport along the line `A`, which must be constant where `φ` holds |
+| `comp i A [φ -> u] u0`, `hcomp i A [φ -> u] u0`, `fill i A [φ -> u] u0`, `hfill i A [φ -> u] u0` | heterogeneous and homogeneous composition, and their fillers |
 | `Glue A [φ -> (T, e)]`, `glue [φ -> t] a`, `unglue g` | Glue types, with `e : Equiv T A` |
 | `f^k` | `f` with all universe levels raised by `k` (universe polymorphism by displacement) |
 
@@ -99,7 +100,7 @@ Terms: `U`, `U 1`, `(x : A) -> B`, `A -> B`, `(x : A) × B`, `(a, b)`, `p.1`, `p
 | `tests/` | golden tests, failure tests, kernel tests, fuzzer |
 | `docs/` | the theory, the tutorial and the metatheory |
 
-The elaborator's evaluator follows cubicaltt. Interval variables in values are nominal atoms, composition is defined by cases on the type, neutral variables carry their types, and applications of globals keep their folded form. The evaluator only helps the elaborator: what counts is the kernel's certificate.
+The elaborator's evaluator implements the specification's operations: `transp` and `hcomp` are primitive and compute by the Coquand–Huber–Mörtberg rules (`hcomp` in the universe is a Glue type along `lineEquiv`, composition in an inductive type without path constructors is componentwise, higher inductive types have formal compositions), and `comp`, `fill` and `hfill` are derived as in the specification. There is no regularity, so the elaborator's definitional equality is the specification's. Interval variables in values are nominal atoms, neutral variables carry their types, and applications of globals stay folded until a computation needs their value. The evaluator only helps the elaborator: what counts is the kernel's certificate.
 
 ## Testing
 
