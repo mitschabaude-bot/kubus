@@ -335,13 +335,24 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
         (Tm.papps (Tm.apps b (args.toList ++
           C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T
-  | elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} : S[d]? = some (.data D) →
+  | elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} : S[d]? = some (.data D) → D.isHIT = true →
       HasTy S Ψ Φ Γ (hcomp (data d ps) φ u a) (data d ps) →
       HasTy S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T →
       EqTm S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a))
         (comp (P.subst (fun | 0 => hfill (data d ps) φ u a | j + 1 => var j) (fun i => .var (i + 1))) φ
           (elim d ps.dshift P.dshift bs.dshift u) (elim d ps P bs a)) T
-  /- inductive types: transport (`hcomp` in an inductive type is a canonical form) -/
+  /- inductive types without path constructors: composition is componentwise (CCHM) -/
+  | hcompCon {Ψ Φ Γ d D c C ps φ u qs uargs args T} : S[d]? = some (.data D) → D.isHIT = false →
+      D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
+      uargs = Tm.ofList uargs.toList →
+      HasTele S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
+      HasTele S (Ψ + 1) (cof Φ φ).shift Γ.dshift uargs (C.argTys d D.params.length) ps.dshift.toList.reverse →
+      EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (con d c ps.dshift uargs []) (data d ps.dshift) →
+      HasTy S Ψ Φ Γ (hcomp (data d ps) φ u (con d c qs args [])) T →
+      EqTm S Ψ Φ Γ (hcomp (data d ps) φ u (con d c qs args []))
+        (con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (data d ps.dshift) ps.dshift.toList φ 0 []
+          uargs.toList args.toList)) []) T
+  /- inductive types: transport (`hcomp` in a higher inductive type is a canonical form) -/
   | transpData0 {Ψ Φ Γ d D ps φ a T} : S[d]? = some (.data D) → D.params = [] →
       HasTy S Ψ Φ Γ (transp (data d ps) φ a) T → EqTm S Ψ Φ Γ (transp (data d ps) φ a) a T
   | transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} : S[d]? = some (.data D) → D.params ≠ [] →
@@ -351,7 +362,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs))
         (con d c (ps.dinst .one)
           (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
-  | transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} : S[d]? = some (.data D) → D.params ≠ [] →
+  | transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} : S[d]? = some (.data D) → D.params ≠ [] → D.isHIT = true →
       HasTy S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero)) →
       HasTy S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T →
       EqTm S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a))
