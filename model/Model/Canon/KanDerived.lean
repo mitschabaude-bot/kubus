@@ -114,19 +114,18 @@ omit hW in
 theorem I_shift_tail (φ : I) (σ : ISub k' (k + 1)) : φ.shift.subst σ.τ = φ.subst σ.tail.τ := by
   simp only [I.shift, I_ren_subst]; rfl
 
-/-- The composition filler preserves computability. -/
-theorem RE_hfill {A u u0 : Tm} {φ : I} (hA : ∀ k' (ρ : ISub k' k), KanH S k' (A.isub ρ))
+/-- The composition filler preserves computability, given the composition at its base. -/
+theorem RE_hfill_of {A u u0 : Tm} {φ : I}
+    (KH : ∀ (φ' : I) (u' : Tm), HasTy S (k + 1) .one [] (.hcomp A.dshift φ' u' u0.dshift) A.dshift →
+      TubeC S (k + 1) A.dshift φ' u' → RE S (k + 1) A.dshift (.hcomp A.dshift φ' u' u0.dshift))
     (hty : HasTy S k .one [] (.hcomp A φ u u0) A) (hu : TubeC S k A φ u) (hu0 : RE S k A u0) :
     RE S (k + 1) A.dshift (Tm.hfill A φ u u0) := by
   have hS := sigClosed_of_wfSig hW
   have h0 := spec_to_minimal hW hty
   obtain ⟨l0, ⟨hAt, hφ, hut, hu0t, hside⟩, -⟩ := gen_hcomp (Φ := .one) (Γ := []) h0 rfl
   obtain ⟨hH, -, -, -⟩ := hfill_typed hS hAt hφ hut hu0t hside
-  have hAc : A.closedB 0 k = true := closed_ty hAt
-  have KH := hA (k + 1) (ISub.wk k)
-  rw [isub_wk_of_closed hAc] at KH
   obtain ⟨-, ⟨-, -, htube, -, -⟩, -⟩ := gen_hcomp hH rfl
-  refine KH _ _ _ (minimal_to_spec hH) (fun k' σ r hr hh => ?_) (RE.dshift hW hu0)
+  refine KH _ _ (minimal_to_spec hH) (fun k' σ r hr hh => ?_)
   rw [isub_up_dinst _ σ r hr, dshift_isub_tail]
   have hT := HasTy0.isub hS (Ψ' := k') (Φ' := .one) (τ := (ISub.cons r hr σ).τ) htube
     (fun i hi => (ISub.cons r hr σ).sc i hi)
@@ -157,6 +156,15 @@ theorem RE_hfill {A u u0 : Tm} {φ : I} (hA : ∀ k' (ρ : ISub k' k), KanH S k'
     have h3 := hu0.isub hW σ.tail
     rw [← hW'] at h3
     exact h3.conv hW (TyEq.refl _) (EqTm.symm e)
+
+/-- The composition filler preserves computability. -/
+theorem RE_hfill {A u u0 : Tm} {φ : I} (hA : ∀ k' (ρ : ISub k' k), KanH S k' (A.isub ρ))
+    (hty : HasTy S k .one [] (.hcomp A φ u u0) A) (hu : TubeC S k A φ u) (hu0 : RE S k A u0) :
+    RE S (k + 1) A.dshift (Tm.hfill A φ u u0) := by
+  have hAc : A.closedB 0 k = true := closed_of_isTyK hW (isTyK_of_ty hW hty)
+  have KH := hA (k + 1) (ISub.wk k)
+  rw [isub_wk_of_closed hAc] at KH
+  exact RE_hfill_of hW (fun φ' u' h1 h2 => KH φ' u' _ h1 h2 (RE.dshift hW hu0)) hty hu hu0
 
 /-- The transport filler preserves computability. -/
 theorem RE_transpFill {A a : Tm} {φ : I} (hA : ∀ k' (ρ : ISub (k' + 1) (k + 1)), KanT S k' (A.isub ρ))
