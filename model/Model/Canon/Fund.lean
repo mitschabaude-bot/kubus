@@ -1,5 +1,5 @@
 import Model.Canon.Kan
-import Model.Canon.FormersData
+import Model.Canon.ArgConv
 
 /-!
 # Canonicity: the fundamental lemma
@@ -39,10 +39,6 @@ def TeleCompS (S : Sig) (k : ℕ) (γ : ℕ → Tm) (τ : ℕ → I) : Tm → Li
   | _, _, _ => False
 
 
-theorem tele_isList {Ψ : ℕ} {Φ : I} {Γ : Ctx} : ∀ {ts : Tm} {Δ prev : List Tm}, HasTele0 S Ψ Φ Γ ts Δ prev →
-    ts = Tm.ofList ts.toList
-  | _, _, _, .nil _ => rfl
-  | _, _, _, .cons _ h1 => by simp only [Tm.toList, Tm.ofList]; rw [← tele_isList h1]
 
 theorem tele_length {Ψ : ℕ} {Φ : I} {Γ : Ctx} : ∀ {ts : Tm} {Δ prev : List Tm}, HasTele0 S Ψ Φ Γ ts Δ prev →
     ts.toList.length = Δ.length
