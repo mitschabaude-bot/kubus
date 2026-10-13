@@ -51,6 +51,24 @@ def famV (m : ℕ) (A : V) (F : (k : ℕ) → Hom k m → V → V) : V := lamV m
 def fiberM (k : ℕ) (T A f y : V) : V :=
   sigmaC k T (famV k T fun k' g t => pathC k' (res (Hom.wk k') (res g A)) (appV k' (res g f) t) (res g y))
 
+/-! ### The equivalence codes -/
+
+/-- `isContr X = Σ (c : X), (x : X) → Path X c x`. -/
+def isContrM (k : ℕ) (X : V) : V :=
+  sigmaC k X (famV k X fun k' g c => piC k' (res g X)
+    (famV k' (res g X) fun k'' h x => pathC k'' (res (Hom.wk k'') (res h (res g X))) (res h c) x))
+
+/-- `isEquiv f = (y : A) → isContr (fiber f y)`. -/
+def isEquivM (k : ℕ) (T A f : V) : V :=
+  piC k A (famV k A fun k' g y => isContrM k' (fiberM k' (res g T) (res g A) (res g f) y))
+
+/-- `T → A`. -/
+def arrowM (k : ℕ) (T A : V) : V := piC k T (famV k T fun _ g _ => res g A)
+
+/-- `Equiv T A = Σ (f : T → A), isEquiv f`. -/
+def equivM (k : ℕ) (T A : V) : V :=
+  sigmaC k (arrowM k T A) (famV k (arrowM k T A) fun k' g p => isEquivM k' (res g T) (res g A) p)
+
 /-! ### Transport (the spec's `Tm.transpGlue`) -/
 
 /-- The endpoint maps at stage `n`. -/

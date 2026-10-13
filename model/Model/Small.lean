@@ -334,14 +334,19 @@ theorem trGraph_mem_Vt {E0 : V} (hE0 : E0 ∈ Vt l) {F : Cof n → V → V} (hF 
 instance (k : ℕ) : Countable (TubeDom k) := inferInstance
 
 theorem hcGraph_mem_Vt {E : (n : ℕ) → Hom n k → V} (hE : ∀ n g, E n g ∈ Vt l) {F : Cof k → Tube k → V → V}
-    (hF : ∀ φ u u0, F φ u u0 ∈ Vt l) : hcGraph k E F ∈ Vt l := by
+    (hF : ∀ φ u u0, (∀ n h r, u n h r ∈ Vt l) → u0 ∈ Vt l → F φ u u0 ∈ Vt l) : hcGraph k E F ∈ Vt l := by
+  have hu : ∀ x : HcIn k E, ∀ n (h : Hom n k) r, x.tube n h r ∈ Vt l := fun x n h r =>
+    Vt_trans l (insert_mem_Vt (empty_mem_Vt hl) (hE _ _)) (x.2.1 ⟨n, h, r⟩).2
   refine range_mem_Vt' ?_ (fun x => pair_mem_Vt (pair_mem_Vt (enc_mem_Vt hl _) (pair_mem_Vt
-    (tubeZ_mem_Vt hl fun n h r _ => ?_) (Vt_trans l (hE k (Hom.id k)) x.2.2.2))) (hF _ _ _)) hl
+    (tubeZ_mem_Vt hl fun n h r _ => hu x n h r) (Vt_trans l (hE k (Hom.id k)) x.2.2.2)))
+    (hF _ _ _ (fun n h r => ?_) (Vt_trans l (hE k (Hom.id k)) x.2.2.2))) hl
   · exact IsSmallAt.of_countable.sigma fun _ =>
       (IsSmallAt.pi IsSmallAt.of_countable fun (y : TubeDom k) =>
         isSmallAt_of_mem_Vt (insert_mem_Vt (empty_mem_Vt hl) (hE y.1 y.2.1))).prod
       (isSmallAt_of_mem_Vt (hE k (Hom.id k)))
-  · exact Vt_trans l (insert_mem_Vt (empty_mem_Vt hl) (hE _ _)) (x.2.1 ⟨n, h, r⟩).2
+  · simp only [Tube.canon]; split_ifs
+    · exact hu x n h r
+    · exact empty_mem_Vt hl
 
 theorem piEl_mem_Vt {D : (n : ℕ) → Hom n k → V} {R : (n : ℕ) → Hom n k → V → V} (hD : ∀ n g, D n g ∈ Vt l)
     (hR : ∀ n g a, R n g a ∈ Vt l) : piEl k D R ∈ Vt l := by
@@ -374,7 +379,7 @@ theorem piC_mem_Vt' {A B : V} (hA : A ∈ Vt l) (hB : B ∈ Vt l) : piC m A B �
         lamV_mem_Vt hl (fun _ g => El_mem_Vt hl hA' _) fun n' g v _ =>
           transpAt_mem_Vt hl (apZ_mem_Vt hl (dat_mem_Vt hl hB' _) _) _ _ _
   · exact hcGraph_mem_Vt hl (fun n g => piElSet_mem_Vt hl (res_mem_Vt' hl hA' g) (res_mem_Vt' hl hB' g))
-      fun φ u u0 => lamV_mem_Vt hl (fun _ g => El_mem_Vt hl hA' g) fun n g v _ =>
+      fun φ u u0 _ _ => lamV_mem_Vt hl (fun _ g => El_mem_Vt hl hA' g) fun n g v _ =>
         hcompAt_mem_Vt hl (apZ_mem_Vt hl (dat_mem_Vt hl hB' g) v) _ _ _ _
 
 theorem sigmaElSet_mem_Vt {A B : V} (hA : A ∈ Vt l) (hB : B ∈ Vt l) : sigmaElSet k A B ∈ Vt l := by
@@ -395,7 +400,7 @@ theorem sigmaC_mem_Vt' {A B : V} (hA : A ∈ Vt l) (hB : B ∈ Vt l) : sigmaC m 
         pairV_mem_Vt hl (transpAt_mem_Vt hl hA' _ _ _)
           (transpAt_mem_Vt hl (apZ_mem_Vt hl (dat_mem_Vt hl hB' _) _) _ _ _)
   · exact hcGraph_mem_Vt hl (fun n g => sigmaElSet_mem_Vt hl (res_mem_Vt' hl hA' g) (res_mem_Vt' hl hB' g))
-      fun φ u u0 => pairV_mem_Vt hl (hcompAt_mem_Vt hl hA' _ _ _ _)
+      fun φ u u0 _ _ => pairV_mem_Vt hl (hcompAt_mem_Vt hl hA' _ _ _ _)
         (compF_mem_Vt hl (apZ_mem_Vt hl (dat_mem_Vt hl hB' _) _) _ _ _ _)
 
 theorem pathElSet_mem_Vt {L a0 a1 : V} (hL : L ∈ Vt l) : pathElSet k L a0 a1 ∈ Vt l := by
@@ -416,7 +421,7 @@ theorem pathC_mem_Vt' {L a0 a1 : V} (hL : L ∈ Vt l) (ha0 : a0 ∈ Vt l) (ha1 :
     · exact trGraph_mem_Vt hl (pathElSet_mem_Vt hl (res_mem_Vt' hl hL' _)) fun φ a _ =>
         pathOfLine_mem_Vt hl (compF_mem_Vt hl hL' _ _ _ _)
   · exact hcGraph_mem_Vt hl (fun n g => pathElSet_mem_Vt hl (res_mem_Vt' hl hL' _))
-      fun φ u u0 => pathOfLine_mem_Vt hl (hcompAt_mem_Vt hl hL' _ _ _ _)
+      fun φ u u0 _ _ => pathOfLine_mem_Vt hl (hcompAt_mem_Vt hl hL' _ _ _ _)
 
 theorem ipiElSet_mem_Vt {L : V} (hL : L ∈ Vt l) : ipiElSet k L ∈ Vt l := by
   have hE := El_mem_Vt hl hL (Hom.id (k + 1))
@@ -431,7 +436,7 @@ theorem ipiC_mem_Vt' {L : V} (hL : L ∈ Vt l) : ipiC m L ∈ Vt l := by
     · exact trGraph_mem_Vt hl (ipiElSet_mem_Vt hl (res_mem_Vt' hl hL' _)) fun φ a _ =>
         pathOfLine_mem_Vt hl (transpAt_mem_Vt hl hL' _ _ _)
   · exact hcGraph_mem_Vt hl (fun n g => ipiElSet_mem_Vt hl (res_mem_Vt' hl hL' _))
-      fun φ u u0 => pathOfLine_mem_Vt hl (hcompAt_mem_Vt hl hL' _ _ _ _)
+      fun φ u u0 _ _ => pathOfLine_mem_Vt hl (hcompAt_mem_Vt hl hL' _ _ _ _)
 
 theorem fiberM_mem_Vt {T A f y : V} (hT : T ∈ Vt l) (hA : A ∈ Vt l) (hf : f ∈ Vt l) (hy : y ∈ Vt l) :
     fiberM k T A f y ∈ Vt l :=
@@ -475,7 +480,7 @@ theorem glueC_mem_Vt' {A : V} {φ : Cof m} {Tp ep : V} (hA : A ∈ Vt l) (hTp : 
       split_ifs
       · exact El_mem_Vt hl (dat_mem_Vt hl hT' _) _
       · exact glueElSet_mem_Vt hl (res_mem_Vt' hl hA' _) (res_mem_Vt' hl hT' _)
-  · refine hcGraph_mem_Vt hl (fun n g => ?_) fun ψ u u0 => ?_
+  · refine hcGraph_mem_Vt hl (fun n g => ?_) fun ψ u u0 _ _ => ?_
     · split_ifs
       · exact El_mem_Vt hl (dat_mem_Vt hl hT' _) _
       · exact glueElSet_mem_Vt hl (res_mem_Vt' hl hA' _) (res_mem_Vt' hl hT' _)
@@ -488,12 +493,55 @@ theorem emptyC_mem_Vt' : emptyC m ∈ Vt l :=
 
 end codes
 
+theorem isContrM_mem_Vt {X : V} (hX : X ∈ Vt l) : isContrM k X ∈ Vt l := by
+  have hl := le_of_mem_Vt hX
+  exact sigmaC_mem_Vt' hl hX (famV_mem_Vt hl hX fun k' g c hc => piC_mem_Vt' hl (res_mem_Vt' hl hX g)
+    (famV_mem_Vt hl (res_mem_Vt' hl hX g) fun k'' h x hx => pathC_mem_Vt' hl
+      (res_mem_Vt' hl (res_mem_Vt' hl (res_mem_Vt' hl hX g) h) _)
+      (res_mem_Vt' hl (Vt_trans l (El_mem_Vt hl hX g) hc) h)
+      (Vt_trans l (El_mem_Vt hl (res_mem_Vt' hl hX g) h) hx)))
+
+theorem isEquivM_mem_Vt {T A f : V} (hT : T ∈ Vt l) (hA : A ∈ Vt l) (hf : f ∈ Vt l) : isEquivM k T A f ∈ Vt l := by
+  have hl := le_of_mem_Vt hT
+  exact piC_mem_Vt' hl hA (famV_mem_Vt hl hA fun k' g y hy => isContrM_mem_Vt (fiberM_mem_Vt hl
+    (res_mem_Vt' hl hT g) (res_mem_Vt' hl hA g) (res_mem_Vt' hl hf g) (Vt_trans l (El_mem_Vt hl hA g) hy)))
+
+theorem eqFunL_mem_Vt {B : V} (hB : B ∈ Vt l) : eqFunL n B ∈ Vt l := by
+  have hl := le_of_mem_Vt hB
+  exact lamV_mem_Vt hl (fun _ g => El_mem_Vt hl (res_mem_Vt' hl (res_mem_Vt' hl hB _) _) g)
+    fun _ g x _ => transpAt_mem_Vt hl hB _ _ _
+
+theorem idEqV_mem_Vt {T F : V} (hT : T ∈ Vt l) (hF : F ∈ Vt l) : idEqV n T F ∈ Vt l := by
+  have hl := le_of_mem_Vt hT
+  refine lamV_mem_Vt hl (fun _ g => El_mem_Vt hl hT g) fun k g y hy => ?_
+  have hy' := Vt_trans l (El_mem_Vt hl hT g) hy
+  refine pairV_mem_Vt hl (pairV_mem_Vt hl hy' (pathOfLine_mem_Vt hl (res_mem_Vt' hl hy' _))) ?_
+  have hX := fiberM_mem_Vt hl (res_mem_Vt' hl hT g) (res_mem_Vt' hl hT g) (res_mem_Vt' hl hF g) hy' (k := k)
+  refine lamV_mem_Vt hl (fun _ g' => El_mem_Vt hl hX g') fun k' _ z hz => ?_
+  have hz' := Vt_trans l (El_mem_Vt hl hX _) hz
+  exact pathOfLine_mem_Vt hl (pairV_mem_Vt hl (pappV_mem_Vt hl (res_mem_Vt' hl (sndV_mem_Vt hl hz') _) _)
+    (pathOfLine_mem_Vt hl (res_mem_Vt' hl (pappV_mem_Vt hl (res_mem_Vt' hl (sndV_mem_Vt hl hz') _) _) _)))
+
+theorem eqTr_mem_Vt {B : V} (hB : B ∈ Vt l) : eqTr n B ∈ Vt l := by
+  have hl := le_of_mem_Vt hB
+  exact pairV_mem_Vt hl (res_mem_Vt' hl (eqFunL_mem_Vt hB) _) (transpAt_mem_Vt hl
+    (isEquivM_mem_Vt (res_mem_Vt' hl (res_mem_Vt' hl hB _) _) hB (eqFunL_mem_Vt hB)) _ _ _)
+
+theorem univHcF_mem_Vt (hl : l ≤ 4) {φ : Cof k} {u : Tube k} {u0 : V} (hu : ∀ n h r, u n h r ∈ Vt l)
+    (hu0 : u0 ∈ Vt l) : univHcF k φ u u0 ∈ Vt l := by
+  unfold univHcF
+  split_ifs
+  · exact hu _ _ _
+  · exact glueC_mem_Vt' hl hu0 (partialKV_mem_Vt hl fun n g _ => hu _ _ _)
+      (partialKV_mem_Vt hl fun n g _ => eqTr_mem_Vt (res_mem_Vt' hl (hu _ _ _) _))
+
 theorem univC_mem_Vt' {l : ℕ} (hl : l < 4) : univC m l ∈ Vt (l + 1) := by
   have hl' : l + 1 ≤ 4 := hl
   have hV := Vt_mem_succ l hl
   unfold univC univCode univDatum
   refine mkKV_mem_Vt hl' fun k f => ?_
-  refine quad_mem_Vt (tagZ_mem_Vt (natZ_mem_Vt hl' _)) (sep_mem_Vt hV _) ?_ (empty_mem_Vt hl')
+  refine quad_mem_Vt (tagZ_mem_Vt (natZ_mem_Vt hl' _)) (sep_mem_Vt hV _) ?_
+    (hcGraph_mem_Vt hl' (fun n _ => sep_mem_Vt hV _) fun φ u u0 hu hu0 => univHcF_mem_Vt hl' hu hu0)
   rcases k with _ | n
   · exact empty_mem_Vt hl'
   · unfold univTr

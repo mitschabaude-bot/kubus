@@ -1,4 +1,5 @@
 import Model.Interp
+import Model.UnivHc
 import Model.Tower
 
 /-!
@@ -65,9 +66,10 @@ def univTr (W : ℕ → V → Prop) (l : ℕ) : ℕ → V
   | n + 1 => trGraph n (ZFSet.sep (W n) (Vt l)) fun _ a => a
 
 /-- The datum of the universe of level `l` at stage `k`, given its well-formedness predicate.
-TODO: `hcomp` in the universe (Glue along the transport equivalence). -/
+`hcomp` is Glue along the transport equivalence (`univHcF`). -/
 def univDatum (W : ℕ → V → Prop) (l k : ℕ) : V :=
-  quad (tagZ tUniv (natZ l)) (ZFSet.sep (W k) (Vt l)) (univTr W l k) ∅
+  quad (tagZ tUniv (natZ l)) (ZFSet.sep (W k) (Vt l)) (univTr W l k)
+    (hcGraph k (fun n _ => ZFSet.sep (W n) (Vt l)) (univHcF k))
 
 def univCode (W : ℕ → V → Prop) (l m : ℕ) : V := mkKV m fun k _ => univDatum W l k
 
