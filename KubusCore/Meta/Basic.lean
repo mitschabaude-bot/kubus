@@ -136,10 +136,11 @@ theorem wf_of_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → Wf0 S Ψ Φ Γ
   | .elim _ h1 _ _ _ _ _ _ _ _ => wf_of_ty h1
   | .conBnd _ _ _ _ _ _ h6 => wf_of_ty h6
   | .elimCon _ _ _ _ _ _ _ h7 => wf_of_ty h7
-  | .elimHcomp _ _ h2 => wf_of_ty h2
+  | .elimHcomp _ _ _ h3 => wf_of_ty h3
+  | .hcompCon _ _ _ _ _ _ _ _ _ _ h10 => wf_of_ty h10
   | .transpData0 _ _ h2 => wf_of_ty h2
   | .transpCon _ _ _ _ _ _ h6 => wf_of_ty h6
-  | .transpHcomp _ _ _ h3 => wf_of_ty h3
+  | .transpHcomp _ _ _ _ h4 => wf_of_ty h4
 end
 
 end KubusCore.Meta

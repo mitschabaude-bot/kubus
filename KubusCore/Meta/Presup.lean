@@ -30,6 +30,16 @@ structure ContractaTyped (S : Sig) : Prop where
     ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
     HasTy0 S Ψ Φ Γ (con d c ps args rs) T →
     HasTy0 S Ψ Φ Γ (Ctor.bndAt b ps.toList args.toList rs) T
+  hcompCon : ∀ {Ψ Φ Γ d D c C ps φ u qs uargs args T}, S[d]? = some (.data D) → D.isHIT = false →
+    D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
+    uargs = Tm.ofList uargs.toList →
+    HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
+    HasTele0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift uargs (C.argTys d D.params.length) ps.dshift.toList.reverse →
+    EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (con d c ps.dshift uargs []) (data d ps.dshift) →
+    EqTele0 S Ψ (cof Φ φ) Γ (uargs.dinst .zero) args (C.argTys d D.params.length) ps.toList.reverse →
+    HasTy0 S Ψ Φ Γ (hcomp (data d ps) φ u (con d c qs args [])) T →
+    HasTy0 S Ψ Φ Γ (con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (data d ps)
+      ps.dshift.toList φ 0 [] uargs.toList args.toList)) []) T
   transpCon : ∀ {Ψ Φ Γ d D c C ps φ qs args rs l0 X l T}, S[d]? = some (.data D) → D.params ≠ [] →
     D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
     HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →
@@ -448,10 +458,12 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
     by
       obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h7 rfl rfl
       exact ⟨h7, elimCon_of hS h0 h1 h2 h3 h4 h5 h6 hE hI hX hl r tb ch, pre_ty h7⟩
-  | @EqTm0.elimHcomp _ Ψ Φ Γ d D ps P bs qs φ u a T h0 h1 h2 =>
+  | @EqTm0.elimHcomp _ Ψ Φ Γ d D ps P bs qs φ u a T h0 h1 h2 h3 =>
     by
-      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h2 rfl rfl
-      exact ⟨h2, elimHcomp_of hS h0 h1 hE hI hX hl r tb ch, pre_ty h2⟩
+      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h3 rfl rfl
+      exact ⟨h3, elimHcomp_of hS h0 h2 hE hI hX hl r tb ch, pre_ty h3⟩
+  | @EqTm0.hcompCon _ Ψ Φ Γ d D c C ps φ u qs uargs args T h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 =>
+    ⟨h10, hC.hcompCon h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10, pre_ty h10⟩
   | @EqTm0.transpData0 _ Ψ Φ Γ d D ps φ a T h0 h1 h2 =>
     by
       have hv := pre_ty h2
@@ -465,10 +477,10 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
     by
       obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h6 rfl rfl
       exact ⟨h6, hC.transpCon h0 h1 h2 h3 h4 h5 hL hφ hc hI hX hl r tb ch, pre_ty h6⟩
-  | @EqTm0.transpHcomp _ Ψ Φ Γ d D ps φ qs ψ u a T h0 h1 h2 h3 =>
+  | @EqTm0.transpHcomp _ Ψ Φ Γ d D ps φ qs ψ u a T h0 h1 h2 h3 h4 =>
     by
-      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h3 rfl rfl
-      exact ⟨h3, transpHcomp_of hS h0 h1 h2 hL hφ hc hI hX hl r tb ch, pre_ty h3⟩
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h4 rfl rfl
+      exact ⟨h4, transpHcomp_of hS h0 h1 h3 hL hφ hc hI hX hl r tb ch, pre_ty h4⟩
 
 theorem genI {Ψ Φ Γ s T} : HasTy0 S Ψ Φ Γ s T → isIntro s = true →
     ∃ X l, IntroTy S Ψ Φ Γ s X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧ Rel S Ψ Φ Γ X T ∧

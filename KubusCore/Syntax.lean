@@ -771,8 +771,8 @@ def transpTele (argTy : Nat → Tm) (psL : List Tm) (φ : I) : Nat → List Tm �
 
 /-- Composition of a telescope of constructor arguments of a type without path constructors
 (CCHM): `us` are the tube's arguments (in the context extended by the interval variable 0), `as`
-the base's. A recursive argument is composed in the inductive type itself (`dataT`, the type
-`data d ps` in the original context), a point argument along its type line, whose earlier arguments are the
+the base's. A recursive argument is composed in the inductive type itself (`dataT`, in the
+base context), a point argument along its type line, whose earlier arguments are the
 fillers of the earlier arguments; `psL` are the parameters in the extended context. -/
 def hcompTele (C : Ctor) (argTy : Nat → Tm) (dataT : Tm) (psL : List Tm) (φ : I) :
     Nat → List Tm → List Tm → List Tm → List Tm
