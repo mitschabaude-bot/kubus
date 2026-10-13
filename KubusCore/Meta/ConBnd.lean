@@ -340,7 +340,7 @@ theorem pt_agree (C : Ctor) {as R : List Tm} {n x : Nat} (hlen : as.length = n)
 theorem isRec_true {C : Ctor} {k : Nat} (h : C.isRec k = true) : C.args[k]? = some .recur := by
   simpa [Ctor.isRec] using h
 
-theorem argTy_rec {C : Ctor} {d np k : Nat} (h : C.isRec k = true) :
+theorem argTy_rec' {C : Ctor} {d np k : Nat} (h : C.isRec k = true) :
     C.argTy d np k = .data d (Ctor.paramVars np k) := by
   simp [Ctor.argTy, isRec_true h]
 
@@ -385,7 +385,7 @@ theorem bnd_rec (hS : SigClosed S) {d : Nat}
     intro j hj hr
     have hl := lookup_of_get _ _ _ (argCtx_get D d C hj)
     have := hlook j _ hj hl
-    rwa [argTy_rec hr, Tm.ren, paramVars_ren,
+    rwa [argTy_rec' hr, Tm.ren, paramVars_ren,
       show C.args.length - 1 - j + (j + 1) = C.args.length by omega, Tm.subst, hpv] at this
   induction t with
   | var j =>
@@ -450,7 +450,7 @@ theorem bnd_rec (hS : SigClosed S) {d : Nat}
       | _ => simp at hsa
     · simp only [hr, if_true] at h
       have := (iha.1 h.1 (hb.2.1 hr) hcl.1)
-      rw [argTy_rec hr, substList_eq_lsub]
+      rw [argTy_rec' hr, substList_eq_lsub]
       simp only [Tm.subst]
       rw [← substList_eq_lsub, hpvL _ k (by simp [hprev])]
       exact this
