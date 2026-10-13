@@ -8,3 +8,4 @@ import Model.Fib
 import Model.Pi
 import Model.PiFib
 import Model.PiTransp
+import Model.Kan
