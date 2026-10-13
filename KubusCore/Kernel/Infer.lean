@@ -14,7 +14,7 @@ variable {S : Sig}
 /-- Change the cofibration and the equivalence of a Glue type to equivalent ones. -/
 def reglue (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ' : I) (T e' : Tm) (φ : I) (e : Tm) (l : Nat)
     (hG' : HasTy S Ψ Φ Γ (.glue A φ' T e') (.univ l)) (hA : HasTy S Ψ Φ Γ A (.univ l)) :
-    K (PLift (EqTm S Ψ Φ Γ (.glue A φ' T e') (.glue A φ T e) (.univ l))) := do
+    K S (PLift (EqTm S Ψ Φ Γ (.glue A φ' T e') (.glue A φ T e) (.univ l))) := do
   if h : φ' = φ ∧ e' = e then
     return ⟨h.1 ▸ h.2 ▸ EqTm.refl hG'⟩
   let ⟨hφ⟩ ← ensureScoped φ Ψ
@@ -36,7 +36,7 @@ def reglue (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ' : I) (T e' : Tm) (φ 
 
 /-- `e : Equiv T A` under `φ`, checked (Glue types do not imply it, since they reduce on `φ`). -/
 def checkEquiv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (T e : Tm) (l : Nat) :
-    K (PLift (HasTy S Ψ (cof Φ φ) Γ e (Tm.equiv T A))) := do
+    K S (PLift (HasTy S Ψ (cof Φ φ) Γ e (Tm.equiv T A))) := do
   let ⟨hφ⟩ ← ensureScoped φ Ψ
   let E1 := E.cof φ hφ
   let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A) l
@@ -59,7 +59,7 @@ def faceNormTy {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) : Nat → (G'
 /-- Bring a type `G` to the form `Glue A [φ ↦ (T, e)]` with the given `φ`, with a derivation
 that the base `A` is a type. -/
 def toGlue (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ Φ Γ G (.univ l))
-    (φ : I) : K ((A T e : Tm) × PLift (HasTy S Ψ Φ Γ A (.univ l) ∧
+    (φ : I) : K S ((A T e : Tm) × PLift (HasTy S Ψ Φ Γ A (.univ l) ∧
       EqTm S Ψ Φ Γ G (.glue A φ T e) (.univ l))) := do
   let rG ← whnfTy R E G l hG
   let rG ← match rG.tm with
@@ -78,7 +78,7 @@ def toGlue (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ
 
 /-- The same, with a given equivalence `e`. -/
 def toGlueE (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ Φ Γ G (.univ l))
-    (φ : I) (e : Tm) : K ((A T : Tm) × PLift (HasTy S Ψ Φ Γ A (.univ l) ∧
+    (φ : I) (e : Tm) : K S ((A T : Tm) × PLift (HasTy S Ψ Φ Γ A (.univ l) ∧
       EqTm S Ψ Φ Γ G (.glue A φ T e) (.univ l))) := do
   let rG ← whnfTy R E G l hG
   let rG ← match rG.tm with
@@ -131,7 +131,7 @@ theorem HasTy.cofcof {Ψ Φ Γ t A φ ψ} (E : KCtx S Ψ Φ Γ) (hφ : φ.Scoped
 
 /-- Guess `T` and `A` with `e : Equiv T A` from the type of `e`; a system of equivalences
 gives a system of types. Only a guess: the caller checks it. -/
-def guessEquivTy (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : Tm → K (Tm × Tm)
+def guessEquivTy (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : Tm → K S (Tm × Tm)
   | .split φ e1 ψ e2 => do
     let ⟨hφ⟩ ← ensureScoped φ Ψ
     let ⟨hψ⟩ ← ensureScoped ψ Ψ
@@ -146,10 +146,8 @@ def guessEquivTy (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : Tm → K (Tm × 
 /-- The type of `g` in `unglue φ e g`: inferred, or else the Glue type rebuilt from the type
 of `e` (for arguments that cannot be inferred, like `glue` elements). -/
 def inferUnglueArg (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : Tm) :
-    K (Inf S Ψ Φ Γ g) :=
-  match R.infer E g with
-  | .ok i => pure i
-  | .error err => ((do
+    K S (Inf S Ψ Φ Γ g) :=
+  tryCatch (R.infer E g) fun err => ((do
     let ⟨hsφ⟩ ← ensureScoped φ Ψ
     let E1 := E.cof φ hsφ
     let (T, A) ← guessEquivTy R E1 e
@@ -159,12 +157,12 @@ def inferUnglueArg (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : 
     let ⟨he⟩ ← R.check E1 e (Tm.equiv T A) l hq
     have hG := HasTy.glue hA hsφ hT he
     let ⟨hg⟩ ← R.check E g (.glue A φ T e) l hG
-    pure ⟨.glue A φ T e, l, hG, hg⟩) : K (Inf S Ψ Φ Γ g)).mapError (fun e2 => err ++ "\n  and: " ++ e2)
+    pure ⟨.glue A φ T e, l, hG, hg⟩) : K S (Inf S Ψ Φ Γ g)) |> mapErr (fun e2 => err ++ "\n  and: " ++ e2)
 
 /-- Combine two type derivations at the larger level. -/
-def joinLvl (l1 l2 : Nat) : K (PLift (max l1 l2 + 1 ≤ maxLevel)) := ensureLvl (max l1 l2 + 1)
+def joinLvl (l1 l2 : Nat) : K S (PLift (max l1 l2 + 1 ≤ maxLevel)) := ensureLvl (max l1 l2 + 1)
 
-def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K (Inf S Ψ Φ Γ t)
+def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K S (Inf S Ψ Φ Γ t)
   | .var x =>
     match h : Γ.lookup x, hl : E.lv[x]? with
     | some A, some l => pure ⟨A, l, E.varOk x A l h hl, HasTy.var E.wf h⟩
@@ -263,7 +261,7 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K (Inf
       pure ⟨iu.ty, iu.lvl, iu.hty, HasTy.split hφ hψ hcov iu.hty ht (HasTy.rs E hψ iu.htm) e⟩
     else
       -- neither branch holds: use the common type of the branches (e.g. a universe)
-      let it ← (R.infer (E.cof φ hφ) t).mapError (· ++ "\n  (inferring a system branchwise)")
+      let it ← mapErr (· ++ "\n  (inferring a system branchwise)") (R.infer (E.cof φ hφ) t)
       let iu ← R.infer (E.cof ψ hψ) u
       let A ← match it.ty, iu.ty with
         | .univ a, .univ b => pure (Tm.univ (max a b))
@@ -327,12 +325,12 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K (Inf
     pure ⟨P.inst t, i.m, HasTy.subst i.hP ht, i.typing ht⟩
 
 def checkByInfer (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
-    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (PLift (HasTy S Ψ Φ Γ t A)) := do
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (PLift (HasTy S Ψ Φ Γ t A)) := do
   let i ← R.infer E t
   bridgeHas R E i.hty hA i.htm
 
 def checkStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
-    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (PLift (HasTy S Ψ Φ Γ t A)) :=
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (PLift (HasTy S Ψ Φ Γ t A)) :=
   match t with
   | .lam A' b => do
     match ← whnfTy R E A l hA with
@@ -462,9 +460,7 @@ def checkStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     have := HasTy.snd (HasTy.pair hS ia.htm hb')
     pure ⟨by rw [Tm.shift_inst] at this; exact this⟩
   | .app (.lam D b) a => do
-    match R.infer E (.app (.lam D b) a) with
-    | .ok i => bridgeHas R E i.hty hA i.htm
-    | .error _ =>
+    tryCatch (do let i ← R.infer E (.app (.lam D b) a); bridgeHas R E i.hty hA i.htm) fun _ => do
       -- check-mode β-redex with a non-dependent codomain
       let ⟨lD, ⟨hD⟩⟩ ← inferType R E D
       let ⟨ha⟩ ← R.check E a D lD hD
@@ -475,9 +471,7 @@ def checkStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
       have := HasTy.app (HasTy.lam hP hb) ha
       pure ⟨by rw [Tm.shift_inst] at this; exact this⟩
   | .papp (.plam b) r => do
-    match R.infer E (.papp (.plam b) r) with
-    | .ok i => bridgeHas R E i.hty hA i.htm
-    | .error _ =>
+    tryCatch (do let i ← R.infer E (.papp (.plam b) r); bridgeHas R E i.hty hA i.htm) fun _ => do
       let ⟨hr⟩ ← ensureScoped r Ψ
       have hA' : HasTy S (Ψ + 1) Φ.shift Γ.dshift A.dshift (.univ l) := HasTy.dwk hA
       let ⟨hb⟩ ← R.check E.dext b A.dshift l hA'
