@@ -57,8 +57,11 @@ partial def runDecls (path : String) (dir : System.FilePath) (decls : List Decl)
             | .defn n .. | .defSplit n .. => some n
             | _ => none
           if let some n := name? then
+            let t0 ← IO.monoMsNow
             let (msgs, ks') := (Bridge.addGlobal st'.globals n 0).run ks
+            let t1 ← IO.monoMsNow
             for m in msgs do IO.println m
+            if (← get).verbose then IO.println s!"kernel: {n}: {t1 - t0} ms"
             modify fun dr => { dr with kernel := some ks' }
           if let .data n .. := d then
             let (msgs, ks') := (Bridge.addData st'.globals n 0).run ks

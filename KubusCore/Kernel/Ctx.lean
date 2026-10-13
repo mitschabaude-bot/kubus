@@ -19,6 +19,12 @@ structure SigInfo (S : Sig) where
 
 structure KCtx (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) where
   sig : SigInfo S
+  /-- the restriction is known to be in canonical form (a hint only: it lets the kernel skip
+  canonicalizing it again) -/
+  canon : Bool := false
+  /-- the faces of the restriction, computed once -/
+  fs : Thunk (List I.Face)
+  hfs : fs.get = Φ.faces
   lv : List Nat
   wf : Wf S Ψ Φ Γ
   hsc : Φ.Scoped Ψ
@@ -31,6 +37,8 @@ variable {S : Sig}
 
 def root (sig : SigInfo S) : KCtx S 0 .one [] where
   sig := sig
+  fs := Thunk.mk fun _ => I.faces .one
+  hfs := rfl
   lv := []
   wf := Wf.nil trivial
   hsc := trivial
@@ -44,6 +52,9 @@ theorem lt_of_getElem? {l : List Nat} {k n : Nat} (h : l[k]? = some n) : k < l.l
 def ext {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) :
     KCtx S Ψ Φ (A :: Γ) where
   sig := E.sig
+  canon := E.canon
+  fs := E.fs
+  hfs := E.hfs
   lv := l :: E.lv
   wf := Wf.cons hA
   hsc := E.hsc
@@ -72,6 +83,9 @@ def ext {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ 
 /-- Extend by an interval variable. -/
 def dext {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : KCtx S (Ψ + 1) Φ.shift Γ.dshift where
   sig := E.sig
+  canon := E.canon
+  fs := Thunk.mk fun _ => Φ.shift.faces
+  hfs := rfl
   lv := E.lv
   wf := E.wf.dwk E.hsc
   hsc := I.scoped_shift E.hsc
@@ -94,11 +108,23 @@ def dext {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : KCtx S (Ψ + 1) Φ.shift Γ.dshift w
 def restrict {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (Φ' : I) (hs : Φ'.Scoped Ψ) (he : I.Entails Φ' Φ) :
     KCtx S Ψ Φ' Γ where
   sig := E.sig
+  fs := Thunk.mk fun _ => Φ'.faces
+  hfs := rfl
   lv := E.lv
   wf := E.wf.restrict hs he
   hsc := hs
   varOk := fun x A l hx hl => HasTy.restrict hs he (E.varOk x A l hx hl)
   constOk := fun k t A l hk hl => HasTy.restrict hs he (E.constOk k t A l hk hl)
+
+/-- `Φ ⊨ ψ`, decided with the cached faces of `Φ`. -/
+def ent {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ψ : I) : Bool :=
+  E.fs.get.all fun c => ψ.faces.any fun d => d.all (c.contains ·)
+
+theorem ent_eq {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ψ : I) : E.ent ψ = I.entails Φ ψ := by
+  simp only [ent, E.hfs]; rfl
+
+theorem ent_sound {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) {ψ : I} (h : E.ent ψ = true) : I.Entails Φ ψ := by
+  rw [ent_eq] at h; exact h
 
 end KCtx
 

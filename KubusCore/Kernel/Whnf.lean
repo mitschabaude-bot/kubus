@@ -29,7 +29,9 @@ def transpConK {Ψ Φ Γ} (D : DataDecl) {d : Nat} (hS : S[d]? = some (.data D))
     (ht : HasTy S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T) :
     K (Option (Red S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T)) := do
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
-  return some ⟨_, EqTm.transpCon hS hp hC ht⟩
+  let ⟨h1⟩ ← ensureList ps
+  let ⟨h2⟩ ← ensureList args
+  return some ⟨_, EqTm.transpCon hS hp hC h1 h2 ht⟩
 
 /-- Computation rule of `transp` for a line in weak-head normal form. -/
 def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a T : Tm)
@@ -166,11 +168,13 @@ def conBndStep {Ψ Φ Γ} (d c : Nat) (ps args : Tm) (rs : List I) (A : Tm)
     K (Option (Red S Ψ Φ Γ (.con d c ps args rs) A × Bool)) := do
   let ⟨D, ⟨hS⟩⟩ ← lookupData S d
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
+  let ⟨h1⟩ ← ensureList ps
+  let ⟨h2⟩ ← ensureList args
   firstSome (fun k =>
     match getIdx? C.bnd k with
     | some ⟨(ψ, _), ⟨hk⟩⟩ =>
       if hent : I.Entails Φ (Ctor.cofAt ψ rs) then
-        pure (some (⟨_, EqTm.conBnd hS hC hk hent ht⟩, false))
+        pure (some (⟨_, EqTm.conBnd hS hC hk hent h1 h2 ht⟩, false))
       else pure none
     | none => pure none) C.bnd.length 0
 
@@ -179,8 +183,10 @@ def elimConK {Ψ Φ Γ} (d c : Nat) (ps P bs qs args : Tm) (rs : List I) (T : Tm
     K (Option (Red S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) T × Bool)) := do
   let ⟨D, ⟨hS⟩⟩ ← lookupData S d
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
+  let ⟨h1⟩ ← ensureList args
+  let ⟨h2⟩ ← ensureList bs
   match getIdx? bs.toList c with
-  | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb ht⟩, false))
+  | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb h1 h2 ht⟩, false))
   | none => fail "kernel: missing branch"
 
 def elimHcompK {Ψ Φ Γ} (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
@@ -192,9 +198,9 @@ def elimHcompK {Ψ Φ Γ} (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
 /-- Reduce the target of an eliminator. -/
 def elimTargetStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (Option (Red S Ψ Φ Γ (.elim d ps P bs t) A × Bool)) := do
-  let info ← inferElimInfo R E d ps P bs
   let ⟨ti, tr⟩ ← R.whnfI E t
   if tr.tm = t then return none
+  let info ← inferElimInfo R E d ps P bs
   let ⟨et⟩ ← bridge R E ti.hty info.hD tr.eq
   have h1 := info.typing (HasTy.eqL et)
   have eP := EqTm.subst (EqTm.refl info.hP) (EqTm.symm et)
@@ -281,6 +287,44 @@ def whnfIDefault (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
   let i ← (R.infer E t).mapError (· ++ s!"\n  inferring {short t}")
   let r ← R.whnf E t i.ty i.lvl i.hty i.htm
   pure ⟨i, r⟩
+
+/-- The number of λs before the body of a constant defined by an eliminator on its last
+argument, `λ x₁ … xₙ. elim d ps P bs xₙ`. -/
+def splitArity (S : Sig) (k : Nat) : Option Nat :=
+  match S[k]? with
+  | some (.defn b _) =>
+    let rec go : Nat → Tm → Option Nat
+      | n, .lam _ t => go (n + 1) t
+      | n, .elim _ _ _ _ (.var 0) => if n > 0 then some n else none
+      | _, _ => none
+    go 0 b
+  | _ => none
+
+/-- An application `c a₁ … aₙ` of such a constant to all its arguments. -/
+def isSplitApp (S : Sig) (t : Tm) : Bool :=
+  let (h, args) := t.unapps
+  match h with
+  | .const k => splitArity S k == some args.length
+  | _ => false
+
+/-- For such an application, reduce the scrutinee (the last argument) first, keeping the
+constant folded: then the eliminator meets a constructor after unfolding. -/
+def scrutineeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (f a : Tm) :
+    K (Option ((i : Inf S Ψ Φ Γ (.app f a)) × Red S Ψ Φ Γ (.app f a) i.ty)) := do
+  let fi ← R.infer E f
+  match ← whnfTy R E fi.ty fi.lvl fi.hty with
+  | ⟨.pi A1 B1, eF⟩ =>
+    have hP := HasTy.eqR eF
+    have hf := HasTy.conv fi.htm eF
+    let ⟨ha⟩ ← R.check E a A1 fi.lvl (HasTy.piDom hP)
+    let ra ← R.whnf E a A1 fi.lvl (HasTy.piDom hP) ha
+    if ra.tm = a then return none
+    let inf : Inf S Ψ Φ Γ (.app f a) :=
+      ⟨B1.inst a, fi.lvl, HasTy.subst (HasTy.piCod hP) ha, HasTy.app hf ha⟩
+    have e1 : EqTm S Ψ Φ Γ (.app f a) (.app f ra.tm) (B1.inst a) := EqTm.app (EqTm.refl hf) ra.eq
+    let r2 ← R.whnf E _ _ fi.lvl inf.hty (HasTy.eqR e1)
+    return some ⟨inf, ⟨r2.tm, EqTm.trans e1 r2.eq⟩⟩
+  | _ => return none
 
 def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
     K ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) :=
