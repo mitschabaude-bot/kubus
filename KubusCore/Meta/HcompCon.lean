@@ -325,7 +325,53 @@ theorem hcompCon_inv :
     · exact EqSub.of_eq (hP1.post _ hw (hf .zero trivial)) (fun x => by rw [lsub_post, hdsh])
     · exact EqSub.of_eq (hP1.post _ hw (hf .one trivial)) (fun x => by rw [lsub_post, hdsh])
   | succ k ih =>
-    sorry
+    have hkn : k < C.args.length := by omega
+    obtain ⟨T1, TO, E0, E1, Ec, Tel⟩ := ih (by omega)
+    have hal : as.length = C.args.length := by
+      have := tele_length h6; rwa [argTys_length] at this
+    have hul : us.length = C.args.length := by
+      have := tele_length h7; rwa [argTys_length] at this
+    have hFl : Fall.length = C.args.length := hFills_length _ _ _ _ _ _ _ _
+    have hFt : Fall.take k = hFills C A (data d ps) ps.dshift.toList φ us as k := by
+      have := hFills_take C A (data d ps) ps.dshift.toList φ us as k (C.args.length - k)
+      rwa [show k + (C.args.length - k) = C.args.length by omega] at this
+    have hLk : hLine C A (data d ps) ps.dshift.toList φ us as k =
+        (A k).substList ((Fall.take k).reverse ++ R1) := by rw [hFt]; rfl
+    have hFk : Fall.getD k .abort = hFill C A (data d ps) ps.dshift.toList φ us as k :=
+      hFills_get C A (data d ps) ps.dshift.toList φ us as hkn
+    have hOk : osAll.getD k .abort = hOut C A (data d ps) ps.dshift.toList φ us as k := by
+      simp only [osAll, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hkn]; rfl
+    have hOl : osAll.length = C.args.length := by simp [osAll]
+    have hak : as[k]? = some (as.getD k .abort) := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega)]; rfl
+    have huk : us[k]? = some (us.getD k .abort) := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega)]; rfl
+    have hatk := tele_get h6 k _ _ hak (argTys_get hkn)
+    have hutk := tele_get h7 k _ _ huk (argTys_get hkn)
+    -- the side condition, componentwise
+    have hu0 : IsList (uargs.dinst .zero) := isList_subst huargs _ _
+    have hu0l : (uargs.dinst .zero).toList = us.map (·.subst Tm.var (I.inst0 .zero)) :=
+      toList_subst huargs _ _
+    have hu0k : (uargs.dinst .zero).toList[k]? = some ((us.getD k .abort).dinst .zero) := by
+      rw [hu0l, List.getElem?_map, huk]; rfl
+    have hside := eqtele_get_args hS hW htr hD hC hps hpl (hpt.restrict hcs hce) hu0 hargs h9 k _ _ _
+      hu0k hak (argTys_get hkn)
+    have hcl := argTy_closed hS hD hC k
+    have hsl : (A k).substList (((uargs.dinst .zero).toList.take k).reverse ++ R) =
+        ((A k).substList ((us.take k).reverse ++ R1)).dinst .zero := by
+      have hlen : ((us.take k).reverse ++ R1).length = D.params.length + k := by
+        simp [R1, hpl1]; omega
+      show _ = ((A k).substList _).subst Tm.var (I.inst0 .zero)
+      rw [substList_subst (by rw [hlen]; exact hcl),
+        List.map_append, hdsh, hu0l, ← List.map_take, ← List.map_reverse]
+    rw [hsl] at hside
+    have hTel : ∀ j, j < k + 1 → j ≠ k → HasTy0 S Ψ Φ Γ (osAll.getD j .abort)
+        ((A j).substList ((osAll.take j).reverse ++ R)) :=
+      fun j hj hjk => Tel j (by omega)
+    rw [pointCtx_succ]
+    cases hr : C.isRec k
+    · sorry
+    · sorry
 
 end
 
