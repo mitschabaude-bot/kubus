@@ -546,9 +546,16 @@ theorem piC_mem_Vt {l : ℕ} {A B : V} (hA : A ∈ Vt l)
     (hB : ∀ k (f : Hom k m), ∀ a ∈ El A f, apZ (dat B k f) a ∈ Vt l) : piC m A B ∈ Vt l := by
   sorry
 
-theorem sem_pi (A B : Tm) (ρ : IEnv m) (γ : ℕ → V) :
+theorem sem_pi {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (hA : IsKV m (sem S A m ρ γ)) :
     sem S (.pi A B) m ρ γ = piC m (sem S A m ρ γ)
-      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := rfl
+      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := by
+  simp only [sem, interp] at hA ⊢; rw [if_pos hA]
+
+theorem kv_of_sem_pi {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.pi A B) m ρ γ ≠ ∅) :
+    IsKV m (sem S A m ρ γ) := by
+  simp only [sem, interp] at h ⊢; split at h
+  · assumption
+  · exact absurd rfl h
 
 theorem dat_famV (A : V) (F : (k : ℕ) → Hom k m → V → V) (f : Hom k m) :
     dat (famV m A F) k f = fnZ (El A f) (F k f) := by simp [famV]
