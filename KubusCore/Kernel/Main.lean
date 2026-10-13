@@ -271,7 +271,7 @@ def bndCtxK (E : KCtx S 0 .one Γ) (m : Nat) (ψ : I) : K (KCtx S m ψ Γ) := do
 def checkCtor (S : Sig) (d : Nat) (D : DataDecl) (c : Nat) (C : Ctor) :
     let Sc := S ++ [.data (D.truncate c)]
     K (PLift ((∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (D.params.length + k) 0 = true ∧
-        A.mentionsData d = false ∧ HasTy Sc 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+        A.mentionsData d = false ∧ HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
       (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
         b.closedB (D.params.length + C.args.length) C.dims = true ∧
         Ctor.simpleB D.ctors d D.params.length c C.args.length C b = true ∧
@@ -282,13 +282,14 @@ def checkCtor (S : Sig) (d : Nat) (D : DataDecl) (c : Nat) (C : Ctor) :
   let Sc := S ++ [.data (D.truncate c)]
   let np := D.params.length
   let (R, E0) ← setup Sc
+  let (R0, E00) ← setup (S ++ [.data (D.truncate 0)])
 
     let ⟨hargs⟩ ← forallElems C.args (fun k a => ∀ A, a = .point A → A.closedB (np + k) 0 = true ∧
-        A.mentionsData d = false ∧ HasTy Sc 0 .one (D.argCtx d C k) A (.univ D.level)) fun k a _ =>
+        A.mentionsData d = false ∧ HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) fun k a _ =>
       match a with
       | .point A => do
-        let Ek ← argCtxK R E0 D d C k
-        let ⟨hA⟩ ← checkType R Ek A D.level
+        let Ek ← argCtxK R0 E00 D d C k
+        let ⟨hA⟩ ← checkType R0 Ek A D.level
         if hc : A.closedB (np + k) 0 = true ∧ A.mentionsData d = false then
           pure ⟨fun A' hA' => by cases hA'; exact ⟨hc.1, hc.2, hA⟩⟩
         else fail "kernel: argument type not closed or mentions the type"
@@ -337,7 +338,7 @@ def checkData (S : Sig) (d : Nat) (D : DataDecl) : K (PLift (D.Wf S d)) := do
       let Sc := S ++ [.data (D.truncate c)]
       
       (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
-        A.mentionsData d = false ∧ HasTy Sc 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+        A.mentionsData d = false ∧ HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
       (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
         b.closedB (np + C.args.length) C.dims = true ∧
         Ctor.simpleB D.ctors d np c C.args.length C b = true ∧

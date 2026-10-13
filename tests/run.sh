@@ -31,6 +31,12 @@ if ! out=$(timeout 300 $bin --kernel lib/univalence.ktt 2>&1) \
 else
   echo "$(tail -1 <<< "$out")"
 fi
+# kernel regression tests (signatures the kernel must reject or accept)
+for f in tests/kernel/*.lean; do
+  if ! lake env lean "$f" > /tmp/kubus-err 2>&1; then
+    echo "FAIL $f"; head -10 /tmp/kubus-err; fails=$((fails+1))
+  fi
+done
 for f in tests/pass/*.ktt; do
   exp="${f%.ktt}.out"
   out=$(timeout 60 $bin "$f" 2>&1)

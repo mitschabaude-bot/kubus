@@ -1,0 +1,2 @@
+-- expect: do not agree on their overlap
+data Bad : U := tt | ff | seg (i : I) [i = 1 -> tt, i = 1 -> ff]

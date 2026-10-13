@@ -328,7 +328,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
         (Tm.papps (Tm.apps b (args.toList ++
           C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T
-  | elimHcomp {Ψ Φ Γ d ps P bs qs φ u a T} :
+  | elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} : S[d]? = some (.data D) →
       HasTy S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T →
       EqTm S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a))
         (comp (P.subst (fun | 0 => hfill (data d ps) φ u a | j + 1 => var j) (fun i => .var (i + 1))) φ
@@ -363,9 +363,9 @@ def argCtx (D : DataDecl) (d : Nat) (C : Ctor) (k : Nat) : Ctx :=
 def truncate (D : DataDecl) (c : Nat) : DataDecl := { D with ctors := D.ctors.take c }
 
 /-- A well-formed declaration of the inductive type `d = S.length`, checked against the
-signature `S` before it: the parameters in `S` itself, and constructor `c` (its argument
-types, boundary and boundary agreement) in `S` extended by the declaration truncated to the
-constructors before `c`, so that neither `c`'s own boundary rule nor later constructors are
+signature `S` before it: the parameters in `S` itself, the point arguments in `S` extended by
+the declaration without constructors, and the boundary of constructor `c` and its agreement on
+overlaps in `S` extended by the declaration truncated to the constructors before `c`, so that neither `c`'s own boundary rule nor later constructors are
 available (otherwise `conBnd` would make the boundary check vacuous). Parameters and point
 arguments do not mention `d` (so `d` occurs only as the type of recursive arguments: strictly
 positive, not nested), point arguments live in the declared universe, and boundaries are
@@ -378,7 +378,7 @@ def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   ∀ (c : Nat) (C : Ctor), D.ctors[c]? = some C →
     let Sc := S ++ [.data (D.truncate c)]
     (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
-      A.mentionsData d = false ∧ HasTy Sc 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+      A.mentionsData d = false ∧ HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
     (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
       b.closedB (np + C.args.length) C.dims = true ∧
       Ctor.simpleB D.ctors d np c C.args.length C b = true ∧

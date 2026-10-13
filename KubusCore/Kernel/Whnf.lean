@@ -183,6 +183,12 @@ def elimConK {Ψ Φ Γ} (d c : Nat) (ps P bs qs args : Tm) (rs : List I) (T : Tm
   | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb ht⟩, false))
   | none => fail "kernel: missing branch"
 
+def elimHcompK {Ψ Φ Γ} (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
+    (ht : HasTy S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T) :
+    K (Option (Red S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T × Bool)) := do
+  let ⟨_, ⟨hS⟩⟩ ← lookupData S d
+  pure (some (⟨_, EqTm.elimHcomp hS ht⟩, false))
+
 /-- Reduce the target of an eliminator. -/
 def elimTargetStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (Option (Red S Ψ Φ Γ (.elim d ps P bs t) A × Bool)) := do
@@ -212,7 +218,7 @@ def dataElimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs
     if hd : d' = d then (by subst hd; exact elimConK d' c ps P bs qs args rs A ht)
     else pure none
   | .hcomp (.data d' qs) φ u a, ht =>
-    if hd : d' = d then (by subst hd; exact pure (some (⟨_, EqTm.elimHcomp ht⟩, false)))
+    if hd : d' = d then (by subst hd; exact elimHcompK d' ps P bs qs φ u a A ht)
     else pure none
   | t, _ => elimTargetStep R E d ps P bs t A l hA
 
