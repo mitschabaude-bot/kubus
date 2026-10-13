@@ -8,7 +8,8 @@ given presupposition for the minimal judgments (`Presup0`, needed for `eqL`/`eqR
 `EqTm.subst` with different terms, and for the type premise of the face rule) and typed
 definitions (`SigTyped0`). The primitive weakening, substitution and inversion rules are
 admissible (`Weaken.lean`, `Structural.lean`, `Inversion.lean`); the premises added by M1, M2,
-M3, M6 are recovered by generation and validity; M4 and M5 generalize the spec's rules.
+M3, M6 are recovered by generation and validity. Conversely every minimal derivation is a
+derivation of the spec (`toFull_ty`), since the minimal rules only add premises.
 -/
 
 namespace KubusCore.Meta
@@ -205,20 +206,10 @@ theorem toMin_eq {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t
     EqTm0.hcomp (toMin_ty h0) (toMin_ty h1) (toMin_eq h2) h3 h4 (toMin_eq h5) (toMin_eq h6)
   | .glue h0 h1 h2 h3 h4 h5 h6 =>
     EqTm0.glue (toMin_ty h0) (toMin_ty h1) (toMin_eq h2) h3 h4 (toMin_eq h5) (toMin_eq h6)
-  | .glueEl h0 h1 h2 h3 h4 h5 =>
-    by
-      have g := toMin_ty h0
-      rcases valid_ty hS hP hT g with ⟨l, hG⟩ | ⟨l, hG⟩
-      · obtain ⟨_, ⟨_, _, _, he⟩, _⟩ := gen_glue hS hG rfl
-        exact EqTm0.glueEl g (toMin_ty h1) h2 h3 (EqTm0.refl he) (toMin_eq h4) (toMin_eq h5)
-      · cases hG
-  | .unglue h0 h1 h2 h3 h4 =>
-    by
-      have g := (hP (toMin_eq h4)).1
-      rcases valid_ty hS hP hT g with ⟨l, hG⟩ | ⟨l, hG⟩
-      · obtain ⟨_, ⟨_, _, _, he⟩, _⟩ := gen_glue hS hG rfl
-        exact EqTm0.unglue (toMin_ty h0) (toMin_ty h1) h2 h3 (EqTm0.refl he) (toMin_eq h4)
-      · cases hG
+  | .glueEl h0 h1 h2 h3 h4 h5 h6 =>
+    EqTm0.glueEl (toMin_ty h0) (toMin_ty h1) h2 h3 (toMin_eq h4) (toMin_eq h5) (toMin_eq h6)
+  | .unglue h0 h1 h2 h3 h4 h5 =>
+    EqTm0.unglue (toMin_ty h0) (toMin_ty h1) h2 h3 (toMin_eq h4) (toMin_eq h5)
   | .ipi h0 =>
     EqTm0.ipi (wf_unshift hS (wf_of_eq (toMin_eq h0))) (toMin_eq h0)
   | .ilam h0 h1 =>
@@ -261,8 +252,8 @@ theorem toMin_eq {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t
     EqTm0.transpSigma (toMin_ty h0)
   | .transpPath h0 =>
     EqTm0.transpPath (toMin_ty h0)
-  | .transpGlue h0 h1 h2 =>
-    by rw [transpGlue_eq]; exact EqTm0.transpGlue (toMin_ty h0) (toMin_ty h1) (toMin_ty h2) (ent_refl _) (ent_refl _)
+  | .transpGlue h0 h1 h2 h3 h4 =>
+    EqTm0.transpGlue (toMin_ty h0) (toMin_ty h1) (toMin_ty h2) h3 h4
   | .transpIPi h0 =>
     EqTm0.transpIPi (toMin_ty h0)
   | .hcompIPi h0 =>
@@ -310,31 +301,7 @@ end
 
 end
 
-/-! ## The minimal judgments are derivable in the spec, given M4 and M5 -/
-
-/-- M4 for `glueEl`, in the spec. -/
-def SpecM4glueEl (S : Sig) : Prop :=
-  ∀ {Ψ Φ Γ φ φ' t t' a a' A T e e'}, HasTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e) →
-    HasTy S Ψ Φ Γ (glueEl φ' e' t' a') (glue A φ T e) → I.Entails φ φ' → I.Entails φ' φ →
-    EqTm S Ψ (cof Φ φ) Γ e e' (equiv T A) → EqTm S Ψ (cof Φ φ) Γ t t' T → EqTm S Ψ Φ Γ a a' A →
-    EqTm S Ψ Φ Γ (glueEl φ e t a) (glueEl φ' e' t' a') (glue A φ T e)
-
-/-- M4 for `unglue`, in the spec. -/
-def SpecM4unglue (S : Sig) : Prop :=
-  ∀ {Ψ Φ Γ A φ φ' T e e' g g'}, HasTy S Ψ Φ Γ (unglue φ e g) A → HasTy S Ψ Φ Γ (unglue φ' e' g') A →
-    I.Entails φ φ' → I.Entails φ' φ → EqTm S Ψ (cof Φ φ) Γ e e' (equiv T A) →
-    EqTm S Ψ Φ Γ g g' (glue A φ T e) → EqTm S Ψ Φ Γ (unglue φ e g) (unglue φ' e' g') A
-
-/-- M5 (`transpGlue` with `∀i. φ` up to equivalence), in the spec. -/
-def SpecM5 (S : Sig) : Prop :=
-  ∀ {Ψ Φ Γ A φ T' e ψ u0 T l δ}, HasTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
-    HasTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l) → HasTy S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
-    I.Entails δ φ.forall0 → I.Entails φ.forall0 δ →
-    EqTm S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlueWith δ A φ T' e ψ u0) T
-
-section
-variable (hM4a : SpecM4glueEl S) (hM4b : SpecM4unglue S) (hM5 : SpecM5 S)
-include hM4a hM4b hM5
+/-! ## The minimal judgments are derivable in the spec -/
 
 mutual
 
@@ -470,9 +437,9 @@ theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ 
   | .glue h0 h1 h2 h3 h4 h5 h6 =>
     EqTm.glue (toFull_ty h0) (toFull_ty h1) (toFull_eq h2) h3 h4 (toFull_eq h5) (toFull_eq h6)
   | .glueEl h0 h1 h2 h3 h4 h5 h6 =>
-    hM4a (toFull_ty h0) (toFull_ty h1) h2 h3 (toFull_eq h4) (toFull_eq h5) (toFull_eq h6)
+    EqTm.glueEl (toFull_ty h0) (toFull_ty h1) h2 h3 (toFull_eq h4) (toFull_eq h5) (toFull_eq h6)
   | .unglue h0 h1 h2 h3 h4 h5 =>
-    hM4b (toFull_ty h0) (toFull_ty h1) h2 h3 (toFull_eq h4) (toFull_eq h5)
+    EqTm.unglue (toFull_ty h0) (toFull_ty h1) h2 h3 (toFull_eq h4) (toFull_eq h5)
   | .ipi h0 h1 =>
     EqTm.ipi (toFull_eq h1)
   | .ilam h0 h1 =>
@@ -516,7 +483,7 @@ theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ 
   | .transpPath h0 =>
     EqTm.transpPath (toFull_ty h0)
   | .transpGlue h0 h1 h2 h3 h4 =>
-    hM5 (toFull_ty h0) (toFull_ty h1) (toFull_ty h2) h3 h4
+    EqTm.transpGlue (toFull_ty h0) (toFull_ty h1) (toFull_ty h2) h3 h4
   | .transpIPi h0 =>
     EqTm.transpIPi (toFull_ty h0)
   | .hcompIPi h0 =>
@@ -560,8 +527,6 @@ theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ 
     EqTm.transpCon h0 h1 h2 h3 h4 (toFull_ty h5)
   | .transpHcomp h0 h1 h2 =>
     EqTm.transpHcomp h0 h1 (toFull_ty h2)
-end
-
 end
 
 end KubusCore.Meta

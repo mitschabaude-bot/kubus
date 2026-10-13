@@ -31,13 +31,10 @@ theorem spec_to_minimal_eq (hS : WfSig S) (hT : SigTyped0 S) (hC : ContractaType
     (h : EqTm S Ψ Φ Γ t u A) : EqTm0 S Ψ Φ Γ t u A :=
   toMin_eq (sigClosed_of_wfSig hS) (presup0 (sigClosed_of_wfSig hS) hT hC) hT h
 
-/-- The minimal judgments are derivable in the spec, given the generalizations M4 and M5. -/
-theorem minimal_to_spec (hM4a : SpecM4glueEl S) (hM4b : SpecM4unglue S) (hM5 : SpecM5 S) {Ψ Φ Γ t A}
-    (h : HasTy0 S Ψ Φ Γ t A) : HasTy S Ψ Φ Γ t A :=
-  toFull_ty hM4a hM4b hM5 h
+/-- The minimal judgments are derivable in the spec. -/
+theorem minimal_to_spec {Ψ Φ Γ t A} (h : HasTy0 S Ψ Φ Γ t A) : HasTy S Ψ Φ Γ t A := toFull_ty h
 
-theorem minimal_to_spec_eq (hM4a : SpecM4glueEl S) (hM4b : SpecM4unglue S) (hM5 : SpecM5 S)
-    {Ψ Φ Γ t u A} (h : EqTm0 S Ψ Φ Γ t u A) : EqTm S Ψ Φ Γ t u A :=
-  toFull_eq hM4a hM4b hM5 h
+theorem minimal_to_spec_eq {Ψ Φ Γ t u A} (h : EqTm0 S Ψ Φ Γ t u A) : EqTm S Ψ Φ Γ t u A :=
+  toFull_eq h
 
 end KubusCore.Meta
