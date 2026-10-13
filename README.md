@@ -141,7 +141,7 @@ The language is backed by a verified kernel for its core theory, Kubus Core (`do
 - `KubusCore/Kernel/`: a small kernel whose functions return derivations of the specification's judgments. Its soundness holds by construction (`checkSig_sound`). `kubus FILE` translates the elaborated definitions and certifies them; all of `lib/` is certified.
 - `model/`: the cubical-sets model in Lean (with Mathlib). It validates every rule of the specification and proves `KubusCore.Consistent`: in any well-formed signature there is no closed term of `(A : U₀) → A`. `Model.kernel_consistent` combines this with the kernel. Whatever the kernel certifies lives in a consistent theory. Both theorems depend only on Lean's standard axioms (`propext`, `Classical.choice`, `Quot.sound`).
 
-Data types and higher inductive types are in the specification and the kernel (`docs/inductive-types.md`), but not yet in the model.
+Data types and higher inductive types (`docs/inductive-types.md`) are covered by the specification, the kernel and the model alike. The whole library is certified and lives in a consistent theory, including ΩS¹ ≃ ℤ, truncations and suspensions.
 
 ## Limitations
 
