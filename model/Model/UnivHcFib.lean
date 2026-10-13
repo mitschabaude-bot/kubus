@@ -287,6 +287,85 @@ theorem idEqV_mem {T F : V} (hT : Fib T n) (hF : F ∈ El (arrowM n T T) (Hom.id
     funext n' g'
     rw [← El_res, res_fiberM, res_res, res_res]
 
+/-! ### Transport is an equivalence -/
+
+theorem pairV_mem_equivM {T A p q : V} (hT : Fib T k) (hA : Fib A k) (hp : p ∈ El (arrowM k T A) (Hom.id k))
+    (hq : q ∈ El (isEquivM k T A p) (Hom.id k)) : pairV k p q ∈ El (equivM k T A) (Hom.id k) := by
+  have hPkv : IsKV k (arrowM k T A) := by unfold arrowM piC; exact isKV_mkKV _
+  unfold equivM
+  rw [mem_sigmaC_id hPkv (isKV_famV _ _)]
+  refine ⟨p, hp, q, ?_, rfl⟩
+  rw [apZ_dat_famV _ _ _ hp, res_id hT.kv, res_id hA.kv]; exact hq
+
+theorem res_eZ_T' (B : V) : res (eZ n) (res (Hom.wk n) (res (eZ n) B)) = res (eZ n) B := by
+  rw [res_res, Hom.wk_comp_endpt, res_id (isKV_res _ _)]
+
+theorem res_eO_T' (B : V) : res (eO n) (res (Hom.wk n) (res (eZ n) B)) = res (eZ n) B := by
+  rw [res_res, Hom.wk_comp_endpt, res_id (isKV_res _ _)]
+
+section eqTr
+
+variable {B : V} (hB : Fib B (n + 1))
+include hB
+
+theorem fib_eqQ : Fib (eqQ n B) (n + 1) :=
+  fib_isEquivM ((hB.restr _).restr _) hB (eqFunL_mem hB)
+
+theorem idEq_mem : idEqV n (res (eZ n) B) (res (eZ n) (eqFunL n B)) ∈
+    El (eqQ n B) ((Hom.id (n + 1)).comp (Hom.endpt n (DM.zero n))) := by
+  rw [Hom.id_comp, El_eq_res_id, eqQ, res_isEquivM, res_eZ_T']
+  have hF := arrowM_elRes (isKV_res _ _) (eqFunL_mem hB) (eZ n)
+  rw [res_eZ_T'] at hF
+  exact idEqV_mem (hB.restr _) hF fun k g x hx => eqFunL_zero hB hx
+
+theorem eqTr_mem : eqTr n B ∈ El (equivM n (res (eZ n) B) (res (eO n) B)) (Hom.id n) := by
+  have hQ := fib_eqQ hB
+  have hq := hQ.trMem n (Hom.id (n + 1)) (Cof.bot n) _ (Cof.isCof_bot n) (constOn_bot _ _) (idEq_mem hB)
+  rw [Hom.id_comp, El_eq_res_id, eqQ, res_isEquivM, res_eO_T'] at hq
+  have hF := arrowM_elRes (isKV_res _ _) (eqFunL_mem hB) (eO n)
+  rw [res_eO_T'] at hF
+  exact pairV_mem_equivM (hB.restr _) (hB.restr _) hF hq
+
+
+end eqTr
+
+/-! ### Naturality of the equivalence -/
+
+theorem eqLine_lift_comp (h : Hom n' n) (g : Hom k (n' + 1)) :
+    eqLine n ((Hom.lift h).comp g) = (Hom.lift h).comp (eqLine n' g) := by
+  apply Hom.ext_snoc <;> intro p <;> simp [eqLine]
+
+theorem T'_hom (h : Hom n' n) (g : Hom k (n' + 1)) :
+    (eZ n).comp ((Hom.wk n).comp ((Hom.lift h).comp g)) = (Hom.lift h).comp ((eZ n').comp ((Hom.wk n').comp g)) := by
+  apply Hom.ext_snoc <;> intro p <;> simp
+
+theorem eqFunL_res_lift (B : V) (h : Hom n' n) : res (Hom.lift h) (eqFunL n B) = eqFunL n' (res (Hom.lift h) B) := by
+  unfold eqFunL
+  rw [res_lamV]
+  congr 1
+  · funext k g; simp only [El_res]; rw [T'_hom]
+  · funext k g x
+    rw [transpAt_res, eqLine_lift_comp, ← DM.restr_restr, lastVar_restr_lift]
+
+theorem idEqV_res (T F : V) (h : Hom n' n) : res h (idEqV n T F) = idEqV n' (res h T) (res h F) := by
+  simp only [idEqV, res_lamV, El_res, res_res]
+
+theorem res_T' (B : V) (h : Hom n' n) :
+    res (Hom.lift h) (res (Hom.wk n) (res (eZ n) B)) = res (Hom.wk n') (res (eZ n') (res (Hom.lift h) B)) := by
+  simp only [res_res]; congr 1
+  apply Hom.ext_snoc <;> intro p <;> simp
+
+theorem eqQ_res_lift (B : V) (h : Hom n' n) : res (Hom.lift h) (eqQ n B) = eqQ n' (res (Hom.lift h) B) := by
+  rw [eqQ, eqQ, res_isEquivM, res_T', eqFunL_res_lift]
+
+theorem eqTr_res {B : V} (hB : Fib B (n + 1)) (h : Hom n' n) : res h (eqTr n B) = eqTr n' (res (Hom.lift h) B) := by
+  have hQ := fib_eqQ hB
+  rw [eqTr, eqTr, res_pairV,
+    hQ.trRes n (Hom.id (n + 1)) (Cof.bot n) _ (Cof.isCof_bot n) (constOn_bot _ _) (idEq_mem hB) n' h,
+    Hom.id_comp, transpAt_eq_res_id, eqQ_res_lift, Cof.bot_restr, idEqV_res, res_res, res_res, res_res,
+    ← TranspPi.lift_comp_endpt1, ← TranspPi.lift_comp_endpt0, ← res_res, ← res_res (Hom.lift h) (eZ n'),
+    ← res_res (Hom.lift h) (eZ n'), eqFunL_res_lift]
+
 end
 
 end Model
