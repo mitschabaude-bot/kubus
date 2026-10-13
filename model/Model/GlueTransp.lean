@@ -944,6 +944,72 @@ theorem gd_T1 (g : Hom k' k) : gtT1 (res (Hom.lift h) Tp) g = gtT1 Tp (h.comp g)
 theorem gd_AA1 (g : Hom k' k) : gtAA1 (res (Hom.lift h) A) g = gtAA1 A (h.comp g) := by
   rw [gtAA1, gtAA1, res_res, ← Hom.comp_assoc, TranspPi.lift_comp_endpt1, Hom.comp_assoc]
 
+theorem gd_ΩLine (g : Hom k' k) : (Hom.lift h).comp (gtΩLine g) = gtΩLine (h.comp g) := by
+  rw [gtΩLine, gtΩLine, lift_comp_snoc]; rfl
+
+include hG hψ hu0 hcon in
+theorem gd_Ω (g : Hom k' k) :
+    gtΩ (res (Hom.lift h) A) (φ.restr (Hom.lift h)) (res (Hom.lift h) Tp) (res (Hom.lift h) ep) (ψ.restr h) (res h u0) g =
+      gtΩ A φ Tp ep ψ u0 (h.comp g) := by
+  rw [gtΩ, gtΩ, compF_res_gen, gd_ΩLine, Cof.restr_restr]
+  congr 1
+  · funext n'' h' r
+    simp only [gtΩTube, Cof.restr_restr, dat_res, res_res, lift_comp_snoc, gd_TL, gd_fillA hG hψ hu0 hcon]
+    rfl
+  · simp only [gtΩBase, dat_res, res_res, lift_comp_snoc]; rfl
+
+include hG hψ hu0 hcon in
+theorem gd_ω (g : Hom k' k) :
+    gtω (res (Hom.lift h) A) (φ.restr (Hom.lift h)) (res (Hom.lift h) Tp) (res (Hom.lift h) ep) (ψ.restr h) (res h u0) g =
+      gtω A φ Tp ep ψ u0 (h.comp g) := by
+  rw [gtω, gtω, gd_Ω hG hψ hu0 hcon]
+
+include hG hψ hu0 hcon in
+theorem gd_C (g : Hom k' k) :
+    gtC (res (Hom.lift h) A) (φ.restr (Hom.lift h)) (res (Hom.lift h) ep) (ψ.restr h) (res h u0) g =
+      gtC A φ ep ψ u0 (h.comp g) := by
+  rw [gtC, gtC, gd_E1, gd_A1' hG hψ hu0 hcon, res_res]
+
+include hG hψ hu0 hcon in
+theorem gd_Fib (g : Hom k' k) :
+    gtFib (res (Hom.lift h) A) (φ.restr (Hom.lift h)) (res (Hom.lift h) Tp) (res (Hom.lift h) ep) (ψ.restr h) (res h u0) g =
+      gtFib A φ Tp ep ψ u0 (h.comp g) := by
+  rw [gtFib, gtFib, gd_E1, gd_T1, gd_AA1, gd_A1' hG hψ hu0 hcon, res_res]
+
+include hG hψ hu0 hcon in
+theorem gd_ExtTube (g : Hom k' k) :
+    gtExtTube (res (Hom.lift h) A) (φ.restr (Hom.lift h)) (res (Hom.lift h) Tp) (res (Hom.lift h) ep) (ψ.restr h)
+      (res h u0) g = gtExtTube A φ Tp ep ψ u0 (h.comp g) := by
+  funext n'' h' r
+  simp only [gtExtTube, gd_C hG hψ hu0 hcon, gd_δ, gd_T1', gd_ω hG hψ hu0 hcon, gd_A1' hG hψ hu0 hcon, res_res]
+  rfl
+
+include hG hψ hu0 hcon in
+theorem gd_Ext (g : Hom k' k) :
+    gtExt (res (Hom.lift h) A) (φ.restr (Hom.lift h)) (res (Hom.lift h) Tp) (res (Hom.lift h) ep) (ψ.restr h)
+      (res h u0) g = gtExt A φ Tp ep ψ u0 (h.comp g) := by
+  rw [gtExt, gtExt, gd_Fib hG hψ hu0 hcon, gd_δ, Cof.restr_restr, gd_ExtTube hG hψ hu0 hcon, gd_C hG hψ hu0 hcon]
+
+theorem gd_eO (g : Hom k' k) : (Hom.lift h).comp ((eO k).comp g) = (eO n).comp (h.comp g) := by
+  rw [← Hom.comp_assoc, TranspPi.lift_comp_endpt1, Hom.comp_assoc]
+
+include hG hψ hu0 hcon in
+theorem gd_A1Tube :
+    gtA1Tube (res (Hom.lift h) A) (φ.restr (Hom.lift h)) (res (Hom.lift h) Tp) (res (Hom.lift h) ep) (ψ.restr h)
+      (res h u0) = (gtA1Tube A φ Tp ep ψ u0).restr h := by
+  funext n'' h' r
+  simp only [gtA1Tube, Tube.restr, Cof.restr_restr, gd_eO, gd_Ext hG hψ hu0 hcon, gd_A1' hG hψ hu0 hcon, res_res]
+
+include hG hψ hu0 hcon in
+theorem gd_A1 :
+    gtA1 (res (Hom.lift h) A) (φ.restr (Hom.lift h)) (res (Hom.lift h) Tp) (res (Hom.lift h) ep) (ψ.restr h)
+      (res h u0) = res h (gtA1 A φ Tp ep ψ u0) := by
+  have h0 := gt_A1'_mem hG hψ hu0 hcon
+  rw [Hom.id_comp] at h0
+  rw [gtA1, gtA1, hG.fibA.hcRes _ _ _ _ _ (gt_a1_cof hG hψ hu0 hcon) h0 (gt_a1_tube_ok hG hψ hu0 hcon) k h,
+    ← hcompAt_res_id', res_res, TranspPi.lift_comp_endpt1, hcompAt_res_id', gd_A1Tube hG hψ hu0 hcon,
+    gd_A1' hG hψ hu0 hcon, Cof.or_restr, Cof.restr_restr, Cof.restr_restr, TranspPi.lift_comp_endpt1]
+
 end gtData
 
 section fields
