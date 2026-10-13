@@ -74,4 +74,87 @@ theorem transpTele_eq (A : Nat → Tm) (psL : List Tm) (φ : I) (as : List Tm) :
     rw [tFills_succ, List.reverse_append, ha] at this
     exact this
 
+/-! ## Point argument types -/
+
+theorem point_of_not_rec {C : Ctor} {k : Nat} (hk : k < C.args.length) (hr : C.isRec k = false) :
+    ∃ A, C.args[k]? = some (.point A) := by
+  simp only [Ctor.isRec, List.getElem?_eq_getElem hk] at hr ⊢
+  cases h : C.args[k] with
+  | point A => exact ⟨A, rfl⟩
+  | recur => simp [h] at hr
+
+/-- A point argument type at the arguments `xs` and parameters `R` (most recent first), as an
+instance of its type over the point context. -/
+theorem pt_inst (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {k : Nat} {A : Tm}
+    (hA : C.args[k]? = some (.point A)) {xs R : List Tm} (hk : k ≤ xs.length)
+    (hR : R.length = D.params.length) (e : Nat) (τ : Nat → I) :
+    (A.ren (C.pointRen k) id).subst (lsub (ptL C xs R k) e) τ = A.substList ((xs.take k).reverse ++ R) := by
+  obtain ⟨hcl, -, hnr, -⟩ := ((hW.2 d D hD).2.2 c C hC).1 k A hA
+  have hFl : ((xs.take k).reverse ++ R).length = k + D.params.length := by
+    simp [hR]; omega
+  rw [subst_ren, substList_eq_lsub,
+    closed_subst_eq A _ 0 _ (fun y => lsub (ptL C xs R k) e (C.pointRen k y))
+      _ I.var hcl (fun _ _ => rfl) (fun i hi => by omega)]
+  apply subst_freeIn_congr
+  intro y hy
+  have hyl := freeIn_lt A _ _ _ hcl hy
+  have hc : y < k → C.isRec (k - 1 - y) = false := by
+    intro hy'
+    simp only [Ctor.noRecDeps, List.all_eq_true, List.mem_range] at hnr
+    have := hnr (k - 1 - y) (by omega)
+    rw [show k - 1 - (k - 1 - y) = y by omega, hy] at this
+    simpa using this
+  have h1 := ptL_get C xs R k hk y (by rw [hR]; omega) hc
+  have h2 : ((xs.take k).reverse ++ R)[y]? = some ((xs.take k).reverse ++ R)[y] :=
+    List.getElem?_eq_getElem (by omega)
+  rw [lsub_of_getElem? (h1.trans h2), lsub_lt (by omega)]
+
+theorem pt_typed (hW : WfSig S) {d : Nat}
+    (htr : ∀ {Ψ' Φ' Γ' t A}, HasTy (S.take d) Ψ' Φ' Γ' t A → HasTy0 S Ψ' Φ' Γ' t A)
+    {D : DataDecl} {c : Nat} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {k : Nat} {A : Tm}
+    (hA : C.args[k]? = some (.point A)) :
+    HasTy0 S 0 .one (D.pointCtx d C k) (A.ren (C.pointRen k) id) (univ D.level) :=
+  htr (((hW.2 d D hD).2.2 c C hC).1 k A hA).2.2.2.2
+
+/-! ## Substitutions out of a context without interval variables -/
+
+/-- Post-composing a substitution out of a context without interval variables with an interval
+substitution preserving typing. -/
+theorem TySub.post {Δ Ψ1 Φ1 Γ1 Ψ2 Φ2 Γ2 σ τ} (h : TySub S 0 .one Δ Ψ1 Φ1 Γ1 σ τ) (τ' : Nat → I)
+    (hw : Wf0 S Ψ2 Φ2 Γ2)
+    (hf : ∀ t A, HasTy0 S Ψ1 Φ1 Γ1 t A → HasTy0 S Ψ2 Φ2 Γ2 (t.subst Tm.var τ') (A.subst Tm.var τ')) :
+    TySub S 0 .one Δ Ψ2 Φ2 Γ2 (fun x => (σ x).subst Tm.var τ') (fun i => (τ i).subst τ') where
+  bound := fun i hi => absurd hi (Nat.not_lt_zero _)
+  hscoped := scoped_of_wf hw
+  ent := ent_one _
+  look := fun x A hx => by
+    have := hf _ _ (h.look x A hx)
+    rwa [subst_subst] at this
+  wf := hw
+
+theorem EqSub.of_eq {Δ Ψ' Φ' Γ' σ1 τ1 σ2 τ2} (h : TySub S 0 .one Δ Ψ' Φ' Γ' σ1 τ1)
+    (he : ∀ x, σ1 x = σ2 x) : EqSub S 0 Δ Ψ' Φ' Γ' σ1 τ1 σ2 τ2 :=
+  ⟨fun x A hx => by rw [← he x]; exact EqTm0.refl (h.look x A hx), fun i hi => absurd hi (Nat.not_lt_zero _)⟩
+
+theorem EqSub.restrict' {Δ Ψ' Φ' Γ' σ1 τ1 σ2 τ2 Ξ} (h : EqSub S 0 Δ Ψ' Φ' Γ' σ1 τ1 σ2 τ2)
+    (hs : Ξ.Scoped Ψ') (he : I.Entails Ξ Φ') : EqSub S 0 Δ Ψ' Ξ Γ' σ1 τ1 σ2 τ2 :=
+  ⟨fun x A hx => EqTm0.restrict hs he (h.1 x A hx), h.2⟩
+
+theorem lsub_post (L : List Tm) (c : Nat) (τ' : Nat → I) (y : Nat) :
+    (lsub L c y).subst Tm.var τ' = lsub (L.map (·.subst Tm.var τ')) c y := by
+  simp only [lsub, List.getD_eq_getElem?_getD, List.getElem?_map, List.length_map]
+  cases L[y]? <;> rfl
+
+theorem ptL_post (C : Ctor) (as R : List Tm) (τ' : Nat → I) :
+    ∀ k, (ptL C as R k).map (·.subst Tm.var τ') = ptL C (as.map (·.subst Tm.var τ')) (R.map (·.subst Tm.var τ')) k
+  | 0 => rfl
+  | k + 1 => by
+    simp only [ptL]
+    split
+    · exact ptL_post C as R τ' k
+    · simp only [List.map_cons, ptL_post C as R τ' k, List.getD_eq_getElem?_getD, List.getElem?_map]
+      congr 1; cases as[k]? <;> rfl
+
 end KubusCore.Meta
