@@ -478,3 +478,98 @@ theorem sem_split_cases {φ ψ : I} {t u : Tm} {ρ : IEnv m} {γ : ℕ → V}
 end
 
 end Model
+
+namespace Model
+
+open KubusCore
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {S : Sig} {k m n : ℕ}
+
+theorem TEnv.restr_id_of_kv {γ : ℕ → V} (h : ∀ x, IsKV m (γ x)) : TEnv.restr γ (Hom.id m) = γ := by
+  funext x; exact res_id (h x)
+
+theorem Vt_below {l : ℕ} {x c : V} (h : Below x c) (hc : c ∈ Vt l) : x ∈ Vt l := by
+  induction h with
+  | single h => exact Vt_trans l hc h
+  | tail _ h ih => exact ih (Vt_trans l hc h)
+
+/-- The codomain family values are below a Π-code. -/
+theorem below_piC_fam (A B : V) (hB : IsKV m B) (a : V) (ha : ∃ y, ZFSet.pair a y ∈ dat B m (Hom.id m)) :
+    Below (apZ (dat B m (Hom.id m)) a) (piC m A B) := by
+  have h1 : Below (apZ (dat B m (Hom.id m)) a) B :=
+    (below_apZ ha).trans (below_dat hB _)
+  have h2 : Below (res (Hom.id m) B) (piC m A B) := by
+    unfold piC
+    refine Below.trans ?_ (below_dat_mkKV _ (Hom.id m))
+    simp only [piDatum, quad, tagZ]
+    exact ((below_pair_right _ _).trans (below_pair_right _ _)).trans (below_pair_left _ _)
+  rw [res_id hB] at h2
+  exact h1.trans h2
+
+/-- Inversion of well-formedness for Π-codes. -/
+theorem WF.pi_inv {l : ℕ} {A B : V} (hA : IsKV m A) (hB : IsKV m B) (h : WF l m (piC m A B)) :
+    WF l m A ∧ (∀ k (f : Hom k m), ∀ a ∈ El A f, WF l k (apZ (dat B k f) a)) := by
+  generalize hc : piC m A B = c at h
+  have htag : codeTag m c = natZ tPi := by rw [← hc]; simp
+  unfold WF at h
+  cases h with
+  | empty => simp [tEmpty, tPi] at htag
+  | @pi _ A' B' hA' _ _ hfam _ =>
+    obtain ⟨rfl, rfl⟩ := piC_inj hA hB ((wf_props l _ A' hA').1.kv) ‹_› hc
+    exact ⟨hA', hfam⟩
+  | sigma => simp [tSigma, tPi] at htag
+  | path => simp [tPath, tPi] at htag
+  | ipi => simp [tIPi, tPi] at htag
+  | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tPi] at htag
+  | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tPi] at htag
+
+end
+
+end Model
+
+namespace Model
+
+open KubusCore
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {S : Sig} {k m n : ℕ}
+
+/-- Π-codes of small components are small. TODO (closure plumbing for `Vt`). -/
+theorem piC_mem_Vt {l : ℕ} {A B : V} (hA : A ∈ Vt l)
+    (hB : ∀ k (f : Hom k m), ∀ a ∈ El A f, apZ (dat B k f) a ∈ Vt l) : piC m A B ∈ Vt l := by
+  sorry
+
+theorem sem_pi (A B : Tm) (ρ : IEnv m) (γ : ℕ → V) :
+    sem S (.pi A B) m ρ γ = piC m (sem S A m ρ γ)
+      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := rfl
+
+theorem dat_famV (A : V) (F : (k : ℕ) → Hom k m → V → V) (f : Hom k m) :
+    dat (famV m A F) k f = fnZ (El A f) (F k f) := by simp [famV]
+
+theorem apZ_dat_famV (A : V) (F : (k : ℕ) → Hom k m → V → V) (f : Hom k m) {a : V} (ha : a ∈ El A f) :
+    apZ (dat (famV m A F) k f) a = F k f a := by rw [dat_famV, apZ_fnZ _ ha]
+
+theorem res_famV (A : V) (F : (k : ℕ) → Hom k m → V → V) (h : Hom n m) :
+    res h (famV m A F) = famV n (res h A) (fun k' g => F k' (h.comp g)) := by
+  simp only [famV, res_lamV, El_res]
+
+/-- Extending a point of `Γ` by an element of `A`, restricted along `f`. -/
+theorem IsPoint.ext {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A : Tm} {ρ : IEnv m} {γ : ℕ → V}
+    (hwf : SemWf S Ψ Φ Γ) (hp : IsPoint S Φ Γ m ρ γ) (hAty : TyOK S A m ρ γ) (hAnat : Natural S A m ρ γ)
+    (f : Hom k m) {a : V} (ha : a ∈ El (sem S A m ρ γ) f) :
+    IsPoint S Φ (A :: Γ) k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a) :=
+  (hp.restr hwf f).cons (by rw [hAnat k f, El_res, Hom.comp_id]; exact ha) (hAty.fib.elKV _ _ _ ha)
+
+theorem mem_El_univ_iff {l : ℕ} {c : V} : c ∈ El (univC m l) (Hom.id m) ↔ c ∈ Vt l ∧ WF l m c := by
+  rw [El_univC, ZFSet.mem_sep]
+
+end
+
+end Model

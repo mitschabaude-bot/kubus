@@ -163,7 +163,34 @@ theorem sem_HasTy_cumul {S : Sig} {Ψ Φ Γ A l}
 theorem sem_HasTy_pi {S : Sig} {Ψ Φ Γ A B l}
     (h0 : SemTy S Ψ Φ Γ A (univ l)) (h1 : SemTy S Ψ Φ (A :: Γ) B (univ l)) :
     SemTy S Ψ Φ Γ (pi A B) (univ l) := by
-  sorry
+  refine ⟨h0.1, ⟨h0.2.1, h1.2.1⟩, trivial, fun m ρ γ hp => ?_⟩
+  obtain ⟨hAmem, hAnat, hUty, hUnat⟩ := h0.2.2.2 m ρ γ hp
+  obtain ⟨hAty, -⟩ := h0.ty_at hp
+  have hAfib := hAty.fib
+  rw [sem_univ, mem_El_univ_iff] at hAmem
+  have hBat : ∀ k (f : Hom k m) a, a ∈ El (sem S A m ρ γ) f →
+      sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a) ∈ Vt l ∧
+        WF l k (sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := fun k f a ha => by
+    have := (h1.2.2.2 k _ _ (hp.ext h0.1 hAty hAnat f ha)).1
+    rwa [sem_univ, mem_El_univ_iff] at this
+  refine ⟨?_, fun k f => ?_, hUty, hUnat⟩
+  · rw [sem_univ, mem_El_univ_iff, sem_pi]
+    constructor
+    · exact piC_mem_Vt hAmem.1 fun k f a ha => by rw [apZ_dat_famV _ _ _ ha]; exact (hBat k f a ha).1
+    · have hkv : IsKV m (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := by
+        unfold famV lamV; exact isKV_mkKV _
+      unfold WF
+      refine WFI.pi hAmem.2 hkv (fun k f => ?_) (fun k f a ha => ?_) (fun k f a ha n h => ?_)
+      · rw [dat_famV]
+        exact fnZ_congr fun a ha =>
+          (apZ_fnZ (fun a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) ha).symm
+      · rw [apZ_dat_famV _ _ _ ha]; exact (hBat k f a ha).2
+      · rw [apZ_dat_famV _ _ _ ha, apZ_dat_famV _ _ _ (hAfib.elRes _ _ _ ha n h)]
+        have := (h1.2.2.2 k _ _ (hp.ext h0.1 hAty hAnat f ha)).2.1 n h
+        rw [← this, TEnv.restr_cons, TEnv.restr_restr]; rfl
+  · rw [sem_pi, sem_pi, res_piC, hAnat k f, res_famV]
+    congr 1; unfold famV; congr 1
+    funext k' g; funext a; rw [TEnv.restr_restr]; rfl
 
 theorem sem_HasTy_lam {S : Sig} {Ψ Φ Γ A B t l}
     (h0 : SemTy S Ψ Φ Γ (pi A B) (univ l)) (h1 : SemTy S Ψ Φ (A :: Γ) t B) :
