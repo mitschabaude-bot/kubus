@@ -272,6 +272,9 @@ structure Cache (S : Sig) where
   chk : Table S ChkF := {}
   conv : Table S ConvF := {}
   elim : Table S ElimF := {}
+  /-- comparisons that failed (no proof needed), so that alternatives tried after a failure
+  do not repeat it -/
+  convFail : Table S (fun _ _ _ _ _ => PUnit) := {}
 
 /-- The kernel monad: errors, and the cache of judgments over the signature `S`. -/
 abbrev K (S : Sig) := EStateM String (Cache S)
@@ -316,33 +319,37 @@ def I.pp : I → String
   | .and r s => s!"({I.pp r} ∧ {I.pp s})"
   | .or r s => s!"({I.pp r} ∨ {I.pp s})"
 
-def Tm.pp : Tm → String
-  | .var x => s!"x{x}"
-  | .const k => s!"c{k}"
-  | .univ l => s!"U{l}"
-  | .pi A B => s!"(Π {Tm.pp A}. {Tm.pp B})"
-  | .lam A t => s!"(λ {Tm.pp A}. {Tm.pp t})"
-  | .app f a => s!"({Tm.pp f} {Tm.pp a})"
-  | .sigma A B => s!"(Σ {Tm.pp A}. {Tm.pp B})"
-  | .pair a b => s!"({Tm.pp a}, {Tm.pp b})"
-  | .fst p => s!"{Tm.pp p}.1"
-  | .snd p => s!"{Tm.pp p}.2"
-  | .path A a b => s!"(PathP (i. {Tm.pp A}) {Tm.pp a} {Tm.pp b})"
-  | .plam t => s!"(⟨i⟩ {Tm.pp t})"
-  | .papp p r => s!"({Tm.pp p} @ {I.pp r})"
-  | .ipi A => s!"((i : I) → {Tm.pp A})"
-  | .split φ t ψ u => s!"[{I.pp φ} ↦ {Tm.pp t}, {I.pp ψ} ↦ {Tm.pp u}]"
-  | .abort => "[]"
-  | .transp A φ a => s!"(transp (i. {Tm.pp A}) {I.pp φ} {Tm.pp a})"
-  | .hcomp A φ u a => s!"(hcomp {Tm.pp A} [{I.pp φ} ↦ i. {Tm.pp u}] {Tm.pp a})"
-  | .glue A φ T e => s!"(Glue {Tm.pp A} [{I.pp φ} ↦ ({Tm.pp T}, {Tm.pp e})])"
-  | .glueEl φ _ t a => s!"(glue [{I.pp φ} ↦ {Tm.pp t}] {Tm.pp a})"
-  | .unglue φ _ g => s!"(unglue {I.pp φ} {Tm.pp g})"
-  | .tnil => "[]"
-  | .tcons t ts => s!"{Tm.pp t} :: {Tm.pp ts}"
-  | .data d ps => s!"(D{d} {Tm.pp ps})"
-  | .con d c ps args _ => s!"(D{d}.{c} {Tm.pp ps} {Tm.pp args})"
-  | .elim d ps P bs t => s!"(elim D{d} {Tm.pp ps} (x. {Tm.pp P}) {Tm.pp bs} {Tm.pp t})"
+/-- Print `t`, eliding subterms below depth `n`. -/
+def Tm.ppD : Nat → Tm → String
+  | 0, _ => "…"
+  | n + 1, .var x => s!"x{x}"
+  | n + 1, .const k => s!"c{k}"
+  | n + 1, .univ l => s!"U{l}"
+  | n + 1, .pi A B => s!"(Π {Tm.ppD n A}. {Tm.ppD n B})"
+  | n + 1, .lam A t => s!"(λ {Tm.ppD n A}. {Tm.ppD n t})"
+  | n + 1, .app f a => s!"({Tm.ppD n f} {Tm.ppD n a})"
+  | n + 1, .sigma A B => s!"(Σ {Tm.ppD n A}. {Tm.ppD n B})"
+  | n + 1, .pair a b => s!"({Tm.ppD n a}, {Tm.ppD n b})"
+  | n + 1, .fst p => s!"{Tm.ppD n p}.1"
+  | n + 1, .snd p => s!"{Tm.ppD n p}.2"
+  | n + 1, .path A a b => s!"(PathP (i. {Tm.ppD n A}) {Tm.ppD n a} {Tm.ppD n b})"
+  | n + 1, .plam t => s!"(⟨i⟩ {Tm.ppD n t})"
+  | n + 1, .papp p r => s!"({Tm.ppD n p} @ {I.pp r})"
+  | n + 1, .ipi A => s!"((i : I) → {Tm.ppD n A})"
+  | n + 1, .split φ t ψ u => s!"[{I.pp φ} ↦ {Tm.ppD n t}, {I.pp ψ} ↦ {Tm.ppD n u}]"
+  | n + 1, .abort => "[]"
+  | n + 1, .transp A φ a => s!"(transp (i. {Tm.ppD n A}) {I.pp φ} {Tm.ppD n a})"
+  | n + 1, .hcomp A φ u a => s!"(hcomp {Tm.ppD n A} [{I.pp φ} ↦ i. {Tm.ppD n u}] {Tm.ppD n a})"
+  | n + 1, .glue A φ T e => s!"(Glue {Tm.ppD n A} [{I.pp φ} ↦ ({Tm.ppD n T}, {Tm.ppD n e})])"
+  | n + 1, .glueEl φ _ t a => s!"(glue [{I.pp φ} ↦ {Tm.ppD n t}] {Tm.ppD n a})"
+  | n + 1, .unglue φ _ g => s!"(unglue {I.pp φ} {Tm.ppD n g})"
+  | n + 1, .tnil => "[]"
+  | n + 1, .tcons t ts => s!"{Tm.ppD n t} :: {Tm.ppD n ts}"
+  | n + 1, .data d ps => s!"(D{d} {Tm.ppD n ps})"
+  | n + 1, .con d c ps args _ => s!"(D{d}.{c} {Tm.ppD n ps} {Tm.ppD n args})"
+  | n + 1, .elim d ps P bs t => s!"(elim D{d} {Tm.ppD n ps} (x. {Tm.ppD n P}) {Tm.ppD n bs} {Tm.ppD n t})"
+
+def Tm.pp (t : Tm) : String := Tm.ppD 1000000 t
 
 def _root_.KubusCore.Tm.size : Tm → Nat
   | .var _ | .const _ | .univ _ | .abort => 1
@@ -357,7 +364,7 @@ def _root_.KubusCore.Tm.size : Tm → Nat
   | .glue A _ T e => A.size + T.size + e.size + 1
 
 def short (t : Tm) : String :=
-  let s := Tm.pp t
+  let s := Tm.ppD 12 t
   if s.length > 400 then (s.take 400).toString ++ "…" else s
 
 /-! ## Checks that produce proofs -/
