@@ -418,6 +418,7 @@ partial def appComp (line u0 : Val) (sys : System Val) (v1 : Val) : M Val := do
 
 partial def act (i : Atom) (r : Formula) (v : Val) : M Val := do
   tick
+  if !v.hasAtom i then return v
   match v with
   | .glued g k sp v => return .glued g k (← actEnv i r sp) (← act i r v)
   | .univ _ => pure v
