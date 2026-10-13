@@ -469,6 +469,191 @@ theorem hcompCon_RE {Θ : SData m} (hΘ : Θ.Good)
     C.args.length (Nat.le_refl _)
   simp only [toList_ofList] at Tel
   have hol : outs.length = C.args.length := by simp [outs]
+  have hXget : ∀ j (hj : j < X.length), X.getD j .abort = X[j] := by
+    intro j hj; rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hj]; rfl
+  have hug : ∀ j, j < C.args.length → us.getD j .abort = proj d D p.dshift c C j u := by
+    intro j hj; simp [us, List.getD_eq_getElem?_getD, hj]
+  have hpc : p.closedB 0 K = true := by simpa [Tm.closedB] using closed_of_ty hW hpT
+  -- the restrictions of the tube's arguments at its faces
+  have hY : ∀ {k1 : ℕ} (σ : ISub k1 K) {r : I} (hr : r.Scoped k1), us.map (·.isub (ISub.cons r hr σ)) =
+      (List.range C.args.length).map fun i => proj d D (p.isub σ) c C i ((u.isub σ.up).dinst r) := by
+    intro k1 σ r hr
+    simp only [us, List.map_map]
+    apply List.map_congr_left
+    intro i hi
+    exact proj_tube_isub hW hD hC (List.mem_range.1 hi) H1.hpsL H1.hpl σ hr
+  -- the typings of the composites
+  have houtT : ∀ j (hj : j < C.args.length), HasTy0 S K .one [] (outs.getD j .abort)
+      ((Ac j).substList ((outs.take j).reverse ++ p.toList.reverse)) := Tel
+  -- the tubes of the recursive arguments
+  have tubeRec : ∀ j, j < C.args.length → C.isRec j = true → TubeC S K (.data d p) φ (us.getD j .abort) := by
+    intro j hjC hr k1 σ r hr1 hh
+    rw [isub_up_dinst _ σ r hr1, hug j hjC, proj_tube_isub hW hD hC hjC H1.hpsL H1.hpl σ hr1]
+    have := tube_proj hW hΘ ihT hKR hD hH hT hall ρ hpT hφs hutc hC hside hu σ hr1 hh hjC
+    have Hσ : PD S k1 .one d D (p.isub σ) := PD.of hW hD hH (spec_to_minimal hW (HasTy.isubS hW hpT σ))
+    rwa [argTy_rec_inst (ps := p.isub σ) hr Hσ.hpsL Hσ.hpl (by simp; omega)] at this
+  -- the fillers
+  set Fall := Meta.hFills C Ac (.data d p) p.dshift.toList φ us X C.args.length with hFall
+  set L := Meta.hLine C Ac (.data d p) p.dshift.toList φ us X with hL
+  have hFl : Fall.length = C.args.length := Meta.hFills_length _ _ _ _ _ _ _ _
+  have hFtake : ∀ j, j ≤ C.args.length → Fall.take j = Meta.hFills C Ac (.data d p) p.dshift.toList φ us X j := by
+    intro j hj
+    have := Meta.hFills_take C Ac (.data d p) p.dshift.toList φ us X j (C.args.length - j)
+    rwa [show j + (C.args.length - j) = C.args.length by omega] at this
+  have hFget : ∀ j, j < C.args.length → Fall.getD j .abort = Meta.hFill C Ac (.data d p) p.dshift.toList φ us X j :=
+    fun j hj => Meta.hFills_get _ _ _ _ _ _ _ hj
+  have hFi : ∀ i (hi : i < Fall.length), Fall[i] = Fall.getD i .abort := by
+    intro i hi; rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi]; rfl
+  set ρw := ρ.comp (ISub.wk K) with hρw
+  have hPw : P.isub ρw = p.dshift := by rw [← Tm.isub_isub, isub_wk_of_closed hpc]
+  have hTw := (hKR k0 f (K + 1) ρw (.data d P) (.data d P)).1 hT
+  have hTρ := (hKR k0 f K ρ (.data d P) (.data d P)).1 hT
+  have hLeq : ∀ j, j ≤ C.args.length →
+      (Ac j).substList ((Fall.take j).reverse ++ (P.isub ρw).toList.reverse) = L j := by
+    intro j hj; rw [hPw, hFtake j hj]; rfl
+  let Valid : ℕ → Prop := fun j =>
+    (∀ i, i < j → C.isRec i = true → DR S d D (dataMem S Θ f) (dataP S Θ f) (K + 1) ρw.hom
+      ((Tm.data d P).isub ρw) (Fall.getD i .abort)) ∧
+    (∀ i, i < j → C.isRec i = false → dataP S Θ f (K + 1) ρw.hom c i ((Fall.take i).map (semK S (K + 1)))
+      ((Ac i).substList ((Fall.take i).reverse ++ (P.isub ρw).toList.reverse)) (Fall.getD i .abort))
+  have hall' := hall
+  unfold ArgClause at hall'
+  rw [hdD] at hall'
+  have clause : ∀ j, j < C.args.length → C.isRec j = false → Valid j →
+      (Comp S (tyLook (shapeV (Θ.restr (f.comp ρw.hom))) c j ((Fall.take j).map (semK S (K + 1)))) (K + 1) (K + 1)
+        (Hom.id (K + 1))).ty ((Ac j).substList ((Fall.take j).reverse ++ (P.isub ρw).toList.reverse)) := by
+    intro j hj hr hv
+    have hlj : (Fall.take j).length = j := by simp [hFl]; omega
+    have := hall' (K + 1) ρw c C (Fall.take j) hC (by omega) (by rw [hlj]; exact hr)
+      (fun i hi hri => by
+        rw [hlj] at hi
+        rw [List.getElem_take, hFi i (by omega)]; exact hv.1 i hi hri)
+      (fun i hi hri => by
+        rw [hlj] at hi
+        rw [List.getElem_take, hFi i (by omega), List.take_take, Nat.min_eq_left hi.le]; exact hv.2 i hi hri)
+    rwa [hlj] at this
+  have pointFacts : ∀ j (hj : j < C.args.length), C.isRec j = false → Valid j →
+      RE S (K + 1) (L j) (Fall.getD j .abort) ∧
+      RE S K ((Ac j).substList ((outs.take j).reverse ++ p.toList.reverse)) (outs.getD j .abort) := by
+    intro j hj hr hv
+    have hcl := clause j hj hr hv
+    have hv' := validPre_of_ty hcl
+    rw [tyLook_eq hv'] at hcl
+    have hpv : Θ.PtValid c (K + 1) ((f.comp ρw.hom).comp (Hom.id (K + 1))) ((Fall.take j).map (semK S (K + 1))) :=
+      ptValid_of_validPre hv'
+    rw [hLeq j hj.le] at hcl
+    have KA : KanAll S (K + 1) (L j) :=
+      ⟨fun k3 ρ3 => (hcodeK c j (K + 1) _ _ hpv).1 k3 _ _
+        ((ihT c j (K + 1) _ _ hpv (K + 1) (Hom.id (K + 1)) k3 ρ3 (L j) (L j)).1 hcl),
+       fun k3 ρ3 => (hcodeK c j (K + 1) _ _ hpv).2 k3 _ _
+        ((ihT c j (K + 1) _ _ hpv (K + 1) (Hom.id (K + 1)) (k3 + 1) ρ3 (L j) (L j)).1 hcl)⟩
+    obtain ⟨A0, hA0⟩ := argTy_point (C := C) hj hr
+    have hAk : Ac j = A0 := by simp [hAc, Ctor.argTy, hA0]
+    have hAk' : C.argTy d D.params.length j = A0 := hAk
+    obtain ⟨hLt, e0, e1, eφ⟩ := hcompCon_pt_types hW hD hH hC (spec_to_minimal hW hpT) hφs hX G1 G3 hA0
+    have hjX : j < X.length := by omega
+    -- the base
+    have hu0 : RE S K ((L j).dinst .zero) (X.getD j .abort) := by
+      have := hptR j hjX hr
+      rw [hAk, ← hXget j hjX] at this
+      exact this.conv_ty hW (.inr ⟨_, EqTm.symm e0⟩)
+    -- the tube, typed on the face
+    have hutj : HasTy S (K + 1) (cof .one φ).shift [] (us.getD j .abort) (L j) := by
+      have := tele_get G1 j (us.getD j .abort) _
+        (by rw [toList_ofList, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega)]; rfl) (argTys_get hj)
+      rw [toList_ofList, hAk'] at this
+      exact minimal_to_spec (HasTy0.conv this (EqTm0.symm eφ))
+    -- the side condition
+    have hsidej : EqTm S K (cof .one φ) [] ((us.getD j .abort).dinst .zero) (X.getD j .abort) ((L j).dinst .zero) := by
+      have := G4 j hjX
+      rw [← hug j hj, hAk, ← hXget j hjX] at this
+      have e0' := EqTm0.restrict (show (cof .one φ).Scoped K from ⟨trivial, hφs⟩) (ent_and_left _ _)
+        (spec_to_minimal_eq hW e0)
+      exact minimal_to_spec_eq (EqTm0.conv this (EqTm0.symm e0'))
+    -- the restrictions of the tube
+    have htube : ∀ k1 (σ : ISub k1 K) (r : I), r.Scoped k1 → (ival (idEnv k1) (φ.subst σ.τ)).holds →
+        RE S k1 (((L j).isub σ.up).dinst r) (((us.getD j .abort).isub σ.up).dinst r) := by
+      intro k1 σ r hr1 hh
+      have hTp := tube_proj hW hΘ ihT hKR hD hH hT hall ρ hpT hφs hutc hC hside hu σ hr1 hh hj
+      rw [isub_up_dinst _ σ r hr1, isub_up_dinst _ σ r hr1, hug j hj, proj_tube_isub hW hD hC hj H1.hpsL H1.hpl σ hr1]
+      have eφ' := EqTm.isubF hW hΦs (minimal_to_spec_eq eφ) (ISub.cons r hr1 σ)
+      have hent : I.Entails .one (((cof .one φ).shift).subst (ISub.cons r hr1 σ).τ) := by
+        rw [I_shift_cons]; exact ent_cof_one hW (entails_of_holds (I.scoped_subst hφs σ.sc) hh)
+      have eφ'' := EqTm.restrict (Φ' := .one) trivial hent eφ'
+      have hA0c : A0.closedB (D.params.length + j) 0 = true := hAk ▸ argTy_closed hS hD hC j
+      have etl : (p.dshift.isub (ISub.cons r hr1 σ)).toList = p.dshift.toList.map (·.isub (ISub.cons r hr1 σ)) :=
+        toList_isub H1.hpsL _
+      rw [substList_isub hA0c, List.map_append, List.map_reverse, List.map_reverse, List.map_take,
+        ← etl, dshift_isub_cons, hY σ hr1] at eφ''
+      rw [hAk'] at hTp
+      exact hTp.conv_ty hW (.inr ⟨_, EqTm.symm eφ''⟩)
+    -- the filler and the composite
+    have hFR := RE_fill hW KA (minimal_to_spec hLt) hφs hutj (Comp_el_typed hu0).1 hsidej htube hu0
+    have hFj : Fall.getD j .abort = Tm.fill (L j) φ (us.getD j .abort) (X.getD j .abort) := by
+      rw [hFget j hj]; simp [Meta.hFill, hr, hL]
+    have hog' : outs.getD j .abort = Tm.comp (L j) φ (us.getD j .abort) (X.getD j .abort) := by
+      simp [outs, Meta.hOut, hr, List.getD_eq_getElem?_getD, hj, hL]
+    have htyO : HasTy S K .one [] (Tm.comp (L j) φ (us.getD j .abort) (X.getD j .abort)) ((L j).dinst .one) := by
+      have := houtT j hj
+      rw [hog', hAk] at this
+      exact HasTy.tyConv (minimal_to_spec this) (.inr ⟨_, EqTm.symm e1⟩)
+    have hOR := RE_comp hW KA htyO htube hu0
+    refine ⟨by rw [hFj]; exact hFR, ?_⟩
+    rw [hog', hAk]
+    exact hOR.conv_ty hW (.inr ⟨_, e1⟩)
+  have key : ∀ j, j ≤ C.args.length → Valid j := by
+    intro j
+    induction j with
+    | zero => intro _; exact ⟨fun i hi => absurd hi (Nat.not_lt_zero _), fun i hi => absurd hi (Nat.not_lt_zero _)⟩
+    | succ j ih =>
+      intro hj
+      have hv := ih (by omega)
+      refine ⟨fun i hi hri => ?_, fun i hi hri => ?_⟩
+      · by_cases hij : i < j
+        · exact hv.1 i hij hri
+        obtain rfl : i = j := by omega
+        have hjC : i < C.args.length := by omega
+        have hjX : i < X.length := by omega
+        have hFj : Meta.hFill C Ac (.data d p) p.dshift.toList φ us X i =
+            Tm.hfill (.data d p) φ (us.getD i .abort) (X.getD i .abort) := by simp [Meta.hFill, hri]
+        rw [hFget i hjC, hFj, hXget i hjX]
+        have hXc : (X[i]'hjX).closedB 0 K = true := by
+          have := tele_get hX i _ _ (by rw [toList_ofList]; exact List.getElem?_eq_getElem hjX) (argTys_get hjC)
+          exact closed_ty this
+        have htyj : HasTy S K .one [] (.hcomp (.data d p) φ (us.getD i .abort) (X[i]'hjX)) (.data d p) := by
+          have := houtT i hjC
+          rw [argTy_rec_inst (ps := p) hri H.hpsL H.hpl (by simp; omega)] at this
+          have hog' : outs.getD i .abort = .hcomp (.data d p) φ (us.getD i .abort) (X[i]'hjX) := by
+            simp [outs, Meta.hOut, hri, List.getD_eq_getElem?_getD, hjC, hjX]
+          rw [hog'] at this; exact minimal_to_spec this
+        have hb : RE S K (.data d p) (X[i]'hjX) := by
+          have := hrecR i hjX hri
+          rw [← hdD] at this
+          exact RE_of_DR hW hTρ this
+        have hF := RE_hfill_of hW (fun φ' u' h1 h2 => by
+            have := hrecH i hjX hri (K + 1) (ISub.wk K) φ' u'
+            rw [← hρw, hPw, isub_wk_of_closed hXc] at this
+            exact this h1 h2) htyj (tubeRec i hjC hri) hb
+        have e : (Tm.data d p).dshift = (Tm.data d P).isub ρw := by
+          show Tm.data d p.dshift = Tm.data d (P.isub ρw); rw [hPw]
+        rw [e] at hF
+        have := DR_of_RE hW hTw hF
+        rwa [hdD] at this
+      · by_cases hij : i < j
+        · exact hv.2 i hij hri
+        obtain rfl : i = j := by omega
+        have hF := (pointFacts i (by omega) hri hv).1
+        have hcl := clause i (by omega) hri hv
+        rw [hLeq i (by omega)] at hcl
+        unfold RE at hF; rw [← Comp_eq_semK hcl] at hF
+        show (Comp S _ (K + 1) (K + 1) (Hom.id (K + 1))).el _ _
+        rw [hLeq i (by omega)]
+        exact hF
+  have hV := key C.args.length (Nat.le_refl _)
+  have hVj : ∀ j, j ≤ C.args.length → Valid j := fun j hj =>
+    ⟨fun i hi hri => hV.1 i (by omega) hri, fun i hi hri => hV.2 i (by omega) hri⟩
+  have hog : ∀ j (hj : j < outs.length), outs[j] = outs.getD j .abort := by
+    intro j hj; rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hj]; rfl
   refine (RE_con hW hD hpT H.hpsL hC hol (rs := []) (by simp [(nonHIT_ctor hH hC).1]) (by simp)
     (HasTy.eqR (minimal_to_spec_eq e_hc)) (fun j hj hr => ?_) (fun j hj hr => ?_)).conv hW (TyEq.refl _)
     (EqTm.symm (minimal_to_spec_eq e_hc))
@@ -489,15 +674,9 @@ theorem hcompCon_RE {Θ : SData m} (hΘ : Θ.Good)
     rw [hog] at htyj ⊢
     have := hrecH j (by omega) hr K (ISub.id K) φ (us.getD j .abort)
     rw [ISub.comp_id, isub_id_of_closed hXc, ← hXj] at this
-    refine this htyj fun k1 σ r hr1 hh => ?_
-    rw [isub_up_dinst _ σ r hr1]
-    have hug : us.getD j .abort = proj d D p.dshift c C j u := by
-      simp [us, List.getD_eq_getElem?_getD, hjC]
-    rw [hug, proj_tube_isub hW hD hC hjC H1.hpsL H1.hpl σ hr1]
-    have := tube_proj hW hΘ ihT hKR hD hH hT hall ρ hpT hφs hutc hC hside hu σ hr1 hh hjC
-    have Hσ : PD S k1 .one d D (p.isub σ) := PD.of hW hD hH (spec_to_minimal hW (HasTy.isubS hW hpT σ))
-    rwa [argTy_rec_inst (ps := p.isub σ) hr Hσ.hpsL Hσ.hpl (by simp; omega)] at this
-  · sorry
+    exact this htyj (tubeRec j hjC hr)
+  · rw [hog j hj]
+    exact (pointFacts j (by omega) hr (hVj j (by omega))).2
 
 end
 
