@@ -303,6 +303,65 @@ theorem isPoint_argCtx {j : ℕ} {n : ℕ} (g : Hom n m) {pre : List V} (hjp : j
       rw [List.getElem?_eq_none (by simp; omega), Option.getD_none]
       exact isKV_mkKV _
 
+theorem restr_argEnvKV (ps pre : List V) (h : Hom k n) :
+    TEnv.restr (argEnvKV n ps pre) h = argEnvKV k (ps.map (res h)) (pre.map (res h)) := by
+  funext x
+  simp only [TEnv.restr, argEnvKV, List.getD_eq_getElem?_getD]
+  rw [← List.map_reverse, ← List.map_reverse, ← List.map_append, List.getElem?_map]
+  cases (pre.reverse ++ ps.reverse)[x]? <;> simp [res_emptyC]
+
+theorem genPre_map (C : Ctor) (gv : V) (pre : List V) (f : V → V) :
+    (genPre C gv pre).map f = genPre C (f gv) (pre.map f) := by
+  apply List.ext_getElem (by simp [genPre_length])
+  intro i h1 h2
+  simp only [List.getElem_map, genPre_getElem]
+  split <;> rfl
+
+theorem res_genV (c : ℕ) (ctors : List Ctor) (h : Hom k n) : res h (genV c n ctors) = genV c k ctors := by
+  simp [genV, res_conV]
+
+include hsyn hC hps in
+theorem argTy_univ (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
+    (hck : ∀ k A, C.args[k]? = some (.point A) →
+      HasTy (S0 ++ [.data (D.truncate 0)]) 0 .one (D.argCtx S0.length C k) A (.univ D.level)) :
+    ∀ j A, C.args[j]? = some (.point A) → ∀ n (g : Hom n m) (pre : List V) (hjp : j ≤ pre.length),
+      (∀ i (hi : i < j), C.isRec i = false →
+        pre[i]'(by omega) ∈ El (argTyRaw (sigV S0) D S0.length c i n (ps n g) pre) (Hom.id n)) →
+      argTyRaw (sigV S0) D S0.length c j n (ps n g) pre ∈ El (univC n D.level) (Hom.id n) ∧
+      ∀ n' (h : Hom n' n), res h (argTyRaw (sigV S0) D S0.length c j n (ps n g) pre) =
+        argTyRaw (sigV S0) D S0.length c j n' (ps n' (g.comp h)) (pre.map (res h)) := by
+  intro j
+  induction j using Nat.strong_induction_on with
+  | _ j ih =>
+    intro A hA n g pre hjp hpre
+    have hjC : j ≤ C.args.length := (List.getElem?_eq_some_iff.1 hA).1.le
+    have hkv : ∀ i (hi : i < j), C.isRec i = false →
+        pre[i]'(by omega) ∈ El (argTyRaw (sigV S0) D S0.length c i n (ps n g) pre) (Hom.id n) ∧
+          IsKV n (pre[i]'(by omega)) := by
+      intro i hi hr
+      refine ⟨hpre i hi hr, ?_⟩
+      have hAi : ∃ Ai, C.args[i]? = some (.point Ai) := by
+        have : i < C.args.length := by omega
+        cases h' : C.args[i]'this with
+        | point Ai => exact ⟨Ai, by rw [List.getElem?_eq_getElem this, h']⟩
+        | recur => simp [Ctor.isRec, List.getElem?_eq_getElem this, h'] at hr
+      obtain ⟨Ai, hAi⟩ := hAi
+      have := (ih i hi Ai hAi n g pre (by omega) fun i' hi' hr' => hpre i' (by omega) hr').1
+      rw [mem_El_univ_iff] at this
+      exact this.2.fib.elKV n (Hom.id n) _ (hpre i hi hr)
+    have hp := isPoint_argCtx S0 D hsyn hC hps g hjp hjC hkv
+    obtain ⟨hmem, hnat, -, -⟩ := (sound_ty hok0 (hck j A hA)).2.2.2 n _ _ hp
+    rw [← sem_argTy_eq S0 _ D hsyn hC hA (ps n g) pre hjp]
+    refine ⟨hmem, fun n' h => ?_⟩
+    rw [← hnat n' h, restr_argEnvKV, genPre_map, res_genV,
+      ← sem_argTy_eq S0 (D.truncate 0) D hsyn hC hA (ps n' (g.comp h)) (pre.map (res h)) (by simpa using hjp)]
+    have e1 : IEnv.restr (fun _ => DM.zero n) h = fun _ => DM.zero n' := by funext i; simp [IEnv.restr]
+    have e2 : (plist (ps n g) D.params.length).map (res h) = plist (ps n' (g.comp h)) D.params.length := by
+      simp only [plist, List.map_map]
+      apply List.map_congr_left; intro p hp; rw [List.mem_range] at hp
+      exact ((hps n g).2.2 n' h p hp).symm
+    rw [e1, e2, List.map_take]
+
 end argty
 
 end
