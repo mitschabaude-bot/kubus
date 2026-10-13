@@ -14,3 +14,4 @@ import Model.SigmaFib
 import Model.Path
 import Model.PathFib
 import Model.IPiFib
+import Model.Glue
