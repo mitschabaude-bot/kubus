@@ -128,6 +128,9 @@ theorem tube_tag (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.da
     (HasTy.eqR (inst .zero trivial)) (HasTy.eqR hs0) e0
   rw [← tagr, tag0]
 
+theorem ISub.cons_tail {k k'' : ℕ} (ρ : ISub k'' (k + 1)) : ISub.cons (ρ.τ 0) (ρ.sc 0 (by omega)) ρ.tail = ρ := by
+  ext i; rcases i with _ | i <;> rfl
+
 /-- A face holds at its own endpoints. -/
 theorem ent_ofFace_faceSub {α : I.Face} (hc : I.Face.consistent α = true) :
     I.Entails .one ((I.ofFace α).subst (faceSub α)) := by
@@ -165,6 +168,80 @@ theorem proj_congr (hS : SigClosed S) (hW : WfSig S) {Ψ : ℕ} {Φ : I} {ps : T
   rw [hb] at hb'; cases hb'
   rw [branchesOf_get hc', Option.some.injEq] at hb; subst hb
   exact EqTm0.refl (proj_branch_typed hS hW H hcC hj hc')
+
+end
+
+
+section
+variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
+  {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
+include hW hD hH hC
+
+/-- On a face of the cofibration of a composition, the tube is the base's constructor, at
+arguments which are the projections of the tube there. -/
+theorem face_data {k : ℕ} {ps u : Tm} {φ : I} {X : List Tm}
+    (hd : HasTy S k .one [] (.data d ps) (.univ D.level)) (hφs : φ.Scoped k)
+    (hut : HasTy0 S (k + 1) (cof .one φ).shift [] u (Tm.data d ps).dshift)
+    (hside : EqTm S k (cof .one φ) [] (u.dinst .zero) (.con d c ps (Tm.ofList X) []) (.data d ps))
+    (hcan : TubeCanon S k d D ps φ u) {α : I.Face} (hα : α ∈ ((cof .one φ).shift).faces) :
+    ∃ X' : List Tm,
+      HasTele0 S (k + 1) (cof (cof .one φ).shift (I.ofFace α)) [] (Tm.ofList X') (C.argTys d D.params.length)
+        (ps.dshift.subst Tm.var (faceSub α)).toList.reverse ∧
+      EqTm0 S (k + 1) (cof (cof .one φ).shift (I.ofFace α)) [] u
+        (.con d c (ps.dshift.subst Tm.var (faceSub α)) (Tm.ofList X') []) (.data d ps.dshift) ∧
+      EqTm0 S (k + 1) (cof (cof .one φ).shift (I.ofFace α)) [] (.data d ps.dshift)
+        (.data d (ps.dshift.subst Tm.var (faceSub α))) (.univ D.level) ∧
+      HasTy0 S (k + 1) (cof (cof .one φ).shift (I.ofFace α)) [] (.data d (ps.dshift.subst Tm.var (faceSub α)))
+        (.univ D.level) := by
+  have hS := sigClosed_of_wfSig hW
+  have hΦs : ((cof .one φ).shift).Scoped (k + 1) := I.scoped_shift ⟨trivial, hφs⟩
+  have hcα := faces_consistent hα
+  have hsc := faces_scoped hΦs α hα
+  have hsα : (I.ofFace α).Scoped (k + 1) := scoped_ofFace hsc
+  have hΞs : (cof (cof .one φ).shift (I.ofFace α)).Scoped (k + 1) := ⟨hΦs, hsα⟩
+  have hτ : ∀ i < k + 1, (faceSub α i).Scoped (k + 1) := fun i hi => by
+    rcases faceSub_cases α i with ⟨e, _, h⟩ | ⟨_, h⟩
+    · rw [h]; cases e <;> trivial
+    · rw [h]; exact hi
+  set ρ := ISub.ofFun (k + 1) (faceSub α) hτ with hρ
+  have hpsc : ps.closedB 0 k = true := by simpa [Tm.closedB] using closed_of_ty hW hd
+  have hpsd : ps.dshift.closedB 0 (k + 1) = true := by
+    have := closed_of_ty hW (HasTy.isubS hW hd (ISub.wk k))
+    rw [isub_wk_of_closed (closed_of_ty hW hd)] at this
+    simpa [Tm.closedB] using this
+  have hPα : ps.dshift.subst Tm.var (faceSub α) = ps.isub ρ.tail := by
+    rw [← dshift_isub_tail, hρ, isub_ofFun hpsd]
+  have huc : u.closedB 0 (k + 1) = true := closed_ty hut
+  have huα : u.subst Tm.var (faceSub α) = (u.isub ρ.tail.up).dinst (ρ.τ 0) := by
+    rw [isub_up_dinst _ _ _ (ρ.sc 0 (by omega)), ISub.cons_tail, hρ, isub_ofFun huc]
+  -- the face holds at its endpoints
+  have hface : (ival (idEnv (k + 1)) (φ.subst ρ.tail.τ)).holds := by
+    rw [holds_iff_entails (I.scoped_subst hφs ρ.tail.sc)]
+    have h1 : I.Entails (I.ofFace α) φ.shift :=
+      ent_trans (ofFace_ent hα) (ent_and_right _ _)
+    have h2 := ent_trans (ent_ofFace_faceSub hcα) (ent_subst h1 (faceSub α))
+    have e3 : φ.shift.subst (faceSub α) = φ.subst ρ.tail.τ := by
+      rw [← I_shift_tail]
+      exact I_subst_congr_scoped (fun i hi => by
+        show faceSub α i = (if i < k + 1 then faceSub α i else .zero); rw [if_pos hi]) (I.scoped_shift hφs)
+    rwa [e3] at h2
+  obtain ⟨c', C', X', hC', hX', e'⟩ := hcan (k + 1) ρ.tail (ρ.τ 0) (ρ.sc 0 (by omega)) hface
+  have htag := tube_tag hW hD hH hC hd hφs huc hside hcan ρ.tail (ρ.sc 0 (by omega)) hface hC' e'
+  subst htag; rw [hC] at hC'; cases hC'
+  rw [← huα, ← hPα] at e'
+  rw [← hPα] at hX'
+  obtain ⟨hT, hCt⟩ := wf_typed _ S rfl hW
+  have hent : I.Entails (cof (cof .one φ).shift (I.ofFace α)) .one := ent_one _
+  have hX'Ξ := HasTele0.restrict hΞs hent hX'
+  have e'Ξ := EqTm0.restrict hΞs hent (spec_to_minimal_eq hW e')
+  have hd1 : HasTy0 S (k + 1) (I.one.shift) (Ctx.dshift []) (Tm.data d ps).dshift (Tm.univ D.level).dshift :=
+    HasTy0.dwk hS (spec_to_minimal hW hd)
+  have hdΞ : HasTy0 S (k + 1) (cof (cof .one φ).shift (I.ofFace α)) [] (Tm.data d ps.dshift) (.univ D.level) :=
+    HasTy0.restrict hΞs hent hd1
+  have e_u := face_all hW (.inl hdΞ) (HasTy0.restrict hΞs (ent_and_left _ _) hut) α hsc (ent_and_right _ _)
+  have e_T := face_all hW (l := D.level) (.inr rfl) hdΞ α hsc (ent_and_right _ _)
+  have hdα := (pre_eq hS hT hCt e_T).2.1
+  exact ⟨X', hX'Ξ, e_u.trans (EqTm0.conv e'Ξ (EqTm0.symm e_T)), e_T, hdα⟩
 
 end
 

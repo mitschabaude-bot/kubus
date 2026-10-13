@@ -185,9 +185,6 @@ theorem holds_comp {φ : I} (hφ : φ.Scoped k) (σ : ISub k' k) (hh : (ival (id
   rw [holds_iff_entails (I.scoped_subst hφ σ2.sc), I_subst_congr_scoped e hφ, ← I_subst_subst]
   exact ent_subst ((holds_iff_entails (I.scoped_subst hφ σ.sc)).1 hh) τ3
 
-theorem ISub.cons_tail {k'' : ℕ} (ρ : ISub k'' (k + 1)) : ISub.cons (ρ.τ 0) (ρ.sc 0 (by omega)) ρ.tail = ρ := by
-  ext i; rcases i with _ | i <;> rfl
-
 /-- A computable tube, at an arbitrary restriction of its line. -/
 theorem tube_all {A u : Tm} {φ : I} (hu : TubeC S k A φ u) {k'' : ℕ} (ρ : ISub k'' (k + 1))
     (hh : (ival (idEnv k'') (φ.subst ρ.tail.τ)).holds) : RE S k'' (A.isub ρ.tail) (u.isub ρ) := by
