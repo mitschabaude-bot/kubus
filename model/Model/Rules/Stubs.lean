@@ -224,7 +224,7 @@ theorem sem_HasTy_glueEl {S : Sig} {Ψ Φ Γ A φ T e t a l}
   sorry
 
 theorem sem_HasTy_unglue {S : Sig} {Ψ Φ Γ A φ T e g l}
-    (h0 : SemTy S Ψ Φ Γ (glue A φ T e) (univ l)) (h1 : SemTy S Ψ Φ Γ g (glue A φ T e)) :
+    (h0 : SemTy S Ψ Φ Γ (glue A φ T e) (univ l)) (h1 : SemTy S Ψ Φ Γ A (univ l)) (h2 : SemTy S Ψ (cof Φ φ) Γ e (equiv T A)) (h3 : SemTy S Ψ Φ Γ g (glue A φ T e)) :
     SemTy S Ψ Φ Γ (unglue φ e g) A := by
   sorry
 
@@ -483,8 +483,8 @@ theorem sem_EqTm_transpPath {S : Sig} {Ψ Φ Γ A a b φ p0 T}
     SemEq S Ψ Φ Γ (transp (path A a b) φ p0) (transpPath A a b φ p0) T := by
   sorry
 
-theorem sem_EqTm_transpGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u0 T}
-    (h0 : SemTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T) :
+theorem sem_EqTm_transpGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u0 T l}
+    (h0 : SemTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T) (h1 : SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) (h2 : SemTy S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A)) :
     SemEq S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlue A φ T' e ψ u0) T := by
   sorry
 
@@ -513,8 +513,8 @@ theorem sem_EqTm_hcompPath {S : Sig} {Ψ Φ Γ A a b φ u p0 T}
     SemEq S Ψ Φ Γ (hcomp (path A a b) φ u p0) (hcompPath A a b φ u p0) T := by
   sorry
 
-theorem sem_EqTm_hcompGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u u0 T}
-    (h0 : SemTy S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) T) :
+theorem sem_EqTm_hcompGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u u0 T l}
+    (h0 : SemTy S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) T) (h1 : SemTy S Ψ Φ Γ A (univ l)) (h2 : SemTy S Ψ (cof Φ φ) Γ e (equiv T' A)) :
     SemEq S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) (hcompGlue A φ T' e ψ u u0) T := by
   sorry
 
@@ -528,8 +528,8 @@ theorem sem_EqTm_glueElFace {S : Sig} {Ψ Φ Γ φ e t a G}
     SemEq S Ψ Φ Γ (glueEl φ e t a) t G := by
   sorry
 
-theorem sem_EqTm_unglueFace {S : Sig} {Ψ Φ Γ A φ T e g}
-    (h0 : I.Entails Φ φ) (h1 : SemTy S Ψ Φ Γ g (glue A φ T e)) :
+theorem sem_EqTm_unglueFace {S : Sig} {Ψ Φ Γ A φ T e g l}
+    (h0 : I.Entails Φ φ) (h1 : SemTy S Ψ Φ Γ g (glue A φ T e)) (h2 : SemTy S Ψ Φ Γ A (univ l)) (h3 : SemTy S Ψ Φ Γ e (equiv T A)) :
     SemEq S Ψ Φ Γ (unglue φ e g) (app (fst e) g) A := by
   sorry
 

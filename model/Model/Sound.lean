@@ -60,7 +60,7 @@ theorem sound_ty {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t A : 
   | .hcomp h0 h1 h2 h3 h4 => sem_HasTy_hcomp (sound_ty hS h0) h1 (sound_ty hS h2) (sound_ty hS h3) (sound_eq hS h4)
   | .glue h0 h1 h2 h3 => sem_HasTy_glue (sound_ty hS h0) h1 (sound_ty hS h2) (sound_ty hS h3)
   | .glueEl h0 h1 h2 h3 => sem_HasTy_glueEl (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2) (sound_eq hS h3)
-  | .unglue h0 h1 => sem_HasTy_unglue (sound_ty hS h0) (sound_ty hS h1)
+  | .unglue h0 h1 h2 h3 => sem_HasTy_unglue (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2) (sound_ty hS h3)
 
 theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A : Tm} : EqTm S Ψ Φ Γ t u A → SemEq S Ψ Φ Γ t u A
   | .refl h0 => sem_EqTm_refl (sound_ty hS h0)
@@ -114,20 +114,21 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
   | .transpPi h0 => sem_EqTm_transpPi (sound_ty hS h0)
   | .transpSigma h0 => sem_EqTm_transpSigma (sound_ty hS h0)
   | .transpPath h0 => sem_EqTm_transpPath (sound_ty hS h0)
-  | .transpGlue h0 => sem_EqTm_transpGlue (sound_ty hS h0)
+  | .transpGlue h0 h1 h2 => sem_EqTm_transpGlue (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2)
   | .transpIPi h0 => sem_EqTm_transpIPi (sound_ty hS h0)
   | .hcompIPi h0 => sem_EqTm_hcompIPi (sound_ty hS h0)
   | .hcompPi h0 => sem_EqTm_hcompPi (sound_ty hS h0)
   | .hcompSigma h0 => sem_EqTm_hcompSigma (sound_ty hS h0)
   | .hcompPath h0 => sem_EqTm_hcompPath (sound_ty hS h0)
-  | .hcompGlue h0 => sem_EqTm_hcompGlue (sound_ty hS h0)
+  | .hcompGlue h0 h1 h2 => sem_EqTm_hcompGlue (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2)
   | .glueFace h0 h1 => sem_EqTm_glueFace h0 (sound_ty hS h1)
   | .glueElFace h0 h1 => sem_EqTm_glueElFace h0 (sound_ty hS h1)
-  | .unglueFace h0 h1 => sem_EqTm_unglueFace h0 (sound_ty hS h1)
+  | .unglueFace h0 h1 h2 h3 => sem_EqTm_unglueFace h0 (sound_ty hS h1) (sound_ty hS h2) (sound_ty hS h3)
   | .glueBeta h0 => sem_EqTm_glueBeta (sound_ty hS h0)
   | .glueEta h0 => sem_EqTm_glueEta (sound_ty hS h0)
 
 end
+
 
 end Model
 
@@ -155,6 +156,6 @@ theorem sigOK_of_wfSig : ∀ (n : ℕ) (S : Sig), S.length = n → WfSig S → S
       have := hS j t' A' hj
       rwa [take_take_eq hjk.le]
     have hok : SigOK (S.take k) := ih _ (by rw [← hn, List.length_take]; omega) _ rfl htake
-    exact sound_ty hok hwf.2
+    exact ⟨hwf.1, hwf.2.1, sound_ty hok hwf.2.2.2⟩
 
 end Model

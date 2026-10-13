@@ -26,20 +26,23 @@ noncomputable section
 
 attribute [local instance] Classical.propDecidable
 
+/-- Good codes: well-formed codes of some level `≤ maxLevel`, and universes. -/
+def TyCode (m : ℕ) (c : V) : Prop := ∃ l ≤ maxLevel, (WF l m c ∧ c ∈ Vt l) ∨ c = univC m l
+
 /-! ### Constants -/
 
 /-- The value of constant `k` of the signature `S` at stage `m`: its body, interpreted with the
 constants before `k`. -/
 def cstFn (S : Sig) (m : ℕ) (k : ℕ) : V :=
   if h : k < S.length then
-    interp (fun m' j => if j < k then cstFn S m' j else ∅) univC (S[k]'h).1 m (fun _ => DM.zero m)
+    interp (fun m' j => if j < k then cstFn S m' j else ∅) univC TyCode (S[k]'h).1 m (fun _ => DM.zero m)
       (fun _ => ∅)
   else ∅
 termination_by k
 decreasing_by assumption
 
 /-- The interpretation of raw terms in the signature `S`. -/
-abbrev sem (S : Sig) (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : V := interp (cstFn S) univC t m ρ γ
+abbrev sem (S : Sig) (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : V := interp (cstFn S) univC TyCode t m ρ γ
 
 /-- All constants of a term are below `n`. -/
 def _root_.KubusCore.Tm.ConstsLt (n : ℕ) : Tm → Prop
@@ -67,9 +70,9 @@ structure IsPoint (S : Sig) (Φ : I) (Γ : Ctx) (m : ℕ) (ρ : IEnv m) (γ : �
 def Natural (S : Sig) (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : Prop :=
   ∀ k (f : Hom k m), sem S t k (ρ.restr f) (TEnv.restr γ f) = res f (sem S t m ρ γ)
 
-/-- `A` denotes a well-formed code of some level `≤ maxLevel`, at the point `(ρ, γ)`. -/
-def TyOK (S : Sig) (A : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : Prop :=
-  ∃ l ≤ maxLevel, WF l m (sem S A m ρ γ) ∧ sem S A m ρ γ ∈ Vt l
+/-- `A` denotes a well-formed code of some level `≤ maxLevel`, or a universe, at the point
+`(ρ, γ)`. (The top universe `U_maxLevel` is a type but not an element of a universe.) -/
+def TyOK (S : Sig) (A : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : Prop := TyCode m (sem S A m ρ γ)
 
 /-- Semantic well-formedness of a context. -/
 def SemWf (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) : Prop :=
@@ -91,7 +94,7 @@ def SemEq (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (t u A : Tm) : Prop :=
 
 /-- The signature is semantically valid: every definition is well-typed in the model. -/
 def SigOK (S : Sig) : Prop :=
-  ∀ k t A, S[k]? = some (t, A) → SemTy (S.take k) 0 .one [] t A
+  ∀ k t A, S[k]? = some (t, A) → t.closedB 0 0 ∧ A.closedB 0 0 ∧ SemTy (S.take k) 0 .one [] t A
 
 end
 
