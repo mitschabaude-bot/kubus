@@ -703,6 +703,26 @@ theorem gt_ext_tube_ok {g : Hom k n} (hφg : (φ.restr ((eO n).comp g)).holds) :
       · rw [gt_pair_psi hG hψ hu0 hcon hδ' (cof_holds_comp hψ (hd.resolve_left hδ) g')]
       · rfl
 
+include hG hψ hu0 hcon in
+theorem gt_ext_mem {g : Hom k n} (hφg : (φ.restr ((eO n).comp g)).holds) :
+    gtExt A φ Tp ep ψ u0 g ∈ El (gtFib A φ Tp ep ψ u0 g) (Hom.id k) := by
+  obtain ⟨hX, hcen, -, -⟩ := gt_c hG hψ hu0 hcon hφg
+  exact hX.hcMem _ _ _ _ _ ((gt_δ_cof hG.cof).restr g |>.or (hψ.restr g)) hcen (gt_ext_tube_ok hG hψ hu0 hcon hφg)
+
+include hG hψ hu0 hcon in
+theorem gt_ext_res {g : Hom k n} (hφg : (φ.restr ((eO n).comp g)).holds) (h : Hom n' k) :
+    res h (gtExt A φ Tp ep ψ u0 g) = gtExt A φ Tp ep ψ u0 (g.comp h) := by
+  obtain ⟨hX, hcen, -, hpair⟩ := gt_c hG hψ hu0 hcon hφg
+  rw [gtExt, hX.hcRes _ _ _ _ _ ((gt_δ_cof hG.cof).restr g |>.or (hψ.restr g)) hcen
+    (gt_ext_tube_ok hG hψ hu0 hcon hφg), hcompAt_eq_res_id, Hom.id_comp, gt_fib_res hG hψ hu0 hcon hφg,
+    Cof.or_restr, Cof.restr_restr, Cof.restr_restr, ← fstV_res_of_pair hpair, gt_C_res hG hψ hu0 hcon hφg, gtExt]
+  congr 1
+  funext n'' h' r
+  have hs : res (h.comp h') (sndV k (gtC A φ ep ψ u0 g)) = res h' (sndV n' (gtC A φ ep ψ u0 (g.comp h))) := by
+    rw [← gt_C_res hG hψ hu0 hcon hφg, sndV_res_of_pair hpair, res_res]
+  simp only [Tube.restr, gtExtTube]
+  rw [hs]; rfl
+
 end gtExt
 
 section fields
