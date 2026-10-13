@@ -1,5 +1,6 @@
 import Model.Rules.GlueComp
 import Model.Rules.TranspGlue
+import Model.Rules.HcompU
 
 /-!
 # Semantic validity of the rules
@@ -1425,6 +1426,23 @@ theorem sem_EqTm_hcompGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u u0 T l}
     have hf : (Tm.hfill T' ψ u u0).ConstsLt S.length :=
       ⟨hT.ren _ _, ⟨(show u.ConstsLt S.length from hu).dsubst _, (hu0.ren _ _).ren _ _⟩, hu0.ren _ _⟩
     exact ⟨he, ⟨hT, hu, hu0⟩, hA, ⟨⟨he.ren _ _, hu⟩, he.ren _ _, hf⟩, he, hu0⟩
+  exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
+
+theorem sem_EqTm_hcompU {S : Sig} {Ψ Φ Γ φ u u0 T l}
+    (h0 : SemTy S Ψ Φ Γ (hcomp (univ l) φ u u0) T) :
+    SemEq S Ψ Φ Γ (hcomp (univ l) φ u u0) (hcompU φ u u0) T := by
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (Tm.hcompU φ u u0) m ρ γ = sem S (hcomp (univ l) φ u u0) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    exact sem_hcompU hp.kv (cond_of_sem_hcomp (hty.ne_empty hmem)) rfl fun _ => rfl
+  have hcl : (Tm.hcompU φ u u0).ConstsLt S.length := by
+    obtain ⟨-, hu, hu0⟩ := h0.2.1
+    simp only [Tm.hcompU, Tm.lineEquiv, Tm.lineFun, Tm.idIsEquiv, Tm.isEquiv, Tm.isContr, Tm.fiber, Tm.pathC,
+      Tm.ConstsLt, Tm.dshift, Tm.dinst, Tm.shift, Tm.constsLt_ren_iff]
+    simp [hu, hu0, Tm.ConstsLt.dsubst, Tm.ConstsLt, Tm.constsLt_ren_iff, Tm.dinst, Tm.dshift, Tm.shift]
+    all_goals apply Tm.ConstsLt.dsubst
+    all_goals simp [hu, hu0, Tm.ConstsLt.dsubst, Tm.ConstsLt, Tm.constsLt_ren_iff]
   exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_glueFace {S : Sig} {Ψ Φ Γ A φ T e G}

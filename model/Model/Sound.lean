@@ -121,6 +121,7 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
   | .hcompSigma h0 => sem_EqTm_hcompSigma (sound_ty hS h0)
   | .hcompPath h0 => sem_EqTm_hcompPath (sound_ty hS h0)
   | .hcompGlue h0 h1 h2 => sem_EqTm_hcompGlue (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2)
+  | .hcompU h0 => sem_EqTm_hcompU (sound_ty hS h0)
   | .glueFace h0 h1 => sem_EqTm_glueFace h0 (sound_ty hS h1)
   | .glueElFace h0 h1 => sem_EqTm_glueElFace h0 (sound_ty hS h1)
   | .unglueFace h0 h1 h2 h3 => sem_EqTm_unglueFace h0 (sound_ty hS h1) (sound_ty hS h2) (sound_ty hS h3)

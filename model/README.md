@@ -6,7 +6,7 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 Status: all issues below are fixed in the spec: 1–4 in `91505c9` (`unglue φ e g`, annotated `lam A t`, `glueBase`/`glueEquiv` removed, `maxLevel = 4`), 5–6 in `1c637f0` (`glueEl φ e t a`, `transpGlue` composes the base along the unglued tube). They are kept here as a record. New issues are added at the top of this section.
 
-Check requested after issue 6 (other contracta with the "constant only through its reduct" pattern): in the model the only type formers whose codes reduce on a face are Glue and the universe's `hcomp` (which has no computation rule). The transport proofs for Π, Σ, `PathP` and `(i : I) → A` use, and prove, injectivity of their codes (`piC_inj`, `sigmaC_inj`, `pathC_inj`, `ipiC_inj`): a line of such codes that is constant on `ψ` has constant components on `ψ`. So `transpPi`, `transpSigma`, `transpPath`, `transpIPi` cannot hit the issue-6 pattern; the `hcomp` contracta involve no lines of types. Systems of types (`split`) also reduce on faces, but no computation rule matches on a `split` head.
+Check requested after issue 6 (other contracta with the "constant only through its reduct" pattern): in the model the only type formers whose codes reduce on a face are Glue and the universe's `hcomp` (its rule `hcompU` reduces to a Glue type whose components are not lines of types constant on a face, so the pattern does not arise). The transport proofs for Π, Σ, `PathP` and `(i : I) → A` use, and prove, injectivity of their codes (`piC_inj`, `sigmaC_inj`, `pathC_inj`, `ipiC_inj`): a line of such codes that is constant on `ψ` has constant components on `ψ`. So `transpPi`, `transpSigma`, `transpPath`, `transpIPi` cannot hit the issue-6 pattern; the `hcomp` contracta involve no lines of types. Systems of types (`split`) also reduce on faces, but no computation rule matches on a `split` head.
 
 ### 6. `transpGlue` is ill-typed when the Glue line is constant on `ψ` only through its reduct
 
@@ -110,6 +110,6 @@ Design decisions:
 
 `Model/Consistency.lean` proves `consistent : KubusCore.Consistent` unconditionally: the model has no `sorry`s, and `#print axioms Model.consistent` shows only `propext`, `Classical.choice`, `Quot.sound`.
 
-All rules of `KubusCore/Rules.lean` are validated (sorry-free lemma in `Model/Rules/Stubs.lean`); `transpGlue` is in `Model/Rules/TranspGlue.lean` (the contractum denotes the Glue code's transport `gtResult`).
+All rules of `KubusCore/Rules.lean` are validated (sorry-free lemma in `Model/Rules/Stubs.lean`); `transpGlue` is in `Model/Rules/TranspGlue.lean` (the contractum denotes the Glue code's transport `gtResult`), `hcompU` in `Model/Rules/HcompU.lean` (the contractum denotes the universe's `hcomp`, `univHcF`).
 
 `hcomp` in a universe is `Glue u0 [φ ↦ (u(1), e)]` with `e` transport backwards along the tube (`Model/UnivHc.lean`). That transport is an equivalence is proven by transporting the proof that the identity is an equivalence along `i ↦ isEquiv (transp (j. B(i ∧ j)) (i = 0))` (`Model/UnivHcFib.lean`). Smallness of all codes (`Vt l` is closed under the code constructors) is in `Model/Small.lean`.

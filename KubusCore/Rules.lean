@@ -251,6 +251,8 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | hcompGlue {Ψ Φ Γ A φ T' e ψ u u0 T l} : HasTy S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) T →
       HasTy S Ψ Φ Γ A (univ l) → HasTy S Ψ (cof Φ φ) Γ e (equiv T' A) →
       EqTm S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) (hcompGlue A φ T' e ψ u u0) T
+  | hcompU {Ψ Φ Γ φ u u0 T l} : HasTy S Ψ Φ Γ (hcomp (univ l) φ u u0) T →
+      EqTm S Ψ Φ Γ (hcomp (univ l) φ u u0) (hcompU φ u u0) T
   /- Glue -/
   | glueFace {Ψ Φ Γ A φ T e G} : I.Entails Φ φ → HasTy S Ψ Φ Γ (glue A φ T e) G →
       EqTm S Ψ Φ Γ (glue A φ T e) T G

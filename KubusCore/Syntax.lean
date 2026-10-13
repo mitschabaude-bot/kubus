@@ -431,6 +431,31 @@ def transpGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm :=
     (split φ1.shift (papp (snd ext).dshift (.neg (.var 0))) ψ.shift a1'.dshift) a1'
   glueEl φ1 e1 (fst ext) a1
 
+/-- `f_i = λ x. transp (j. B(i ∧ j)) (i = 0) x : B(0) → B(i)`, for a line `B` in the interval
+variable 0 (`i`). At `i = 0` it is the identity (`transp` on a true face). -/
+def lineFun (B : Tm) : Tm :=
+  lam (B.dinst .zero).dshift (transp (B.shift.dsubst (bind2 (.and (.var 1) (.var 0)))) (.neg (.var 0)) (var 0))
+
+/-- `isEquiv f` for an `f : T → T` that is (judgmentally, pointwise) the identity:
+`λ y. ((y, ⟨_⟩ y), λ (x, p). ⟨i⟩ (p(~i), ⟨j⟩ p(~i ∨ j)))`. -/
+def idIsEquiv (T f : Tm) : Tm :=
+  lam T (pair (pair (var 0) (plam (var 0)))
+    (lam (fiber T.shift T.shift f.shift (var 0))
+      (plam (pair (papp (snd (var 0)) (.neg (.var 0)))
+        (plam (papp (snd (var 0)) (.or (.neg (.var 1)) (.var 0))))))))
+
+/-- Transport along a line `B` (variable 0) is an equivalence `B(0) ≃ B(1)`: transport the
+proof that `f_0` is an equivalence along `i ↦ isEquiv f_i`. -/
+def lineEquiv (B : Tm) : Tm :=
+  pair ((lineFun B).dinst .one)
+    (transp (isEquiv (B.dinst .zero).dshift B (lineFun B)) .zero
+      (idIsEquiv (B.dinst .zero) ((lineFun B).dinst .zero)))
+
+/-- `hcomp U [φ ↦ i. u] u0 = Glue u0 [φ ↦ (u(1), e)]`, where `e : u(1) ≃ u0` is transport
+backwards along the tube (`lineEquiv` of the reversed tube; on `φ`, `u(0) ≡ u0`). -/
+def hcompU (φ : I) (u u0 : Tm) : Tm :=
+  glue u0 φ (u.dinst .one) (lineEquiv (u.dsubst fun | 0 => .neg (.var 0) | n + 1 => .var (n + 1)))
+
 end Tm
 
 /-- A signature of global definitions `(body, type)`; constant `k` refers to entry `k`.
