@@ -173,6 +173,99 @@ theorem per2_piC {A B : V} (hA : A ≠ ∅) (ihA : PER2 S m A)
     have x := hel a a' ha1
     exact (hB k'' σ' ha1).conv (h4 a a (P.reflEl (P.reflTy h3) ha1)) x
 
+/-- The PER properties at a `Σ` code. -/
+theorem per2_sigmaC {A B : V} (hA : A ≠ ∅) (ihA : PER2 S m A)
+    (ihB : ∀ k (f : Hom k m), ∀ a ∈ El A f, PER2 S k (apZ (dat B k f) a)) : PER2 S m (sigmaC m A B) := by
+  intro k f
+  rw [Comp2_sigmaC A B hA]
+  -- the fibres
+  have hB : ∀ k' (σ : ISub k' k) {A1 a a' : Tm}, (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
+      PERP (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')) :=
+    fun k' σ _ _ _ ha => ihB k' _ _ (fib_mem ha) k' (Hom.id k')
+  -- conversion of the codomains at related arguments, within the family of one side
+  have codConv : ∀ k' (σ : ISub k' k) {A1 A1' B1 B1' : Tm} (hAA : (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1')
+      (hBB : ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
+        (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a'))
+      {a a' : Tm} (ha : (Comp2 S A m k' (f.comp σ.hom)).el A1 a a'),
+      (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a') (B1.inst a) := by
+    intro k' σ A1 A1' B1 B1' hAA hBB a a' ha
+    have P := ihA k' (f.comp σ.hom)
+    have ha' := P.symEl hAA ha
+    have h1 := hBB a' a ha'
+    rw [← fib_code hW ha] at h1
+    have h2 := hBB a a (P.reflEl hAA ha)
+    exact (hB k' σ ha).transTy h1 ((hB k' σ ha).symTy h2)
+  refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
+    fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
+  · -- symmetry of types
+    obtain ⟨hb, hall⟩ := hT
+    refine ⟨base_symm hb, fun k' σ => ?_⟩
+    obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' σ
+    have P := ihA k' (f.comp σ.hom)
+    refine ⟨A1', B1', A1, B1, h2, h1, P.symTy h3, fun a a' ha => ?_⟩
+    have ha' : (Comp2 S A m k' (f.comp σ.hom)).el A1 a' a := P.conv (P.symTy h3) (P.symEl (P.symTy h3) ha)
+    have := (hB k' σ ha').symTy (h4 a' a ha')
+    rwa [fib_code hW ha'] at this
+  · -- transitivity of types
+    obtain ⟨hb, hall⟩ := hT
+    obtain ⟨hb', hall'⟩ := hT'
+    refine ⟨base_trans hW hb hb', fun k' σ => ?_⟩
+    obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' σ
+    obtain ⟨A2, B2, A2', B2', h1', h2', h3', h4'⟩ := hall' k' σ
+    obtain ⟨rfl, rfl⟩ : A1' = A2 ∧ B1' = B2 := by
+      have := RedW.unique h2 h1'; injection this with e1 e2; exact ⟨e1, e2⟩
+    have P := ihA k' (f.comp σ.hom)
+    refine ⟨A1, B1, A2', B2', h1, h2', P.transTy h3 h3', fun a a' ha => ?_⟩
+    have ha2 : (Comp2 S A m k' (f.comp σ.hom)).el A1' a' a' :=
+      P.conv h3 (P.reflEl' (P.transTy h3 h3') ha)
+    have e1 := h4 a a' (P.conv (P.reflTy h3) ha)
+    have e2 := h4' a' a' ha2
+    rw [← fib_code hW ha] at e2
+    exact (hB k' σ ha).transTy e1 e2
+  · -- symmetry of elements
+    obtain ⟨he, hmem, -, hall⟩ := ht
+    refine ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm, fun k'' σ' => ?_⟩
+    obtain ⟨A1, B1, hr, hfst, hsnd⟩ := hall k'' σ'
+    obtain ⟨A1x, B1x, A1', B1', hrx, -, h3, h4⟩ := hT.2 k'' σ'
+    obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
+      have := RedW.unique hrx hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    simp only [ISub.id_comp, ISub.hom_id] at hfst hsnd ⊢
+    have P := ihA k'' (f.comp σ'.hom)
+    refine ⟨A1x, B1x, hr, P.symEl h3 hfst, ?_⟩
+    have y := (hB k'' σ' hfst).symEl (h4 _ _ (P.reflEl h3 hfst)) hsnd
+    have c := (hB k'' σ' hfst).symTy (codConv k'' σ' h3 h4 hfst)
+    have := (hB k'' σ' hfst).conv c y
+    rwa [fib_code hW hfst] at this
+  · -- transitivity of elements
+    obtain ⟨he, hmem, -, hall⟩ := ht
+    obtain ⟨he', -, -, hall'⟩ := ht'
+    refine ⟨he.trans he', hmem, he.trans he', fun k'' σ' => ?_⟩
+    obtain ⟨A1, B1, hr, hfst, hsnd⟩ := hall k'' σ'
+    obtain ⟨A1x, B1x, hrx, hfst', hsnd'⟩ := hall' k'' σ'
+    obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
+      have := RedW.unique hrx hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    obtain ⟨A1y, B1y, A1', B1', hry, -, h3, h4⟩ := hT.2 k'' σ'
+    obtain ⟨rfl, rfl⟩ : A1y = A1x ∧ B1y = B1x := by
+      have := RedW.unique hry hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    simp only [ISub.id_comp, ISub.hom_id] at hfst hsnd hfst' hsnd' ⊢
+    have P := ihA k'' (f.comp σ'.hom)
+    refine ⟨A1y, B1y, hr, P.transEl h3 hfst hfst', ?_⟩
+    rw [← fib_code hW hfst] at hsnd'
+    have c := codConv k'' σ' h3 h4 hfst
+    exact (hB k'' σ' hfst).transEl (h4 _ _ (P.reflEl h3 hfst)) hsnd ((hB k'' σ' hfst).conv c hsnd')
+  · -- transfer along related types
+    obtain ⟨he, hmem, -, hall⟩ := ht
+    have hTT := hT.1.2.2.2.2
+    refine ⟨he.conv hTT, hmem, he.conv hTT, fun k'' σ' => ?_⟩
+    obtain ⟨A1, B1, hr, hfst, hsnd⟩ := hall k'' σ'
+    obtain ⟨A1x, B1x, A1', B1', hrx, hr', h3, h4⟩ := hT.2 k'' σ'
+    obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
+      have := RedW.unique hrx hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    simp only [ISub.id_comp, ISub.hom_id] at hfst hsnd ⊢
+    have P := ihA k'' (f.comp σ'.hom)
+    exact ⟨A1', B1', hr', P.conv h3 hfst,
+      (hB k'' σ' hfst).conv (h4 _ _ (P.reflEl h3 hfst)) hsnd⟩
+
 end
 
 end Model.Whnf
