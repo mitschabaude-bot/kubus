@@ -77,7 +77,7 @@ The computation rules are those of CHM (§2 and §3 of *On Higher Inductive Type
 
 - `transp` for `U` (identity), `Π`, `Σ`, `PathP` and `Glue`;
 - `hcomp` for `Π`, `Σ`, `PathP` and `Glue`;
-- `hcomp` in `U_l` produces `Glue` along an equivalence. That equivalence is defined by a fixed core term (transport along a line is an equivalence), so no extra type former is needed.
+- `hcomp` in `U_l` (`hcompU`): `hcomp U [φ ↦ i. u] u0 ≡ Glue u0 [φ ↦ (u(1/i), e)]`, where `e : u(1/i) ≃ u0` is transport backwards along the tube (`lineEquiv` of `u(~i/i)`; on `φ`, `u(0/i) ≡ u0`). `lineEquiv B` pairs `f_1` with a proof that it is an equivalence, where `f_i = λ x. transp (j. B(i ∧ j)) (i = 0) x : B(0) → B(i)`: `f_0` is the identity, so the evident proof `idIsEquiv` that it is an equivalence is transported along `i ↦ isEquiv f_i`. All of this is defined by core terms, so no extra type former is needed.
 
 ### Inductive types (phase 2)
 
