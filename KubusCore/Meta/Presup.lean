@@ -1,4 +1,4 @@
-import KubusCore.Meta.KanU
+import KubusCore.Meta.PresupB
 
 /-!
 # Metatheory: presupposition
@@ -69,7 +69,7 @@ include hS hT hC
 
 mutual
 
-theorem pre_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → IsTyp S Ψ Φ Γ A
+theorem pre_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → IsTypB S Ψ Φ Γ A
   | @HasTy0.var _ Ψ Φ Γ x A h0 h1 =>
     .inl (lookup_typed hS h0 h1)
   | @HasTy0.conv _ Ψ Φ Γ t A B l h0 h1 =>
@@ -79,48 +79,48 @@ theorem pre_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → IsTyp S Ψ Φ Γ A
   | @HasTy0.const _ Ψ Φ Γ k t A h0 h1 =>
     .inl ((hT _ _ _ h1).1.elim fun l h => ⟨l, HasTy0.ofEmpty hS h h0⟩)
   | @HasTy0.univ _ Ψ Φ Γ l h0 h1 =>
-    .inr ⟨_, rfl⟩
+    .inr ⟨_, rfl, h0⟩
   | @HasTy0.cumul _ Ψ Φ Γ A l h0 h1 =>
-    .inr ⟨_, rfl⟩
+    .inr ⟨_, rfl, h0⟩
   | @HasTy0.pi _ Ψ Φ Γ A B l h0 h1 =>
-    .inr ⟨_, rfl⟩
+    .inr ⟨_, rfl, (pre_ty h0).lvl⟩
   | @HasTy0.lam _ Ψ Φ Γ A B t l h0 h1 =>
     .inl ⟨_, h0⟩
   | @HasTy0.app _ Ψ Φ Γ A B f a h0 h1 =>
     by
-      rcases pre_ty h0 with ⟨l, h⟩ | ⟨l, h⟩
+      rcases pre_ty h0 with ⟨l, h⟩ | ⟨l, h, -⟩
       · exact .inl ⟨l, HasTy0.subst hS (HasTy0.piCod hS h) h1⟩
       · cases h
   | @HasTy0.sigma _ Ψ Φ Γ A B l h0 h1 =>
-    .inr ⟨_, rfl⟩
+    .inr ⟨_, rfl, (pre_ty h0).lvl⟩
   | @HasTy0.pair _ Ψ Φ Γ A B a b l h0 h1 h2 =>
     .inl ⟨_, h0⟩
   | @HasTy0.fst _ Ψ Φ Γ A B p h0 =>
     by
-      rcases pre_ty h0 with ⟨l, h⟩ | ⟨l, h⟩
+      rcases pre_ty h0 with ⟨l, h⟩ | ⟨l, h, -⟩
       · exact .inl ⟨l, HasTy0.sigmaDom hS h⟩
       · cases h
   | @HasTy0.snd _ Ψ Φ Γ A B p h0 =>
     by
-      rcases pre_ty h0 with ⟨l, h⟩ | ⟨l, h⟩
+      rcases pre_ty h0 with ⟨l, h⟩ | ⟨l, h, -⟩
       · exact .inl ⟨l, HasTy0.subst hS (HasTy0.sigmaCod hS h) (HasTy0.fst h0)⟩
       · cases h
   | @HasTy0.path _ Ψ Φ Γ A a b l h0 h1 h2 =>
-    .inr ⟨_, rfl⟩
+    .inr ⟨_, rfl, (pre_ty h0).lvl⟩
   | @HasTy0.plam _ Ψ Φ Γ A a b t l h0 h1 h2 h3 =>
     .inl ⟨_, h0⟩
   | @HasTy0.papp _ Ψ Φ Γ A a b p r h0 h1 =>
     by
-      rcases pre_ty h0 with ⟨l, h⟩ | ⟨l, h⟩
+      rcases pre_ty h0 with ⟨l, h⟩ | ⟨l, h, -⟩
       · exact .inl ⟨l, HasTy0.dsubst hS (HasTy0.pathLine hS h) h1⟩
       · cases h
   | @HasTy0.ipi _ Ψ Φ Γ A l h0 h1 =>
-    .inr ⟨_, rfl⟩
+    .inr ⟨_, rfl, (pre_ty h1).lvl⟩
   | @HasTy0.ilam _ Ψ Φ Γ A t l h0 h1 =>
     .inl ⟨_, h0⟩
   | @HasTy0.iapp _ Ψ Φ Γ A p r h0 h1 =>
     by
-      rcases pre_ty h0 with ⟨l, h⟩ | ⟨l, h⟩
+      rcases pre_ty h0 with ⟨l, h⟩ | ⟨l, h, -⟩
       · exact .inl ⟨l, HasTy0.dsubst hS (HasTy0.ipiLine hS h) h1⟩
       · cases h
   | @HasTy0.split _ Ψ Φ Γ A φ ψ t u l h0 h1 h2 h3 h4 h5 h6 =>
@@ -132,20 +132,20 @@ theorem pre_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → IsTyp S Ψ Φ Γ A
   | @HasTy0.hcomp _ Ψ Φ Γ A φ u a l h0 h1 h2 h3 h4 =>
     .inl ⟨_, h0⟩
   | @HasTy0.glue _ Ψ Φ Γ A φ T e l h0 h1 h2 h3 =>
-    .inr ⟨_, rfl⟩
+    .inr ⟨_, rfl, (pre_ty h0).lvl⟩
   | @HasTy0.glueEl _ Ψ Φ Γ A φ T e t a l h0 h1 h2 h3 h4 =>
     .inl ⟨_, h0⟩
   | @HasTy0.unglue _ Ψ Φ Γ A φ T e g l h0 h1 h2 h3 =>
     .inl ⟨_, h1⟩
   | @HasTy0.data _ Ψ Φ Γ d D ps h0 h1 h2 =>
-    .inr ⟨_, rfl⟩
+    .inr ⟨_, rfl, Nat.le_of_succ_le h1⟩
   | @HasTy0.con _ Ψ Φ Γ d D c C ps args rs h0 h1 h2 h3 h4 h5 h6 h7 =>
     .inl ⟨_, h3⟩
   | @HasTy0.elim _ Ψ Φ Γ d D ps P bs t m h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 =>
     .inl ⟨_, HasTy0.subst hS h4 h9⟩
 
 theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
-    HasTy0 S Ψ Φ Γ t A ∧ HasTy0 S Ψ Φ Γ u A ∧ IsTyp S Ψ Φ Γ A
+    HasTy0 S Ψ Φ Γ t A ∧ HasTy0 S Ψ Φ Γ u A ∧ IsTypB S Ψ Φ Γ A
   | @EqTm0.refl _ Ψ Φ Γ t A h0 =>
     ⟨h0, h0, pre_ty h0⟩
   | @EqTm0.symm _ Ψ Φ Γ t u A h0 =>
@@ -157,7 +157,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.restrict _ Ψ Φ Φ' Γ t u A h0 h1 h2 =>
     ⟨HasTy0.restrict h0 h1 (pre_eq h2).1, HasTy0.restrict h0 h1 (pre_eq h2).2.1, (pre_eq h2).2.2.restrict h0 h1⟩
   | @EqTm0.cumul _ Ψ Φ Γ A B l h0 h1 =>
-    ⟨HasTy0.cumul h0 (pre_eq h1).1, HasTy0.cumul h0 (pre_eq h1).2.1, .inr ⟨_, rfl⟩⟩
+    ⟨HasTy0.cumul h0 (pre_eq h1).1, HasTy0.cumul h0 (pre_eq h1).2.1, .inr ⟨_, rfl, h0⟩⟩
   | @EqTm0.delta _ Ψ Φ Γ k t A h0 h1 =>
     ⟨h0, HasTy0.ofEmpty hS (hT _ _ _ h1).2 (wf_of_ty h0), pre_ty h0⟩
   | @EqTm0.absurd _ Ψ Φ Γ t u A h0 h1 h2 =>
@@ -167,19 +167,19 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.face _ Ψ Φ Γ t A i d l h0 h1 h2 h3 =>
     ⟨h3, HasTy0.face_typed hS h0 h1 (.inl ⟨_, h2⟩) h3, .inl ⟨_, h2⟩⟩
   | @EqTm0.faceU _ Ψ Φ Γ t i d l h0 h1 h2 =>
-    ⟨h2, HasTy0.face_typed hS h0 h1 (.inr ⟨_, rfl⟩) h2, .inr ⟨_, rfl⟩⟩
+    ⟨h2, HasTy0.face_typed hS h0 h1 (.inr ⟨_, rfl⟩) h2, pre_ty h2⟩
   | @EqTm0.pi _ Ψ Φ Γ A A' B B' l h0 h1 =>
     by
       obtain ⟨a, a', _⟩ := pre_eq h0
       obtain ⟨b, b', _⟩ := pre_eq h1
-      exact ⟨HasTy0.pi a b, HasTy0.pi a' (HasTy0.ctxConv hS b' a' (EqTm0.symm h0)), .inr ⟨_, rfl⟩⟩
+      exact ⟨HasTy0.pi a b, HasTy0.pi a' (HasTy0.ctxConv hS b' a' (EqTm0.symm h0)), (pre_eq h0).2.2⟩
   | @EqTm0.lam _ Ψ Φ Γ A B t t' l h0 h1 =>
     ⟨HasTy0.lam h0 (pre_eq h1).1, HasTy0.lam h0 (pre_eq h1).2.1, .inl ⟨_, h0⟩⟩
   | @EqTm0.app _ Ψ Φ Γ A B f f' a a' h0 h1 =>
     by
       obtain ⟨f, f', hpi⟩ := pre_eq h0
       obtain ⟨a, a', _⟩ := pre_eq h1
-      rcases hpi with ⟨l, hpi⟩ | ⟨l, hpi⟩
+      rcases hpi with ⟨l, hpi⟩ | ⟨l, hpi, -⟩
       · have hB := HasTy0.piCod hS hpi
         exact ⟨HasTy0.app f a, HasTy0.conv (HasTy0.app f' a')
           (EqTm0.symm (HasTy0.inst_congr hS hB a a' h1)), .inl ⟨_, HasTy0.subst hS hB a⟩⟩
@@ -188,7 +188,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
     by
       obtain ⟨a, a', _⟩ := pre_eq h0
       obtain ⟨b, b', _⟩ := pre_eq h1
-      exact ⟨HasTy0.sigma a b, HasTy0.sigma a' (HasTy0.ctxConv hS b' a' (EqTm0.symm h0)), .inr ⟨_, rfl⟩⟩
+      exact ⟨HasTy0.sigma a b, HasTy0.sigma a' (HasTy0.ctxConv hS b' a' (EqTm0.symm h0)), (pre_eq h0).2.2⟩
   | @EqTm0.pair _ Ψ Φ Γ A B a a' b b' l h0 h1 h2 =>
     by
       obtain ⟨a, a', _⟩ := pre_eq h1
@@ -199,13 +199,13 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.fst _ Ψ Φ Γ A B p p' h0 =>
     by
       obtain ⟨p, p', hs⟩ := pre_eq h0
-      rcases hs with ⟨l, hs⟩ | ⟨l, hs⟩
+      rcases hs with ⟨l, hs⟩ | ⟨l, hs, -⟩
       · exact ⟨HasTy0.fst p, HasTy0.fst p', .inl ⟨_, HasTy0.sigmaDom hS hs⟩⟩
       · cases hs
   | @EqTm0.snd _ Ψ Φ Γ A B p p' h0 =>
     by
       obtain ⟨p, p', hs⟩ := pre_eq h0
-      rcases hs with ⟨l, hs⟩ | ⟨l, hs⟩
+      rcases hs with ⟨l, hs⟩ | ⟨l, hs, -⟩
       · have hB := HasTy0.sigmaCod hS hs
         exact ⟨HasTy0.snd p, HasTy0.conv (HasTy0.snd p')
           (EqTm0.symm (HasTy0.inst_congr hS hB (HasTy0.fst p) (HasTy0.fst p') (EqTm0.fst h0))),
@@ -217,13 +217,13 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
       obtain ⟨a, a', _⟩ := pre_eq h1
       obtain ⟨b, b', _⟩ := pre_eq h2
       exact ⟨HasTy0.path A a b, HasTy0.path A' (HasTy0.conv a' (EqTm0.dsubst hS h0 trivial))
-        (HasTy0.conv b' (EqTm0.dsubst hS h0 trivial)), .inr ⟨_, rfl⟩⟩
+        (HasTy0.conv b' (EqTm0.dsubst hS h0 trivial)), .inr ⟨_, rfl, (pre_eq h0).2.2.lvl⟩⟩
   | @EqTm0.plam _ Ψ Φ Γ A a b t t' l h0 h1 h2 h3 =>
     ⟨h1, h2, .inl ⟨_, h0⟩⟩
   | @EqTm0.papp _ Ψ Φ Γ A a b p p' r r' h0 h1 h2 h3 =>
     by
       obtain ⟨p, p', hP⟩ := pre_eq h0
-      rcases hP with ⟨l, hP⟩ | ⟨l, hP⟩
+      rcases hP with ⟨l, hP⟩ | ⟨l, hP, -⟩
       · have hA := HasTy0.pathLine hS hP
         exact ⟨HasTy0.papp p h1, HasTy0.conv (HasTy0.papp p' h2)
           (EqTm0.symm (HasTy0.dinst_congr hS hA h1 h2 h3)), .inl ⟨_, HasTy0.dsubst hS hA h1⟩⟩
@@ -235,19 +235,19 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.hcomp _ Ψ Φ Γ A A' φ φ' u u' a a' l h0 h1 h2 h3 h4 h5 h6 =>
     ⟨h0, h1, pre_ty h0⟩
   | @EqTm0.glue _ Ψ Φ Γ A A' φ φ' T T' e e' l h0 h1 h2 h3 h4 h5 h6 =>
-    ⟨h0, h1, .inr ⟨_, rfl⟩⟩
+    ⟨h0, h1, pre_ty h0⟩
   | @EqTm0.glueEl _ Ψ Φ Γ φ φ' t t' a a' A T e e' h0 h1 h2 h3 h4 h5 h6 =>
     ⟨h0, h1, pre_ty h0⟩
   | @EqTm0.unglue _ Ψ Φ Γ A φ φ' T e e' g g' h0 h1 h2 h3 h4 h5 =>
     ⟨h0, h1, pre_ty h0⟩
   | @EqTm0.ipi _ Ψ Φ Γ A A' l h0 h1 =>
-    ⟨HasTy0.ipi h0 (pre_eq h1).1, HasTy0.ipi h0 (pre_eq h1).2.1, .inr ⟨_, rfl⟩⟩
+    ⟨HasTy0.ipi h0 (pre_eq h1).1, HasTy0.ipi h0 (pre_eq h1).2.1, .inr ⟨_, rfl, (pre_eq h1).2.2.lvl⟩⟩
   | @EqTm0.ilam _ Ψ Φ Γ A t t' l h0 h1 =>
     ⟨HasTy0.ilam h0 (pre_eq h1).1, HasTy0.ilam h0 (pre_eq h1).2.1, .inl ⟨_, h0⟩⟩
   | @EqTm0.iapp _ Ψ Φ Γ A p p' r r' h0 h1 h2 h3 =>
     by
       obtain ⟨p, p', hP⟩ := pre_eq h0
-      rcases hP with ⟨l, hP⟩ | ⟨l, hP⟩
+      rcases hP with ⟨l, hP⟩ | ⟨l, hP, -⟩
       · have hA := HasTy0.ipiLine hS hP
         exact ⟨HasTy0.iapp p h1, HasTy0.conv (HasTy0.iapp p' h2)
           (EqTm0.symm (HasTy0.dinst_congr hS hA h1 h2 h3)), .inl ⟨_, HasTy0.dsubst hS hA h1⟩⟩
@@ -255,25 +255,25 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.piInjDom _ Ψ Φ Γ A A' B B' l h0 =>
     by
       obtain ⟨p, p', _⟩ := pre_eq h0
-      exact ⟨HasTy0.piDom hS p, HasTy0.piDom hS p', .inr ⟨_, rfl⟩⟩
+      exact ⟨HasTy0.piDom hS p, HasTy0.piDom hS p', (pre_eq h0).2.2⟩
   | @EqTm0.piInjCod _ Ψ Φ Γ A A' B B' a l h0 h1 =>
     by
       obtain ⟨p, p', _⟩ := pre_eq h0
       exact ⟨HasTy0.subst hS (HasTy0.piCod hS p) h1,
-        HasTy0.subst hS (HasTy0.piCod hS p') (HasTy0.conv h1 (EqTm0.piInjDom h0)), .inr ⟨_, rfl⟩⟩
+        HasTy0.subst hS (HasTy0.piCod hS p') (HasTy0.conv h1 (EqTm0.piInjDom h0)), (pre_eq h0).2.2⟩
   | @EqTm0.sigmaInjDom _ Ψ Φ Γ A A' B B' l h0 =>
     by
       obtain ⟨p, p', _⟩ := pre_eq h0
-      exact ⟨HasTy0.sigmaDom hS p, HasTy0.sigmaDom hS p', .inr ⟨_, rfl⟩⟩
+      exact ⟨HasTy0.sigmaDom hS p, HasTy0.sigmaDom hS p', (pre_eq h0).2.2⟩
   | @EqTm0.sigmaInjCod _ Ψ Φ Γ A A' B B' a l h0 h1 =>
     by
       obtain ⟨p, p', _⟩ := pre_eq h0
       exact ⟨HasTy0.subst hS (HasTy0.sigmaCod hS p) h1,
-        HasTy0.subst hS (HasTy0.sigmaCod hS p') (HasTy0.conv h1 (EqTm0.sigmaInjDom h0)), .inr ⟨_, rfl⟩⟩
+        HasTy0.subst hS (HasTy0.sigmaCod hS p') (HasTy0.conv h1 (EqTm0.sigmaInjDom h0)), (pre_eq h0).2.2⟩
   | @EqTm0.pathInjLine _ Ψ Φ Γ A A' a a' b b' r l h0 h1 =>
     by
       obtain ⟨p, p', _⟩ := pre_eq h0
-      exact ⟨HasTy0.dsubst hS (HasTy0.pathLine hS p) h1, HasTy0.dsubst hS (HasTy0.pathLine hS p') h1, .inr ⟨_, rfl⟩⟩
+      exact ⟨HasTy0.dsubst hS (HasTy0.pathLine hS p) h1, HasTy0.dsubst hS (HasTy0.pathLine hS p') h1, (pre_eq h0).2.2⟩
   | @EqTm0.pathInjLeft _ Ψ Φ Γ A A' a a' b b' l h0 =>
     by
       obtain ⟨p, p', _⟩ := pre_eq h0
@@ -289,14 +289,14 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.ipiInj _ Ψ Φ Γ A A' r l h0 h1 =>
     by
       obtain ⟨p, p', _⟩ := pre_eq h0
-      exact ⟨HasTy0.dsubst hS (HasTy0.ipiLine hS p) h1, HasTy0.dsubst hS (HasTy0.ipiLine hS p') h1, .inr ⟨_, rfl⟩⟩
+      exact ⟨HasTy0.dsubst hS (HasTy0.ipiLine hS p) h1, HasTy0.dsubst hS (HasTy0.ipiLine hS p') h1, (pre_eq h0).2.2⟩
   | @EqTm0.noConf _ Ψ Φ Γ X Y l t u T h0 h1 h2 h3 =>
     ⟨h2, h3, pre_ty h2⟩
   | @EqTm0.piBeta _ Ψ Φ Γ A t a T h0 =>
     ⟨h0, hC.piBeta h0, pre_ty h0⟩
   | @EqTm0.piEta _ Ψ Φ Γ A B f h0 =>
     by
-      rcases pre_ty h0 with ⟨l, hpi⟩ | ⟨l, hpi⟩
+      rcases pre_ty h0 with ⟨l, hpi⟩ | ⟨l, hpi, -⟩
       · have hA := HasTy0.piDom hS hpi
         have hw := HasTy0.wk hS hA h0
         have hv : HasTy0 S Ψ Φ (A :: Γ) (var 0) A.shift := HasTy0.var (Wf0.cons hA) rfl
@@ -311,14 +311,14 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
     ⟨h0, hC.sndBeta h0, pre_ty h0⟩
   | @EqTm0.sigmaEta _ Ψ Φ Γ A B p h0 =>
     by
-      rcases pre_ty h0 with ⟨l, hs⟩ | ⟨l, hs⟩
+      rcases pre_ty h0 with ⟨l, hs⟩ | ⟨l, hs, -⟩
       · exact ⟨h0, HasTy0.pair hs (HasTy0.fst h0) (HasTy0.snd h0), .inl ⟨_, hs⟩⟩
       · cases hs
   | @EqTm0.pathBeta _ Ψ Φ Γ t r T h0 =>
     ⟨h0, hC.pathBeta h0, pre_ty h0⟩
   | @EqTm0.pathEta _ Ψ Φ Γ A a b p h0 =>
     by
-      rcases pre_ty h0 with ⟨l, hP⟩ | ⟨l, hP⟩
+      rcases pre_ty h0 with ⟨l, hP⟩ | ⟨l, hP, -⟩
       · have hw := HasTy0.dwk hS h0
         simp only [Tm.dshift, Tm.ren] at hw
         have hb := HasTy0.papp hw (r := .var 0) (show (0 : Nat) < Ψ + 1 by omega)
@@ -335,7 +335,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
       · cases hP
   | @EqTm0.ipiEta _ Ψ Φ Γ A p h0 =>
     by
-      rcases pre_ty h0 with ⟨l, hP⟩ | ⟨l, hP⟩
+      rcases pre_ty h0 with ⟨l, hP⟩ | ⟨l, hP, -⟩
       · have hw := HasTy0.dwk hS h0
         simp only [Tm.dshift, Tm.ren] at hw
         have hb := HasTy0.iapp hw (r := .var 0) (show (0 : Nat) < Ψ + 1 by omega)
@@ -344,12 +344,12 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
       · cases hP
   | @EqTm0.pathZero _ Ψ Φ Γ A a b p h0 =>
     by
-      rcases pre_ty h0 with ⟨l, hP⟩ | ⟨l, hP⟩
+      rcases pre_ty h0 with ⟨l, hP⟩ | ⟨l, hP, -⟩
       · exact ⟨HasTy0.papp h0 trivial, HasTy0.pathLeft hS hP, .inl ⟨_, HasTy0.dsubst hS (HasTy0.pathLine hS hP) trivial⟩⟩
       · cases hP
   | @EqTm0.pathOne _ Ψ Φ Γ A a b p h0 =>
     by
-      rcases pre_ty h0 with ⟨l, hP⟩ | ⟨l, hP⟩
+      rcases pre_ty h0 with ⟨l, hP⟩ | ⟨l, hP, -⟩
       · exact ⟨HasTy0.papp h0 trivial, HasTy0.pathRight hS hP, .inl ⟨_, HasTy0.dsubst hS (HasTy0.pathLine hS hP) trivial⟩⟩
       · cases hP
   | @EqTm0.splitL _ Ψ Φ Γ φ ψ t u T h0 h1 =>
@@ -416,7 +416,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
       exact ⟨h1, ch.transport (HasTy0.conv ht' (EqTm0.symm (EqTm0.glueFace h0 hg))), pre_ty h1⟩
   | @EqTm0.unglueFace _ Ψ Φ Γ A φ T e g l h0 h1 h2 h3 =>
     by
-      rcases pre_ty h1 with ⟨l', hG⟩ | ⟨l', hG⟩
+      rcases pre_ty h1 with ⟨l', hG⟩ | ⟨l', hG, -⟩
       · have hs := scoped_of_ty h1
         obtain ⟨l0, ⟨hA0, hφ, _, _⟩, chg⟩ := gen_glue hS hG rfl
         have hs' : (cof Φ φ).Scoped Ψ := ⟨hs, hφ⟩
@@ -432,7 +432,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
     ⟨h0, h1, pre_ty h0⟩
   | @EqTm0.glueEta _ Ψ Φ Γ A φ T e g h0 =>
     by
-      rcases pre_ty h0 with ⟨l, hG⟩ | ⟨l, hG⟩
+      rcases pre_ty h0 with ⟨l, hG⟩ | ⟨l, hG, -⟩
       · obtain ⟨l0, ⟨hA, hφ, hT', he⟩, ch⟩ := gen_glue hS hG rfl
         have hs := scoped_of_ty h0
         have hs' : (cof Φ φ).Scoped Ψ := ⟨hs, hφ⟩
@@ -447,7 +447,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
         exact ⟨h0, HasTy0.glueEl hG he hgT hu (EqTm0.symm heq), .inl ⟨_, hG⟩⟩
       · cases hG
   | @EqTm0.data _ Ψ Φ Γ d D ps ps' h0 h1 h2 h3 =>
-    ⟨h1, h2, .inr ⟨_, rfl⟩⟩
+    ⟨h1, h2, pre_ty h1⟩
   | @EqTm0.con _ Ψ Φ Γ d D c C ps ps' args args' rs rs' h0 h1 h2 h3 h4 h5 h6 h7 =>
     ⟨h2, h3, pre_ty h2⟩
   | @EqTm0.elim _ Ψ Φ Γ d D ps ps' P P' bs bs' t t' m h0 h1 h2 h3 h4 h5 h6 h7 =>
