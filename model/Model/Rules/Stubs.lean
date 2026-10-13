@@ -1103,7 +1103,21 @@ theorem sem_EqTm_transpSigma {S : Sig} {Ψ Φ Γ A B φ u0 T}
 theorem sem_EqTm_transpPath {S : Sig} {Ψ Φ Γ A a b φ p0 T}
     (h0 : SemTy S Ψ Φ Γ (transp (path A a b) φ p0) T) :
     SemEq S Ψ Φ Γ (transp (path A a b) φ p0) (transpPath A a b φ p0) T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (Tm.transpPath A a b φ p0) m ρ γ = sem S (transp (path A a b) φ p0) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    exact sem_transpPath (cond_of_sem_transp (hty.ne_empty hmem))
+  have hcl : (Tm.transpPath A a b φ p0).ConstsLt S.length := by
+    obtain ⟨⟨hA, ha, hb⟩, hp0⟩ := h0.2.1
+    have hC := (show A.ConstsLt S.length from hA).dsubst
+      (fun | 0 => I.var 1 | 1 => I.var 0 | n + 2 => I.var (n + 2) : ℕ → I)
+    have hsys : (Tm.split φ.shift.shift (.papp p0.dshift.dshift (.var 1)) (.or (.neg (.var 1)) (.var 1))
+        (.split (.neg (.var 1)) (a.dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)) (.var 1)
+          (b.dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)))).ConstsLt S.length :=
+      ⟨(hp0.ren _ _).ren _ _, ha.dsubst _, hb.dsubst _⟩
+    exact ⟨hC.dinst _, ⟨hC.dsubst _, hsys⟩, ⟨hC, hp0.ren _ _⟩⟩
+  exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_transpGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u0 T l}
     (h0 : SemTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T) (h1 : SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) (h2 : SemTy S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A)) :
