@@ -711,7 +711,7 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
     have hq' : prev.reverse[k - 1 - y]? = some (.var y') := by
       rw [List.getElem?_eq_getElem (by simp; omega), hy'e]
     simp only [hnl, nestPre, List.getElem?_map, List.length_map, List.length_reverse, hpl, hq', Option.map_some,
-      Option.getD_some]
+      Option.getD_some, nestVal]
     rw [getD_reverse_eq (by omega)]
     simp [hpre]
   · rw [List.getElem_append_right (by omega)]
@@ -725,6 +725,20 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
     congr 1; omega
 
 end tyeq
+
+theorem argTySem_congr {σ : SigV} {E D : DataDecl} {d c : ℕ} (hp : E.params = D.params)
+    (hg : E.ctors.getD c default = D.ctors.getD c default) :
+    argTySem σ E d c = argTySem σ D d c := by
+  funext j n psv pre
+  simp only [argTySem, argPreValid, argTyRaw, hp, hg]
+
+theorem nestPre_cons (pre : List V) (a : Tm) (prev : List Tm) :
+    nestPre pre (a :: prev) = nestPre pre prev ++ [nestVal pre a] := by
+  simp [nestPre]
+
+theorem argTyRaw_take_eq {σ : SigV} {D : DataDecl} {d c j n : ℕ} {psv : V} {pre pre' : List V}
+    (h : pre.take j = pre'.take j) : argTyRaw σ D d c j n psv pre = argTyRaw σ D d c j n psv pre' := by
+  simp only [argTyRaw, h]
 
 end
 

@@ -77,6 +77,7 @@ theorem nested_argsTyped {C' : Ctor} {c' : ℕ} {as : Tm} (hC' : Θ.ctors[c']? =
         have hkv' := hΘ.pt_kv hPV (i := args.length - 1 - y) (by omega) (by
           rw [getD_ctors hC, hlen]; exact hyr)
         rw [res_id hkv']
+        simp only [nestVal]; rw [getD_reverse_eq (show y < args.length by omega)]
     rw [e1, show (0 : ℕ) + j = j from by omega] at *
     have := hty n g args hlen hPV
     rw [this]

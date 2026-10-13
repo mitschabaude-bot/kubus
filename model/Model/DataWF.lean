@@ -28,10 +28,11 @@ theorem evalBndList_eq {conF : ℕ → List V → List (DM n) → V} (args : Lis
 /-- The earlier arguments of a nested constructor, with the values of point variables from `pre`
 (the arguments of the outer constructor, oldest first) and junk for the rest. `prev` lists the
 nested argument terms, most recent first. -/
-def nestPre (pre : List V) (prev : List Tm) : List V :=
-  prev.reverse.map fun t => match t with
-    | .var y => pre.reverse.getD y ∅
-    | _ => ∅
+def nestVal (pre : List V) : Tm → V
+  | .var y => pre.reverse.getD y ∅
+  | _ => ∅
+
+def nestPre (pre : List V) (prev : List Tm) : List V := prev.reverse.map (nestVal pre)
 
 mutual
 /-- The boundary term `t` of constructor `c` (with declaration `C`) is simple and its nested

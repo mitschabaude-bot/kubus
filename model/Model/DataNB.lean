@@ -124,7 +124,7 @@ theorem tr_conV_any : ∀ c C, Θ.ctors[c]? = some C → ∀ n (f : Hom (n + 1) 
             rw [e1, hf2 i' (by omega), if_neg (by simp [hr''])]
             simp only [nestPre, List.reverse_reverse, List.getElem_map, List.getElem_take]
             rw [List.getD_eq_getElem?_getD (l := as.toList), List.getElem?_eq_getElem (by omega)]
-            simp only [Option.getD_some, hye, varIdx]
+            simp only [Option.getD_some, hye, varIdx, nestVal]
         refine ihc c' hc' C' hC' n f φ args2 outs2 fills2 _ hta' hto' (fun a ha => ?_) (by simp [hrs'])
           (by simp [args2, outs2]) (by simp [args2, hl2]) ?_ ?_ ?_ ?_
         · obtain ⟨t, -, rfl⟩ := List.mem_map.1 ha
