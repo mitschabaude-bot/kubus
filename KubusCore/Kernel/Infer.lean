@@ -43,18 +43,18 @@ def checkEquiv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (T e : Tm) (l
   R.check E1 e (Tm.equiv T A) l hq
 
 /-- Substitute the endpoints that the restriction fixes into a type (face rule). -/
-def faceNormTy {Ψ Φ Γ} (G : Tm) (l : Nat) : Nat → (G' : Tm) → EqTm S Ψ Φ Γ G G' (.univ l) →
-    Red S Ψ Φ Γ G (.univ l)
+def faceNormTy {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) : Nat → (G' : Tm) →
+    EqTm S Ψ Φ Γ G G' (.univ l) → Red S Ψ Φ Γ G (.univ l)
   | 0, G', e => ⟨G', e⟩
   | n + 1, G', e =>
     let i := n
     if hi : i < Ψ ∧ G'.mentionsI i = true then
-      if h1 : I.Entails Φ (I.lit i true) then
-        faceNormTy G l n _ (EqTm.trans e (EqTm.face hi.1 h1 (HasTy.eqR e)))
-      else if h0 : I.Entails Φ (I.lit i false) then
-        faceNormTy G l n _ (EqTm.trans e (EqTm.face hi.1 h0 (HasTy.eqR e)))
-      else faceNormTy G l n G' e
-    else faceNormTy G l n G' e
+      if h1 : E.Ent (I.lit i true) then
+        faceNormTy E G l n _ (EqTm.trans e (EqTm.face hi.1 h1 (HasTy.eqR e)))
+      else if h0 : E.Ent (I.lit i false) then
+        faceNormTy E G l n _ (EqTm.trans e (EqTm.face hi.1 h0 (HasTy.eqR e)))
+      else faceNormTy E G l n G' e
+    else faceNormTy E G l n G' e
 
 /-- Bring a type `G` to the form `Glue A [φ ↦ (T, e)]` with the given `φ`, with a derivation
 that the base `A` is a type. -/
@@ -65,7 +65,7 @@ def toGlue (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ
   let rG ← match rG.tm with
     | .glue _ φ' _ _ =>
       if φ' = φ then pure rG else do
-        let rf := faceNormTy rG.tm l Ψ rG.tm (EqTm.refl (HasTy.eqR rG.eq))
+        let rf := faceNormTy E rG.tm l Ψ rG.tm (EqTm.refl (HasTy.eqR rG.eq))
         let r2 ← whnfTy R E rf.tm l (HasTy.eqR rf.eq)
         pure ⟨r2.tm, EqTm.trans rG.eq (EqTm.trans rf.eq r2.eq)⟩
     | _ => pure rG
@@ -84,7 +84,7 @@ def toGlueE (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S �
   let rG ← match rG.tm with
     | .glue _ φ' _ e' =>
       if φ' = φ ∧ e' = e then pure rG else do
-        let rf := faceNormTy rG.tm l Ψ rG.tm (EqTm.refl (HasTy.eqR rG.eq))
+        let rf := faceNormTy E rG.tm l Ψ rG.tm (EqTm.refl (HasTy.eqR rG.eq))
         let r2 ← whnfTy R E rf.tm l (HasTy.eqR rf.eq)
         pure ⟨r2.tm, EqTm.trans rG.eq (EqTm.trans rf.eq r2.eq)⟩
     | _ => pure rG
@@ -95,7 +95,7 @@ def toGlueE (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S �
     return ⟨A, T, ⟨hA, EqTm.trans eG e2⟩⟩
   | ⟨G', _⟩ =>
     -- under `φ` the Glue type may have reduced already: rebuild it from the type of `e`
-    if hφ : I.Entails Φ φ then
+    if hφ : E.Ent φ then
       let ⟨hsφ⟩ ← ensureScoped φ Ψ
       let E1 := E.cof φ hsφ
       match ← inferW R E1 e with
@@ -107,7 +107,7 @@ def toGlueE (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S �
         let ⟨he⟩ ← R.check E1 e (Tm.equiv T A) l hq
         have hGl := HasTy.glue hA hsφ hT1 he
         have eF := EqTm.glueFace hφ hGl
-        let ⟨hc⟩ ← ensureEnt Φ (cof Φ φ)
+        let ⟨hc⟩ ← ensureEntE E (cof Φ φ)
         let ⟨hU⟩ ← univTyK E l
         let ⟨eGT⟩ ← R.conv E (.univ l) (l + 1) hU G T hG (HasTy.restrict E.hsc hc hT1)
         return ⟨A, T, ⟨hA, EqTm.trans eGT (EqTm.symm eF)⟩⟩
@@ -246,16 +246,16 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K (Inf
   | .split φ t ψ u => do
     let ⟨hφ⟩ ← ensureScoped φ Ψ
     let ⟨hψ⟩ ← ensureScoped ψ Ψ
-    let ⟨hcov⟩ ← ensureEnt Φ (.or φ ψ)
+    let ⟨hcov⟩ ← ensureEntE E (.or φ ψ)
     let E2 := (E.cof φ hφ).cof ψ hψ
-    if I.entails Φ φ then
+    if E.ent φ then
       let it ← R.infer E t
       let ⟨hu⟩ ← R.check (E.cof ψ hψ) u it.ty it.lvl (HasTy.rs E hψ it.hty)
       let ⟨hc⟩ ← ensureEnt (cof (cof Φ φ) ψ) (cof Φ ψ)
       let ⟨e⟩ ← R.conv E2 it.ty it.lvl (HasTy.cofcof E hφ hψ it.hty) t u
         (HasTy.cofcof E hφ hψ it.htm) (HasTy.restrict E2.hsc hc hu)
       pure ⟨it.ty, it.lvl, it.hty, HasTy.split hφ hψ hcov it.hty (HasTy.rs E hφ it.htm) hu e⟩
-    else if I.entails Φ ψ then
+    else if E.ent ψ then
       let iu ← R.infer E u
       let ⟨ht⟩ ← R.check (E.cof φ hφ) t iu.ty iu.lvl (HasTy.rs E hφ iu.hty)
       let ⟨e⟩ ← R.conv E2 iu.ty iu.lvl (HasTy.cofcof E hφ hψ iu.hty) t u
@@ -377,7 +377,7 @@ def checkStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .split φ t1 ψ u1 => do
     let ⟨hφ⟩ ← ensureScoped φ Ψ
     let ⟨hψ⟩ ← ensureScoped ψ Ψ
-    let ⟨hcov⟩ ← ensureEnt Φ (.or φ ψ)
+    let ⟨hcov⟩ ← ensureEntE E (.or φ ψ)
     let ⟨h1⟩ ← R.check (E.cof φ hφ) t1 A l (HasTy.rs E hφ hA)
     let ⟨h2⟩ ← R.check (E.cof ψ hψ) u1 A l (HasTy.rs E hψ hA)
     let E2 := (E.cof φ hφ).cof ψ hψ
@@ -386,7 +386,7 @@ def checkStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
       (HasTy.restrict E2.hsc hc h2)
     pure ⟨HasTy.split hφ hψ hcov hA h1 h2 e⟩
   | .abort => do
-    let ⟨h⟩ ← ensureEnt Φ .zero
+    let ⟨h⟩ ← ensureEntE E .zero
     pure ⟨HasTy.abort h hA⟩
   | .glueEl φ e t1 a1 => do
     let ⟨hφ⟩ ← ensureScoped φ Ψ

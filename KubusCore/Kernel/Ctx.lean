@@ -126,6 +126,12 @@ theorem ent_eq {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ψ : I) : E.ent ψ = I.entails 
 theorem ent_sound {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) {ψ : I} (h : E.ent ψ = true) : I.Entails Φ ψ := by
   rw [ent_eq] at h; exact h
 
+/-- `Φ ⊨ ψ`, decided with the cached faces. -/
+def Ent {Ψ Φ Γ} (_E : KCtx S Ψ Φ Γ) (ψ : I) : Prop := I.Entails Φ ψ
+
+instance {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ψ : I) : Decidable (E.Ent ψ) :=
+  decidable_of_iff (E.ent ψ = true) ⟨E.ent_sound, fun h => by rw [ent_eq]; exact h⟩
+
 end KCtx
 
 end KubusCore

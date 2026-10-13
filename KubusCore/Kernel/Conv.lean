@@ -18,10 +18,13 @@ variable {S : Sig}
 /-- `d ⊆ c` as constraint sets: the face `c` lies in the face `d`. -/
 def faceLe (d c : I.Face) : Bool := d.all (c.contains ·)
 
-/-- The maximal faces of `Φ`. -/
-def canonFaces (Φ : I) : List I.Face :=
-  (Φ.faces.foldl (fun acc c =>
+/-- The maximal faces of a list of faces. -/
+def maxFaces (fs : List I.Face) : List I.Face :=
+  (fs.foldl (fun acc c =>
     if acc.any (fun d => faceLe d c) then acc else c :: acc.filter (fun d => !faceLe c d)) []).reverse
+
+/-- The maximal faces of `Φ`. -/
+def canonFaces (Φ : I) : List I.Face := maxFaces Φ.faces
 
 def litLt (a b : Nat × Bool) : Bool := a.1 < b.1 || (a.1 == b.1 && !a.2 && b.2)
 
@@ -32,15 +35,15 @@ def normFace (α : I.Face) : I.Face := (α.mergeSort fun a b => !litLt b a).eras
 def canonPhi (Φ : I) : I := I.ofFaces ((canonFaces Φ).map normFace)
 
 /-- Substitute the endpoints of the face `α` into `t` (for variables that occur). -/
-def faceSubst {Ψ Φ Γ} (A : Tm) (t0 : Tm) : I.Face → (t : Tm) → EqTm S Ψ Φ Γ t0 t A →
+def faceSubst {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (t0 : Tm) : I.Face → (t : Tm) → EqTm S Ψ Φ Γ t0 t A →
     K (Red S Ψ Φ Γ t0 A)
   | [], t, e => pure ⟨t, e⟩
   | (i, d) :: α, t, e =>
     if hi : i < Ψ ∧ t.mentionsI i = true then
-      if hent : I.Entails Φ (I.lit i d) then
-        faceSubst A t0 α _ (EqTm.trans e (EqTm.face hi.1 hent (HasTy.eqR e)))
-      else faceSubst A t0 α t e
-    else faceSubst A t0 α t e
+      if hent : E.Ent (I.lit i d) then
+        faceSubst E A t0 α _ (EqTm.trans e (EqTm.face hi.1 hent (HasTy.eqR e)))
+      else faceSubst E A t0 α t e
+    else faceSubst E A t0 α t e
 
 /-! ## Context conversion for the codomain of Π and Σ -/
 
@@ -340,8 +343,8 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
 def convFace (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
     (ht : HasTy S Ψ Φ Γ t A) (hu : HasTy S Ψ Φ Γ u A) (α : I.Face) :
     K (PLift (EqTm S Ψ Φ Γ t u A)) := do
-  let rt ← faceSubst A t α t (EqTm.refl ht)
-  let ru ← faceSubst A u α u (EqTm.refl hu)
+  let rt ← faceSubst E A t α t (EqTm.refl ht)
+  let ru ← faceSubst E A u α u (EqTm.refl hu)
   if h : rt.tm = ru.tm then
     return ⟨EqTm.trans rt.eq (EqTm.symm (h ▸ ru.eq))⟩
   let rA ← whnfTy R E A l hA
@@ -358,14 +361,14 @@ def convStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
   if h : t = u then return ⟨h ▸ EqTm.refl ht⟩
   match canonFaces Φ with
   | [] =>
-    let ⟨h0⟩ ← ensureEnt Φ .zero
+    let ⟨h0⟩ ← ensureEntE E .zero
     pure ⟨EqTm.absurd h0 ht hu⟩
   | [α] =>
     let Φ' := I.ofFace α
     if Φ' = Φ then convFace R E A l hA t u ht hu α
     else
       let ⟨h1⟩ ← ensureEnt Φ' Φ
-      let ⟨h2⟩ ← ensureEnt Φ Φ'
+      let ⟨h2⟩ ← ensureEntE E Φ'
       let ⟨hs⟩ ← ensureScoped Φ' Ψ
       let ⟨e⟩ ← convFace R (E.restrict Φ' hs h1) A l (HasTy.restrict hs h1 hA) t u
         (HasTy.restrict hs h1 ht) (HasTy.restrict hs h1 hu) α
@@ -375,7 +378,7 @@ def convStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     let ψ := I.ofFaces rest
     let ⟨hφ⟩ ← ensureScoped φ Ψ
     let ⟨hψ⟩ ← ensureScoped ψ Ψ
-    let ⟨hcov⟩ ← ensureEnt Φ (.or φ ψ)
+    let ⟨hcov⟩ ← ensureEntE E (.or φ ψ)
     let ⟨e1⟩ ← R.conv (E.cof φ hφ) A l (HasTy.rs E hφ hA) t u (HasTy.rs E hφ ht) (HasTy.rs E hφ hu)
     let ⟨e2⟩ ← R.conv (E.cof ψ hψ) A l (HasTy.rs E hψ hA) t u (HasTy.rs E hψ ht) (HasTy.rs E hψ hu)
     pure ⟨EqTm.local hφ hψ hcov ht hu e1 e2⟩
