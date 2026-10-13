@@ -288,6 +288,52 @@ theorem equivCode_eq_equivM {T A : V} (hT : Fib T m) (hA : Fib A m) : equivCode 
   exact sem_equivT (S := []) (natural_var _ 1 _ _) (natural_var _ 0 _ _) hT hA
 
 
+/-! ### Elements of the model codes -/
+
+theorem mem_sigmaC_id {A B v : V} (hA : IsKV k A) (hB : IsKV k B) :
+    v ∈ El (sigmaC k A B) (Hom.id k) ↔ ∃ a ∈ El A (Hom.id k), ∃ b ∈ El (apZ (dat B k (Hom.id k)) a) (Hom.id k),
+      v = pairV k a b := by
+  rw [El_sigmaC, res_id hA, res_id hB, sigmaElSet, mem_sigmaEl]
+
+theorem mem_fiberM {T A f y v : V} (hT : IsKV k T) (hA : IsKV k A) (hf : IsKV k f) (hy : IsKV k y)
+    (hv : v ∈ El (fiberM k T A f y) (Hom.id k)) :
+    ∃ t ∈ El T (Hom.id k), ∃ p ∈ El (pathC k (res (Hom.wk k) A) (appV k f t) y) (Hom.id k), v = pairV k t p := by
+  unfold fiberM at hv
+  rw [mem_sigmaC_id hT (isKV_famV _ _)] at hv
+  obtain ⟨t, ht, p, hp, rfl⟩ := hv
+  rw [apZ_dat_famV _ _ _ ht, res_id hA, res_id hf, res_id hy] at hp
+  exact ⟨t, ht, p, hp, rfl⟩
+
+theorem pairV_mem_fiberM {T A f y t p : V} (hT : IsKV k T) (hA : IsKV k A) (hf : IsKV k f) (hy : IsKV k y)
+    (ht : t ∈ El T (Hom.id k)) (hp : p ∈ El (pathC k (res (Hom.wk k) A) (appV k f t) y) (Hom.id k)) :
+    pairV k t p ∈ El (fiberM k T A f y) (Hom.id k) := by
+  unfold fiberM
+  rw [mem_sigmaC_id hT (isKV_famV _ _)]
+  refine ⟨t, ht, p, ?_, rfl⟩
+  rw [apZ_dat_famV _ _ _ ht, res_id hA, res_id hf, res_id hy]; exact hp
+
+theorem mem_isContrM {X c : V} (hX : Fib X k) (hc : c ∈ El (isContrM k X) (Hom.id k)) :
+    ∃ cen ∈ El X (Hom.id k), ∃ ctr ∈ piElSet k X (famV k X fun k' h x => pathC k' (res (Hom.wk k') (res h X)) (res h cen) x),
+      c = pairV k cen ctr := by
+  unfold isContrM at hc
+  rw [mem_sigmaC_id hX.kv (isKV_famV _ _)] at hc
+  obtain ⟨cen, hcen, ctr, hctr, rfl⟩ := hc
+  rw [apZ_dat_famV _ _ _ hcen, res_id hX.kv, El_piC, res_id hX.kv, res_id (isKV_famV _ _)] at hctr
+  exact ⟨cen, hcen, ctr, hctr, rfl⟩
+
+theorem mem_equivM {T A e : V} (hT : Fib T k) (hA : Fib A k) (he : e ∈ El (equivM k T A) (Hom.id k)) :
+    ∃ p ∈ El (arrowM k T A) (Hom.id k),
+      ∃ q ∈ piElSet k A (famV k A fun k' g y => isContrM k' (fiberM k' (res g T) (res g A) (res g p) y)),
+      e = pairV k p q := by
+  have hPkv : IsKV k (arrowM k T A) := by unfold arrowM piC; exact isKV_mkKV _
+  unfold equivM at he
+  rw [mem_sigmaC_id hPkv (isKV_famV _ _)] at he
+  obtain ⟨p, hp, q, hq, rfl⟩ := he
+  rw [apZ_dat_famV _ _ _ hp, res_id hT.kv, res_id hA.kv] at hq
+  unfold isEquivM at hq
+  rw [El_piC, res_id hA.kv, res_id (isKV_famV _ _)] at hq
+  exact ⟨p, hp, q, hq, rfl⟩
+
 end
 
 end Model
