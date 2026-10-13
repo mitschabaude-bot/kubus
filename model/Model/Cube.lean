@@ -355,3 +355,52 @@ theorem cons_restr (ρ : IEnv m) (r : DM m) (f : Hom k m) :
 end IEnv
 
 end Model
+
+/-! ### Faces as sets of Kleene points -/
+
+namespace Model
+
+/-- A cofibration at stage `m`, represented canonically by its Kleene reading. -/
+abbrev Cof (m : ℕ) := Set (Pt m)
+
+namespace Cof
+
+variable {k m n : ℕ}
+
+def holds (φ : Cof m) : Prop := Pt.allA m ∈ φ
+
+def restr (φ : Cof m) (h : Hom k m) : Cof k := {p | p.IsK3 ∧ h.app p ∈ φ}
+
+/-- `φ` is (the Kleene reading of) a face. -/
+def IsCof (φ : Cof m) : Prop := ∃ g : DM m, φ = g.face
+
+theorem holds_restr_iff (φ : Cof m) (h : Hom k m) : (φ.restr h).holds ↔ h.app (Pt.allA k) ∈ φ :=
+  ⟨fun h' => h'.2, fun h' => ⟨Pt.allA_isK3 k, h'⟩⟩
+
+theorem restr_restr (φ : Cof m) (h : Hom k m) (g : Hom n k) :
+    (φ.restr h).restr g = φ.restr (h.comp g) := by
+  ext p; simp only [restr, Set.mem_setOf_eq, Hom.app_comp]
+  exact ⟨fun ⟨hp, _, h2⟩ => ⟨hp, h2⟩, fun ⟨hp, h2⟩ => ⟨hp, g.app_isK3 hp, h2⟩⟩
+
+theorem _root_.Model.DM.face_restr (g : DM m) (h : Hom k m) : (g.restr h).face = Cof.restr g.face h := by
+  ext p; simp only [DM.face, restr, Set.mem_setOf_eq, DM.restr_fn]
+  exact ⟨fun ⟨hp, h2⟩ => ⟨hp, h.app_isK3 hp, h2⟩, fun ⟨hp, _, h2⟩ => ⟨hp, h2⟩⟩
+
+theorem IsCof.restr {φ : Cof m} (hφ : φ.IsCof) (h : Hom k m) : (φ.restr h).IsCof := by
+  obtain ⟨g, rfl⟩ := hφ; exact ⟨g.restr h, (DM.face_restr g h).symm⟩
+
+theorem IsCof.restr_id {φ : Cof m} (hφ : φ.IsCof) : φ.restr (Hom.id m) = φ := by
+  obtain ⟨g, rfl⟩ := hφ; rw [← DM.face_restr, DM.restr_id]
+
+theorem _root_.Model.DM.holds_iff_face_holds (g : DM m) : g.holds ↔ Cof.holds g.face :=
+  DM.holds_iff_face g
+
+theorem IsCof.holds_restr {φ : Cof m} (hφ : φ.IsCof) (hh : φ.holds) (h : Hom k m) :
+    (φ.restr h).holds := by
+  obtain ⟨g, rfl⟩ := hφ
+  rw [← DM.face_restr, ← DM.holds_iff_face_holds]
+  exact ((DM.holds_iff_face_holds g).2 hh).restr h
+
+end Cof
+
+end Model
