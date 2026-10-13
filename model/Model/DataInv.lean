@@ -60,23 +60,33 @@ theorem bndAtMap_isSome {C : Ctor} {rs : List (DM n)} {f : Hom k n} {cl : I × T
 
 section
 
-variable {Θ : SData m} (hΘ : Θ.Good)
-include hΘ
+variable {Θ : SData m}
 
-theorem SData.Good.argsTyped_res {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {g : Hom n m} {args : List V}
-    (ht : Θ.ArgsTyped c C n g args) (k : ℕ) (h : Hom k n) : Θ.ArgsTyped c C k (g.comp h) (args.map (res h)) := by
+theorem SData.argsTyped_res_of (hrc : Θ.ResClosed) {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {g : Hom n m}
+    {args : List V} (ht : Θ.ArgsTyped c C n g args) (k : ℕ) (h : Hom k n) :
+    Θ.ArgsTyped c C k (g.comp h) (args.map (res h)) := by
   obtain ⟨hlen, hrec, hpt⟩ := ht
   refine ⟨by simp [hlen], fun j a ha hj => ?_, fun j a ha hj => ?_⟩
   · rw [List.getElem?_map] at ha
     obtain ⟨a0, ha0, rfl⟩ := Option.map_eq_some_iff.1 ha
-    exact (hrec j a0 ha0 hj).res hΘ.resClosed k h
+    exact (hrec j a0 ha0 hj).res hrc k h
   · rw [List.getElem?_map] at ha
     obtain ⟨a0, ha0, rfl⟩ := Option.map_eq_some_iff.1 ha
     rw [← List.map_take]
-    exact hΘ.resClosed c j n g _ a0 (SData.ptValid_take hC hpt j) (hpt j a0 ha0 hj) k h
+    exact hrc c j n g _ a0 (SData.ptValid_take hC hpt j) (hpt j a0 ha0 hj) k h
 
-/-- A constructor value whose boundary holds at its own stage is its boundary value. -/
-theorem conV_eq_bnd {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {g : Hom n m} {args : List V}
+theorem SData.Good.argsTyped_res (hΘ : Θ.Good) {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {g : Hom n m}
+    {args : List V} (ht : Θ.ArgsTyped c C n g args) (k : ℕ) (h : Hom k n) :
+    Θ.ArgsTyped c C k (g.comp h) (args.map (res h)) :=
+  SData.argsTyped_res_of hΘ.resClosed hC ht k h
+
+/-- A constructor value whose boundary holds at its own stage is its boundary value, given the
+agreement of its overlapping boundary clauses. -/
+theorem conV_eq_bnd_of (hrc : Θ.ResClosed) {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C)
+    (hovl : ∀ ψ b ψ' b', (ψ, b) ∈ C.bnd → (ψ', b') ∈ C.bnd → ∀ n (g : Hom n m) args (rs : List (DM n)),
+      Θ.ArgsTyped c C n g args → rs.length = C.dims → (ival (renv rs) ψ).holds → (ival (renv rs) ψ').holds →
+      evalBnd (conBefore Θ.ctors c n) args rs b = evalBnd (conBefore Θ.ctors c n) args rs b')
+    {g : Hom n m} {args : List V}
     (ht : Θ.ArgsTyped c C n g args) {rs : List (DM n)} (hrs : rs.length = C.dims) {ψ : I} {b : Tm}
     (hb : bndAtMap C rs (Hom.id n) = some (ψ, b)) :
     conV Θ.ctors n c args rs = evalBnd (conBefore Θ.ctors c n) args rs b := by
@@ -92,10 +102,16 @@ theorem conV_eq_bnd {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {g : Hom n
   show dat (evalBnd (conBefore Θ.ctors c n) args rs b') k f = _
   rw [← here_res, ← here_res, res_evalBnd_conBefore, res_evalBnd_conBefore]
   congr 1
-  refine (hΘ.ovl c C hC ψ' b' ψ b hmem' hmem k (g.comp f) _ _ (hΘ.argsTyped_res hC ht k f)
+  refine (hovl ψ' b' ψ b hmem' hmem k (g.comp f) _ _ (SData.argsTyped_res_of hrc hC ht k f)
     (by simp [hrs]) ?_ ?_)
   · rw [← ival_renv_restr]; exact hh2
   · rw [← ival_renv_restr]; exact hf
+
+theorem conV_eq_bnd (hΘ : Θ.Good) {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {g : Hom n m} {args : List V}
+    (ht : Θ.ArgsTyped c C n g args) {rs : List (DM n)} (hrs : rs.length = C.dims) {ψ : I} {b : Tm}
+    (hb : bndAtMap C rs (Hom.id n) = some (ψ, b)) :
+    conV Θ.ctors n c args rs = evalBnd (conBefore Θ.ctors c n) args rs b :=
+  conV_eq_bnd_of hΘ.resClosed hC (hΘ.ovl c C hC) ht hrs hb
 
 end
 
@@ -171,7 +187,7 @@ theorem hasRep_conV : ∀ c C, Θ.ctors[c]? = some C → ∀ n (g : Hom n m) arg
       obtain ⟨ψ, b⟩ := cl
       rw [conV_eq_bnd hΘ hC ht hrs hb]
       have hbt := hΘ.bnd c C hC ψ b (bndAtMap_some hb).1 _ _ (by simpa using (bndAtMap_some hb).2)
-      have haux := bnd_delem_aux hΘ hC ht.1 ht.2.1 ht.2.2 rs
+      have haux := bnd_delem_aux hΘ.basic hC ht.1 ht.2.1 ht.2.2 rs
       suffices ∀ t : Tm, (BTy Θ c C t → HasRep Θ n g (evalBnd (conBefore Θ.ctors c n) args rs t)) ∧
           (∀ C' c' k prev, BTyArgs Θ c C C' c' k prev t → ∀ i (hi : i < t.toList.length),
             C'.isRec (k + i) = true → HasRep Θ n g (evalBnd (conBefore Θ.ctors c n) args rs t.toList[i])) from
@@ -194,7 +210,7 @@ theorem hasRep_conV : ∀ c C, Θ.ctors[c]? = some C → ∀ n (g : Hom n m) arg
         have hout := (haux as).2 C' c' 0 [] hargs
         simp only [evalBnd, conBefore, dif_pos hc']
         rw [evalBndList_eq]
-        refine ihc c' hc' C' hC' n g _ _ (nested_argsTyped hΘ hC ht.1 ht.2.1 ht.2.2 rs hC' hlen' hout)
+        refine ihc c' hc' C' hC' n g _ _ (nested_argsTyped hΘ.basic hC ht.1 ht.2.1 ht.2.2 rs hC' hlen' hout)
           (by simp [hrs']) (fun j a ha hj => ?_)
         rw [List.getElem?_map] at ha
         obtain ⟨t, ht', rfl⟩ := Option.map_eq_some_iff.1 ha

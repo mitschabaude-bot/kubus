@@ -55,7 +55,7 @@ theorem tr_conV_any : ∀ c C, Θ.ctors[c]? = some C → ∀ n (f : Hom (n + 1) 
       obtain ⟨ψ, b⟩ := cl
       rw [conV_eq_bnd hΘ hC hta hrs hb, conV_eq_bnd hΘ hC hto hrs hb]
       have hbt := hΘ.bnd c C hC ψ b (bndAtMap_some hb).1 _ _ (by simpa using (bndAtMap_some hb).2)
-      have hauxa := bnd_delem_aux hΘ hC hta.1 hta.2.1 hta.2.2 rs
+      have hauxa := bnd_delem_aux hΘ.basic hC hta.1 hta.2.1 hta.2.2 rs
       have hlen : args.length = C.args.length := hta.1
       have hkvo : ∀ j (hj : j < outs.length), C.isRec j = true → IsKV n outs[j] := fun j hj hr =>
         (hto.2.1 j _ (List.getElem?_eq_getElem hj) hr).kv
@@ -85,9 +85,9 @@ theorem tr_conV_any : ∀ c C, Θ.ctors[c]? = some C → ∀ n (f : Hom (n + 1) 
         have hout := (hauxa as).2 C' c' 0 [] hargs
         simp only [evalBnd, conBefore, dif_pos hc']
         rw [evalBndList_eq, evalBndList_eq]
-        have hta' := nested_argsTyped hΘ hC hta.1 hta.2.1 hta.2.2 rs hC' hlen' hout
-        have hauxo := bnd_delem_aux hΘ hC hto.1 hto.2.1 hto.2.2 rs
-        have hto' := nested_argsTyped hΘ hC hto.1 hto.2.1 hto.2.2 rs hC' hlen' ((hauxo as).2 C' c' 0 [] hargs)
+        have hta' := nested_argsTyped hΘ.basic hC hta.1 hta.2.1 hta.2.2 rs hC' hlen' hout
+        have hauxo := bnd_delem_aux hΘ.basic hC hto.1 hto.2.1 hto.2.2 rs
+        have hto' := nested_argsTyped hΘ.basic hC hto.1 hto.2.1 hto.2.2 rs hC' hlen' ((hauxo as).2 C' c' 0 [] hargs)
         set args2 := as.toList.map (evalBnd (conBefore Θ.ctors c n) args rs) with hargs2
         set outs2 := as.toList.map (evalBnd (conBefore Θ.ctors c n) outs rs) with houts2
         let fills2 : List V := (List.range as.toList.length).map fun i =>

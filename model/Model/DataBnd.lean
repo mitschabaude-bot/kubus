@@ -25,7 +25,7 @@ theorem getD_ctors {ctors : List Ctor} {c : ℕ} {C : Ctor} (hC : ctors[c]? = so
 
 section
 
-variable {Θ : SData m} (hΘ : Θ.Good) {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {g : Hom n m}
+variable {Θ : SData m} (hΘ : Θ.Basic) {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {g : Hom n m}
   {args : List V} (hlen : args.length = C.args.length)
   (hrec : ∀ j a, args[j]? = some a → C.isRec j = true → DElem Θ n g a)
   (hpt : ∀ j a, args[j]? = some a → C.isRec j = false → a ∈ El (Θ.ty c j n g (args.take j)) (Hom.id n))

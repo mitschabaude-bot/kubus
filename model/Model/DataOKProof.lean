@@ -540,6 +540,29 @@ theorem argTySem_noparams (hnp : E.params = []) (c j n : ℕ) (psv psv' : V) (pr
   have h0 : ∀ v, plist v E.params.length = [] := by intro v; simp [plist, hnp]
   simp only [argTySem, argPreValid, argTyRaw, h0]
 
+theorem dataSD_resClosed {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) E m ps) :
+    (dataSD (sigV S0) E S0.length m ps).ResClosed := by
+  intro c j n g pre a hp ha n' h
+  have hfib : Fib (argTySem (sigV S0) E S0.length c j n (ps n g) pre) n := by
+    rcases argTySem_facts S0 E hsyn hU hps c j n g pre with h' | h'
+    · rw [mem_El_univ_iff] at h'; exact h'.2.fib
+    · rw [h']; exact fib_emptyC
+  have := hfib.elRes n (Hom.id n) a ha n' h
+  rw [El_eq_res_id, Hom.id_comp] at this
+  have e := argTySem_nat S0 E hsyn hU hps c j n g pre hp n' h
+  change a ∈ El (argTySem (sigV S0) E S0.length c j n (ps n g) pre) (Hom.id n) at ha
+  change res h a ∈ El (argTySem (sigV S0) E S0.length c j n' (ps n' (g.comp h)) (pre.map (res h))) (Hom.id n')
+  rwa [e] at this
+
+theorem dataSD_basic {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) E m ps) :
+    (dataSD (sigV S0) E S0.length m ps).Basic where
+  recIrr c j n g pre pre' hl he := argTySem_recIrr S0 E hsyn c j n _ pre pre' hl he
+  fib c j n g pre _ := by
+    rcases argTySem_facts S0 E hsyn hU hps c j n g pre with h | h
+    · rw [mem_El_univ_iff] at h; exact h.2.fib
+    · show Fib (argTySem _ _ _ _ _ _ _ _) n
+      rw [h]; exact fib_emptyC
+
 theorem dataOK_of
     (hbo : ∀ m (ps : RV m), ParamsOK (sigV S0) E m ps →
       (∀ c C, (dataSD (sigV S0) E S0.length m ps).ctors[c]? = some C → ∀ ψ b, (ψ, b) ∈ C.bnd →
@@ -740,7 +763,7 @@ theorem isPoint_pointCtx {Φ : I} {n2 : ℕ} (g : Hom n2 m) (ρ : IEnv n2) (hρ 
 
 include hsyn hC hps in
 /-- The type equality of a boundary point argument, from its judgmental version. -/
-theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ctors.length)
+theorem tyEq_core (hc : c ≤ D.ctors.length)
     {ψ : I} {n0 : ℕ} {rs0 : List (DM n0)} (hrs0 : (ival (renv rs0) ψ).holds)
     {c' : ℕ} {C' : Ctor} (hC' : D.ctors[c']? = some C') {k : ℕ} {A' : Tm} (hA' : C'.args[k]? = some (.point A'))
     {prev : List Tm} (hpl : prev.length = k)
@@ -882,7 +905,7 @@ include hsyn hC hps in
 theorem bty_of_wf (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
     (hck : ∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C → ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
       HasTy (S0 ++ [.data (D.truncate 0)]) 0 .one (D.argCtx S0.length C k) A (.univ D.level))
-    (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hS0 : SigOK S0) (hc : c ≤ D.ctors.length)
+    (hS0 : SigOK S0) (hc : c ≤ D.ctors.length)
     {ψ : I} {n0 : ℕ} {rs0 : List (DM n0)} (hrs0 : (ival (renv rs0) ψ).holds)
     {E : DataDecl} (hEp : E.params = D.params) (hEc : ∀ c' ≤ c, E.ctors[c']? = D.ctors[c']?) :
     ∀ t : Tm,
@@ -986,7 +1009,7 @@ theorem bty_of_wf (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
       obtain ⟨T, hT⟩ : ∃ T, (D.argCtx S0.length C C.args.length).lookup x = some T := by
         rw [Ctx.lookup_eq, argCtx_lt D _ C _ x hx]; exact ⟨_, rfl⟩
       obtain ⟨hm1, hm2, heq⟩ := hb1 x T rfl hr hT
-      have hcore := fun n2 (g : Hom n2 m) pre hpre htp => tyEq_core S0 D hsyn hC hps hokc hc hrs0 hC' hA' hpl
+      have hcore := fun n2 (g : Hom n2 m) pre hpre htp => tyEq_core S0 D hsyn hC hps hc hrs0 hC' hA' hpl
         (fun q hq hrq => by obtain ⟨y, h1, h2, h3, -⟩ := Hprev q hq hrq; exact ⟨y, h1, h2, h3⟩) hx hxr hT hS0 hm1 hm2 heq
         g pre hpre htp
       have hgC' := getD_ctors hC'
@@ -1182,7 +1205,7 @@ theorem bnd_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
       fun c C hC k A hA => ((hWf.2.2 c C hC).1 k A hA).2.2.2
     obtain ⟨k, hk⟩ := List.getElem?_of_mem hb
     obtain ⟨-, -, hsimple, -, hbt⟩ := (hWf.2.2 c C hCD).2.1 k ψ b hk
-    exact ((bty_of_wf S0 D hsynD hCD hps (hok0 (by omega)) hckD (hokB c hcB) hS0
+    exact ((bty_of_wf S0 D hsynD hCD hps (hok0 (by omega)) hckD hS0
       (by have := (List.getElem?_eq_some_iff.1 hCD).1; omega) hh (E := { D with ctors := X }) rfl
       (fun c' hc' => hXB c' (by omega)) b).1 hsimple hbt).2
   · have := hXr c (by omega) C hC

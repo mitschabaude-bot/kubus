@@ -73,8 +73,8 @@ theorem sem_simple_subst : ∀ t : Tm,
     simp only [Tm.closedB, Bool.and_eq_true, List.all_eq_true] at hcl
     obtain ⟨⟨-, hcla⟩, hclr⟩ := hcl
     subst d' ps'
-    have hout := (bnd_delem_aux hgood hC hat.1 hat.2.1 hat.2.2 rs as).2 C' c' 0 [] hargs
-    have hta := nested_argsTyped hgood hC hat.1 hat.2.1 hat.2.2 rs hC' hlen' hout
+    have hout := (bnd_delem_aux hgood.basic hC hat.1 hat.2.1 hat.2.2 rs as).2 C' c' 0 [] hargs
+    have hta := nested_argsTyped hgood.basic hC hat.1 hat.2.1 hat.2.2 rs hC' hlen' hout
     obtain ⟨hlit, helts⟩ := ihas.2 C' c' 0 [] hargs hsa hcla
     have hvals : (as.toList.map (·.subst σ τ)).map (fun t => sem S t m ρ γ) =
         as.toList.map (evalBnd (conBefore D.ctors c m) args rs) := by

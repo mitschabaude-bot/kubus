@@ -115,6 +115,25 @@ theorem pt_kv {c n : ℕ} {g : Hom n m} {pre : List V} (hp : Θ.PtValid c n g pr
 
 end SData.Good
 
+
+/-- The fibrancy and recursive-argument irrelevance of the argument types. -/
+structure SData.Basic (Θ : SData m) : Prop where
+  recIrr : ∀ c j n (g : Hom n m) pre pre', pre.length = pre'.length →
+    (∀ i (hi : i < pre.length) (hi' : i < pre'.length), (Θ.ctors.getD c default).isRec i = false →
+      pre[i] = pre'[i]) → Θ.ty c j n g pre = Θ.ty c j n g pre'
+  fib : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → Fib (Θ.ty c j n g pre) n
+
+theorem SData.Good.basic {Θ : SData m} (h : Θ.Good) : Θ.Basic := ⟨h.recIrr, h.fib⟩
+
+theorem SData.Basic.pt_kv {Θ : SData m} (hΘ : Θ.Basic) {c n : ℕ} {g : Hom n m} {pre : List V}
+    (hp : Θ.PtValid c n g pre) {i : ℕ} (hi : i < pre.length)
+    (hr : (Θ.ctors.getD c default).isRec i = false) : IsKV n pre[i] := by
+  have hpi : Θ.PtValid c n g (pre.take i) := fun i' hi' hr' => by
+    simp only [List.length_take] at hi'
+    have := hp i' (by omega) hr'
+    rw [List.getElem_take, List.take_take, Nat.min_eq_left (by omega)]; exact this
+  exact (hΘ.fib c i n g _ hpi).elKV n (Hom.id n) _ (hp i hi hr)
+
 end
 
 end Model

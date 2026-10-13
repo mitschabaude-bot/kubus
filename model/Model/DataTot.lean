@@ -151,7 +151,7 @@ theorem trAll_conV : ∀ c C, Θ.ctors[c]? = some C → ∀ n (g : Hom n m) args
       obtain ⟨ψ, b⟩ := cl
       rw [conV_eq_bnd hΘ hC ht' hrs' hb]
       have hbt := hΘ.bnd c C hC ψ b (bndAtMap_some hb).1 _ _ (by simpa using (bndAtMap_some hb).2)
-      have haux := bnd_delem_aux hΘ hC ht'.1 ht'.2.1 ht'.2.2 (rs.map (·.restr h))
+      have haux := bnd_delem_aux hΘ.basic hC ht'.1 ht'.2.1 ht'.2.2 (rs.map (·.restr h))
       suffices ∀ t : Tm, (BTy Θ c C t →
             TrAll Θ n' (g.comp h) (evalBnd (conBefore Θ.ctors c n') (args.map (res h)) (rs.map (·.restr h)) t)) ∧
           (∀ C' c' k prev, BTyArgs Θ c C C' c' k prev t → ∀ i (hi : i < t.toList.length),
@@ -178,7 +178,7 @@ theorem trAll_conV : ∀ c C, Θ.ctors[c]? = some C → ∀ n (g : Hom n m) args
         simp only [evalBnd, conBefore, dif_pos hc']
         rw [evalBndList_eq]
         refine ihc c' hc' C' hC' n' (g.comp h) _ _
-          (nested_argsTyped hΘ hC ht'.1 ht'.2.1 ht'.2.2 _ hC' hlen' hout) (by simp [hrs'']) (fun j a ha hj => ?_)
+          (nested_argsTyped hΘ.basic hC ht'.1 ht'.2.1 ht'.2.2 _ hC' hlen' hout) (by simp [hrs'']) (fun j a ha hj => ?_)
         rw [List.getElem?_map] at ha
         obtain ⟨t, ht'', rfl⟩ := Option.map_eq_some_iff.1 ha
         obtain ⟨hj', rfl⟩ := List.getElem?_eq_some_iff.1 ht''

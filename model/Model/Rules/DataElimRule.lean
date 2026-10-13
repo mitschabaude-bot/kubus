@@ -660,8 +660,8 @@ theorem elim_tree {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) (hIH : ECAll 
     have hev : evalBnd (conBefore D.ctors c m) args rs (.con d c' (Ctor.paramVars D.params.length C.args.length) as rs'') =
         conV D.ctors m c' (as.toList.map (evalBnd (conBefore D.ctors c m) args rs)) (rs''.map (ival (renv rs))) := by
       simp only [evalBnd, conBefore, dif_pos hc', evalBndList_eq]
-    have hout := (bnd_delem_aux hgood hC hat.1 hat.2.1 hat.2.2 rs as).2 C'' c' 0 [] hargs
-    have hta := nested_argsTyped hgood hC hat.1 hat.2.1 hat.2.2 rs hC'' hlen'' hout
+    have hout := (bnd_delem_aux hgood.basic hC hat.1 hat.2.1 hat.2.2 rs as).2 C'' c' 0 [] hargs
+    have hta := nested_argsTyped hgood.basic hC hat.1 hat.2.1 hat.2.2 rs hC'' hlen'' hout
     have hrecv : ∀ i (hi : i < as.toList.length), C''.isRec i = true →
         sem S (D.bndElim C ps bs (as.toList[i])) m ρ' γ' = elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ))
           (motV S P ρ γ) (psRV S bs m ρ γ) m (Hom.id m) (evalBnd (conBefore D.ctors c m) args rs (as.toList[i])) ∧
