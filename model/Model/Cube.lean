@@ -268,3 +268,90 @@ theorem holds_lit {m : ℕ} {ρ : IEnv m} {i : ℕ} {d : Bool} (h : (ival ρ (I.
     revert hp <;> cases (ρ i).fn p <;> decide
 
 end Model
+
+/-! ### Structural cube maps -/
+
+namespace Model
+
+namespace Hom
+
+variable {k m n : ℕ}
+
+/-- Weakening: forget the last variable. -/
+def wk (m : ℕ) : Hom (m + 1) m := fun j => DM.var j.castSucc
+
+/-- Extend a cube map by one more component. -/
+def snoc (f : Hom k m) (r : DM k) : Hom k (m + 1) := Fin.snoc (α := fun _ => DM k) f r
+
+/-- Lift a cube map under a fresh last variable. -/
+def lift (f : Hom k m) : Hom (k + 1) (m + 1) := snoc (f.comp (wk k)) (DM.var (Fin.last k))
+
+/-- Substitute `r` for the last variable. -/
+def endpt (m : ℕ) (r : DM m) : Hom m (m + 1) := snoc (id m) r
+
+@[simp] theorem app_wk (p : Pt (m + 1)) : (wk m).app p = Fin.init p := by
+  funext j; simp [app, wk, Fin.init]
+
+@[simp] theorem app_snoc (f : Hom k m) (r : DM k) (p : Pt k) :
+    (snoc f r).app p = Fin.snoc (α := fun _ => M4) (f.app p) (r.fn p) := by
+  funext j; refine Fin.lastCases ?_ (fun j => ?_) j <;> simp [app, snoc]
+
+theorem wk_comp_snoc (f : Hom k m) (r : DM k) : (wk m).comp (snoc f r) = f :=
+  ext_app fun p => by simp
+
+theorem snoc_comp (f : Hom k m) (r : DM k) (g : Hom n k) :
+    (snoc f r).comp g = snoc (f.comp g) (r.restr g) :=
+  ext_app fun p => by simp
+
+theorem wk_comp_lift (f : Hom k m) : (wk m).comp (lift f) = f.comp (wk k) := by
+  simp [lift, wk_comp_snoc]
+
+theorem lift_comp (f : Hom k m) (g : Hom n k) : (lift f).comp (lift g) = lift (f.comp g) :=
+  ext_app fun p => by simp [lift]
+
+@[simp] theorem lift_id : lift (id m) = id (m + 1) :=
+  ext_app fun p => by funext j; refine Fin.lastCases ?_ (fun j => ?_) j <;> simp [lift, Fin.init]
+
+theorem lift_comp_endpt (f : Hom k m) (r : DM k) :
+    (lift f).comp (endpt k r) = snoc f r :=
+  ext_app fun p => by simp [lift, endpt, Fin.init]
+
+theorem endpt_comp (r : DM m) (f : Hom k m) :
+    (endpt m r).comp f = (lift f).comp (endpt k (r.restr f)) := by
+  rw [lift_comp_endpt]; exact ext_app fun p => by simp [endpt]
+
+@[simp] theorem wk_comp_endpt (r : DM m) : (wk m).comp (endpt m r) = id m := wk_comp_snoc _ _
+
+end Hom
+
+namespace IEnv
+
+variable {k m : ℕ}
+
+/-- Extend an interval environment by a fresh variable (de Bruijn index 0), at stage `m + 1`. -/
+def ext (ρ : IEnv m) : IEnv (m + 1) := fun
+  | 0 => DM.var (Fin.last m)
+  | n + 1 => (ρ n).restr (Hom.wk m)
+
+/-- Extend an interval environment by a value (de Bruijn index 0). -/
+def cons (ρ : IEnv m) (r : DM m) : IEnv m := fun
+  | 0 => r
+  | n + 1 => ρ n
+
+theorem ext_restr_lift (ρ : IEnv m) (f : Hom k m) : ρ.ext.restr (Hom.lift f) = (ρ.restr f).ext := by
+  funext n; cases n with
+  | zero => ext p; simp [ext, restr, Hom.lift, Hom.app, Hom.snoc]
+  | succ n => simp only [ext, restr, DM.restr_restr, Hom.wk_comp_lift]
+
+theorem ext_restr_endpt (ρ : IEnv m) (r : DM m) : ρ.ext.restr (Hom.endpt m r) = ρ.cons r := by
+  funext n; cases n with
+  | zero => ext p; simp [ext, restr, cons, Hom.endpt, Hom.app, Hom.snoc]
+  | succ n => simp [ext, restr, cons, DM.restr_restr]
+
+theorem cons_restr (ρ : IEnv m) (r : DM m) (f : Hom k m) :
+    (ρ.cons r).restr f = (ρ.restr f).cons (r.restr f) := by
+  funext n; cases n <;> rfl
+
+end IEnv
+
+end Model
