@@ -546,6 +546,166 @@ theorem sem_transpSigma {A B u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
   unfold lineV
   rw [hsem, transpAt_sigmaC hAfib hfam hu0, transpSigmaF_eq, sem_fst, sem_snd]
 
+/-! ### comp -/
+
+theorem face_ival_zero (ρ : IEnv m) : (ival ρ .zero).face = Cof.bot m := by
+  rw [ival_zero]; ext p; simp [DM.face, Cof.bot]
+
+theorem bind2_or_env (ρ : IEnv m) (h : Hom n m) (r : DM n) :
+    (fun i => ival ((ρ.restr h).cons r).ext (Tm.bind2 (.or (.var 1) (.var 0)) i)) =
+      ρ.ext.restr (compLine h r) := by
+  funext i
+  rcases i with _ | i
+  · ext p; simp [Tm.bind2, IEnv.ext, IEnv.restr, IEnv.cons, compLine, I.eval, Hom.snoc, Hom.app, Hom.wk]
+  · simp only [Tm.bind2, ival.var, IEnv.ext, IEnv.restr, IEnv.cons, DM.restr_restr]
+    congr 1
+    simp only [compLine, Hom.wk_comp_snoc]
+
+theorem comp_cond {C u u0 : Tm} {ψ : I} {ρ : IEnv m} {γ : ℕ → V}
+    (hty : TyCode (m + 1) (lineV S C m ρ γ)) (hN : Natural S C (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)))
+    (hu : LineTubeOK (lineV S C m ρ γ) (Hom.id (m + 1)) (ival ρ ψ).face (tubeV S u ρ γ) (sem S u0 m ρ γ))
+    (hu0 : sem S u0 m ρ γ ∈ El (lineV S C m ρ γ) ((Hom.id (m + 1)).comp (Hom.endpt m (DM.zero m))))
+    (hu0n : Natural S u0 m ρ γ) (hγ : ∀ x, IsKV m (γ x)) :
+    HcompCond S (C.dinst .one) ψ (.transp (C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))) (.var 0) u)
+        (.transp C .zero u0) m ρ γ ∧
+      sem S (Tm.comp C ψ u u0) m ρ γ =
+        compF (lineV S C m ρ γ) (Hom.id (m + 1)) (ival ρ ψ).face (tubeV S u ρ γ) (sem S u0 m ρ γ) := by
+  set L := lineV S C m ρ γ
+  have hfib := hty.fib
+  have hψ := isCof_ival_face ρ ψ
+  -- the base transport
+  have c0 : TranspCond S C .zero u0 m ρ γ := by
+    refine ⟨hty, ?_, hu0, hN, hu0n⟩
+    rw [face_ival_zero]; exact constOn_bot _ _
+  have e0 : sem S (.transp C .zero u0) m ρ γ = transpAt L (Hom.id (m + 1)) (Cof.bot m) (sem S u0 m ρ γ) := by
+    rw [sem_transp c0, face_ival_zero]
+  -- the tube transports
+  have et : ∀ n (h : Hom n m) r, (Cof.restr (ival ρ ψ).face h).holds →
+      tubeV S (.transp (C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))) (.var 0) u) ρ γ n h r =
+        compTube L (Hom.id (m + 1)) (tubeV S u ρ γ) n h r := by
+    intro n h r hh
+    set env := (ρ.restr h).cons r
+    have eC : ∀ k (g : Hom k (n + 1)),
+        sem S (C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))) k (env.ext.restr g)
+          (TEnv.restr (TEnv.restr (TEnv.restr γ h) (Hom.wk n)) g) = res g (res (compLine h r) L) := by
+      intro k g
+      have e1 : (fun i => ival (env.ext.restr g) (Tm.bind2 (.or (.var 1) (.var 0)) i)) =
+          ρ.ext.restr ((compLine h r).comp g) := by
+        rw [← IEnv.restr_restr, ← bind2_or_env]; rfl
+      have e2 : TEnv.restr (TEnv.restr (TEnv.restr γ h) (Hom.wk n)) g =
+          TEnv.restr (TEnv.restr γ (Hom.wk m)) ((compLine h r).comp g) := by
+        rw [TEnv.restr_restr, TEnv.restr_restr, TEnv.restr_restr, ← Hom.comp_assoc (Hom.wk m) (compLine h r) g]
+        simp only [compLine, Hom.wk_comp_snoc]; rfl
+      rw [sem_dsubst, e1, e2, hN k, res_res]
+    have eC0 : lineV S (C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))) n env (TEnv.restr γ h) =
+        res (compLine h r) L := by
+      have := eC (n + 1) (Hom.id (n + 1))
+      rwa [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr (TEnv.restr γ h) (Hom.wk n))
+        (fun x => isKV_res _ _), res_id (isKV_res _ _)] at this
+    have hface : (ival env (.var 0)).face = Cof.eq1 r := rfl
+    have hmem := hu.mem n h r hh
+    rw [Hom.id_comp] at hmem
+    have tc : TranspCond S (C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))) (.var 0) u n env (TEnv.restr γ h) := by
+      refine ⟨?_, ?_, ?_, fun k g => (eC k g).trans (by rw [← eC0]), fun k g => ?_⟩
+      · rw [eC0]; exact hty.res _
+      · rw [eC0, hface]
+        have := constOn_compLine L (Hom.id (m + 1)) h r
+        rw [Hom.id_comp] at this; exact this.res_id
+      · rw [eC0, El_res, Hom.id_comp, compLine_endpt0]; exact hmem
+      · have hcoh := hu.coh n h r hh k g
+        simp only [tubeV] at hcoh
+        show sem S u k (((ρ.restr h).cons r).restr g) _ = _
+        rw [IEnv.cons_restr, IEnv.restr_restr, TEnv.restr_restr]; exact hcoh.symm
+    simp only [tubeV]
+    rw [sem_transp tc, eC0, hface, transpAt_res, Hom.comp_id]
+    simp only [compTube, Hom.id_comp]; rfl
+  have hT := compTube_ok hfib hψ hu0 hu
+  rw [Hom.id_comp] at hT
+  have e1 : sem S (C.dinst .one) m ρ γ = res (Hom.endpt m (DM.one m)) L := by
+    rw [sem_dinst, ival_one, line_endpt hγ hN]
+  have hb := transp_bot_mem hfib hψ hu0 hu
+  rw [Hom.id_comp] at hb
+  have hcc : HcompCond S (C.dinst .one) ψ (.transp (C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))) (.var 0) u)
+      (.transp C .zero u0) m ρ γ := by
+    refine ⟨?_, ?_, ?_, ?_, c0.natural⟩
+    · rw [e1]; exact hty.res _
+    · rw [e1, e0]
+      exact (hT.congr hψ fun n h r hh => (et n h r hh).symm).res_id
+    · rw [e1, e0, El_res, Hom.comp_id]; exact hb
+    · exact Natural.dinst (by rw [ival_one]; exact line_endpt_nat hγ hN _)
+  refine ⟨hcc, ?_⟩
+  rw [Tm.comp, sem_hcomp hcc, e1, e0, hcompAt_res_id', compF, Hom.id_comp]
+  exact hcompAt_congr et
+
+/-! ### hfill -/
+
+theorem hfill_cond {A u u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (hc : HcompCond S A φ u u0 m ρ γ) :
+    HcompCond S A.dshift (.or φ.shift (.neg (.var 0)))
+        (.split φ.shift.shift (u.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))) (.neg (.var 1)) u0.dshift.dshift)
+        u0.dshift (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) ∧
+      sem S (Tm.hfill A φ u u0) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) =
+        hfillF (sem S A m ρ γ) (Hom.id m) (ival ρ φ).face (tubeV S u ρ γ) (sem S u0 m ρ γ) := by
+  obtain ⟨hty, hu, hu0, hAn, hu0n⟩ := hc
+  have hfib := hty.fib
+  have hφ := isCof_ival_face ρ φ
+  have eA : sem S A.dshift (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) = res (Hom.wk m) (sem S A m ρ γ) := by
+    rw [sem_dshift, hAn]
+  have eb : sem S u0.dshift (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) = res (Hom.wk m) (sem S u0 m ρ γ) := by
+    rw [sem_dshift, hu0n]
+  have et : ∀ n (h : Hom n (m + 1)) r, ((fillFace (ival ρ φ).face).restr h).holds →
+      tubeV S (.split φ.shift.shift (u.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))) (.neg (.var 1))
+        u0.dshift.dshift) ρ.ext (TEnv.restr γ (Hom.wk m)) n h r =
+      fillTube (ival ρ φ).face (tubeV S u ρ γ) (sem S u0 m ρ γ) n h r := by
+    intro n h r hh
+    set env := (ρ.ext.restr h).cons r
+    set γ' := TEnv.restr (TEnv.restr γ (Hom.wk m)) h
+    have htt : env.tail.tail = (ρ.restr (Hom.wk m)).restr h := rfl
+    have hφ2 : (ival env φ.shift.shift).holds ↔ (Cof.restr (ival ρ φ).face ((Hom.wk m).comp h)).holds := by
+      rw [ival_shift, ival_shift, htt, IEnv.restr_restr, holds_face_restr_iff]
+    have hv1 : env 1 = (lastVar m).restr h := rfl
+    have h0iff : (ival env (.neg (.var 1))).holds ↔ ((Cof.eq0 (lastVar m)).restr h).holds := by
+      rw [holds_ival_iff_face, face_ival_neg, ival.var, hv1, Cof.eq0_restr]
+    have hγ' : γ' = TEnv.restr γ ((Hom.wk m).comp h) := TEnv.restr_restr _ _ _
+    have eU : sem S u0.dshift.dshift n env γ' = res ((Hom.wk m).comp h) (sem S u0 m ρ γ) := by
+      rw [sem_dshift_tail, sem_dshift_tail, htt, IEnv.restr_restr, hγ', hu0n]
+    have eT : sem S (u.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))) n env γ' =
+        tubeV S u ρ γ n ((Hom.wk m).comp h) (DM.min ((lastVar m).restr h) r) := by
+      rw [sem_dsubst, hγ']
+      simp only [tubeV]
+      congr 1
+      funext i; cases i with
+      | zero => rfl
+      | succ i => simp [env, Tm.bind2, IEnv.cons, IEnv.restr, IEnv.ext, DM.restr_restr]
+    simp only [tubeV]
+    unfold fillTube
+    by_cases h1 : (Cof.restr (ival ρ φ).face ((Hom.wk m).comp h)).holds
+    · have hover : (ival env (.neg (.var 1))).holds →
+          sem S (u.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))) n env γ' = sem S u0.dshift.dshift n env γ' := by
+        intro h0
+        rw [eT, eU, lastVar_zero_of (h0iff.1 h0), DM.min_zero_left]
+        have := hu.base n _ h1
+        simp only [tubeV] at this ⊢; exact this
+      rw [sem_split (Or.inl (hφ2.2 h1)) (fun _ => hover), if_pos (hφ2.2 h1), if_pos h1, eT]
+    · have h0 : ((Cof.eq0 (lastVar m)).restr h).holds := by
+        rw [fillFace, Cof.or_restr, Cof.holds_or, Cof.restr_restr] at hh
+        exact hh.resolve_left h1
+      rw [sem_split (Or.inr (h0iff.2 h0)) (fun h => absurd (hφ2.1 h) h1), if_neg (fun h => h1 (hφ2.1 h)),
+        if_neg h1, eU]
+  have hT := fillTube_ok hfib hφ hu0 hu
+  rw [Hom.id_comp] at hT
+  have hcc : HcompCond S A.dshift (.or φ.shift (.neg (.var 0)))
+      (.split φ.shift.shift (u.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))) (.neg (.var 1)) u0.dshift.dshift)
+      u0.dshift (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := by
+    refine ⟨?_, ?_, ?_, hAn.dshift, hu0n.dshift⟩
+    · rw [eA]; exact hty.res _
+    · rw [eA, eb, face_fill]
+      exact (hT.congr (isCof_fillFace hφ) fun n h r hh => (et n h r hh).symm).res_id
+    · rw [eA, eb, El_res, Hom.comp_id]
+      have := hfib.elRes _ _ _ hu0 _ (Hom.wk m); rwa [Hom.id_comp] at this
+  refine ⟨hcc, ?_⟩
+  rw [Tm.hfill, sem_hcomp hcc, eA, eb, face_fill, hcompAt_res_id', hfillF, Hom.id_comp]
+  exact hcompAt_congr et
+
 end
 
 end Model
