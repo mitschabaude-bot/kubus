@@ -38,7 +38,8 @@ def RepCon (k : ℕ) (v : V) : Prop :=
     v = conV Θ.ctors k c args rs ∧ bndAtMap (Θ.ctors.getD c default) rs (Hom.id k) = none ∧ ∀ a ∈ args, IsKV k a
 
 /-- `v` is a formal composition whose face does not hold (with a Kripke-value base). -/
-def RepHc (k : ℕ) (v : V) : Prop := ∃ ψ : Cof k, ∃ u : Tube k, ∃ a : V, v = hcV k ψ u a ∧ ¬ ψ.holds ∧ IsKV k a
+def RepHc (k : ℕ) (v : V) : Prop :=
+  ∃ ψ : Cof k, ∃ u : Tube k, ∃ a : V, v = hcV k ψ u a ∧ ψ.IsCof ∧ ¬ ψ.holds ∧ IsKV k a
 
 end repr
 
@@ -63,7 +64,7 @@ inductive TR (Θ : SData m) : (k : ℕ) → Hom (k + 1) m → Cof k → V → V 
         fills.getD j ∅ = transpFillF (Θ.ty c j (k + 1) f (fills.take j)) (Hom.id (k + 1)) φ args[j]) →
       TR Θ k f φ (conV Θ.ctors k c args rs) (conV Θ.ctors k c outs rs)
   | hc {k : ℕ} {f : Hom (k + 1) m} {φ : Cof k} {ψ : Cof k} {u u' : Tube k} {a a' : V} :
-      ¬ ψ.holds → IsKV k a → TR Θ k f φ a a' →
+      ψ.IsCof → ¬ ψ.holds → IsKV k a → TR Θ k f φ a a' →
       (∀ n (g : Hom n k) r, (ψ.restr g).holds → TR Θ n (f.comp (Hom.lift g)) (φ.restr g) (u n g r) (u' n g r)) →
       TR Θ k f φ (hcV k ψ u a) (hcV k ψ u' a')
 
