@@ -33,6 +33,10 @@ def KanT (S : Sig) (k : ℕ) (A : Tm) : Prop :=
   ∀ (φ : I) (a : Tm), HasTy S k .one [] (.transp A φ a) (A.dinst .one) → RE S k (A.dinst .zero) a →
     RE S k (A.dinst .one) (.transp A φ a)
 
+/-- The Kan properties of all restrictions of `A` (a closed type at stage `n`). -/
+def KanAll (S : Sig) (n : ℕ) (A : Tm) : Prop :=
+  (∀ k' (ρ : ISub k' n), KanH S k' (A.isub ρ)) ∧ (∀ k' (ρ : ISub (k' + 1) n), KanT S k' (A.isub ρ))
+
 theorem I_subst_congr_scoped {σ τ : ℕ → I} {n : ℕ} (h : ∀ i < n, σ i = τ i) :
     ∀ {r : I}, r.Scoped n → r.subst σ = r.subst τ
   | .zero, _ => rfl
@@ -184,6 +188,17 @@ theorem RE_transp_face {A a : Tm} {φ : I} (hty : HasTy S k .one [] (.transp A �
   rw [dshift_dinst] at e1
   have e2 := EqTm0.restrict (Φ' := .one) trivial (ent_cof_one hW hent) e1
   exact ha.conv hW (.inr ⟨l0, EqTm.symm (minimal_to_spec_eq e2)⟩) (EqTm.symm (EqTm.transpFace hent hty))
+
+theorem closed_of_isTyK {T : Tm} (h : IsTyK S k T) : T.closedB 0 k = true := by
+  obtain ⟨l, h | rfl⟩ := h
+  · exact closed_of_ty hW h
+  · rfl
+
+/-- The endpoints of a computable line are computable types, at the restricted code. -/
+theorem ty_dinst {X : V} (hX : KR S m X) {f : Hom (k + 1) m} {T : Tm} (h : (Comp S X m (k + 1) f).ty T)
+    (r : I) (hr : r.Scoped k) : (Comp S X m k (f.comp (ISub.cons r hr (ISub.id k)).hom)).ty (T.dinst r) := by
+  have := (hX (k + 1) f k (ISub.cons r hr (ISub.id k)) T T).1 h
+  rwa [isub_cons_id_of_closed (closed_of_isTyK hW (Comp_ty_base h).2.1)] at this
 
 end
 

@@ -1,4 +1,5 @@
-import Model.Canon.KanPi
+import Model.Canon.KanIPi
+import Model.Canon.KripkeAll
 
 /-!
 # Canonicity: the Kan operations preserve computability
@@ -57,13 +58,51 @@ theorem kanP_pi (l m : ℕ) (A B : V) (hA : WF l m A) (ihA : KanP S m A)
         have := (Comp_el_typed hwel).2; rwa [El_res, Hom.comp_id] at this
       exact (ihB (k' + 1) (f.comp σ.hom) (semK S (k' + 1) w) hmem).2 k' (Hom.id (k' + 1)) _ (hB1 w hwel)
 
+/-- The Kan properties of the restrictions of a computable type with a Kripke code. -/
+theorem kanAll_of {m' n : ℕ} {X : V} (hX : KR S m' X) (ih : KanP S m' X) {g : Hom n m'} {A : Tm}
+    (h : (Comp S X m' n g).ty A) : KanAll S n A :=
+  ⟨fun k' ρ => ih.1 k' _ _ ((hX n g k' ρ A A).1 h), fun k' ρ => ih.2 k' _ _ ((hX n g (k' + 1) ρ A A).1 h)⟩
+
+theorem kanP_ipi (m : ℕ) (L : V) (hLne : L ≠ ∅) (hL : KR S (m + 1) L) (ihL : KanP S (m + 1) L) :
+    KanP S m (ipiC m L) := by
+  constructor
+  · intro k f T hT
+    rw [Comp_ipiC L hLne] at hT
+    obtain ⟨⟨hTy, -⟩, L1, hE, hall⟩ := hT
+    obtain ⟨l1, hipiT⟩ := ty_of_tyEq hW hTy hE (fun l h => by cases h)
+    have h0 := hall k (ISub.id k)
+    rw [isub_up_id_of_closed (show L1.closedB 0 (k + 1) = true by
+      have := closed_of_ty hW hipiT; simpa [Tm.closedB] using this)] at h0
+    exact kanH_retype hW hE (kanH_ipi hW hipiT (kanAll_of hW hL ihL h0).1)
+  · intro k f T hT
+    rw [Comp_ipiC L hLne] at hT
+    obtain ⟨⟨hTy, -⟩, L1, hE, hall⟩ := hT
+    obtain ⟨l1, hipiT⟩ := ty_of_tyEq hW hTy hE (fun l h => by cases h)
+    obtain ⟨l2, e⟩ := tyEq_eq hW hE ⟨l1, hipiT⟩
+    have h0 := hall (k + 1) (ISub.id (k + 1))
+    rw [isub_up_id_of_closed (show L1.closedB 0 (k + 1 + 1) = true by
+      have := closed_of_ty hW hipiT; simpa [Tm.closedB] using this)] at h0
+    exact kanT_retype hW e (kanT_ipi hW hipiT (kanAll_of hW hL ihL h0).2)
+
+theorem kanP_empty (m : ℕ) : KanP S m (emptyC m) := by
+  constructor
+  · intro k f T hT φ u a _ _ ha
+    unfold RE at ha; rw [← Comp_eq_semK hT, Comp_emptyC] at ha; exact ha.elim
+  · intro k f T hT φ a _ ha
+    have h0 := ty_dinst hW (kr_emptyC hW) hT .zero trivial
+    unfold RE at ha; rw [← Comp_eq_semK h0, Comp_emptyC] at ha; exact ha.elim
+
 theorem kanP_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KanP S m X := by
-  refine tyCode_ind (KanP S) ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ m X hX
+  refine (tyCode_ind (fun m X => KR S m X ∧ KanP S m X) ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ m X hX).2
+  · exact fun m => ⟨kr_emptyC hW, kanP_empty hW m⟩
+  · intro l m A B hA hB hBf hBw hBn ihA ihB
+    exact ⟨kr_piC hW (WF.fib (show WF l m (piC m A B) from WFI.pi hA hB hBf hBw hBn)) (IsKV.ne_empty hA.fib.kv),
+      kanP_pi hW l m A B hA ihA.2 fun k f a ha => (ihB k f a ha).2⟩
   · sorry
-  · intro l m A B hA _ _ _ _ ihA ihB; exact kanP_pi hW l m A B hA ihA ihB
   · sorry
-  · sorry
-  · sorry
+  · intro l m L hL ihL
+    exact ⟨kr_ipiC hW (WF.fib (show WF l m (ipiC m L) from WFI.ipi hL)) (IsKV.ne_empty hL.fib.kv),
+      kanP_ipi hW m L (IsKV.ne_empty hL.fib.kv) ihL.1 ihL.2⟩
   · sorry
   · sorry
   · sorry
