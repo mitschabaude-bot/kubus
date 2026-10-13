@@ -404,3 +404,98 @@ theorem IsCof.holds_restr {φ : Cof m} (hφ : φ.IsCof) (hh : φ.holds) (h : Hom
 end Cof
 
 end Model
+
+/-! ### De Morgan operations on interval values -/
+
+namespace Model
+
+open KubusCore
+
+namespace DM
+
+variable {k m : ℕ}
+
+def neg (r : DM m) : DM m :=
+  ⟨fun p => I.M4.neg (r.fn p), by
+    obtain ⟨t, ht, h⟩ := r.defn
+    exact ⟨.neg t, ht, fun p => by simp [h, I.eval]⟩⟩
+
+def max (r s : DM m) : DM m :=
+  ⟨fun p => I.M4.join (r.fn p) (s.fn p), by
+    obtain ⟨t, ht, h⟩ := r.defn; obtain ⟨t', ht', h'⟩ := s.defn
+    exact ⟨.or t t', ⟨ht, ht'⟩, fun p => by simp [h, h', I.eval]⟩⟩
+
+def min (r s : DM m) : DM m :=
+  ⟨fun p => I.M4.meet (r.fn p) (s.fn p), by
+    obtain ⟨t, ht, h⟩ := r.defn; obtain ⟨t', ht', h'⟩ := s.defn
+    exact ⟨.and t t', ⟨ht, ht'⟩, fun p => by simp [h, h', I.eval]⟩⟩
+
+@[simp] theorem neg_fn (r : DM m) (p : Pt m) : (neg r).fn p = I.M4.neg (r.fn p) := rfl
+@[simp] theorem max_fn (r s : DM m) (p : Pt m) : (max r s).fn p = I.M4.join (r.fn p) (s.fn p) := rfl
+@[simp] theorem min_fn (r s : DM m) (p : Pt m) : (min r s).fn p = I.M4.meet (r.fn p) (s.fn p) := rfl
+
+theorem neg_restr (r : DM m) (f : Hom k m) : (neg r).restr f = neg (r.restr f) := rfl
+theorem max_restr (r s : DM m) (f : Hom k m) : (max r s).restr f = max (r.restr f) (s.restr f) := rfl
+theorem min_restr (r s : DM m) (f : Hom k m) : (min r s).restr f = min (r.restr f) (s.restr f) := rfl
+@[simp] theorem zero_restr (f : Hom k m) : (zero m).restr f = zero k := rfl
+@[simp] theorem one_restr (f : Hom k m) : (one m).restr f = one k := rfl
+
+end DM
+
+namespace Cof
+
+variable {k m : ℕ}
+
+def or (φ ψ : Cof m) : Cof m := φ ∪ ψ
+def and (φ ψ : Cof m) : Cof m := φ ∩ ψ
+/-- The face `r = 1`. -/
+def eq1 (r : DM m) : Cof m := r.face
+/-- The face `r = 0`. -/
+def eq0 (r : DM m) : Cof m := (DM.neg r).face
+def bot (m : ℕ) : Cof m := ∅
+def top (m : ℕ) : Cof m := {p | p.IsK3}
+
+theorem IsCof.or {φ ψ : Cof m} (hφ : φ.IsCof) (hψ : ψ.IsCof) : (Cof.or φ ψ).IsCof := by
+  obtain ⟨g, rfl⟩ := hφ; obtain ⟨g', rfl⟩ := hψ
+  refine ⟨DM.max g g', ?_⟩
+  ext p; simp only [Cof.or, DM.face, Set.mem_union, Set.mem_setOf_eq, DM.max_fn]
+  constructor
+  · rintro (⟨hp, h⟩ | ⟨hp, h⟩) <;> refine ⟨hp, ?_⟩ <;> simp [h]
+  · rintro ⟨hp, h⟩
+    rcases (M4.join_eq_one_K3 (g.defn.isK3 hp) (g'.defn.isK3 hp)).1 h with h | h
+    · exact Or.inl ⟨hp, h⟩
+    · exact Or.inr ⟨hp, h⟩
+
+theorem IsCof.and {φ ψ : Cof m} (hφ : φ.IsCof) (hψ : ψ.IsCof) : (Cof.and φ ψ).IsCof := by
+  obtain ⟨g, rfl⟩ := hφ; obtain ⟨g', rfl⟩ := hψ
+  refine ⟨DM.min g g', ?_⟩
+  ext p; simp only [Cof.and, DM.face, Set.mem_inter_iff, Set.mem_setOf_eq, DM.min_fn, M4.meet_eq_one]
+  tauto
+
+theorem isCof_eq1 (r : DM m) : (eq1 r).IsCof := ⟨r, rfl⟩
+theorem isCof_eq0 (r : DM m) : (eq0 r).IsCof := ⟨DM.neg r, rfl⟩
+theorem isCof_bot (m : ℕ) : (bot m).IsCof := ⟨DM.zero m, by ext p; simp [bot, DM.face]⟩
+theorem isCof_top (m : ℕ) : (top m).IsCof := ⟨DM.one m, by ext p; simp [top, DM.face]⟩
+
+theorem or_restr (φ ψ : Cof m) (h : Hom k m) : (Cof.or φ ψ).restr h = Cof.or (φ.restr h) (ψ.restr h) := by
+  ext p; simp only [restr, Cof.or, Set.mem_union, Set.mem_setOf_eq]; tauto
+
+theorem and_restr (φ ψ : Cof m) (h : Hom k m) :
+    (Cof.and φ ψ).restr h = Cof.and (φ.restr h) (ψ.restr h) := by
+  ext p; simp only [restr, Cof.and, Set.mem_inter_iff, Set.mem_setOf_eq]; tauto
+
+theorem eq1_restr (r : DM m) (h : Hom k m) : (eq1 r).restr h = eq1 (r.restr h) :=
+  (DM.face_restr r h).symm
+
+theorem eq0_restr (r : DM m) (h : Hom k m) : (eq0 r).restr h = eq0 (r.restr h) :=
+  (DM.face_restr (DM.neg r) h).symm
+
+theorem holds_or {φ ψ : Cof m} : (Cof.or φ ψ).holds ↔ φ.holds ∨ ψ.holds := Set.mem_union _ _ _
+theorem holds_and {φ ψ : Cof m} : (Cof.and φ ψ).holds ↔ φ.holds ∧ ψ.holds := Set.mem_inter_iff _ _ _
+theorem holds_eq1 (r : DM m) : (eq1 r).holds ↔ r.holds := (DM.holds_iff_face r).symm
+theorem not_holds_bot : ¬ (bot m).holds := fun h => h
+theorem holds_top : (top m).holds := Pt.allA_isK3 m
+
+end Cof
+
+end Model
