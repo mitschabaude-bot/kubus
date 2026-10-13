@@ -335,6 +335,44 @@ theorem sem_branchBody {d : ℕ} {D : DataDecl} (hS : SigOK S) (hd : S[d]? = som
       rw [show j + C.args.length + C.recPos.length - (C.args.length + C.recPos.length) = j by omega]
       rfl
 
+/-- Application to arguments commutes with restriction. -/
+theorem apps_res {ρ : IEnv m} : ∀ (Ts : List Tm) (inner : Tm) (γ : ℕ → V) (f : V) (as : List V),
+    (∀ x, IsKV m (γ x)) → TyOK S (Ts.foldr Tm.pi inner) m ρ γ →
+    f ∈ El (sem S (Ts.foldr Tm.pi inner) m ρ γ) (Hom.id m) → ∀ (hl : as.length = Ts.length),
+    (∀ i (hi : i < as.length), as[i] ∈ El (sem S (Ts[i]'(by omega)) m ρ (TEnv.consL γ (as.take i))) (Hom.id m)) →
+    ∀ k (h : Hom k m), res h (appsV m f as) = appsV k (res h f) (as.map (res h))
+  | [], inner, γ, f, as, _, _, _, hl, _, k, h => by
+    cases as with
+    | nil => rfl
+    | cons => simp at hl
+  | T :: Ts, inner, γ, f, as, hγ, hty, hf, hl, has, k, h => by
+    cases as with
+    | nil => simp at hl
+    | cons a as =>
+      simp only [List.foldr_cons] at hty hf
+      obtain ⟨hAkv, l, hl', hV, hWF⟩ := hty.pi_at
+      rw [sem_pi hAkv] at hV hWF hf
+      obtain ⟨hAW, hfam, -⟩ := WF.pi_inv hAkv (isKV_famV _ _) hWF
+      have ha : a ∈ El (sem S T m ρ γ) (Hom.id m) := by simpa using has 0 (by simp)
+      have hρ : ρ.restr (Hom.id m) = ρ := IEnv.restr_id ρ
+      have hγ' : TEnv.restr γ (Hom.id m) = γ := TEnv.restr_id_of_kv hγ
+      rw [El_piC, res_id hAkv, res_id (isKV_famV _ _)] at hf
+      have hfa : appV m f a ∈ El (sem S (Ts.foldr Tm.pi inner) m ρ (TEnv.cons γ a)) (Hom.id m) := by
+        have := appV_mem_piElSet hf ha
+        rwa [apZ_dat_famV _ _ _ ha, hρ, hγ'] at this
+      have hty' : TyOK S (Ts.foldr Tm.pi inner) m ρ (TEnv.cons γ a) := by
+        have hw := hfam m (Hom.id m) a ha
+        rw [apZ_dat_famV _ _ _ ha, hρ, hγ'] at hw
+        refine ⟨l, hl', Or.inl ⟨hw, ?_⟩⟩
+        have := Vt_below (below_piC_fam _ _ (isKV_famV _ _) a ⟨_, by rw [dat_famV]; exact mem_fnZ.2 ⟨_, ha, rfl⟩⟩) hV
+        rwa [apZ_dat_famV _ _ _ ha, hρ, hγ'] at this
+      have hakv : IsKV m a := hAW.fib.elKV _ _ _ ha
+      have ih := apps_res Ts inner (TEnv.cons γ a) (appV m f a) as
+        (fun y => by cases y <;> simp [TEnv.cons, hγ, hakv]) hty' hfa (by simpa using hl)
+        (fun i hi => by simpa [TEnv.consL] using has (i + 1) (by simp; omega)) k h
+      simp only [appsV, List.map_cons]
+      rw [ih, res_appV hf ha h]
+
 /-- `n` interval-Π-types around `inner`. -/
 def ipiN (k : ℕ) (inner : Tm) : Tm := (List.range k).foldl (fun acc _ => Tm.ipi acc) inner
 
@@ -363,6 +401,30 @@ theorem papps_ipiN : ∀ (rs : List (DM m)) (inner : Tm) (ρ : IEnv m) (γ : ℕ
       · rw [line_endpt hγ hN r]; exact res_mem_Vt hV _
     have := papps_ipiN rs inner (ρ.cons r) γ _ hγ hty' hfr
     simpa [IEnv.consL, pappsV] using this
+
+/-- Interval application commutes with restriction. -/
+theorem papps_res : ∀ (rs : List (DM m)) (inner : Tm) (ρ : IEnv m) (γ : ℕ → V) (f : V),
+    (∀ x, IsKV m (γ x)) → TyOK S (ipiN rs.length inner) m ρ γ →
+    f ∈ El (sem S (ipiN rs.length inner) m ρ γ) (Hom.id m) →
+    ∀ k (h : Hom k m), res h (pappsV m f rs) = pappsV k (res h f) (rs.map (·.restr h))
+  | [], _, _, _, _, _, _, _, k, h => rfl
+  | r :: rs, inner, ρ, γ, f, hγ, hty, hf, k, h => by
+    simp only [List.length_cons] at hty hf
+    rw [ipiN_succ] at hty hf
+    obtain ⟨hN, hL, hsem, l, hl, hV, hW⟩ := hty.ipi_at
+    rw [hsem, mem_El_ipiC hL] at hf
+    obtain ⟨p, hp, rfl⟩ := hf
+    have hfr : pappV m (pathOfLine m p) r ∈ El (sem S (ipiN rs.length inner) m (ρ.cons r) γ) (Hom.id m) := by
+      rw [pappV_pathOfLine, line_endpt hγ hN r, El_res, Hom.comp_id]
+      have := hW.fib.elRes _ _ _ hp m (Hom.endpt m r)
+      rwa [Hom.id_comp] at this
+    have hty' : TyOK S (ipiN rs.length inner) m (ρ.cons r) γ := by
+      refine ⟨l, hl, Or.inl ⟨?_, ?_⟩⟩
+      · rw [line_endpt hγ hN r]; exact hW.res _
+      · rw [line_endpt hγ hN r]; exact res_mem_Vt hV _
+    have ih := papps_res rs inner (ρ.cons r) γ _ hγ hty' hfr k h
+    simp only [pappsV, List.map_cons]
+    rw [ih, pappV_pathOfLine, res_res, res_pathOfLine, pappV_pathOfLine, res_res, Hom.endpt_comp]
 
 theorem psnat_of_paramsOK {d : ℕ} {D : DataDecl} {ps : Tm} (hpl : ps = Tm.ofList ps.toList)
     (hpsl : ps.toList.length = D.params.length) {ρ' : IEnv n} {γ' : ℕ → V} (hγ : ∀ x, IsKV n (γ' x))
@@ -395,7 +457,9 @@ theorem branch_app_mem {d : ℕ} {D : DataDecl} (hS : SigOK S) (hd : S[d]? = som
       El (sem S P n ρ' (TEnv.cons γ' (args[C.recPos.getD s 0]'(by have := recPos_lt hs; have := hat.1; omega))))
         (Hom.id n))
     (hihkv : ∀ a ∈ ihs, IsKV n a) (hrs : rs.length = C.dims) :
-    pappsV n (appsV n bv (args ++ ihs)) rs ∈ El (sem S P n ρ' (TEnv.cons γ' (conV D.ctors n c args rs))) (Hom.id n) := by
+    pappsV n (appsV n bv (args ++ ihs)) rs ∈ El (sem S P n ρ' (TEnv.cons γ' (conV D.ctors n c args rs))) (Hom.id n) ∧
+    ∀ n'' (h : Hom n'' n), res h (pappsV n (appsV n bv (args ++ ihs)) rs) =
+      pappsV n'' (appsV n'' (res h bv) ((args ++ ihs).map (res h))) (rs.map (·.restr h)) := by
   have hok := hS.2 d D hd
   have hgood := (hok.2 n _ hpok).1
   have hl : args.length = C.args.length := hat.1
@@ -454,16 +518,19 @@ theorem branch_app_mem {d : ℕ} {D : DataDecl} (hS : SigOK S) (hd : S[d]? = som
       simp only [hl]
       exact hih _ hs
   obtain ⟨hty2, hmem2⟩ := apps_foldr_pi _ _ γ' bv (args ++ ihs) hγ hty hbv (by simp [hl, hil]) hidx
-  rw [← hrs] at hty2 hmem2
-  obtain ⟨-, hmem3⟩ := papps_ipiN rs _ ρ' _ _ (TEnv.consL_kv hγ (fun a ha => by
+  have hkvB : ∀ x, IsKV n (TEnv.consL γ' (args ++ ihs) x) := TEnv.consL_kv hγ (fun a ha => by
     rcases List.mem_append.1 ha with h | h
     · exact hakv a h
-    · exact hihkv a h)) hty2 hmem2
+    · exact hihkv a h)
+  rw [← hrs] at hty2 hmem2
+  obtain ⟨-, hmem3⟩ := papps_ipiN rs _ ρ' _ _ hkvB hty2 hmem2
   rw [sem_branchBody hS hd hC ps P ρ' γ' hγ args ihs rs hl hil hrs (fun a ha => by
     rcases List.mem_append.1 ha with h | h
     · exact hakv a h
     · exact hihkv a h) hpok hat] at hmem3
-  exact hmem3
+  refine ⟨hmem3, fun n'' h => ?_⟩
+  rw [papps_res rs _ ρ' _ _ hkvB hty2 hmem2 n'' h,
+    apps_res _ _ γ' bv (args ++ ihs) hγ hty hbv (by simp [hl, hil]) hidx n'' h]
 
 end
 
