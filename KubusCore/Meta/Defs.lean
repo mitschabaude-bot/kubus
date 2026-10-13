@@ -43,6 +43,16 @@ def transpGlueWith (δ : I) (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm
     (split φ1.shift (papp (snd ext).dshift (.neg (.var 0))) ψ.shift a1'.dshift) a1'
   glueEl φ1 e1 (fst ext) a1
 
+/-- `[h/0]` with the other variables lowered (the substitution in `elimHcomp`). -/
+def consSub (h : Tm) : Nat → Tm
+  | 0 => h
+  | j + 1 => var j
+
+/-- Skip interval variable 1 (the substitution in `transpHcomp`). -/
+def skip1I : Nat → I
+  | 0 => .var 0
+  | n + 1 => .var (n + 2)
+
 theorem transpGlue_eq (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) :
     Tm.transpGlue A φ T e ψ u0 = transpGlueWith φ.forall0 A φ T e ψ u0 := rfl
 

@@ -19,13 +19,13 @@ abbrev dupS (σ : Nat → Tm) : Nat → Tm := fun n => (σ n).dshift
 /-- Normalize both sides to substitutions of atomic subterms and compare pointwise. -/
 macro "scalc" : tactic => `(tactic| (
   simp only [Tm.subst, I.subst, shift_eq, dshift_eq, I.shift, I_ren_eq, Tm.inst, Tm.dinst, Tm.dsubst,
-    subst_subst, I_subst_subst, Tm.up, I.up, I.inst0, Tm.bind2, subst_var, I_subst_var, dupS];
+    subst_subst, I_subst_subst, Tm.up, I.up, I.inst0, Tm.bind2, subst_var, I_subst_var, dupS, consSub, skip1I];
   repeat' (first
     | rfl
     | (funext n; rcases n with _ | _ | _ | n <;>
         simp only [Tm.subst, I.subst, shift_eq, dshift_eq, I.shift, I_ren_eq, Tm.inst, Tm.dinst,
           Tm.dsubst, subst_subst, I_subst_subst, Tm.up, I.up, I.inst0, Tm.bind2, subst_var,
-          I_subst_var, dupS])
+          I_subst_var, dupS, consSub, skip1I])
     | congr 1)))
 
 section
@@ -101,21 +101,21 @@ theorem etaPath_subst (p : Tm) :
   scalc
 
 theorem elimHcomp_subst (d : Nat) (ps P bs : Tm) (φ : I) (u a : Tm) :
-    (comp (P.subst (fun | 0 => hfill (data d ps) φ u a | j + 1 => var j) (fun i => .var (i + 1))) φ
+    (comp (P.subst (consSub (hfill (data d ps) φ u a)) (fun i => .var (i + 1))) φ
       (elim d ps.dshift P.dshift bs.dshift u) (elim d ps P bs a)).subst σ τ =
     comp ((P.subst (up σ) τ).subst
-        (fun | 0 => hfill (data d (ps.subst σ τ)) (φ.subst τ) (u.subst (dupS σ) (I.up τ)) (a.subst σ τ)
-             | j + 1 => var j) (fun i => .var (i + 1))) (φ.subst τ)
+        (consSub (hfill (data d (ps.subst σ τ)) (φ.subst τ) (u.subst (dupS σ) (I.up τ)) (a.subst σ τ)))
+        (fun i => .var (i + 1))) (φ.subst τ)
       (elim d (ps.subst σ τ).dshift (P.subst (up σ) τ).dshift (bs.subst σ τ).dshift (u.subst (dupS σ) (I.up τ)))
       (elim d (ps.subst σ τ) (P.subst (up σ) τ) (bs.subst σ τ) (a.subst σ τ)) := by
   simp only [comp, hfill]; scalc
 
 theorem transpHcomp_subst (d : Nat) (ps : Tm) (φ ψ : I) (u a : Tm) :
     (hcomp (data d (ps.dinst .one)) ψ
-      (transp ((data d ps).dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)) φ.shift u)
+      (transp ((data d ps).dsubst skip1I) φ.shift u)
       (transp (data d ps) φ a)).subst σ τ =
     hcomp (data d ((ps.subst (dupS σ) (I.up τ)).dinst .one)) (ψ.subst τ)
-      (transp ((data d (ps.subst (dupS σ) (I.up τ))).dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2))
+      (transp ((data d (ps.subst (dupS σ) (I.up τ))).dsubst skip1I)
         (φ.subst τ).shift (u.subst (dupS σ) (I.up τ)))
       (transp (data d (ps.subst (dupS σ) (I.up τ))) (φ.subst τ) (a.subst σ τ)) := by
   scalc
