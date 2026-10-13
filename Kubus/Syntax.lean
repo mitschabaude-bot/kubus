@@ -50,7 +50,7 @@ inductive Tm
   /-- The pattern-matching function body of the global `f`; its environment holds `f`'s parameters. -/
   | split (f : String) (k : Nat)
   | letE (x : String) (t b : Tm)
-  deriving Inhabited, Repr
+  deriving Inhabited, Repr, BEq
 
 def ITm.occurs (k : Nat) : ITm → Bool
   | .var i => i == k

@@ -129,6 +129,7 @@ def isMapsto : P Bool := return (← isSym "->") || (← isSym "→") || (← is
 mutual
 
 partial def expr : P Raw := do
+  let pos ← curPos
   if (← isSym "\\") || (← isSym "λ") || (← isIdent "fun") then
     advance
     let mut xs : Array (String × Option Raw) := #[]
@@ -153,7 +154,7 @@ partial def expr : P Raw := do
     if xs.isEmpty then perr "expected a binder"
     advance
     let b ← expr
-    return xs.foldr (fun (x, ty) b => .lam x ty b) b
+    return .loc pos (xs.foldr (fun (x, ty) b => .lam x ty b) b)
   if ← isIdent "let" then
     advance
     let x ← ident
@@ -163,7 +164,7 @@ partial def expr : P Raw := do
     if !(← isIdent "in") then perr "expected 'in'"
     advance
     let b ← expr
-    return .letE x ty t b
+    return .loc pos (.letE x ty t b)
   arrowExpr
 
 /-- Try to parse telescope binders `(x y : A) (z : B)`; returns none (and backtracks) on failure. -/

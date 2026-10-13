@@ -129,6 +129,8 @@ def paren (b : Bool) (s : String) : String := if b then s!"({s})" else s
 /-- Printing options: which binders of each global's type are implicit (printed as `{a}`). -/
 structure PPI where
   mask : String → List Bool := fun _ => []
+  /-- how to print a metavariable -/
+  metaStr : Nat → String := fun m => s!"?m{m}"
   deriving Inhabited
 
 mutual
@@ -138,7 +140,9 @@ partial def pp (names : List String) (p : Nat) (t : Tm) (im : PPI := {}) : Strin
   let ppSys := fun kn en sys => ppSys kn en sys im
   match t with
   | .var i => nameAt names i
-  | .glob n 0 => n
+  | .glob n 0 => match metaId? n with
+    | some m => im.metaStr m
+    | none => n
   | .glob n k => s!"{n}^{k}"
   | .univ 0 => "U"
   | .univ l => paren (p > 2) s!"U {l}"
@@ -167,7 +171,9 @@ partial def pp (names : List String) (p : Nat) (t : Tm) (im : PPI := {}) : Strin
   | .app .. | .papp .. =>
     let (h, args) := t.sargs
     match h with
-    | .glob n _ => if (metaId? n).isSome then n else ppApp names p h args im
+    | .glob n _ => match metaId? n with
+      | some m => im.metaStr m
+      | none => ppApp names p h args im
     | _ => ppApp names p h args im
   | .pair a b => s!"({pp names 0 a}, {pp names 0 b})"
   | .fst t => s!"{pp names 3 t}.1"

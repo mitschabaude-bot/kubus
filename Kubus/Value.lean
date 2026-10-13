@@ -143,6 +143,8 @@ structure MetaInfo where
   ctx : Ctx
   ctxTy : Val
   desc : String
+  /-- printed as `?short` -/
+  short : String
   sol : Option Tm := none
   solV : Option Val := none
 

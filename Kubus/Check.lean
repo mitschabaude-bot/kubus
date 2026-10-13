@@ -64,8 +64,12 @@ where
     | .piI _ b => false :: mask b
     | _ => []
 
+def ppI' : M PPI := do
+  let ms := (← get).metas
+  return { mask := ← implMasks, metaStr := fun m => "?" ++ ((ms[m]?.map (·.short)).getD s!"m{m}") }
+
 def ppTm (ctx : Ctx) (t : Tm) : M String := do
-  return pp ctx.names 0 t { mask := ← implMasks }
+  return pp ctx.names 0 t (← ppI')
 
 def ppVal (ctx : Ctx) (v : Val) : M String := do
   ppTm ctx (← quote ctx.qctx v)
@@ -79,7 +83,7 @@ def withRollback (x : M Bool) : M Bool := do
 
 /-- A fresh metavariable of type `ty` in `ctx`: returns the core term (the metavariable applied
 to the variables of the context) and its value. -/
-def freshMeta (ctx : Ctx) (ty : Val) (desc : String) : M (Tm × Val) := do
+def freshMeta (ctx : Ctx) (ty : Val) (desc : String) (short : String := "_") : M (Tm × Val) := do
   let m := (← get).metas.size
   let mut tyTm ← quote ctx.qctx ty
   let mut rest := ctx.entries
@@ -93,7 +97,7 @@ def freshMeta (ctx : Ctx) (ty : Val) (desc : String) : M (Tm × Val) := do
       rest := es
     | [] => break
   let closedTy ← eval [] tyTm
-  modify fun s => { s with metas := s.metas.push { ty := closedTy, ctx, ctxTy := ty, desc } }
+  modify fun s => { s with metas := s.metas.push { ty := closedTy, ctx, ctxTy := ty, desc, short } }
   let n := ctx.entries.length
   let mut tm : Tm := .glob (metaName m) 0
   for idx in (List.range n).reverse do
@@ -127,7 +131,7 @@ partial def zonk (t : Tm) : M Tm := do
 def checkMetas : M Unit := do
   for mi in (← get).metas do
     if mi.sol.isNone then
-      err mi.ctx s!"could not infer {mi.desc}\n  of type {← ppVal mi.ctx mi.ctxTy}"
+      err mi.ctx s!"could not infer {mi.desc}\n  of type {← ppVal mi.ctx mi.ctxTy}{← ctxMsg mi.ctx}"
 
 /-- Conversion; in self-check mode also checks that it is symmetric. -/
 def convC (ctx : Ctx) (ty u v : Val) : M Bool := do
@@ -161,6 +165,35 @@ def ppCtx (ctx : Ctx) : M String := do
       rest := es
     | [] => pure ()
   return "\n".intercalate lines.reverse.toList
+
+/-- The context, for error messages (empty if there are no variables). -/
+def ctxMsg (ctx : Ctx) : M String := do
+  if ctx.entries.isEmpty then return ""
+  return s!"\ncontext:\n{← ppCtx ctx}"
+
+/-- The first difference between two terms of the same shape, descending through
+applications, path types, data types, constructors and pairs (`none` if the terms are equal
+or differ at the top). -/
+partial def tmDiff (a b : Tm) : Option (Tm × Tm) :=
+  go a b |>.bind fun (x, y) => if x == a && y == b then none else some (x, y)
+where
+  go (a b : Tm) : Option (Tm × Tm) :=
+    if a == b then none else
+    match a, b with
+    | .app f x, .app g y => if f == g then go x y else if x == y then go f g else some (a, b)
+    | .papp f r, .papp g s => if r == s then go f g else some (a, b)
+    | .pathP l u v, .pathP l' u' v' =>
+      if l == l' && u == u' then go v v'
+      else if l == l' && v == v' then go u u'
+      else if u == u' && v == v' then go l l'
+      else some (a, b)
+    | .pair x y, .pair x' y' => if x == x' then go y y' else if y == y' then go x x' else some (a, b)
+    | .data d _ ps, .data d' _ ps' | .con d ps _, .con d' ps' _ =>
+      if d != d' || ps.length != ps'.length then some (a, b) else
+      match (ps.zip ps').filter (fun (x, y) => !(x == y)) with
+      | [(x, y)] => go x y
+      | _ => some (a, b)
+    | _, _ => some (a, b)
 
 def stripLoc : Raw → Raw
   | .loc _ t => stripLoc t
@@ -271,7 +304,7 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
         let tyd ← papp line (Formula.ofDir d)
         if !(← convC ctx tyd vd e) then
           let ds := if d == .zero then "0" else "1"
-          err ctx s!"path boundary mismatch at {x} = {ds}:\n  expected {← ppVal ctx e}\n  but got  {← ppVal ctx vd}"
+          err ctx s!"path boundary mismatch at {x} = {ds}:\n  expected {← ppVal ctx e}\n  but got  {← ppVal ctx vd}{← ctxMsg ctx}"
       return .plam x tb
     | _ => err ctx s!"a lambda cannot have type {← ppVal ctx ty}"
   | .pair a b =>
@@ -334,8 +367,13 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
 
 partial def checkInfer (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
   let (tm, ty') ← inferIns ctx t
-  if !(← withRollback (subtype ctx.lvl ty' ty)) then
-    err ctx s!"type mismatch\n  expected: {← ppVal ctx ty}\n  but got:  {← ppVal ctx ty'}"
+  if !(← subtype ctx.lvl ty' ty) then
+    let e ← quote ctx.qctx ty
+    let g ← quote ctx.qctx ty'
+    let diff ← match tmDiff e g with
+      | some (a, b) => pure s!"\n  ({← ppTm ctx a} vs {← ppTm ctx b})"
+      | none => pure ""
+    err ctx s!"type mismatch\n  expected: {← ppTm ctx e}\n  but got:  {← ppTm ctx g}{diff}{← ctxMsg ctx}"
   return tm
 
 /-- Infer, then insert metavariables for leading implicit arguments (unless the term is `@f …`
@@ -355,7 +393,7 @@ partial def insertImplicits (ctx : Ctx) (desc : String) (tm : Tm) (ty : Val) (st
     match ← force ty with
     | .pi x a env b =>
       if !isImplName x || stop == some (plainName x) then break
-      let (mt, mv) ← freshMeta ctx a s!"the implicit argument {plainName x}{desc}"
+      let (mt, mv) ← freshMeta ctx a s!"the implicit argument {plainName x}{desc}" (plainName x)
       tm := .app tm mt
       ty ← inst env b mv
     | _ => break
@@ -435,7 +473,7 @@ partial def checkBase (ctx : Ctx) (elems : List (Face × Tm)) (a0 u0 : Val) : M 
     let ctxα ← ctx.face α
     let v ← eval (.d Formula.zero :: ctxα.env) tα
     if !(← convC ctxα (← faceV a0 α) v (← faceV u0 α)) then
-      err ctx s!"the system does not agree with the base:\n  base:   {← ppVal ctxα (← faceV u0 α)}\n  system: {← ppVal ctxα v}"
+      err ctx s!"the system does not agree with the base:\n  base:   {← ppVal ctxα (← faceV u0 α)}\n  system: {← ppVal ctxα v}{← ctxMsg ctxα}"
 
 partial def elabCon (ctx : Ctx) (c : String) (args : List Raw) (expected : Option (String × Nat × List Val)) :
     M (Tm × Val) := do
@@ -449,7 +487,7 @@ partial def elabCon (ctx : Ctx) (c : String) (args : List Raw) (expected : Optio
       let mut env : Env := []
       let mut ps : Array Val := #[]
       for (x, pTy) in info.params do
-        let (_, mv) ← freshMeta ctx (← eval env pTy) s!"the parameter {x} of {c}"
+        let (_, mv) ← freshMeta ctx (← eval env pTy) s!"the parameter {x} of {c}" x
         ps := ps.push mv
         env := .v mv :: env
       pure (0, ps.toList)

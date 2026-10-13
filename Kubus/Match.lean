@@ -456,7 +456,7 @@ partial def compileSplit (name : String) (names : List String) (ctx : Ctx) (ty :
       let penv ← faceEnv ctx.env α
       let rhs ← splitApp name 0 penv bv
       if !(← convC ctxα (← faceV expected α) lhs rhs) then
-        err bctx s!"clause for {ctor.name} does not agree with its boundary:\n  clause gives: {← ppVal ctxα lhs}\n  boundary:     {← ppVal ctxα rhs}"
+        err bctx s!"clause for {ctor.name} does not agree with its boundary:\n  clause gives: {← ppVal ctxα lhs}\n  boundary:     {← ppVal ctxα rhs}{← ctxMsg ctxα}"
 
 def checkSplit (name : String) (ps : List Binder) (ty : Raw) (clauses : List Clause') (pos : Pos) : M Unit := do
   let ctx0 : Ctx := { pos }
