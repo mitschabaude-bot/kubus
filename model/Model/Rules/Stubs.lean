@@ -106,12 +106,12 @@ theorem sem_HasTy_eqR {S : Sig} {Ψ Φ Γ t u A}
 theorem sem_HasTy_piDom {S : Sig} {Ψ Φ Γ A B l}
     (h0 : SemTy S Ψ Φ Γ (pi A B) (univ l)) :
     SemTy S Ψ Φ Γ A (univ l) := by
-  sorry
+  exact h0.piDom
 
 theorem sem_HasTy_piCod {S : Sig} {Ψ Φ Γ A B l}
     (h0 : SemTy S Ψ Φ Γ (pi A B) (univ l)) :
     SemTy S Ψ Φ (A :: Γ) B (univ l) := by
-  sorry
+  exact h0.piCod
 
 theorem sem_HasTy_sigmaDom {S : Sig} {Ψ Φ Γ A B l}
     (h0 : SemTy S Ψ Φ Γ (sigma A B) (univ l)) :
@@ -196,12 +196,57 @@ theorem sem_HasTy_pi {S : Sig} {Ψ Φ Γ A B l}
 theorem sem_HasTy_lam {S : Sig} {Ψ Φ Γ A B t l}
     (h0 : SemTy S Ψ Φ Γ (pi A B) (univ l)) (h1 : SemTy S Ψ Φ (A :: Γ) t B) :
     SemTy S Ψ Φ Γ (lam A t) (pi A B) := by
-  sorry
+  refine ⟨h0.1, ⟨h0.2.1.1, h1.2.1⟩, h0.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hpimem, hpinat, hUty, -⟩ := h0.2.2.2 m ρ γ hp
+  obtain ⟨hAkv, hsem, -, -⟩ := h0.pi_at hp
+  obtain ⟨hAty, hAnat⟩ := h0.piDom.ty_at hp
+  have hAfib := hAty.fib
+  refine ⟨?_, fun k f => ?_, TyCode.of_mem_univ hUty hpimem, hpinat⟩
+  · rw [hsem, El_piC, res_id hAkv, res_id (isKV_famV _ _), sem_lam]
+    apply lamV_mem_piEl
+    · intro n g a ha n' h; exact hAfib.elRes _ _ _ ha _ h
+    · intro n g a ha
+      rw [apZ_dat_famV _ _ _ ha]
+      exact (h1.2.2.2 n _ _ (hp.ext h0.1 hAty hAnat g ha)).1
+    · intro n g a ha n' h
+      have := (h1.2.2.2 n _ _ (hp.ext h0.1 hAty hAnat g ha)).2.1 n' h
+      rw [← this, TEnv.restr_cons, TEnv.restr_restr]; rfl
+  · rw [sem_lam, sem_lam, res_lamV, hAnat k f]
+    congr 1
+    · funext n g; rw [El_res]
+    · funext n g a; rw [TEnv.restr_restr]; rfl
 
 theorem sem_HasTy_app {S : Sig} {Ψ Φ Γ A B f a}
     (h0 : SemTy S Ψ Φ Γ f (pi A B)) (h1 : SemTy S Ψ Φ Γ a A) :
     SemTy S Ψ Φ Γ (app f a) (B.inst a) := by
-  sorry
+  refine ⟨h0.1, ⟨h0.2.1, h1.2.1⟩, h0.2.2.1.2.inst h1.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hfmem, hfnat, hpiTy, hpinat⟩ := h0.2.2.2 m ρ γ hp
+  obtain ⟨hamem, hanat, -, -⟩ := h1.2.2.2 m ρ γ hp
+  obtain ⟨hAkv, l, hl, hV, hWF⟩ := hpiTy.pi_at
+  rw [sem_pi hAkv] at hfmem hV hWF
+  obtain ⟨-, hfam, hcoh⟩ := WF.pi_inv hAkv (isKV_famV _ _) hWF
+  rw [El_piC, res_id hAkv, res_id (isKV_famV _ _)] at hfmem
+  have hval : ∀ k (g : Hom k m) x, x ∈ El (sem S A m ρ γ) g →
+      apZ (dat (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) k g) x =
+      sem S B k (ρ.restr g) (TEnv.cons (TEnv.restr γ g) x) := fun k g x hx => apZ_dat_famV _ _ _ hx
+  have hBi : sem S (B.inst a) m ρ γ = apZ (dat (famV m (sem S A m ρ γ) fun k f a =>
+      sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) m (Hom.id m)) (sem S a m ρ γ) := by
+    rw [hval m _ _ hamem, sem_inst hanat, IEnv.restr_id, TEnv.restr_id_of_kv hp.kv]
+  refine ⟨?_, fun k g => ?_, ?_, fun k g => ?_⟩
+  · rw [sem_app_of_nat hanat, hBi]
+    have := appV_mem_piElSet hfmem hamem
+    exact this
+  · rw [sem_app_of_nat (hanat.restr g), sem_app_of_nat hanat, hfnat k g, hanat k g]
+    exact (res_appV hfmem hamem g).symm
+  · unfold TyOK; rw [hBi]
+    exact ⟨l, hl, Or.inl ⟨hfam m _ _ hamem, Vt_below (below_piC_fam _ _ (isKV_famV _ _) _
+      ⟨_, by rw [dat_famV]; exact Model.mem_fnZ.2 ⟨_, hamem, rfl⟩⟩) hV⟩⟩
+  · have hga : res g (sem S a m ρ γ) ∈ El (sem S A m ρ γ) g := by
+      have := hpiTy.fib.elRes; exact (by
+        have h' := (TyCode.fib (TyCode.of_mem_univ (l := l) ⟨l, hl, Or.inr rfl⟩ (mem_El_univ_iff.2 ⟨Vt_below
+          (below_piC_dom _ _ hAkv) hV, (WF.pi_inv hAkv (isKV_famV _ _) hWF).1⟩))).elRes _ _ _ hamem k g
+        rwa [Hom.id_comp] at h')
+    rw [sem_inst (hanat.restr g), hBi, hcoh m _ _ hamem k g, Hom.id_comp, hval k g _ hga, hanat k g]
 
 theorem sem_HasTy_sigma {S : Sig} {Ψ Φ Γ A B l}
     (h0 : SemTy S Ψ Φ Γ A (univ l)) (h1 : SemTy S Ψ Φ (A :: Γ) B (univ l)) :
@@ -514,7 +559,21 @@ theorem sem_EqTm_iapp {S : Sig} {Ψ Φ Γ A p p' r r'}
 theorem sem_EqTm_piBeta {S : Sig} {Ψ Φ Γ A t a T}
     (h0 : SemTy S Ψ Φ Γ (app (lam A t) a) T) :
     SemEq S Ψ Φ Γ (app (lam A t) a) (t.inst a) T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S (t.inst a) m ρ γ = sem S (app (lam A t) a) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    have hne := hty.ne_empty hmem
+    have hanat := nat_of_sem_app hne
+    rw [sem_app_of_nat hanat] at hne ⊢
+    rw [sem_lam] at hne ⊢
+    by_cases ha : sem S a m ρ γ ∈ El (sem S A m ρ γ) (Hom.id m)
+    · rw [appV_lamV _ ha, sem_inst hanat, IEnv.restr_id, TEnv.restr_id_of_kv hp.kv]
+    · exfalso; apply hne
+      simp only [appV, here, dat_lamV]
+      rw [apZ, dif_neg]
+      rintro ⟨y, hy⟩; obtain ⟨x, hx, he⟩ := Model.mem_fnZ.1 hy
+      rw [Model.pair_inj'] at he; exact ha (he.1 ▸ hx)
+  exact ⟨h0, h0.of_eq (h0.2.1.1.2.inst h0.2.1.2) he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_piEta {S : Sig} {Ψ Φ Γ A B f}
     (h0 : SemTy S Ψ Φ Γ f (pi A B)) :

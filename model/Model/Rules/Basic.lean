@@ -512,15 +512,17 @@ theorem below_piC_fam (A B : V) (hB : IsKV m B) (a : V) (ha : ∃ y, ZFSet.pair 
 
 /-- Inversion of well-formedness for Π-codes. -/
 theorem WF.pi_inv {l : ℕ} {A B : V} (hA : IsKV m A) (hB : IsKV m B) (h : WF l m (piC m A B)) :
-    WF l m A ∧ (∀ k (f : Hom k m), ∀ a ∈ El A f, WF l k (apZ (dat B k f) a)) := by
+    WF l m A ∧ (∀ k (f : Hom k m), ∀ a ∈ El A f, WF l k (apZ (dat B k f) a)) ∧
+      (∀ k (f : Hom k m), ∀ a ∈ El A f, ∀ n (g : Hom n k),
+        Model.res g (apZ (dat B k f) a) = apZ (dat B n (f.comp g)) (Model.res g a)) := by
   generalize hc : piC m A B = c at h
   have htag : codeTag m c = natZ tPi := by rw [← hc]; simp
   unfold WF at h
   cases h with
   | empty => simp [tEmpty, tPi] at htag
-  | @pi _ A' B' hA' _ _ hfam _ =>
+  | @pi _ A' B' hA' _ _ hfam hcoh =>
     obtain ⟨rfl, rfl⟩ := piC_inj hA hB ((wf_props l _ A' hA').1.kv) ‹_› hc
-    exact ⟨hA', hfam⟩
+    exact ⟨hA', hfam, hcoh⟩
   | sigma => simp [tSigma, tPi] at htag
   | path => simp [tPath, tPi] at htag
   | ipi => simp [tIPi, tPi] at htag
@@ -574,8 +576,157 @@ theorem IsPoint.ext {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A : Tm} {ρ : IEnv m} {γ : 
     IsPoint S Φ (A :: Γ) k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a) :=
   (hp.restr hwf f).cons (by rw [hAnat k f, El_res, Hom.comp_id]; exact ha) (hAty.fib.elKV _ _ _ ha)
 
+theorem below_piC_dom (A B : V) (hA : IsKV m A) : Below A (piC m A B) := by
+  have h2 : Below (res (Hom.id m) A) (piC m A B) := by
+    unfold piC
+    refine Below.trans ?_ (below_dat_mkKV _ (Hom.id m))
+    simp only [piDatum, quad, tagZ]
+    exact ((below_pair_left _ _).trans (below_pair_right _ _)).trans (below_pair_left _ _)
+  rwa [res_id hA] at h2
+
 theorem mem_El_univ_iff {l : ℕ} {c : V} : c ∈ El (univC m l) (Hom.id m) ↔ c ∈ Vt l ∧ WF l m c := by
   rw [El_univC, ZFSet.mem_sep]
+
+end
+
+end Model
+
+namespace Model
+
+open KubusCore
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {S : Sig} {k m n : ℕ}
+
+theorem isKV_famV (A : V) (F : (k : ℕ) → Hom k m → V → V) : IsKV m (famV m A F) := by
+  unfold famV lamV; exact isKV_mkKV _
+
+/-- What a Π-type of a universe gives at a point. -/
+theorem SemTy.pi_at {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A B : Tm} {l : ℕ}
+    (h : SemTy S Ψ Φ Γ (.pi A B) (.univ l)) {ρ : IEnv m} {γ : ℕ → V} (hp : IsPoint S Φ Γ m ρ γ) :
+    IsKV m (sem S A m ρ γ) ∧
+    sem S (.pi A B) m ρ γ = piC m (sem S A m ρ γ)
+      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) ∧
+    piC m (sem S A m ρ γ)
+      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) ∈ Vt l ∧
+    WF l m (piC m (sem S A m ρ γ)
+      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a))) := by
+  obtain ⟨hmem, -, hUty, -⟩ := h.2.2.2 m ρ γ hp
+  have hAkv := kv_of_sem_pi (hUty.ne_empty hmem)
+  rw [sem_pi hAkv, sem_univ, mem_El_univ_iff] at hmem
+  exact ⟨hAkv, sem_pi hAkv, hmem⟩
+
+theorem SemTy.piDom {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A B : Tm} {l : ℕ}
+    (h : SemTy S Ψ Φ Γ (.pi A B) (.univ l)) : SemTy S Ψ Φ Γ A (.univ l) := by
+  refine ⟨h.1, h.2.1.1, trivial, fun m ρ γ hp => ?_⟩
+  obtain ⟨-, hnat, hUty, hUnat⟩ := h.2.2.2 m ρ γ hp
+  obtain ⟨hAkv, hsem, hV, hWF⟩ := h.pi_at hp
+  obtain ⟨hAWF, -, -⟩ := WF.pi_inv hAkv (isKV_famV _ _) hWF
+  refine ⟨mem_El_univ_iff.2 ⟨Vt_below (below_piC_dom _ _ hAkv) hV, hAWF⟩, fun k f => ?_, hUty, hUnat⟩
+  obtain ⟨hAkv', hsem', -, -⟩ := h.pi_at (hp.restr h.1 f)
+  have := hnat k f
+  rw [hsem', hsem, res_piC] at this
+  exact (piC_inj hAkv' (isKV_famV _ _) (isKV_res _ _) (isKV_res _ _) this).1
+
+theorem SemTy.piCod {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A B : Tm} {l : ℕ}
+    (h : SemTy S Ψ Φ Γ (.pi A B) (.univ l)) : SemTy S Ψ Φ (A :: Γ) B (.univ l) := by
+  refine ⟨SemWf.cons h.piDom, h.2.1.2, trivial, fun m ρ γ hp => ?_⟩
+  obtain ⟨hpt, ha⟩ := hp.tail
+  obtain ⟨-, -, hUty, hUnat⟩ := h.2.2.2 m ρ _ hpt
+  obtain ⟨hAkv, -, hV, hWF⟩ := h.pi_at hpt
+  obtain ⟨-, hfam, hcoh⟩ := WF.pi_inv hAkv (isKV_famV _ _) hWF
+  have hval : ∀ k (f : Hom k m) a, a ∈ El (sem S A m ρ fun x => γ (x + 1)) f →
+      apZ (dat (famV m (sem S A m ρ fun x => γ (x + 1)) fun k f a =>
+        sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr (fun x => γ (x + 1)) f) a)) k f) a =
+      sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr (fun x => γ (x + 1)) f) a) :=
+    fun k f a ha => apZ_dat_famV _ _ _ ha
+  have hid : sem S B m ρ γ = sem S B m (ρ.restr (Hom.id m))
+      (TEnv.cons (TEnv.restr (fun x => γ (x + 1)) (Hom.id m)) (γ 0)) := by
+    rw [IEnv.restr_id, TEnv.restr_id_of_kv (fun x => hpt.kv x), ← TEnv.eq_cons]
+  refine ⟨?_, fun k f => ?_, hUty, hUnat⟩
+  · rw [sem_univ, mem_El_univ_iff, hid, ← hval m (Hom.id m) _ ha]
+    exact ⟨Vt_below (below_piC_fam _ _ (isKV_famV _ _) _ ⟨_, by rw [dat_famV]; exact mem_fnZ.2 ⟨_, ha, rfl⟩⟩) hV,
+      hfam m _ _ ha⟩
+  · have hfa : res f (γ 0) ∈ El (sem S A m ρ fun x => γ (x + 1)) f := by
+      have := ((h.piDom.ty_at hpt).1.fib).elRes _ _ _ ha k f; rwa [Hom.id_comp] at this
+    have e1 : res f (sem S B m ρ γ) = sem S B k (ρ.restr f)
+        (TEnv.cons (TEnv.restr (fun x => γ (x + 1)) f) (res f (γ 0))) := by
+      rw [hid, ← hval m (Hom.id m) _ ha, hcoh m (Hom.id m) _ ha k f, Hom.id_comp, hval k f _ hfa]
+    rw [e1]; conv_lhs => rw [TEnv.eq_cons γ]
+    rw [TEnv.restr_cons]
+
+end
+
+end Model
+
+namespace Model
+
+open KubusCore
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {S : Sig} {k m n : ℕ}
+
+/-- A good Π-code is a well-formed small code. -/
+theorem TyCode.pi_inv {A B : V} (hA : IsKV m A) (h : TyCode m (piC m A B)) :
+    ∃ l ≤ maxLevel, piC m A B ∈ Vt l ∧ WF l m (piC m A B) := by
+  obtain ⟨l, hl, h | h⟩ := h
+  · exact ⟨l, hl, h.2, h.1⟩
+  · have := congrArg (codeTag m) h; simp [tPi, tUniv] at this
+
+theorem TyOK.pi_at {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S (.pi A B) m ρ γ) :
+    IsKV m (sem S A m ρ γ) ∧ ∃ l ≤ maxLevel,
+      sem S (.pi A B) m ρ γ ∈ Vt l ∧ WF l m (sem S (.pi A B) m ρ γ) := by
+  have hne : sem S (.pi A B) m ρ γ ≠ ∅ := by
+    intro he; unfold TyOK at h; rw [he] at h; exact not_isKV_empty h.fib.kv
+  have hAkv := kv_of_sem_pi hne
+  refine ⟨hAkv, ?_⟩
+  unfold TyOK at h; rw [sem_pi hAkv] at h ⊢
+  exact h.pi_inv hAkv
+
+/-- Point extension in a context whose first type is converted. -/
+theorem SemTy.ctx_conv {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A A' t T : Tm} {l : ℕ}
+    (h : SemTy S Ψ Φ (A :: Γ) t T) (hA : SemEq S Ψ Φ Γ A A' (.univ l)) : SemTy S Ψ Φ (A' :: Γ) t T := by
+  have hpt : ∀ m (ρ : IEnv m) γ, IsPoint S Φ (A' :: Γ) m ρ γ → IsPoint S Φ (A :: Γ) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hpt, ha⟩ := hp.tail
+    rw [TEnv.eq_cons γ]
+    rw [← hA.2.2 m ρ _ hpt] at ha
+    exact hpt.cons ha (hp.kv 0)
+  refine ⟨SemWf.cons hA.2.1, h.2.1, h.2.2.1, fun m ρ γ hp => h.2.2.2 m ρ γ (hpt m ρ γ hp)⟩
+
+end
+
+end Model
+
+namespace Model
+
+open KubusCore
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {S : Sig} {k m n : ℕ}
+
+theorem sem_lam (A t : Tm) (ρ : IEnv m) (γ : ℕ → V) :
+    sem S (.lam A t) m ρ γ = lamV m (fun _ f => El (sem S A m ρ γ) f)
+      (fun k f a => sem S t k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := rfl
+
+theorem sem_app_of_nat {f a : Tm} {ρ : IEnv m} {γ : ℕ → V} (ha : Natural S a m ρ γ) :
+    sem S (.app f a) m ρ γ = appV m (sem S f m ρ γ) (sem S a m ρ γ) := by
+  simp only [sem, interp]; exact if_pos ha
+
+theorem nat_of_sem_app {f a : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.app f a) m ρ γ ≠ ∅) :
+    Natural S a m ρ γ := by
+  simp only [sem, interp] at h; split at h
+  · rename_i hc; exact hc
+  · exact absurd rfl h
 
 end
 
