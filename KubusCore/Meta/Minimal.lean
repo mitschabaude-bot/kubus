@@ -10,7 +10,9 @@ primitive structural rules (`wk`, `dwk`, `subst`, `dsubst`), presupposition (`eq
 and inversion of type formers (`piDom`, `piCod`, `sigmaDom`, `sigmaCod`, `pathLine`,
 `pathLeft`, `pathRight`, `ipiLine`, `glueFib`). All other rules are copied literally, except
 for the changes M1, M2, M3, M6 documented in `docs/metatheory.md`, and two anonymous substitutions in
-`elimHcomp`, `transpHcomp` are named (`consSub`, `skip1I`; definitionally the same):
+`elimHcomp`, `transpHcomp` are named (`consSub`, `skip1I`; definitionally the same). The
+well-formedness of signatures (`WfSig0`, `DataDecl.Wf0`, `Ctor.bndTyped0`) and the consistency
+statement (`Consistent0`) are copied with the minimal judgments in place of the spec's:
 
 - M1 `HasTy0.ipi`, `EqTm0.ipi`: the context is well-formed (`Wf0` premise).
 - M2 `HasTy0.glueEl`: the equivalence is typed (premise).
@@ -377,5 +379,89 @@ inductive EqTm0 (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
 
 end
 
+
+namespace Ctor
+
+mutual
+/-- The point arguments of the nested constructors of a boundary element of constructor `C`
+have, judgmentally, the argument types of those constructors (instantiated as in the `con`
+rule), not merely types the arguments also belong to: transport of a constructor is computed
+from its argument types (`transpCon`), so the boundary and the constructor must agree on them.
+The boundary lives in `Γ` (parameters and all arguments of `C`); the equations are stated in
+`Γp` (parameters and point arguments of `C`), after dropping the recursive arguments, which
+neither side may mention. -/
+def bndTyped0 (S : Sig) (m : Nat) (ψ : I) (Γ : Ctx) (C : Ctor) (Γp : Ctx) (lvl : Nat)
+    (ctors : List Ctor) (d np : Nat) : Tm → Prop
+  | .con _ c' ps as _ =>
+    match ctors[c']? with
+    | some C' => bndTypedArgs0 S m ψ Γ C Γp lvl ctors d np C' ps 0 [] as
+    | none => True
+  | _ => True
+/-- The same for the arguments of a nested constructor `C'`, from position `k` on, with the
+earlier arguments `prev` (most recent first). -/
+def bndTypedArgs0 (S : Sig) (m : Nat) (ψ : I) (Γ : Ctx) (C : Ctor) (Γp : Ctx) (lvl : Nat)
+    (ctors : List Ctor) (d np : Nat) (C' : Ctor) (ps : Tm) (k : Nat) (prev : List Tm) : Tm → Prop
+  | .tcons a as =>
+    (∀ (j : Nat) (T : Tm), a = .var j → C'.isRec k = false → Γ.lookup j = some T →
+      C.mentionsRec C.args.length T = false ∧
+      C.mentionsRec C.args.length ((C'.argTy d np k).substList (prev ++ ps.toList.reverse)) = false ∧
+      EqTm0 S m ψ Γp (T.ren (C.pointRen C.args.length) id)
+        (((C'.argTy d np k).substList (prev ++ ps.toList.reverse)).ren (C.pointRen C.args.length) id)
+        (.univ lvl)) ∧
+    (C'.isRec k = true → bndTyped0 S m ψ Γ C Γp lvl ctors d np a) ∧
+    bndTypedArgs0 S m ψ Γ C Γp lvl ctors d np C' ps (k + 1) (a :: prev) as
+  | _ => True
+end
+
+end Ctor
+
+namespace DataDecl
+
+/-- A well-formed declaration of the inductive type `d = S.length`, checked against the
+signature `S` before it: the parameters in `S` itself, the point arguments in `S` extended by
+the declaration without constructors, and the boundary of constructor `c` and its agreement on
+overlaps in `S` extended by the declaration truncated to the constructors before `c`, so that neither `c`'s own boundary rule nor later constructors are
+available (otherwise `conBnd` would make the boundary check vacuous). Parameters and point
+arguments do not mention `d` (so `d` occurs only as the type of recursive arguments: strictly
+positive, not nested), point arguments do not mention earlier recursive arguments and live in
+the declared universe (also in `S` itself, over the parameters and earlier point arguments, so
+that their types are typed wherever the parameters are: `transpCon` transports along them), and boundaries are simple, well-typed (with the argument types of their
+nested constructors, `Ctor.bndTyped0`) and agree on overlaps. -/
+def Wf0 (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
+  let np := D.params.length
+  D.level + 1 ≤ maxLevel ∧
+  (∀ (j : Nat) (A : Tm), D.params[j]? = some A → A.closedB j 0 = true ∧ A.mentionsData d = false ∧
+    (HasTy0 S 0 .one (D.paramCtx j) A (.univ D.level) ∨ ∃ k ≤ D.level, A = .univ k)) ∧
+  ∀ (c : Nat) (C : Ctor), D.ctors[c]? = some C →
+    let Sc := S ++ [.data (D.truncate c)]
+    (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
+      A.mentionsData d = false ∧ C.noRecDeps k A = true ∧
+      HasTy0 (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level) ∧
+      HasTy0 S 0 .one (D.pointCtx d C k) (A.ren (C.pointRen k) id) (.univ D.level)) ∧
+    (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
+      b.closedB (np + C.args.length) C.dims = true ∧
+      Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
+      HasTy0 Sc C.dims ψ (D.argCtx d C C.args.length) b
+        (.data d (Ctor.paramVars np C.args.length)) ∧
+      Ctor.bndTyped0 S C.dims ψ (D.argCtx d C C.args.length) C (D.pointCtx d C C.args.length)
+        D.level D.ctors d np b) ∧
+    (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
+      EqTm0 Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
+        (.data d (Ctor.paramVars np C.args.length)))
+
+end DataDecl
+
+/-- A well-formed signature: definition `k` is a closed term of a closed type, checked
+against the entries before it; a data declaration is well-formed against the entries before
+it (`DataDecl.Wf0`). -/
+def WfSig0 (S : Sig) : Prop :=
+  (∀ (k : Nat) (t A : Tm), S[k]? = some (.defn t A) →
+    t.closedB 0 0 ∧ A.closedB 0 0 ∧
+    (∃ l, HasTy0 (S.take k) 0 .one [] A (.univ l)) ∧ HasTy0 (S.take k) 0 .one [] t A) ∧
+  (∀ (k : Nat) (D : DataDecl), S[k]? = some (.data D) → DataDecl.Wf0 D (S.take k) k)
+
+/-- Consistency: in a well-formed signature there is no closed term of `(A : U₀) → A`. -/
+def Consistent0 : Prop :=
+  ∀ S t, WfSig0 S → ¬ HasTy0 S 0 .one [] t (.pi (.univ 0) (.var 0))
 
 end KubusCore.Meta

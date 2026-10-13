@@ -113,7 +113,9 @@ primitive structural rules (`wk`, `dwk`, `subst`, `dsubst`), presupposition (`eq
 and inversion of type formers (`piDom`, `piCod`, `sigmaDom`, `sigmaCod`, `pathLine`,
 `pathLeft`, `pathRight`, `ipiLine`, `glueFib`). All other rules are copied literally, except
 for the changes M1, M2, M3, M6 documented in `docs/metatheory.md`, and two anonymous substitutions in
-`elimHcomp`, `transpHcomp` are named (`consSub`, `skip1I`; definitionally the same):
+`elimHcomp`, `transpHcomp` are named (`consSub`, `skip1I`; definitionally the same). The
+well-formedness of signatures (`WfSig0`, `DataDecl.Wf0`, `Ctor.bndTyped0`) and the consistency
+statement (`Consistent0`) are copied with the minimal judgments in place of the spec's:
 
 - M1 `HasTy0.ipi`, `EqTm0.ipi`: the context is well-formed (`Wf0` premise).
 - M2 `HasTy0.glueEl`: the equivalence is typed (premise).
@@ -126,5 +128,19 @@ namespace KubusCore.Meta
 open Tm
 
 '''
-open(DST, "w").write(header + block + "\n\nend KubusCore.Meta\n")
+# the well-formedness of signatures and the consistency statement, over the minimal judgments
+i = src.index("\nnamespace Ctor\n", end)
+j = src.index("\nend KubusCore", i)
+tail = src[i + 1:j]
+k1 = tail.index("namespace DataDecl")
+k3 = tail.index("/-- A well-formed declaration")
+tail = tail[:k1] + "namespace DataDecl\n\n" + tail[k3:]   # drop the judgment-free definitions
+for a, b in [(r"\bHasTy\b", "HasTy0"), (r"\bEqTm\b", "EqTm0"), (r"\bbndTyped\b", "bndTyped0"),
+             (r"\bbndTypedArgs\b", "bndTypedArgs0"), (r"\bWfSig\b", "WfSig0"),
+             (r"\bConsistent\b", "Consistent0"), (r"def Wf \(D", "def Wf0 (D"),
+             (r"D\.Wf \(S\.take k\) k", "DataDecl.Wf0 D (S.take k) k"), (r"`DataDecl\.Wf`", "`DataDecl.Wf0`")]:
+    tail, n = re.subn(a, b, tail)
+    if n == 0:
+        sys.exit(f"gen_minimal: tail substitution {a} did not apply")
+open(DST, "w").write(header + block + "\n\n" + tail + "\nend KubusCore.Meta\n")
 print("removed:", ", ".join(removed))

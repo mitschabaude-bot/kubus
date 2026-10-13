@@ -2,6 +2,23 @@
 
 The spec (`KubusCore/Rules.lean`) has primitive rules for weakening (`wk`, `dwk`), single substitution (`subst`, `dsubst`), presupposition (`eqL`, `eqR`) and inversion of type formers (`piDom`, …, `glueFib`). `KubusCore/Meta/` defines the judgments without these rules and proves which of them are admissible. Everything below is proven without `sorry` (axioms: `propext`, `Classical.choice`, `Quot.sound`); `KubusCore/Meta/Main.lean` has the summary and `KubusCore/Meta/Final.lean` the end result.
 
+## The trusted statement
+
+The minimal judgments are the user-facing specification: a textbook presentation, without primitive weakening, substitution, presupposition or inversion rules, and with everything else proven equivalent to the full spec. The end results, all depending only on Lean's standard axioms (`propext`, `Classical.choice`, `Quot.sound`):
+
+- `Model.consistent0 : KubusCore.Meta.Consistent0` (`model/Model/Minimal.lean`): over a signature well-formed in the minimal sense (`WfSig0`), the minimal judgments derive no closed term of `(A : U₀) → A`.
+- `Model.kernel_consistent0` (same file): if the kernel accepts a signature (`Kernel.checkSig S = .ok _`), the minimal judgments derive no closed term of `(A : U₀) → A` over it.
+
+To trust these one reads:
+
+1. `KubusCore/Syntax.lean`: terms, interval terms and the face lattice, substitution, and the derived operations the rules mention (`comp`, `hfill`, `fill`, `transpFill`, `equiv`, the CHM contracta `transpPi`, …, `hcompU`, `transpGlueWith`, the inductive-type helpers `branchTy`, `bndAt`, `transpTele`, `hcompTele`, …).
+2. The judgment-free definitions at the end of `KubusCore/Rules.lean` (`DataDecl.paramCtx`, `argCtx`, `pointCtx`, `truncate`) and `KubusCore/Meta/Defs.lean` (`consSub`, `skip1I`).
+3. `KubusCore/Meta/Minimal.lean`: the rules (`Wf0`, `HasTy0`, `HasTele0`, `EqTele0`, `EqTm0`), the well-formedness of signatures (`Ctor.bndTyped0`, `DataDecl.Wf0`, `WfSig0`) and `Consistent0`. It is generated from `Rules.lean` by `Meta/scripts/gen_minimal.py`, but checked in and self-contained.
+4. `model/Model/Minimal.lean`: the two statements.
+5. For `kernel_consistent0`, the signature of `Kernel.checkSig` (`KubusCore/Kernel/Main.lean`): it returns `PLift (WfSig S)`, so `checkSig S = .ok _` means acceptance.
+
+Nothing else needs to be read: the full spec (`Rules.lean`'s judgments), the kernel's code, the metatheory's proofs and the model are checked by Lean. `consistent0` goes through `wfSig_of_wfSig0` and `minimal_to_spec` (`Final.lean`, `Equiv.lean`) and the model's `consistent`; `kernel_consistent0` through `checkSig_sound`, `minimal_to_spec` and `consistent`. In the other direction, `spec_to_minimal` (`Final.lean`) shows that the minimal judgments lose nothing over the full spec for `WfSig` signatures.
+
 ## The minimal judgments
 
 `Wf0`, `HasTy0`, `HasTele0`, `EqTele0`, `EqTm0` (`Meta/Minimal.lean`) are generated from `Rules.lean` by `Meta/scripts/gen_minimal.py`, which drops the 19 primitive rules and applies the changes below. It fails if a spec change touches an edited rule. The two anonymous substitutions in `elimHcomp` and `transpHcomp` are named (`consSub`, `skip1I`, definitionally equal), so that lemmas can refer to them.
