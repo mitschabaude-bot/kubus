@@ -40,8 +40,41 @@ Note also that the core fragment has no base types, so the model must put an emp
 
 ## Architecture
 
-(in progress — see below)
+The model is the CCHM cubical-sets model over the De Morgan cube category, presented concretely so that *raw* syntax can be interpreted (Streicher-style partial interpretation), which is how a spec with a conversion rule and Prop-valued derivations is validated.
+
+| file | contents |
+|---|---|
+| `Model/Interval.lean` | `M4` laws; soundness of the spec's DNF; the face lattice is the Kleene algebra `{0, a, 1} ⊆ M4` (`entails_sound`: the spec's `I.Entails` is sound for it); `r = 1` iff `r(a, …, a) = 1` |
+| `Model/Cube.lean` | the cube category: `DM m` (definable functions `M4^m → M4`, i.e. the free De Morgan algebra), cube maps `Hom k m`, interval environments, faces at a stage (`Cof m`, canonical Kleene reading), join-primeness of the true face (local character) |
+| `Model/Enc.lean` | the value universe `V = ZFSet`; encodings of countable data, graphs, lookup |
+| `Model/Val.lean` | *Kripke values*: a value at stage `m` is the graph of its data at all `(k, f : Hom k m)`; restriction is uniform reindexing (`res`), strictly functorial, independent of types; Glue reduction on faces is automatic in this representation |
+| `Model/Codes.lean` | type codes: Kripke values whose datum at `(k, f)` stores the *shape* (tag + components, so codes are intensional), the element set, and the graphs of `transp` (along the last variable) and `hcomp`; tubes, keys and graph builders |
+| `Model/Fib.lean` | `Fib c m`: lawful fibrant code (element sets closed under restriction; `hcomp`/`transp` typed, with face conditions, natural) |
+| `Model/Pi.lean`, `PiFib.lean`, `PiTransp.lean` | Π-types: Kripke function elements; `hcompPiF`/`transpPiF` read off the spec's `Tm.hcompPi`/`Tm.transpPi`; `fib_piC` |
+
+Design decisions:
+
+- **Values are ZFC sets** (`Mathlib.SetTheory.ZFC`), because raw terms must have type-independent denotations (`app` is graph lookup). Typed Lean semantics (values in Lean types) cannot interpret unannotated `app`/`fst` without injectivity of Π-types of Lean types, which is not provable.
+- **Kripke representation**: storing the restrictions inside each value makes restriction type-independent and definitionally functorial, avoids recursion, and makes Glue types/elements reduce on their face for free.
+- **Codes store their Kan operations as data**, computed non-recursively by the constructors from the components. Derived codes (the fiber types in `transpGlue`, the isEquiv types needed for `hcomp` in `U`) can then be built freely, with no well-founded recursion on codes.
+- **Faces** are represented canonically by their Kleene reading (a set of `K3`-points), so Kan operations depend only on the face, as `EqTm.transp`/`hcomp` congruence (mutual entailment) requires.
+- **Universes**: `U_l` will be `{c ∈ V_l | c is a well-formed level-l code}` for an assumed tower `V_l` of Grothendieck universes (see spec issue 4). Well-formedness is an inductive predicate on intensional codes, which validates `piDom`/`piCod`/… by inversion.
 
 ## Status
 
-(in progress)
+Proven (no `sorry`):
+
+- face lattice semantics; soundness of `I.Entails`; the face rule's key fact (`holds_lit`: if `Φ ⊨ i = d` then the environment sends `i` to `d`); local character (`holds_or`);
+- cube category laws; interval environments and their restriction;
+- Kripke values, uniform restriction;
+- **Π-types are fibrant** (`fib_piC`): `hcomp` and `transp` given by the spec's contracta `Tm.hcompPi` and `Tm.transpPi` are typed, satisfy the face conditions, and are natural.
+
+Remaining, in order:
+
+1. Σ (`hcompSigma` uses `hfill` and `comp`; `transpSigma` uses `transpFill`), paths (`transpPath`, `hcompPath`), `(i : I) → A` (`transpIPi`, `hcompIPi`), the empty type.
+2. Universes: the level-indexed well-formedness predicate, `U_l` as a code (`transp` = identity), `hcomp` in `U` via Glue along the transport equivalence (the spec has no computation rule for it, but the model needs one).
+3. Glue: elements, `unglue` (with the equivalence, see spec issue 1), `transpGlue`, `hcompGlue`.
+4. Interpretation of raw syntax with Kripke environments; substitution lemmas.
+5. Soundness of every rule, then `Consistent` (relative to the universe tower, and only after spec issues 1–3 are fixed).
+
+Rule checklist: no typing rule is validated yet; the semantic ingredients for the Π rules (formation, λ, application, β, η, `transpPi`, `hcompPi`) are in place.

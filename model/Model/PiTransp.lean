@@ -311,7 +311,120 @@ theorem memC (g : Hom n' n) {v : V} (hv : v ∈ El A (f.comp ((Hom.endpt n (DM.o
   rwa [Hom.id_comp, ← Hom.comp_id (Hom.endpt n' (DM.one n')), ← El_res, resC hA hB hφ hc g hv,
     w_endpt1 hA hB hφ hc g hv, Hom.comp_assoc, Hom.lift_comp_endpt', snoc_one_eq] at this
 
+theorem transpPiF_eq (A' B' : V) (u0 : V) :
+    transpPiF n A' B' φ u0 = lamV n (fun _ g => El A' ((Hom.endpt n (DM.one n)).comp g))
+      (fun n' g v => transpAt (C A' B' φ g v) (Hom.id (n' + 1)) (φ.restr g)
+        (appV n' (res g u0) (w0 A' φ g v))) := rfl
+
+theorem piElSet_line_eq (f : Hom (n + 1) m) (r : DM n) :
+    piElSet n (res (f.comp (Hom.endpt n r)) A) (res (f.comp (Hom.endpt n r)) B) =
+      piEl n (fun _ g => El (res f A) ((Hom.endpt n r).comp g))
+        (fun n' g a => El (apZ (dat B n' (f.comp ((Hom.endpt n r).comp g))) a) (Hom.id n')) := by
+  unfold piElSet; simp only [El_res, dat_res]; rfl
+
+include hA hB hc hφ in
+theorem transpPiF_mem {u0 : V} (hu0 : u0 ∈ El (piC m A B) (f.comp (Hom.endpt n (DM.zero n)))) :
+    transpPiF n (res f A) (res f B) φ u0 ∈
+      piElSet n (res (f.comp (Hom.endpt n (DM.one n))) A) (res (f.comp (Hom.endpt n (DM.one n))) B) := by
+  rw [piElSet_line_eq, transpPiF_eq]
+  apply lamV_mem_piEl
+  · intro n' g a ha n'' h
+    rw [El_res] at ha ⊢; exact hA.elRes _ _ a ha n'' h
+  · intro n' g v hv
+    rw [El_res] at hv
+    exact memC hA hB hφ hc g hv hu0
+  · intro n' g v hv n'' h
+    rw [El_res] at hv
+    have hfib := fibC hA hB hφ hc g hv
+    rw [hfib.trRes n' (Hom.id _) (φ.restr g) _ (hφ.restr g) (constC hA hB hφ hc g hv)
+      (baseC hA hB hφ hc g hv hu0) n'' h, Hom.id_comp, transpAt_eq_res_id, Cof.restr_restr]
+    have hv' : res h v ∈ El A (f.comp ((Hom.endpt n (DM.one n)).comp (g.comp h))) :=
+      hA.elRes _ _ v hv n'' h
+    congr 1
+    · -- the codomain line
+      rw [resC hA hB hφ hc g hv, C_eq, Hom.comp_assoc, Hom.lift_comp, w_eq, w_eq,
+        hA.trRes (n' + 1) _ _ _ (isCof_ψ hφ g) (constW hA hB hc g) (baseW hA g hv) (n'' + 1) (Hom.lift h),
+        Hom.comp_assoc, γ_comp_lift_lift, ψ_lift, res_res, res_res, wk_comp_lift']
+    · -- the base
+      rw [El_piC] at hu0
+      have h1 := res_mem_piElSet hu0 g
+      rw [res_res, res_res] at h1
+      have h2 : w0 (res f A) φ g v ∈ El (res ((f.comp (Hom.endpt n (DM.zero n))).comp g) A) (Hom.id n') := by
+        rw [El_res, Hom.comp_id]; exact memW0 hA hB hφ hc g hv
+      rw [res_appV h1 h2 h, res_res, w0_eq, w0_eq,
+        hA.trRes n' _ _ v (hφ.restr g) (constW0 hA hB hc g) (by rw [Hom.comp_assoc, γ0_endpt0]; exact hv) n'' h,
+        Hom.comp_assoc, γ0_comp_lift, Cof.restr_restr]
+
+include hA hB hc hφ in
+theorem transpPiF_face {u0 : V} (hu0 : u0 ∈ El (piC m A B) (f.comp (Hom.endpt n (DM.zero n))))
+    (hh : φ.holds) : transpPiF n (res f A) (res f B) φ u0 = u0 := by
+  have hid : (φ.restr (Hom.id n)).holds := by rw [hφ.restr_id]; exact hh
+  have hAB := constAB hA hB hc (Hom.id n) hid (DM.one n)
+  have hmem := transpPiF_mem hA hB hφ hc hu0
+  rw [El_piC] at hu0
+  have e1 : Hom.snoc (Hom.id n) (DM.one n) = Hom.endpt n (DM.one n) := rfl
+  have e0 : Hom.snoc (Hom.id n) (DM.zero n) = Hom.endpt n (DM.zero n) := rfl
+  rw [e1, e0] at hAB
+  rw [hAB.1, hAB.2] at hmem
+  refine piEl_ext (D := fun _ g => El (res (f.comp (Hom.endpt n (DM.zero n))) A) g) hmem hu0
+    fun n' g v hv => ?_
+  have hv1 : v ∈ El A (f.comp ((Hom.endpt n (DM.one n)).comp g)) := by
+    have : v ∈ El (res (f.comp (Hom.endpt n (DM.zero n))) A) g := hv
+    rwa [← hAB.1, El_res] at this
+  have hg : (φ.restr g).holds := hφ.holds_restr hh g
+  rw [apZ_dat_transpPiF _ _ _ _ _ (by rw [El_res]; exact hv1),
+    (fibC hA hB hφ hc g hv1).trFace n' (Hom.id _) (φ.restr g) _ (hφ.restr g)
+      (constC hA hB hφ hc g hv1) (baseC hA hB hφ hc g hv1 (by rwa [El_piC])) hg,
+    w0_eq, hA.trFace n' _ _ v (hφ.restr g) (constW0 hA hB hc g)
+      (by rw [Hom.comp_assoc, γ0_endpt0]; exact hv1) hg, appV_res]
+
 end transp
+
+theorem transpPiF_res {A B : V} (f : Hom (n + 1) m) (φ : Cof n) (u0 : V) (h : Hom n'' n) :
+    res h (transpPiF n (res f A) (res f B) φ u0) =
+      transpPiF n'' (res (f.comp (Hom.lift h)) A) (res (f.comp (Hom.lift h)) B) (φ.restr h) (res h u0) := by
+  rw [transpPiF_eq, transpPiF_eq, res_lamV]
+  congr 1
+  · funext n' g
+    rw [El_res, El_res, Hom.comp_assoc, ← Hom.comp_assoc (Hom.lift h), TranspPi.lift_comp_endpt1]; rfl
+  · funext n' g v
+    simp only [TranspPi.C, TranspPi.w, TranspPi.w0, dat_res, transpAt_res, Hom.comp_assoc,
+      Hom.lift_comp, TranspPi.lift_comp_γ, TranspPi.lift_comp_γ0, TranspPi.ψ_restr, Cof.restr_restr,
+      res_res]
+
+theorem transpAt_piC {A B : V} {f : Hom (n + 1) m} {φ : Cof n} {u0 : V}
+    (hu0 : u0 ∈ El (piC m A B) (f.comp (Hom.endpt n (DM.zero n)))) :
+    transpAt (piC m A B) f φ u0 = transpPiF n (res f A) (res f B) φ u0 := by
+  rw [transpAt, trG_piC]
+  show apZ (trGraph n _ _) _ = _
+  rw [apZ_trGraph]
+  rw [El_piC] at hu0; rwa [res_res, res_res]
+
+/-- **Π-types are fibrant**, with the spec's `hcompPi` and `transpPi`. -/
+theorem fib_piC {A B : V} (hA : Fib A m) (hB : FamOK A B m) : Fib (piC m A B) m where
+  kv := isKV_mkKV _
+  elKV k f v hv := by rw [El_piC, piElSet, mem_piEl] at hv; exact hv.1
+  elRes k f v hv n h := by
+    rw [El_piC] at hv ⊢; have := res_mem_piElSet hv h; rwa [res_res, res_res] at this
+  hcMem k f φ u u0 hφ hu0 hu := by
+    rw [hcompAt_piC hA hB hu0 hu, El_piC]; exact hcompPiF_mem hA hB hφ hu0 hu
+  hcFace k f φ u u0 hφ hu0 hu hh := by
+    rw [hcompAt_piC hA hB hu0 hu]; exact hcompPiF_face hA hB hφ hu0 hu hh
+  hcRes k f φ u u0 hφ hu0 hu n h := by
+    have hu0' : res h u0 ∈ El (piC m A B) (f.comp h) := by
+      rw [El_piC] at hu0 ⊢; have := res_mem_piElSet hu0 h; rwa [res_res, res_res] at this
+    rw [hcompAt_piC hA hB hu0 hu, hcompAt_piC hA hB hu0' (hu.restr h), hcompPiF_res, res_res,
+      res_res, Tube.canon_restr]
+  trMem n f φ a0 hφ hc ha := by
+    rw [transpAt_piC ha, El_piC]; exact transpPiF_mem hA hB hφ hc ha
+  trFace n f φ a0 hφ hc ha hh := by
+    rw [transpAt_piC ha]; exact transpPiF_face hA hB hφ hc ha hh
+  trRes n f φ a0 hφ hc ha n' h := by
+    have ha' : res h a0 ∈ El (piC m A B) ((f.comp (Hom.lift h)).comp (Hom.endpt n' (DM.zero n'))) := by
+      rw [El_piC] at ha ⊢; have := res_mem_piElSet ha h
+      rw [Hom.comp_assoc f (Hom.lift h), TranspPi.lift_comp_endpt0, ← Hom.comp_assoc]
+      rwa [res_res, res_res] at this
+    rw [transpAt_piC ha, transpAt_piC ha', transpPiF_res]
 
 end
 
