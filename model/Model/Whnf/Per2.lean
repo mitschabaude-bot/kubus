@@ -394,6 +394,33 @@ theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 
     simp only [ISub.id_comp] at x ⊢
     exact (ihL _ _).conv (line_ty hW hL σ' h3 r hr') x
 
+theorem per2_emptyC : PER2 S m (emptyC m) := by
+  intro k f
+  rw [Comp2_emptyC]
+  exact ⟨fun hT => base_symm hT, fun hT hT' => base_trans hW hT hT', fun _ h => h.elim, fun _ h => h.elim,
+    fun _ h => h.elim⟩
+
+theorem per2_univC {l : ℕ} (ih : ∀ m' X, WF l m' X → PER2 S m' X) : PER2 S m (univC m l) := by
+  intro k f
+  rw [Comp2_univC]
+  refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
+    fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
+  · exact ⟨base_symm hT.1, fun k' σ => ⟨(hT.2 k' σ).2, (hT.2 k' σ).1⟩⟩
+  · exact ⟨base_trans hW hT.1 hT'.1, fun k' σ => ⟨(hT.2 k' σ).1, (hT'.2 k' σ).2⟩⟩
+  · obtain ⟨he, hmem, hm, hty⟩ := ht
+    have es := semK_eq hW he.2.2
+    have P := ih k _ (ZFSet.mem_sep.1 hm).2 k (Hom.id k)
+    refine ⟨he.symm, by rw [← es]; exact hmem, by rw [← es]; exact hm, ?_⟩
+    rw [← es]; exact P.symTy hty
+  · obtain ⟨he, hmem, hm, hty⟩ := ht
+    obtain ⟨he', -, -, hty'⟩ := ht'
+    have es := semK_eq hW he.2.2
+    have P := ih k _ (ZFSet.mem_sep.1 hm).2 k (Hom.id k)
+    rw [← es] at hty'
+    exact ⟨he.trans he', hmem, hm, P.transTy hty hty'⟩
+  · obtain ⟨he, hmem, hm, hty⟩ := ht
+    exact ⟨he.conv hT.1.2.2.2.2, hmem, hm, hty⟩
+
 end
 
 end Model.Whnf
