@@ -342,6 +342,52 @@ theorem hsys : HasTy0 S (Ψ + 1 + 1) (cof (cof Φ δ).shift (tgChi ψ)).shift Γ
       exact EqTm0.trans (EqTm0.symm (H.E2 hs1 (ent_trans hl hYW))) (EqTm0.symm s2))
   exact HasTy0.split hψ2 ⟨hv1, hv1⟩ hRχ (H.hCIns hRs (ent_trans hRZ hZΦ2)) b1 hinner hover
 
+theorem he0Z (r : I) (hr : r.Scoped Ψ) : HasTy0 S Ψ (cof Φ δ) Γ (e.dinst r) (equiv (T.dinst r) (A.dinst r)) :=
+  H.her hr H.hZs H.hZΦ (H.hZφr r)
+
+theorem hbaseω : HasTy0 S (Ψ + 1) (cof Φ δ).shift Γ.dshift (app (fst (e.dinst .zero).dshift) u0.dshift)
+    ((A.dsubst (sk (.var 0) 2)).dinst .zero) := by
+  rw [L_C0]; exact HasTy0.dwk H.hS (app_fst_equiv (H.he0Z .zero trivial) H.hu0T)
+
+/-- On `δ`, `fill(0) ≡ e(0).1 u0`. -/
+theorem hfill0 : EqTm0 S Ψ (cof Φ δ) Γ ((fill A ψ (tgTube φ e u0) (tgA0 φ e u0)).dinst .zero)
+    (app (fst (e.dinst .zero)) u0) (A.dinst .zero) := by
+  have e1 := EqTm0.restrict H.hZs H.hZΦ (fill_typed H.hS H.hA H.hψ H.htube H.ha0 H.htube_side).2.1
+  have e2 := EqTm0.unglueFace (H.hZφr .zero) (HasTy0.restrict H.hZs H.hZΦ H.hu0)
+    (HasTy0.restrict H.hZs H.hZΦ (H.hAr (r := .zero) trivial)) (H.he0Z .zero trivial)
+  exact EqTm0.trans e1 e2
+
+theorem hsideω : EqTm0 S (Ψ + 1) (cof (cof Φ δ).shift (tgChi ψ)) Γ.dshift ((tgSys A φ T e ψ u0).dinst .zero)
+    (app (fst (e.dinst .zero).dshift) u0.dshift) ((A.dsubst (sk (.var 0) 2)).dinst .zero) := by
+  have hv0 : (I.var 0).Scoped (Ψ + 1) := show 0 < Ψ + 1 by omega
+  have hQs : (cof (cof Φ δ).shift (tgChi ψ)).Scoped (Ψ + 1) := ⟨H.hZs1, ⟨scoped_shift H.hψ, ⟨hv0, hv0⟩⟩⟩
+  have hQZ : I.Entails (cof (cof Φ δ).shift (tgChi ψ)) (cof Φ δ).shift := ent_and_left _ _
+  have hQχ : I.Entails (cof (cof Φ δ).shift (tgChi ψ)) (.or ψ.shift (.or (.neg (.var 0)) (.var 0))) :=
+    ent_and_right _ _
+  have hs0 := HasTy0.dsubst H.hS H.hsys (r := .zero) trivial
+  have hb := HasTy0.restrict hQs hQZ H.hbaseω
+  rw [L_C0] at hs0 hb ⊢
+  have tf0 := (transpFill_typed H.hS H.hTZ H.hψ H.hconstT H.hu0T).2.1
+  generalize (cof (cof Φ δ).shift (tgChi ψ)) = Q at hQs hQZ hQχ hs0 hb ⊢
+  simp only [tgSys] at hs0 ⊢
+  rw [sys_d _ _ _ _ _ _ (.inl rfl)] at hs0 ⊢
+  obtain ⟨A', ⟨_, _, _, _, hin⟩, ch⟩ := gen_split hs0 rfl
+  have hQ2s : (cof Q (.or (.neg (.var 0)) (.var 0))).Scoped (Ψ + 1) := ⟨hQs, ⟨hv0, hv0⟩⟩
+  have hin' := (ch.restrict hQ2s (ent_and_left _ _)).transport hin
+  refine EqTm0.local (φ := ψ.shift) (ψ := .or (.neg (.var 0)) (.var 0)) (scoped_shift H.hψ) ⟨hv0, hv0⟩ hQχ hs0 hb ?_ ?_
+  · exact EqTm0.splitL (ent_and_right _ _) (HasTy0.restrict ⟨hQs, scoped_shift H.hψ⟩ (ent_and_left _ _) hs0)
+  · refine EqTm0.trans (EqTm0.splitR (ent_and_right _ _) (HasTy0.restrict hQ2s (ent_and_left _ _) hs0)) ?_
+    have hQ2Z : I.Entails (cof Q (.or (.neg (.var 0)) (.var 0))) (cof Φ δ).shift := ent_trans (ent_and_left _ _) hQZ
+    refine EqTm0.local (φ := .neg (.var 0)) (ψ := .var 0) hv0 hv0 (ent_and_right _ _) hin'
+      (HasTy0.restrict hQ2s (ent_and_left _ _) hb) ?_ ?_
+    · have hs1 : (cof (cof Q (.or (.neg (.var 0)) (.var 0))) (.neg (.var 0))).Scoped (Ψ + 1) := ⟨hQ2s, hv0⟩
+      refine EqTm0.trans (EqTm0.splitL (ent_and_right _ _) (HasTy0.restrict hs1 (ent_and_left _ _) hin')) ?_
+      exact EqTm0.restrict hs1 (ent_trans (ent_and_left _ _) hQ2Z)
+        (EqTm0.dwk H.hS (app_fst_congr (H.he0Z .zero trivial) tf0))
+    · have hs1 : (cof (cof Q (.or (.neg (.var 0)) (.var 0))) (.var 0)).Scoped (Ψ + 1) := ⟨hQ2s, hv0⟩
+      refine EqTm0.trans (EqTm0.splitR (ent_and_right _ _) (HasTy0.restrict hs1 (ent_and_left _ _) hin')) ?_
+      exact EqTm0.restrict hs1 (ent_trans (ent_and_left _ _) hQ2Z) (EqTm0.dwk H.hS H.hfill0)
+
 end TG
 
 end KubusCore.Meta
