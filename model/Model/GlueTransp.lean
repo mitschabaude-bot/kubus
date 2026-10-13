@@ -409,6 +409,53 @@ theorem gt_ω_mem {g : Hom k n} (hg : ((gtδ φ).restr g).holds) :
 
 end gtΩ4
 
+theorem gtΩLine_lift (g : Hom k n) (h : Hom n' k) :
+    (gtΩLine g).comp (Hom.lift (Hom.lift h)) = gtΩLine (g.comp h) := by
+  apply Hom.ext_snoc
+  · intro p; apply funext; intro j; simp [gtΩLine]
+  · intro p; simp [gtΩLine]
+
+section gtΩ5
+
+variable {A : V} {φ : Cof (n + 1)} {Tp ep : V} (hG : GlueOK A φ Tp ep) {ψ : Cof n} (hψ : ψ.IsCof)
+  {u0 : V} (hu0 : u0 ∈ El (glueC (n + 1) A φ Tp ep) (eZ n))
+  (hcon : ConstOn (glueC (n + 1) A φ Tp ep) (Hom.id (n + 1)) ψ)
+
+include hG hψ hu0 hcon in
+theorem gt_tfill_res {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (h : Hom n' k) :
+    res (Hom.lift h) (transpFillF (gtTL Tp g) (Hom.id (k + 1)) (ψ.restr g) (res g u0)) =
+      transpFillF (gtTL Tp (g.comp h)) (Hom.id (n' + 1)) (ψ.restr (g.comp h)) (res (g.comp h) u0) := by
+  rw [transpFillF_natural (gt_TL_fib hG hg) (hψ.restr g) (gt_TL_const hG hcon hg) (gt_u0_TL hG hu0 hg),
+    ← transpFillF_res_id, Hom.id_comp, gt_TL_res hG hg, Hom.lift_comp, Cof.restr_restr, res_res, gtTL]
+
+include hG hψ hu0 hcon in
+/-- `ω` is natural. -/
+theorem gt_Ω_res {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (h : Hom n' k) :
+    res (Hom.lift h) (gtΩ A φ Tp ep ψ u0 g) = gtΩ A φ Tp ep ψ u0 (g.comp h) := by
+  rw [gtΩ, compF_res hG.fibA (isCof_pathFace (hψ.restr g)) (gt_ΩBase_mem hG hu0 hg) (gt_Ω_ok hG hψ hu0 hcon hg),
+    gtΩLine_lift, pathFace_restr_lift, Cof.restr_restr, gtΩ]
+  have hgw := gt_δ_comp hG hg (Hom.wk k)
+  congr 1
+  · funext n'' h' r
+    simp only [Tube.restr, gtΩTube, ← Hom.comp_assoc]
+    rw [Hom.comp_assoc g (Hom.wk k) (Hom.lift h), Hom.wk_comp_lift, ← Hom.comp_assoc,
+      show (Cof.eq0 (lastVar k)).restr ((Hom.lift h).comp h') = (Cof.eq0 (lastVar n')).restr h' by
+        rw [← Cof.restr_restr, Cof.eq0_restr, lastVar_restr_lift]]
+    split_ifs
+    · rfl
+    · rw [← gt_tfill_res hG hψ hu0 hcon hg h, res_res, lift_comp_snoc]
+      rfl
+    · rfl
+  · rw [gtΩBase, gtΩBase, gt_e_res hG (gt_δ_snoc hG.cof hgw _) (gt_u0_T0 hG hu0 hgw), Hom.snoc_comp,
+      res_res, Hom.comp_assoc, Hom.wk_comp_lift, ← Hom.comp_assoc, DM.zero_restr]
+
+include hG hψ hu0 hcon in
+theorem gt_ω_res {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (h : Hom n' k) :
+    res h (gtω A φ Tp ep ψ u0 g) = gtω A φ Tp ep ψ u0 (g.comp h) := by
+  rw [gtω, res_pathOfLine, gt_Ω_res hG hψ hu0 hcon hg h, gtω]
+
+end gtΩ5
+
 section fields
 
 variable {A : V} {φ : Cof m} {Tp ep : V} (hG : GlueOK A φ Tp ep)
