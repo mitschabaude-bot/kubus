@@ -15,8 +15,7 @@ namespace Model
 open KubusCore
 
 /-- The empty type is a small code. -/
-theorem emptyC_mem_Vt (m : ℕ) : emptyC m ∈ Vt 0 := by
-  sorry
+theorem emptyC_mem_Vt (m : ℕ) : emptyC m ∈ Vt 0 := emptyC_mem_Vt' (by omega)
 
 theorem consistent : KubusCore.Consistent := by
   intro S t hS ht

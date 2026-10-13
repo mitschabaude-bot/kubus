@@ -1,4 +1,5 @@
 import Model.GlueTransp
+import Model.Small
 
 /-!
 # Well-formed codes are fibrant
@@ -71,9 +72,9 @@ attribute [local instance] Classical.propDecidable
 
 variable {k m n : ℕ}
 
-/-- Restriction preserves smallness. TODO (closure plumbing for `Vt`). -/
-theorem res_mem_Vt {l : ℕ} {c : V} (hc : c ∈ Vt l) (h : Hom n k) : res h c ∈ Vt l := by
-  sorry
+/-- Restriction preserves smallness. -/
+theorem res_mem_Vt {l : ℕ} {c : V} (hc : c ∈ Vt l) (h : Hom n k) : res h c ∈ Vt l :=
+  res_mem_Vt' (le_of_mem_Vt hc) hc h
 
 /-- Glue types are fibrant. -/
 theorem fib_glueC {A : V} {φ : Cof m} {Tp ep : V} (hA : Fib A m) (hφ : φ.IsCof)
@@ -176,9 +177,8 @@ theorem WF.cumul {l : ℕ} {c : V} (h : WF l m c) : WF (l + 1) m c := by
     rw [Ucodes_lt m hl', ← Ucodes_lt (l := l + 1) m (by omega)]; exact WFI.univ (by omega)
   | glue _ hφ hn hTp hep _ hTcoh he hecoh ihA ihT => exact WFI.glue ihA hφ hn hTp hep ihT hTcoh he hecoh
 
-/-- The universe of level `l` is a small set of level `l + 1`. TODO (closure plumbing for `Vt`). -/
-theorem univC_mem_Vt {l : ℕ} (hl : l < 4) : univC m l ∈ Vt (l + 1) := by
-  sorry
+/-- The universe of level `l` is a small set of level `l + 1`. -/
+theorem univC_mem_Vt {l : ℕ} (hl : l < 4) : univC m l ∈ Vt (l + 1) := univC_mem_Vt' hl
 
 theorem wf_univC {l : ℕ} : WF (l + 1) m (univC m l) := by
   unfold WF; rw [← Ucodes_lt m (Nat.lt_succ_self l)]; exact WFI.univ (Nat.lt_succ_self l)

@@ -372,7 +372,7 @@ theorem sem_HasTy_path {S : Sig} {Ψ Φ Γ A a b l}
   refine ⟨?_, fun k f => ?_, by unfold TyOK; rw [sem_univ]; exact ⟨l, hl, Or.inr rfl⟩,
     fun k f => by simp [res_univC]⟩
   · rw [sem_path hN hL ha hb, sem_univ, mem_El_univ_iff]
-    exact ⟨pathC_mem_Vt hV hL ha0 ha1, by unfold WF; exact WFI.path hW ha0 ha1⟩
+    exact ⟨pathC_mem_Vt hV ha0 ha1, by unfold WF; exact WFI.path hW ha0 ha1⟩
   · obtain ⟨hN', hL', ha', hb', -⟩ := hat k _ _ (hp.restr hwf f)
     rw [sem_path hN' hL' ha' hb', sem_path hN hL ha hb, res_pathC, line_restr hN f,
       (h1.2.2.2 m ρ γ hp).2.1 k f, (h2.2.2.2 m ρ γ hp).2.1 k f]
@@ -428,7 +428,7 @@ theorem sem_HasTy_ipi {S : Sig} {Ψ Φ Γ A l}
   refine ⟨?_, fun k f => ?_, by unfold TyOK; rw [sem_univ]; exact ⟨l, hl, Or.inr rfl⟩,
     fun k f => by simp [res_univC]⟩
   · rw [sem_ipi hN hL, sem_univ, mem_El_univ_iff]
-    exact ⟨ipiC_mem_Vt hV hL, by unfold WF; exact WFI.ipi hW⟩
+    exact ⟨ipiC_mem_Vt hV, by unfold WF; exact WFI.ipi hW⟩
   · obtain ⟨hN', hL', -⟩ := hat k _ _ (hp.restr hwf f)
     rw [sem_ipi hN' hL', sem_ipi hN hL, res_ipiC, line_restr hN f]
 

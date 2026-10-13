@@ -519,10 +519,11 @@ attribute [local instance] Classical.propDecidable
 
 variable {S : Sig} {k m n : ℕ}
 
-/-- Π-codes of small components are small. TODO (closure plumbing for `Vt`). -/
-theorem piC_mem_Vt {l : ℕ} {A B : V} (hA : A ∈ Vt l)
-    (hB : ∀ k (f : Hom k m), ∀ a ∈ El A f, apZ (dat B k f) a ∈ Vt l) : piC m A B ∈ Vt l := by
-  sorry
+/-- Π-codes of small components are small. -/
+theorem piC_mem_Vt {l : ℕ} {A : V} {F : (k : ℕ) → Hom k m → V → V} (hA : A ∈ Vt l)
+    (hB : ∀ k (f : Hom k m), ∀ a ∈ El A f, apZ (dat (famV m A F) k f) a ∈ Vt l) : piC m A (famV m A F) ∈ Vt l := by
+  have hl := le_of_mem_Vt hA
+  exact piC_mem_Vt' hl hA (famV_mem_Vt hl hA fun k f a ha => by have := hB k f a ha; rwa [apZ_dat_famV _ _ _ ha] at this)
 
 /-- Extending a point of `Γ` by an element of `A`, restricted along `f`. -/
 theorem IsPoint.ext {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A : Tm} {ρ : IEnv m} {γ : ℕ → V}
@@ -688,9 +689,10 @@ attribute [local instance] Classical.propDecidable
 
 variable {S : Sig} {k m n : ℕ}
 
-theorem sigmaC_mem_Vt {l : ℕ} {A B : V} (hA : A ∈ Vt l)
-    (hB : ∀ k (f : Hom k m), ∀ a ∈ El A f, apZ (dat B k f) a ∈ Vt l) : sigmaC m A B ∈ Vt l := by
-  sorry
+theorem sigmaC_mem_Vt {l : ℕ} {A : V} {F : (k : ℕ) → Hom k m → V → V} (hA : A ∈ Vt l)
+    (hB : ∀ k (f : Hom k m), ∀ a ∈ El A f, apZ (dat (famV m A F) k f) a ∈ Vt l) : sigmaC m A (famV m A F) ∈ Vt l := by
+  have hl := le_of_mem_Vt hA
+  exact sigmaC_mem_Vt' hl hA (famV_mem_Vt hl hA fun k f a ha => by have := hB k f a ha; rwa [apZ_dat_famV _ _ _ ha] at this)
 
 @[simp] theorem codeTag_sigmaC' (A B : V) : codeTag m (sigmaC m A B) = natZ tSigma := codeTag_sigmaC A B
 

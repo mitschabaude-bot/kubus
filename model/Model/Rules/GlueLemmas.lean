@@ -182,15 +182,19 @@ theorem mem_Vt_of_mem_El {l : ℕ} {c v : V} (hc : c ∈ Vt l) (hkv : IsKV m c) 
     (hv : v ∈ El c f) : v ∈ Vt l :=
   Vt_below (below_of_mem_El hkv f hv) hc
 
-/-- Equivalence codes of small codes are small. TODO (closure plumbing for `Vt`). -/
-theorem equivCode_mem_Vt {l : ℕ} {T A : V} (hT : T ∈ Vt l) (hA : A ∈ Vt l) : equivCode m T A ∈ Vt l := by
-  sorry
+/-- Equivalence codes of small codes are small. -/
+theorem equivCode_mem_Vt {l : ℕ} {T A : V} (hT : T ∈ Vt l) (hA : A ∈ Vt l) : equivCode m T A ∈ Vt l :=
+  equivCode_mem_Vt' hT hA
 
-/-- Glue codes of small components are small. TODO (closure plumbing for `Vt`). -/
-theorem glueC_mem_Vt {l : ℕ} {A : V} {φ : Cof m} {Tp ep : V} (hA : A ∈ Vt l)
-    (hT : ∀ k (f : Hom k m), (φ.restr f).holds → dat Tp k f ∈ Vt l)
-    (he : ∀ k (f : Hom k m), (φ.restr f).holds → dat ep k f ∈ Vt l) : glueC m A φ Tp ep ∈ Vt l := by
-  sorry
+/-- Glue codes of small components are small. -/
+theorem glueC_mem_Vt {l : ℕ} {A : V} {φ : Cof m} {F G : (k : ℕ) → Hom k m → V} (hA : A ∈ Vt l)
+    (hT : ∀ k (f : Hom k m), (φ.restr f).holds → dat (partialKV m φ F) k f ∈ Vt l)
+    (he : ∀ k (f : Hom k m), (φ.restr f).holds → dat (partialKV m φ G) k f ∈ Vt l) :
+    glueC m A φ (partialKV m φ F) (partialKV m φ G) ∈ Vt l := by
+  have hl := le_of_mem_Vt hA
+  refine glueC_mem_Vt' hl hA (partialKV_mem_Vt hl fun k f hf => ?_) (partialKV_mem_Vt hl fun k f hf => ?_)
+  · have := hT k f hf; rwa [dat_partialKV, if_pos hf] at this
+  · have := he k f hf; rwa [dat_partialKV, if_pos hf] at this
 
 /-! ### The function of an equivalence -/
 

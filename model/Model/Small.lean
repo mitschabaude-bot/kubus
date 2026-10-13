@@ -499,6 +499,92 @@ theorem univC_mem_Vt' {l : ℕ} (hl : l < 4) : univC m l ∈ Vt (l + 1) := by
   · unfold univTr
     exact trGraph_mem_Vt hl' (sep_mem_Vt hV _) fun φ a ha => Vt_trans _ (sep_mem_Vt hV _) ha
 
+/-! ### Interpretations -/
+
+theorem TEnv.cons_mem_Vt {γ : ℕ → V} (hγ : ∀ x, γ x ∈ Vt l) {a : V} (ha : a ∈ Vt l) :
+    ∀ x, TEnv.cons γ a x ∈ Vt l
+  | 0 => ha
+  | x + 1 => hγ x
+
+theorem interp_mem_Vt (hl : l ≤ 4) {cst uc : ℕ → ℕ → V} {good : (m : ℕ) → V → Prop}
+    (hcst : ∀ m c, cst m c ∈ Vt l) (huc : ∀ m l', uc m l' ∈ Vt l) :
+    ∀ (t : KubusCore.Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V), (∀ x, γ x ∈ Vt l) →
+      interp cst uc good t m ρ γ ∈ Vt l := by
+  have hr : ∀ {m k : ℕ} {γ : ℕ → V}, (∀ x, γ x ∈ Vt l) → ∀ (f : Hom k m), ∀ x, TEnv.restr γ f x ∈ Vt l :=
+    fun hγ f x => res_mem_Vt' hl (hγ x) f
+  intro t
+  induction t with
+  | var x => intro m ρ γ hγ; exact hγ x
+  | const c => intro m ρ γ hγ; exact hcst m c
+  | univ l' => intro m ρ γ hγ; exact huc m l'
+  | pi A B ihA ihB =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact piC_mem_Vt' hl (ihA m ρ γ hγ) (famV_mem_Vt hl (ihA m ρ γ hγ) fun k f a ha =>
+        ihB _ _ _ (TEnv.cons_mem_Vt (hr hγ f) (Vt_trans l (El_mem_Vt hl (ihA m ρ γ hγ) f) ha)))
+    · exact empty_mem_Vt hl
+  | sigma A B ihA ihB =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact sigmaC_mem_Vt' hl (ihA m ρ γ hγ) (famV_mem_Vt hl (ihA m ρ γ hγ) fun k f a ha =>
+        ihB _ _ _ (TEnv.cons_mem_Vt (hr hγ f) (Vt_trans l (El_mem_Vt hl (ihA m ρ γ hγ) f) ha)))
+    · exact empty_mem_Vt hl
+  | lam A t ihA iht =>
+    intro m ρ γ hγ; simp only [interp]
+    exact lamV_mem_Vt hl (fun _ f => El_mem_Vt hl (ihA m ρ γ hγ) f) fun k f a ha =>
+      iht _ _ _ (TEnv.cons_mem_Vt (hr hγ f) (Vt_trans l (El_mem_Vt hl (ihA m ρ γ hγ) f) ha))
+  | app f a ihf iha =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact appV_mem_Vt hl (ihf m ρ γ hγ) _
+    · exact empty_mem_Vt hl
+  | pair a b iha ihb =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact pairV_mem_Vt hl (iha m ρ γ hγ) (ihb m ρ γ hγ)
+    · exact empty_mem_Vt hl
+  | fst p ih => intro m ρ γ hγ; simp only [interp]; exact fstV_mem_Vt hl (ih m ρ γ hγ)
+  | snd p ih => intro m ρ γ hγ; simp only [interp]; exact sndV_mem_Vt hl (ih m ρ γ hγ)
+  | path A a b ihA iha ihb =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact pathC_mem_Vt' hl (ihA _ _ _ (hr hγ _)) (iha m ρ γ hγ) (ihb m ρ γ hγ)
+    · exact empty_mem_Vt hl
+  | plam t ih =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact pathOfLine_mem_Vt hl (ih _ _ _ (hr hγ _))
+    · exact empty_mem_Vt hl
+  | papp p r ih => intro m ρ γ hγ; simp only [interp]; exact pappV_mem_Vt hl (ih m ρ γ hγ) _
+  | ipi A ih =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact ipiC_mem_Vt' hl (ih _ _ _ (hr hγ _))
+    · exact empty_mem_Vt hl
+  | split φ t ψ u iht ihu =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    all_goals first | exact iht m ρ γ hγ | exact ihu m ρ γ hγ | exact empty_mem_Vt hl
+  | abort => intro m ρ γ hγ; simp only [interp]; exact empty_mem_Vt hl
+  | transp A φ a ihA iha =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact transpAt_mem_Vt hl (ihA _ _ _ (hr hγ _)) _ _ _
+    · exact empty_mem_Vt hl
+  | hcomp A φ u a ihA ihu iha =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact hcompAt_mem_Vt hl (ihA m ρ γ hγ) _ _ _ _
+    · exact empty_mem_Vt hl
+  | glue A φ T e ihA ihT ihe =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact glueC_mem_Vt' hl (ihA m ρ γ hγ) (partialKV_mem_Vt hl fun k f _ => ihT _ _ _ (hr hγ f))
+        (partialKV_mem_Vt hl fun k f _ => ihe _ _ _ (hr hγ f))
+    · exact empty_mem_Vt hl
+  | glueEl φ e t a ihe iht iha =>
+    intro m ρ γ hγ; simp only [interp]; split_ifs
+    · exact iht m ρ γ hγ
+    · exact empty_mem_Vt hl
+    · exact glueV_mem_Vt hl (partialKV_mem_Vt hl fun k f _ => iht _ _ _ (hr hγ f)) (iha m ρ γ hγ) _
+    · exact empty_mem_Vt hl
+  | unglue φ e g ihe ihg =>
+    intro m ρ γ hγ; simp only [interp]; exact ungAt_mem_Vt hl (ihe m ρ γ hγ) (ihg m ρ γ hγ) _
+
+theorem equivCode_mem_Vt' {T A : V} (hT : T ∈ Vt l) (hA : A ∈ Vt l) : equivCode m T A ∈ Vt l := by
+  have hl := le_of_mem_Vt hT
+  exact interp_mem_Vt hl (fun _ _ => empty_mem_Vt hl) (fun _ _ => empty_mem_Vt hl) _ _ _ _
+    (TEnv.cons_mem_Vt (TEnv.cons_mem_Vt (fun _ => empty_mem_Vt hl) hT) hA)
+
 end
 
 end Model

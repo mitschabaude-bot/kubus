@@ -37,11 +37,12 @@ theorem below_pathC_line (L a0 a1 : V) (hL : IsKV (m + 1) L) : Below L (pathC m 
     exact ((below_pair_left _ _).trans (below_pair_right _ _)).trans (below_pair_left _ _)
   rwa [Hom.lift_id, res_id hL] at h2
 
-/-- Path codes of small components are small. TODO (closure plumbing for `Vt`). -/
-theorem pathC_mem_Vt {l : ℕ} {L a0 a1 : V} (hL : L ∈ Vt l) (hLkv : IsKV (m + 1) L)
+/-- Path codes of small components are small. -/
+theorem pathC_mem_Vt {l : ℕ} {L a0 a1 : V} (hL : L ∈ Vt l)
     (ha0 : a0 ∈ El L (Hom.endpt m (DM.zero m))) (ha1 : a1 ∈ El L (Hom.endpt m (DM.one m))) :
     pathC m L a0 a1 ∈ Vt l := by
-  sorry
+  have hl := le_of_mem_Vt hL
+  exact pathC_mem_Vt' hl hL (Vt_trans l (El_mem_Vt hl hL _) ha0) (Vt_trans l (El_mem_Vt hl hL _) ha1)
 
 theorem WF.path_inv {l : ℕ} {L a0 a1 : V} (hL : IsKV (m + 1) L) (ha0 : IsKV m a0) (ha1 : IsKV m a1)
     (h : WF l m (pathC m L a0 a1)) :
@@ -188,9 +189,8 @@ theorem below_ipiC_line (L : V) (hL : IsKV (m + 1) L) : Below L (ipiC m L) := by
     exact ((below_pair_left _ _).trans (below_pair_right _ _)).trans (below_pair_left _ _)
   rwa [Hom.lift_id, res_id hL] at h2
 
-/-- Codes of interval function types of small lines are small. TODO (closure plumbing for `Vt`). -/
-theorem ipiC_mem_Vt {l : ℕ} {L : V} (hL : L ∈ Vt l) (hLkv : IsKV (m + 1) L) : ipiC m L ∈ Vt l := by
-  sorry
+/-- Codes of interval function types of small lines are small. -/
+theorem ipiC_mem_Vt {l : ℕ} {L : V} (hL : L ∈ Vt l) : ipiC m L ∈ Vt l := ipiC_mem_Vt' (le_of_mem_Vt hL) hL
 
 theorem WF.ipi_inv {l : ℕ} {L : V} (hL : IsKV (m + 1) L) (h : WF l m (ipiC m L)) : WF l (m + 1) L := by
   generalize hc : ipiC m L = c at h
