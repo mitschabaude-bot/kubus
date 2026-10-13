@@ -197,7 +197,9 @@ def elimConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps P bs q
   -- the arguments at the eliminator's parameters
   let ⟨hc⟩ ← checkTele R E args (C.argTys d D.params.length) ps.toList.reverse
   match getIdx? bs.toList c with
-  | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb h1 h2 hc ht⟩, false))
+  | some ⟨_, ⟨hb⟩⟩ =>
+    let ⟨h0⟩ ← ensureList ps
+    pure (some (⟨_, EqTm.elimCon hS hC hb h0 h1 h2 hc ht⟩, false))
   | none => fail "kernel: missing branch"
 
 def elimHcompK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)

@@ -17,13 +17,13 @@ for f in lib/*.ktt; do
 done
 # invariant self-checks on the library and the passing tests (SELFCHECK=0 to skip)
 if [ "${SELFCHECK:-1}" = 1 ]; then
-  if ! timeout 300 $bin --selfcheck lib/*.ktt > /dev/null 2> /tmp/kubus-err; then
+  if ! timeout 300 $bin --no-kernel --selfcheck lib/*.ktt > /dev/null 2> /tmp/kubus-err; then
     echo "FAIL selfcheck lib"; head -40 /tmp/kubus-err; fails=$((fails+1))
   else
     echo "lib: $(tail -1 /tmp/kubus-err)"
   fi
   for f in tests/pass/*.ktt; do
-    if ! timeout 120 $bin --selfcheck-main "$f" > /dev/null 2> /tmp/kubus-err; then
+    if ! timeout 120 $bin --no-kernel --selfcheck-main "$f" > /dev/null 2> /tmp/kubus-err; then
       echo "FAIL selfcheck $f"; head -40 /tmp/kubus-err; fails=$((fails+1))
     fi
   done

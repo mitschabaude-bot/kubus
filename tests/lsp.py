@@ -22,6 +22,8 @@ msgs = [{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
          "params": {"textDocument": {"uri": uri, "languageId": "kubus", "version": 1, "text": text}}},
         {"jsonrpc": "2.0", "id": 2, "method": "textDocument/hover",
          "params": {"textDocument": {"uri": uri}, "position": {"line": 2, "character": 37}}},
+        {"jsonrpc": "2.0", "id": 4, "method": "textDocument/hover",
+         "params": {"textDocument": {"uri": uri}, "position": {"line": 2, "character": 4}}},
         {"jsonrpc": "2.0", "id": 3, "method": "shutdown"},
         {"jsonrpc": "2.0", "method": "exit"}]
 env = dict(os.environ, KUBUS_PATH=os.path.join(root, "lib"))
@@ -35,12 +37,15 @@ while out:
     out = rest[n:]
 diags = next(r for r in replies if r.get("method") == "textDocument/publishDiagnostics")["params"]["diagnostics"]
 hover = next(r for r in replies if r.get("id") == 2)["result"]["contents"]["value"]
+hover4 = (next(r for r in replies if r.get("id") == 4)["result"] or {}).get("contents", {}).get("value", "")
 checks = [
     ("type error with its range", any(d["severity"] == 1 and "type mismatch" in d["message"]
         and d["range"] == {"start": {"line": 4, "character": 31}, "end": {"line": 4, "character": 46}} for d in diags)),
     ("goal of the hole", any(d["severity"] == 3 and d["message"].startswith("goal: Path S1 base base") for d in diags)),
     ("#eval output", any(d["severity"] == 3 and d["message"].startswith("pos (suc (suc zero))") for d in diags)),
     ("hover", "x : S1" in hover),
+    ("certified by the kernel", "certified by the kernel" in hover4),
+    ("no kernel warning for a definition with a hole", not any("kernel" in d["message"] for d in diags)),
 ]
 failed = [name for name, ok in checks if not ok]
 if failed:

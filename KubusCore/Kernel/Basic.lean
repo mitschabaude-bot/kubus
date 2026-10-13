@@ -111,15 +111,20 @@ def Tm.hashTop : Nat → Tm → UInt64
 def keyOf (Ψ : Nat) (Γ : Ctx) (ts : List Tm) : UInt64 :=
   ts.foldl (fun acc t => mixHash acc (Tm.hashTop 4 t)) (mixHash (hash Ψ) (hash Γ.length))
 
-/-- A cached result for the terms `ts` in the context `Ψ; Φ; Γ`, with the faces of `Φ`. -/
-structure CEntry (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) where
-  Ψ : Nat
+/-- A cached result under the restriction `Φ` (with its faces). -/
+structure CVar (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) (Ψ : Nat) (Γ : Ctx)
+    (ts : List Tm) where
   Φ : I
-  Γ : Ctx
-  ts : List Tm
   v : F S Ψ Φ Γ ts
   fs : List I.Face
   hfs : fs = Φ.faces
+
+/-- The cached results for the terms `ts` in the context `Ψ; Γ`, under various restrictions. -/
+structure CEntry (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) where
+  Ψ : Nat
+  Γ : Ctx
+  ts : List Tm
+  vs : List (CVar S F Ψ Γ ts)
 
 /-- Moving a cached result to a stronger restriction (`none`: not reusable there). -/
 abbrev Restr (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) :=
@@ -141,26 +146,41 @@ theorem termsEq_sound : ∀ {as bs : List Tm}, termsEq as bs = true → as = bs
 abbrev Table (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) :=
   Std.HashMap UInt64 (List (CEntry S F))
 
+/-- The entry for `ts` in `Ψ; Γ`, if any, with the equations that identify its keys. -/
+def Table.entry? {S F} (tab : Table S F) (Ψ : Nat) (Γ : Ctx) (ts : List Tm) :
+    Option (List (CVar S F Ψ Γ ts)) :=
+  (tab.getD (keyOf Ψ Γ ts) []).findSome? fun ⟨Ψ', Γ', ts', vs⟩ =>
+    if h : Ψ' = Ψ ∧ termsEq ts' ts = true ∧ ctxEq Γ' Γ = true then
+      some (by
+        obtain ⟨h1, h3, h4⟩ := h
+        rw [← h1, ← termsEq_sound h3, ← ctxEq_sound h4]; exact vs)
+    else none
+
 /-- A cached result for `ts` in `Ψ; Φ; Γ` (`fs` are the faces of `Φ`): one for the same
 restriction, or one for a weaker restriction moved along `res`. -/
 def Table.find? {S F} (tab : Table S F) (Ψ : Nat) (Φ : I) (Γ : Ctx) (ts : List Tm)
     (fs : List I.Face) (hfs : fs = Φ.faces) (hsc : Φ.Scoped Ψ) (res : Restr S F) :
-    Option (F S Ψ Φ Γ ts) :=
-  (tab.getD (keyOf Ψ Γ ts) []).findSome? fun ⟨Ψ', Φ', Γ', ts', v, fs', hfs'⟩ =>
-    if h : Ψ' = Ψ ∧ termsEq ts' ts = true ∧ ctxEq Γ' Γ = true then
-      have v : F S Ψ Φ' Γ ts := by
-        obtain ⟨h1, h3, h4⟩ := h
-        rw [← h1, ← termsEq_sound h3, ← ctxEq_sound h4]; exact v
-      if h2 : iEq Φ' Φ = true then some (iEq_sound h2 ▸ v)
-      else if he : (fs.all fun c => fs'.any fun d => d.all (c.contains ·)) = true then
-        res hsc (by show I.entails Φ Φ' = true; unfold I.entails; rw [← hfs, ← hfs']; exact he) v
-      else none
+    Option (F S Ψ Φ Γ ts) := do
+  let vs ← tab.entry? Ψ Γ ts
+  vs.findSome? fun ⟨Φ', v, fs', hfs'⟩ =>
+    if h2 : iEq Φ' Φ = true then some (iEq_sound h2 ▸ v)
+    else if he : (fs.all fun c => fs'.any fun d => d.all (c.contains ·)) = true then
+      res hsc (by show I.entails Φ Φ' = true; unfold I.entails; rw [← hfs, ← hfs']; exact he) v
     else none
 
 def Table.insert {S F} (tab : Table S F) (Ψ : Nat) (Φ : I) (Γ : Ctx) (ts : List Tm)
     (fs : List I.Face) (hfs : fs = Φ.faces) (v : F S Ψ Φ Γ ts) : Table S F :=
   let k := keyOf Ψ Γ ts
-  Std.HashMap.insert tab k (⟨Ψ, Φ, Γ, ts, v, fs, hfs⟩ :: (tab.getD k []).take 63)
+  let var : CVar S F Ψ Γ ts := ⟨Φ, v, fs, hfs⟩
+  -- one pass over the bucket: the variants for these keys, and the other entries
+  let (vs, others) := (tab.getD k []).foldr (init := (([] : List (CVar S F Ψ Γ ts)), ([] : List (CEntry S F))))
+    fun e (vs, others) =>
+      let ⟨Ψ', Γ', ts', evs⟩ := e
+      if h : Ψ' = Ψ ∧ termsEq ts' ts = true ∧ ctxEq Γ' Γ = true then
+        (by obtain ⟨h1, h3, h4⟩ := h; rw [← h1, ← termsEq_sound h3, ← ctxEq_sound h4]; exact evs,
+          others)
+      else (vs, e :: others)
+  Std.HashMap.insert tab k (⟨Ψ, Γ, ts, var :: vs.take 31⟩ :: others.take 15)
 
 /-- The cached judgments. -/
 def InfF : Sig → Nat → I → Ctx → List Tm → Type
