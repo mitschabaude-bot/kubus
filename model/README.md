@@ -110,10 +110,9 @@ Design decisions:
 
 `Model/Consistency.lean` proves `consistent : KubusCore.Consistent` from the soundness theorem; it is unconditional up to the `sorry`s listed here (`lake build` shows each as a warning).
 
-All rules of `KubusCore/Rules.lean` are validated (sorry-free lemma in `Model/Rules/Stubs.lean`) except `transpGlue`.
+All rules of `KubusCore/Rules.lean` are validated (sorry-free lemma in `Model/Rules/Stubs.lean`); `transpGlue` is in `Model/Rules/TranspGlue.lean` (the contractum denotes the Glue code's transport `gtResult`).
 
 Remaining `sorry`s:
 
-1. The rule `transpGlue` (`sem_EqTm_transpGlue`): the contractum's denotation is the code's transport `gtResult`. Glue codes themselves are fully fibrant (`GlueOK.fib`, sorry-free).
-2. `hcomp` in universes (`fib_univC` in `Model/WFFib.lean`): Glue along the transport equivalence.
-3. Smallness: `Vt l` is closed under the code constructors (`emptyC_mem_Vt`, `res_mem_Vt`, `univC_mem_Vt`, `piC_mem_Vt`, `sigmaC_mem_Vt`, `pathC_mem_Vt`, `ipiC_mem_Vt`, `equivCode_mem_Vt`, `glueC_mem_Vt`).
+1. `hcomp` in universes (`fib_univC` in `Model/WFFib.lean`): Glue along the transport equivalence.
+2. Smallness: `Vt l` is closed under the code constructors (`emptyC_mem_Vt`, `res_mem_Vt`, `univC_mem_Vt`, `piC_mem_Vt`, `sigmaC_mem_Vt`, `pathC_mem_Vt`, `ipiC_mem_Vt`, `equivCode_mem_Vt`, `glueC_mem_Vt`).
