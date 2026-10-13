@@ -268,8 +268,7 @@ theorem vnth_vlist_ge : ∀ (L : List V) (c : ℕ), L.length ≤ c → vnth (vli
     congr 1; simp
   | _ :: _, 0, h => by simp at h
 
-/-- The congruence rule of the eliminator, given literal branch lists (P7). -/
-theorem sem_EqTm_elim' {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} (hS : SigOK S) (h0 : S[d]? = some (.data D))
+theorem sem_EqTm_elim {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : SemTy S Ψ Φ Γ (elim d ps P bs t) (P.inst t)) (h2 : SemTy S Ψ Φ Γ (elim d ps' P' bs' t') (P.inst t))
     (h3 : SemEqTele S Ψ Φ Γ ps ps' D.params []) (h4 : SemEq S Ψ Φ (data d ps :: Γ) P P' (univ m))
     (hbl : bs = Tm.ofList bs.toList) (hbl' : bs' = Tm.ofList bs'.toList)
@@ -318,16 +317,6 @@ theorem sem_EqTm_elim' {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} (hS : SigOK S) (
           simp [h5]
     · exact absurd rfl hne2
   · exact absurd rfl hne1
-
-theorem sem_EqTm_elim {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} (hS : SigOK S) (h0 : S[d]? = some (.data D))
-    (h1 : SemTy S Ψ Φ Γ (elim d ps P bs t) (P.inst t)) (h2 : SemTy S Ψ Φ Γ (elim d ps' P' bs' t') (P.inst t))
-    (h3 : SemEqTele S Ψ Φ Γ ps ps' D.params []) (h4 : SemEq S Ψ Φ (data d ps :: Γ) P P' (univ m))
-    (h5 : bs.toList.length = bs'.toList.length)
-    (h6 : ∀ (c : Nat) (C : Ctor) (b b' : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
-      bs'.toList[c]? = some b' → SemEq S Ψ Φ Γ b b' (D.branchTy d c C ps P))
-    (h7 : SemEq S Ψ Φ Γ t t' (data d ps)) :
-    SemEq S Ψ Φ Γ (elim d ps P bs t) (elim d ps' P' bs' t') (P.inst t) := by
-  sorry
 
 /-! ### Computation -/
 
@@ -462,14 +451,17 @@ theorem sem_EqTm_conBnd {Ψ Φ Γ d D c C ps args rs} {k : Nat} {ψ b T} (hS : S
 
 theorem sem_EqTm_elimCon {Ψ Φ Γ d D c C ps P bs b qs args rs T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : D.ctors[c]? = some C) (h2 : bs.toList[c]? = some b)
-    (hal : args = Tm.ofList args.toList) (hbl : bs = Tm.ofList bs.toList) (h3 : SemTy S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T) :
+    (hal : args = Tm.ofList args.toList) (hbl : bs = Tm.ofList bs.toList)
+    (hat : SemTele S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
+    (h3 : SemTy S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T) :
     SemEq S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
       (Tm.papps (Tm.apps b (args.toList ++
         C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T := by
   sorry
 
 theorem sem_EqTm_elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} (hS : SigOK S)
-    (hd : S[d]? = some (.data D)) (h0 : SemTy S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T) :
+    (hd : S[d]? = some (.data D)) (hh : SemTy S Ψ Φ Γ (hcomp (data d ps) φ u a) (data d ps))
+    (h0 : SemTy S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T) :
     SemEq S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a))
       (comp (P.subst (fun | 0 => hfill (data d ps) φ u a | j + 1 => var j) (fun i => .var (i + 1))) φ
         (elim d ps.dshift P.dshift bs.dshift u) (elim d ps P bs a)) T := by
@@ -497,14 +489,17 @@ theorem sem_EqTm_transpData0 {Ψ Φ Γ d D ps φ a T} (hS : SigOK S) (h0 : S[d]?
 
 theorem sem_EqTm_transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : D.params ≠ []) (h2 : D.ctors[c]? = some C)
-    (hpl : ps = Tm.ofList ps.toList) (hal : args = Tm.ofList args.toList) (h3 : SemTy S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T) :
+    (hpl : ps = Tm.ofList ps.toList) (hal : args = Tm.ofList args.toList)
+    (hat : SemTele S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse)
+    (h3 : SemTy S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T) :
     SemEq S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs))
       (con d c (ps.dinst .one)
         (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T := by
   sorry
 
 theorem sem_EqTm_transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
-    (h1 : D.params ≠ []) (h2 : SemTy S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T) :
+    (h1 : D.params ≠ []) (hh : SemTy S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero)))
+    (h2 : SemTy S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T) :
     SemEq S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a))
       (hcomp (data d (ps.dinst .one)) ψ
         (transp ((data d ps).dsubst fun | 0 => .var 0 | n + 1 => .var (n + 2)) φ.shift u)

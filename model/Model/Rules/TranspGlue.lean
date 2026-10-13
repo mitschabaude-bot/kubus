@@ -810,11 +810,12 @@ theorem tyCode_fib (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ 
   have := tyCode_fiberM hT.kv hA.kv hty hp hy
   rwa [gtFib, res_id h.a1'kv]
 
-theorem sem_extTube (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds)
+theorem sem_extTube (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {δ : I} (hδ : ∀ {k' : ℕ} (ρ' : IEnv k'), (ival ρ' δ).face = Cof.forall0 (ival ρ'.ext φ).face) (h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds)
     {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2))
     (n : ℕ) (h' : Hom n m) (r : DM n)
     (hh : ((Cof.or (gtδ (tgφ ρ φ)) (ival ρ ψ).face).restr h').holds) :
-    tubeV S (.split (I.forall0 φ).shift
+    tubeV S (.split (δ).shift
       (.papp (.app (Tm.snd (.app (.snd (e.dinst .one))
         (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))).dshift
         (.pair (Tm.transp T ψ u0).dshift (Tm.plam (Tm.comp (A.dsubst τ) (.or ψ.shift (.or (.neg (.var 0)) (.var 0)))
@@ -837,8 +838,8 @@ theorem sem_extTube (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ
   obtain ⟨-, -, -, hpair⟩ := gt_c h.G hψ h.u0mem h.con (h.h1' h1)
   simp only [tubeV]
   set E := (ρ.restr h').cons r
-  have hδ' : (ival E (I.forall0 φ).shift).holds ↔ ((gtδ (tgφ ρ φ)).restr h').holds := by
-    rw [ival_shift, IEnv.tail_cons, ← holds_face_restr_iff, face_ival_forall0]; rfl
+  have hδ' : (ival E (δ).shift).holds ↔ ((gtδ (tgφ ρ φ)).restr h').holds := by
+    rw [ival_shift, IEnv.tail_cons, ← holds_face_restr_iff, hδ]; rfl
   have hψ' : (ival E ψ.shift).holds ↔ (Cof.restr (ival ρ ψ).face h').holds := by
     rw [ival_shift, IEnv.tail_cons, ← holds_face_restr_iff]
   have esc : sem S (Tm.snd (.app (.snd (e.dinst .one))
@@ -894,12 +895,13 @@ theorem sem_extTube (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ
     rw [sem_split (Or.inr (hψ'.2 hψh)) (fun a => absurd (hδ'.1 a) hδh), if_neg (fun a => hδh (hδ'.1 a)),
       if_neg hδh, eψ]
 
-theorem sem_ext (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds)
+theorem sem_ext (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {δ : I} (hδ : ∀ {k' : ℕ} (ρ' : IEnv k'), (ival ρ' δ).face = Cof.forall0 (ival ρ'.ext φ).face) (h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds)
     {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2)) :
     HcompCond S (Tm.fiber (T.dinst .one) (A.dinst .one) (.fst (e.dinst .one))
       (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))
-      (.or (I.forall0 φ) ψ)
-      (.split (I.forall0 φ).shift
+      (.or (δ) ψ)
+      (.split (δ).shift
         (.papp (.app (Tm.snd (.app (.snd (e.dinst .one))
           (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))).dshift
           (.pair (Tm.transp T ψ u0).dshift (Tm.plam (Tm.comp (A.dsubst τ) (.or ψ.shift (.or (.neg (.var 0)) (.var 0)))
@@ -917,8 +919,8 @@ theorem sem_ext (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ ρ 
         (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))) m ρ γ ∧
     hcompAt (sem S (Tm.fiber (T.dinst .one) (A.dinst .one) (.fst (e.dinst .one))
       (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))) m ρ γ)
-      (Hom.id m) (ival ρ (.or (I.forall0 φ) ψ)).face
-      (tubeV S (.split (I.forall0 φ).shift
+      (Hom.id m) (ival ρ (.or (δ) ψ)).face
+      (tubeV S (.split (δ).shift
         (.papp (.app (Tm.snd (.app (.snd (e.dinst .one))
           (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))).dshift
           (.pair (Tm.transp T ψ u0).dshift (Tm.plam (Tm.comp (A.dsubst τ) (.or ψ.shift (.or (.neg (.var 0)) (.var 0)))
@@ -936,25 +938,25 @@ theorem sem_ext (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ ρ 
         (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))) m ρ γ) =
     gtExt (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) (Hom.id m) := by
   have hψ := isCof_ival_face ρ ψ
-  have hface : (ival ρ (.or (I.forall0 φ) ψ)).face = Cof.or (gtδ (tgφ ρ φ)) (ival ρ ψ).face := by
-    rw [face_ival_or, face_ival_forall0]; rfl
+  have hface : (ival ρ (.or (δ) ψ)).face = Cof.or (gtδ (tgφ ρ φ)) (ival ρ ψ).face := by
+    rw [face_ival_or, hδ]; rfl
   obtain ⟨-, hcen, -, -⟩ := gt_c h.G hψ h.u0mem h.con (h.h1' h1)
   have hok := gt_ext_tube_ok h.G hψ h.u0mem h.con (h.h1' h1)
   rw [(gt_δ_cof (isCof_ival_face ρ.ext φ)).restr_id, hψ.restr_id] at hok
   refine ⟨⟨?_, ?_, ?_, h.nat_fib h1, h.nat_fst_c h1⟩, ?_⟩
   · rw [h.sem_fib h1]; exact h.tyCode_fib h1
   · rw [h.sem_fib h1, sem_fst, h.sem_c h1, hface]
-    exact hok.congr ((gt_δ_cof (isCof_ival_face ρ.ext φ)).or hψ) fun n h' r hh => (h.sem_extTube h1 hτ0 hτs n h' r hh).symm
+    exact hok.congr ((gt_δ_cof (isCof_ival_face ρ.ext φ)).or hψ) fun n h' r hh => (h.sem_extTube hδ h1 hτ0 hτs n h' r hh).symm
   · rw [h.sem_fib h1, sem_fst, h.sem_c h1]; exact hcen
   · rw [h.sem_fib h1, sem_fst, h.sem_c h1, hface, gtExt, (gt_δ_cof (isCof_ival_face ρ.ext φ)).restr_id, hψ.restr_id]
-    exact hcompAt_congr fun n h' r hh => h.sem_extTube h1 hτ0 hτs n h' r hh
+    exact hcompAt_congr fun n h' r hh => h.sem_extTube hδ h1 hτ0 hτs n h' r hh
 
 /-- The extension `ext` of the contractum. -/
-abbrev tExt (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (τ : ℕ → I) : Tm :=
+abbrev tExt (δ : I) (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (τ : ℕ → I) : Tm :=
   .hcomp (Tm.fiber (T.dinst .one) (A.dinst .one) (.fst (e.dinst .one))
       (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))
-    (.or (I.forall0 φ) ψ)
-    (.split (I.forall0 φ).shift
+    (.or (δ) ψ)
+    (.split (δ).shift
       (.papp (.app (Tm.snd (.app (.snd (e.dinst .one))
         (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))).dshift
         (.pair (Tm.transp T ψ u0).dshift (Tm.plam (Tm.comp (A.dsubst τ) (.or ψ.shift (.or (.neg (.var 0)) (.var 0)))
@@ -971,18 +973,20 @@ abbrev tExt (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (τ : ℕ → I) : T
     (.fst (.app (.snd (e.dinst .one))
       (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))))
 
-theorem sem_ext_id (h : TGCond S A φ T e ψ u0 m ρ γ) (h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds)
+theorem sem_ext_id (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {δ : I} (hδ : ∀ {k' : ℕ} (ρ' : IEnv k'), (ival ρ' δ).face = Cof.forall0 (ival ρ'.ext φ).face) (h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds)
     {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2)) :
-    sem S (tExt A φ T e ψ u0 τ) m ρ γ =
+    sem S (tExt δ A φ T e ψ u0 τ) m ρ γ =
       gtExt (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) (Hom.id m) := by
-  have := h.sem_ext h1 hτ0 hτs
+  have := h.sem_ext hδ h1 hτ0 hτs
   rw [tExt, sem_hcomp this.1]; exact this.2
 
-theorem sem_ext_at (h : TGCond S A φ T e ψ u0 m ρ γ) {f : Hom k m} (hf : (Cof.restr (tgφ ρ φ) ((eO m).comp f)).holds)
+theorem sem_ext_at (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {δ : I} (hδ : ∀ {k' : ℕ} (ρ' : IEnv k'), (ival ρ' δ).face = Cof.forall0 (ival ρ'.ext φ).face) {f : Hom k m} (hf : (Cof.restr (tgφ ρ φ) ((eO m).comp f)).holds)
     {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2)) :
-    sem S (tExt A φ T e ψ u0 τ) k (ρ.restr f) (TEnv.restr γ f) =
+    sem S (tExt δ A φ T e ψ u0 τ) k (ρ.restr f) (TEnv.restr γ f) =
       gtExt (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) f := by
-  rw [(h.restr f).sem_ext_id (h.h1_restr hf) hτ0 hτs, line_restr h.Anat f, tgφ_restr, tgP_restr, tgP_restr,
+  rw [(h.restr f).sem_ext_id hδ (h.h1_restr hf) hτ0 hτs, line_restr h.Anat f, tgφ_restr, tgP_restr, tgP_restr,
     face_ival_restr, h.nat_u0, gd_Ext h.G (isCof_ival_face ρ ψ) h.u0mem h.con, Hom.comp_id]
 
 theorem sem_A1o (h : TGCond S A φ T e ψ u0 m ρ γ) :
@@ -996,10 +1000,11 @@ theorem face_φ1 (ρ : IEnv m) (φ : I) : (ival ρ (φ.subst (I.inst0 .one))).fa
   rw [face_subst_inst0, ival_one]
 
 theorem sem_a1Tube (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {δ : I} (hδ : ∀ {k' : ℕ} (ρ' : IEnv k'), (ival ρ' δ).face = Cof.forall0 (ival ρ'.ext φ).face)
     {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2))
     (n : ℕ) (h' : Hom n m) (r : DM n)
     (hh : ((Cof.or (Cof.restr (tgφ ρ φ) (eO m)) (ival ρ ψ).face).restr h').holds) :
-    tubeV S (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+    tubeV S (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt δ A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
       ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
       ρ γ n h' r =
     gtA1Tube (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) n h' r := by
@@ -1012,11 +1017,11 @@ theorem sem_a1Tube (h : TGCond S A φ T e ψ u0 m ρ γ)
     rw [ival_shift, IEnv.tail_cons, ← holds_face_restr_iff]
   have hneg : ival E (.neg (.var 0)) = DM.neg r := by ext p; simp [I.eval, E, IEnv.cons]
   have eX : (Cof.restr (tgφ ρ φ) ((eO m).comp h')).holds →
-      sem S (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0))) n E (TEnv.restr γ h') =
+      sem S (.papp (Tm.snd (tExt δ A φ T e ψ u0 τ)).dshift (.neg (.var 0))) n E (TEnv.restr γ h') =
         pappV n (sndV n (gtExt (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face
           (sem S u0 m ρ γ) h')) (DM.neg r) := by
     intro hf
-    rw [sem_papp, sem_dshift_cons, sem_snd, h.sem_ext_at hf hτ0 hτs, hneg]
+    rw [sem_papp, sem_dshift_cons, sem_snd, h.sem_ext_at hδ hf hτ0 hτs, hneg]
   have eY : sem S (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift
       n E (TEnv.restr γ h') = res h' (gtA1' (lineV S A m ρ γ) (tgφ ρ φ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ)) := by
     rw [sem_dshift_cons, h.sem_a1'_at]
@@ -1032,13 +1037,14 @@ theorem sem_a1Tube (h : TGCond S A φ T e ψ u0 m ρ γ)
       if_neg hf, eY]
 
 theorem sem_a1 (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {δ : I} (hδ : ∀ {k' : ℕ} (ρ' : IEnv k'), (ival ρ' δ).face = Cof.forall0 (ival ρ'.ext φ).face)
     {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2)) :
     HcompCond S (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
-      (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+      (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt δ A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
         ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
       (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)) m ρ γ ∧
     sem S (.hcomp (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
-      (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+      (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt δ A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
         ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
       (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))) m ρ γ =
     gtA1 (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) := by
@@ -1049,47 +1055,48 @@ theorem sem_a1 (h : TGCond S A φ T e ψ u0 m ρ γ)
   have h0 := gt_A1'_mem h.G hψ h.u0mem h.con
   rw [Hom.id_comp] at h0
   have hc : HcompCond S (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
-      (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+      (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt δ A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
         ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
       (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)) m ρ γ := by
     refine ⟨?_, ?_, ?_, h.nat_A1o, h.nat_a1'⟩
     · rw [h.sem_A1o]; exact h.Aty.res _
     · rw [h.sem_A1o, h.sem_a1', hface]
       exact (hok.congr ((isCof_ival_face ρ.ext φ).restr _ |>.or hψ)
-        fun n h' r hh => (h.sem_a1Tube hτ0 hτs n h' r hh).symm).res_id
+        fun n h' r hh => (h.sem_a1Tube hδ hτ0 hτs n h' r hh).symm).res_id
     · rw [h.sem_A1o, h.sem_a1', El_res, Hom.comp_id]; exact h0
   refine ⟨hc, ?_⟩
   rw [sem_hcomp hc, h.sem_A1o, h.sem_a1', hface, hcompAt_res_id', gtA1]
-  exact hcompAt_congr fun n h' r hh => h.sem_a1Tube hτ0 hτs n h' r hh
+  exact hcompAt_congr fun n h' r hh => h.sem_a1Tube hδ hτ0 hτs n h' r hh
 
 theorem sem_contractum_gen (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {δ : I} (hδ : ∀ {k' : ℕ} (ρ' : IEnv k'), (ival ρ' δ).face = Cof.forall0 (ival ρ'.ext φ).face)
     {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2)) :
-    sem S (.glueEl (φ.subst (I.inst0 .one)) (e.dinst .one) (.fst (tExt A φ T e ψ u0 τ))
+    sem S (.glueEl (φ.subst (I.inst0 .one)) (e.dinst .one) (.fst (tExt δ A φ T e ψ u0 τ))
       (.hcomp (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
-        (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+        (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt δ A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
           ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
         (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))) m ρ γ =
     gtResult (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) := by
   have hψ := isCof_ival_face ρ ψ
-  obtain ⟨-, ea1⟩ := h.sem_a1 hτ0 hτs
+  obtain ⟨-, ea1⟩ := h.sem_a1 hδ hτ0 hτs
   have ha1kv := h.G.fibA.elKV _ _ _ (gt_a1_mem h.G hψ h.u0mem h.con)
   have hiff : (ival ρ (φ.subst (I.inst0 .one))).holds ↔ (Cof.restr (tgφ ρ φ) (eO m)).holds := by
     rw [holds_iff_face, face_φ1]
   rw [gtResult]
   by_cases h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds
-  · have hc : eqFun m (sem S (e.dinst .one) m ρ γ) (sem S (.fst (tExt A φ T e ψ u0 τ)) m ρ γ) =
+  · have hc : eqFun m (sem S (e.dinst .one) m ρ γ) (sem S (.fst (tExt δ A φ T e ψ u0 τ)) m ρ γ) =
         sem S (.hcomp (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
-          (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+          (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt δ A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
             ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
           (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))) m ρ γ := by
-      rw [ea1, h.sem_e1 h1, sem_fst, h.sem_ext_id h1 hτ0 hτs, ← gt_a1_face h.G hψ h.u0mem h.con (h.h1' h1), res_id ha1kv]
-    rw [sem_glueEl_holds (hiff.2 h1) hc, if_pos h1, sem_fst, h.sem_ext_id h1 hτ0 hτs]
+      rw [ea1, h.sem_e1 h1, sem_fst, h.sem_ext_id hδ h1 hτ0 hτs, ← gt_a1_face h.G hψ h.u0mem h.con (h.h1' h1), res_id ha1kv]
+    rw [sem_glueEl_holds (hiff.2 h1) hc, if_pos h1, sem_fst, h.sem_ext_id hδ h1 hτ0 hτs]
   · rw [sem_glueEl_not (fun a => h1 (hiff.1 a)) (by rw [ea1]; exact ha1kv), if_neg h1, ea1, face_φ1]
     congr 1
     unfold partialKV; congr 1; funext k f; split
     · rename_i hf
       rw [Cof.restr_restr] at hf
-      rw [faceVals, sem_fst, h.sem_ext_at hf hτ0 hτs]
+      rw [faceVals, sem_fst, h.sem_ext_at hδ hf hτ0 hτs]
     · rfl
 
 theorem sem_lhs (h : TGCond S A φ T e ψ u0 m ρ γ) :
@@ -1101,10 +1108,11 @@ theorem sem_lhs (h : TGCond S A φ T e ψ u0 m ρ γ) :
     res_id (h.G.elKV (gt_result_mem h.G hψ h.u0mem h.con))] at this
   rw [sem_transp h.tr, h.line, this]
 
-theorem sem_transpGlue (h : TGCond S A φ T e ψ u0 m ρ γ) :
-    sem S (Tm.transpGlue A φ T e ψ u0) m ρ γ = sem S (.transp (.glue A φ T e) ψ u0) m ρ γ := by
+theorem sem_transpGlue (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {δ : I} (hδ : ∀ {k' : ℕ} (ρ' : IEnv k'), (ival ρ' δ).face = Cof.forall0 (ival ρ'.ext φ).face) :
+    sem S (Tm.transpGlueWith δ A φ T e ψ u0) m ρ γ = sem S (.transp (.glue A φ T e) ψ u0) m ρ γ := by
   rw [h.sem_lhs]
-  exact h.sem_contractum_gen rfl (fun _ => rfl)
+  exact h.sem_contractum_gen hδ rfl (fun _ => rfl)
 
 end TGCond
 

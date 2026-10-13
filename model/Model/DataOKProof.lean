@@ -619,9 +619,13 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
       y < C.args.length ∧ C.isRec (C.args.length - 1 - y) = false)
     {x : ℕ} (hx : x < C.args.length) (hxr : C.isRec (C.args.length - 1 - x) = false) {T : Tm}
     (hT : (D.argCtx S0.length C C.args.length).lookup x = some T)
-    (heq : EqTm (S0 ++ [.data (D.truncate c)]) C.dims ψ (D.argCtx S0.length C C.args.length) T
-      ((C'.argTy S0.length D.params.length k).substList
-        (prev ++ (Ctor.paramVars D.params.length C.args.length).toList.reverse)) (.univ D.level))
+    (hS0 : SigOK S0) (hm1 : C.mentionsRec C.args.length T = false)
+    (hm2 : C.mentionsRec C.args.length ((C'.argTy S0.length D.params.length k).substList
+        (prev ++ (Ctor.paramVars D.params.length C.args.length).toList.reverse)) = false)
+    (heq : EqTm S0 C.dims ψ (D.pointCtx S0.length C C.args.length) (T.ren (C.pointRen C.args.length) id)
+      (((C'.argTy S0.length D.params.length k).substList
+        (prev ++ (Ctor.paramVars D.params.length C.args.length).toList.reverse)).ren (C.pointRen C.args.length) id)
+      (.univ D.level))
     {n2 : ℕ} (g : Hom n2 m) (pre : List V) (hpre : pre.length = C.args.length)
     (hpt : ∀ i (hi : i < C.args.length), C.isRec i = false →
       pre[i]'(by omega) ∈ El (argTyRaw (sigV S0) D S0.length c i n2 (ps n2 g) pre) (Hom.id n2) ∧
@@ -637,7 +641,9 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
   set γ2 := argEnvKV n2 (plist (ps n2 g) np) (genPre C gv (pre.take n))
   have hp := isPoint_argCtx S0 D hsyn hC hps c g ρ2 hρ2 gv (fun _ _ => genV_mem hc) (j := n) (by omega) le_rfl
     (fun i hi hr => hpt i hi hr)
-  have hE := (sound_eq hokc heq).2.2 n2 ρ2 γ2 hp
+  have hE : sem Sc T n2 ρ2 γ2 = sem Sc ((C'.argTy S0.length np k).substList
+      (prev ++ (Ctor.paramVars np n).toList.reverse)) n2 ρ2 γ2 := by
+    sorry
   rw [sem_lookup_point S0 D hsyn hC _ hx le_rfl hxr hT ρ2 (ps n2 g) gv (by omega)] at hE
   rw [hE]
   -- the right-hand side
@@ -712,19 +718,19 @@ include hsyn hC hps in
 theorem bty_of_wf (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
     (hck : ∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C → ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
       HasTy (S0 ++ [.data (D.truncate 0)]) 0 .one (D.argCtx S0.length C k) A (.univ D.level))
-    (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ctors.length)
+    (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hS0 : SigOK S0) (hc : c ≤ D.ctors.length)
     {ψ : I} {n0 : ℕ} {rs0 : List (DM n0)} (hrs0 : (ival (renv rs0) ψ).holds)
     {E : DataDecl} (hEp : E.params = D.params) (hEc : ∀ c' ≤ c, E.ctors[c']? = D.ctors[c']?) :
     ∀ t : Tm,
       (Ctor.simpleB D.ctors S0.length D.params.length c C.args.length C t = true →
-        Ctor.bndTyped (S0 ++ [.data (D.truncate c)]) C.dims ψ (D.argCtx S0.length C C.args.length) D.level
-          D.ctors S0.length D.params.length t →
+        Ctor.bndTyped S0 C.dims ψ (D.argCtx S0.length C C.args.length) C (D.pointCtx S0.length C C.args.length)
+          D.level D.ctors S0.length D.params.length t →
         SimpleShape (D.truncate c).ctors S0.length t ∧ BTy (dataSD (sigV S0) E S0.length m ps) c C t) ∧
       (∀ (C' : Ctor) (c' k : ℕ) (prev : List Tm), c' < c → D.ctors[c']? = some C' →
         k + t.toList.length = C'.args.length →
         Ctor.simpleArgs D.ctors S0.length D.params.length c C.args.length C C' k t = true →
-        Ctor.bndTypedArgs (S0 ++ [.data (D.truncate c)]) C.dims ψ (D.argCtx S0.length C C.args.length) D.level
-          D.ctors S0.length D.params.length C' (Ctor.paramVars D.params.length C.args.length) k prev t →
+        Ctor.bndTypedArgs S0 C.dims ψ (D.argCtx S0.length C C.args.length) C (D.pointCtx S0.length C C.args.length)
+          D.level D.ctors S0.length D.params.length C' (Ctor.paramVars D.params.length C.args.length) k prev t →
         ∀ (hpl : prev.length = k), (∀ u ∈ prev, SimpleShape (D.truncate c).ctors S0.length u) →
         (∀ q (hq : q < k), C'.isRec q = false → ∃ y, prev.reverse[q]'(by simp; omega) = .var y ∧
           y < C.args.length ∧ C.isRec (C.args.length - 1 - y) = false ∧
@@ -815,9 +821,9 @@ theorem bty_of_wf (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
         | recur => simp [Ctor.isRec, List.getElem?_eq_getElem hkC, h'] at hr
       obtain ⟨T, hT⟩ : ∃ T, (D.argCtx S0.length C C.args.length).lookup x = some T := by
         rw [Ctx.lookup_eq, argCtx_lt D _ C _ x hx]; exact ⟨_, rfl⟩
-      have heq := hb1 x T rfl hr hT
+      obtain ⟨hm1, hm2, heq⟩ := hb1 x T rfl hr hT
       have hcore := fun n2 (g : Hom n2 m) pre hpre htp => tyEq_core S0 D hsyn hC hps hokc hc hrs0 hC' hA' hpl
-        (fun q hq hrq => by obtain ⟨y, h1, h2, h3, -⟩ := Hprev q hq hrq; exact ⟨y, h1, h2, h3⟩) hx hxr hT heq
+        (fun q hq hrq => by obtain ⟨y, h1, h2, h3, -⟩ := Hprev q hq hrq; exact ⟨y, h1, h2, h3⟩) hx hxr hT hS0 hm1 hm2 heq
         g pre hpre htp
       have hgC' := getD_ctors hC'
       have hrec := ihas.2 C' c' (k + 1) (.var x :: prev) hc' hC' (by simp [Tm.toList] at hkl; omega)
@@ -1012,7 +1018,7 @@ theorem bnd_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
       fun c C hC k A hA => ((hWf.2.2 c C hC).1 k A hA).2.2.2
     obtain ⟨k, hk⟩ := List.getElem?_of_mem hb
     obtain ⟨-, -, hsimple, -, hbt⟩ := (hWf.2.2 c C hCD).2.1 k ψ b hk
-    exact ((bty_of_wf S0 D hsynD hCD hps (hok0 (by omega)) hckD (hokB c hcB)
+    exact ((bty_of_wf S0 D hsynD hCD hps (hok0 (by omega)) hckD (hokB c hcB) hS0
       (by have := (List.getElem?_eq_some_iff.1 hCD).1; omega) hh (E := { D with ctors := X }) rfl
       (fun c' hc' => hXB c' (by omega)) b).1 hsimple hbt).2
   · have := hXr c (by omega) C hC
