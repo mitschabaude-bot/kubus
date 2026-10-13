@@ -155,24 +155,6 @@ theorem ren_ren (t : Tm) : ∀ (ρ δ ρ' δ' : Nat → Nat),
 theorem shift_dshift (t : Tm) : t.shift.dshift = t.dshift.shift := by
   simp only [shift, dshift, ren_ren]; rfl
 
-/-- `t` has free term variables below `n` and free interval variables below `m`. -/
-def closedB (n m : Nat) : Tm → Bool
-  | var x => decide (x < n)
-  | const _ | univ _ | abort => true
-  | pi A B | sigma A B => A.closedB n m && B.closedB (n + 1) m
-  | lam A t => A.closedB n m && t.closedB (n + 1) m
-  | app f a | pair f a => f.closedB n m && a.closedB n m
-  | fst p | snd p => p.closedB n m
-  | path A a b => A.closedB n (m + 1) && a.closedB n m && b.closedB n m
-  | plam t | ipi t => t.closedB n (m + 1)
-  | papp p r => p.closedB n m && r.scopedB m
-  | split φ t ψ u => φ.scopedB m && t.closedB n m && ψ.scopedB m && u.closedB n m
-  | transp A φ a => A.closedB n (m + 1) && φ.scopedB m && a.closedB n m
-  | hcomp A φ u a => A.closedB n m && φ.scopedB m && u.closedB n (m + 1) && a.closedB n m
-  | glue A φ T e => A.closedB n m && φ.scopedB m && T.closedB n m && e.closedB n m
-  | glueEl φ e t a => φ.scopedB m && e.closedB n m && t.closedB n m && a.closedB n m
-  | unglue φ e g => φ.scopedB m && e.closedB n m && g.closedB n m
-
 theorem upRen_fix (ρ : Nat → Nat) (n : Nat) (h : ∀ x < n, ρ x = x) :
     ∀ x < n + 1, upRen ρ x = x := by
   intro x hx

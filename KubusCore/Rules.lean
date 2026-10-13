@@ -111,6 +111,7 @@ inductive HasTy (S : Sig) : Nat → I → Ctx → Tm → Tm → Prop
       HasTy S Ψ (cof Φ φ) Γ t T → HasTy S Ψ Φ Γ a A → EqTm S Ψ (cof Φ φ) Γ (app (fst e) t) a A →
       HasTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e)
   | unglue {Ψ Φ Γ A φ T e g l} : HasTy S Ψ Φ Γ (glue A φ T e) (univ l) →
+      HasTy S Ψ Φ Γ A (univ l) → HasTy S Ψ (cof Φ φ) Γ e (equiv T A) →
       HasTy S Ψ Φ Γ g (glue A φ T e) → HasTy S Ψ Φ Γ (unglue φ e g) A
 
 inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
@@ -233,7 +234,9 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (transp (sigma A B) φ u0) (transpSigma A B φ u0) T
   | transpPath {Ψ Φ Γ A a b φ p0 T} : HasTy S Ψ Φ Γ (transp (path A a b) φ p0) T →
       EqTm S Ψ Φ Γ (transp (path A a b) φ p0) (transpPath A a b φ p0) T
-  | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T} : HasTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
+  | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T l} : HasTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
+      HasTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
+      HasTy S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
       EqTm S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlue A φ T' e ψ u0) T
   | transpIPi {Ψ Φ Γ A φ u0 T} : HasTy S Ψ Φ Γ (transp (ipi A) φ u0) T →
       EqTm S Ψ Φ Γ (transp (ipi A) φ u0) (transpIPi A φ u0) T
@@ -245,14 +248,16 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (hcomp (sigma A B) φ u u0) (hcompSigma A B φ u u0) T
   | hcompPath {Ψ Φ Γ A a b φ u p0 T} : HasTy S Ψ Φ Γ (hcomp (path A a b) φ u p0) T →
       EqTm S Ψ Φ Γ (hcomp (path A a b) φ u p0) (hcompPath A a b φ u p0) T
-  | hcompGlue {Ψ Φ Γ A φ T' e ψ u u0 T} : HasTy S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) T →
+  | hcompGlue {Ψ Φ Γ A φ T' e ψ u u0 T l} : HasTy S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) T →
+      HasTy S Ψ Φ Γ A (univ l) → HasTy S Ψ (cof Φ φ) Γ e (equiv T' A) →
       EqTm S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) (hcompGlue A φ T' e ψ u u0) T
   /- Glue -/
   | glueFace {Ψ Φ Γ A φ T e G} : I.Entails Φ φ → HasTy S Ψ Φ Γ (glue A φ T e) G →
       EqTm S Ψ Φ Γ (glue A φ T e) T G
   | glueElFace {Ψ Φ Γ φ e t a G} : I.Entails Φ φ → HasTy S Ψ Φ Γ (glueEl φ e t a) G →
       EqTm S Ψ Φ Γ (glueEl φ e t a) t G
-  | unglueFace {Ψ Φ Γ A φ T e g} : I.Entails Φ φ → HasTy S Ψ Φ Γ g (glue A φ T e) →
+  | unglueFace {Ψ Φ Γ A φ T e g l} : I.Entails Φ φ → HasTy S Ψ Φ Γ g (glue A φ T e) →
+      HasTy S Ψ Φ Γ A (univ l) → HasTy S Ψ Φ Γ e (equiv T A) →
       EqTm S Ψ Φ Γ (unglue φ e g) (app (fst e) g) A
   | glueBeta {Ψ Φ Γ φ e t a G} : HasTy S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) G →
       EqTm S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
@@ -265,6 +270,7 @@ end
 against the definitions before it. -/
 def WfSig (S : Sig) : Prop :=
   ∀ k t A, S[k]? = some (t, A) →
+    t.closedB 0 0 ∧ A.closedB 0 0 ∧
     (∃ l, HasTy (S.take k) 0 .one [] A (.univ l)) ∧ HasTy (S.take k) 0 .one [] t A
 
 /-- Consistency: in a well-formed signature there is no closed term of `(A : U₀) → A`. -/
