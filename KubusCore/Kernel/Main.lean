@@ -76,9 +76,12 @@ def canonConvNe (R : Rec S) (E : KCtx S Ψ Φ Γ) (t u : Tm) :
     pure ⟨⟨i.ty, i.lvl, HasTy.restrict E.hsc q.h2 i.hty, HasTy.restrict E.hsc q.h2 i.htm⟩,
       ⟨EqTm.restrict E.hsc q.h2 e⟩⟩
 
-/-- Add a line to the trail of an error (at most 12 lines). -/
+/-- Add a line to the trail of an error (keeping the 6 innermost and the 12 outermost). -/
 def trail {α : Type} (line : Unit → String) (x : K S α) : K S α :=
-  tryCatch x fun e => throw (if (e.splitOn "\n  while ").length ≤ 12 then e ++ "\n  while " ++ line () else e)
+  tryCatch x fun e =>
+    let ls := e.splitOn "\n  while "
+    let ls := if ls.length > 18 then ls.take 7 ++ ls.drop 8 else ls
+    throw ("\n  while ".intercalate (ls ++ [line ()]))
 
 /-! Memoized versions: a hit transports the cached derivation along the equality of the
 keys (checked structurally, with a pointer-equality shortcut). -/
