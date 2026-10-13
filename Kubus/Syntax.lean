@@ -50,6 +50,9 @@ inductive Tm
   /-- The pattern-matching function body of the global `f`; its environment holds `f`'s parameters. -/
   | split (f : String) (k : Nat)
   | letE (x : String) (t b : Tm)
+  /-- `t`, of type `ty` (recorded by the elaborator for the certified kernel's translation;
+  evaluation ignores it) -/
+  | ann (t ty : Tm)
   deriving Inhabited, Repr, BEq
 
 def ITm.occurs (k : Nat) : ITm → Bool
@@ -74,6 +77,7 @@ partial def Tm.occurs (k : Nat) : Tm → Bool
   | .data _ _ ps => ps.any (·.occurs k)
   | .con _ as ds => as.any (·.occurs k) || ds.any (·.occurs k)
   | .letE _ t b => t.occurs k || b.occurs (k + 1)
+  | .ann t ty => t.occurs k || ty.occurs k
   | _ => false
 
 partial def sysOccurs (kElem kKey : Nat) (sys : List (ITm × Tm)) : Bool :=
@@ -112,6 +116,7 @@ partial def Tm.lift (k : Nat) (t : Tm) : Tm :=
   | .unglueU u b sys => .unglueU (l u) (l b) (ls sys)
   | .con c as ds => .con c (as.map l) ds
   | .letE x t b => .letE x (l t) (l b)
+  | .ann t ty => .ann (l t) (l ty)
 
 /-! ## Implicit binders and metavariables
 
@@ -162,6 +167,7 @@ partial def Tm.mapVars (f : Nat → Nat → Tm) (g : Nat → Nat → ITm) (c : N
   | .data d k ps => .data d k (ps.map (·.mapVars f g c))
   | .con n as ds => .con n (as.map (·.mapVars f g c)) (ds.map (·.mapVars g c))
   | .letE x t b => .letE x (t.mapVars f g c) (b.mapVars f g (c + 1))
+  | .ann t ty => .ann (t.mapVars f g c) (ty.mapVars f g c)
   | t => t
 where
   sysUnder (sys : List (ITm × Tm)) := sys.map fun (r, t) => (r.mapVars g c, t.mapVars f g (c + 1))
@@ -198,9 +204,15 @@ def Tm.mapChildrenM {m : Type → Type} [Monad m] (f : Nat → Tm → m Tm) : Tm
   | .data d k ps => return .data d k (← ps.mapM (f 0))
   | .con n as ds => return .con n (← as.mapM (f 0)) ds
   | .letE x t b => return .letE x (← f 0 t) (← f 1 b)
+  | .ann t ty => return .ann (← f 0 t) (← f 0 ty)
   | t => pure t
 where
   sysM (n : Nat) (sys : List (ITm × Tm)) : m (List (ITm × Tm)) := sys.mapM fun (r, t) => return (r, ← f n t)
+
+/-- Remove the elaborator's type annotations. -/
+partial def Tm.stripAnn : Tm → Tm
+  | .ann t _ => t.stripAnn
+  | t => Id.run (t.mapChildrenM fun _ u => pure u.stripAnn)
 
 /-- An argument of an application spine. -/
 inductive SArg

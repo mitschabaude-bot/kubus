@@ -111,6 +111,7 @@ def checkData (name : String) (ps : List Binder) (lvl : Nat) (ctors : List CtorD
       | .v v => pure v
       | _ => err cctx "internal")
     let (tsys, _) ← checkSys bctx none cd.boundary fun _ α _ => faceV dataV α
+    let tsys := tsys.map fun (r, t) => (r, t.stripAnn)
     checkMetas
     let tsys ← tsys.mapM fun (r, t) => return (r, ← zonk t)
     if !dims.isEmpty && np > 0 && !(tsys.all fun (_, t) => simpleBoundary np ctele.size dims.size t) then

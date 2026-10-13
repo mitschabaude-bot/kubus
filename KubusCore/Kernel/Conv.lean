@@ -348,6 +348,17 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
   | A, hA, ht, hu => do
     -- lazy δ: unfold the head constant defined later first
     if let some (some e) ← tryOpt (lazyDelta R E A l hA 20 t u ht hu) then return e
+    -- eliminations of the same shape: by congruence, before reducing them (contracta of
+    -- equal terms often differ syntactically); not nested, since failures would multiply
+    let shape : Tm → Nat := fun
+      | .hcomp .. => 1 | .transp .. => 2 | .app .. => 3 | .fst _ => 4 | .snd _ => 5
+      | .papp .. => 6 | .unglue .. => 7 | .elim .. => 8 | _ => 0
+    if shape t != 0 && shape t == shape u && !(← get).congFirst then
+      modify fun c => { c with congFirst := true }
+      let r ← tryOpt (R.convNe E t u)
+      modify fun c => { c with congFirst := false }
+      if let some ⟨ni, ⟨en⟩⟩ := r then
+        if let some ⟨en'⟩ ← tryOpt (bridge R E ni.hty hA en) then return ⟨en'⟩
     let rt ← R.whnf E t A l hA ht
     let ru ← R.whnf E u A l hA hu
     if h : rt.tm = ru.tm then
@@ -392,6 +403,14 @@ def convStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
       pure ⟨EqTm.restrict E.hsc h2 e⟩
   | α :: rest =>
     let φ := I.ofFace α
+    -- first without splitting the restriction into its faces (which multiplies the work
+    -- under nested systems); split only if that fails
+    -- (not nested: failed attempts would multiply)
+    if !(← get).noSplit then
+      modify fun c => { c with noSplit := true }
+      let r ← tryOpt (convFace R E A l hA t u ht hu [])
+      modify fun c => { c with noSplit := false }
+      if let some e := r then return e
     let ψ := I.ofFaces rest
     let ⟨hφ⟩ ← ensureScoped φ Ψ
     let ⟨hψ⟩ ← ensureScoped ψ Ψ

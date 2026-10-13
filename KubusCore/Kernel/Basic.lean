@@ -32,11 +32,240 @@ which yields the proof to transport it along. Equality of terms is decided struc
 the pointer-equality shortcut of Lean core's `withPtrEq` (logically just the structural
 comparison). -/
 
-/-- Equality of terms, with a pointer-equality shortcut. -/
-def tmEq (a b : Tm) : Bool := withPtrEq a b (fun _ => decide (a = b)) (by intro h; simp [h])
+/-- Equality of terms, deciding with a pointer-equality shortcut at every node (terms built by
+the kernel share most of their subterms), and structurally otherwise. -/
+def tmDec : (a b : Tm) → Decidable (a = b)
+  | .var x0, .var y0 =>
+    match decEq x0 y0 with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      isTrue (by subst h0; rfl)
+  | .const x0, .const y0 =>
+    match decEq x0 y0 with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      isTrue (by subst h0; rfl)
+  | .univ x0, .univ y0 =>
+    match decEq x0 y0 with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      isTrue (by subst h0; rfl)
+  | .pi x0 x1, .pi y0 y1 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        isTrue (by subst h0; subst h1; rfl)
+  | .lam x0 x1, .lam y0 y1 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        isTrue (by subst h0; subst h1; rfl)
+  | .app x0 x1, .app y0 y1 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        isTrue (by subst h0; subst h1; rfl)
+  | .sigma x0 x1, .sigma y0 y1 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        isTrue (by subst h0; subst h1; rfl)
+  | .pair x0 x1, .pair y0 y1 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        isTrue (by subst h0; subst h1; rfl)
+  | .fst x0, .fst y0 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      isTrue (by subst h0; rfl)
+  | .snd x0, .snd y0 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      isTrue (by subst h0; rfl)
+  | .path x0 x1 x2, .path y0 y1 y2 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        match withPtrEqDecEq x2 y2 (fun _ => tmDec x2 y2) with
+        | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+        | isTrue h2 =>
+          isTrue (by subst h0; subst h1; subst h2; rfl)
+  | .plam x0, .plam y0 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      isTrue (by subst h0; rfl)
+  | .papp x0 x1, .papp y0 y1 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match decEq x1 y1 with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        isTrue (by subst h0; subst h1; rfl)
+  | .ipi x0, .ipi y0 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      isTrue (by subst h0; rfl)
+  | .split x0 x1 x2 x3, .split y0 y1 y2 y3 =>
+    match decEq x0 y0 with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        match decEq x2 y2 with
+        | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+        | isTrue h2 =>
+          match withPtrEqDecEq x3 y3 (fun _ => tmDec x3 y3) with
+          | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+          | isTrue h3 =>
+            isTrue (by subst h0; subst h1; subst h2; subst h3; rfl)
+  | .transp x0 x1 x2, .transp y0 y1 y2 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match decEq x1 y1 with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        match withPtrEqDecEq x2 y2 (fun _ => tmDec x2 y2) with
+        | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+        | isTrue h2 =>
+          isTrue (by subst h0; subst h1; subst h2; rfl)
+  | .hcomp x0 x1 x2 x3, .hcomp y0 y1 y2 y3 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match decEq x1 y1 with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        match withPtrEqDecEq x2 y2 (fun _ => tmDec x2 y2) with
+        | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+        | isTrue h2 =>
+          match withPtrEqDecEq x3 y3 (fun _ => tmDec x3 y3) with
+          | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+          | isTrue h3 =>
+            isTrue (by subst h0; subst h1; subst h2; subst h3; rfl)
+  | .glue x0 x1 x2 x3, .glue y0 y1 y2 y3 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match decEq x1 y1 with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        match withPtrEqDecEq x2 y2 (fun _ => tmDec x2 y2) with
+        | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+        | isTrue h2 =>
+          match withPtrEqDecEq x3 y3 (fun _ => tmDec x3 y3) with
+          | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+          | isTrue h3 =>
+            isTrue (by subst h0; subst h1; subst h2; subst h3; rfl)
+  | .glueEl x0 x1 x2 x3, .glueEl y0 y1 y2 y3 =>
+    match decEq x0 y0 with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        match withPtrEqDecEq x2 y2 (fun _ => tmDec x2 y2) with
+        | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+        | isTrue h2 =>
+          match withPtrEqDecEq x3 y3 (fun _ => tmDec x3 y3) with
+          | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+          | isTrue h3 =>
+            isTrue (by subst h0; subst h1; subst h2; subst h3; rfl)
+  | .unglue x0 x1 x2, .unglue y0 y1 y2 =>
+    match decEq x0 y0 with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        match withPtrEqDecEq x2 y2 (fun _ => tmDec x2 y2) with
+        | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+        | isTrue h2 =>
+          isTrue (by subst h0; subst h1; subst h2; rfl)
+  | .tcons x0 x1, .tcons y0 y1 =>
+    match withPtrEqDecEq x0 y0 (fun _ => tmDec x0 y0) with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        isTrue (by subst h0; subst h1; rfl)
+  | .data x0 x1, .data y0 y1 =>
+    match decEq x0 y0 with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        isTrue (by subst h0; subst h1; rfl)
+  | .con x0 x1 x2 x3 x4, .con y0 y1 y2 y3 y4 =>
+    match decEq x0 y0 with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match decEq x1 y1 with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        match withPtrEqDecEq x2 y2 (fun _ => tmDec x2 y2) with
+        | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+        | isTrue h2 =>
+          match withPtrEqDecEq x3 y3 (fun _ => tmDec x3 y3) with
+          | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+          | isTrue h3 =>
+            match decEq x4 y4 with
+            | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+            | isTrue h4 =>
+              isTrue (by subst h0; subst h1; subst h2; subst h3; subst h4; rfl)
+  | .elim x0 x1 x2 x3 x4, .elim y0 y1 y2 y3 y4 =>
+    match decEq x0 y0 with
+    | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+    | isTrue h0 =>
+      match withPtrEqDecEq x1 y1 (fun _ => tmDec x1 y1) with
+      | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+      | isTrue h1 =>
+        match withPtrEqDecEq x2 y2 (fun _ => tmDec x2 y2) with
+        | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+        | isTrue h2 =>
+          match withPtrEqDecEq x3 y3 (fun _ => tmDec x3 y3) with
+          | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+          | isTrue h3 =>
+            match withPtrEqDecEq x4 y4 (fun _ => tmDec x4 y4) with
+            | isFalse h => isFalse (fun e => by cases e; exact h rfl)
+            | isTrue h4 =>
+              isTrue (by subst h0; subst h1; subst h2; subst h3; subst h4; rfl)
+  | .abort, .abort => isTrue rfl
+  | .tnil, .tnil => isTrue rfl
+  | a, b => decEq a b
 
-theorem tmEq_sound {a b : Tm} (h : tmEq a b = true) : a = b := by
-  simp only [tmEq, withPtrEq, decide_eq_true_eq] at h; exact h
+/-- Equality of terms, with pointer-equality shortcuts. -/
+def tmEq (a b : Tm) : Bool := @decide (a = b) (withPtrEqDecEq a b (fun _ => tmDec a b))
+
+theorem tmEq_sound {a b : Tm} (h : tmEq a b = true) : a = b :=
+  @of_decide_eq_true _ (withPtrEqDecEq a b (fun _ => tmDec a b)) h
 
 def ctxEqAux : Ctx → Ctx → Bool
   | [], [] => true
@@ -275,6 +504,10 @@ structure Cache (S : Sig) where
   /-- comparisons that failed (no proof needed), so that alternatives tried after a failure
   do not repeat it -/
   convFail : Table S (fun _ _ _ _ _ => PUnit) := {}
+  /-- inside an attempt to compare without splitting the restriction into faces -/
+  noSplit : Bool := false
+  /-- inside an attempt to compare by congruence before reducing -/
+  congFirst : Bool := false
 
 /-- The kernel monad: errors, and the cache of judgments over the signature `S`. -/
 abbrev K (S : Sig) := EStateM String (Cache S)

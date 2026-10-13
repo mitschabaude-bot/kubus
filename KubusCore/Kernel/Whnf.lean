@@ -71,8 +71,56 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
       | _, _ => return none
   | _, _ => pure none
 
+/-- Composition in an inductive type without path constructors is componentwise
+(`hcompCon`): reduce the base to a constructor, and the tube (under `φ`) to the same
+constructor. -/
+def hcompDataK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps : Tm) (φ : I) (u a T : Tm)
+    (lT : Nat) (hT : HasTy S Ψ Φ Γ T (.univ lT)) :
+    K S (Option (Red S Ψ Φ Γ (.hcomp (.data d ps) φ u a) T)) := do
+  let ⟨D, ⟨hS⟩⟩ ← lookupData S d
+  if hH : D.isHIT = false then
+    let i ← inferHcomp R E (.data d ps) φ u a
+    -- the base, reduced
+    let r ← R.whnf E a (.data d ps) i.l i.hA i.ha
+    match hr : r.tm with
+    | .con d' c qs args [] =>
+      if hd : d' = d then
+        have rq : EqTm S Ψ Φ Γ a (.con d c qs args []) (.data d ps) := by
+          have := r.eq; rw [hr, hd] at this; exact this
+        have heq2 := EqTm.trans i.heq (EqTm.rs E i.hφ rq)
+        have ht2 := HasTy.hcomp i.hA i.hφ i.hu (HasTy.eqR rq) heq2
+        have e1 := EqTm.hcomp i.ht ht2 (EqTm.refl i.hA) (I.entails_refl φ) (I.entails_refl φ)
+          (EqTm.refl i.hu) rq
+        let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
+        let ⟨hps⟩ ← ensureList ps
+        let ⟨hargs⟩ ← ensureList args
+        let ⟨ha⟩ ← checkTele R E args (C.argTys d D.params.length) ps.toList.reverse
+        let E1 := E.cof φ i.hφ
+        let Eu := E1.dext
+        -- the arguments of the tube
+        -- (stuck unless the tube is the same constructor)
+        let some uargs ← (if E1.ent .zero then pure (some args.dshift) else do
+            let ru ← R.whnf Eu u (Tm.data d ps).dshift i.l (HasTy.dwkCof E i.hφ i.hA) i.hu
+            match ru.tm with
+            | .con d'' c' _ uargs [] => pure (if d'' = d ∧ c' = c then some uargs else none)
+            | _ => pure none) | return none
+        let ⟨hul⟩ ← ensureList uargs
+        let ⟨hua⟩ ← checkTele R Eu uargs (C.argTys d D.params.length) ps.dshift.toList.reverse
+        let ⟨lc, ⟨hD⟩⟩ ← inferType R Eu (.data d ps.dshift)
+        let ⟨hc⟩ ← R.check Eu (.con d c ps.dshift uargs []) _ lc hD
+        let ⟨hu'⟩ ← R.check Eu u _ lc hD
+        let ⟨eu⟩ ← R.conv Eu _ lc hD u _ hu' hc
+        let ⟨e0⟩ ← convTele R E1 (uargs.dinst .zero) args (C.argTys d D.params.length) ps.toList.reverse
+        let ⟨e1'⟩ ← bridge R E i.hA hT e1
+        have e2 := EqTm.hcompCon hS hH hC hps hargs hul ha hua eu e0 (HasTy.eqR e1')
+        return some ⟨_, EqTm.trans e1' e2⟩
+      else return none
+    | _ => return none
+  else return none
+
 /-- Computation rule of `hcomp` for a type in weak-head normal form. -/
 def hcompRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u a T : Tm)
+    (lT : Nat) (hT : HasTy S Ψ Φ Γ T (.univ lT))
     (ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) T) : K S (Option (Red S Ψ Φ Γ (.hcomp A φ u a) T)) :=
   match A, ht with
   | .pi A B, ht => pure (some ⟨Tm.hcompPi A B φ u a, EqTm.hcompPi ht⟩)
@@ -84,6 +132,7 @@ def hcompRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u 
     pure (some ⟨Tm.hcompGlue A ψ T' e φ u a, EqTm.hcompGlue ht hA he⟩)
   | .ipi A, ht => pure (some ⟨Tm.hcompIPi A φ u a, EqTm.hcompIPi ht⟩)
   | .univ _, ht => pure (some ⟨Tm.hcompU φ u a, EqTm.hcompU ht⟩)
+  | .data d ps, _ => hcompDataK R E d ps φ u a T lT hT
   | _, _ => pure none
 
 /-- Transport in an inductive type with parameters computes on constructors and formal
@@ -140,7 +189,7 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
   let ⟨l1, ⟨hB⟩⟩ ← inferType R E B
   let r ← whnfTy R E B l1 hB
   if r.tm = B then
-    return (← hcompRule R E B φ u a A ht).map (·, false)
+    return (← hcompRule R E B φ u a A l hA ht).map (·, false)
   let i ← inferHcomp R E B φ u a
   let m := max l1 i.l
   let ⟨hm⟩ ← ensureLvl m
@@ -152,7 +201,7 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
   have e := EqTm.hcomp i.ht (HasTy.conv ht' (EqTm.symm eB)) eB (I.entails_refl φ)
     (I.entails_refl φ) (EqTm.refl i.hu) (EqTm.refl i.ha)
   let ⟨e⟩ ← bridge R E i.hA hA e
-  match ← hcompRule R E r.tm φ u a A (HasTy.eqR e) with
+  match ← hcompRule R E r.tm φ u a A l hA (HasTy.eqR e) with
   | some r2 => return some (⟨r2.tm, EqTm.trans e r2.eq⟩, false)
   | none => return some (⟨.hcomp r.tm φ u a, e⟩, true)
 
@@ -243,9 +292,11 @@ def dataElimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs
   | .con d' c qs args rs, ht =>
     if hd : d' = d then (by subst hd; exact elimConK R E d' c ps P bs qs args rs A ht)
     else pure none
-  | .hcomp (.data d' qs) φ u a, ht =>
-    if hd : d' = d then (by subst hd; exact elimHcompK R E d' ps P bs qs φ u a A ht)
-    else pure none
+  | .hcomp (.data d' qs) φ u a, ht => do
+    -- a formal composition (HIT); otherwise the composition computes (`hcompCon`)
+    if hd : d' = d then
+      if let some r ← (by subst hd; exact elimHcompK R E d' ps P bs qs φ u a A ht) then return some r
+    elimTargetStep R E d ps P bs (.hcomp (.data d' qs) φ u a) A l hA
   | t, _ => elimTargetStep R E d ps P bs t A l hA
 
 /-- One head step at type `A`; `none` if `t` is in weak-head normal form. The flag says that

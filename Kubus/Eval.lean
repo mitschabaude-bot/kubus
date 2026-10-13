@@ -118,6 +118,7 @@ partial def eval (env : Env) (t : Tm) : M Val := do
     if dims.isEmpty then pure (.con c as) else mkPCon c as (← dims.mapM (evalI env))
   | .split f k => pure (.split f k env)
   | .letE _ t b => do eval (.v (← eval env t) :: env) b
+  | .ann t _ => eval env t
 
 partial def evalGlob (n : String) (k : Nat) : M Val := do
   if let some m := metaId? n then

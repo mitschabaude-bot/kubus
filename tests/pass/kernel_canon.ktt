@@ -1,0 +1,12 @@
+-- Closed terms of Nat, Int and Bool built with composition and transport compute to numerals
+-- in the certified kernel too (componentwise composition in inductive types, `hcompCon`).
+import loopspace
+import bool
+
+def hcompNat : Path Nat (hcomp k Nat [] (suc zero)) (suc zero) := \i -> suc zero
+def hcompNatSys (i : I) : Path Nat (hcomp k Nat [i = 0 -> suc zero] (suc zero)) (suc zero) := \j -> suc zero
+def transpNat : Path Nat (transport (\i -> Nat) (suc (suc zero))) (suc (suc zero)) := \i -> suc (suc zero)
+def compBool : Path Bool (comp k Bool [] true) true := \i -> true
+def windLoop : Path Int (winding loopP) (pos (suc zero)) := \i -> pos (suc zero)
+def windInv : Path Int (winding invLoop) (negsuc zero) := \i -> negsuc zero
+def transpSucInv : Path Int (transport (\i -> sucPathInt (~i)) (pos zero)) (negsuc zero) := \i -> negsuc zero

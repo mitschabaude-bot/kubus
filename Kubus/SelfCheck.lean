@@ -36,6 +36,7 @@ partial def Tm.hasSurface : Tm → Bool
   | .unglue u _ _ => u.hasSurface
   | .data _ _ ps => ps.all (·.hasSurface)
   | .con _ as _ => as.all (·.hasSurface)
+  | .ann t _ => t.hasSurface
 
 def globalNames : M (List String) := do
   let g ← getGlobals

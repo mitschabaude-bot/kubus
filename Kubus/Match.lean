@@ -29,6 +29,7 @@ def Tm.children : Tm → List (Nat × Tm)
   | .data _ _ ps => ps.map (0, ·)
   | .con _ as _ => as.map (0, ·)
   | .letE _ t b => [(0, t), (1, b)]
+  | .ann t ty => [(0, t), (0, ty)]
   | _ => []
 
 /-- Application spine: head and term arguments (interval applications are skipped). -/

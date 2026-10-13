@@ -280,7 +280,7 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
   if let .pi x a env bTy := ty then
     if isImplName x && !isImplLam t then
       let (ctx', xv) := ctx.bindVar x a
-      return .lam x (← check ctx' t (← inst env bTy xv))
+      return .ann (.lam x (← check ctx' t (← inst env bTy xv))) (← quote ctx.qctx ty)
   match t with
   | .var "_" => return (← freshMeta ctx ty "the hole _").1
   | .lam x tyR b =>
@@ -301,7 +301,8 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
     match ty with
     | .pi _ a env bTy =>
       let (ctx', xv) := ctx.bindVar (plainName x) a
-      return .lam x (← check ctx' b (← inst env bTy xv))
+      -- the type, for the certified kernel's translation (core λs carry no domain)
+      return .ann (.lam x (← check ctx' b (← inst env bTy xv))) (← quote ctx.qctx ty)
     | .piI line =>
       let (ctx', k) ← ctx.bindDim x
       let lk ← papp line (atomF k)
@@ -367,7 +368,7 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
   | .letE x tyR t b =>
     let (tt, a) ← inferLet ctx tyR t
     let vt ← eval ctx.env tt
-    return .letE x tt (← check (ctx.define x a vt) b ty)
+    return .letE x (.ann tt (← quote ctx.qctx a)) (← check (ctx.define x a vt) b ty)
   | .hole =>
     if !(← get).lsp then err ctx s!"hole\ngoal: {← ppVal ctx ty}\ncontext:\n{← ppCtx ctx}"
     -- editor mode: report the goal and continue
@@ -522,7 +523,11 @@ partial def elabCon (ctx : Ctx) (c : String) (args : List Raw) (expected : Optio
     targs := targs.push ta
     env := .v (← eval ctx.env ta) :: env
   let tdims ← (args.drop n).mapM (elabI ctx)
-  return (.con c targs.toList tdims, .data ctor.data k ps)
+  let ty : Val := .data ctor.data k ps
+  -- the data type with its parameters, for the certified kernel's translation
+  let tc : Tm := .con c targs.toList tdims
+  let tc ← if ps.isEmpty then pure tc else pure (.ann tc (← quote ctx.qctx ty))
+  return (tc, ty)
 
 partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
   match t with
@@ -678,15 +683,16 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
   | .ann t a =>
     let (ta, _) ← inferType ctx a
     let av ← eval ctx.env ta
+    -- the ascription is kept for the certified kernel's translation
     match stripLoc t, ta, av with
-    | .glue .., .glueTy .., .glueTy .. => return (← check ctx t av, av)
-    | .glue .., .glueTy .., _ => return ((← inferAnnGlue ctx t a).1, av)
-    | _, _, _ => return (← check ctx t av, av)
+    | .glue .., .glueTy .., .glueTy .. => return (.ann (← check ctx t av) ta, av)
+    | .glue .., .glueTy .., _ => return (.ann (← inferAnnGlue ctx t a).1 ta, av)
+    | _, _, _ => return (.ann (← check ctx t av) ta, av)
   | .letE x tyR t b =>
     let (tt, a) ← inferLet ctx tyR t
     let vt ← eval ctx.env tt
     let (tb, bTy) ← infer (ctx.define x a vt) b
-    return (.letE x tt tb, bTy)
+    return (.letE x (.ann tt (← quote ctx.qctx a)) tb, bTy)
   | .pair a b =>
     let (ta, aTy) ← infer ctx a
     let (tb, bTy) ← infer ctx b
@@ -702,7 +708,8 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
     let a ← eval ctx.env ta
     let (ctx', _) := ctx.bindVar (plainName x) a
     let (tb, bTy) ← infer ctx' b
-    return (.lam x tb, .pi x a ctx.env (← quote ctx'.qctx bTy))
+    let qb ← quote ctx'.qctx bTy
+    return (.ann (.lam x tb) (.pi x ta qb), .pi x a ctx.env qb)
   | .lam _ none _ => err ctx "cannot infer the type of a lambda; annotate the binder"
   | .glue .. => err ctx "cannot infer the type of glue; add a type annotation"
   | .izero | .ione | .ineg _ | .iand .. | .ior .. | .ieq .. =>
