@@ -48,7 +48,8 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
     -- the base and the equivalence of the Glue line, which the rule takes as premises
     let ⟨l, ⟨hA⟩⟩ ← inferType R E.dext A
     let ⟨he⟩ ← checkEquiv R E.dext A ψ T' e l
-    pure (some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht hA he (I.entails_refl _) (I.entails_refl _)⟩)
+    let ⟨hδ⟩ ← ensureScoped ψ.forall0 Ψ
+    pure (some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht hA he hδ (I.entails_refl _) (I.entails_refl _)⟩)
   | .ipi A, ht => pure (some ⟨Tm.transpIPi A φ a, EqTm.transpIPi ht⟩)
   | .data d ps, ht => do
     let ⟨D, ⟨hS⟩⟩ ← lookupData S d
