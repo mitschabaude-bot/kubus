@@ -1,6 +1,7 @@
 import Model.Interp
 import Model.UnivHc
 import Model.Tower
+import Model.DataRestr
 
 /-!
 # The empty type, well-formed codes, universes
@@ -100,6 +101,9 @@ inductive WFI (U : ℕ → ℕ → V) (l : ℕ) : ℕ → V → Prop
         dat ep k f ∈ El (equivCode k (dat Tp k f) (res f A)) (Hom.id k)) →
       (∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat ep k f) = dat ep n (f.comp h)) →
       WFI U l m (glueC m A φ Tp ep)
+  | data {m} (Θ : SData m) : Θ.GoodCore →
+      (∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → WFI U l n (Θ.ty c j n g pre)) →
+      WFI U l m (dataC Θ)
 
 /-- The universe codes below a level bound. -/
 def Ucodes : ℕ → ℕ → ℕ → V

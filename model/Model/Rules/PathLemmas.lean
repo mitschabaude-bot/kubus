@@ -61,6 +61,7 @@ theorem WF.path_inv {l : ℕ} {L a0 a1 : V} (hL : IsKV (m + 1) L) (ha0 : IsKV m 
   | ipi => simp [tIPi, tPath] at htag
   | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tPath] at htag
   | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tPath] at htag
+  | data => simp [tData, tPath] at htag
 
 /-- What a path type in a universe gives at a point. -/
 theorem SemTy.path_at {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A a b : Tm} {l : ℕ}
@@ -206,6 +207,7 @@ theorem WF.ipi_inv {l : ℕ} {L : V} (hL : IsKV (m + 1) L) (h : WF l m (ipiC m L
     exact hL'
   | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tIPi] at htag
   | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tIPi] at htag
+  | data => simp [tData, tIPi] at htag
 
 theorem mem_El_ipiC {L v : V} (hL : IsKV (m + 1) L) :
     v ∈ El (ipiC m L) (Hom.id m) ↔ ∃ p ∈ El L (Hom.id (m + 1)), v = pathOfLine m p := by

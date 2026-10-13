@@ -26,6 +26,9 @@ variable {S : Sig} {k m n : ℕ}
 /-- The tag of a code at its own stage. -/
 def codeTag (m : ℕ) (c : V) : V := π1 (shapeOf c (Hom.id m))
 
+@[simp] theorem codeTag_dataC (Θ : SData m) : codeTag m (dataC Θ) = natZ tData := by
+  simp [codeTag, shapeOf_dataC, tagZ]
+
 @[simp] theorem codeTag_emptyC : codeTag m (emptyC m) = natZ tEmpty := by
   simp [codeTag, emptyC, emptyDatum, tagZ]
 
@@ -70,6 +73,7 @@ theorem WF.univ_lt {l l' : ℕ} (h : WF l' m (univC m l)) : l < l' := by
   | @univ _ l'' hl'' =>
     rw [Ucodes_lt m hl''] at hc; rw [univC_level_inj hc]; exact hl''
   | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tUniv] at htag
+  | data => simp [tData, tUniv] at htag
 
 /-! ### Good codes -/
 
@@ -510,6 +514,7 @@ theorem WF.pi_inv {l : ℕ} {A B : V} (hA : IsKV m A) (hB : IsKV m B) (h : WF l 
   | ipi => simp [tIPi, tPi] at htag
   | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tPi] at htag
   | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tPi] at htag
+  | data => simp [tData, tPi] at htag
 
 end
 
@@ -739,6 +744,7 @@ theorem WF.sigma_inv {l : ℕ} {A B : V} (hA : IsKV m A) (hB : IsKV m B) (h : WF
   | ipi => simp [tIPi, tSigma] at htag
   | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tSigma] at htag
   | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tSigma] at htag
+  | data => simp [tData, tSigma] at htag
 
 theorem TyCode.sigma_inv {A B : V} (h : TyCode m (sigmaC m A B)) :
     ∃ l ≤ maxLevel, sigmaC m A B ∈ Vt l ∧ WF l m (sigmaC m A B) := by

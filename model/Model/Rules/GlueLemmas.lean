@@ -252,6 +252,7 @@ theorem WF.glue_inv {l : ℕ} {A : V} {φ : Cof m} {Tp ep : V} (hn : ¬ φ.holds
   | path => simp [codeTag, pathC, pathDatum, tagZ, tPath, tGlue] at htag
   | ipi => simp [codeTag, ipiC, ipiDatum, tagZ, tIPi, tGlue] at htag
   | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tGlue] at htag
+  | data => simp [tData, tGlue] at htag
   | @glue _ A' φ' Tp' ep' hA' hφ' hn' _ _ _ _ _ _ =>
     have h1 := congrArg (fun c => shapeOf c (Hom.id m)) hc
     simp only at h1

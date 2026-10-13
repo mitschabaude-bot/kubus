@@ -63,9 +63,8 @@ def SData.ArgsTyped (Θ : SData m) (c : ℕ) (C : Ctor) (n : ℕ) (g : Hom n m) 
   args.length = C.args.length ∧ (∀ j a, args[j]? = some a → C.isRec j = true → DElem Θ n g a) ∧
     (∀ j a, args[j]? = some a → C.isRec j = false → a ∈ El (Θ.ty c j n g (args.take j)) (Hom.id n))
 
-/-- A well-formed semantic inductive type. -/
-structure SData.Good (Θ : SData m) : Prop where
-  fib : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → Fib (Θ.ty c j n g pre) n
+/-- A well-formed semantic inductive type, apart from the fibrancy of its argument types. -/
+structure SData.GoodCore (Θ : SData m) : Prop where
   nat : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → ∀ n' (h : Hom n' n),
     res h (Θ.ty c j n g pre) = Θ.ty c j n' (g.comp h) (pre.map (res h))
   recIrr : ∀ c j n (g : Hom n m) pre pre', pre.length = pre'.length →
@@ -77,6 +76,10 @@ structure SData.Good (Θ : SData m) : Prop where
     ∀ n (g : Hom n m) args (rs : List (DM n)), Θ.ArgsTyped c C n g args → rs.length = C.dims →
       (ival (renv rs) ψ).holds → (ival (renv rs) ψ').holds →
       evalBnd (conBefore Θ.ctors c n) args rs b = evalBnd (conBefore Θ.ctors c n) args rs b'
+
+/-- A well-formed semantic inductive type. -/
+structure SData.Good (Θ : SData m) : Prop extends Θ.GoodCore where
+  fib : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → Fib (Θ.ty c j n g pre) n
 
 namespace SData.Good
 
