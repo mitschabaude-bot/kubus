@@ -74,6 +74,7 @@ structure SData.GoodCore (Θ : SData m) : Prop where
   bnd : ∀ c C, Θ.ctors[c]? = some C → ∀ ψ b, (ψ, b) ∈ C.bnd → ∀ n (rs : List (DM n)),
     (ival (renv rs) ψ).holds → BTy Θ c C b
   const : Θ.params = false → ∀ c j n (g g' : Hom n m) pre, Θ.ty c j n g pre = Θ.ty c j n g' pre
+  nonhit : Θ.hit = false → ∀ (c : ℕ) (C : Ctor), Θ.ctors[c]? = some C → C.dims = 0 ∧ C.bnd = []
   ovl : ∀ c C, Θ.ctors[c]? = some C → ∀ ψ b ψ' b', (ψ, b) ∈ C.bnd → (ψ', b') ∈ C.bnd →
     ∀ n (g : Hom n m) args (rs : List (DM n)), Θ.ArgsTyped c C n g args → rs.length = C.dims →
       (ival (renv rs) ψ).holds → (ival (renv rs) ψ').holds →

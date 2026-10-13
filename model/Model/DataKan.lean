@@ -1,4 +1,5 @@
 import Model.DataSmall
+import Model.CompFill
 import Mathlib.SetTheory.ZFC.Rank
 
 /-!
@@ -115,6 +116,35 @@ def elimD (Θ : SData m) (P : (n : ℕ) → Hom n m → V → V) (bs : (k : ℕ)
 termination_by ZFSet.rank v
 decreasing_by all_goals first | assumption | (simp_wf; assumption) | simp_all
 
+/-- Composition in an inductive type without path constructors, as a relation:
+`HR Θ k g φ u v w` says that the composition of the tube `u` with base `v` is `w`. On a tube,
+every value is a constructor value with the base's constructor (`ua`: the tube's arguments), and
+the composition is componentwise (the spec's `Tm.hcompTele`): recursive arguments compose in the
+inductive type, point arguments along their type lines, whose earlier arguments are the fillers
+of the earlier arguments (`fills`; those at recursive positions are irrelevant). -/
+inductive HR (Θ : SData m) : (k : ℕ) → Hom k m → Cof k → Tube k → V → V → Prop
+  | con {k : ℕ} {g : Hom k m} {φ : Cof k} {u : Tube k} {c : ℕ} {args outs fills : List V}
+      {ua : (n : ℕ) → Hom n k → DM n → List V} :
+      bndAtMap (Θ.ctors.getD c default) ([] : List (DM k)) (Hom.id k) = none → (∀ a ∈ args, IsKV k a) →
+      (∀ n (h : Hom n k) r, (φ.restr h).holds →
+        u n h r = conV Θ.ctors n c (ua n h r) [] ∧ (ua n h r).length = args.length ∧
+          ∀ a ∈ ua n h r, IsKV n a) →
+      outs.length = args.length → fills.length = args.length →
+      (∀ j (hj : j < args.length), (Θ.ctors.getD c default).isRec j = true →
+        HR Θ k g φ (fun n h r => (ua n h r).getD j ∅) args[j] (outs.getD j ∅)) →
+      (∀ j (hj : j < args.length), (Θ.ctors.getD c default).isRec j = false →
+        outs.getD j ∅ = compF (Θ.ty c j (k + 1) (g.comp (Hom.wk k)) (fills.take j)) (Hom.id (k + 1)) φ
+          (fun n h r => (ua n h r).getD j ∅) args[j] ∧
+        fills.getD j ∅ = fillF (Θ.ty c j (k + 1) (g.comp (Hom.wk k)) (fills.take j)) (Hom.id (k + 1)) φ
+          (fun n h r => (ua n h r).getD j ∅) args[j]) →
+      HR Θ k g φ u (conV Θ.ctors k c args []) (conV Θ.ctors k c outs [])
+
+/-- Composition in an inductive type: formal for higher inductive types, componentwise
+(`HR`) otherwise. -/
+def hcD (Θ : SData m) (k : ℕ) (g : Hom k m) (φ : Cof k) (u : Tube k) (a : V) : V :=
+  if Θ.hit then hcV k φ u a
+  else if h : ∃ w, HR Θ k g φ u a w then Classical.choose h else a
+
 /-! ### The code of an inductive type -/
 
 section code
@@ -136,8 +166,9 @@ def dataTr : (k : ℕ) → SData k → V
 
 /-- The datum of the inductive type `Λ` at its own stage. -/
 def dataDatum (Λ : SData k) : V :=
-  quad (tagZ tData (shapeV Λ)) (delemSet Λ k (Hom.id k)) (dataTr k Λ)
-    (hcGraph k (fun n g => delemSet Λ n g) fun φ u a => hcV k φ u a)
+  quad (tagZ tData (ZFSet.pair (natZ Λ.idx) (ZFSet.pair (Λ.pv k (Hom.id k)) (shapeV Λ)))) (delemSet Λ k (Hom.id k))
+    (dataTr k Λ)
+    (hcGraph k (fun n g => delemSet Λ n g) fun φ u a => hcD Λ k (Hom.id k) φ u a)
 
 /-- The code of the inductive type `Θ` at stage `m`. -/
 def dataC (Θ : SData m) : V := mkKV m fun k f => dataDatum (Θ.restr f)

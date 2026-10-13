@@ -164,7 +164,7 @@ theorem elimD_typed (hG : ∀ c C, Θ.ctors[c]? = some C → ElimConEq Θ P bs c
   induction hv with
   | @con n g c C args rs hC hlen hrs hrec hpt ih =>
     exact elimD_conV_props hΘ P bs hP hPn hB hC (hG c C hC) hlen hrs hrec hpt ih
-  | @hcomp n g φ u a hφ ha hu hcoh hbase iha ihu =>
+  | @hcomp n g φ u a hH hφ ha hu hcoh hbase iha ihu =>
     have hfib := fib_dataC hΘ
     have hu0 : a ∈ El (dataC Θ) g := mem_El_dataC.2 ha
     have hut : TubeOK (dataC Θ) g φ u a :=
@@ -180,7 +180,7 @@ theorem elimD_typed (hG : ∀ c C, Θ.ctors[c]? = some C → ElimConEq Θ P bs c
     · -- the hfill of the composition
       set W := hfillF (dataC Θ) g φ u a with hW
       have hWv : hcV (n + 1) (fillFace φ) (fillTube φ u a) (res (Hom.wk n) a) = W := by
-        rw [hW, hfillF, hcompAt_dataC (fillTube_ok hfib hφ hu0 hut) (hfib.elRes _ _ a hu0 _ _)]
+        rw [hW, hfillF, hcompAt_dataC hH (fillTube_ok hfib hφ hu0 hut) (hfib.elRes _ _ a hu0 _ _)]
         exact hcV_congr _ fun n' h r hh' => by simp [Tube.canon, hh']
       have hWd : DElem Θ (n + 1) (g.comp (Hom.wk n)) W := mem_El_dataC.1 (hfillF_mem hfib hφ hu0 hut)
       have hka : IsKV n a := ha.kv
@@ -205,7 +205,7 @@ theorem elimD_typed (hG : ∀ c C, Θ.ctors[c]? = some C → ElimConEq Θ P bs c
       refine ⟨?_, fun n' h => ?_⟩
       · have := compF_mem hL hφ hb0 htube
         rw [hLres, Hom.wk_comp_endpt, Hom.comp_id, hW, hfillF_endpt1 hfib hφ hu0 hut,
-          hcompAt_dataC hut hu0] at this
+          hcompAt_dataC hH hut hu0] at this
         rwa [show hcV n φ (Tube.canon φ u) a = hcV n φ u a from
           hcV_congr a (fun n' h r hh' => by simp [Tube.canon, hh'])] at this
       · rw [compF_res hL hφ hb0 htube h, res_hcV]
@@ -222,7 +222,7 @@ theorem elimD_typed (hG : ∀ c C, Θ.ctors[c]? = some C → ElimConEq Θ P bs c
               (res (Hom.wk n') (res h a)) = res (Hom.lift h) W := by
             have hu0' : res h a ∈ El (dataC Θ) (g.comp h) := hfib.elRes _ _ a hu0 _ h
             rw [hW, hfillF_natural hfib hφ hu0 hut h, hfillF,
-              hcompAt_dataC (fillTube_ok hfib (hφ.restr h) hu0' (hut.restr h)) (hfib.elRes _ _ _ hu0' _ _)]
+              hcompAt_dataC hH (fillTube_ok hfib (hφ.restr h) hu0' (hut.restr h)) (hfib.elRes _ _ _ hu0' _ _)]
             exact (hcV_congr _ fun n'' h'' r hh'' => by simp [Tube.canon, hh'']).symm
           rw [hW', Hom.id_comp, hPn _ _ W hWd (n' + 1) (Hom.lift h), Hom.comp_assoc, Hom.wk_comp_lift]
           rfl
@@ -254,7 +254,7 @@ theorem elimD_congr : ∀ {n : ℕ} {g : Hom n m} {v : V}, DElem Θ n g v → el
     rw [List.mem_filter, List.mem_range] at hj'
     rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega), Option.getD_some]
     exact ih j _ (List.getElem?_eq_getElem (by omega)) hj'.2
-  | @hcomp n g φ u a hφ ha hu hcoh hbase iha ihu =>
+  | @hcomp n g φ u a hH hφ ha hu hcoh hbase iha ihu =>
     have hfib := fib_dataC hΘ
     have hu0 : a ∈ El (dataC Θ) g := mem_El_dataC.2 ha
     have hut : TubeOK (dataC Θ) g φ u a :=
@@ -266,7 +266,7 @@ theorem elimD_congr : ∀ {n : ℕ} {g : Hom n m} {v : V}, DElem Θ n g v → el
       have := ihu n (Hom.id n) (DM.one n) hid
       simpa only [Hom.comp_id] using this
     · have hWv : hcV (n + 1) (fillFace φ) (fillTube φ u a) (res (Hom.wk n) a) = hfillF (dataC Θ) g φ u a := by
-        rw [hfillF, hcompAt_dataC (fillTube_ok hfib hφ hu0 hut) (hfib.elRes _ _ a hu0 _ _)]
+        rw [hfillF, hcompAt_dataC hH (fillTube_ok hfib hφ hu0 hut) (hfib.elRes _ _ a hu0 _ _)]
         exact hcV_congr _ fun n' h r hh' => by simp [Tube.canon, hh']
       have hWd : DElem Θ (n + 1) (g.comp (Hom.wk n)) (hcV (n + 1) (fillFace φ) (fillTube φ u a) (res (Hom.wk n) a)) := by
         rw [hWv]; exact mem_El_dataC.1 (hfillF_mem hfib hφ hu0 hut)

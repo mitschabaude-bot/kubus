@@ -45,14 +45,17 @@ theorem SData.GoodCore.restr {Θ : SData m} (hΘ : Θ.GoodCore) (h : Hom k m) : 
   recIrr c j n g pre pre' hl he := hΘ.recIrr c j n (h.comp g) pre pre' hl he
   bnd c C hC ψ b hb n rs hh := (bty_restr Θ h c C b).1 (hΘ.bnd c C hC ψ b hb n rs hh)
   const hp c j n g g' pre := hΘ.const hp c j n (h.comp g) (h.comp g') pre
+  nonhit := hΘ.nonhit
   ovl c C hC ψ b ψ' b' hb hb' n g args rs ht hrs h1 h2 :=
     hΘ.ovl c C hC ψ b ψ' b' hb hb' n (h.comp g) args rs ((argsTyped_restr_iff Θ h g args).1 ht) hrs h1 h2
 
 theorem SData.Good.restr {Θ : SData m} (hΘ : Θ.Good) (h : Hom k m) : (Θ.restr h).Good :=
   { hΘ.toGoodCore.restr h with fib := fun c j n g pre hp => hΘ.fib c j n (h.comp g) pre hp }
 
-theorem shapeOf_dataC (Θ : SData m) : shapeOf (dataC Θ) (Hom.id m) = tagZ tData (shapeV (Θ.restr (Hom.id m))) := by
+theorem shapeOf_dataC (Θ : SData m) : shapeOf (dataC Θ) (Hom.id m) =
+    tagZ tData (ZFSet.pair (natZ Θ.idx) (ZFSet.pair (Θ.pv m (Hom.id m)) (shapeV (Θ.restr (Hom.id m))))) := by
   rw [dataC, shapeOf_mkKV, dataDatum, π1_quad]
+  simp [SData.restr]
 
 end
 

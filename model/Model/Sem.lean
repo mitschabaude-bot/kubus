@@ -78,6 +78,9 @@ def dataSD (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) : SData m where
   ctors := D.ctors
   params := !D.params.isEmpty
   ty c j n g pre := argTySem σ D d c j n (ps n g) pre
+  idx := d
+  pv := ps
+  hit := D.isHIT
 
 /-- A constructor term denotes a constructor value only at valid parameters and typed arguments
 of the right number. -/
@@ -221,8 +224,9 @@ semantic data is well-formed and its argument types are well-formed codes of the
 def DataOK (S : Sig) (d : ℕ) (D : DataDecl) : Prop :=
   DataSyn d D ∧ ∀ m (ps : RV m), ParamsOK (sigUpTo S d) D m ps →
     (dataSD (sigUpTo S d) D d m ps).Good ∧
-    ∀ c j n (g : Hom n m) pre, (dataSD (sigUpTo S d) D d m ps).ty c j n g pre ∈ Vt D.level ∧
-      ((dataSD (sigUpTo S d) D d m ps).PtValid c n g pre → WF D.level n ((dataSD (sigUpTo S d) D d m ps).ty c j n g pre))
+    (∀ c j n (g : Hom n m) pre, (dataSD (sigUpTo S d) D d m ps).ty c j n g pre ∈ Vt D.level ∧
+      ((dataSD (sigUpTo S d) D d m ps).PtValid c n g pre → WF D.level n ((dataSD (sigUpTo S d) D d m ps).ty c j n g pre))) ∧
+    ∀ n (g : Hom n m), ps n g ∈ Vt D.level
 
 /-- The signature is semantically valid: every definition is well-typed in the model, and every
 inductive type is valid. -/

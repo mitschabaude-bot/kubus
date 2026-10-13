@@ -1,4 +1,5 @@
 import Model.Rules.Stubs
+import Model.Rules.DataHcomp
 
 /-!
 # Soundness and consistency
@@ -76,6 +77,7 @@ theorem sound_eqtele {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {as
     EqTele S Ψ Φ Γ as as' Δ prev → SemEqTele S Ψ Φ Γ as as' Δ prev
   | .nil h0 => sem_EqTele_nil (sound_wf hS h0)
   | .cons h0 h1 => sem_EqTele_cons (sound_eq hS h0) (sound_eqtele hS h1)
+  | .dataInj h0 h1 h2 h3 => sem_EqTele_dataInj h0 (sound_tele hS h1) (sound_tele hS h2) (sound_eq hS h3)
 
 theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A : Tm} : EqTm S Ψ Φ Γ t u A → SemEq S Ψ Φ Γ t u A
   | .refl h0 => sem_EqTm_refl (sound_ty hS h0)
@@ -129,7 +131,7 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
   | .transpPi h0 => sem_EqTm_transpPi (sound_ty hS h0)
   | .transpSigma h0 => sem_EqTm_transpSigma (sound_ty hS h0)
   | .transpPath h0 => sem_EqTm_transpPath (sound_ty hS h0)
-  | .transpGlue h0 h1 h2 h3 h4 => sem_EqTm_transpGlue (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2) h3 h4
+  | .transpGlue h0 h1 h2 _ h3 h4 => sem_EqTm_transpGlue (sound_ty hS h0) (sound_ty hS h1) (sound_ty hS h2) h3 h4
   | .transpIPi h0 => sem_EqTm_transpIPi (sound_ty hS h0)
   | .hcompIPi h0 => sem_EqTm_hcompIPi (sound_ty hS h0)
   | .hcompPi h0 => sem_EqTm_hcompPi (sound_ty hS h0)
@@ -140,7 +142,20 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
   | .glueFace h0 h1 => sem_EqTm_glueFace h0 (sound_ty hS h1)
   | .glueElFace h0 h1 => sem_EqTm_glueElFace h0 (sound_ty hS h1)
   | .unglueFace h0 h1 h2 h3 => sem_EqTm_unglueFace h0 (sound_ty hS h1) (sound_ty hS h2) (sound_ty hS h3)
-  | .glueBeta h0 => sem_EqTm_glueBeta (sound_ty hS h0)
+  | .glueBeta h0 _ => sem_EqTm_glueBeta (sound_ty hS h0)
+  | .piInjDom h0 => sem_EqTm_piInjDom (sound_eq hS h0)
+  | .piInjCod h0 h1 => sem_EqTm_piInjCod (sound_eq hS h0) (sound_ty hS h1)
+  | .sigmaInjDom h0 => sem_EqTm_sigmaInjDom (sound_eq hS h0)
+  | .sigmaInjCod h0 h1 => sem_EqTm_sigmaInjCod (sound_eq hS h0) (sound_ty hS h1)
+  | .pathInjLine h0 h1 => sem_EqTm_pathInjLine (sound_eq hS h0) h1
+  | .pathInjLeft h0 => sem_EqTm_pathInjLeft (sound_eq hS h0)
+  | .pathInjRight h0 => sem_EqTm_pathInjRight (sound_eq hS h0)
+  | .ipiInj h0 h1 => sem_EqTm_ipiInj (sound_eq hS h0) h1
+  | .dataInjAt h0 h1 h2 h3 h4 h5 h6 h7 h8 => sem_EqTm_dataInjAt h0 h1 h2 (sound_eq hS h3) h4 h5
+      (sound_ty hS h7) (sound_ty hS h8)
+  | .noConf h0 h1 h2 h3 => sem_EqTm_noConf h0 (sound_eq hS h1) (sound_ty hS h2) (sound_ty hS h3)
+  | .hcompCon h0 h1 h2 hpl hal hul h3 h4 h5 h6 h7 => sem_EqTm_hcompCon hS h0 h1 h2 hpl hal hul (sound_tele hS h3)
+      (sound_tele hS h4) (sound_eq hS h5) (sound_eqtele hS h6) (sound_ty hS h7)
   | .glueEta h0 => sem_EqTm_glueEta (sound_ty hS h0)
   | .data h0 h1 h2 h3 => sem_EqTm_data hS h0 (sound_ty hS h1) (sound_ty hS h2) (sound_eqtele hS h3)
   | .con h0 h1 h2 h3 h4 h5 h6 h7 => sem_EqTm_con hS h0 h1 (sound_ty hS h2) (sound_ty hS h3)
@@ -149,10 +164,10 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
       (sound_eq hS h4) hbl hbl' h5 (fun c C b b' e1 e2 e3 => sound_eq hS (h6 c C b b' e1 e2 e3)) (sound_eq hS h7)
   | .conBnd h0 h1 h2 h3 hpl hal h4 => sem_EqTm_conBnd hS h0 h1 h2 h3 hpl hal (sound_ty hS h4)
   | .elimCon h0 h1 h2 hpl hal hbl hat h3 => sem_EqTm_elimCon hS h0 h1 h2 hpl hal hbl (sound_tele hS hat) (sound_ty hS h3)
-  | .elimHcomp hd hh h0 => sem_EqTm_elimHcomp hS hd (sound_ty hS hh) (sound_ty hS h0)
+  | .elimHcomp hd hH hh h0 => sem_EqTm_elimHcomp hS hd hH (sound_ty hS hh) (sound_ty hS h0)
   | .transpData0 h0 h1 h2 => sem_EqTm_transpData0 hS h0 h1 (sound_ty hS h2)
   | .transpCon h0 h1 h2 hpl hal hat h3 => sem_EqTm_transpCon hS h0 h1 h2 hpl hal (sound_tele hS hat) (sound_ty hS h3)
-  | .transpHcomp h0 h1 hh h2 => sem_EqTm_transpHcomp hS h0 h1 (sound_ty hS hh) (sound_ty hS h2)
+  | .transpHcomp h0 h1 hH hh h2 => sem_EqTm_transpHcomp hS h0 h1 hH (sound_ty hS hh) (sound_ty hS h2)
 
 end
 

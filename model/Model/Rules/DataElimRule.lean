@@ -35,7 +35,7 @@ theorem psRV_restr (t : Tm) (ρ : IEnv m) (γ : ℕ → V) (f : Hom k m) :
 
 theorem dataSD_restr (σ : SigV) (D : DataDecl) (d : ℕ) (ps : Tm) (ρ : IEnv m) (γ : ℕ → V) (f : Hom k m) :
     dataSD σ D d k (psRV S ps k (ρ.restr f) (TEnv.restr γ f)) = (dataSD σ D d m (psRV S ps m ρ γ)).restr f := by
-  simp only [dataSD, SData.restr, psRV, IEnv.restr_restr, TEnv.restr_restr]
+  rw [psRV_restr]; rfl
 
 
 theorem sem_apps_of_nat {ρ : IEnv m} {γ : ℕ → V} : ∀ (ts : List Tm) (f : Tm), (∀ t ∈ ts, Natural S t m ρ γ) →

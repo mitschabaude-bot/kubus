@@ -351,7 +351,7 @@ theorem delem_stage {Θ : SData m} {n : ℕ} {g : Hom n m} {v : V} (h : DElem Θ
       · contradiction
     · rename_i hnr
       exact hpt i args[i] (List.getElem?_eq_getElem hi) (by simpa using hnr)
-  | @hcomp n g φ u a hφ ha hu hcoh hbase iha ihu =>
+  | @hcomp n g φ u a hH hφ ha hu hcoh hbase iha ihu =>
     let f : TubeDom n → Ordinal.{0} := fun y =>
       if hy : (φ.restr y.2.1).holds then Classical.choose (ihu y.1 y.2.1 y.2.2 hy) else 0
     have hf : ∀ y, f y < omega1 := fun y => by

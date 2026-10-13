@@ -188,10 +188,16 @@ structure SData (m : ℕ) where
   ctors : List Ctor
   params : Bool
   ty : ℕ → ℕ → (n : ℕ) → Hom n m → List V → V
+  /-- The index of the inductive type in the signature (recorded in its code). -/
+  idx : ℕ
+  /-- The parameter values, at all restrictions (recorded in its code). -/
+  pv : (n : ℕ) → Hom n m → V
+  /-- Whether it is a higher inductive type (only these have formal compositions). -/
+  hit : Bool
 
 /-- Restriction of a semantic inductive type. -/
 def SData.restr (Θ : SData m) (h : Hom k m) : SData k :=
-  { Θ with ty := fun c j n g pre => Θ.ty c j n (h.comp g) pre }
+  { Θ with ty := fun c j n g pre => Θ.ty c j n (h.comp g) pre, pv := fun n g => Θ.pv n (h.comp g) }
 
 /-- The elements of an inductive type, at the restriction `g` of its stage: the least set of
 Kripke values closed under the constructors (with typed arguments) and formal composition.
@@ -202,7 +208,7 @@ inductive DElem (Θ : SData m) : (n : ℕ) → Hom n m → V → Prop
       (∀ j a, args[j]? = some a → C.isRec j = true → DElem Θ n g a) →
       (∀ j a, args[j]? = some a → C.isRec j = false → a ∈ El (Θ.ty c j n g (args.take j)) (Hom.id n)) →
       DElem Θ n g (conV Θ.ctors n c args rs)
-  | hcomp {n : ℕ} {g : Hom n m} {φ : Cof n} {u : Tube n} {a : V} : φ.IsCof → DElem Θ n g a →
+  | hcomp {n : ℕ} {g : Hom n m} {φ : Cof n} {u : Tube n} {a : V} : Θ.hit = true → φ.IsCof → DElem Θ n g a →
       (∀ n' (h : Hom n' n) r, (φ.restr h).holds → DElem Θ n' (g.comp h) (u n' h r)) →
       (∀ n' (h : Hom n' n) r, (φ.restr h).holds → ∀ n'' (h' : Hom n'' n'),
         res h' (u n' h r) = u n'' (h.comp h') (r.restr h')) →
@@ -251,10 +257,10 @@ theorem DElem.res {Θ : SData m} (hΘ : Θ.ResClosed) {n : ℕ} {g : Hom n m} {v
       obtain ⟨a0, ha0, rfl⟩ := Option.map_eq_some_iff.1 ha
       rw [← List.map_take]
       exact hΘ c j n g _ a0 (SData.ptValid_take hC hpt j) (hpt j a0 ha0 hj) n' h
-  | @hcomp n g φ u a hφ ha hu hcoh hbase iha ihu =>
+  | @hcomp n g φ u a hH hφ ha hu hcoh hbase iha ihu =>
     intro n' h
     rw [res_hcV]
-    refine DElem.hcomp (hφ.restr h) (iha n' h) (fun n₁ h₁ r hh => ?_) (fun n₁ h₁ r hh n₂ h₂ => ?_)
+    refine DElem.hcomp hH (hφ.restr h) (iha n' h) (fun n₁ h₁ r hh => ?_) (fun n₁ h₁ r hh n₂ h₂ => ?_)
       (fun n₁ h₁ hh => ?_)
     · rw [Cof.restr_restr] at hh; exact hu n₁ (h.comp h₁) r hh
     · rw [Cof.restr_restr] at hh; exact hcoh n₁ (h.comp h₁) r hh n₂ h₂
@@ -267,7 +273,7 @@ theorem delem_restr_iff (Θ : SData m) (h : Hom k m) {n : ℕ} (g : Hom n k) (v 
   · intro hv
     induction hv with
     | con hC hlen hrs _ hpt ih => exact DElem.con hC hlen hrs ih hpt
-    | hcomp hφ _ _ hcoh hbase iha ihu => exact DElem.hcomp hφ iha ihu hcoh hbase
+    | hcomp hH hφ _ _ hcoh hbase iha ihu => exact DElem.hcomp hH hφ iha ihu hcoh hbase
   · intro hv
     suffices ∀ g', DElem Θ n g' v → ∀ g, g' = h.comp g → DElem (Θ.restr h) n g v from this _ hv g rfl
     clear hv g
@@ -276,9 +282,9 @@ theorem delem_restr_iff (Θ : SData m) (h : Hom k m) {n : ℕ} (g : Hom n k) (v 
     | con hC hlen hrs _ hpt ih =>
       intro g e; subst e
       exact DElem.con hC hlen hrs (fun j a ha hj => ih j a ha hj g rfl) hpt
-    | hcomp hφ _ _ hcoh hbase iha ihu =>
+    | hcomp hH hφ _ _ hcoh hbase iha ihu =>
       intro g e; subst e
-      exact DElem.hcomp hφ (iha g rfl) (fun n₁ h₁ r hh => ihu n₁ h₁ r hh (g.comp h₁) rfl) hcoh hbase
+      exact DElem.hcomp hH hφ (iha g rfl) (fun n₁ h₁ r hh => ihu n₁ h₁ r hh (g.comp h₁) rfl) hcoh hbase
 
 end
 
