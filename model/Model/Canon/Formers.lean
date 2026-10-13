@@ -206,6 +206,161 @@ theorem RT_sigma_intro {A B : Tm} {l : ℕ} (hsig : HasTy S k .one [] (.sigma A 
   refine ⟨hA k' σ, fun a ha => ?_⟩
   rw [fam_code_eq hW hA0 σ ha]; exact hB k' σ a ha
 
+theorem kv_semK_of_ty {t A : Tm} (h : HasTy S k .one [] t A) : IsKV k (semK S k t) := by
+  have := natural_of_ty hW h k (Hom.id k)
+  rw [IEnv.restr_id, γ0_restr] at this
+  show IsKV k (sem S t k (idEnv k) (γ0 k))
+  rw [this]; exact isKV_res _ _
+
+omit hW in
+theorem isub_up_dinst (L : Tm) (σ : ISub k' k) (r : I) (hr : r.Scoped k') :
+    (L.isub σ.up).dinst r = L.isub (ISub.cons r hr σ) := by
+  have := dup_dinst L Tm.var σ.τ r
+  exact this
+
+omit hW in
+theorem lineV_idEnv (L : Tm) : lineV S L k (idEnv k) (γ0 k) = semK S (k + 1) L := by
+  simp only [lineV, semK, idEnv_ext, γ0_restr]
+
+theorem semK_pathT {L a b : Tm} {l : ℕ} (h : HasTy S k .one [] (.path L a b) (.univ l)) :
+    semK S k (.path L a b) = pathC k (semK S (k + 1) L) (semK S k a) (semK S k b) := by
+  have hL := HasTy.pathLine h
+  have e := sem_path (S := S) (A := L) (a := a) (b := b) (ρ := idEnv k) (γ := γ0 k)
+    (by rw [idEnv_ext, γ0_restr]; exact natural_of_ty hW hL)
+    (by rw [lineV_idEnv]; exact kv_semK_of_univ hW hL)
+    (kv_semK_of_ty hW (HasTy.pathLeft h)) (kv_semK_of_ty hW (HasTy.pathRight h))
+  rw [lineV_idEnv] at e
+  exact e
+
+theorem semK_ipiT {L : Tm} {l : ℕ} (h : HasTy S k .one [] (.ipi L) (.univ l)) :
+    semK S k (.ipi L) = ipiC k (semK S (k + 1) L) := by
+  have hL : HasTy S (k + 1) .one [] L (.univ l) :=
+    minimal_to_spec (HasTy0.ipiLine (sigClosed_of_wfSig hW) (spec_to_minimal hW h))
+  have e := sem_ipi (S := S) (A := L) (ρ := idEnv k) (γ := γ0 k)
+    (by rw [idEnv_ext, γ0_restr]; exact natural_of_ty hW hL)
+    (by rw [lineV_idEnv]; exact kv_semK_of_univ hW hL)
+  rw [lineV_idEnv] at e
+  exact e
+
+omit hW in
+theorem isub_dinst (L : Tm) (r : I) (σ : ISub k' k) : (L.dinst r).isub σ = (L.isub σ.up).dinst (r.subst σ.τ) := by
+  simp only [Tm.isub]; rw [dinst_subst]; rfl
+
+omit hW in
+theorem isub_cons_id_of_closed {L : Tm} {n : ℕ} (h : L.closedB n (k + 1) = true) (r : I) (hr : r.Scoped k) :
+    L.isub (ISub.cons r hr (ISub.id k)) = L.dinst r :=
+  closed_subst_eq L n (k + 1) _ _ _ _ h (fun _ _ => rfl) fun i hi => by
+    cases i with
+    | zero => rfl
+    | succ i => simp [ISub.cons, ISub.id, I.inst0, show i < k by omega]
+
+omit hW in
+theorem isub_up_id_of_closed {L : Tm} {n : ℕ} (h : L.closedB n (k + 1) = true) : L.isub (ISub.id k).up = L :=
+  closed_subst_id h (fun _ _ => rfl) fun i hi => by
+    cases i with
+    | zero => rfl
+    | succ i => simp only [ISub.up, ISub.id, I.up, if_pos (show i < k by omega)]; rfl
+
+theorem RE_path_intro {L a b p : Tm} {l : ℕ} (hpath : HasTy S k .one [] (.path L a b) (.univ l))
+    (hp : HasTy S k .one [] p (.path L a b))
+    (happ : ∀ k' (σ : ISub k' k) (r : I) (hr : r.Scoped k'), RE S k' ((L.isub σ.up).dinst r) (.papp (p.isub σ) r)) :
+    RE S k (.path L a b) p := by
+  have hL := HasTy.pathLine hpath
+  unfold RE
+  rw [semK_pathT hW hpath, Comp_pathC _ _ _ (semK_ne hW hL)]
+  refine ⟨hp, ?_, hp, L, a, b, TyEq.refl _, fun k' σ r hr => ?_⟩
+  · rw [← semK_pathT hW hpath, res_id (kv_semK_of_univ hW hpath)]; exact mem_of_ty hW hp
+  simp only [ISub.id_comp, Hom.lift_id, Hom.id_comp]
+  rw [Comp_res_el hW hL, ← isub_up_dinst]
+  exact happ k' σ r hr
+
+theorem RE_path_elim {L a b p : Tm} (hp : RE S k (.path L a b) p) (r : I) (hr : r.Scoped k) :
+    RE S k (L.dinst r) (.papp p r) := by
+  have hpt := (Comp_el_typed hp).1
+  obtain ⟨l, hpath⟩ := ty_of_tyEq hW (isTyK_of_ty hW hpt) (TyEq.refl _) (fun l h => by cases h)
+  have hL := HasTy.pathLine hpath
+  unfold RE at hp
+  rw [semK_pathT hW hpath, Comp_pathC _ _ _ (semK_ne hW hL)] at hp
+  obtain ⟨-, -, -, L1, b0, b1, hE, hall⟩ := hp
+  have hcl : (Tm.path L1 b0 b1).closedB 0 k = true := by
+    rcases hE with h | ⟨l', h⟩
+    · rw [← h]; exact closed_of_ty hW hpath
+    · exact closed_of_ty hW (HasTy.eqR h)
+  simp only [Tm.closedB, Bool.and_eq_true] at hcl
+  have hLL1 : TyEq S k (L1.dinst r) (L.dinst r) := by
+    rcases hE with h | ⟨l', h⟩
+    · cases h; exact TyEq.refl _
+    · exact .inr ⟨l', EqTm.symm (EqTm.pathInjLine h hr)⟩
+  have := hall k (ISub.id k) r hr
+  simp only [ISub.id_comp, Hom.lift_id, Hom.id_comp] at this
+  rw [Comp_res_el hW hL, isub_up_id_of_closed hcl.1.1, isub_cons_id_of_closed (closed_of_ty hW hL),
+    isub_id_of_closed (closed_of_ty hW hpt)] at this
+  exact (show RE S k (L1.dinst r) (.papp p r) from by
+    unfold RE; rwa [semK_tyEq hW hLL1]).conv_ty hW hLL1
+
+theorem RT_path_intro {L a b : Tm} {l : ℕ} (hpath : HasTy S k .one [] (.path L a b) (.univ l))
+    (hL : ∀ k' (σ : ISub k' k), RT S (k' + 1) (L.isub σ.up))
+    (ha : RE S k (L.dinst .zero) a) (hb : RE S k (L.dinst .one) b) : RT S k (.path L a b) := by
+  have hL0 := HasTy.pathLine hpath
+  unfold RT
+  rw [semK_pathT hW hpath, Comp_pathC _ _ _ (semK_ne hW hL0)]
+  refine ⟨⟨⟨l, .inl hpath⟩, ?_⟩, L, a, b, TyEq.refl _, fun k' σ => ?_⟩
+  · rw [← semK_pathT hW hpath, res_id (kv_semK_of_univ hW hpath)]
+  simp only [Hom.lift_id, Hom.id_comp, Comp_res_el hW hL0]
+  refine ⟨hL k' σ, ?_, ?_⟩
+  · rw [← isub_up_dinst]; have := ha.isub hW σ; rwa [isub_dinst] at this
+  · rw [← isub_up_dinst]; have := hb.isub hW σ; rwa [isub_dinst] at this
+
+theorem RE_ipi_intro {L p : Tm} {l : ℕ} (hipi : HasTy S k .one [] (.ipi L) (.univ l))
+    (hp : HasTy S k .one [] p (.ipi L))
+    (happ : ∀ k' (σ : ISub k' k) (r : I) (hr : r.Scoped k'), RE S k' ((L.isub σ.up).dinst r) (.papp (p.isub σ) r)) :
+    RE S k (.ipi L) p := by
+  have hL : HasTy S (k + 1) .one [] L (.univ l) :=
+    minimal_to_spec (HasTy0.ipiLine (sigClosed_of_wfSig hW) (spec_to_minimal hW hipi))
+  unfold RE
+  rw [semK_ipiT hW hipi, Comp_ipiC _ (semK_ne hW hL)]
+  refine ⟨hp, ?_, hp, L, TyEq.refl _, fun k' σ r hr => ?_⟩
+  · rw [← semK_ipiT hW hipi, res_id (kv_semK_of_univ hW hipi)]; exact mem_of_ty hW hp
+  simp only [ISub.id_comp, Hom.lift_id, Hom.id_comp]
+  rw [Comp_res_el hW hL, ← isub_up_dinst]
+  exact happ k' σ r hr
+
+theorem RE_ipi_elim {L p : Tm} (hp : RE S k (.ipi L) p) (r : I) (hr : r.Scoped k) :
+    RE S k (L.dinst r) (.papp p r) := by
+  have hpt := (Comp_el_typed hp).1
+  obtain ⟨l, hipi⟩ := ty_of_tyEq hW (isTyK_of_ty hW hpt) (TyEq.refl _) (fun l h => by cases h)
+  have hL : HasTy S (k + 1) .one [] L (.univ l) :=
+    minimal_to_spec (HasTy0.ipiLine (sigClosed_of_wfSig hW) (spec_to_minimal hW hipi))
+  unfold RE at hp
+  rw [semK_ipiT hW hipi, Comp_ipiC _ (semK_ne hW hL)] at hp
+  obtain ⟨-, -, -, L1, hE, hall⟩ := hp
+  have hcl : (Tm.ipi L1).closedB 0 k = true := by
+    rcases hE with h | ⟨l', h⟩
+    · rw [← h]; exact closed_of_ty hW hipi
+    · exact closed_of_ty hW (HasTy.eqR h)
+  simp only [Tm.closedB] at hcl
+  have hLL1 : TyEq S k (L1.dinst r) (L.dinst r) := by
+    rcases hE with h | ⟨l', h⟩
+    · cases h; exact TyEq.refl _
+    · exact .inr ⟨l', EqTm.symm (EqTm.ipiInj h hr)⟩
+  have := hall k (ISub.id k) r hr
+  simp only [ISub.id_comp, Hom.lift_id, Hom.id_comp] at this
+  rw [Comp_res_el hW hL, isub_up_id_of_closed hcl, isub_cons_id_of_closed (closed_of_ty hW hL),
+    isub_id_of_closed (closed_of_ty hW hpt)] at this
+  exact (show RE S k (L1.dinst r) (.papp p r) from by
+    unfold RE; rwa [semK_tyEq hW hLL1]).conv_ty hW hLL1
+
+theorem RT_ipi_intro {L : Tm} {l : ℕ} (hipi : HasTy S k .one [] (.ipi L) (.univ l))
+    (hL : ∀ k' (σ : ISub k' k), RT S (k' + 1) (L.isub σ.up)) : RT S k (.ipi L) := by
+  have hL0 : HasTy S (k + 1) .one [] L (.univ l) :=
+    minimal_to_spec (HasTy0.ipiLine (sigClosed_of_wfSig hW) (spec_to_minimal hW hipi))
+  unfold RT
+  rw [semK_ipiT hW hipi, Comp_ipiC _ (semK_ne hW hL0)]
+  refine ⟨⟨⟨l, .inl hipi⟩, ?_⟩, L, TyEq.refl _, fun k' σ => ?_⟩
+  · rw [← semK_ipiT hW hipi, res_id (kv_semK_of_univ hW hipi)]
+  simp only [Hom.lift_id, Hom.id_comp, Comp_res_el hW hL0]
+  exact hL k' σ
+
 end
 
 end Model.Canon
