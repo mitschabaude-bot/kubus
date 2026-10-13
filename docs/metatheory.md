@@ -17,13 +17,16 @@ The spec carries M4 and M5 (`EqTm.glueEl`/`EqTm.unglue` congruent in the equival
 
 ## Spec patches on this branch (not yet on phase2)
 
-Three commits change only `Rules.lean`, `Syntax.lean` and the kernel, in order:
+Five commits change only `Rules.lean`, `Syntax.lean` and the kernel, in order:
 
 1. "spec: injectivity of type formers; glueBeta takes the typing of the base element": `EqTm.piInjDom`, `piInjCod`, `sigmaInjDom`, `sigmaInjCod`, `pathInjLine`, `pathInjLeft`, `pathInjRight`, `ipiInj`, and `EqTele.dataInj` (with the two parameter telescopes as premises). Codomains and lines are instantiated (`B[a] ≡ B'[a]` for `a : A`, `A(r) ≡ A'(r)`), so that every conclusion lives in the context of its premise; the forms with the conclusion in an extended context are not stable under substitution by an induction on derivations. `glueBeta` gets the premise `a : G`: a Glue type does not determine its base (on `φ` it is `T`), so this cannot be recovered by injectivity. The kernel checks `a` against the type it already has (one check per `glueBeta` step).
 2. "spec: no-confusion of type formers": `EqTm.noConf`: an equation between type formers with different heads (`Tm.headClash`: `Π`, `Σ`, `PathP`, `(i : I) → A`, universes, inductive types by index) makes any two terms of a type equal. Injectivity alone does not invert conversion chains: a chain from a `Π` type to a `Π` type may pass through a universe (via cumulativity, a `λ` typed in a universe), and `plam` is typed both at path types and at `(i : I) → A`. The kernel never uses it.
 3. "spec: P11": point argument types are also typed in the prefix signature over the parameters and earlier point arguments (`DataDecl.pointCtx`), like P8 for the boundary equations. `transpCon` transports along argument types at arbitrary parameters; the existing check in `S ++ [truncate 0]` over `argCtx` does not carry over to `S` (issue 4). The kernel checks the new clause once per constructor (`checkCtorArgsPoint`). The old clause is now redundant up to the model's needs.
 
-`transpGlue` needs no change: its contractum is typed from the current premises (`KanTranspGlue.lean`), since under `δ` (`∀i. φ`) the Glue line is `T` at every `i` (`glueFace`), so the line's constancy gives `T`'s. The lib certifies with all three patches. The model's `Sound.lean` needs cases for the new rules (injectivity via the code injectivity lemmas, `noConf` vacuously since equal codes have equal heads, `glueBeta`'s and `Wf`'s extra premises are only more assumptions).
+4. "spec: transpGlue's δ is scoped": the contractum contains `hcomp _ (δ ∨ ψ) _ _`, typed only for a scoped `δ`, and `δ ≡ ∀i. φ` does not imply it (`δ ∨ (k ∧ ~k)` for an out-of-scope `k`). The kernel checks `φ.forall0` in scope. Otherwise `transpGlue` needs no change and no Glue injectivity: under `δ` the Glue line is `T` at every `i` (`glueFace`), so the line's constancy gives `T`'s (`KanTranspGlue.lean`).
+5. "spec: per-parameter injectivity of inductive types": `EqTm.dataInjAt` gives one parameter's equation, both sides typed at the left parameters' instance of the telescope. `EqTele.dataInj` cannot be split (nothing inverts `EqTele`), and `transpCon` needs each parameter's constancy on `φ`.
+
+Patches 1, 2 and 5 only add rules; the kernel never uses them. The lib certifies with all five patches. The model's `Sound.lean` needs cases for the new rules (injectivity via the code injectivity lemmas, `noConf` vacuously since equal codes have equal heads, `glueBeta`'s and `Wf`'s extra premises are only more assumptions).
 
 ## Results
 
