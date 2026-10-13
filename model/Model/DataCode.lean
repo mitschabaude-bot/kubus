@@ -165,6 +165,43 @@ theorem res_hcV (φ : Cof n) (u : Tube n) (a : V) (h : Hom k n) :
   simp only [hcV, res_mkKV, Cof.restr_restr, res_res]
   rfl
 
+/-! ### Semantic inductive types -/
+
+/-- An inductive type at stage `m` (at some parameters): the constructors (from the declaration)
+and the types of the point arguments, given at all restrictions and as functions of the earlier
+arguments (oldest first). -/
+structure SData (m : ℕ) where
+  ctors : List Ctor
+  params : Bool
+  ty : ℕ → ℕ → (n : ℕ) → Hom n m → List V → V
+
+/-- Restriction of a semantic inductive type. -/
+def SData.restr (Θ : SData m) (h : Hom k m) : SData k :=
+  { Θ with ty := fun c j n g pre => Θ.ty c j n (h.comp g) pre }
+
+/-- The elements of an inductive type, at the restriction `g` of its stage: the least set of
+Kripke values closed under the constructors (with typed arguments), formal composition and
+restriction. -/
+inductive DElem (Θ : SData m) : (n : ℕ) → Hom n m → V → Prop
+  | con {n : ℕ} {g : Hom n m} {c : ℕ} {C : Ctor} {args : List V} {rs : List (DM n)} :
+      Θ.ctors[c]? = some C → args.length = C.args.length → rs.length = C.dims →
+      (∀ j a, args[j]? = some a → C.isRec j = true → DElem Θ n g a) →
+      (∀ j a, args[j]? = some a → C.isRec j = false → a ∈ El (Θ.ty c j n g (args.take j)) (Hom.id n)) →
+      DElem Θ n g (conV Θ.ctors n c args rs)
+  | hcomp {n : ℕ} {g : Hom n m} {φ : Cof n} {u : Tube n} {a : V} : φ.IsCof → DElem Θ n g a →
+      (∀ n' (h : Hom n' n) r, (φ.restr h).holds → DElem Θ n' (g.comp h) (u n' h r)) →
+      (∀ n' (h : Hom n' n) r, (φ.restr h).holds → ∀ n'' (h' : Hom n'' n'),
+        res h' (u n' h r) = u n'' (h.comp h') (r.restr h')) →
+      (∀ n' (h : Hom n' n), (φ.restr h).holds → u n' h (DM.zero n') = res h a) →
+      DElem Θ n g (hcV n φ u a)
+  | res {n n' : ℕ} {g : Hom n m} {v : V} (h : Hom n' n) : DElem Θ n g v → DElem Θ n' (g.comp h) (res h v)
+
+theorem DElem.kv {Θ : SData m} {n : ℕ} {g : Hom n m} {v : V} (h : DElem Θ n g v) : IsKV n v := by
+  cases h with
+  | con => exact isKV_conV _ _ _ _
+  | hcomp => exact isKV_hcV _ _ _
+  | res h _ => exact isKV_res _ _
+
 end
 
 end Model
