@@ -22,6 +22,7 @@ theorem eqtele_length {Ψ Φ Γ} : ∀ {ts ts' Δ prev}, EqTele0 S Ψ Φ Γ ts t
     ts.toList.length = Δ.length ∧ ts'.toList.length = Δ.length
   | _, _, _, _, .nil _ => ⟨rfl, rfl⟩
   | _, _, _, _, .cons _ h => by simp [Tm.toList, (eqtele_length h).1, (eqtele_length h).2]
+  | _, _, _, _, .dataInj _ h1 h2 _ => ⟨tele_length h1, tele_length h2⟩
 
 theorem argTys_length (C : Ctor) (d np : Nat) : (C.argTys d np).length = C.args.length := by
   simp [Ctor.argTys]

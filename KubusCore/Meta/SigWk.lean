@@ -58,6 +58,7 @@ theorem sigwk_tele (hpre : ∀ (k : Nat) (e : Entry), S'[k]? = some e → S[k]? 
 theorem sigwk_eqtele (hpre : ∀ (k : Nat) (e : Entry), S'[k]? = some e → S[k]? = some e) {Ψ Φ Γ ts ts' Δ prev} : EqTele0 S' Ψ Φ Γ ts ts' Δ prev → EqTele0 S Ψ Φ Γ ts ts' Δ prev
   | .nil h0 => EqTele0.nil (sigwk_wf hpre h0)
   | .cons h0 h1 => EqTele0.cons (sigwk_eq hpre h0) (sigwk_eqtele hpre h1)
+  | .dataInj h0 h1 h2 h3 => EqTele0.dataInj (hpre _ _ h0) (sigwk_tele hpre h1) (sigwk_tele hpre h2) (sigwk_eq hpre h3)
 
 theorem sigwk_eq (hpre : ∀ (k : Nat) (e : Entry), S'[k]? = some e → S[k]? = some e) {Ψ Φ Γ t u A} : EqTm0 S' Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t u A
   | .refl h0 => EqTm0.refl (sigwk_ty hpre h0)
@@ -90,6 +91,14 @@ theorem sigwk_eq (hpre : ∀ (k : Nat) (e : Entry), S'[k]? = some e → S[k]? = 
   | .ipi h0 h1 => EqTm0.ipi (sigwk_wf hpre h0) (sigwk_eq hpre h1)
   | .ilam h0 h1 => EqTm0.ilam (sigwk_ty hpre h0) (sigwk_eq hpre h1)
   | .iapp h0 h1 h2 h3 => EqTm0.iapp (sigwk_eq hpre h0) h1 h2 h3
+  | .piInjDom h0 => EqTm0.piInjDom (sigwk_eq hpre h0)
+  | .piInjCod h0 h1 => EqTm0.piInjCod (sigwk_eq hpre h0) (sigwk_ty hpre h1)
+  | .sigmaInjDom h0 => EqTm0.sigmaInjDom (sigwk_eq hpre h0)
+  | .sigmaInjCod h0 h1 => EqTm0.sigmaInjCod (sigwk_eq hpre h0) (sigwk_ty hpre h1)
+  | .pathInjLine h0 h1 => EqTm0.pathInjLine (sigwk_eq hpre h0) h1
+  | .pathInjLeft h0 => EqTm0.pathInjLeft (sigwk_eq hpre h0)
+  | .pathInjRight h0 => EqTm0.pathInjRight (sigwk_eq hpre h0)
+  | .ipiInj h0 h1 => EqTm0.ipiInj (sigwk_eq hpre h0) h1
   | .piBeta h0 => EqTm0.piBeta (sigwk_ty hpre h0)
   | .piEta h0 => EqTm0.piEta (sigwk_ty hpre h0)
   | .fstBeta h0 => EqTm0.fstBeta (sigwk_ty hpre h0)
@@ -119,7 +128,7 @@ theorem sigwk_eq (hpre : ∀ (k : Nat) (e : Entry), S'[k]? = some e → S[k]? = 
   | .glueFace h0 h1 => EqTm0.glueFace h0 (sigwk_ty hpre h1)
   | .glueElFace h0 h1 => EqTm0.glueElFace h0 (sigwk_ty hpre h1)
   | .unglueFace h0 h1 h2 h3 => EqTm0.unglueFace h0 (sigwk_ty hpre h1) (sigwk_ty hpre h2) (sigwk_ty hpre h3)
-  | .glueBeta h0 => EqTm0.glueBeta (sigwk_ty hpre h0)
+  | .glueBeta h0 h1 => EqTm0.glueBeta (sigwk_ty hpre h0) (sigwk_ty hpre h1)
   | .glueEta h0 => EqTm0.glueEta (sigwk_ty hpre h0)
   | .data h0 h1 h2 h3 => EqTm0.data (hpre _ _ h0) (sigwk_ty hpre h1) (sigwk_ty hpre h2) (sigwk_eqtele hpre h3)
   | .con h0 h1 h2 h3 h4 h5 h6 h7 => EqTm0.con (hpre _ _ h0) h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (sigwk_eqtele hpre h4) (sigwk_eqtele hpre h5) h6 h7

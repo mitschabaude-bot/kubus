@@ -25,7 +25,6 @@ structure ContractaTyped (S : Sig) : Prop where
   fstBeta : ∀ {Ψ Φ Γ a b T}, HasTy0 S Ψ Φ Γ (fst (pair a b)) T → HasTy0 S Ψ Φ Γ a T
   sndBeta : ∀ {Ψ Φ Γ a b T}, HasTy0 S Ψ Φ Γ (snd (pair a b)) T → HasTy0 S Ψ Φ Γ b T
   pathBeta : ∀ {Ψ Φ Γ t r T}, HasTy0 S Ψ Φ Γ (papp (plam t) r) T → HasTy0 S Ψ Φ Γ (t.dinst r) T
-  glueBeta : ∀ {Ψ Φ Γ φ e t a G}, HasTy0 S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) G → HasTy0 S Ψ Φ Γ a G
   transpPi : ∀ {Ψ Φ Γ A B φ u0 T}, HasTy0 S Ψ Φ Γ (transp (pi A B) φ u0) T →
     HasTy0 S Ψ Φ Γ (transpPi A B φ u0) T
   transpSigma : ∀ {Ψ Φ Γ A B φ u0 T}, HasTy0 S Ψ Φ Γ (transp (sigma A B) φ u0) T →
@@ -253,6 +252,44 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
         exact ⟨HasTy0.iapp p h1, HasTy0.conv (HasTy0.iapp p' h2)
           (EqTm0.symm (HasTy0.dinst_congr hS hA h1 h2 h3)), .inl ⟨_, HasTy0.dsubst hS hA h1⟩⟩
       · cases hP
+  | @EqTm0.piInjDom _ Ψ Φ Γ A A' B B' l h0 =>
+    by
+      obtain ⟨p, p', _⟩ := pre_eq h0
+      exact ⟨HasTy0.piDom hS p, HasTy0.piDom hS p', .inr ⟨_, rfl⟩⟩
+  | @EqTm0.piInjCod _ Ψ Φ Γ A A' B B' a l h0 h1 =>
+    by
+      obtain ⟨p, p', _⟩ := pre_eq h0
+      exact ⟨HasTy0.subst hS (HasTy0.piCod hS p) h1,
+        HasTy0.subst hS (HasTy0.piCod hS p') (HasTy0.conv h1 (EqTm0.piInjDom h0)), .inr ⟨_, rfl⟩⟩
+  | @EqTm0.sigmaInjDom _ Ψ Φ Γ A A' B B' l h0 =>
+    by
+      obtain ⟨p, p', _⟩ := pre_eq h0
+      exact ⟨HasTy0.sigmaDom hS p, HasTy0.sigmaDom hS p', .inr ⟨_, rfl⟩⟩
+  | @EqTm0.sigmaInjCod _ Ψ Φ Γ A A' B B' a l h0 h1 =>
+    by
+      obtain ⟨p, p', _⟩ := pre_eq h0
+      exact ⟨HasTy0.subst hS (HasTy0.sigmaCod hS p) h1,
+        HasTy0.subst hS (HasTy0.sigmaCod hS p') (HasTy0.conv h1 (EqTm0.sigmaInjDom h0)), .inr ⟨_, rfl⟩⟩
+  | @EqTm0.pathInjLine _ Ψ Φ Γ A A' a a' b b' r l h0 h1 =>
+    by
+      obtain ⟨p, p', _⟩ := pre_eq h0
+      exact ⟨HasTy0.dsubst hS (HasTy0.pathLine hS p) h1, HasTy0.dsubst hS (HasTy0.pathLine hS p') h1, .inr ⟨_, rfl⟩⟩
+  | @EqTm0.pathInjLeft _ Ψ Φ Γ A A' a a' b b' l h0 =>
+    by
+      obtain ⟨p, p', _⟩ := pre_eq h0
+      exact ⟨HasTy0.pathLeft hS p, HasTy0.conv (HasTy0.pathLeft hS p')
+        (EqTm0.symm (EqTm0.pathInjLine h0 (r := .zero) trivial)),
+        .inl ⟨_, HasTy0.dsubst hS (HasTy0.pathLine hS p) trivial⟩⟩
+  | @EqTm0.pathInjRight _ Ψ Φ Γ A A' a a' b b' l h0 =>
+    by
+      obtain ⟨p, p', _⟩ := pre_eq h0
+      exact ⟨HasTy0.pathRight hS p, HasTy0.conv (HasTy0.pathRight hS p')
+        (EqTm0.symm (EqTm0.pathInjLine h0 (r := .one) trivial)),
+        .inl ⟨_, HasTy0.dsubst hS (HasTy0.pathLine hS p) trivial⟩⟩
+  | @EqTm0.ipiInj _ Ψ Φ Γ A A' r l h0 h1 =>
+    by
+      obtain ⟨p, p', _⟩ := pre_eq h0
+      exact ⟨HasTy0.dsubst hS (HasTy0.ipiLine hS p) h1, HasTy0.dsubst hS (HasTy0.ipiLine hS p') h1, .inr ⟨_, rfl⟩⟩
   | @EqTm0.piBeta _ Ψ Φ Γ A t a T h0 =>
     ⟨h0, hC.piBeta h0, pre_ty h0⟩
   | @EqTm0.piEta _ Ψ Φ Γ A B f h0 =>
@@ -389,8 +426,8 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
         rw [shift_inst] at happ
         exact ⟨hu, happ, .inl ⟨_, h2⟩⟩
       · cases hG
-  | @EqTm0.glueBeta _ Ψ Φ Γ φ e t a G h0 =>
-    ⟨h0, hC.glueBeta h0, pre_ty h0⟩
+  | @EqTm0.glueBeta _ Ψ Φ Γ φ e t a G h0 h1 =>
+    ⟨h0, h1, pre_ty h0⟩
   | @EqTm0.glueEta _ Ψ Φ Γ A φ T e g h0 =>
     by
       rcases pre_ty h0 with ⟨l, hG⟩ | ⟨l, hG⟩

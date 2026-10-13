@@ -144,6 +144,8 @@ theorem toMin_eqtele {Ψ Φ Γ ts ts' Δ prev} : EqTele S Ψ Φ Γ ts ts' Δ pre
     EqTele0.nil (toMin_wf h0)
   | .cons h0 h1 =>
     EqTele0.cons (toMin_eq h0) (toMin_eqtele h1)
+  | .dataInj h0 h1 h2 h3 =>
+    EqTele0.dataInj h0 (toMin_tele h1) (toMin_tele h2) (toMin_eq h3)
 
 theorem toMin_eq {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t u A
   | .refl h0 =>
@@ -216,6 +218,22 @@ theorem toMin_eq {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t
     EqTm0.ilam (toMin_ty h0) (toMin_eq h1)
   | .iapp h0 h1 h2 h3 =>
     EqTm0.iapp (toMin_eq h0) h1 h2 h3
+  | .piInjDom h0 =>
+    EqTm0.piInjDom (toMin_eq h0)
+  | .piInjCod h0 h1 =>
+    EqTm0.piInjCod (toMin_eq h0) (toMin_ty h1)
+  | .sigmaInjDom h0 =>
+    EqTm0.sigmaInjDom (toMin_eq h0)
+  | .sigmaInjCod h0 h1 =>
+    EqTm0.sigmaInjCod (toMin_eq h0) (toMin_ty h1)
+  | .pathInjLine h0 h1 =>
+    EqTm0.pathInjLine (toMin_eq h0) h1
+  | .pathInjLeft h0 =>
+    EqTm0.pathInjLeft (toMin_eq h0)
+  | .pathInjRight h0 =>
+    EqTm0.pathInjRight (toMin_eq h0)
+  | .ipiInj h0 h1 =>
+    EqTm0.ipiInj (toMin_eq h0) h1
   | .piBeta h0 =>
     EqTm0.piBeta (toMin_ty h0)
   | .piEta h0 =>
@@ -274,8 +292,8 @@ theorem toMin_eq {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t
     EqTm0.glueElFace h0 (toMin_ty h1)
   | .unglueFace h0 h1 h2 h3 =>
     EqTm0.unglueFace h0 (toMin_ty h1) (toMin_ty h2) (toMin_ty h3)
-  | .glueBeta h0 =>
-    EqTm0.glueBeta (toMin_ty h0)
+  | .glueBeta h0 h1 =>
+    EqTm0.glueBeta (toMin_ty h0) (toMin_ty h1)
   | .glueEta h0 =>
     EqTm0.glueEta (toMin_ty h0)
   | .data h0 h1 h2 h3 =>
@@ -384,6 +402,8 @@ theorem toFull_eqtele {Ψ Φ Γ ts ts' Δ prev} : EqTele0 S Ψ Φ Γ ts ts' Δ p
     EqTele.nil (toFull_wf h0)
   | .cons h0 h1 =>
     EqTele.cons (toFull_eq h0) (toFull_eqtele h1)
+  | .dataInj h0 h1 h2 h3 =>
+    EqTele.dataInj h0 (toFull_tele h1) (toFull_tele h2) (toFull_eq h3)
 
 theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ t u A
   | .refl h0 =>
@@ -446,6 +466,22 @@ theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ 
     EqTm.ilam (toFull_ty h0) (toFull_eq h1)
   | .iapp h0 h1 h2 h3 =>
     EqTm.iapp (toFull_eq h0) h1 h2 h3
+  | .piInjDom h0 =>
+    EqTm.piInjDom (toFull_eq h0)
+  | .piInjCod h0 h1 =>
+    EqTm.piInjCod (toFull_eq h0) (toFull_ty h1)
+  | .sigmaInjDom h0 =>
+    EqTm.sigmaInjDom (toFull_eq h0)
+  | .sigmaInjCod h0 h1 =>
+    EqTm.sigmaInjCod (toFull_eq h0) (toFull_ty h1)
+  | .pathInjLine h0 h1 =>
+    EqTm.pathInjLine (toFull_eq h0) h1
+  | .pathInjLeft h0 =>
+    EqTm.pathInjLeft (toFull_eq h0)
+  | .pathInjRight h0 =>
+    EqTm.pathInjRight (toFull_eq h0)
+  | .ipiInj h0 h1 =>
+    EqTm.ipiInj (toFull_eq h0) h1
   | .piBeta h0 =>
     EqTm.piBeta (toFull_ty h0)
   | .piEta h0 =>
@@ -504,8 +540,8 @@ theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ 
     EqTm.glueElFace h0 (toFull_ty h1)
   | .unglueFace h0 h1 h2 h3 =>
     EqTm.unglueFace h0 (toFull_ty h1) (toFull_ty h2) (toFull_ty h3)
-  | .glueBeta h0 =>
-    EqTm.glueBeta (toFull_ty h0)
+  | .glueBeta h0 h1 =>
+    EqTm.glueBeta (toFull_ty h0) (toFull_ty h1)
   | .glueEta h0 =>
     EqTm.glueEta (toFull_ty h0)
   | .data h0 h1 h2 h3 =>

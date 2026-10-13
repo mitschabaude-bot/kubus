@@ -122,6 +122,10 @@ inductive EqTele0 (S : Sig) : Nat → I → Ctx → Tm → Tm → List Tm → Li
   | nil {Ψ Φ Γ prev} : Wf0 S Ψ Φ Γ → EqTele0 S Ψ Φ Γ .tnil .tnil [] prev
   | cons {Ψ Φ Γ a a' as as' A Δ prev} : EqTm0 S Ψ Φ Γ a a' (A.substList prev) →
       EqTele0 S Ψ Φ Γ as as' Δ (a :: prev) → EqTele0 S Ψ Φ Γ (.tcons a as) (.tcons a' as') (A :: Δ) prev
+  /-- Injectivity of inductive types in their parameters. -/
+  | dataInj {Ψ Φ Γ d D ps ps' l} : S[d]? = some (.data D) →
+      HasTele0 S Ψ Φ Γ ps D.params [] → HasTele0 S Ψ Φ Γ ps' D.params [] →
+      EqTm0 S Ψ Φ Γ (data d ps) (data d ps') (univ l) → EqTele0 S Ψ Φ Γ ps ps' D.params []
 
 inductive EqTm0 (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   /- equivalence and structure -/
@@ -200,6 +204,24 @@ inductive EqTm0 (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm0 S (Ψ + 1) Φ.shift Γ.dshift t t' A → EqTm0 S Ψ Φ Γ (plam t) (plam t') (ipi A)
   | iapp {Ψ Φ Γ A p p' r r'} : EqTm0 S Ψ Φ Γ p p' (ipi A) → r.Scoped Ψ → r'.Scoped Ψ →
       I.Eq r r' → EqTm0 S Ψ Φ Γ (papp p r) (papp p' r') (A.dinst r)
+  /- injectivity of type formers (codomains and lines instantiated, so that the conclusion
+  is in the context of the premise) -/
+  | piInjDom {Ψ Φ Γ A A' B B' l} : EqTm0 S Ψ Φ Γ (pi A B) (pi A' B') (univ l) →
+      EqTm0 S Ψ Φ Γ A A' (univ l)
+  | piInjCod {Ψ Φ Γ A A' B B' a l} : EqTm0 S Ψ Φ Γ (pi A B) (pi A' B') (univ l) →
+      HasTy0 S Ψ Φ Γ a A → EqTm0 S Ψ Φ Γ (B.inst a) (B'.inst a) (univ l)
+  | sigmaInjDom {Ψ Φ Γ A A' B B' l} : EqTm0 S Ψ Φ Γ (sigma A B) (sigma A' B') (univ l) →
+      EqTm0 S Ψ Φ Γ A A' (univ l)
+  | sigmaInjCod {Ψ Φ Γ A A' B B' a l} : EqTm0 S Ψ Φ Γ (sigma A B) (sigma A' B') (univ l) →
+      HasTy0 S Ψ Φ Γ a A → EqTm0 S Ψ Φ Γ (B.inst a) (B'.inst a) (univ l)
+  | pathInjLine {Ψ Φ Γ A A' a a' b b' r l} : EqTm0 S Ψ Φ Γ (path A a b) (path A' a' b') (univ l) →
+      r.Scoped Ψ → EqTm0 S Ψ Φ Γ (A.dinst r) (A'.dinst r) (univ l)
+  | pathInjLeft {Ψ Φ Γ A A' a a' b b' l} : EqTm0 S Ψ Φ Γ (path A a b) (path A' a' b') (univ l) →
+      EqTm0 S Ψ Φ Γ a a' (A.dinst .zero)
+  | pathInjRight {Ψ Φ Γ A A' a a' b b' l} : EqTm0 S Ψ Φ Γ (path A a b) (path A' a' b') (univ l) →
+      EqTm0 S Ψ Φ Γ b b' (A.dinst .one)
+  | ipiInj {Ψ Φ Γ A A' r l} : EqTm0 S Ψ Φ Γ (ipi A) (ipi A') (univ l) →
+      r.Scoped Ψ → EqTm0 S Ψ Φ Γ (A.dinst r) (A'.dinst r) (univ l)
   /- β and η -/
   | piBeta {Ψ Φ Γ A t a T} : HasTy0 S Ψ Φ Γ (app (lam A t) a) T →
       EqTm0 S Ψ Φ Γ (app (lam A t) a) (t.inst a) T
@@ -267,7 +289,7 @@ inductive EqTm0 (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       HasTy0 S Ψ Φ Γ A (univ l) → HasTy0 S Ψ Φ Γ e (equiv T A) →
       EqTm0 S Ψ Φ Γ (unglue φ e g) (app (fst e) g) A
   | glueBeta {Ψ Φ Γ φ e t a G} : HasTy0 S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) G →
-      EqTm0 S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
+      HasTy0 S Ψ Φ Γ a G → EqTm0 S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
   | glueEta {Ψ Φ Γ A φ T e g} : HasTy0 S Ψ Φ Γ g (glue A φ T e) →
       EqTm0 S Ψ Φ Γ g (glueEl φ e g (unglue φ e g)) (glue A φ T e)
   /- inductive types: congruence -/

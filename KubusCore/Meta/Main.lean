@@ -12,7 +12,7 @@ judgments (`Meta/Minimal.lean`):
 | `HasTy.subst`, `HasTy.dsubst`, `EqTm.dsubst` | `HasTy0.subst`, … (`Structural.lean`) | `SigClosed` |
 | `EqTm.subst` | `EqTm0.subst` | right-hand sides typed |
 | `piDom`, …, `glueFib` | `HasTy0.piDom`, … (`Inversion.lean`) | `SigClosed` |
-| `eqL`, `eqR` | `presup0` (`Presup.lean`) | `ContractaTyped` (15 rules), `SigTyped0` |
+| `eqL`, `eqR` | `presup0` (`Presup.lean`) | `ContractaTyped` (14 rules), `SigTyped0` |
 
 and the two inclusions between the spec and the minimal judgments.
 -/

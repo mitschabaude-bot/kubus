@@ -57,6 +57,7 @@ theorem wf_of_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → Wf
 theorem wf_of_eqtele {Ψ Φ Γ ts ts' Δ prev} : EqTele0 S Ψ Φ Γ ts ts' Δ prev → Wf0 S Ψ Φ Γ
   | .nil h0 => h0
   | .cons h0 _ => wf_of_eq h0
+  | .dataInj _ h1 _ _ => wf_of_tele h1
 
 theorem wf_of_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → Wf0 S Ψ Φ Γ
   | .refl h0 => wf_of_ty h0
@@ -118,7 +119,15 @@ theorem wf_of_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → Wf0 S Ψ Φ Γ
   | .glueFace _ h1 => wf_of_ty h1
   | .glueElFace _ h1 => wf_of_ty h1
   | .unglueFace _ h1 _ _ => wf_of_ty h1
-  | .glueBeta h0 => wf_of_ty h0
+  | .glueBeta h0 _ => wf_of_ty h0
+  | .piInjDom h0 => wf_of_eq h0
+  | .piInjCod h0 _ => wf_of_eq h0
+  | .sigmaInjDom h0 => wf_of_eq h0
+  | .sigmaInjCod h0 _ => wf_of_eq h0
+  | .pathInjLine h0 _ => wf_of_eq h0
+  | .pathInjLeft h0 => wf_of_eq h0
+  | .pathInjRight h0 => wf_of_eq h0
+  | .ipiInj h0 _ => wf_of_eq h0
   | .glueEta h0 => wf_of_ty h0
   | .data _ h1 _ _ => wf_of_ty h1
   | .con _ _ h2 _ _ _ _ _ => wf_of_ty h2
