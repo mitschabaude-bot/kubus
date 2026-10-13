@@ -399,6 +399,106 @@ theorem hcompCon_pt_types {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} (hD : S[
   rw [hLeq] at hL
   exact ⟨hL, minimal_to_spec_eq e0, minimal_to_spec_eq e1, eφ⟩
 
+/-- The projections of a tube commute with its restrictions at a point. -/
+theorem proj_tube_isub {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} (hD : S[d]? = some (.data D))
+    (hC : D.ctors[c]? = some C) {j : ℕ} (hj : j < C.args.length) {K k1 : ℕ} {ps u : Tm}
+    (hps1 : IsList ps.dshift) (hpl1 : ps.dshift.toList.length = D.params.length) (σ : ISub k1 K) {r : I}
+    (hr : r.Scoped k1) :
+    (proj d D ps.dshift c C j u).isub (ISub.cons r hr σ) = proj d D (ps.isub σ) c C j ((u.isub σ.up).dinst r) := by
+  have hS := sigClosed_of_wfSig hW
+  show (proj d D ps.dshift c C j u).subst Tm.var (ISub.cons r hr σ).τ = _
+  rw [proj_dsubst hS hD hC hj hps1 hpl1, ← isub_eq_subst, ← isub_eq_subst, dshift_isub_cons, isub_up_dinst _ σ r hr]
+
+/-- Composition of a constructor in an inductive type without path constructors, given the
+composition of its recursive arguments at all restrictions. -/
+theorem hcompCon_RE {Θ : SData m} (hΘ : Θ.Good)
+    (ihT : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → KR S n (Θ.ty c j n g pre))
+    (hcodeK : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre →
+      (∀ k3 (h3 : Hom k3 n) (A : Tm), (Comp S (Θ.ty c j n g pre) n k3 h3).ty A → KanH S k3 A) ∧
+      (∀ k3 (h3 : Hom (k3 + 1) n) (A : Tm), (Comp S (Θ.ty c j n g pre) n (k3 + 1) h3).ty A → KanT S k3 A))
+    (hKR : KR S m (dataC Θ)) {D : DataDecl} (hD : S[Θ.idx]? = some (.data D)) (hH : D.isHIT = false)
+    {k0 : ℕ} {f : Hom k0 m} {P : Tm} (hT : (Comp S (dataC Θ) m k0 f).ty (.data Θ.idx P))
+    (hall : ArgClause S Θ f P) {K : ℕ} (ρ : ISub K k0)
+    (hpT : HasTy S K .one [] (.data Θ.idx (P.isub ρ)) (.univ D.level)) {φ : I} {u : Tm}
+    {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {X : List Tm}
+    (hX : HasTele0 S K .one [] (Tm.ofList X) (C.argTys Θ.idx D.params.length) (P.isub ρ).toList.reverse)
+    (hty : HasTy S K .one [] (.hcomp (.data Θ.idx (P.isub ρ)) φ u (.con Θ.idx c (P.isub ρ) (Tm.ofList X) []))
+      (.data Θ.idx (P.isub ρ)))
+    (hu : TubeC S K (.data Θ.idx (P.isub ρ)) φ u)
+    (hrecH : ∀ i (hi : i < X.length), C.isRec i = true → ∀ K' (σ : ISub K' K) (φ' : I) (u' : Tm),
+      HasTy S K' .one [] (.hcomp (.data Θ.idx (P.isub (ρ.comp σ))) φ' u' (X[i].isub σ))
+        (.data Θ.idx (P.isub (ρ.comp σ))) →
+      TubeC S K' (.data Θ.idx (P.isub (ρ.comp σ))) φ' u' →
+      RE S K' (.data Θ.idx (P.isub (ρ.comp σ))) (.hcomp (.data Θ.idx (P.isub (ρ.comp σ))) φ' u' (X[i].isub σ)))
+    (hrecR : ∀ i (hi : i < X.length), C.isRec i = true →
+      DR S Θ.idx D (dataMem S Θ f) (dataP S Θ f) K ρ.hom ((Tm.data Θ.idx P).isub ρ) X[i])
+    (hptR : ∀ i (hi : i < X.length), C.isRec i = false →
+      RE S K ((C.argTy Θ.idx D.params.length i).substList ((X.take i).reverse ++ (P.isub ρ).toList.reverse)) X[i]) :
+    RE S K (.data Θ.idx (P.isub ρ)) (.hcomp (.data Θ.idx (P.isub ρ)) φ u (.con Θ.idx c (P.isub ρ) (Tm.ofList X) [])) := by
+  have hS := sigClosed_of_wfSig hW
+  have hdD := dataD_eq hW hD
+  obtain ⟨l0, ⟨-, hφs, hut, -, hside0⟩, -⟩ := gen_hcomp (Φ := .one) (Γ := []) (spec_to_minimal hW hty) rfl
+  have hside : EqTm S K (cof .one φ) [] (u.dinst .zero) (.con Θ.idx c (P.isub ρ) (Tm.ofList X) [])
+      (.data Θ.idx (P.isub ρ)) := minimal_to_spec_eq hside0
+  have hutc : u.closedB 0 (K + 1) = true := closed_ty hut
+  have hcan : TubeCanon S K Θ.idx D (P.isub ρ) φ u := fun k2 σ2 r2 hr2 hh2 => by
+    obtain ⟨c', C', X', hC', -, h1, h2, -⟩ := tube_canon hW hΘ ihT hKR hD hH hT hall ρ hpT hu σ2 hr2 hh2
+    exact ⟨c', C', X', hC', h1, h2⟩
+  obtain ⟨G1, G2, G3, G4⟩ := hcompCon_premises hW hD hH hC hpT hφs hut hside hX hcan
+  set d := Θ.idx with hd
+  set p := P.isub ρ with hp
+  set Ac := C.argTy d D.params.length with hAc
+  set us := (List.range C.args.length).map fun j => proj d D p.dshift c C j u with hus
+  have H := PD.of hW hD hH (spec_to_minimal hW hpT)
+  have hΦs : ((cof .one φ).shift).Scoped (K + 1) := I.scoped_shift ⟨trivial, hφs⟩
+  have H1 := PD.of hW hD hH (HasTy0.restrict hΦs (ent_one _) (HasTy0.dwk hS (Φ := .one) (Γ := [])
+    (spec_to_minimal hW hpT)))
+  have hXl : X.length = C.args.length := by
+    have := tele_length hX; rwa [toList_ofList, argTys_length] at this
+  have hul : us.length = C.args.length := by simp [us]
+  -- the contractum
+  have e_hc := EqTm0.hcompCon (qs := p) hD hH hC H.hpsL (args := Tm.ofList X) (by rw [toList_ofList])
+    (uargs := Tm.ofList us) (by rw [toList_ofList]) hX G1 G2 G3 (spec_to_minimal hW hty)
+  simp only [toList_ofList] at e_hc
+  have heq := Meta.hcompTele_eq C Ac (.data d p) p.dshift.toList φ us X us X 0 rfl rfl (by rw [hul, hXl])
+  simp only [hXl, ← List.range_eq_range'] at heq
+  rw [show ([] : List Tm) = (Meta.hFills C Ac (.data d p) p.dshift.toList φ us X 0).reverse from rfl, heq] at e_hc
+  set outs := (List.range C.args.length).map (Meta.hOut C Ac (.data d p) p.dshift.toList φ us X) with houts
+  obtain ⟨-, -, -, -, -, Tel⟩ := hcompCon_inv hS hW (htr_of hW d) hD hC H.hpsL (args := Tm.ofList X)
+    (by rw [toList_ofList]) (uargs := Tm.ofList us) (by rw [toList_ofList]) hX G1 G3 (spec_to_minimal hW hpT) hφs
+    C.args.length (Nat.le_refl _)
+  simp only [toList_ofList] at Tel
+  have hol : outs.length = C.args.length := by simp [outs]
+  refine (RE_con hW hD hpT H.hpsL hC hol (rs := []) (by simp [(nonHIT_ctor hH hC).1]) (by simp)
+    (HasTy.eqR (minimal_to_spec_eq e_hc)) (fun j hj hr => ?_) (fun j hj hr => ?_)).conv hW (TyEq.refl _)
+    (EqTm.symm (minimal_to_spec_eq e_hc))
+  · have hjC : j < C.args.length := by omega
+    have hog : outs[j] = .hcomp (.data d p) φ (us.getD j .abort) (X.getD j .abort) := by
+      simp [outs, Meta.hOut, hr]
+    have hXj : X.getD j .abort = X[j]'(by omega) := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega)]; rfl
+    have hXc : (X[j]'(by omega)).closedB 0 K = true := by
+      have := tele_get hX j _ _ (by rw [toList_ofList]; exact List.getElem?_eq_getElem (by omega))
+        (argTys_get hjC)
+      exact closed_ty this
+    have htyj : HasTy S K .one [] outs[j] (.data d p) := by
+      have := Tel j hjC
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega), Option.getD_some,
+        argTy_rec_inst (ps := p) hr H.hpsL H.hpl (by simp; omega)] at this
+      exact minimal_to_spec this
+    rw [hog] at htyj ⊢
+    have := hrecH j (by omega) hr K (ISub.id K) φ (us.getD j .abort)
+    rw [ISub.comp_id, isub_id_of_closed hXc, ← hXj] at this
+    refine this htyj fun k1 σ r hr1 hh => ?_
+    rw [isub_up_dinst _ σ r hr1]
+    have hug : us.getD j .abort = proj d D p.dshift c C j u := by
+      simp [us, List.getD_eq_getElem?_getD, hjC]
+    rw [hug, proj_tube_isub hW hD hC hjC H1.hpsL H1.hpl σ hr1]
+    have := tube_proj hW hΘ ihT hKR hD hH hT hall ρ hpT hφs hutc hC hside hu σ hr1 hh hjC
+    have Hσ : PD S k1 .one d D (p.isub σ) := PD.of hW hD hH (spec_to_minimal hW (HasTy.isubS hW hpT σ))
+    rwa [argTy_rec_inst (ps := p.isub σ) hr Hσ.hpsL Hσ.hpl (by simp; omega)] at this
+  · sorry
+
 end
 
 end Model.Canon

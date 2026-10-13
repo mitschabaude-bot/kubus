@@ -274,7 +274,9 @@ theorem hcompCon_premises {k : ℕ} {ps u : Tm} {φ : I} {X : List Tm}
       (.con d c ps.dshift (Tm.ofList ((List.range C.args.length).map fun j => proj d D ps.dshift c C j u)) [])
       (.data d ps.dshift) ∧
     EqTele0 S k (cof .one φ) [] ((Tm.ofList ((List.range C.args.length).map fun j => proj d D ps.dshift c C j u)).dinst .zero)
-      (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse := by
+      (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse ∧
+    ∀ i (hi : i < X.length), EqTm0 S k (cof .one φ) [] ((proj d D ps.dshift c C i u).dinst .zero) X[i]
+      ((C.argTy d D.params.length i).substList ((X.take i).reverse ++ ps.toList.reverse)) := by
   have hS := sigClosed_of_wfSig hW
   obtain ⟨hT, hCt⟩ := wf_typed _ S rfl hW
   have hΦs : ((cof .one φ).shift).Scoped (k + 1) := I.scoped_shift ⟨trivial, hφs⟩
@@ -380,7 +382,7 @@ theorem hcompCon_premises {k : ℕ} {ps u : Tm} {φ : I} {X : List Tm}
     exact claim C.args.length (Nat.le_refl _) i (by omega) hi
   have hcon : HasTy0 S (k + 1) (cof .one φ).shift [] (.con d c ps.dshift (Tm.ofList uargs) []) (.data d ps.dshift) :=
     HasTy0.con hD hC H'.hpsL H'.hdata H'.hpt G1 (by simp [hdims]) (by simp)
-  refine ⟨G1, eq_local_faces hut hcon fun α hα => ?_, ?_⟩
+  refine ⟨G1, eq_local_faces hut hcon fun α hα => ?_, ?_, ?_⟩
   · obtain ⟨X', hX', e_u, e_T, hdα⟩ := FD α hα
     have hsc := faces_scoped hΦs α hα
     have hsα : (I.ofFace α).Scoped (k + 1) := scoped_ofFace hsc
@@ -457,6 +459,16 @@ theorem hcompCon_premises {k : ℕ} {ps u : Tm} {φ : I} {X : List Tm}
       simpa [Y0] using this
     rw [e0]
     exact (tele_conv hW hD hC H0.hpsL H0.hpt H0.hdata hX0 (by simp [Y0, hXl]) hY0X).2.1
+  · intro i hi
+    have hX0 := HasTele0.restrict (show (cof .one φ).Scoped k from ⟨trivial, hφs⟩) (ent_and_left _ _) hX
+    have hXl : X.length = C.args.length := by
+      have := tele_length hX; rwa [toList_ofList, argTys_length] at this
+    have := proj_canon hS hW (PD.of hW hD hH (HasTy0.restrict (show (cof .one φ).Scoped k from ⟨trivial, hφs⟩)
+      (ent_and_left _ _) (spec_to_minimal hW hd))) hC hX0 (spec_to_minimal_eq hW hside) (i := i) (by omega)
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi, Option.getD_some] at this
+    rw [Tm.dinst, Tm.dsubst, proj_dsubst hS hD hC (by omega) H'.hpsL H'.hpl, ← Tm.dsubst, ← Tm.dinst,
+      Meta.dshift_dinst ps .zero]
+    exact this
 
 end
 
