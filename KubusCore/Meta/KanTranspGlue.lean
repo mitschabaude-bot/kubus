@@ -116,6 +116,18 @@ theorem tgFib_eq (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : tgFib A φ T 
     sigma (T.dinst .one) (pathC (A.dinst .one).shift (app (fst (e.dinst .one)).shift (var 0)) (tgA1' A φ e ψ u0).shift) :=
   rfl
 
+theorem psys_dinst (δ ψ : I) (X Y : Tm) (r : I) :
+    (split δ.shift (papp X.dshift (.var 0)) ψ.shift (papp Y.dshift (.var 0))).dinst r =
+      split δ (papp X r) ψ (papp Y r) := by
+  have h2 : ∀ x : I, x.shift.subst (I.inst0 r) = x := fun x => by
+    simp only [I.shift, I.ren, I_subst_subst]; exact I_subst_var x
+  show split (δ.shift.subst _) (papp (X.dshift.dinst r) _) (ψ.shift.subst _) (papp (Y.dshift.dinst r) _) = _
+  rw [h2, h2, dshift_dinst, dshift_dinst]; rfl
+
+theorem tgExt_eq (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (δ : I) : tgExt A φ T e ψ u0 δ =
+    hcomp (tgFib A φ T e ψ u0) (.or δ ψ) (split δ.shift (papp (tgPd A φ T e ψ u0).dshift (.var 0)) ψ.shift
+      (papp (tgPpsi A φ e ψ u0).dshift (.var 0))) (fst (tgC A φ e ψ u0)) := rfl
+
 /-- The cofibration of the composition in `ω`: `ψ ∨ j = 0 ∨ j = 1`. -/
 abbrev tgChi (ψ : I) : I := .or ψ.shift (.or (.neg (.var 0)) (.var 0))
 
@@ -601,6 +613,53 @@ theorem hpEq : EqTm0 S Ψ (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ) �
   have hf := HasTy0.restrict hVs (ent_trans (ent_and_left _ _) (ent_and_left _ _)) H.hfib
   rw [tgFib_eq] at hf ⊢
   exact EqTm0.pair hf et (by rw [P_inst]; exact eω)
+
+/-! ### Extending the partial fibre element -/
+
+theorem hPd : HasTy0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) δ) Γ (tgPd A φ T e ψ u0)
+    (pathC (tgFib A φ T e ψ u0) (fst (tgC A φ e ψ u0)) (pair (tgT1 T ψ u0) (tgOmega A φ T e ψ u0))) :=
+  H.hcp H.hWδs (ent_and_left _ _) H.hpd
+
+theorem hPψ : HasTy0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ (tgPpsi A φ e ψ u0)
+    (pathC (tgFib A φ T e ψ u0) (fst (tgC A φ e ψ u0)) (pair u0 (plam (tgA1' A φ e ψ u0).dshift))) :=
+  H.hcp H.hWψs (ent_and_left _ _) H.hpψ
+
+theorem hPEq : EqTm0 S Ψ (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ) Γ (tgPd A φ T e ψ u0) (tgPpsi A φ e ψ u0)
+    (pathC (tgFib A φ T e ψ u0) (fst (tgC A φ e ψ u0)) (pair (tgT1 T ψ u0) (tgOmega A φ T e ψ u0))) :=
+  H.hcpEq (show (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ).Scoped Ψ from ⟨H.hWδs, H.hψ⟩)
+    (ent_trans (ent_and_left _ _) (ent_and_left _ _)) H.hpEq
+
+theorem hpsys : HasTy0 S (Ψ + 1) (cof (cof Φ (φ.subst (I.inst0 .one))) (.or δ ψ)).shift Γ.dshift
+    (split δ.shift (papp (tgPd A φ T e ψ u0).dshift (.var 0)) ψ.shift (papp (tgPpsi A φ e ψ u0).dshift (.var 0)))
+    (tgFib A φ T e ψ u0).dshift := by
+  have hv0 : (I.var 0).Scoped (Ψ + 1) := show 0 < Ψ + 1 by omega
+  have hΞs : (cof (cof Φ (φ.subst (I.inst0 .one))) (.or δ ψ)).shift.Scoped (Ψ + 1) :=
+    scoped_shift ⟨H.hWs, ⟨H.hδ, H.hψ⟩⟩
+  have hΞW : I.Entails (cof (cof Φ (φ.subst (I.inst0 .one))) (.or δ ψ)).shift (cof Φ (φ.subst (I.inst0 .one))).shift :=
+    ent_shift (ent_and_left _ _)
+  have hΞχ : I.Entails (cof (cof Φ (φ.subst (I.inst0 .one))) (.or δ ψ)).shift (.or δ.shift ψ.shift) :=
+    ent_shift (ent_and_right _ (.or δ ψ))
+  have hd := HasTy0.dwk H.hS H.hPd
+  have hp := HasTy0.dwk H.hS H.hPψ
+  have he := EqTm0.dwk H.hS H.hPEq
+  rw [pathC_dshift] at hd hp he
+  generalize (cof (cof Φ (φ.subst (I.inst0 .one))) (.or δ ψ)).shift = Ξ at hΞs hΞW hΞχ ⊢
+  have hδ1 : δ.shift.Scoped (Ψ + 1) := scoped_shift H.hδ
+  have hψ1 : ψ.shift.Scoped (Ψ + 1) := scoped_shift H.hψ
+  have hX1s : (cof Ξ δ.shift).Scoped (Ψ + 1) := ⟨hΞs, hδ1⟩
+  have hX2s : (cof Ξ ψ.shift).Scoped (Ψ + 1) := ⟨hΞs, hψ1⟩
+  have hX3s : (cof (cof Ξ δ.shift) ψ.shift).Scoped (Ψ + 1) := ⟨hX1s, hψ1⟩
+  have hX1 : I.Entails (cof Ξ δ.shift) (cof (cof Φ (φ.subst (I.inst0 .one))) δ).shift :=
+    show I.Entails _ (.and _ _) from ent_and_mono hΞW (ent_refl _)
+  have hX2 : I.Entails (cof Ξ ψ.shift) (cof (cof Φ (φ.subst (I.inst0 .one))) ψ).shift :=
+    show I.Entails _ (.and _ _) from ent_and_mono hΞW (ent_refl _)
+  have hX3 : I.Entails (cof (cof Ξ δ.shift) ψ.shift) (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ).shift :=
+    show I.Entails _ (.and _ _) from ent_and_mono hX1 (ent_refl _)
+  have hb1 := papp_pathC (HasTy0.restrict hX1s hX1 hd) hv0
+  have hb2 := papp_pathC (HasTy0.restrict hX2s hX2 hp) hv0
+  have ho := EqTm0.papp (EqTm0.restrict hX3s hX3 he) hv0 hv0 (I_eq_refl _)
+  rw [dshift_dinst] at ho
+  exact HasTy0.split hδ1 hψ1 hΞχ (HasTy0.restrict hΞs hΞW (HasTy0.dwk H.hS H.hfib)) hb1 hb2 ho
 
 end TG
 
