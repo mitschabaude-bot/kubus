@@ -706,6 +706,128 @@ theorem hfill_cond {A u u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (hc : H
   rw [Tm.hfill, sem_hcomp hcc, eA, eb, face_fill, hcompAt_res_id', hfillF, Hom.id_comp]
   exact hcompAt_congr et
 
+/-! ### hcompSigma -/
+
+theorem LineTubeOK.congr {c : V} {f : Hom (k + 1) m} {φ : Cof k} {u u' : Tube k} {u0 : V} (hφ : φ.IsCof)
+    (h : ∀ n (g : Hom n k) r, (φ.restr g).holds → u n g r = u' n g r) (hu : LineTubeOK c f φ u u0) :
+    LineTubeOK c f φ u' u0 where
+  mem n g r hg := h n g r hg ▸ hu.mem n g r hg
+  coh n g r hg n' g' := by
+    have hg' : (φ.restr (g.comp g')).holds := by
+      rw [← Cof.restr_restr]; exact Cof.IsCof.holds_restr (hφ.restr g) hg g'
+    rw [← h n g r hg, ← h n' _ _ hg']; exact hu.coh n g r hg n' g'
+  base n g hg := by rw [← h n g _ hg]; exact hu.base n g hg
+
+theorem below_sigmaC_famAt (A B : V) (hB : IsKV m B) (g : Hom n m) (a : V)
+    (ha : ∃ y, ZFSet.pair a y ∈ dat B n g) : Below (apZ (dat B n g) a) (sigmaC m A B) := by
+  have h1 : Below (apZ (dat B n g) a) B := (below_apZ ha).trans (below_dat hB _)
+  have h2 : Below (res (Hom.id m) B) (sigmaC m A B) := by
+    unfold sigmaC
+    refine Below.trans ?_ (below_dat_mkKV _ (Hom.id m))
+    simp only [sigmaDatum, quad, tagZ]
+    exact ((below_pair_right _ _).trans (below_pair_right _ _)).trans (below_pair_left _ _)
+  rw [res_id hB] at h2
+  exact h1.trans h2
+
+theorem TyOK.sigma_fam {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S (.sigma A B) m ρ γ) :
+    ∃ l ≤ maxLevel, ∀ n (g : Hom n m), ∀ a ∈ El (sem S A m ρ γ) g,
+      apZ (dat (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) n g) a
+        ∈ Vt l ∧
+      WF l n (apZ (dat (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f)
+        (TEnv.cons (TEnv.restr γ f) a)) n g) a) := by
+  obtain ⟨hAkv, l, hl, hV, hWF⟩ := h.sigma_at
+  rw [sem_sigma hAkv] at hV hWF
+  obtain ⟨-, hfam, -, -⟩ := WF.sigma_inv hAkv (isKV_famV _ _) hWF
+  exact ⟨l, hl, fun n g a ha => ⟨Vt_below (below_sigmaC_famAt _ _ (isKV_famV _ _) _ _
+    ⟨_, by rw [dat_famV]; exact mem_fnZ.2 ⟨_, ha, rfl⟩⟩) hV, hfam n g a ha⟩⟩
+
+theorem sem_hcompSigma {A B u u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
+    (hc : HcompCond S (.sigma A B) φ u u0 m ρ γ) (hγ : ∀ x, IsKV m (γ x)) :
+    sem S (Tm.hcompSigma A B φ u u0) m ρ γ = sem S (.hcomp (.sigma A B) φ u u0) m ρ γ := by
+  have hTy : TyOK S (.sigma A B) m ρ γ := hc.1
+  obtain ⟨hAkv, hsem, hAfib, hfam, l, hl, -, hAWF, hAV, -⟩ := hTy.sigma_data
+  obtain ⟨l', hl', hfamW⟩ := hTy.sigma_fam
+  have hNA := natural_sigma_dom hTy hc.2.2.2.1
+  have hφ := isCof_ival_face ρ φ
+  have hu := hc.2.1
+  have hu0 := hc.2.2.1
+  have hu0nat := hc.2.2.2.2
+  rw [hsem] at hu hu0
+  set Av := sem S A m ρ γ
+  set Bf := famV m Av fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)
+  have heta := sigma_eta hAfib hfam hu0
+  have hfnat : Natural S (.fst u0) m ρ γ := fun k g => by
+    rw [sem_fst, sem_fst, hu0nat k g]; exact sigma_fst_res hAfib hfam hu0 g
+  have hsnat : Natural S (.snd u0) m ρ γ := fun k g => by
+    rw [sem_snd, sem_snd, hu0nat k g]; exact sigma_snd_res hAfib hfam hu0 g
+  have hfstT : ∀ n (h : Hom n m) r, (Cof.restr (ival ρ φ).face h).holds →
+      tubeV S (.fst u) ρ γ n h r = (Tube.canon (ival ρ φ).face (tubeV S u ρ γ)).fst n h r := by
+    intro n h r hh; simp only [tubeV, Tube.fst, tube_canon_eq hh, sem_fst]
+  have hsndT : ∀ n (h : Hom n m) r, (Cof.restr (ival ρ φ).face h).holds →
+      tubeV S (.snd u) ρ γ n h r = (Tube.canon (ival ρ φ).face (tubeV S u ρ γ)).snd n h r := by
+    intro n h r hh; simp only [tubeV, Tube.snd, tube_canon_eq hh, sem_snd]
+  have hT1 := fstTube_ok hAfib hfam hφ hu0 hu
+  have c1 : HcompCond S A φ (.fst u) (.fst u0) m ρ γ :=
+    ⟨⟨l, hl, Or.inl ⟨hAWF, hAV⟩⟩, hT1.congr hφ fun n h r hh => (hfstT n h r hh).symm, heta.2.1, hNA, hfnat⟩
+  obtain ⟨cf, hfv⟩ := hfill_cond c1
+  have hfnat' : Natural S (Tm.hfill A φ (.fst u) (.fst u0)) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := cf.natural
+  rw [hfillF_congr hfstT, sem_fst] at hfv
+  set fv := hfillF Av (Hom.id m) (ival ρ φ).face (Tube.canon (ival ρ φ).face (tubeV S u ρ γ)).fst
+    (fstV m (sem S u0 m ρ γ))
+  have hflm := fl_mem hAfib hfam hφ hu0 hu
+  rw [Hom.id_comp] at hflm
+  set C := B.dshift.subst (fun | 0 => Tm.hfill A φ (.fst u) (.fst u0) | n + 1 => .var n) .var
+  have eC : ∀ k (g : Hom k (m + 1)), sem S C k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+      apZ (dat Bf k ((Hom.wk m).comp g)) (res g fv) := by
+    intro k g
+    have hσ : ∀ x, Natural S ((fun | 0 => Tm.hfill A φ (.fst u) (.fst u0) | n + 1 => .var n : ℕ → Tm) x) k
+        (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) := by
+      intro x; cases x with
+      | zero => exact hfnat'.restr g
+      | succ x => exact natural_var S x _ _
+    rw [sem_subst S _ k _ _ _ _ hσ]
+    have hg : res g fv ∈ El Av ((Hom.wk m).comp g) := hAfib.elRes _ _ _ hflm k g
+    rw [apZ_dat_famV _ _ _ hg, sem_dshift_tail]
+    have e1 : IEnv.tail (fun i => ival (ρ.ext.restr g) (.var i)) = ρ.restr ((Hom.wk m).comp g) := by
+      rw [← IEnv.restr_restr]; rfl
+    rw [e1, TEnv.restr_restr]
+    congr 1
+    funext x; cases x with
+    | zero => show sem S (Tm.hfill A φ (.fst u) (.fst u0)) k _ _ = _; rw [← TEnv.restr_restr, hfnat' k g, hfv]; rfl
+    | succ x => rfl
+  set Lc := apZ (dat Bf (m + 1) (Hom.wk m)) fv
+  have hfvkv : IsKV (m + 1) fv := hAfib.elKV _ _ _ hflm
+  have eC0 : lineV S C m ρ γ = Lc := by
+    have := eC (m + 1) (Hom.id (m + 1))
+    rwa [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr γ (Hom.wk m)) (fun x => isKV_res _ _),
+      Hom.comp_id, res_id hfvkv] at this
+  have hNC : Natural S C (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := by
+    intro k g
+    show _ = res g (lineV S C m ρ γ)
+    rw [eC k g, eC0]
+    exact (hfam.coh (m + 1) (Hom.wk m) fv hflm k g).symm
+  have htyC : TyCode (m + 1) (lineV S C m ρ γ) := by
+    rw [eC0]; exact ⟨l', hl', Or.inl ⟨(hfamW _ _ fv hflm).2, (hfamW _ _ fv hflm).1⟩⟩
+  have hT2 := sndTube_ok hAfib hfam hφ hu0 hu
+  have hb2 := snd_base_mem hAfib hfam hφ hu0 hu
+  have eBl : Bl Av Bf (Hom.id m) (ival ρ φ).face (tubeV S u ρ γ) (sem S u0 m ρ γ) = Lc := by
+    simp only [Bl, fl, Hom.id_comp]; rfl
+  rw [eBl] at hT2 hb2
+  rw [Hom.id_comp] at hb2
+  have hT2' : LineTubeOK (lineV S C m ρ γ) (Hom.id (m + 1)) (ival ρ φ).face (tubeV S (.snd u) ρ γ)
+      (sem S (.snd u0) m ρ γ) := by
+    rw [eC0, sem_snd]; exact hT2.congr hφ fun n h r hh => (hsndT n h r hh).symm
+  have hb2' : sem S (.snd u0) m ρ γ ∈ El (lineV S C m ρ γ) ((Hom.id (m + 1)).comp (Hom.endpt m (DM.zero m))) := by
+    rw [eC0, sem_snd, Hom.id_comp]; exact hb2
+  obtain ⟨-, hv2⟩ := comp_cond htyC hNC hT2' hb2' hsnat hγ
+  have hm1 := hAfib.hcMem m _ _ _ _ hφ c1.2.2.1 c1.2.1
+  have hm2 := compF_mem (htyC.fib) hφ hb2' hT2'
+  show sem S (.pair (.hcomp A φ (.fst u) (.fst u0)) (Tm.comp C φ (.snd u) (.snd u0))) m ρ γ = _
+  rw [sem_pair_of_kv (by rw [sem_hcomp c1]; exact hAfib.elKV _ _ _ hm1)
+    (by rw [hv2]; exact htyC.fib.elKV _ _ _ hm2), sem_hcomp c1, hv2, eC0, sem_hcomp hc, hsem,
+    hcompAt_sigmaC hAfib hfam hu0 hu, hcompSigmaF_eq, hcompAt_congr hfstT, compF_congr hsndT, sem_fst, sem_snd,
+    Hom.id_comp]
+
 end
 
 end Model

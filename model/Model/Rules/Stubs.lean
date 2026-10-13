@@ -1139,7 +1139,23 @@ theorem sem_EqTm_hcompPi {S : Sig} {Ψ Φ Γ A B φ u u0 T}
 theorem sem_EqTm_hcompSigma {S : Sig} {Ψ Φ Γ A B φ u u0 T}
     (h0 : SemTy S Ψ Φ Γ (hcomp (sigma A B) φ u u0) T) :
     SemEq S Ψ Φ Γ (hcomp (sigma A B) φ u u0) (hcompSigma A B φ u u0) T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (Tm.hcompSigma A B φ u u0) m ρ γ = sem S (hcomp (sigma A B) φ u u0) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    exact sem_hcompSigma (cond_of_sem_hcomp (hty.ne_empty hmem)) hp.kv
+  have hcl : (Tm.hcompSigma A B φ u u0).ConstsLt S.length := by
+    obtain ⟨⟨hA, hB⟩, hu, hu0⟩ := h0.2.1
+    have hf : (Tm.hfill A φ (fst u) (fst u0)).ConstsLt S.length :=
+      ⟨hA.ren _ _, ⟨(show u.ConstsLt S.length from hu).dsubst _, (hu0.ren _ _).ren _ _⟩, hu0.ren _ _⟩
+    have hC : (B.dshift.subst (fun | 0 => Tm.hfill A φ (fst u) (fst u0) | n + 1 => var n) .var).ConstsLt
+        S.length := by
+      refine (hB.ren _ _).subst (fun x => ?_) _
+      cases x with
+      | zero => exact hf
+      | succ x => trivial
+    exact ⟨⟨hA, hu, hu0⟩, hC.dinst _, ⟨hC.dsubst _, hu⟩, ⟨hC, hu0⟩⟩
+  exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_hcompPath {S : Sig} {Ψ Φ Γ A a b φ u p0 T}
     (h0 : SemTy S Ψ Φ Γ (hcomp (path A a b) φ u p0) T) :
