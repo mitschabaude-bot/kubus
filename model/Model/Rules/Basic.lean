@@ -1012,12 +1012,18 @@ theorem interp_congr_closed (cst uc : ℕ → ℕ → V) (good : ℕ → V → P
   | path A a b iA ia ib =>
     intro n d hc m ρ ρ' γ γ' hρ hg
     simp only [Tm.closedB, Bool.and_eq_true] at hc
-    simp only [interp, iA n (d + 1) hc.1.1 (m + 1) _ _ _ _ (hE hρ) (gR (Hom.wk m) hg),
+    have e : ∀ k (g : Hom k (m + 1)), interp cst uc good A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+        interp cst uc good A k (ρ'.ext.restr g) (TEnv.restr (TEnv.restr γ' (Hom.wk m)) g) := fun k g =>
+      iA n (d + 1) hc.1.1 k _ _ _ _ (hR g (hE hρ)) (gR g (gR (Hom.wk m) hg))
+    simp only [interp, e, iA n (d + 1) hc.1.1 (m + 1) _ _ _ _ (hE hρ) (gR (Hom.wk m) hg),
       ia n d hc.1.2 m ρ ρ' γ γ' hρ hg, ib n d hc.2 m ρ ρ' γ γ' hρ hg]
   | ipi A iA =>
     intro n d hc m ρ ρ' γ γ' hρ hg
     simp only [Tm.closedB] at hc
-    simp only [interp, iA n (d + 1) hc (m + 1) _ _ _ _ (hE hρ) (gR (Hom.wk m) hg)]
+    have e : ∀ k (g : Hom k (m + 1)), interp cst uc good A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+        interp cst uc good A k (ρ'.ext.restr g) (TEnv.restr (TEnv.restr γ' (Hom.wk m)) g) := fun k g =>
+      iA n (d + 1) hc k _ _ _ _ (hR g (hE hρ)) (gR g (gR (Hom.wk m) hg))
+    simp only [interp, e, iA n (d + 1) hc (m + 1) _ _ _ _ (hE hρ) (gR (Hom.wk m) hg)]
   | plam A iA =>
     intro n d hc m ρ ρ' γ γ' hρ hg
     simp only [Tm.closedB] at hc

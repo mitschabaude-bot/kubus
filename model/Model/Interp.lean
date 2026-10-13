@@ -22,7 +22,9 @@ hence a redex with a value in a type satisfies the checks. Concretely:
 * `split φ t ψ u` requires one of the faces to hold and `t = u` where both hold (for `splitR`
   and the congruence rule, whose premises do not say that the faces cover);
 * `pair a b` requires Kripke values (for `fstBeta`/`sndBeta`), and so do the components of
-  the type formers `pi`, `sigma`, `path`, `ipi` (for the inversion rules);
+  the type formers `pi`, `sigma`, `path`, `ipi` (for the inversion rules); the line of `path`
+  and `ipi` must moreover be natural (for `pathLine`, `ipiLine`, whose conclusion is about all
+  points of the extended context, not only the generic one);
 * `app f a` requires the argument to be natural (for the substitution in `piBeta`);
 * `plam t` requires the body to be natural (for `pathBeta`);
 * `transp`/`hcomp` require the type to be a good code (`good`, instantiated by the well-formed
@@ -80,7 +82,9 @@ def interp (cst : ℕ → ℕ → V) (uc : ℕ → ℕ → V) (good : (m : ℕ) 
   | .fst p, m, ρ, γ => fstV m (interp cst uc good p m ρ γ)
   | .snd p, m, ρ, γ => sndV m (interp cst uc good p m ρ γ)
   | .path A a b, m, ρ, γ =>
-    if IsKV (m + 1) (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) ∧
+    if (∀ k (g : Hom k (m + 1)), interp cst uc good A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+        res g (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)))) ∧
+        IsKV (m + 1) (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) ∧
         IsKV m (interp cst uc good a m ρ γ) ∧ IsKV m (interp cst uc good b m ρ γ) then
     pathC m (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)))
       (interp cst uc good a m ρ γ) (interp cst uc good b m ρ γ)
@@ -91,7 +95,9 @@ def interp (cst : ℕ → ℕ → V) (uc : ℕ → ℕ → V) (good : (m : ℕ) 
     then pathOfLine m (interp cst uc good t (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) else ∅
   | .papp p r, m, ρ, γ => pappV m (interp cst uc good p m ρ γ) (ival ρ r)
   | .ipi A, m, ρ, γ =>
-    if IsKV (m + 1) (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) then
+    if (∀ k (g : Hom k (m + 1)), interp cst uc good A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+        res g (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)))) ∧
+        IsKV (m + 1) (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) then
       ipiC m (interp cst uc good A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)))
     else ∅
   | .split φ t ψ u, m, ρ, γ =>
