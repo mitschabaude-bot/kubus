@@ -23,19 +23,39 @@ variable {k m n : ℕ}
 theorem isKV_univC (l : ℕ) : IsKV m (univC m l) := by
   unfold univC univCode; exact isKV_mkKV _
 
+theorem hcompAt_univC {l : ℕ} {f : Hom k m} {φ : Cof k} {u : Tube k} {u0 : V} (hφ : φ.IsCof)
+    (hu : TubeOK (univC m l) f φ u u0) (hu0 : u0 ∈ El (univC m l) f) :
+    hcompAt (univC m l) f φ u u0 = univHcF k φ u u0 := by
+  rw [hcompAt]
+  simp only [univC, univCode, hcG, dat_mkKV, univDatum, quad, π2_pair]
+  rw [apZ_hcGraph _ (fun n h r hh => by have := hu.mem n h r hh; rwa [El_univC] at this)
+    (by rw [El_univC] at hu0; exact hu0), univHcF_canon hφ]
+
 /-- The universe of level `l` is fibrant, given that its elements are fibrant and closed under
 restriction. -/
-theorem fib_univC {l : ℕ} (hel : ∀ k c, WF l k c → IsKV k c)
+theorem fib_univC {l : ℕ} (hfib : ∀ k c, WF l k c → Fib c k)
     (hres : ∀ k c, WF l k c → ∀ n (h : Hom n k), WF l n (res h c))
     (hsmall : ∀ k c, c ∈ Vt l → ∀ n (h : Hom n k), res h c ∈ Vt l) : Fib (univC m l) m where
   kv := isKV_univC l
-  elKV k f c hc := by rw [El_univC, ZFSet.mem_sep] at hc; exact hel k c hc.2
+  elKV k f c hc := by rw [El_univC, ZFSet.mem_sep] at hc; exact (hfib k c hc.2).kv
   elRes k f c hc n h := by
     rw [El_univC, ZFSet.mem_sep] at hc ⊢
     exact ⟨hsmall k c hc.1 n h, hres k c hc.2 n h⟩
-  hcMem := sorry
-  hcFace := sorry
-  hcRes := sorry
+  hcMem k f φ u u0 hφ hu0 hu := by
+    rw [hcompAt_univC hφ hu hu0]
+    rw [El_univC, ZFSet.mem_sep] at hu0 ⊢
+    have hmem : ∀ n (h : Hom n k) r, (φ.restr h).holds → WF l n (u n h r) ∧ u n h r ∈ Vt l := fun n h r hh => by
+      have := hu.mem n h r hh; rw [El_univC, ZFSet.mem_sep] at this; exact ⟨this.2, this.1⟩
+    exact ⟨univHcF_small hφ hmem ⟨hu0.2, hu0.1⟩, univHcF_wf hfib hφ hmem hu.coh hu.base ⟨hu0.2, hu0.1⟩⟩
+  hcFace k f φ u u0 hφ hu0 hu hh := by
+    rw [hcompAt_univC hφ hu hu0, univHcF, if_pos hh]
+  hcRes k f φ u u0 hφ hu0 hu n h := by
+    have hmem : ∀ n (h : Hom n k) r, (φ.restr h).holds → WF l n (u n h r) ∧ u n h r ∈ Vt l := fun n h r hh => by
+      have := hu.mem n h r hh; rw [El_univC, ZFSet.mem_sep] at this; exact ⟨this.2, this.1⟩
+    have hu0' : res h u0 ∈ El (univC m l) (f.comp h) := by
+      rw [El_univC, ZFSet.mem_sep] at hu0 ⊢; exact ⟨hsmall _ _ hu0.1 _ h, hres _ _ hu0.2 _ h⟩
+    rw [hcompAt_univC hφ hu hu0, hcompAt_univC (hφ.restr h) (hu.restr h) hu0',
+      univHcF_res hfib hφ hmem hu.coh h]
   trMem n f φ a0 _ _ ha := by
     have e : transpAt (univC m l) f φ a0 = a0 := by
       rw [transpAt]; simp only [univC, univCode, trG_mkKV, univDatum, π1π2π2_quad, univTr]
@@ -127,7 +147,7 @@ theorem wf_props : ∀ l, ∀ m c, WF l m c → Fib c m ∧ ∀ k (h : Hom k m),
   | @univ m l' hl' =>
     rw [Ucodes_lt m hl']
     have ih := ihl l' hl'
-    refine ⟨fib_univC (fun k c hc => (ih k c hc).1.kv) (fun k c hc n h => (ih k c hc).2 n h)
+    refine ⟨fib_univC (fun k c hc => (ih k c hc).1) (fun k c hc n h => (ih k c hc).2 n h)
       (fun k c hc n h => res_mem_Vt hc h), fun k h => ?_⟩
     rw [res_univC, ← Ucodes_lt k hl']; exact WFI.univ hl'
   | @glue m A φ Tp ep hA hφ hn hTp hep hT hTcoh he hecoh ihA ihT =>

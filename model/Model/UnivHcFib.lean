@@ -366,6 +366,107 @@ theorem eqTr_res {B : V} (hB : Fib B (n + 1)) (h : Hom n' n) : res h (eqTr n B) 
     ← TranspPi.lift_comp_endpt1, ← TranspPi.lift_comp_endpt0, ← res_res, ← res_res (Hom.lift h) (eZ n'),
     ← res_res (Hom.lift h) (eZ n'), eqFunL_res_lift]
 
+/-! ### The composite type -/
+
+theorem partialKV_congr {φ : Cof m} {F G : (k : ℕ) → Hom k m → V}
+    (h : ∀ k (f : Hom k m), (φ.restr f).holds → F k f = G k f) : partialKV m φ F = partialKV m φ G := by
+  unfold partialKV; congr 1; funext k f; split
+  · exact h k f ‹_›
+  · rfl
+
+theorem holds_comp {φ : Cof k} (hφ : φ.IsCof) {g : Hom n k} (hg : (φ.restr g).holds) (h : Hom n' n) :
+    (φ.restr (g.comp h)).holds := by
+  rw [← Cof.restr_restr]; exact (hφ.restr g).holds_restr hg h
+
+theorem univHcF_canon {φ : Cof k} (hφ : φ.IsCof) (u : Tube k) (u0 : V) :
+    univHcF k φ (Tube.canon φ u) u0 = univHcF k φ u u0 := by
+  unfold univHcF
+  split_ifs with h
+  · simp only [Tube.canon]; rw [if_pos (by rw [hφ.restr_id]; exact h)]
+  · congr 1
+    · exact partialKV_congr fun n g hg => by simp only [Tube.canon]; rw [if_pos hg]
+    · exact partialKV_congr fun n g hg => by simp only [Tube.canon]; rw [if_pos (holds_comp hφ hg _)]
+
+section univHc
+
+variable {l : ℕ} (hW : ∀ k c, WF l k c → Fib c k) {φ : Cof k} (hφ : φ.IsCof) {u : Tube k} {u0 : V}
+  (hmem : ∀ n (h : Hom n k) r, (φ.restr h).holds → WF l n (u n h r) ∧ u n h r ∈ Vt l)
+  (hcoh : ∀ n (h : Hom n k) r, (φ.restr h).holds → ∀ n' (g : Hom n' n), res g (u n h r) = u n' (h.comp g) (r.restr g))
+  (hbase : ∀ n (h : Hom n k), (φ.restr h).holds → u n h (DM.zero n) = res h u0)
+  (hu0 : WF l k u0 ∧ u0 ∈ Vt l)
+
+/-- The line of the tube above `g`. -/
+abbrev tubeLine (u : Tube k) (g : Hom n k) : V := u (n + 1) (g.comp (Hom.wk n)) (lastVar n)
+
+include hφ hcoh in
+theorem tubeLine_endpt {g : Hom n k} (hg : (φ.restr g).holds) (r : DM n) :
+    res (Hom.endpt n r) (tubeLine u g) = u n g r := by
+  rw [hcoh _ _ _ (holds_comp hφ hg _), Hom.comp_assoc, Hom.wk_comp_endpt, Hom.comp_id, lastVar_restr_endpt]
+
+include hφ hcoh in
+theorem tubeLine_lift {g : Hom n k} (hg : (φ.restr g).holds) (h : Hom n' n) :
+    res (Hom.lift h) (tubeLine u g) = tubeLine u (g.comp h) := by
+  rw [hcoh _ _ _ (holds_comp hφ hg _), Hom.comp_assoc, Hom.wk_comp_lift, ← Hom.comp_assoc, lastVar_restr_lift]
+
+include hφ hcoh in
+theorem revLine_lift {g : Hom n k} (hg : (φ.restr g).holds) (h : Hom n' n) :
+    res (Hom.lift h) (res (revLine n) (tubeLine u g)) = res (revLine n') (tubeLine u (g.comp h)) := by
+  rw [res_res, revLine, negLine_lift, ← res_res, tubeLine_lift hφ hcoh hg]; rfl
+
+include hW hφ hmem in
+theorem fib_revLine {g : Hom n k} (hg : (φ.restr g).holds) : Fib (res (revLine n) (tubeLine u g)) (n + 1) :=
+  (hW _ _ (hmem _ _ _ (holds_comp hφ hg _)).1).restr _
+
+include hW hφ hmem hcoh hbase in
+theorem eqTr_tube {g : Hom n k} (hg : (φ.restr g).holds) :
+    eqTr n (res (revLine n) (tubeLine u g)) ∈ El (equivCode n (u n g (DM.one n)) (res g u0)) (Hom.id n) := by
+  have hB := fib_revLine hW hφ hmem hg
+  have e0 : res (eZ n) (res (revLine n) (tubeLine u g)) = u n g (DM.one n) := by
+    rw [res_res, revLine, negLine_endpt0, tubeLine_endpt hφ hcoh hg]
+  have e1 : res (eO n) (res (revLine n) (tubeLine u g)) = res g u0 := by
+    rw [res_res, revLine, negLine_endpt1, tubeLine_endpt hφ hcoh hg, hbase _ _ hg]
+  have := eqTr_mem hB
+  rw [e0, e1] at this
+  rwa [equivCode_eq_equivM (by rw [← e0]; exact hB.restr _) (by rw [← e1]; exact hB.restr _)]
+
+include hW hφ hmem hcoh hbase hu0 in
+theorem univHcF_wf : WF l k (univHcF k φ u u0) := by
+  unfold univHcF
+  split_ifs with hh
+  · exact (hmem k (Hom.id k) _ (by rw [hφ.restr_id]; exact hh)).1
+  · unfold WF
+    refine WFI.glue hu0.1 hφ hh (partialKV_self _ _) (partialKV_self _ _) (fun n g hg => ?_)
+      (fun n g hg n' h => ?_) (fun n g hg => ?_) (fun n g hg n' h => ?_)
+    · rw [dat_partialKV_holds hg]; exact (hmem _ _ _ hg).1
+    · rw [dat_partialKV_holds hg, dat_partialKV_holds (holds_comp hφ hg h), hcoh _ _ _ hg, DM.one_restr]
+    · rw [dat_partialKV_holds hg, dat_partialKV_holds hg]; exact eqTr_tube hW hφ hmem hcoh hbase hg
+    · rw [dat_partialKV_holds hg, dat_partialKV_holds (holds_comp hφ hg h),
+        eqTr_res (fib_revLine hW hφ hmem hg) h, revLine_lift hφ hcoh hg]
+
+include hφ hmem hu0 in
+theorem univHcF_small : univHcF k φ u u0 ∈ Vt l := by
+  have hl := le_of_mem_Vt hu0.2
+  unfold univHcF
+  split_ifs with hh
+  · exact (hmem k (Hom.id k) _ (by rw [hφ.restr_id]; exact hh)).2
+  · exact glueC_mem_Vt' hl hu0.2 (partialKV_mem_Vt hl fun n g hg => (hmem _ _ _ hg).2)
+      (partialKV_mem_Vt hl fun n g hg => eqTr_mem_Vt (res_mem_Vt' hl (hmem _ _ _ (holds_comp hφ hg _)).2 _))
+
+include hW hφ hmem hcoh in
+theorem univHcF_res (h : Hom n k) : res h (univHcF k φ u u0) = univHcF n (φ.restr h) (u.restr h) (res h u0) := by
+  unfold univHcF
+  by_cases hh : φ.holds
+  · rw [if_pos hh, if_pos (hφ.holds_restr hh h), hcoh k (Hom.id k) _ (by rw [hφ.restr_id]; exact hh), DM.one_restr]
+    simp only [Tube.restr, Hom.id_comp, Hom.comp_id]
+  · rw [if_neg hh, res_glueC (fun k' f hf n' h' => by
+        rw [dat_partialKV_holds hf, dat_partialKV_holds (holds_comp hφ hf h'), hcoh _ _ _ hf, DM.one_restr])
+      (fun k' f hf => by rw [dat_partialKV_holds hf]; exact (hW _ _ (hmem _ _ _ hf).1).kv) hφ h]
+    split_ifs with hh'
+    · rw [dat_partialKV_holds hh']; simp only [Tube.restr, Hom.comp_id]
+    · rw [res_partialKV, res_partialKV]; rfl
+
+end univHc
+
 end
 
 end Model

@@ -74,7 +74,7 @@ theorem WF.univ_lt {l l' : ℕ} (h : WF l' m (univC m l)) : l < l' := by
 /-! ### Good codes -/
 
 theorem fib_univC' (l : ℕ) : Fib (univC m l) m :=
-  fib_univC (fun k c hc => (wf_props l k c hc).1.kv) (fun k c hc n h => (wf_props l k c hc).2 n h)
+  fib_univC (fun k c hc => (wf_props l k c hc).1) (fun k c hc n h => (wf_props l k c hc).2 n h)
     (fun _ _ hc _ h => res_mem_Vt hc h)
 
 theorem TyCode.fib {c : V} (h : TyCode m c) : Fib c m := by
