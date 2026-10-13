@@ -100,6 +100,10 @@ Violations are reported with the name of the invariant, and the exit code is 1. 
 
 `tests/fuzz.sh N SEED` generates `N` random well-typed files over the library (Π, Σ, paths, Glue and `ua`, Bool, Nat, Int, S1, Susp, Trunc, `hcomp`/`comp`/`fill` with systems, composition in the universe, pattern matching on HITs), checks them under `--selfcheck`, and checks that mutated variants (a flipped path boundary, swapped endpoints, a base that disagrees with its system, a glue element that disagrees with its base, a HIT clause that violates its boundary, a type error) are rejected. `tests/fuzz.py --seed SEED --case K --keep DIR` regenerates a single case.
 
+## Certified kernel
+
+`kubus --kernel FILE` additionally translates every definition into KubusCore (`KubusCore/Syntax.lean`, `KubusCore/Rules.lean`) and checks it with a kernel whose functions return derivations of the specification's judgments, so that a certified signature comes with a proof of `WfSig` (`KubusCore/KERNEL.md`). Data types and pattern matching are not translated yet; definitions using them are skipped. `kubus --kernel lib/univalence.ktt` certifies everything else in `basic`, `equiv` and `univalence`, including `EquivContr`.
+
 ## Limitations
 
 All arguments are explicit; there are no implicit arguments or unification. Pattern matching covers one argument, with no nested patterns and no mutual or indexed definitions. For higher inductive types with parameters, path-constructor boundaries must be built from the constructor's point arguments and constructors. The evaluator is strict, and some composite Kan operations can still blow up.
