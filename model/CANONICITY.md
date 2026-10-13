@@ -152,3 +152,8 @@ Remaining sub-steps:
 - (c3) Head expansion along substitution-stable steps (`∀ σ, step (t.isub σ) = some (t1.isub σ)`). Faces that come to hold under restriction are handled per stage where the redex is known.
 - (c4) Introduction and elimination clauses per former, and the Kan lemma for related lines and data, including the binary `hcompCon` via projections, which also discharges `HCSound`.
 - (c5) The fundamental lemma for `HasTy0` and `EqTm0`, with related closing substitutions. `UGSound` and `GlueCompat` are corollaries.
+
+Two design points came out of (c2):
+
+- Elements of Glue types are observed through their whnf `glueEl ψ e0 t0 a0` at every restriction where the face does not hold. The relation requires `ψ ⟺ φ1` and `e0 ≡ e1` under the face, where `(φ1, e1)` come from the type's whnf at the same stage, and relates the bases `a0`. Observing through `unglue φ1 e1 g` instead would mix the annotations of different stages, and those are related only by `GlueCompat`. The annotation agreement is also what makes the step `unglue φ e (glueEl φ' e' t a) ⇒ a` sound (`UGSound`). It holds for `glueEl` introductions and for the `hcompGlue`/`transpGlue` contracta, and it transfers along related Glue types, whose relation gives `e1 ≡ e1'` under the face.
+- Steps do not commute with restriction, so head expansion is local. If, for every restriction `σ`, `t.isub σ` takes a single-stage step to some `t1_σ` that is ≡ to it and related at that stage, then `t` is related. Each clause is Kripke by definition and only uses its own stage's normal forms, so this holds by code induction. The fundamental lemma uses it per restriction, splitting on whether the face of the redex holds there.

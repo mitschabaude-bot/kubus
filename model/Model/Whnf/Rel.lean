@@ -8,8 +8,10 @@ Related closed types and elements at a stage, indexed by the model's code (as `M
 and Kripke by construction. Every relation includes the judgmental equality of the two sides. The
 types of every former, and the elements of inductive types, are observed through their weak-head
 normal forms (`RedW`), which are unique: this makes the relations transitive without any
-injectivity of type formers or constructors. Elements of `Π`, `Σ`, path types and Glue types are
-observed through their eliminations.
+injectivity of type formers or constructors. Elements of `Π`, `Σ` and path types are observed
+through their eliminations. Elements of Glue types are observed through their weak-head normal
+forms `glueEl ψ e t a`, whose annotations agree with those of the type's normal form (so that
+`unglue` computes soundly), and their bases `a`; where the face holds, through `T`.
 -/
 
 set_option autoImplicit false
@@ -199,8 +201,11 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
                 (Tm.equiv (T1.isub σ') (A1.isub σ')) (e1.isub σ') (e1'.isub σ')
       el := fun A g g' => EB S k A g g' ∧ ∀ k' (σ : ISub k' k),
           if (φ.restr σ.hom).holds then (RT k' σ).el (A.isub σ) (g.isub σ) (g'.isub σ)
-          else ∃ A1 φ1 T1 e1, RedW S (A.isub σ) (.glue A1 φ1 T1 e1) ∧
-            (RA k' σ).el A1 (.unglue φ1 e1 (g.isub σ)) (.unglue φ1 e1 (g'.isub σ)) }
+          else ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedW S (A.isub σ) (.glue A1 φ1 T1 e1) ∧
+            RedW S (g.isub σ) (.glueEl ψ e0 t0 a0) ∧ RedW S (g'.isub σ) (.glueEl ψ' e0' t0' a0') ∧
+            I.Entails ψ φ1 ∧ I.Entails φ1 ψ ∧ I.Entails ψ' φ1 ∧ I.Entails φ1 ψ' ∧
+            EqTm S k' (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) ∧ EqTm S k' (cof .one φ1) [] e0' e1 (Tm.equiv T1 A1) ∧
+            (RA k' σ).el A1 a0 a0' }
   else if π1 sh = natZ tData then
     let d := natOf (π1 (π2 sh))
     let D : DataDecl := dataD S d

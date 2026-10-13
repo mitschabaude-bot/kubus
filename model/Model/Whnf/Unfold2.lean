@@ -154,8 +154,11 @@ theorem Comp2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp)
         fun T g g' => EB S m T g g' ∧ semK S m g ∈ El (res (Hom.id m) (glueC m A φ Tp ep)) (Hom.id m) ∧
           EB S m T g g' ∧ ∀ k' (σ : ISub k' m),
           if (φ.restr σ.hom).holds then (Comp2 S (dat Tp k' σ.hom) k' k' (Hom.id k')).el (T.isub σ) (g.isub σ) (g'.isub σ)
-          else ∃ A1 φ1 T1 e1, RedW S (T.isub σ) (.glue A1 φ1 T1 e1) ∧
-            (Comp2 S A m k' σ.hom).el A1 (.unglue φ1 e1 (g.isub σ)) (.unglue φ1 e1 (g'.isub σ))⟩ := by
+          else ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedW S (T.isub σ) (.glue A1 φ1 T1 e1) ∧
+            RedW S (g.isub σ) (.glueEl ψ e0 t0 a0) ∧ RedW S (g'.isub σ) (.glueEl ψ' e0' t0' a0') ∧
+            I.Entails ψ φ1 ∧ I.Entails φ1 ψ ∧ I.Entails ψ' φ1 ∧ I.Entails φ1 ψ' ∧
+            EqTm S k' (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) ∧ EqTm S k' (cof .one φ1) [] e0' e1 (Tm.equiv T1 A1) ∧
+            (Comp2 S A m k' σ.hom).el A1 a0 a0'⟩ := by
   rw [Comp2_unfold (show glueC m A φ Tp ep ≠ ∅ from mkKV_ne_empty _)]
   have hdat : dat (glueC m A φ Tp ep) m (Hom.id m) = glueDatum m A φ Tp (res (Hom.id m) ep) := by
     unfold glueC; rw [dat_mkKV, if_neg (by rwa [hφ.restr_id]), hφ.restr_id, res_id hA, res_id hTp]
