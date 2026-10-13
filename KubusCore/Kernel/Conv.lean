@@ -36,7 +36,7 @@ def canonPhi (Φ : I) : I := I.ofFaces ((canonFaces Φ).map normFace)
 
 /-- Substitute the endpoints of the face `α` into `t` (for variables that occur). -/
 def faceSubst {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (t0 : Tm) : I.Face → (t : Tm) → EqTm S Ψ Φ Γ t0 t A →
-    K (Red S Ψ Φ Γ t0 A)
+    K S (Red S Ψ Φ Γ t0 A)
   | [], t, e => pure ⟨t, e⟩
   | (i, d) :: α, t, e =>
     if hi : i < Ψ ∧ t.mentionsI i = true then
@@ -95,7 +95,7 @@ def projSnd {Ψ Φ Γ} (t A : Tm) (h : HasTy S Ψ Φ Γ (.snd t) A) : Red S Ψ �
 /-- Unfold the head constant of a spine once, and contract the β-redexes this exposes along the
 spine, without reducing further. Returns the inferred type of the spine. -/
 def unfoldHead (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
-    (t : Tm) → K (Option ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty))
+    (t : Tm) → K S (Option ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty))
   | .const k =>
     match h : S[k]?, hl : E.sig.lv[k]? with
     | some (.defn b Ak), some lk =>
@@ -160,13 +160,13 @@ variable (R : Rec S) {Ψ : Nat} {Φ : I} {Γ : Ctx} (E : KCtx S Ψ Φ Γ)
 first, and comparing again; `none` if neither side has a constant head or nothing matched. -/
 def lazyDelta (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) :
     Nat → (t u : Tm) → HasTy S Ψ Φ Γ t A → HasTy S Ψ Φ Γ u A →
-    K (Option (PLift (EqTm S Ψ Φ Γ t u A)))
+    K S (Option (PLift (EqTm S Ψ Φ Γ t u A)))
   | 0, _, _, _, _ => pure none
   | n + 1, t, u, ht, hu => do
     if h : t = u then return some ⟨h ▸ EqTm.refl ht⟩
     if sameConstHead t u then
-      if let .ok ⟨ni, ⟨en⟩⟩ := R.convNe E t u then
-        if let .ok ⟨en'⟩ := bridge R E ni.hty hA en then return some ⟨en'⟩
+      if let some ⟨ni, ⟨en⟩⟩ ← tryOpt (R.convNe E t u) then
+        if let some ⟨en'⟩ ← tryOpt (bridge R E ni.hty hA en) then return some ⟨en'⟩
     let unfoldLeft := match constHead t, constHead u with
       | some k, some k' => decide (k' ≤ k)
       | some _, none => true
@@ -190,7 +190,7 @@ def lazyDelta (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) :
     pure none
 
 def convTyData (m d : Nat) (ps ps' : Tm) (hm : m + 1 ≤ maxLevel) :
-    K (PLift (EqTm S Ψ Φ Γ (.data d ps) (.data d ps') (.univ m))) := do
+    K S (PLift (EqTm S Ψ Φ Γ (.data d ps) (.data d ps') (.univ m))) := do
   let ⟨D, ⟨hS, hD⟩⟩ ← inferData R E d ps
   let ⟨D', ⟨hS', hD'⟩⟩ ← inferData R E d ps'
   have hDD : D' = D := by rw [hS] at hS'; cases hS'; rfl
@@ -200,7 +200,7 @@ def convTyData (m d : Nat) (ps ps' : Tm) (hm : m + 1 ≤ maxLevel) :
 
 /-- Structural comparison of two types in weak-head normal form. -/
 def convTyWhnf (m : Nat) (X Y : Tm) (hX : HasTy S Ψ Φ Γ X (.univ m))
-    (hY : HasTy S Ψ Φ Γ Y (.univ m)) : K (PLift (EqTm S Ψ Φ Γ X Y (.univ m))) :=
+    (hY : HasTy S Ψ Φ Γ Y (.univ m)) : K S (PLift (EqTm S Ψ Φ Γ X Y (.univ m))) :=
   if h : X = Y then pure ⟨h ▸ EqTm.refl hX⟩ else do
   let ⟨hm⟩ ← ensureLvl (m + 1)
   match X, Y, hX, hY with
@@ -255,7 +255,7 @@ def convTyWhnf (m : Nat) (X Y : Tm) (hX : HasTy S Ψ Φ Γ X (.univ m))
 
 /-- Compare two types. -/
 def convTypes (m : Nat) (X Y : Tm) (hX : HasTy S Ψ Φ Γ X (.univ m))
-    (hY : HasTy S Ψ Φ Γ Y (.univ m)) : K (PLift (EqTm S Ψ Φ Γ X Y (.univ m))) := do
+    (hY : HasTy S Ψ Φ Γ Y (.univ m)) : K S (PLift (EqTm S Ψ Φ Γ X Y (.univ m))) := do
   let rX ← whnfTy R E X m hX
   let rY ← whnfTy R E Y m hY
   let ⟨e⟩ ← convTyWhnf R E m rX.tm rY.tm (HasTy.eqR rX.eq) (HasTy.eqR rY.eq)
@@ -263,7 +263,7 @@ def convTypes (m : Nat) (X Y : Tm) (hX : HasTy S Ψ Φ Γ X (.univ m))
 
 /-- Type-directed comparison at a type in weak-head normal form. -/
 def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
-    (ht : HasTy S Ψ Φ Γ t A) (hu : HasTy S Ψ Φ Γ u A) : K (PLift (EqTm S Ψ Φ Γ t u A)) :=
+    (ht : HasTy S Ψ Φ Γ t A) (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) :=
   match A, hA, ht, hu with
   | .pi A1 B1, hP, ht, hu => do
     have hD := HasTy.piDom hP
@@ -330,19 +330,19 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
   | .univ m, _, ht, hu => convTypes R E m t u ht hu
   | A, hA, ht, hu => do
     -- lazy δ: unfold the head constant defined later first
-    if let .ok (some e) := lazyDelta R E A l hA 20 t u ht hu then return e
+    if let some (some e) ← tryOpt (lazyDelta R E A l hA 20 t u ht hu) then return e
     let rt ← R.whnf E t A l hA ht
     let ru ← R.whnf E u A l hA hu
     if h : rt.tm = ru.tm then
       return ⟨EqTm.trans rt.eq (EqTm.symm (h ▸ ru.eq))⟩
-    let ⟨ni, ⟨en⟩⟩ ← (R.convNe E rt.tm ru.tm).mapError (· ++ s!"\n  at type {short A}")
+    let ⟨ni, ⟨en⟩⟩ ← mapErr (· ++ s!"\n  at type {short A}") (R.convNe E rt.tm ru.tm)
     let ⟨en'⟩ ← bridge R E ni.hty hA en
     pure ⟨EqTm.trans rt.eq (EqTm.trans en' (EqTm.symm ru.eq))⟩
 
 /-- Comparison under a single face `α` of the restriction. -/
 def convFace (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
     (ht : HasTy S Ψ Φ Γ t A) (hu : HasTy S Ψ Φ Γ u A) (α : I.Face) :
-    K (PLift (EqTm S Ψ Φ Γ t u A)) := do
+    K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
   let rt ← faceSubst E A t α t (EqTm.refl ht)
   let ru ← faceSubst E A u α u (EqTm.refl hu)
   if h : rt.tm = ru.tm then
@@ -357,7 +357,7 @@ end
 
 def convStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm) (ht : HasTy S Ψ Φ Γ t A)
-    (hu : HasTy S Ψ Φ Γ u A) : K (PLift (EqTm S Ψ Φ Γ t u A)) := do
+    (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
   if h : t = u then return ⟨h ▸ EqTm.refl ht⟩
   match canonFaces Φ with
   | [] =>
@@ -384,7 +384,7 @@ def convStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     pure ⟨EqTm.local hφ hψ hcov ht hu e1 e2⟩
 
 def convNeUnglue (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : Tm) (φ' : I) (g' : Tm) :
-    K ((i : Inf S Ψ Φ Γ (.unglue φ e g)) × PLift (EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ' e g') i.ty)) := do
+    K S ((i : Inf S Ψ Φ Γ (.unglue φ e g)) × PLift (EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ' e g') i.ty)) := do
   let ⟨gi, ⟨eg⟩⟩ ← R.convNe E g g'
   let ⟨A1, T, ⟨hA1, eG⟩⟩ ← toGlueE R E gi.ty gi.lvl gi.hty φ e
   have hG := HasTy.eqR eG
@@ -400,7 +400,7 @@ def convNeUnglue (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : Tm
 
 def convNeCon (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps args : Tm) (rs : List I)
     (ps' args' : Tm) (rs' : List I) :
-    K ((i : Inf S Ψ Φ Γ (.con d c ps args rs)) ×
+    K S ((i : Inf S Ψ Φ Γ (.con d c ps args rs)) ×
       PLift (EqTm S Ψ Φ Γ (.con d c ps args rs) (.con d c ps' args' rs') i.ty)) := do
   let ⟨D, ⟨hS, hD, h1⟩⟩ ← inferCon R E d c ps args rs
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
@@ -413,7 +413,7 @@ def convNeCon (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps args 
   else fail "kernel: interval arguments differ in number"
 
 def convNeElim (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t ps' P' bs' t' : Tm) :
-    K ((i : Inf S Ψ Φ Γ (.elim d ps P bs t)) ×
+    K S ((i : Inf S Ψ Φ Γ (.elim d ps P bs t)) ×
       PLift (EqTm S Ψ Φ Γ (.elim d ps P bs t) (.elim d ps' P' bs' t') i.ty)) := do
   let info ← inferElimInfo R E d ps P bs
   let ⟨ht⟩ ← R.check E t (.data d ps) info.D.level info.hD
@@ -445,7 +445,7 @@ def convNeElim (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t
 
 /-- Comparison of neutral terms in weak-head normal form; returns the type of the first. -/
 def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
-    K ((i : Inf S Ψ Φ Γ t) × PLift (EqTm S Ψ Φ Γ t u i.ty)) :=
+    K S ((i : Inf S Ψ Φ Γ t) × PLift (EqTm S Ψ Φ Γ t u i.ty)) :=
   match t, u with
   | .const k, .const k' => do
     if h : k = k' then

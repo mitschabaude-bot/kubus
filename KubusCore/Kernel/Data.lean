@@ -13,12 +13,12 @@ namespace KubusCore.Kernel
 
 variable {S : Sig}
 
-def lookupData (S : Sig) (d : Nat) : K ((D : DataDecl) × PLift (S[d]? = some (.data D))) :=
+def lookupData (S : Sig) (d : Nat) : K S ((D : DataDecl) × PLift (S[d]? = some (.data D))) :=
   match S[d]?, (rfl : S[d]? = S[d]?) with
   | some (.data D), h => pure ⟨D, ⟨h.symm⟩⟩
   | _, _ => fail s!"kernel: D{d} is not an inductive type"
 
-def lookupCtor (D : DataDecl) (c : Nat) : K ((C : Ctor) × PLift (D.ctors[c]? = some C)) :=
+def lookupCtor (D : DataDecl) (c : Nat) : K S ((C : Ctor) × PLift (D.ctors[c]? = some C)) :=
   match D.ctors[c]?, (rfl : D.ctors[c]? = D.ctors[c]?) with
   | some C, h => pure ⟨C, ⟨h.symm⟩⟩
   | none, _ => fail s!"kernel: no constructor {c}"
@@ -35,12 +35,12 @@ def getIdx' {α : Type} (l : List α) (k : Nat) :
   | none, h => .inr ⟨h.symm⟩
 
 /-- `t` is a literal list. -/
-def ensureList (t : Tm) : K (PLift (t = Tm.ofList t.toList)) :=
+def ensureList (t : Tm) : K S (PLift (t = Tm.ofList t.toList)) :=
   if h : t = Tm.ofList t.toList then pure ⟨h⟩ else fail "kernel: expected a list"
 
 /-- Check a list term against a telescope. -/
 def checkTele (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
-    (as : Tm) → (Δ prev : List Tm) → K (PLift (HasTele S Ψ Φ Γ as Δ prev))
+    (as : Tm) → (Δ prev : List Tm) → K S (PLift (HasTele S Ψ Φ Γ as Δ prev))
   | .tnil, [], _ => pure ⟨HasTele.nil E.wf⟩
   | .tcons a as, A :: Δ, prev => do
     let ⟨l, ⟨hA⟩⟩ ← inferType R E (A.substList prev)
@@ -51,7 +51,7 @@ def checkTele (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
 
 /-- Compare two list terms in a telescope. -/
 def convTele (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
-    (as as' : Tm) → (Δ prev : List Tm) → K (PLift (EqTele S Ψ Φ Γ as as' Δ prev))
+    (as as' : Tm) → (Δ prev : List Tm) → K S (PLift (EqTele S Ψ Φ Γ as as' Δ prev))
   | .tnil, .tnil, [], _ => pure ⟨EqTele.nil E.wf⟩
   | .tcons a as, .tcons a' as', A :: Δ, prev => do
     let ⟨l, ⟨hA⟩⟩ ← inferType R E (A.substList prev)
@@ -69,7 +69,7 @@ theorem HasTele.eqRefl {Ψ Φ Γ} : ∀ {as Δ prev}, HasTele S Ψ Φ Γ as Δ p
 
 /-- `data d ps : U_l`. -/
 def inferData (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps : Tm) :
-    K ((D : DataDecl) × PLift (S[d]? = some (.data D) ∧ HasTy S Ψ Φ Γ (.data d ps) (.univ D.level))) := do
+    K S ((D : DataDecl) × PLift (S[d]? = some (.data D) ∧ HasTy S Ψ Φ Γ (.data d ps) (.univ D.level))) := do
   let ⟨D, ⟨hS⟩⟩ ← lookupData S d
   let ⟨hl⟩ ← ensureLvl (D.level + 1)
   let ⟨hps⟩ ← checkTele R E ps D.params []
@@ -77,7 +77,7 @@ def inferData (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps : Tm) :
 
 /-- `con d c ps args rs : data d ps`. -/
 def inferCon (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps args : Tm) (rs : List I) :
-    K ((D : DataDecl) × PLift (S[d]? = some (.data D) ∧
+    K S ((D : DataDecl) × PLift (S[d]? = some (.data D) ∧
       HasTy S Ψ Φ Γ (.data d ps) (.univ D.level) ∧ HasTy S Ψ Φ Γ (.con d c ps args rs) (.data d ps))) := do
   let ⟨D, ⟨hS, hD⟩⟩ ← inferData R E d ps
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
@@ -110,7 +110,7 @@ def castCtx {Ψ Φ Φ' Γ Γ'} (E : KCtx S Ψ Φ Γ) (hΦ : Φ = Φ') (hΓ : Γ 
 
 /-- Extend a context by a list of types (the first is bound first). -/
 def extTypes (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
-    (As : List Tm) → K (KCtx S Ψ Φ (As.reverse ++ Γ))
+    (As : List Tm) → K S (KCtx S Ψ Φ (As.reverse ++ Γ))
   | [] => pure E
   | A :: As => do
     let ⟨l, ⟨hA⟩⟩ ← inferType R E A
@@ -120,7 +120,7 @@ def extTypes (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
 /-- The branch context of constructor `C`, restricted to the boundary face `ψ`. -/
 def branchCtxK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) (d : Nat) (C : Ctor)
     (ps P : Tm) (ψ : I) :
-    K (KCtx S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps P Γ)) := do
+    K S (KCtx S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps P Γ)) := do
   let n := C.args.length
   let r := C.recPos.length
   let tys := (List.range n).map (DataDecl.branchArgTy d D.params.length C ps) ++
@@ -139,9 +139,9 @@ def branchCtxK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) (d : 
 
 /-- Prove a property of all pairs of corresponding elements of two lists by checking each. -/
 def forallPairs {α β : Type} (xs : List α) (ys : List β) (P : Nat → α → β → Prop)
-    (f : (c : Nat) → (x : α) → (y : β) → xs[c]? = some x → ys[c]? = some y → K (PLift (P c x y))) :
+    (f : (c : Nat) → (x : α) → (y : β) → xs[c]? = some x → ys[c]? = some y → K S (PLift (P c x y))) :
     (n : Nat) → PLift (∀ c x y, c < n → xs[c]? = some x → ys[c]? = some y → P c x y) →
-    K (PLift (∀ c x y, xs[c]? = some x → ys[c]? = some y → P c x y))
+    K S (PLift (∀ c x y, xs[c]? = some x → ys[c]? = some y → P c x y))
   | n, ⟨acc⟩ =>
     if hn : n < xs.length then
       match hx : xs[n]? with
@@ -170,14 +170,14 @@ def forallPairs {α β : Type} (xs : List α) (ys : List β) (P : Nat → α →
 termination_by n => xs.length - n
 
 def forallPairs0 {α β : Type} (xs : List α) (ys : List β) (P : Nat → α → β → Prop)
-    (f : (c : Nat) → (x : α) → (y : β) → xs[c]? = some x → ys[c]? = some y → K (PLift (P c x y))) :
-    K (PLift (∀ c x y, xs[c]? = some x → ys[c]? = some y → P c x y)) :=
+    (f : (c : Nat) → (x : α) → (y : β) → xs[c]? = some x → ys[c]? = some y → K S (PLift (P c x y))) :
+    K S (PLift (∀ c x y, xs[c]? = some x → ys[c]? = some y → P c x y)) :=
   forallPairs xs ys P f 0 ⟨fun _ _ _ h => absurd h (Nat.not_lt_zero _)⟩
 
 /-- The same for the elements of one list. -/
 def forallElems {α : Type} (xs : List α) (P : Nat → α → Prop)
-    (f : (k : Nat) → (x : α) → xs[k]? = some x → K (PLift (P k x))) :
-    K (PLift (∀ k x, xs[k]? = some x → P k x)) := do
+    (f : (k : Nat) → (x : α) → xs[k]? = some x → K S (PLift (P k x))) :
+    K S (PLift (∀ k x, xs[k]? = some x → P k x)) := do
   let ⟨h⟩ ← forallPairs0 xs xs (fun k x _ => P k x) (fun k x _ hx _ => f k x hx)
   pure ⟨fun k x hx => h k x x hx hx⟩
 
@@ -203,12 +203,12 @@ theorem apps_unapps (t : Tm) : t.unapps.1.apps t.unapps.2 = t := by
 
 /-- A typing of an argument at any expected type. -/
 abbrev ArgPf (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (a : Tm) :=
-  (A : Tm) → (l : Nat) → HasTy S Ψ Φ Γ A (.univ l) → K (PLift (HasTy S Ψ Φ Γ a A))
+  (A : Tm) → (l : Nat) → HasTy S Ψ Φ Γ A (.univ l) → K S (PLift (HasTy S Ψ Φ Γ a A))
 
 /-- Type `f @ r₁ … rₘ` from a typing of `f`. -/
 def pappsTyped (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
     (f F : Tm) → (l : Nat) → HasTy S Ψ Φ Γ F (.univ l) → HasTy S Ψ Φ Γ f F →
-    (rs : List I) → K (Inf S Ψ Φ Γ (f.papps rs))
+    (rs : List I) → K S (Inf S Ψ Φ Γ (f.papps rs))
   | f, F, l, hF, hf, r :: rs => do
     let ⟨hr⟩ ← ensureScoped r Ψ
     match ← whnfTy R E F l hF with
@@ -227,7 +227,7 @@ def pappsTyped (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
 def appsTyped (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
     (f F : Tm) → (l : Nat) → HasTy S Ψ Φ Γ F (.univ l) → HasTy S Ψ Φ Γ f F →
     (args : List ((a : Tm) × ArgPf S Ψ Φ Γ a)) → (rs : List I) →
-    K (Inf S Ψ Φ Γ ((f.apps (args.map (·.1))).papps rs))
+    K S (Inf S Ψ Φ Γ ((f.apps (args.map (·.1))).papps rs))
   | f, F, l, hF, hf, ⟨a, pa⟩ :: args, rs => do
     match ← whnfTy R E F l hF with
     | ⟨.pi A B, e⟩ =>
@@ -241,7 +241,7 @@ def appsTyped (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
 /-- Type a term whose spine head is one of the `heads` (with their types); other terms are
 inferred. -/
 def typeSpine (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (heads : List (Tm × Tm)) :
-    Nat → (t : Tm) → K (Inf S Ψ Φ Γ t)
+    Nat → (t : Tm) → K S (Inf S Ψ Φ Γ t)
   | 0, t => R.infer E t
   | n + 1, t =>
     let h1 := t.unpapps
@@ -289,7 +289,7 @@ def ElimInfo.typing {Ψ Φ Γ d ps P bs t} (i : ElimInfo S Ψ Φ Γ d ps P bs)
 /-- Check the boundary condition of one branch on one face. -/
 def checkBranchBnd (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) (d c : Nat) (C : Ctor)
     (ps P bs b : Tm) (ψ : I) (e : Tm) :
-    K (PLift (EqTm S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps P Γ)
+    K S (PLift (EqTm S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps P Γ)
       (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P))) := do
   let E' ← branchCtxK R E D d C ps P ψ
   let ⟨l, ⟨hT⟩⟩ ← inferType R E' (DataDecl.branchBody d c C ps P)
@@ -305,7 +305,7 @@ def checkBranchBnd (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) (
   R.conv E' _ l hT _ _ h1 h2
 
 def inferElimInfo (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs : Tm) :
-    K (ElimInfo S Ψ Φ Γ d ps P bs) := do
+    K S (ElimInfo S Ψ Φ Γ d ps P bs) := do
   let ⟨D, ⟨hS, hD⟩⟩ ← inferData R E d ps
   let ⟨m, ⟨hP⟩⟩ ← inferType R (E.ext (.data d ps) D.level hD) P
   let ⟨hps⟩ ← ensureList ps

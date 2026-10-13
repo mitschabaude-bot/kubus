@@ -1,4 +1,5 @@
 import KubusCore.Kernel.Ctx
+import Std.Data.HashMap
 
 /-!
 # Kernel: result types, the recursion record, and helpers
@@ -10,8 +11,6 @@ tied by recursion on a fuel parameter (`Kernel.Main`).
 -/
 
 namespace KubusCore.Kernel
-
-abbrev K := Except String
 
 /-- An inferred type `ty : U lvl` of `t`. -/
 structure Inf (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (t : Tm) where
@@ -25,29 +24,161 @@ structure Red (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (t A : Tm) where
   tm : Tm
   eq : EqTm S Ψ Φ Γ t tm A
 
+/-! ## Memoization
+
+Results of the kernel's functions are cached with their derivations, keyed by the context
+and the terms. A cached derivation is reused only after the keys are compared for equality,
+which yields the proof to transport it along. Equality of terms is decided structurally, with
+the pointer-equality shortcut of Lean core's `withPtrEq` (logically just the structural
+comparison). -/
+
+/-- Equality of terms, with a pointer-equality shortcut. -/
+def tmEq (a b : Tm) : Bool := withPtrEq a b (fun _ => decide (a = b)) (by intro h; simp [h])
+
+theorem tmEq_sound {a b : Tm} (h : tmEq a b = true) : a = b := by
+  simp only [tmEq, withPtrEq, decide_eq_true_eq] at h; exact h
+
+def ctxEq : Ctx → Ctx → Bool
+  | [], [] => true
+  | A :: Γ, B :: Δ => tmEq A B && ctxEq Γ Δ
+  | _, _ => false
+
+theorem ctxEq_sound : ∀ {Γ Δ : Ctx}, ctxEq Γ Δ = true → Γ = Δ
+  | [], [], _ => rfl
+  | A :: Γ, B :: Δ, h => by
+    simp only [ctxEq, Bool.and_eq_true] at h
+    rw [tmEq_sound h.1, ctxEq_sound h.2]
+  | [], _ :: _, h | _ :: _, [], h => by simp [ctxEq] at h
+
+/-- A hash of the top of a term (a few levels deep), for the cache buckets. -/
+def Tm.hashTop : Nat → Tm → UInt64
+  | 0, _ => 7
+  | n + 1, t =>
+    let h := Tm.hashTop n
+    match t with
+    | .var x => mixHash 1 (hash x)
+    | .const k => mixHash 2 (hash k)
+    | .univ l => mixHash 3 (hash l)
+    | .pi A B => mixHash 4 (mixHash (h A) (h B))
+    | .lam A b => mixHash 5 (mixHash (h A) (h b))
+    | .app f a => mixHash 6 (mixHash (h f) (h a))
+    | .sigma A B => mixHash 7 (mixHash (h A) (h B))
+    | .pair a b => mixHash 8 (mixHash (h a) (h b))
+    | .fst p => mixHash 9 (h p)
+    | .snd p => mixHash 10 (h p)
+    | .path A a b => mixHash 11 (mixHash (h A) (mixHash (h a) (h b)))
+    | .plam b => mixHash 12 (h b)
+    | .papp p _ => mixHash 13 (h p)
+    | .ipi A => mixHash 14 (h A)
+    | .split _ t _ u => mixHash 15 (mixHash (h t) (h u))
+    | .abort => 16
+    | .transp A _ a => mixHash 17 (mixHash (h A) (h a))
+    | .hcomp A _ u a => mixHash 18 (mixHash (h A) (mixHash (h u) (h a)))
+    | .glue A _ T e => mixHash 19 (mixHash (h A) (mixHash (h T) (h e)))
+    | .glueEl _ e t a => mixHash 20 (mixHash (h e) (mixHash (h t) (h a)))
+    | .unglue _ e g => mixHash 21 (mixHash (h e) (h g))
+    | .tnil => 22
+    | .tcons t ts => mixHash 23 (mixHash (h t) (h ts))
+    | .data d ps => mixHash 24 (mixHash (hash d) (h ps))
+    | .con d c ps as _ => mixHash 25 (mixHash (hash d) (mixHash (hash c) (mixHash (h ps) (h as))))
+    | .elim d ps P bs t => mixHash 26 (mixHash (hash d) (mixHash (h P) (mixHash (h bs) (h t))))
+
+def keyOf (Ψ : Nat) (Γ : Ctx) (ts : List Tm) : UInt64 :=
+  ts.foldl (fun acc t => mixHash acc (Tm.hashTop 4 t)) (mixHash (hash Ψ) (hash Γ.length))
+
+/-- A cached result for the terms `ts` in the context `Ψ; Φ; Γ`. -/
+structure CEntry (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) where
+  Ψ : Nat
+  Φ : I
+  Γ : Ctx
+  ts : List Tm
+  v : F S Ψ Φ Γ ts
+
+def termsEq : List Tm → List Tm → Bool
+  | [], [] => true
+  | a :: as, b :: bs => tmEq a b && termsEq as bs
+  | _, _ => false
+
+theorem termsEq_sound : ∀ {as bs : List Tm}, termsEq as bs = true → as = bs
+  | [], [], _ => rfl
+  | a :: as, b :: bs, h => by
+    simp only [termsEq, Bool.and_eq_true] at h
+    rw [tmEq_sound h.1, termsEq_sound h.2]
+  | [], _ :: _, h | _ :: _, [], h => by simp [termsEq] at h
+
+abbrev Table (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) :=
+  Std.HashMap UInt64 (List (CEntry S F))
+
+def Table.find? {S F} (tab : Table S F) (Ψ : Nat) (Φ : I) (Γ : Ctx) (ts : List Tm) :
+    Option (F S Ψ Φ Γ ts) :=
+  (tab.getD (keyOf Ψ Γ ts) []).findSome? fun e =>
+    if h : e.Ψ = Ψ ∧ e.Φ = Φ ∧ termsEq e.ts ts = true ∧ ctxEq e.Γ Γ = true then
+      some (by
+        obtain ⟨h1, h2, h3, h4⟩ := h
+        have h3 := termsEq_sound h3
+        have h4 := ctxEq_sound h4
+        exact h1 ▸ h2 ▸ h3 ▸ h4 ▸ e.v)
+    else none
+
+def Table.insert {S F} (tab : Table S F) (Ψ : Nat) (Φ : I) (Γ : Ctx) (ts : List Tm)
+    (v : F S Ψ Φ Γ ts) : Table S F :=
+  let k := keyOf Ψ Γ ts
+  Std.HashMap.insert tab k (⟨Ψ, Φ, Γ, ts, v⟩ :: (tab.getD k []).take 7)
+
+/-- The cached judgments. -/
+def InfF : Sig → Nat → I → Ctx → List Tm → Type
+  | S, Ψ, Φ, Γ, [t] => Inf S Ψ Φ Γ t
+  | _, _, _, _, _ => PUnit
+
+def WhiF : Sig → Nat → I → Ctx → List Tm → Type
+  | S, Ψ, Φ, Γ, [t] => (i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty
+  | _, _, _, _, _ => PUnit
+
+def WhF : Sig → Nat → I → Ctx → List Tm → Type
+  | S, Ψ, Φ, Γ, [t, A] => Red S Ψ Φ Γ t A
+  | _, _, _, _, _ => PUnit
+
+def ChkF : Sig → Nat → I → Ctx → List Tm → Type
+  | S, Ψ, Φ, Γ, [t, A] => PLift (HasTy S Ψ Φ Γ t A)
+  | _, _, _, _, _ => PUnit
+
+def ConvF : Sig → Nat → I → Ctx → List Tm → Type
+  | S, Ψ, Φ, Γ, [A, t, u] => PLift (EqTm S Ψ Φ Γ t u A)
+  | _, _, _, _, _ => PUnit
+
+structure Cache (S : Sig) where
+  inf : Table S InfF := {}
+  whi : Table S WhiF := {}
+  wh : Table S WhF := {}
+  chk : Table S ChkF := {}
+  conv : Table S ConvF := {}
+
+/-- The kernel monad: errors, and the cache of judgments over the signature `S`. -/
+abbrev K (S : Sig) := StateT (Cache S) (Except String)
+
 /-- The recursive calls of the kernel. -/
 structure Rec (S : Sig) where
-  infer : ∀ {Ψ Φ Γ}, KCtx S Ψ Φ Γ → (t : Tm) → K (Inf S Ψ Φ Γ t)
+  infer : ∀ {Ψ Φ Γ}, KCtx S Ψ Φ Γ → (t : Tm) → K S (Inf S Ψ Φ Γ t)
   check : ∀ {Ψ Φ Γ}, KCtx S Ψ Φ Γ → (t A : Tm) → (l : Nat) → HasTy S Ψ Φ Γ A (.univ l) →
-    K (PLift (HasTy S Ψ Φ Γ t A))
+    K S (PLift (HasTy S Ψ Φ Γ t A))
   /-- weak-head normal form at a given type -/
   whnf : ∀ {Ψ Φ Γ}, KCtx S Ψ Φ Γ → (t A : Tm) → (l : Nat) → HasTy S Ψ Φ Γ A (.univ l) →
-    HasTy S Ψ Φ Γ t A → K (Red S Ψ Φ Γ t A)
+    HasTy S Ψ Φ Γ t A → K S (Red S Ψ Φ Γ t A)
   /-- infer the type and compute the weak-head normal form -/
-  whnfI : ∀ {Ψ Φ Γ}, KCtx S Ψ Φ Γ → (t : Tm) → K ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty)
+  whnfI : ∀ {Ψ Φ Γ}, KCtx S Ψ Φ Γ → (t : Tm) → K S ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty)
   conv : ∀ {Ψ Φ Γ}, KCtx S Ψ Φ Γ → (A : Tm) → (l : Nat) → HasTy S Ψ Φ Γ A (.univ l) →
-    (t u : Tm) → HasTy S Ψ Φ Γ t A → HasTy S Ψ Φ Γ u A → K (PLift (EqTm S Ψ Φ Γ t u A))
+    (t u : Tm) → HasTy S Ψ Φ Γ t A → HasTy S Ψ Φ Γ u A → K S (PLift (EqTm S Ψ Φ Γ t u A))
   /-- compare two neutral terms in weak-head normal form, inferring the type of the first -/
   convNe : ∀ {Ψ Φ Γ}, KCtx S Ψ Φ Γ → (t u : Tm) →
-    K ((i : Inf S Ψ Φ Γ t) × PLift (EqTm S Ψ Φ Γ t u i.ty))
+    K S ((i : Inf S Ψ Φ Γ t) × PLift (EqTm S Ψ Φ Γ t u i.ty))
 
 def Rec.bot (S : Sig) : Rec S where
-  infer := fun _ _ => .error "kernel: out of fuel"
-  check := fun _ _ _ _ _ => .error "kernel: out of fuel"
-  whnf := fun _ _ _ _ _ _ => .error "kernel: out of fuel"
-  whnfI := fun _ _ => .error "kernel: out of fuel"
-  conv := fun _ _ _ _ _ _ _ _ => .error "kernel: out of fuel"
-  convNe := fun _ _ _ => .error "kernel: out of fuel"
+  infer := fun _ _ => throw "kernel: out of fuel"
+  check := fun _ _ _ _ _ => throw "kernel: out of fuel"
+  whnf := fun _ _ _ _ _ _ => throw "kernel: out of fuel"
+  whnfI := fun _ _ => throw "kernel: out of fuel"
+  conv := fun _ _ _ _ _ _ _ _ => throw "kernel: out of fuel"
+  convNe := fun _ _ _ => throw "kernel: out of fuel"
 
 /-! ## Printing (error messages only) -/
 
@@ -105,23 +236,31 @@ def short (t : Tm) : String :=
 
 /-! ## Checks that produce proofs -/
 
-def fail {α : Type} (msg : String) : K α := .error msg
+def fail {S : Sig} {α : Type} (msg : String) : K S α := throw msg
 
-def ensureEq (a b : Tm) (what : String) : K (PLift (a = b)) :=
+/-- Add context to an error message. -/
+def mapErr {S : Sig} {α : Type} (f : String → String) (x : K S α) : K S α :=
+  tryCatch x fun e => throw (f e)
+
+/-- Run `x`, turning failure into `none`. -/
+def tryOpt {S : Sig} {α : Type} (x : K S α) : K S (Option α) :=
+  tryCatch (some <$> x) fun _ => pure none
+
+def ensureEq {S : Sig} (a b : Tm) (what : String) : K S (PLift (a = b)) :=
   if h : a = b then pure ⟨h⟩ else fail s!"kernel: {what}: {short a} is not {short b}"
 
-def ensureEnt (φ ψ : I) : K (PLift (I.Entails φ ψ)) :=
+def ensureEnt {S : Sig} (φ ψ : I) : K S (PLift (I.Entails φ ψ)) :=
   if h : I.Entails φ ψ then pure ⟨h⟩
   else fail s!"kernel: cofibration {I.pp φ} does not entail {I.pp ψ}"
 
-def ensureEntE {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ψ : I) : K (PLift (I.Entails Φ ψ)) :=
+def ensureEntE {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ψ : I) : K S (PLift (I.Entails Φ ψ)) :=
   if h : E.Ent ψ then pure ⟨h⟩
   else fail s!"kernel: cofibration {I.pp Φ} does not entail {I.pp ψ}"
 
-def ensureScoped (r : I) (n : Nat) : K (PLift (r.Scoped n)) :=
+def ensureScoped {S : Sig} (r : I) (n : Nat) : K S (PLift (r.Scoped n)) :=
   if h : r.Scoped n then pure ⟨h⟩ else fail s!"kernel: interval term {I.pp r} out of scope"
 
-def ensureIEq (r s : I) : K (PLift (I.Eq r s)) :=
+def ensureIEq {S : Sig} (r s : I) : K S (PLift (I.Eq r s)) :=
   if h : I.eqB r s = true then pure ⟨I.eqB_sound h⟩
   else fail s!"kernel: interval terms {I.pp r} and {I.pp s} differ"
 
@@ -146,11 +285,11 @@ theorem _root_.KubusCore.KCtx.univTy (E : KCtx S Ψ Φ Γ) (l : Nat) (h : l + 1 
     HasTy S Ψ Φ Γ (.univ l) (.univ (l + 1)) :=
   HasTy.univ h E.wf
 
-def ensureLvl (l : Nat) : K (PLift (l ≤ maxLevel)) :=
+def ensureLvl (l : Nat) : K S (PLift (l ≤ maxLevel)) :=
   if h : l ≤ maxLevel then pure ⟨h⟩ else fail s!"kernel: universe level {l} exceeds the maximum {maxLevel}"
 
 /-- `U l : U (l + 1)`, if the level is allowed. -/
-def univTyK (E : KCtx S Ψ Φ Γ) (l : Nat) : K (PLift (HasTy S Ψ Φ Γ (.univ l) (.univ (l + 1)))) := do
+def univTyK (E : KCtx S Ψ Φ Γ) (l : Nat) : K S (PLift (HasTy S Ψ Φ Γ (.univ l) (.univ (l + 1)))) := do
   let ⟨h⟩ ← ensureLvl (l + 1)
   pure ⟨E.univTy l h⟩
 
@@ -179,7 +318,7 @@ variable (R : Rec S) (E : KCtx S Ψ Φ Γ)
 
 /-- Compare two types (at the larger of their levels). -/
 def convTy (X Y : Tm) (lX lY : Nat) (hX : HasTy S Ψ Φ Γ X (.univ lX))
-    (hY : HasTy S Ψ Φ Γ Y (.univ lY)) : K (PLift (EqTm S Ψ Φ Γ X Y (.univ (max lX lY)))) := do
+    (hY : HasTy S Ψ Φ Γ Y (.univ lY)) : K S (PLift (EqTm S Ψ Φ Γ X Y (.univ (max lX lY)))) := do
   let ⟨h1⟩ ← ensureLvl (max lX lY + 1)
   have hm : max lX lY ≤ maxLevel := Nat.le_of_succ_le h1
   R.conv E (.univ (max lX lY)) (max lX lY + 1) (E.univTy _ h1) X Y
@@ -188,7 +327,7 @@ def convTy (X Y : Tm) (lX lY : Nat) (hX : HasTy S Ψ Φ Γ X (.univ lX))
 /-- Move an equation from type `T` to type `A`. -/
 def bridge {t t' T A : Tm} {lT lA : Nat} (hT : HasTy S Ψ Φ Γ T (.univ lT))
     (hA : HasTy S Ψ Φ Γ A (.univ lA)) (e : EqTm S Ψ Φ Γ t t' T) :
-    K (PLift (EqTm S Ψ Φ Γ t t' A)) :=
+    K S (PLift (EqTm S Ψ Φ Γ t t' A)) :=
   if h : T = A then pure ⟨h ▸ e⟩ else
   match T, A, e, hT, hA with
   | .univ a, .univ b, e, _, _ =>
@@ -202,7 +341,7 @@ def bridge {t t' T A : Tm} {lT lA : Nat} (hT : HasTy S Ψ Φ Γ T (.univ lT))
 
 /-- Move a typing from type `T` to type `A`. -/
 def bridgeHas {t T A : Tm} {lT lA : Nat} (hT : HasTy S Ψ Φ Γ T (.univ lT))
-    (hA : HasTy S Ψ Φ Γ A (.univ lA)) (h : HasTy S Ψ Φ Γ t T) : K (PLift (HasTy S Ψ Φ Γ t A)) :=
+    (hA : HasTy S Ψ Φ Γ A (.univ lA)) (h : HasTy S Ψ Φ Γ t T) : K S (PLift (HasTy S Ψ Φ Γ t A)) :=
   if hTA : T = A then pure ⟨hTA ▸ h⟩ else
   match T, A, h, hT, hA with
   | .univ a, .univ b, h, _, _ =>
@@ -215,24 +354,24 @@ def bridgeHas {t T A : Tm} {lT lA : Nat} (hT : HasTy S Ψ Φ Γ T (.univ lT))
     pure ⟨HasTy.conv h eTA⟩
 
 /-- Weak-head normal form of a type. -/
-def whnfTy (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (Red S Ψ Φ Γ A (.univ l)) := do
+def whnfTy (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (Red S Ψ Φ Γ A (.univ l)) := do
   let ⟨hU⟩ ← univTyK E l
   R.whnf E A (.univ l) (l + 1) hU hA
 
 /-- Infer a type and bring it to weak-head normal form. -/
-def inferW (t : Tm) : K (Inf S Ψ Φ Γ t) := do
+def inferW (t : Tm) : K S (Inf S Ψ Φ Γ t) := do
   let i ← R.infer E t
   let r ← whnfTy R E i.ty i.lvl i.hty
   pure ⟨r.tm, i.lvl, HasTy.eqR r.eq, HasTy.conv i.htm r.eq⟩
 
 /-- Infer the universe level of a type. -/
-def inferType (A : Tm) : K ((l : Nat) × PLift (HasTy S Ψ Φ Γ A (.univ l))) := do
+def inferType (A : Tm) : K S ((l : Nat) × PLift (HasTy S Ψ Φ Γ A (.univ l))) := do
   match ← inferW R E A with
   | ⟨.univ l, _, _, h⟩ => pure ⟨l, ⟨h⟩⟩
   | ⟨T, _, _, _⟩ => fail s!"kernel: expected a type, but {short A} has type {short T}"
 
 /-- Check a type at a given level. -/
-def checkType (A : Tm) (l : Nat) : K (PLift (HasTy S Ψ Φ Γ A (.univ l))) := do
+def checkType (A : Tm) (l : Nat) : K S (PLift (HasTy S Ψ Φ Γ A (.univ l))) := do
   let ⟨hU⟩ ← univTyK E l
   R.check E A (.univ l) (l + 1) hU
 
@@ -249,7 +388,7 @@ structure TranspInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) 
   ht : HasTy S Ψ Φ Γ (.transp A φ a) (A.dinst .one)
 
 def inferTransp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (a : Tm) :
-    K (TranspInfo S Ψ Φ Γ A φ a) := do
+    K S (TranspInfo S Ψ Φ Γ A φ a) := do
   let ⟨hφ⟩ ← ensureScoped φ Ψ
   let ⟨l, ⟨hA⟩⟩ ← inferType R E.dext A
   let hA0 : HasTy S Ψ Φ Γ (A.dinst .zero) (.univ l) := HasTy.dsubst hA trivial
@@ -270,7 +409,7 @@ structure HcompInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (
   ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) A
 
 def inferHcomp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u a : Tm) :
-    K (HcompInfo S Ψ Φ Γ A φ u a) := do
+    K S (HcompInfo S Ψ Φ Γ A φ u a) := do
   let ⟨hφ⟩ ← ensureScoped φ Ψ
   let ⟨l, ⟨hA⟩⟩ ← inferType R E A
   let E1 := E.cof φ hφ

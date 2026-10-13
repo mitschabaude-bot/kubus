@@ -63,23 +63,23 @@ def canonical {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : Option ((Φ' : I) × Equiv' Ψ 
 
 variable {Ψ : Nat} {Φ : I} {Γ : Ctx}
 
-def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K (Inf S Ψ Φ Γ t) :=
+def canonInferRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ t) :=
   match (if E.canon then none else canonical E) with
   | none => inferStep R { E with canon := true } t
   | some ⟨Φ', q⟩ => do
     let i ← inferStep R ({ E.restrict Φ' q.hs q.h1 with canon := true }) t
     pure ⟨i.ty, i.lvl, HasTy.restrict E.hsc q.h2 i.hty, HasTy.restrict E.hsc q.h2 i.htm⟩
 
-def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
-    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (PLift (HasTy S Ψ Φ Γ t A)) :=
+def canonCheckRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (PLift (HasTy S Ψ Φ Γ t A)) :=
   match (if E.canon then none else canonical E) with
   | none => checkStep R { E with canon := true } t A l hA
   | some ⟨Φ', q⟩ => do
     let ⟨h⟩ ← checkStep R ({ E.restrict Φ' q.hs q.h1 with canon := true }) t A l (HasTy.restrict q.hs q.h1 hA)
     pure ⟨HasTy.restrict E.hsc q.h2 h⟩
 
-def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
-    (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K (Red S Ψ Φ Γ t A) :=
+def canonWhnfRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K S (Red S Ψ Φ Γ t A) :=
   match (if E.canon then none else canonical E) with
   | none => whnfMain R { E with canon := true } t A l hA ht
   | some ⟨Φ', q⟩ => do
@@ -87,8 +87,8 @@ def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
       (HasTy.restrict q.hs q.h1 ht)
     pure ⟨r.tm, EqTm.restrict E.hsc q.h2 r.eq⟩
 
-def canonWhnfI (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
-    K ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) :=
+def canonWhnfIRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
+    K S ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) :=
   match (if E.canon then none else canonical E) with
   | none => whnfIStep R { E with canon := true } t
   | some ⟨Φ', q⟩ => do
@@ -96,9 +96,9 @@ def canonWhnfI (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
     pure ⟨⟨i.ty, i.lvl, HasTy.restrict E.hsc q.h2 i.hty, HasTy.restrict E.hsc q.h2 i.htm⟩,
       ⟨r.tm, EqTm.restrict E.hsc q.h2 r.eq⟩⟩
 
-def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
+def canonConvRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm) (ht : HasTy S Ψ Φ Γ t A)
-    (hu : HasTy S Ψ Φ Γ u A) : K (PLift (EqTm S Ψ Φ Γ t u A)) :=
+    (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) :=
   if h : t = u then pure ⟨h ▸ EqTm.refl ht⟩ else
   match (if E.canon then none else canonical E) with
   | none => convStep R { E with canon := true } A l hA t u ht hu
@@ -108,13 +108,51 @@ def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     pure ⟨EqTm.restrict E.hsc q.h2 e⟩
 
 def canonConvNe (R : Rec S) (E : KCtx S Ψ Φ Γ) (t u : Tm) :
-    K ((i : Inf S Ψ Φ Γ t) × PLift (EqTm S Ψ Φ Γ t u i.ty)) :=
+    K S ((i : Inf S Ψ Φ Γ t) × PLift (EqTm S Ψ Φ Γ t u i.ty)) :=
   match (if E.canon then none else canonical E) with
   | none => convNeStep R { E with canon := true } t u
   | some ⟨Φ', q⟩ => do
     let ⟨i, ⟨e⟩⟩ ← convNeStep R ({ E.restrict Φ' q.hs q.h1 with canon := true }) t u
     pure ⟨⟨i.ty, i.lvl, HasTy.restrict E.hsc q.h2 i.hty, HasTy.restrict E.hsc q.h2 i.htm⟩,
       ⟨EqTm.restrict E.hsc q.h2 e⟩⟩
+
+/-! Memoized versions: a hit transports the cached derivation along the equality of the
+keys (checked structurally, with a pointer-equality shortcut). -/
+
+def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ t) := do
+  if let some v := (← get).inf.find? Ψ Φ Γ [t] then return v
+  let v ← canonInferRaw R E t
+  modify fun c => { c with inf := c.inf.insert Ψ Φ Γ [t] v }
+  return v
+
+def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (PLift (HasTy S Ψ Φ Γ t A)) := do
+  if let some v := (← get).chk.find? Ψ Φ Γ [t, A] then return v
+  let v ← canonCheckRaw R E t A l hA
+  modify fun c => { c with chk := c.chk.insert Ψ Φ Γ [t, A] v }
+  return v
+
+def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K S (Red S Ψ Φ Γ t A) := do
+  if let some v := (← get).wh.find? Ψ Φ Γ [t, A] then return v
+  let v ← canonWhnfRaw R E t A l hA ht
+  modify fun c => { c with wh := c.wh.insert Ψ Φ Γ [t, A] v }
+  return v
+
+def canonWhnfI (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
+    K S ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) := do
+  if let some v := (← get).whi.find? Ψ Φ Γ [t] then return v
+  let v ← canonWhnfIRaw R E t
+  modify fun c => { c with whi := c.whi.insert Ψ Φ Γ [t] v }
+  return v
+
+def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm) (ht : HasTy S Ψ Φ Γ t A)
+    (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
+  if let some v := (← get).conv.find? Ψ Φ Γ [A, t, u] then return v
+  let v ← canonConvRaw R E A l hA t u ht hu
+  modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] v }
+  return v
 
 /-- The kernel with `n` levels of nested recursive calls. Each level is built lazily. -/
 def rec (S : Sig) : Nat → Rec S
@@ -133,7 +171,7 @@ def defaultFuel : Nat := 20000
 /-! ## Signatures -/
 
 /-- Add the level of the next constant's type to the signature information. -/
-def SigInfo.next (R : Rec S) (si : SigInfo S) : K (Option (SigInfo S)) :=
+def SigInfo.next (R : Rec S) (si : SigInfo S) : K S (Option (SigInfo S)) :=
   match h : S[si.lv.length]? with
   | none => pure none
   | some (.data _) =>
@@ -183,7 +221,7 @@ def SigInfo.empty (S : Sig) : SigInfo S where
   ok := fun _ _ _ _ _ h => by simp at h
 
 /-- Levels of all constant types of `S`. -/
-def SigInfo.build (R : Rec S) : Nat → SigInfo S → K (SigInfo S)
+def SigInfo.build (R : Rec S) : Nat → SigInfo S → K S (SigInfo S)
   | 0, si => pure si
   | n + 1, si => do
     match ← SigInfo.next R si with
@@ -191,21 +229,30 @@ def SigInfo.build (R : Rec S) : Nat → SigInfo S → K (SigInfo S)
     | some si' => SigInfo.build R n si'
 
 /-- The kernel and the empty context for the signature `S`. -/
-def setup (S : Sig) (fuel : Nat := defaultFuel) : K (Rec S × KCtx S 0 .one []) := do
+def setup (S : Sig) (fuel : Nat := defaultFuel) : K S (Rec S × KCtx S 0 .one []) := do
   let R := rec S fuel
   let si ← SigInfo.build R S.length (SigInfo.empty S)
   pure (R, KCtx.root si)
 
-/-- Check one definition `(t, A)` against the signature `S`. -/
-def checkEntry (S : Sig) (t A : Tm) (fuel : Nat := defaultFuel) :
-    K (PLift (t.closedB 0 0 = true ∧ A.closedB 0 0 = true ∧
+/-- Run a kernel computation with an empty cache. -/
+def runK {S : Sig} {α : Type} (x : K S α) : Except String α := x.run' {}
+
+/-- Check one definition `(t, A)` against the signature `S`, given the kernel for `S`. -/
+def checkEntryK (S : Sig) (R : Rec S) (E : KCtx S 0 .one []) (t A : Tm) :
+    K S (PLift (t.closedB 0 0 = true ∧ A.closedB 0 0 = true ∧
       (∃ l, HasTy S 0 .one [] A (.univ l)) ∧ HasTy S 0 .one [] t A)) := do
-  let (R, E) ← setup S fuel
   let ⟨l, ⟨hA⟩⟩ ← inferType R E A
   let ⟨ht⟩ ← R.check E t A l hA
   if hc : t.closedB 0 0 = true ∧ A.closedB 0 0 = true then
     pure ⟨hc.1, hc.2, ⟨l, hA⟩, ht⟩
   else fail "kernel: the definition is not closed"
+
+/-- Check one definition `(t, A)` against the signature `S`. -/
+def checkEntry (S : Sig) (t A : Tm) (fuel : Nat := defaultFuel) :
+    Except String (PLift (t.closedB 0 0 = true ∧ A.closedB 0 0 = true ∧
+      (∃ l, HasTy S 0 .one [] A (.univ l)) ∧ HasTy S 0 .one [] t A)) := runK do
+  let (R, E) ← setup S fuel
+  checkEntryK S R E t A
 
 theorem wfSig_append {S : Sig} {t A : Tm} (hS : WfSig S)
     (h : t.closedB 0 0 = true ∧ A.closedB 0 0 = true ∧
@@ -278,7 +325,7 @@ variable {S : Sig}
 
 /-- The context of the parameters and the arguments before argument `k`. -/
 def argCtxK (R : Rec S) (E0 : KCtx S 0 .one []) (D : DataDecl) (d : Nat) (C : Ctor) (k : Nat) :
-    K (KCtx S 0 .one (D.argCtx d C k)) := do
+    K S (KCtx S 0 .one (D.argCtx d C k)) := do
   let E1 ← extTypes R E0 D.params
   let E2 ← extTypes R E1 ((List.range k).map (C.argTy d D.params.length))
   if h : ((List.range k).map (C.argTy d D.params.length)).reverse ++ (D.params.reverse ++ []) =
@@ -286,7 +333,7 @@ def argCtxK (R : Rec S) (E0 : KCtx S 0 .one []) (D : DataDecl) (d : Nat) (C : Ct
   else fail "kernel: argument context mismatch"
 
 /-- The same context at `Ψ = m` interval variables, restricted to `ψ`. -/
-def bndCtxK (E : KCtx S 0 .one Γ) (m : Nat) (ψ : I) : K (KCtx S m ψ Γ) := do
+def bndCtxK (E : KCtx S 0 .one Γ) (m : Nat) (ψ : I) : K S (KCtx S m ψ Γ) := do
   let E1 := E.dextN m
   if h : shiftIN m .one = .one ∧ dshiftN m Γ = Γ then
     let E2 : KCtx S (0 + m) .one Γ := castCtx E1 h.1 h.2
@@ -299,7 +346,7 @@ def bndCtxK (E : KCtx S 0 .one Γ) (m : Nat) (ψ : I) : K (KCtx S m ψ Γ) := do
 
 mutual
 def checkBndTyped (R : Rec S) {m ψ Γ} (E : KCtx S m ψ Γ) (lvl : Nat) (ctors : List Ctor) (d np : Nat) :
-    (t : Tm) → K (PLift (Ctor.bndTyped S m ψ Γ lvl ctors d np t))
+    (t : Tm) → K S (PLift (Ctor.bndTyped S m ψ Γ lvl ctors d np t))
   | .con d' c' ps as rs =>
     match getIdx' ctors c' with
     | .inl ⟨C', ⟨h⟩⟩ => do
@@ -312,7 +359,7 @@ def checkBndTyped (R : Rec S) {m ψ Γ} (E : KCtx S m ψ Γ) (lvl : Nat) (ctors 
     pure ⟨by simp [Ctor.bndTyped]⟩
 def checkBndTypedArgs (R : Rec S) {m ψ Γ} (E : KCtx S m ψ Γ) (lvl : Nat) (ctors : List Ctor) (d np : Nat)
     (C' : Ctor) (ps : Tm) (k : Nat) (prev : List Tm) :
-    (t : Tm) → K (PLift (Ctor.bndTypedArgs S m ψ Γ lvl ctors d np C' ps k prev t))
+    (t : Tm) → K S (PLift (Ctor.bndTypedArgs S m ψ Γ lvl ctors d np C' ps k prev t))
   | .tcons a as => do
     let ⟨h1⟩ ← checkBndVar R E lvl d np C' ps k prev a
     let ⟨h2⟩ ← if hr : C'.isRec k = true then do
@@ -328,7 +375,7 @@ def checkBndTypedArgs (R : Rec S) {m ψ Γ} (E : KCtx S m ψ Γ) (lvl : Nat) (ct
 /-- A point argument variable of a nested constructor has the argument type. -/
 def checkBndVar (R : Rec S) {m ψ Γ} (E : KCtx S m ψ Γ) (lvl d np : Nat) (C' : Ctor) (ps : Tm)
     (k : Nat) (prev : List Tm) (a : Tm) :
-    K (PLift (∀ (j : Nat) (T : Tm), a = .var j → C'.isRec k = false → Γ.lookup j = some T →
+    K S (PLift (∀ (j : Nat) (T : Tm), a = .var j → C'.isRec k = false → Γ.lookup j = some T →
       EqTm S m ψ Γ T ((C'.argTy d np k).substList (prev ++ ps.toList.reverse)) (.univ lvl))) :=
   match a with
   | .var j =>
@@ -349,13 +396,31 @@ def checkBndVar (R : Rec S) {m ψ Γ} (E : KCtx S m ψ Γ) (lvl d np : Nat) (C' 
     pure ⟨fun _ _ h => by cases h⟩
 end
 
-/-- Check constructor `c` against the declaration truncated to the constructors before it. -/
-def checkCtor (S : Sig) (d : Nat) (D : DataDecl) (c : Nat) (C : Ctor) :
-    let Sc := S ++ [.data (D.truncate c)]
-    K (PLift ((∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (D.params.length + k) 0 = true ∧
-        A.mentionsData d = false ∧ C.noRecDeps k A = true ∧
-        HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
-      (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
+/-- Check the point argument types of constructor `C` in `S0` (the declaration without
+constructors). -/
+def checkCtorArgs (S0 : Sig) (d : Nat) (D : DataDecl) (C : Ctor) :
+    K S0 (PLift (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) →
+      A.closedB (D.params.length + k) 0 = true ∧ A.mentionsData d = false ∧ C.noRecDeps k A = true ∧
+      HasTy S0 0 .one (D.argCtx d C k) A (.univ D.level))) := do
+  let np := D.params.length
+  let (R0, E00) ← setup S0
+  let ⟨hargs⟩ ← forallElems C.args (fun k a => ∀ A, a = .point A → A.closedB (np + k) 0 = true ∧
+      A.mentionsData d = false ∧ C.noRecDeps k A = true ∧
+      HasTy S0 0 .one (D.argCtx d C k) A (.univ D.level)) fun k a _ =>
+    match a with
+    | .point A => do
+      let Ek ← argCtxK R0 E00 D d C k
+      let ⟨hA⟩ ← checkType R0 Ek A D.level
+      if hc : A.closedB (np + k) 0 = true ∧ A.mentionsData d = false ∧ C.noRecDeps k A = true then
+        pure ⟨fun A' hA' => by cases hA'; exact ⟨hc.1, hc.2.1, hc.2.2, hA⟩⟩
+      else fail "kernel: argument type not closed, mentions the type or an earlier recursive argument"
+    | .recur => pure ⟨fun _ h => by cases h⟩
+  pure ⟨fun k A hk => hargs k (.point A) hk A rfl⟩
+
+/-- Check the boundary of constructor `c` in `Sc` (the declaration truncated to the
+constructors before `c`). -/
+def checkCtorBnd (Sc : Sig) (d : Nat) (D : DataDecl) (c : Nat) (C : Ctor) :
+    K Sc (PLift ((∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
         b.closedB (D.params.length + C.args.length) C.dims = true ∧
         Ctor.simpleB D.ctors d D.params.length c C.args.length C b = true ∧
         HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b (.data d (Ctor.paramVars D.params.length C.args.length)) ∧
@@ -363,54 +428,37 @@ def checkCtor (S : Sig) (d : Nat) (D : DataDecl) (c : Nat) (C : Ctor) :
       (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
         EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
           (.data d (Ctor.paramVars D.params.length C.args.length))))) := do
-  let Sc := S ++ [.data (D.truncate c)]
   let np := D.params.length
   let (R, E0) ← setup Sc
-  let (R0, E00) ← setup (S ++ [.data (D.truncate 0)])
-
-    let ⟨hargs⟩ ← forallElems C.args (fun k a => ∀ A, a = .point A → A.closedB (np + k) 0 = true ∧
-        A.mentionsData d = false ∧ C.noRecDeps k A = true ∧
-        HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) fun k a _ =>
-      match a with
-      | .point A => do
-        let Ek ← argCtxK R0 E00 D d C k
-        let ⟨hA⟩ ← checkType R0 Ek A D.level
-        if hc : A.closedB (np + k) 0 = true ∧ A.mentionsData d = false ∧ C.noRecDeps k A = true then
-          pure ⟨fun A' hA' => by cases hA'; exact ⟨hc.1, hc.2.1, hc.2.2, hA⟩⟩
-        else fail "kernel: argument type not closed, mentions the type or an earlier recursive argument"
-      | .recur => pure ⟨fun _ h => by cases h⟩
-    let En ← argCtxK R E0 D d C C.args.length
-    let T : Tm := .data d (Ctor.paramVars np C.args.length)
-    let ⟨hb⟩ ← forallElems C.bnd (fun _ pb => pb.1.Scoped C.dims ∧
-        pb.2.closedB (np + C.args.length) C.dims = true ∧
-        Ctor.simpleB D.ctors d np c C.args.length C pb.2 = true ∧
-        HasTy Sc C.dims pb.1 (D.argCtx d C C.args.length) pb.2 T ∧
-        Ctor.bndTyped Sc C.dims pb.1 (D.argCtx d C C.args.length) D.level D.ctors d np pb.2)
-        fun _ pb _ => do
-      let Eb ← bndCtxK En C.dims pb.1
-      let ⟨hψ⟩ ← ensureScoped pb.1 C.dims
+  let En ← argCtxK R E0 D d C C.args.length
+  let T : Tm := .data d (Ctor.paramVars np C.args.length)
+  let ⟨hb⟩ ← forallElems C.bnd (fun _ pb => pb.1.Scoped C.dims ∧
+      pb.2.closedB (np + C.args.length) C.dims = true ∧
+      Ctor.simpleB D.ctors d np c C.args.length C pb.2 = true ∧
+      HasTy Sc C.dims pb.1 (D.argCtx d C C.args.length) pb.2 T ∧
+      Ctor.bndTyped Sc C.dims pb.1 (D.argCtx d C C.args.length) D.level D.ctors d np pb.2)
+      fun _ pb _ => do
+    let Eb ← bndCtxK En C.dims pb.1
+    let ⟨hψ⟩ ← ensureScoped pb.1 C.dims
+    let ⟨l, ⟨hT⟩⟩ ← inferType R Eb T
+    let ⟨h⟩ ← R.check Eb pb.2 T l hT
+    let ⟨hty⟩ ← checkBndTyped R Eb D.level D.ctors d np pb.2
+    if hc : pb.2.closedB (np + C.args.length) C.dims = true ∧
+        Ctor.simpleB D.ctors d np c C.args.length C pb.2 = true then pure ⟨hψ, hc.1, hc.2, h, hty⟩
+    else fail "kernel: boundary not closed or not simple"
+  let ⟨hagree⟩ ← forallElems C.bnd (fun k pb => ∀ (k' : Nat) (ψ' : I) (b' : Tm), C.bnd[k']? = some (ψ', b') →
+      EqTm Sc C.dims (.and pb.1 ψ') (D.argCtx d C C.args.length) pb.2 b' T) fun k pb hk => do
+    let ⟨h⟩ ← forallElems C.bnd (fun _ pb' => EqTm Sc C.dims (.and pb.1 pb'.1)
+        (D.argCtx d C C.args.length) pb.2 pb'.2 T) fun k' pb' hk' => do
+      let Eb ← bndCtxK En C.dims (.and pb.1 pb'.1)
       let ⟨l, ⟨hT⟩⟩ ← inferType R Eb T
-      let ⟨h⟩ ← R.check Eb pb.2 T l hT
-      let ⟨hty⟩ ← checkBndTyped R Eb D.level D.ctors d np pb.2
-      if hc : pb.2.closedB (np + C.args.length) C.dims = true ∧
-          Ctor.simpleB D.ctors d np c C.args.length C pb.2 = true then pure ⟨hψ, hc.1, hc.2, h, hty⟩
-      else fail "kernel: boundary not closed or not simple"
-    let ⟨hagree⟩ ← forallElems C.bnd (fun k pb => ∀ (k' : Nat) (ψ' : I) (b' : Tm), C.bnd[k']? = some (ψ', b') →
-        EqTm Sc C.dims (.and pb.1 ψ') (D.argCtx d C C.args.length) pb.2 b' T) fun k pb hk => do
-      let ⟨h⟩ ← forallElems C.bnd (fun _ pb' => EqTm Sc C.dims (.and pb.1 pb'.1)
-          (D.argCtx d C C.args.length) pb.2 pb'.2 T) fun k' pb' hk' => do
-        let Eb ← bndCtxK En C.dims (.and pb.1 pb'.1)
-        let ⟨l, ⟨hT⟩⟩ ← inferType R Eb T
-        let ⟨h1⟩ ← R.check Eb pb.2 T l hT
-        let ⟨h2⟩ ← R.check Eb pb'.2 T l hT
-        R.conv Eb T l hT _ _ h1 h2
-      pure ⟨fun k' ψ' b' hk' => h k' (ψ', b') hk'⟩
-    pure ⟨fun k A hk => hargs k (.point A) hk A rfl,
-      fun k ψ b hk => hb k (ψ, b) hk,
-      fun k k' ψ ψ' b b' hk hk' => hagree k (ψ, b) hk k' ψ' b' hk'⟩
+      let ⟨h1⟩ ← R.check Eb pb.2 T l hT
+      let ⟨h2⟩ ← R.check Eb pb'.2 T l hT
+      R.conv Eb T l hT _ _ h1 h2
+    pure ⟨fun k' ψ' b' hk' => h k' (ψ', b') hk'⟩
+  pure ⟨fun k ψ b hk => hb k (ψ, b) hk, fun k k' ψ ψ' b b' hk hk' => hagree k (ψ, b) hk k' ψ' b' hk'⟩
 
-
-def checkData (S : Sig) (d : Nat) (D : DataDecl) : K (PLift (D.Wf S d)) := do
+def checkData (S : Sig) (d : Nat) (D : DataDecl) : K S (PLift (D.Wf S d)) := do
   let np := D.params.length
   let (R, E0) ← setup S
   let ⟨hl⟩ ← ensureLvl (D.level + 1)
@@ -435,7 +483,10 @@ def checkData (S : Sig) (d : Nat) (D : DataDecl) : K (PLift (D.Wf S d)) := do
         Ctor.bndTyped Sc C.dims ψ (D.argCtx d C C.args.length) D.level D.ctors d np b) ∧
       (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
         EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
-          (.data d (Ctor.paramVars np C.args.length)))) fun c C _ => checkCtor S d D c C
+          (.data d (Ctor.paramVars np C.args.length)))) fun c C _ => do
+      let ⟨ha⟩ ← StateT.lift (runK (checkCtorArgs (S ++ [.data (D.truncate 0)]) d D C))
+      let ⟨hb⟩ ← StateT.lift (runK (checkCtorBnd (S ++ [.data (D.truncate c)]) d D c C))
+      pure ⟨ha, hb.1, hb.2⟩
   pure ⟨hl, hps, fun c C hC => hcs c C hC⟩
 
 end
@@ -448,30 +499,31 @@ structure CheckedSig where
 def CheckedSig.empty : CheckedSig := ⟨[], fun k _ _ h => by simp at h, fun k _ h => by simp at h⟩
 
 /-- Check one more definition. -/
-def CheckedSig.extend (C : CheckedSig) (t A : Tm) (fuel : Nat := defaultFuel) : K CheckedSig := do
+def CheckedSig.extend (C : CheckedSig) (t A : Tm) (fuel : Nat := defaultFuel) :
+    Except String CheckedSig := do
   let ⟨h⟩ ← checkEntry C.sig t A fuel
   pure ⟨C.sig ++ [.defn t A], wfSig_append C.wf h⟩
 
 /-- Check one more inductive type. -/
 def CheckedSig.extendData (C : CheckedSig) (D : DataDecl) (fuel : Nat := defaultFuel) :
-    K CheckedSig := do
+    Except String CheckedSig := do
   let S' := C.sig ++ [.data D]
-  let ⟨h⟩ ← checkData C.sig C.sig.length D
+  let ⟨h⟩ ← runK (checkData C.sig C.sig.length D)
   pure ⟨S', wfSig_appendData C.wf h⟩
 
-def checkSigAux (pre : Sig) (hpre : WfSig pre) : (rest : Sig) → K (PLift (WfSig (pre ++ rest)))
+def checkSigAux (pre : Sig) (hpre : WfSig pre) : (rest : Sig) → Except String (PLift (WfSig (pre ++ rest)))
   | [] => pure ⟨by simpa using hpre⟩
   | .defn t A :: rest => do
     let ⟨h⟩ ← checkEntry pre t A
     let ⟨h'⟩ ← checkSigAux (pre ++ [.defn t A]) (wfSig_append hpre h) rest
     pure ⟨by simpa using h'⟩
   | .data D :: rest => do
-    let ⟨h⟩ ← checkData pre pre.length D
+    let ⟨h⟩ ← runK (checkData pre pre.length D)
     let ⟨h'⟩ ← checkSigAux (pre ++ [.data D]) (wfSig_appendData hpre h) rest
     pure ⟨by simpa using h'⟩
 
 /-- Check a whole signature. -/
-def checkSig (S : Sig) : K (PLift (WfSig S)) := do
+def checkSig (S : Sig) : Except String (PLift (WfSig S)) := do
   let ⟨h⟩ ← checkSigAux [] ⟨fun k _ _ h => by simp at h, fun k _ h => by simp at h⟩ S
   pure ⟨by simpa using h⟩
 
