@@ -6,6 +6,22 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 Status: issues 1–4 below were fixed in the spec in commit `91505c9` (`unglue φ e g`, annotated `lam A t`, `glueBase`/`glueEquiv` removed, `maxLevel = 4`). They are kept here as a record. New issues are added at the top of this section.
 
+### 6. `transpGlue` is ill-typed when the Glue line is constant on `ψ` only through its reduct
+
+The `transp` rule only asks the *type* line to be constant on `ψ`. For a Glue line this is weaker than constancy of its components: where `φ` holds, `Glue A [φ ↦ (T, e)] ≡ T`, so the line can be constant on `ψ` while `A` and `e` vary there. Example (`Ψ = {k}`, `Φ = 1`, context `T : U, B : (i : I) → U, E : (i : I) → Equiv T (B i), u0 : Glue (B 0) [k ↦ (T, E 0)]`):
+
+- the line `i. Glue (B i) [k ↦ (T, E i)]` is constant on `ψ := k` (both sides are `≡ T` by `glueFace`), so `R := transp (i. Glue (B i) [k ↦ (T, E i)]) k u0` is well-typed, and `R ≡ u0` under `k` (`transpFace`);
+- but the contractum `Tm.transpGlue` uses `a1' := transp A ψ a0` and `transpFill A ψ a0`, which need `A = B i` constant on `ψ = k`; it is not. Under `k`, `ω` becomes the constant path at `e(1).1 u0` while it must end at `a1'`, so the pair `(t1', ω)` is not in the fiber, and the extension `ext` (hence the contractum) has no meaning there.
+
+The rule `transpGlue` still asserts `R ≡ contractum`, so in a model the contractum must denote `u0` under `k`, and the standard model cannot validate this: the contractum's subterms are ill-typed at those points (no choice of the Glue fibration structure helps, since under `k` everything has reduced). I have not derived a contradiction from it (the spec's rules do not let one descend into the ill-typed subterms without inversion), so this is a *modelability* problem rather than a proven inconsistency, but a kernel that applies `transpGlue` here builds ill-typed terms.
+
+Fix (this is what CCHM's composition for Glue does): transport the base by *heterogeneous composition* with the unglued tube instead of `transp A ψ`. On `ψ` the Glue line is constant, so `u0 : Glue A(i) [φ(i) ↦ (T(i), e(i))]` for every `i`, and `i ↦ unglue φ(i) e(i) u0` is a valid tube in the line `A` (where `φ` fails, the Glue components are constant and it is the constant `a0`; where `φ` holds it is `e(i).1 u0 : A(i)`). So:
+
+- `a1' := comp (i. A) [ψ ↦ i. unglue φ e u0] a0` instead of `transp A ψ a0`;
+- in `ω`, the `j = 1` face `fill (i. A) [ψ ↦ i. unglue φ e u0] a0` (the `comp` filler) instead of `transpFill A ψ a0`.
+
+`t1' := transp T ψ u0` is fine: it is only used on `δ = ∀i. φ`, where the Glue line is the `T` line. The ψ-face of `ext`, `(u0, ⟨_⟩ a1')`, is then a fiber element (`a1' = e(1).1 u0` on `ψ ∧ φ1`). With this change the model can validate the rule (`transpGlue` becomes CCHM's `compGlue` specialised to the tube `[ψ ↦ u0]`). A `fill` for heterogeneous composition is not yet among the spec's defined terms (`hfill` is homogeneous); it is `fill (i. A) [ψ ↦ u] a0 = comp (j. A(i ∧ j)) [ψ ↦ j. u(i ∧ j), i = 0 ↦ a0] a0` at the interval variable `i`.
+
 ### 5. Still inconsistent (after `91505c9`): `glueBeta` with an un-annotated `glueEl`
 
 `glueEl φ t a` does not record the equivalence it was checked against, but `glueBeta` (`unglue φ e (glueEl φ t a) ≡ a`) is stated for any `e`. Under `Φ ⊨ φ` all Glue types `Glue A [φ ↦ (T, e)]` are judgmentally `T`, so `conv` moves a `glueEl` checked against one equivalence into the Glue type of another. With `P`, `swap`, `e_id`, `e_sw` as in issue 1, in context `g : P` (`Ψ = 0`, `Φ = φ = 1`):
