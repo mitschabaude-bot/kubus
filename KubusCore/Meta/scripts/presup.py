@@ -119,7 +119,18 @@ eq = {
 'unglue': "⟨h0, h1, pre_ty h0⟩",
 'ipi': "⟨HasTy0.ipi h0 (pre_eq h1).1, HasTy0.ipi h0 (pre_eq h1).2.1, .inr ⟨_, rfl, (pre_eq h1).2.2.lvl⟩⟩",
 'ilam': "⟨HasTy0.ilam h0 (pre_eq h1).1, HasTy0.ilam h0 (pre_eq h1).2.1, .inl ⟨_, h0⟩⟩",
-'piBeta': C('piBeta'), 'fstBeta': C('fstBeta'), 'sndBeta': C('sndBeta'), 'pathBeta': C('pathBeta'),
+'piBeta': """by
+      obtain ⟨A1, B1, X, l, ha, hI, hX, hl, r, tb, ch⟩ := genApp h0 rfl rfl
+      exact ⟨h0, piBeta_of hS hI hX hl r tb ha ch, pre_ty h0⟩""",
+'fstBeta': """by
+      obtain ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩ := genFst h0 rfl rfl
+      exact ⟨h0, fstBeta_of hI hX hl r tb ch, pre_ty h0⟩""",
+'sndBeta': """by
+      obtain ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩ := genSnd h0 rfl rfl
+      exact ⟨h0, sndBeta_of hS hI hX hl r tb ch, pre_ty h0⟩""",
+'pathBeta': """by
+      obtain ⟨Y, A1, X, l, hY, hr, hI, hX, hl, r, tb, ch⟩ := genPapp h0 rfl rfl
+      exact ⟨h0, pathBeta_of hS hI hX hl hY hr r tb ch, pre_ty h0⟩""",
 'glueBeta': "⟨h0, h1, pre_ty h0⟩",
 'noConf': "⟨h2, h3, pre_ty h2⟩",
 'piInjDom': """by
@@ -294,7 +305,98 @@ for r in rs:
     n=len(r['prem']); hs=" ".join(f"h{i}" for i in range(n))
     out.append(f"  | @EqTm0.{r['name']} _ {' '.join(r['binders'])} {hs} =>\n    {eq[r['name']]}")
 out.append("")
-hdr='''import KubusCore.Meta.PresupB
+
+def arms(fname, specials, default, extra_pat=""):
+    res=[]
+    for r in rs:
+        if r['ind']!='HasTy0': continue
+        n=len(r['prem'])
+        nm=r['name']
+        pat=" ".join([f".{nm}"]+[f"h{i}" for i in range(n)])
+        res.append(f"  | {pat}{extra_pat} => {specials.get(nm, default)}")
+    return res
+
+GENI_SIG = """theorem genI {Ψ Φ Γ s T} : HasTy0 S Ψ Φ Γ s T → isIntro s = true →
+    ∃ X l, IntroTy S Ψ Φ Γ s X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧ Rel S Ψ Φ Γ X T ∧
+      TB S Ψ Φ Γ T"""
+geni = {
+'lam': "⟨_, _, ⟨_, _, rfl, h0, h1⟩, h0, (pre_ty h0).lvl, Rel.refl h0 (pre_ty h0).lvl, .inl ⟨_, (pre_ty h0).lvl, h0⟩⟩",
+'pair': "⟨_, _, ⟨_, _, _, rfl, h0, h1, h2⟩, h0, (pre_ty h0).lvl, Rel.refl h0 (pre_ty h0).lvl, .inl ⟨_, (pre_ty h0).lvl, h0⟩⟩",
+'plam': "⟨_, _, .inl ⟨_, _, _, _, rfl, h0, h1, h2, h3⟩, h0, (pre_ty h0).lvl, Rel.refl h0 (pre_ty h0).lvl, .inl ⟨_, (pre_ty h0).lvl, h0⟩⟩",
+'ilam': "⟨_, _, .inr ⟨_, _, rfl, h0, h1⟩, h0, (pre_ty h0).lvl, Rel.refl h0 (pre_ty h0).lvl, .inl ⟨_, (pre_ty h0).lvl, h0⟩⟩",
+'con': "⟨_, _, ⟨rfl, _, _, h0, h1, h2, h3, h4, h5, h6, h7⟩, h3, (pre_ty h3).lvl, Rel.refl h3 (pre_ty h3).lvl, .inl ⟨_, (pre_ty h3).lvl, h3⟩⟩",
+'hcomp': "⟨_, _, ⟨rfl, _, h0, h1, h2, h3, h4⟩, h0, (pre_ty h0).lvl, Rel.refl h0 (pre_ty h0).lvl, .inl ⟨_, (pre_ty h0).lvl, h0⟩⟩",
+'conv': """by
+      obtain ⟨X, l', hI, hX, hl, r, _⟩ := genI h0 hs
+      exact ⟨X, l', hI, hX, hl, r.conv h1 (pre_eq h1).2.2.lvl, .inl ⟨_, (pre_eq h1).2.2.lvl, (pre_eq h1).2.1⟩⟩""",
+'restrict': """by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h2 hs
+      exact ⟨X, l, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, r.restrict h0 h1, tb.restrict h0 h1⟩""",
+'cumul': """by
+      obtain ⟨X, l', hI, hX, hl, r, _⟩ := genI h1 hs
+      exact ⟨X, l', hI, hX, hl, r.up, .inr ⟨_, rfl, h0⟩⟩""",
+}
+out.append(GENI_SIG)
+out += arms('genI', geni, "by simp [isIntro] at hs", ", hs")
+out.append("")
+
+def consumer(name, sig, intro_arms, res_restrict, res_conv, res_cumul, obtain):
+    sp = dict(intro_arms)
+    sp['conv'] = f"""by
+      obtain {obtain} := {name} h0 hs hf
+      exact {res_conv}"""
+    sp['restrict'] = f"""by
+      obtain {obtain} := {name} h2 hs hf
+      exact {res_restrict}"""
+    sp['cumul'] = f"""by
+      obtain {obtain} := {name} h1 hs hf
+      exact {res_cumul}"""
+    out.append(sig)
+    out.extend(arms(name, sp, "by cases hs", ", hs, hf"))
+    out.append("")
+
+consumer('genApp', """theorem genApp {Ψ Φ Γ s T f a} : HasTy0 S Ψ Φ Γ s T → s = .app f a → isIntro f = true →
+    ∃ A1 B1 X l, HasTy0 S Ψ Φ Γ a A1 ∧ IntroTy S Ψ Φ Γ f X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧
+      Rel S Ψ Φ Γ X (pi A1 B1) ∧ TB S Ψ Φ Γ (pi A1 B1) ∧ TyChainC S Ψ Φ Γ (B1.inst a) T""",
+  {'app': """by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h0 (by injection hs with h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, h1, hI, hX, hl, r, tb, .refl _⟩"""},
+  "⟨A1, B1, X, l, HasTy0.restrict h0 h1 ha, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, r.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩",
+  "⟨A1, B1, X, l, ha, hI, hX, hl, r, tb, ch.snoc h1⟩",
+  "⟨A1, B1, X, l, ha, hI, hX, hl, r, tb, ch.cumul h0⟩",
+  "⟨A1, B1, X, l, ha, hI, hX, hl, r, tb, ch⟩")
+for nm, chT in [('genFst', 'A1'), ('genSnd', '(B1.inst (fst p))')]:
+    ctor = 'fst' if nm=='genFst' else 'snd'
+    consumer(nm, f"""theorem {nm} {{Ψ Φ Γ s T p}} : HasTy0 S Ψ Φ Γ s T → s = .{ctor} p → isIntro p = true →
+    ∃ A1 B1 X l, IntroTy S Ψ Φ Γ p X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧
+      Rel S Ψ Φ Γ X (sigma A1 B1) ∧ TB S Ψ Φ Γ (sigma A1 B1) ∧ TyChainC S Ψ Φ Γ {chT} T""",
+      {ctor: f"""by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h0 (by injection hs with h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, hI, hX, hl, r, tb, .refl _⟩"""},
+      "⟨A1, B1, X, l, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, r.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩",
+      "⟨A1, B1, X, l, hI, hX, hl, r, tb, ch.snoc h1⟩",
+      "⟨A1, B1, X, l, hI, hX, hl, r, tb, ch.cumul h0⟩",
+      "⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩")
+consumer('genPapp', """theorem genPapp {Ψ Φ Γ s T p r} : HasTy0 S Ψ Φ Γ s T → s = .papp p r → isIntro p = true →
+    ∃ Y A1 X l, ((∃ a1 b1, Y = path A1 a1 b1) ∨ Y = ipi A1) ∧ r.Scoped Ψ ∧ IntroTy S Ψ Φ Γ p X ∧
+      HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧ Rel S Ψ Φ Γ X Y ∧ TB S Ψ Φ Γ Y ∧
+      TyChainC S Ψ Φ Γ (A1.dinst r) T""",
+  {'papp': """by
+      obtain ⟨X, l, hI, hX, hl, rl, tb⟩ := genI h0 (by injection hs with h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, .inl ⟨_, _, rfl⟩, h1, hI, hX, hl, rl, tb, .refl _⟩""",
+   'iapp': """by
+      obtain ⟨X, l, hI, hX, hl, rl, tb⟩ := genI h0 (by injection hs with h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, .inr rfl, h1, hI, hX, hl, rl, tb, .refl _⟩"""},
+  "⟨Y, A1, X, l, hY, hr, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, rl.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩",
+  "⟨Y, A1, X, l, hY, hr, hI, hX, hl, rl, tb, ch.snoc h1⟩",
+  "⟨Y, A1, X, l, hY, hr, hI, hX, hl, rl, tb, ch.cumul h0⟩",
+  "⟨Y, A1, X, l, hY, hr, hI, hX, hl, rl, tb, ch⟩")
+
+hdr='''import KubusCore.Meta.BetaTyped
 
 /-!
 # Metatheory: presupposition
@@ -317,10 +419,6 @@ variable {S : Sig}
 
 /-- The contracta of these computation rules are typed whenever their redexes are. -/
 structure ContractaTyped (S : Sig) : Prop where
-  piBeta : ∀ {Ψ Φ Γ A t a T}, HasTy0 S Ψ Φ Γ (app (lam A t) a) T → HasTy0 S Ψ Φ Γ (t.inst a) T
-  fstBeta : ∀ {Ψ Φ Γ a b T}, HasTy0 S Ψ Φ Γ (fst (pair a b)) T → HasTy0 S Ψ Φ Γ a T
-  sndBeta : ∀ {Ψ Φ Γ a b T}, HasTy0 S Ψ Φ Γ (snd (pair a b)) T → HasTy0 S Ψ Φ Γ b T
-  pathBeta : ∀ {Ψ Φ Γ t r T}, HasTy0 S Ψ Φ Γ (papp (plam t) r) T → HasTy0 S Ψ Φ Γ (t.dinst r) T
   transpPi : ∀ {Ψ Φ Γ A B φ u0 T}, HasTy0 S Ψ Φ Γ (transp (pi A B) φ u0) T →
     HasTy0 S Ψ Φ Γ (transpPi A B φ u0) T
   transpSigma : ∀ {Ψ Φ Γ A B φ u0 T}, HasTy0 S Ψ Φ Γ (transp (sigma A B) φ u0) T →
@@ -362,6 +460,8 @@ structure ContractaTyped (S : Sig) : Prop where
 section
 variable (hS : SigClosed S) (hT : SigTyped0 S) (hC : ContractaTyped S)
 include hS hT hC
+
+set_option maxHeartbeats 4000000
 
 mutual
 

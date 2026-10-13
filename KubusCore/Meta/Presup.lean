@@ -1,4 +1,4 @@
-import KubusCore.Meta.PresupB
+import KubusCore.Meta.BetaTyped
 
 /-!
 # Metatheory: presupposition
@@ -21,10 +21,6 @@ variable {S : Sig}
 
 /-- The contracta of these computation rules are typed whenever their redexes are. -/
 structure ContractaTyped (S : Sig) : Prop where
-  piBeta : ∀ {Ψ Φ Γ A t a T}, HasTy0 S Ψ Φ Γ (app (lam A t) a) T → HasTy0 S Ψ Φ Γ (t.inst a) T
-  fstBeta : ∀ {Ψ Φ Γ a b T}, HasTy0 S Ψ Φ Γ (fst (pair a b)) T → HasTy0 S Ψ Φ Γ a T
-  sndBeta : ∀ {Ψ Φ Γ a b T}, HasTy0 S Ψ Φ Γ (snd (pair a b)) T → HasTy0 S Ψ Φ Γ b T
-  pathBeta : ∀ {Ψ Φ Γ t r T}, HasTy0 S Ψ Φ Γ (papp (plam t) r) T → HasTy0 S Ψ Φ Γ (t.dinst r) T
   transpPi : ∀ {Ψ Φ Γ A B φ u0 T}, HasTy0 S Ψ Φ Γ (transp (pi A B) φ u0) T →
     HasTy0 S Ψ Φ Γ (transpPi A B φ u0) T
   transpSigma : ∀ {Ψ Φ Γ A B φ u0 T}, HasTy0 S Ψ Φ Γ (transp (sigma A B) φ u0) T →
@@ -66,6 +62,8 @@ structure ContractaTyped (S : Sig) : Prop where
 section
 variable (hS : SigClosed S) (hT : SigTyped0 S) (hC : ContractaTyped S)
 include hS hT hC
+
+set_option maxHeartbeats 4000000
 
 mutual
 
@@ -293,7 +291,9 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
   | @EqTm0.noConf _ Ψ Φ Γ X Y l t u T h0 h1 h2 h3 =>
     ⟨h2, h3, pre_ty h2⟩
   | @EqTm0.piBeta _ Ψ Φ Γ A t a T h0 =>
-    ⟨h0, hC.piBeta h0, pre_ty h0⟩
+    by
+      obtain ⟨A1, B1, X, l, ha, hI, hX, hl, r, tb, ch⟩ := genApp h0 rfl rfl
+      exact ⟨h0, piBeta_of hS hI hX hl r tb ha ch, pre_ty h0⟩
   | @EqTm0.piEta _ Ψ Φ Γ A B f h0 =>
     by
       rcases pre_ty h0 with ⟨l, hpi⟩ | ⟨l, hpi, -⟩
@@ -306,16 +306,22 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
         exact ⟨h0, HasTy0.lam hpi happ, .inl ⟨_, hpi⟩⟩
       · cases hpi
   | @EqTm0.fstBeta _ Ψ Φ Γ a b T h0 =>
-    ⟨h0, hC.fstBeta h0, pre_ty h0⟩
+    by
+      obtain ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩ := genFst h0 rfl rfl
+      exact ⟨h0, fstBeta_of hI hX hl r tb ch, pre_ty h0⟩
   | @EqTm0.sndBeta _ Ψ Φ Γ a b T h0 =>
-    ⟨h0, hC.sndBeta h0, pre_ty h0⟩
+    by
+      obtain ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩ := genSnd h0 rfl rfl
+      exact ⟨h0, sndBeta_of hS hI hX hl r tb ch, pre_ty h0⟩
   | @EqTm0.sigmaEta _ Ψ Φ Γ A B p h0 =>
     by
       rcases pre_ty h0 with ⟨l, hs⟩ | ⟨l, hs, -⟩
       · exact ⟨h0, HasTy0.pair hs (HasTy0.fst h0) (HasTy0.snd h0), .inl ⟨_, hs⟩⟩
       · cases hs
   | @EqTm0.pathBeta _ Ψ Φ Γ t r T h0 =>
-    ⟨h0, hC.pathBeta h0, pre_ty h0⟩
+    by
+      obtain ⟨Y, A1, X, l, hY, hr, hI, hX, hl, r, tb, ch⟩ := genPapp h0 rfl rfl
+      exact ⟨h0, pathBeta_of hS hI hX hl hY hr r tb ch, pre_ty h0⟩
   | @EqTm0.pathEta _ Ψ Φ Γ A a b p h0 =>
     by
       rcases pre_ty h0 with ⟨l, hP⟩ | ⟨l, hP, -⟩
@@ -471,6 +477,217 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
     ⟨h5, hC.transpCon h0 h1 h2 h3 h4 h5, pre_ty h5⟩
   | @EqTm0.transpHcomp _ Ψ Φ Γ d D ps φ qs ψ u a T h0 h1 h2 =>
     ⟨h2, hC.transpHcomp h0 h1 h2, pre_ty h2⟩
+
+theorem genI {Ψ Φ Γ s T} : HasTy0 S Ψ Φ Γ s T → isIntro s = true →
+    ∃ X l, IntroTy S Ψ Φ Γ s X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧ Rel S Ψ Φ Γ X T ∧
+      TB S Ψ Φ Γ T
+  | .var h0 h1, hs => by simp [isIntro] at hs
+  | .conv h0 h1, hs => by
+      obtain ⟨X, l', hI, hX, hl, r, _⟩ := genI h0 hs
+      exact ⟨X, l', hI, hX, hl, r.conv h1 (pre_eq h1).2.2.lvl, .inl ⟨_, (pre_eq h1).2.2.lvl, (pre_eq h1).2.1⟩⟩
+  | .restrict h0 h1 h2, hs => by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h2 hs
+      exact ⟨X, l, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, r.restrict h0 h1, tb.restrict h0 h1⟩
+  | .const h0 h1, hs => by simp [isIntro] at hs
+  | .univ h0 h1, hs => by simp [isIntro] at hs
+  | .cumul h0 h1, hs => by
+      obtain ⟨X, l', hI, hX, hl, r, _⟩ := genI h1 hs
+      exact ⟨X, l', hI, hX, hl, r.up, .inr ⟨_, rfl, h0⟩⟩
+  | .pi h0 h1, hs => by simp [isIntro] at hs
+  | .lam h0 h1, hs => ⟨_, _, ⟨_, _, rfl, h0, h1⟩, h0, (pre_ty h0).lvl, Rel.refl h0 (pre_ty h0).lvl, .inl ⟨_, (pre_ty h0).lvl, h0⟩⟩
+  | .app h0 h1, hs => by simp [isIntro] at hs
+  | .sigma h0 h1, hs => by simp [isIntro] at hs
+  | .pair h0 h1 h2, hs => ⟨_, _, ⟨_, _, _, rfl, h0, h1, h2⟩, h0, (pre_ty h0).lvl, Rel.refl h0 (pre_ty h0).lvl, .inl ⟨_, (pre_ty h0).lvl, h0⟩⟩
+  | .fst h0, hs => by simp [isIntro] at hs
+  | .snd h0, hs => by simp [isIntro] at hs
+  | .path h0 h1 h2, hs => by simp [isIntro] at hs
+  | .plam h0 h1 h2 h3, hs => ⟨_, _, .inl ⟨_, _, _, _, rfl, h0, h1, h2, h3⟩, h0, (pre_ty h0).lvl, Rel.refl h0 (pre_ty h0).lvl, .inl ⟨_, (pre_ty h0).lvl, h0⟩⟩
+  | .papp h0 h1, hs => by simp [isIntro] at hs
+  | .ipi h0 h1, hs => by simp [isIntro] at hs
+  | .ilam h0 h1, hs => ⟨_, _, .inr ⟨_, _, rfl, h0, h1⟩, h0, (pre_ty h0).lvl, Rel.refl h0 (pre_ty h0).lvl, .inl ⟨_, (pre_ty h0).lvl, h0⟩⟩
+  | .iapp h0 h1, hs => by simp [isIntro] at hs
+  | .split h0 h1 h2 h3 h4 h5 h6, hs => by simp [isIntro] at hs
+  | .abort h0 h1, hs => by simp [isIntro] at hs
+  | .transp h0 h1 h2 h3, hs => by simp [isIntro] at hs
+  | .hcomp h0 h1 h2 h3 h4, hs => ⟨_, _, ⟨rfl, _, h0, h1, h2, h3, h4⟩, h0, (pre_ty h0).lvl, Rel.refl h0 (pre_ty h0).lvl, .inl ⟨_, (pre_ty h0).lvl, h0⟩⟩
+  | .glue h0 h1 h2 h3, hs => by simp [isIntro] at hs
+  | .glueEl h0 h1 h2 h3 h4, hs => by simp [isIntro] at hs
+  | .unglue h0 h1 h2 h3, hs => by simp [isIntro] at hs
+  | .data h0 h1 h2, hs => by simp [isIntro] at hs
+  | .con h0 h1 h2 h3 h4 h5 h6 h7, hs => ⟨_, _, ⟨rfl, _, _, h0, h1, h2, h3, h4, h5, h6, h7⟩, h3, (pre_ty h3).lvl, Rel.refl h3 (pre_ty h3).lvl, .inl ⟨_, (pre_ty h3).lvl, h3⟩⟩
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9, hs => by simp [isIntro] at hs
+
+theorem genApp {Ψ Φ Γ s T f a} : HasTy0 S Ψ Φ Γ s T → s = .app f a → isIntro f = true →
+    ∃ A1 B1 X l, HasTy0 S Ψ Φ Γ a A1 ∧ IntroTy S Ψ Φ Γ f X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧
+      Rel S Ψ Φ Γ X (pi A1 B1) ∧ TB S Ψ Φ Γ (pi A1 B1) ∧ TyChainC S Ψ Φ Γ (B1.inst a) T
+  | .var h0 h1, hs, hf => by cases hs
+  | .conv h0 h1, hs, hf => by
+      obtain ⟨A1, B1, X, l, ha, hI, hX, hl, r, tb, ch⟩ := genApp h0 hs hf
+      exact ⟨A1, B1, X, l, ha, hI, hX, hl, r, tb, ch.snoc h1⟩
+  | .restrict h0 h1 h2, hs, hf => by
+      obtain ⟨A1, B1, X, l, ha, hI, hX, hl, r, tb, ch⟩ := genApp h2 hs hf
+      exact ⟨A1, B1, X, l, HasTy0.restrict h0 h1 ha, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, r.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩
+  | .const h0 h1, hs, hf => by cases hs
+  | .univ h0 h1, hs, hf => by cases hs
+  | .cumul h0 h1, hs, hf => by
+      obtain ⟨A1, B1, X, l, ha, hI, hX, hl, r, tb, ch⟩ := genApp h1 hs hf
+      exact ⟨A1, B1, X, l, ha, hI, hX, hl, r, tb, ch.cumul h0⟩
+  | .pi h0 h1, hs, hf => by cases hs
+  | .lam h0 h1, hs, hf => by cases hs
+  | .app h0 h1, hs, hf => by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h0 (by injection hs with h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, h1, hI, hX, hl, r, tb, .refl _⟩
+  | .sigma h0 h1, hs, hf => by cases hs
+  | .pair h0 h1 h2, hs, hf => by cases hs
+  | .fst h0, hs, hf => by cases hs
+  | .snd h0, hs, hf => by cases hs
+  | .path h0 h1 h2, hs, hf => by cases hs
+  | .plam h0 h1 h2 h3, hs, hf => by cases hs
+  | .papp h0 h1, hs, hf => by cases hs
+  | .ipi h0 h1, hs, hf => by cases hs
+  | .ilam h0 h1, hs, hf => by cases hs
+  | .iapp h0 h1, hs, hf => by cases hs
+  | .split h0 h1 h2 h3 h4 h5 h6, hs, hf => by cases hs
+  | .abort h0 h1, hs, hf => by cases hs
+  | .transp h0 h1 h2 h3, hs, hf => by cases hs
+  | .hcomp h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .glue h0 h1 h2 h3, hs, hf => by cases hs
+  | .glueEl h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .unglue h0 h1 h2 h3, hs, hf => by cases hs
+  | .data h0 h1 h2, hs, hf => by cases hs
+  | .con h0 h1 h2 h3 h4 h5 h6 h7, hs, hf => by cases hs
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9, hs, hf => by cases hs
+
+theorem genFst {Ψ Φ Γ s T p} : HasTy0 S Ψ Φ Γ s T → s = .fst p → isIntro p = true →
+    ∃ A1 B1 X l, IntroTy S Ψ Φ Γ p X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧
+      Rel S Ψ Φ Γ X (sigma A1 B1) ∧ TB S Ψ Φ Γ (sigma A1 B1) ∧ TyChainC S Ψ Φ Γ A1 T
+  | .var h0 h1, hs, hf => by cases hs
+  | .conv h0 h1, hs, hf => by
+      obtain ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩ := genFst h0 hs hf
+      exact ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch.snoc h1⟩
+  | .restrict h0 h1 h2, hs, hf => by
+      obtain ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩ := genFst h2 hs hf
+      exact ⟨A1, B1, X, l, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, r.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩
+  | .const h0 h1, hs, hf => by cases hs
+  | .univ h0 h1, hs, hf => by cases hs
+  | .cumul h0 h1, hs, hf => by
+      obtain ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩ := genFst h1 hs hf
+      exact ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch.cumul h0⟩
+  | .pi h0 h1, hs, hf => by cases hs
+  | .lam h0 h1, hs, hf => by cases hs
+  | .app h0 h1, hs, hf => by cases hs
+  | .sigma h0 h1, hs, hf => by cases hs
+  | .pair h0 h1 h2, hs, hf => by cases hs
+  | .fst h0, hs, hf => by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h0 (by injection hs with h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, hI, hX, hl, r, tb, .refl _⟩
+  | .snd h0, hs, hf => by cases hs
+  | .path h0 h1 h2, hs, hf => by cases hs
+  | .plam h0 h1 h2 h3, hs, hf => by cases hs
+  | .papp h0 h1, hs, hf => by cases hs
+  | .ipi h0 h1, hs, hf => by cases hs
+  | .ilam h0 h1, hs, hf => by cases hs
+  | .iapp h0 h1, hs, hf => by cases hs
+  | .split h0 h1 h2 h3 h4 h5 h6, hs, hf => by cases hs
+  | .abort h0 h1, hs, hf => by cases hs
+  | .transp h0 h1 h2 h3, hs, hf => by cases hs
+  | .hcomp h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .glue h0 h1 h2 h3, hs, hf => by cases hs
+  | .glueEl h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .unglue h0 h1 h2 h3, hs, hf => by cases hs
+  | .data h0 h1 h2, hs, hf => by cases hs
+  | .con h0 h1 h2 h3 h4 h5 h6 h7, hs, hf => by cases hs
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9, hs, hf => by cases hs
+
+theorem genSnd {Ψ Φ Γ s T p} : HasTy0 S Ψ Φ Γ s T → s = .snd p → isIntro p = true →
+    ∃ A1 B1 X l, IntroTy S Ψ Φ Γ p X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧
+      Rel S Ψ Φ Γ X (sigma A1 B1) ∧ TB S Ψ Φ Γ (sigma A1 B1) ∧ TyChainC S Ψ Φ Γ (B1.inst (fst p)) T
+  | .var h0 h1, hs, hf => by cases hs
+  | .conv h0 h1, hs, hf => by
+      obtain ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩ := genSnd h0 hs hf
+      exact ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch.snoc h1⟩
+  | .restrict h0 h1 h2, hs, hf => by
+      obtain ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩ := genSnd h2 hs hf
+      exact ⟨A1, B1, X, l, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, r.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩
+  | .const h0 h1, hs, hf => by cases hs
+  | .univ h0 h1, hs, hf => by cases hs
+  | .cumul h0 h1, hs, hf => by
+      obtain ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch⟩ := genSnd h1 hs hf
+      exact ⟨A1, B1, X, l, hI, hX, hl, r, tb, ch.cumul h0⟩
+  | .pi h0 h1, hs, hf => by cases hs
+  | .lam h0 h1, hs, hf => by cases hs
+  | .app h0 h1, hs, hf => by cases hs
+  | .sigma h0 h1, hs, hf => by cases hs
+  | .pair h0 h1 h2, hs, hf => by cases hs
+  | .fst h0, hs, hf => by cases hs
+  | .snd h0, hs, hf => by
+      obtain ⟨X, l, hI, hX, hl, r, tb⟩ := genI h0 (by injection hs with h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, hI, hX, hl, r, tb, .refl _⟩
+  | .path h0 h1 h2, hs, hf => by cases hs
+  | .plam h0 h1 h2 h3, hs, hf => by cases hs
+  | .papp h0 h1, hs, hf => by cases hs
+  | .ipi h0 h1, hs, hf => by cases hs
+  | .ilam h0 h1, hs, hf => by cases hs
+  | .iapp h0 h1, hs, hf => by cases hs
+  | .split h0 h1 h2 h3 h4 h5 h6, hs, hf => by cases hs
+  | .abort h0 h1, hs, hf => by cases hs
+  | .transp h0 h1 h2 h3, hs, hf => by cases hs
+  | .hcomp h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .glue h0 h1 h2 h3, hs, hf => by cases hs
+  | .glueEl h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .unglue h0 h1 h2 h3, hs, hf => by cases hs
+  | .data h0 h1 h2, hs, hf => by cases hs
+  | .con h0 h1 h2 h3 h4 h5 h6 h7, hs, hf => by cases hs
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9, hs, hf => by cases hs
+
+theorem genPapp {Ψ Φ Γ s T p r} : HasTy0 S Ψ Φ Γ s T → s = .papp p r → isIntro p = true →
+    ∃ Y A1 X l, ((∃ a1 b1, Y = path A1 a1 b1) ∨ Y = ipi A1) ∧ r.Scoped Ψ ∧ IntroTy S Ψ Φ Γ p X ∧
+      HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧ Rel S Ψ Φ Γ X Y ∧ TB S Ψ Φ Γ Y ∧
+      TyChainC S Ψ Φ Γ (A1.dinst r) T
+  | .var h0 h1, hs, hf => by cases hs
+  | .conv h0 h1, hs, hf => by
+      obtain ⟨Y, A1, X, l, hY, hr, hI, hX, hl, rl, tb, ch⟩ := genPapp h0 hs hf
+      exact ⟨Y, A1, X, l, hY, hr, hI, hX, hl, rl, tb, ch.snoc h1⟩
+  | .restrict h0 h1 h2, hs, hf => by
+      obtain ⟨Y, A1, X, l, hY, hr, hI, hX, hl, rl, tb, ch⟩ := genPapp h2 hs hf
+      exact ⟨Y, A1, X, l, hY, hr, hI.restrict h0 h1, HasTy0.restrict h0 h1 hX, hl, rl.restrict h0 h1, tb.restrict h0 h1, ch.restrict h0 h1⟩
+  | .const h0 h1, hs, hf => by cases hs
+  | .univ h0 h1, hs, hf => by cases hs
+  | .cumul h0 h1, hs, hf => by
+      obtain ⟨Y, A1, X, l, hY, hr, hI, hX, hl, rl, tb, ch⟩ := genPapp h1 hs hf
+      exact ⟨Y, A1, X, l, hY, hr, hI, hX, hl, rl, tb, ch.cumul h0⟩
+  | .pi h0 h1, hs, hf => by cases hs
+  | .lam h0 h1, hs, hf => by cases hs
+  | .app h0 h1, hs, hf => by cases hs
+  | .sigma h0 h1, hs, hf => by cases hs
+  | .pair h0 h1 h2, hs, hf => by cases hs
+  | .fst h0, hs, hf => by cases hs
+  | .snd h0, hs, hf => by cases hs
+  | .path h0 h1 h2, hs, hf => by cases hs
+  | .plam h0 h1 h2 h3, hs, hf => by cases hs
+  | .papp h0 h1, hs, hf => by
+      obtain ⟨X, l, hI, hX, hl, rl, tb⟩ := genI h0 (by injection hs with h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, .inl ⟨_, _, rfl⟩, h1, hI, hX, hl, rl, tb, .refl _⟩
+  | .ipi h0 h1, hs, hf => by cases hs
+  | .ilam h0 h1, hs, hf => by cases hs
+  | .iapp h0 h1, hs, hf => by
+      obtain ⟨X, l, hI, hX, hl, rl, tb⟩ := genI h0 (by injection hs with h; rw [h]; exact hf)
+      cases hs
+      exact ⟨_, _, X, l, .inr rfl, h1, hI, hX, hl, rl, tb, .refl _⟩
+  | .split h0 h1 h2 h3 h4 h5 h6, hs, hf => by cases hs
+  | .abort h0 h1, hs, hf => by cases hs
+  | .transp h0 h1 h2 h3, hs, hf => by cases hs
+  | .hcomp h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .glue h0 h1 h2 h3, hs, hf => by cases hs
+  | .glueEl h0 h1 h2 h3 h4, hs, hf => by cases hs
+  | .unglue h0 h1 h2 h3, hs, hf => by cases hs
+  | .data h0 h1 h2, hs, hf => by cases hs
+  | .con h0 h1 h2 h3 h4 h5 h6 h7, hs, hf => by cases hs
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9, hs, hf => by cases hs
 end
 
 /-- Presupposition for the minimal judgments, given `ContractaTyped`. -/
