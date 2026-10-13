@@ -1115,6 +1115,101 @@ theorem sigOK_ext {S0 : Sig} (hS0 : SigOK S0) {E : DataDecl} (hE : DataOK (S0 ++
       subst hk'
       simp at hk; subst hk; exact hE
 
+/-! ### Overlaps: generic arguments -/
+
+theorem conV_congr_ctors {ctors1 ctors2 : List Ctor} (n : ℕ) : ∀ k,
+    (∀ k' ≤ k, ctors1.getD k' default = ctors2.getD k' default) → conV ctors1 n k = conV ctors2 n k := by
+  intro k
+  induction k using Nat.strong_induction_on with
+  | _ k ih =>
+    intro h
+    funext args rs
+    rw [conV_eq, conV_eq, h k le_rfl]
+    congr 1; funext k' f
+    split
+    · rename_i b _
+      congr 2
+      funext c' as rs'
+      split
+      · rename_i hc; rw [ih c' hc fun k'' hk'' => h k'' (by omega)]
+      · rfl
+    · rfl
+
+theorem conBefore_congr_ctors {ctors1 ctors2 : List Ctor} {c n : ℕ}
+    (h : ∀ k' < c, ctors1.getD k' default = ctors2.getD k' default) :
+    conBefore ctors1 c n = conBefore ctors2 c n := by
+  funext c' as rs'
+  unfold conBefore
+  split
+  · rename_i hc; rw [conV_congr_ctors n c' fun k'' hk'' => h k'' (by omega)]
+  · rfl
+
+/-- Formal compositions with an empty face, iterated over `a0`: fresh, pairwise distinct values. -/
+def atomV (n : ℕ) (a0 : V) : ℕ → V
+  | 0 => a0
+  | i + 1 => hcV n (Cof.bot n) (fun _ _ _ => ∅) (atomV n a0 i)
+
+theorem not_bot_holds (n : ℕ) : ¬ (Cof.bot n).holds := by simp [Cof.holds, Cof.bot]
+
+theorem atomV_kv {a0 : V} (ha0 : IsKV n a0) : ∀ i, IsKV n (atomV n a0 i)
+  | 0 => ha0
+  | _ + 1 => isKV_hcV _ _ _
+
+theorem atomV_inj {a0 : V} (ha0 : IsKV n a0) (hne : ∀ ψ u a, ¬ ψ.holds → a0 ≠ hcV n ψ u a) :
+    ∀ i j, atomV n a0 i = atomV n a0 j → i = j
+  | 0, 0, _ => rfl
+  | 0, j + 1, h => absurd h (hne _ _ _ (not_bot_holds n))
+  | i + 1, 0, h => absurd h.symm (hne _ _ _ (not_bot_holds n))
+  | i + 1, j + 1, h => by
+    obtain ⟨-, -, hb⟩ := hcV_inj (Cof.isCof_bot n) (Cof.isCof_bot n) (not_bot_holds n) (not_bot_holds n)
+      (atomV_kv ha0 i) (atomV_kv ha0 j) h
+    rw [atomV_inj ha0 hne i j hb]
+
+theorem atomV_DElem {Θ : SData m} {g : Hom n m} {a0 : V} (ha0 : DElem Θ n g a0) : ∀ i, DElem Θ n g (atomV n a0 i)
+  | 0 => ha0
+  | i + 1 => DElem.hcomp (Cof.isCof_bot n) (atomV_DElem ha0 i)
+      (fun n' h r hh => absurd hh (by rw [Cof.bot_restr]; exact not_bot_holds n'))
+      (fun n' h r hh => absurd hh (by rw [Cof.bot_restr]; exact not_bot_holds n'))
+      (fun n' h hh => absurd hh (by rw [Cof.bot_restr]; exact not_bot_holds n'))
+
+/-- Corresponding values: generic atoms and their actual values, and constructor values without
+boundary at corresponding arguments. -/
+inductive Corr (ctors : List Ctor) (n : ℕ) (gen act : ℕ → V) (P : ℕ → Prop) : V → V → Prop
+  | atom {i : ℕ} : P i → Corr ctors n gen act P (gen i) (act i)
+  | con {k : ℕ} {vT vX : List V} {rs : List (DM n)} :
+      bndAtMap (ctors.getD k default) rs (Hom.id n) = none →
+      (∀ a ∈ vT, IsKV n a) → (∀ a ∈ vX, IsKV n a) → vT.length = vX.length →
+      (∀ j (hj : j < vT.length) (hj' : j < vX.length), (ctors.getD k default).isRec j = true →
+        Corr ctors n gen act P vT[j] vX[j]) →
+      (∀ j (hj : j < vT.length) (hj' : j < vX.length), (ctors.getD k default).isRec j = false → vT[j] = vX[j]) →
+      Corr ctors n gen act P (conV ctors n k vT rs) (conV ctors n k vX rs)
+
+theorem Corr.unique {ctors : List Ctor} {n : ℕ} {gen act : ℕ → V} {P : ℕ → Prop}
+    (hinj : ∀ i j, P i → P j → gen i = gen j → i = j)
+    (hne : ∀ i, P i → ∀ k vs (rs : List (DM n)), bndAtMap (ctors.getD k default) rs (Hom.id n) = none →
+      gen i ≠ conV ctors n k vs rs) {v w : V} (h : Corr ctors n gen act P v w) :
+    ∀ {w'}, Corr ctors n gen act P v w' → w = w' := by
+  induction h with
+  | @atom i hi =>
+    intro w' h'
+    generalize hv : gen i = v at h'
+    cases h' with
+    | @atom j hj => rw [hinj i j hi hj hv]
+    | con hb _ _ _ _ _ => exact absurd hv (hne i hi _ _ _ hb)
+  | @con k vT vX rs hb hkT hkX hl hrec hpt ih =>
+    intro w' h'
+    generalize hv : conV ctors n k vT rs = v at h'
+    cases h' with
+    | @atom j hj => exact absurd hv.symm (hne j hj _ _ _ hb)
+    | @con k' vT' vX' rs' hb' hkT' hkX' hl' hrec' hpt' =>
+      obtain ⟨rfl, rfl, rfl⟩ := conV_inj hb hb' hkT hkT' hv
+      congr 1
+      apply List.ext_getElem (by omega)
+      intro j h1 h2
+      cases hr : (ctors.getD k default).isRec j
+      · rw [← hpt j (by omega) h1 hr, hpt' j (by omega) h2 hr]
+      · exact ih j (by omega) h1 hr (hrec' j (by omega) h2 hr)
+
 section assembly
 
 variable (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0.length)
