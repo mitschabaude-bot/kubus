@@ -456,6 +456,61 @@ theorem gt_ω_res {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (h : Hom n' k) 
 
 end gtΩ5
 
+/-! ### The contractibility data, on `φ(1)` -/
+
+section gtC
+
+variable {A : V} {φ : Cof (n + 1)} {Tp ep : V} (hG : GlueOK A φ Tp ep) {ψ : Cof n} (hψ : ψ.IsCof)
+  {u0 : V} (hu0 : u0 ∈ El (glueC (n + 1) A φ Tp ep) (eZ n))
+  (hcon : ConstOn (glueC (n + 1) A φ Tp ep) (Hom.id (n + 1)) ψ)
+
+include hG hψ hu0 hcon in
+theorem gt_A1'_g (g : Hom k n) : res g (gtA1' A φ ep ψ u0) ∈ El (gtAA1 A g) (Hom.id k) := by
+  have := hG.fibA.elRes _ _ _ (gt_A1'_mem hG hψ hu0 hcon) k g
+  rw [Hom.id_comp] at this
+  rw [gtAA1, El_res, Hom.comp_id]; exact this
+
+include hG in
+theorem gt_e1 {g : Hom k n} (hg : (φ.restr ((eO n).comp g)).holds) :
+    Fib (gtT1 Tp g) k ∧ Fib (gtAA1 A g) k ∧
+      fstV k (gtE1 ep g) ∈ El (arrowM k (gtT1 Tp g) (gtAA1 A g)) (Hom.id k) ∧
+      sndV k (gtE1 ep g) ∈ piElSet k (gtAA1 A g) (famV k (gtAA1 A g) fun k' g' y =>
+        isContrM k' (fiberM k' (res g' (gtT1 Tp g)) (res g' (gtAA1 A g)) (res g' (fstV k (gtE1 ep g))) y)) := by
+  have hT := hG.fibT k _ hg
+  have hA := hG.fibA.restr ((eO n).comp g)
+  have he := hG.mem_e k _ hg
+  rw [equivCode_eq_equivM hT hA] at he
+  obtain ⟨p, hp, q, hq, he'⟩ := mem_equivM hT hA he
+  have hpkv : IsKV k p := (mem_piEl.1 (mem_arrowM hT.kv hp)).1
+  have hqkv : IsKV k q := (mem_piEl.1 hq).1
+  refine ⟨hT, hA, ?_, ?_⟩
+  · unfold gtE1 gtT1 gtAA1; rw [he', fstV_pairV hpkv]; exact hp
+  · unfold gtE1 gtT1 gtAA1; rw [he', fstV_pairV hpkv, sndV_pairV hqkv]; exact hq
+
+include hG hψ hu0 hcon in
+theorem gt_c {g : Hom k n} (hg : (φ.restr ((eO n).comp g)).holds) :
+    Fib (gtFib A φ Tp ep ψ u0 g) k ∧
+    fstV k (gtC A φ ep ψ u0 g) ∈ El (gtFib A φ Tp ep ψ u0 g) (Hom.id k) ∧
+    sndV k (gtC A φ ep ψ u0 g) ∈ piElSet k (gtFib A φ Tp ep ψ u0 g) (famV k (gtFib A φ Tp ep ψ u0 g)
+      fun k' h x => pathC k' (res (Hom.wk k') (res h (gtFib A φ Tp ep ψ u0 g))) (res h (fstV k (gtC A φ ep ψ u0 g))) x) ∧
+    gtC A φ ep ψ u0 g = pairV k (fstV k (gtC A φ ep ψ u0 g)) (sndV k (gtC A φ ep ψ u0 g)) := by
+  obtain ⟨hT, hA, hp, hq⟩ := gt_e1 hG hg
+  have ha := gt_A1'_g hG hψ hu0 hcon g
+  have hfib : Fib (gtFib A φ Tp ep ψ u0 g) k := fib_fiberM hT hA hp ha
+  have hc := appV_mem_piElSet hq ha
+  rw [apZ_dat_famV _ _ _ ha, res_id hT.kv, res_id hA.kv,
+    res_id (mem_piEl.1 (mem_arrowM hT.kv hp)).1] at hc
+  obtain ⟨cen, hcen, ctr, hctr, hc'⟩ := mem_isContrM hfib hc
+  have hcenkv : IsKV k cen := hfib.elKV _ _ _ hcen
+  have hctrkv : IsKV k ctr := (mem_piEl.1 hctr).1
+  have e1 : gtC A φ ep ψ u0 g = pairV k cen ctr := hc'
+  refine ⟨hfib, ?_, ?_, ?_⟩
+  · rw [e1, fstV_pairV hcenkv]; exact hcen
+  · rw [e1, fstV_pairV hcenkv, sndV_pairV hctrkv]; exact hctr
+  · rw [e1, fstV_pairV hcenkv, sndV_pairV hctrkv]
+
+end gtC
+
 section fields
 
 variable {A : V} {φ : Cof m} {Tp ep : V} (hG : GlueOK A φ Tp ep)
