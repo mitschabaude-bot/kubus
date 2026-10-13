@@ -1,0 +1,10 @@
+-- Elaborator regressions (found by the website agent)
+import bool
+
+-- transport along a constant line given by a definition, with inferred implicit arguments
+def Pair : U := Bool × Bool
+#eval transport (\i -> Pair) (true, false)
+
+-- a pair checked against an unsolved implicit type
+def t2 : Pair := id (true, false)
+#eval t2

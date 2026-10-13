@@ -331,7 +331,14 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
       let ta ← check ctx a aTy
       let va ← eval ctx.env ta
       return .pair ta (← check ctx b (← inst env bTy va))
-    | _ => err ctx s!"a pair cannot have type {← ppVal ctx ty}"
+    -- an unknown expected type (e.g. an unsolved implicit argument): infer the pair's type
+    | _ =>
+      let rec head : Val → Option String
+        | .gvar n _ => some n
+        | .app f _ | .papp f _ => head f
+        | _ => none
+      if ((head ty).bind metaId?).isSome then checkInfer ctx t ty0
+      else err ctx s!"a pair cannot have type {← ppVal ctx ty}"
   | .glue sys a =>
     match ty with
     | .glueTy base esys =>

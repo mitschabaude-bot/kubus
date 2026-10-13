@@ -59,6 +59,5 @@ Transport is defined by cases on the line of types, so it computes in function t
 ```kubus
 def Pair : U := Bool × Bool
 
-def moved : Pair := transport (\i -> Pair) (true, false)
-#eval moved
+#eval transport (\i -> Pair) (true, false)
 ```

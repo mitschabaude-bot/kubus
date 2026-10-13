@@ -44,7 +44,8 @@ def quoteFace (q : QCtx) (α : Face) : ITm :=
 mutual
 
 partial def quote (q : QCtx) (v : Val) : M Tm := do
-  match ← forceM v with
+  let v ← forceM v
+  match v with
   | .glued g k sp =>
     -- applications to an endpoint are shown computed
     let endpoint := sp.any fun | .d r => r.toDir?.isSome | _ => false
