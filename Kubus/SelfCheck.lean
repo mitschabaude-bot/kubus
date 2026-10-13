@@ -25,12 +25,13 @@ namespace Kubus
 
 /-- Whether a core term has surface syntax, so that its printed form can be re-elaborated. -/
 partial def Tm.hasSurface : Tm → Bool
-  | .compU .. | .unglueU .. | .split .. => false
+  | .split .. => false
   | .var _ | .glob .. | .univ _ => true
   | .pi _ a b | .sigma _ a b | .app a b | .pair a b | .letE _ a b => a.hasSurface && b.hasSurface
   | .lam _ b | .piI _ b | .plam _ b | .fst b | .snd b | .papp b _ => b.hasSurface
   | .pathP a u v => a.hasSurface && u.hasSurface && v.hasSurface
-  | .comp _ a sys u0 | .hcomp _ a sys u0 | .fill _ a sys u0 =>
+  | .transp _ a _ u0 => a.hasSurface && u0.hasSurface
+  | .comp _ a sys u0 | .hcomp _ a sys u0 | .fill _ a sys u0 | .hfill _ a sys u0 =>
     a.hasSurface && u0.hasSurface && sys.all (·.2.hasSurface)
   | .glueTy a sys | .glue sys a => a.hasSurface && sys.all (·.2.hasSurface)
   | .unglue u _ _ => u.hasSurface
@@ -99,7 +100,7 @@ def scTerm (ctx : Ctx) (tm : Tm) (ty : Val) (label : String) (checkTy : Bool := 
   scRun pos "recheck" label do
     let v ← eval ctx.env tm
     let nf ← quote ctx.qctx v
-    -- `compU`/`unglueU` have no surface syntax, and neither do `glue` elements of a `compU` type
+    -- pattern-matching functions have no surface syntax as terms
     if !nf.hasSurface || !(← quote ctx.qctx ty).hasSurface then
       modify fun s => { s with nGaps := s.nGaps + 1 }
       return

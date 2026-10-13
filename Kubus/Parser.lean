@@ -123,7 +123,7 @@ def expectOneOf (ss : List String) : P Unit := do
   | _ => perr s!"expected one of {ss}"
 
 def keywords : List String :=
-  ["def", "data", "import", "let", "in", "fun", "comp", "hcomp", "fill", "Glue", "glue", "unglue",
+  ["def", "data", "import", "let", "in", "fun", "comp", "hcomp", "fill", "hfill", "transp", "Glue", "glue", "unglue",
    "Path", "PathP", "U", "I", "#eval", "#check"]
 
 def ident : P String := do
@@ -278,6 +278,11 @@ partial def appExpr : P Raw := do
     | .ident "comp" => do advance; let i ← ident; let a ← atom; let s ← sysE; let u ← atom; pure (Raw.comp i a s u)
     | .ident "hcomp" => do advance; let i ← ident; let a ← atom; let s ← sysE; let u ← atom; pure (Raw.hcomp i a s u)
     | .ident "fill" => do advance; let i ← ident; let a ← atom; let s ← sysE; let u ← atom; pure (Raw.fill i a s u)
+    | .ident "hfill" => do advance; let i ← ident; let a ← atom; let s ← sysE; let u ← atom; pure (Raw.hfill i a s u)
+    | .ident "transp" => do
+      advance; let i ← ident; let a ← atom
+      expectSym "["; let φ ← orExpr; expectSym "]"
+      let u ← atom; pure (Raw.transp i a φ u)
     | .ident "Glue" => do advance; let a ← atom; let s ← sysE; pure (Raw.glueTy a s)
     | .ident "glue" => do advance; let s ← sysE; let a ← atom; pure (Raw.glue s a)
     | .ident "unglue" => do advance; pure (Raw.unglue (← atom))

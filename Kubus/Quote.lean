@@ -45,10 +45,10 @@ mutual
 
 partial def quote (q : QCtx) (v : Val) : M Tm := do
   match ← forceM v with
-  | .glued g k sp u =>
+  | .glued g k sp =>
     -- applications to an endpoint are shown computed
     let endpoint := sp.any fun | .d r => r.toDir?.isSome | _ => false
-    if q.fold && !endpoint then quoteSpine q (.glob g k) sp else quote q u
+    if q.fold && !endpoint then quoteSpine q (.glob g k) sp else quote q (← unfoldM v)
   | .univ l => pure (.univ l)
   | .pi x a env b =>
     let (q', xv) := q.pushV
@@ -71,7 +71,6 @@ partial def quote (q : QCtx) (v : Val) : M Tm := do
   | .hcompF ty u sys => return .hcomp "k" (← quote q ty) (← quoteLines q sys) (← quote q u)
   | .glueTy b sys => return .glueTy (← quote q b) (← quoteSys q sys)
   | .glue a sys => return .glue (← quoteSys q sys) (← quote q a)
-  | .compU b es => return .compU (← quote q b) (← quoteSys q es)
   | .split f k env => quoteSpine q (.glob f k) env
   | .var lvl _ =>
     match q.es.findIdx? (· == .tv lvl) with
@@ -83,11 +82,11 @@ partial def quote (q : QCtx) (v : Val) : M Tm := do
   | .snd p => return .snd (← quote q p)
   | .papp p r => return .papp (← quote q p) (quoteF q r)
   | .splitApp f k env a => return .app (← quoteSpine q (.glob f k) env) (← quote q a)
-  | .comp line u sys =>
+  | .transp line φ u =>
     let k ← freshAtom
-    return .comp "i" (← quote (q.pushD k) (← papp line (atomF k))) (← quoteLines q sys) (← quote q u)
+    return .transp "i" (← quote (q.pushD k) (← papp line (atomF k))) (quoteF q φ) (← quote q u)
+  | .hcomp ty u sys => return .hcomp "k" (← quote q ty) (← quoteLines q sys) (← quote q u)
   | .unglue u b sys => return .unglue (← quote q u) (← quote q b) (← quoteSys q sys)
-  | .unglueU u b sys => return .unglueU (← quote q u) (← quote q b) (← quoteSys q sys)
 
 partial def quoteSpine (q : QCtx) (h : Tm) (env : Env) : M Tm := do
   let mut t := h
@@ -219,11 +218,15 @@ partial def pp (names : List String) (p : Nat) (t : Tm) (im : PPI := {}) : Strin
   | .fill i a sys u0 =>
     let i' := freshName names i
     paren (p > 2) s!"fill {i'} {pp (i' :: names) 3 a} {ppSys names (i' :: names) sys} {pp names 3 u0}"
+  | .hfill i a sys u0 =>
+    let i' := freshName names i
+    paren (p > 2) s!"hfill {i'} {pp names 3 a} {ppSys names (i' :: names) sys} {pp names 3 u0}"
   | .glueTy a sys => paren (p > 2) s!"Glue {pp names 3 a} {ppSys names names sys}"
   | .glue sys a => paren (p > 2) s!"glue {ppSys names names sys} {pp names 3 a}"
   | .unglue u _ _ => paren (p > 2) s!"unglue {pp names 3 u}"
-  | .compU a sys => paren (p > 2) s!"compU {pp names 3 a} {ppSys names names sys}"
-  | .unglueU u _ _ => paren (p > 2) s!"unglueU {pp names 3 u}"
+  | .transp i a φ u0 =>
+    let i' := freshName names i
+    paren (p > 2) s!"transp {i'} {pp (i' :: names) 3 a} [{ppI names 0 φ}] {pp names 3 u0}"
   | .data d k [] => if k == 0 then d else s!"{d}^{k}"
   | .data d k ps => paren (p > 2) (" ".intercalate ((if k == 0 then d else s!"{d}^{k}") :: ps.map (pp names 3)))
   | .con c [] [] => c

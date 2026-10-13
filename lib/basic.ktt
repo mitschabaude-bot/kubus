@@ -46,7 +46,7 @@ def JRefl {A : U} {a : A} (C : (x : A) -> Path A a x -> U) (d : C a (refl a))
 
 -- the right unit law for path composition
 def rUnit {A : U} {a b : A} (p : Path A a b) : Path (Path A a b) p (trans p (refl b)) :=
-  \j i -> fill k A [i = 0 -> a, i = 1 -> b] (p i) j
+  \j i -> hcomp k A [i = 0 -> a, i = 1 -> b, j = 0 -> p i] (p i)
 
 def lUnit {A : U} {a b : A} (p : Path A a b) : Path (Path A a b) p (trans (refl a) p) :=
   \j i -> hcomp k A [i = 0 -> a, i = 1 -> p k, j = 0 -> p (i /\ k)] a

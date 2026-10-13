@@ -1,4 +1,4 @@
-λ i → λ i1 → hcomp k (Susp Bool) [i = 0 -> merid true i1, i1 = 1 -> south, i1 = 0 -> north] (merid true i1)
+λ i → λ i1 → hcomp k (Susp Bool) [i1 = 0 -> north, i1 = 1 -> south, i = 0 -> hcomp k1 (Susp Bool) [i1 = 0 -> north, i1 = 1 -> south, k = 1 -> merid true i1] (merid true i1)] (hcomp k (Susp Bool) [i1 = 0 -> north, i1 = 1 -> south] (merid true i1))
   : (i : I) → Path (Susp Bool) north south
-λ b → λ i → λ i1 → hcomp k (Susp Bool) [i = 0 -> merid (comp i2 Bool [k = 1 -> b] b) i1, i1 = 1 -> south, i1 = 0 -> north] (merid b i1)
+λ b → λ i → λ i1 → hcomp k (Susp Bool) [i1 = 0 -> north, i1 = 1 -> south, i = 0 -> hcomp k1 (Susp Bool) [i1 = 0 -> north, i1 = 1 -> south, k = 1 -> merid b i1] (merid b i1)] (hcomp k (Susp Bool) [i1 = 0 -> north, i1 = 1 -> south] (merid b i1))
   : Bool → (i : I) → Path (Susp Bool) north south

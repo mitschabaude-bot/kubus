@@ -23,9 +23,10 @@ def Tm.children : Tm → List (Nat × Tm)
   | .fst t | .snd t | .papp t _ => [(0, t)]
   | .pathP a u v => [(0, a), (0, u), (0, v)]
   | .comp _ a sys u0 | .fill _ a sys u0 => (1, a) :: (0, u0) :: sys.map fun (_, t) => (1, t)
-  | .hcomp _ a sys u0 => (0, a) :: (0, u0) :: sys.map fun (_, t) => (1, t)
-  | .glueTy a sys | .glue sys a | .compU a sys => (0, a) :: sys.map fun (_, t) => (0, t)
-  | .unglue u b sys | .unglueU u b sys => (0, u) :: (0, b) :: sys.map fun (_, t) => (0, t)
+  | .hcomp _ a sys u0 | .hfill _ a sys u0 => (0, a) :: (0, u0) :: sys.map fun (_, t) => (1, t)
+  | .glueTy a sys | .glue sys a => (0, a) :: sys.map fun (_, t) => (0, t)
+  | .unglue u b sys => (0, u) :: (0, b) :: sys.map fun (_, t) => (0, t)
+  | .transp _ a _ u0 => [(1, a), (0, u0)]
   | .data _ _ ps => ps.map (0, ·)
   | .con _ as _ => as.map (0, ·)
   | .letE _ t b => [(0, t), (1, b)]
