@@ -160,7 +160,8 @@ inductive Tm where
   | univ (l : Nat)
   /-- `B` binds a term variable -/
   | pi (A B : Tm)
-  | lam (t : Tm)
+  /-- `λ (x : A). t`, annotated with its domain -/
+  | lam (A t : Tm)
   | app (f a : Tm)
   | sigma (A B : Tm)
   | pair (a b : Tm)
@@ -184,7 +185,8 @@ inductive Tm where
   | glue (A : Tm) (φ : I) (T e : Tm)
   /-- `glue [φ ↦ t] a` -/
   | glueEl (φ : I) (t a : Tm)
-  | unglue (φ : I) (g : Tm)
+  /-- `unglue` carries the equivalence `e` of the Glue type -/
+  | unglue (φ : I) (e g : Tm)
   deriving DecidableEq, Repr, Inhabited
 
 namespace Tm
@@ -199,7 +201,7 @@ def ren (ρ δ : Nat → Nat) : Tm → Tm
   | const k => const k
   | univ l => univ l
   | pi A B => pi (A.ren ρ δ) (B.ren (upRen ρ) δ)
-  | lam t => lam (t.ren (upRen ρ) δ)
+  | lam A t => lam (A.ren ρ δ) (t.ren (upRen ρ) δ)
   | app f a => app (f.ren ρ δ) (a.ren ρ δ)
   | sigma A B => sigma (A.ren ρ δ) (B.ren (upRen ρ) δ)
   | pair a b => pair (a.ren ρ δ) (b.ren ρ δ)
@@ -215,7 +217,7 @@ def ren (ρ δ : Nat → Nat) : Tm → Tm
   | hcomp A φ u a => hcomp (A.ren ρ δ) (φ.ren δ) (u.ren ρ (upRen δ)) (a.ren ρ δ)
   | glue A φ T e => glue (A.ren ρ δ) (φ.ren δ) (T.ren ρ δ) (e.ren ρ δ)
   | glueEl φ t a => glueEl (φ.ren δ) (t.ren ρ δ) (a.ren ρ δ)
-  | unglue φ g => unglue (φ.ren δ) (g.ren ρ δ)
+  | unglue φ e g => unglue (φ.ren δ) (e.ren ρ δ) (g.ren ρ δ)
 
 /-- Weaken by a term variable. -/
 def shift (t : Tm) : Tm := t.ren Nat.succ id
@@ -233,7 +235,7 @@ def subst (σ : Nat → Tm) (τ : Nat → I) : Tm → Tm
   | const k => const k
   | univ l => univ l
   | pi A B => pi (A.subst σ τ) (B.subst (up σ) τ)
-  | lam t => lam (t.subst (up σ) τ)
+  | lam A t => lam (A.subst σ τ) (t.subst (up σ) τ)
   | app f a => app (f.subst σ τ) (a.subst σ τ)
   | sigma A B => sigma (A.subst σ τ) (B.subst (up σ) τ)
   | pair a b => pair (a.subst σ τ) (b.subst σ τ)
@@ -250,7 +252,7 @@ def subst (σ : Nat → Tm) (τ : Nat → I) : Tm → Tm
     hcomp (A.subst σ τ) (φ.subst τ) (u.subst (fun n => (σ n).dshift) (I.up τ)) (a.subst σ τ)
   | glue A φ T e => glue (A.subst σ τ) (φ.subst τ) (T.subst σ τ) (e.subst σ τ)
   | glueEl φ t a => glueEl (φ.subst τ) (t.subst σ τ) (a.subst σ τ)
-  | unglue φ g => unglue (φ.subst τ) (g.subst σ τ)
+  | unglue φ e g => unglue (φ.subst τ) (e.subst σ τ) (g.subst σ τ)
 
 /-- Substitute interval variables only. -/
 def dsubst (τ : Nat → I) (t : Tm) : Tm := t.subst var τ
@@ -316,7 +318,7 @@ where `w(i) = transp (j. A(i ∨ ~j)) (φ ∨ i = 1) v`. -/
 def transpPi (A B : Tm) (φ : I) (u0 : Tm) : Tm :=
   let w := transp (A.shift.dsubst (bind2 (.or (.var 1) (.neg (.var 0))))) (.or φ.shift (.var 0)) (var 0)
   let w0 := transp (A.shift.dsubst fun | 0 => .neg (.var 0) | n + 1 => .var (n + 1)) φ (var 0)
-  lam (transp (B.subst (fun | 0 => w | n + 1 => var (n + 1)) .var) φ (app u0.shift w0))
+  lam (A.dinst .one) (transp (B.subst (fun | 0 => w | n + 1 => var (n + 1)) .var) φ (app u0.shift w0))
 
 /-- `transp (i. Σ A B) φ u0 = (transp A φ u0.1, transp (i. B[a(i)]) φ u0.2)`
 with `a` the transport filler of `u0.1`. -/
@@ -345,8 +347,8 @@ def hcompIPi (A : Tm) (φ : I) (u u0 : Tm) : Tm :=
     (papp u0.dshift (.var 0)))
 
 /-- `hcomp (Π A B) [φ ↦ u] u0 = λ v. hcomp B [φ ↦ u v] (u0 v)` -/
-def hcompPi (B : Tm) (φ : I) (u u0 : Tm) : Tm :=
-  lam (hcomp B φ (app u.shift (var 0)) (app u0.shift (var 0)))
+def hcompPi (A B : Tm) (φ : I) (u u0 : Tm) : Tm :=
+  lam A (hcomp B φ (app u.shift (var 0)) (app u0.shift (var 0)))
 
 /-- `hcomp (Σ A B) [φ ↦ u] u0 = (hcomp A [φ ↦ u.1] u0.1, comp (i. B[hfill]) [φ ↦ u.2] u0.2)` -/
 def hcompSigma (A B : Tm) (φ : I) (u u0 : Tm) : Tm :=
@@ -367,8 +369,8 @@ def hcompGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u u0 : Tm) : Tm :=
   let _ := T
   glueEl φ (hcomp T ψ u u0)
     (hcomp A (.or ψ φ)
-      (split ψ.shift (unglue φ.shift u) φ.shift (app (fst e.dshift) (hfill T ψ u u0)))
-      (unglue φ u0))
+      (split ψ.shift (unglue φ.shift e.dshift u) φ.shift (app (fst e.dshift) (hfill T ψ u u0)))
+      (unglue φ e u0))
 
 /-- Transport in Glue types (CHM). The line `Glue A [φ ↦ (T, e)]` has all components in
 the interval variable 0. -/
@@ -380,7 +382,7 @@ def transpGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm :=
   let e1 := e.dinst .one
   let δ := φ.forall0
   -- naive transport of the base
-  let a0 := unglue φ0 u0
+  let a0 := unglue φ0 (e.dinst .zero) u0
   let a1' := transp A ψ a0
   -- on δ: transport in T, and a path from e(1).1 t1' to a1'
   let t1' := transp T ψ u0
@@ -407,6 +409,10 @@ end Tm
 /-- A signature of global definitions `(body, type)`; constant `k` refers to entry `k`.
 Bodies and types are closed. -/
 abbrev Sig := List (Tm × Tm)
+
+/-- Universe levels are bounded, so that the model can be built from finitely many
+Grothendieck universes (an unbounded tower is not constructible in Lean). -/
+def maxLevel : Nat := 4
 
 /-- Contexts: types of term variables, the most recent first. -/
 abbrev Ctx := List Tm

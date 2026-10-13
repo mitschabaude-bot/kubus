@@ -54,14 +54,14 @@ The judgments use a face rule: if `Φ ⊨ (i = d)` for an endpoint `d`, then `t 
 
 ### Type formers
 
-- `U_l type_(l+1)` and `U_l : U_(l+1)`. Cumulativity: `A : U_l` implies `A : U_(l+1)`, with the same equations. No other subtyping.
-- `Π`, `Σ`, with β and η.
+- `U_l : U_(l+1)` for `l + 1 ≤ maxLevel` (currently 4). Cumulativity: `A : U_l` implies `A : U_(l+1)`, with the same equations. No other subtyping. Levels are bounded so that the model needs only finitely many Grothendieck universes, which Lean can construct; an unbounded tower would make the consistency theorem conditional.
+- `Π`, `Σ`, with β and η. Lambdas are annotated with their domain, `λ (x : A). t`, so that raw terms have type-independent denotations in the set-valued model.
 - `PathP (i. A) a b`, where `a : A(0/i)` and `b : A(1/i)`. The introduction `⟨i⟩ t` requires `t(0/i) ≡ a` and `t(1/i) ≡ b`. Application `p r` reduces: `p 0 ≡ a`, `p 1 ≡ b`, β, and η.
-- `Glue A [φ ↦ (T, e)]` with `T` and `e : Equiv T A` under `φ`. Under `φ`, `Glue … ≡ T`, `glue [φ ↦ t] a ≡ t` and `unglue φ g ≡ e.1 g`. There are β and η rules for glue/unglue. `Equiv` is the contractible-fibers definition, built from `Π`, `Σ` and `PathP`.
+- `Glue A [φ ↦ (T, e)]` with `T` and `e : Equiv T A` under `φ`. Under `φ`, `Glue … ≡ T`, `glue [φ ↦ t] a ≡ t` and `unglue φ e g ≡ e.1 g`. `unglue` must carry the equivalence `e`: under `φ` an element of `T` inhabits the Glue type for *every* equivalence, so without it the rule would identify `e.1 g` and `e'.1 g` for any two equivalences, which is inconsistent. There are β and η rules for glue/unglue. `Equiv` is the contractible-fibers definition, built from `Π`, `Σ` and `PathP`.
 
 ### Structural rules, presupposition and inversion
 
-Weakening (by a term or interval variable), single substitution (of a term or an interval term), presupposition (both sides of an equation are well-typed) and inversion of type formers (`Π A B : U_l` gives `A : U_l` and `B : U_l`; similarly for `Σ`, `PathP`, `Glue`) are rules, not metatheorems. They hold in the intended model, a partial interpretation indexed by universe level, and they let the certified kernel construct derivations without first proving metatheory. Each one is an obligation for the model.
+Weakening (by a term or interval variable), single substitution (of a term or an interval term), presupposition (both sides of an equation are well-typed) and inversion of type formers (`Π A B : U_l` gives `A : U_l` and `B : U_l`; similarly for `Σ`, `PathP`, `(i : I) → A`, and the fibre of `Glue`). Inversion for the base and equivalence of `Glue` is deliberately absent: a Glue type reduces to its fibre on its face, so those rules have no model. are rules, not metatheorems. They hold in the intended model, a partial interpretation indexed by universe level, and they let the certified kernel construct derivations without first proving metatheory. Each one is an obligation for the model.
 
 ### Global definitions
 

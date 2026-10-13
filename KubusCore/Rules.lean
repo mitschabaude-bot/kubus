@@ -56,19 +56,15 @@ inductive HasTy (S : Sig) : Nat → I → Ctx → Tm → Tm → Prop
       HasTy S Ψ Φ Γ a (A.dinst .zero)
   | pathRight {Ψ Φ Γ A a b l} : HasTy S Ψ Φ Γ (path A a b) (univ l) →
       HasTy S Ψ Φ Γ b (A.dinst .one)
-  | glueBase {Ψ Φ Γ A φ T e l} : HasTy S Ψ Φ Γ (glue A φ T e) (univ l) → HasTy S Ψ Φ Γ A (univ l)
   | glueFib {Ψ Φ Γ A φ T e l} : HasTy S Ψ Φ Γ (glue A φ T e) (univ l) →
       HasTy S Ψ (cof Φ φ) Γ T (univ l)
-  | glueEquiv {Ψ Φ Γ A φ T e l} : HasTy S Ψ Φ Γ (glue A φ T e) (univ l) →
-      HasTy S Ψ (cof Φ φ) Γ e (equiv T A)
-  /- universes -/
-  | univ {Ψ Φ Γ l} : Wf S Ψ Φ Γ → HasTy S Ψ Φ Γ (univ l) (univ (l + 1))
-  | cumul {Ψ Φ Γ A l} : HasTy S Ψ Φ Γ A (univ l) → HasTy S Ψ Φ Γ A (univ (l + 1))
+  | univ {Ψ Φ Γ l} : l + 1 ≤ maxLevel → Wf S Ψ Φ Γ → HasTy S Ψ Φ Γ (univ l) (univ (l + 1))
+  | cumul {Ψ Φ Γ A l} : l + 1 ≤ maxLevel → HasTy S Ψ Φ Γ A (univ l) → HasTy S Ψ Φ Γ A (univ (l + 1))
   /- Π -/
   | pi {Ψ Φ Γ A B l} : HasTy S Ψ Φ Γ A (univ l) → HasTy S Ψ Φ (A :: Γ) B (univ l) →
       HasTy S Ψ Φ Γ (pi A B) (univ l)
   | lam {Ψ Φ Γ A B t l} : HasTy S Ψ Φ Γ (pi A B) (univ l) → HasTy S Ψ Φ (A :: Γ) t B →
-      HasTy S Ψ Φ Γ (lam t) (pi A B)
+      HasTy S Ψ Φ Γ (lam A t) (pi A B)
   | app {Ψ Φ Γ A B f a} : HasTy S Ψ Φ Γ f (pi A B) → HasTy S Ψ Φ Γ a A →
       HasTy S Ψ Φ Γ (app f a) (B.inst a)
   /- Σ -/
@@ -115,7 +111,7 @@ inductive HasTy (S : Sig) : Nat → I → Ctx → Tm → Tm → Prop
       HasTy S Ψ (cof Φ φ) Γ t T → HasTy S Ψ Φ Γ a A → EqTm S Ψ (cof Φ φ) Γ (app (fst e) t) a A →
       HasTy S Ψ Φ Γ (glueEl φ t a) (glue A φ T e)
   | unglue {Ψ Φ Γ A φ T e g l} : HasTy S Ψ Φ Γ (glue A φ T e) (univ l) →
-      HasTy S Ψ Φ Γ g (glue A φ T e) → HasTy S Ψ Φ Γ (unglue φ g) A
+      HasTy S Ψ Φ Γ g (glue A φ T e) → HasTy S Ψ Φ Γ (unglue φ e g) A
 
 inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   /- equivalence and structure -/
@@ -125,7 +121,8 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | conv {Ψ Φ Γ t u A B l} : EqTm S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ A B (univ l) → EqTm S Ψ Φ Γ t u B
   | restrict {Ψ Φ Φ' Γ t u A} : Φ'.Scoped Ψ → I.Entails Φ' Φ → EqTm S Ψ Φ Γ t u A →
       EqTm S Ψ Φ' Γ t u A
-  | cumul {Ψ Φ Γ A B l} : EqTm S Ψ Φ Γ A B (univ l) → EqTm S Ψ Φ Γ A B (univ (l + 1))
+  | cumul {Ψ Φ Γ A B l} : l + 1 ≤ maxLevel → EqTm S Ψ Φ Γ A B (univ l) →
+      EqTm S Ψ Φ Γ A B (univ (l + 1))
   | wk {Ψ Φ Γ t u A B l} : HasTy S Ψ Φ Γ B (univ l) → EqTm S Ψ Φ Γ t u A →
       EqTm S Ψ Φ (B :: Γ) t.shift u.shift A.shift
   | dwk {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A →
@@ -148,7 +145,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | pi {Ψ Φ Γ A A' B B' l} : EqTm S Ψ Φ Γ A A' (univ l) → EqTm S Ψ Φ (A :: Γ) B B' (univ l) →
       EqTm S Ψ Φ Γ (pi A B) (pi A' B') (univ l)
   | lam {Ψ Φ Γ A B t t' l} : HasTy S Ψ Φ Γ (pi A B) (univ l) → EqTm S Ψ Φ (A :: Γ) t t' B →
-      EqTm S Ψ Φ Γ (lam t) (lam t') (pi A B)
+      EqTm S Ψ Φ Γ (lam A t) (lam A t') (pi A B)
   | app {Ψ Φ Γ A B f f' a a'} : EqTm S Ψ Φ Γ f f' (pi A B) → EqTm S Ψ Φ Γ a a' A →
       EqTm S Ψ Φ Γ (app f a) (app f' a') (B.inst a)
   | sigma {Ψ Φ Γ A A' B B' l} : EqTm S Ψ Φ Γ A A' (univ l) → EqTm S Ψ Φ (A :: Γ) B B' (univ l) →
@@ -189,9 +186,9 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       I.Entails φ φ' → I.Entails φ' φ →
       EqTm S Ψ (cof Φ φ) Γ t t' T → EqTm S Ψ Φ Γ a a' A →
       EqTm S Ψ Φ Γ (glueEl φ t a) (glueEl φ' t' a') (glue A φ T e)
-  | unglue {Ψ Φ Γ A φ φ' T e g g'} : HasTy S Ψ Φ Γ (unglue φ g) A → HasTy S Ψ Φ Γ (unglue φ' g') A →
+  | unglue {Ψ Φ Γ A φ φ' T e g g'} : HasTy S Ψ Φ Γ (unglue φ e g) A → HasTy S Ψ Φ Γ (unglue φ' e g') A →
       I.Entails φ φ' → I.Entails φ' φ →
-      EqTm S Ψ Φ Γ g g' (glue A φ T e) → EqTm S Ψ Φ Γ (unglue φ g) (unglue φ' g') A
+      EqTm S Ψ Φ Γ g g' (glue A φ T e) → EqTm S Ψ Φ Γ (unglue φ e g) (unglue φ' e g') A
   | ipi {Ψ Φ Γ A A' l} : EqTm S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l) →
       EqTm S Ψ Φ Γ (ipi A) (ipi A') (univ l)
   | ilam {Ψ Φ Γ A t t' l} : HasTy S Ψ Φ Γ (ipi A) (univ l) →
@@ -199,9 +196,10 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | iapp {Ψ Φ Γ A p p' r r'} : EqTm S Ψ Φ Γ p p' (ipi A) → r.Scoped Ψ → r'.Scoped Ψ →
       I.Eq r r' → EqTm S Ψ Φ Γ (papp p r) (papp p' r') (A.dinst r)
   /- β and η -/
-  | piBeta {Ψ Φ Γ t a T} : HasTy S Ψ Φ Γ (app (lam t) a) T → EqTm S Ψ Φ Γ (app (lam t) a) (t.inst a) T
+  | piBeta {Ψ Φ Γ A t a T} : HasTy S Ψ Φ Γ (app (lam A t) a) T →
+      EqTm S Ψ Φ Γ (app (lam A t) a) (t.inst a) T
   | piEta {Ψ Φ Γ A B f} : HasTy S Ψ Φ Γ f (pi A B) →
-      EqTm S Ψ Φ Γ f (lam (app f.shift (var 0))) (pi A B)
+      EqTm S Ψ Φ Γ f (lam A (app f.shift (var 0))) (pi A B)
   | fstBeta {Ψ Φ Γ a b T} : HasTy S Ψ Φ Γ (fst (pair a b)) T → EqTm S Ψ Φ Γ (fst (pair a b)) a T
   | sndBeta {Ψ Φ Γ a b T} : HasTy S Ψ Φ Γ (snd (pair a b)) T → EqTm S Ψ Φ Γ (snd (pair a b)) b T
   | sigmaEta {Ψ Φ Γ A B p} : HasTy S Ψ Φ Γ p (sigma A B) →
@@ -242,7 +240,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | hcompIPi {Ψ Φ Γ A φ u u0 T} : HasTy S Ψ Φ Γ (hcomp (ipi A) φ u u0) T →
       EqTm S Ψ Φ Γ (hcomp (ipi A) φ u u0) (hcompIPi A φ u u0) T
   | hcompPi {Ψ Φ Γ A B φ u u0 T} : HasTy S Ψ Φ Γ (hcomp (pi A B) φ u u0) T →
-      EqTm S Ψ Φ Γ (hcomp (pi A B) φ u u0) (hcompPi B φ u u0) T
+      EqTm S Ψ Φ Γ (hcomp (pi A B) φ u u0) (hcompPi A B φ u u0) T
   | hcompSigma {Ψ Φ Γ A B φ u u0 T} : HasTy S Ψ Φ Γ (hcomp (sigma A B) φ u u0) T →
       EqTm S Ψ Φ Γ (hcomp (sigma A B) φ u u0) (hcompSigma A B φ u u0) T
   | hcompPath {Ψ Φ Γ A a b φ u p0 T} : HasTy S Ψ Φ Γ (hcomp (path A a b) φ u p0) T →
@@ -255,11 +253,11 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | glueElFace {Ψ Φ Γ φ t a G} : I.Entails Φ φ → HasTy S Ψ Φ Γ (glueEl φ t a) G →
       EqTm S Ψ Φ Γ (glueEl φ t a) t G
   | unglueFace {Ψ Φ Γ A φ T e g} : I.Entails Φ φ → HasTy S Ψ Φ Γ g (glue A φ T e) →
-      EqTm S Ψ Φ Γ (unglue φ g) (app (fst e) g) A
-  | glueBeta {Ψ Φ Γ φ t a G} : HasTy S Ψ Φ Γ (unglue φ (glueEl φ t a)) G →
-      EqTm S Ψ Φ Γ (unglue φ (glueEl φ t a)) a G
+      EqTm S Ψ Φ Γ (unglue φ e g) (app (fst e) g) A
+  | glueBeta {Ψ Φ Γ φ e t a G} : HasTy S Ψ Φ Γ (unglue φ e (glueEl φ t a)) G →
+      EqTm S Ψ Φ Γ (unglue φ e (glueEl φ t a)) a G
   | glueEta {Ψ Φ Γ A φ T e g} : HasTy S Ψ Φ Γ g (glue A φ T e) →
-      EqTm S Ψ Φ Γ g (glueEl φ g (unglue φ g)) (glue A φ T e)
+      EqTm S Ψ Φ Γ g (glueEl φ g (unglue φ e g)) (glue A φ T e)
 
 end
 
