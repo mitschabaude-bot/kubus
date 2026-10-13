@@ -300,6 +300,8 @@ mutual
 /-- Translate `t`, against the expected type if given. -/
 partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry)
     (t : Kubus.Tm) (exp : Exp S Ψ Φ Γ) : K S KTm := do
+  -- under an inconsistent restriction all elements of a type are equal: use `[]`
+  if exp.isSome && E.ent .zero then return .abort
   match t with
   | .var i => trVar ks i
   | .glob n k =>
@@ -421,7 +423,7 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
         let φ ← match ← KubusCore.Kernel.whnfTy R E G l hG with
           | ⟨.glue _ φ' _ _, _⟩ => pure φ'
           | _ => pure (canonCof keys)
-        let ⟨A, T, e, _⟩ ← KubusCore.Kernel.toGlue R E G l hG φ
+        let ⟨A, T, e, _⟩ ← KubusCore.Kernel.mapErr (· ++ " (glue)") (KubusCore.Kernel.toGlue R E G l hG φ)
         pure (A, T, e, φ)
     let ⟨_, ⟨hA⟩⟩ ← KubusCore.Kernel.inferType R E A
     let a' ← elabT R env E ks a (some ⟨A, _, ⟨hA⟩⟩)
@@ -444,7 +446,7 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
       let φ ← match ← KubusCore.Kernel.whnfTy R E i.ty i.lvl i.hty with
         | ⟨.glue _ φ' _ _, _⟩ => pure φ'
         | _ => pure (canonCof keys)
-      let ⟨_, _, e, _⟩ ← KubusCore.Kernel.toGlue R E i.ty i.lvl i.hty φ
+      let ⟨_, _, e, _⟩ ← KubusCore.Kernel.mapErr (· ++ " (unglue)") (KubusCore.Kernel.toGlue R E i.ty i.lvl i.hty φ)
       return .unglue φ e g
   | .ann t ty => do
     -- the type recorded by the elaborator, where no expected type is known

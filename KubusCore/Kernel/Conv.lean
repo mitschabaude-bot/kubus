@@ -392,6 +392,9 @@ def convStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
       pure ⟨EqTm.restrict E.hsc h2 e⟩
   | α :: rest =>
     let φ := I.ofFace α
+    -- first without splitting the restriction into its faces (which multiplies the work
+    -- under nested systems); split only if that fails
+    if let some e ← tryOpt (convFace R E A l hA t u ht hu []) then return e
     let ψ := I.ofFaces rest
     let ⟨hφ⟩ ← ensureScoped φ Ψ
     let ⟨hψ⟩ ← ensureScoped ψ Ψ
