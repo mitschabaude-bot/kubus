@@ -365,7 +365,64 @@ theorem transpCon_inv :
       fun j hj hjk => Tel j (by omega)
     rw [pointCtx_succ]
     cases hr : C.isRec k
-    · sorry
+    · simp only [hr, Bool.false_eq_true, if_false, ptL]
+      obtain ⟨A0, hA0⟩ := point_of_not_rec hkn hr
+      have hAk : C.argTy d D.params.length k = A0 := by simp [Ctor.argTy, hA0]
+      rw [hAk]
+      have hP := pt_typed hW htr hD hC hA0
+      have hpost : ∀ (σ : Nat → Tm) (τ' : Nat → I),
+          (A0.ren (C.pointRen k) id).subst (fun x => (σ x).subst Tm.var τ') (fun i => (I.var i).subst τ') =
+            ((A0.ren (C.pointRen k) id).subst σ I.var).subst Tm.var τ' :=
+        fun σ τ' => (subst_subst _ _ _ _ _).symm
+      have hLeq : (A0.ren (C.pointRen k) id).subst (lsub (ptL C Fall ps.toList.reverse k) 0) I.var =
+          tLine A ps.toList φ as k := by
+        rw [pt_inst hW hD hC hA0 (by omega) (by simp [hpl]) 0 I.var, hLk]
+        show _ = (C.argTy d D.params.length k).substList _
+        rw [hAk]
+      have hLt : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift (tLine A ps.toList φ as k) (univ D.level) := by
+        have := (sub_ty hS hP).2.1 T1; rw [hLeq] at this; exact this
+      have T1c := T1.restrict hXs hXe
+      have T1g := T1c.post τg hwc hfg
+      have ec : EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift (tLine A ps.toList φ as k)
+          ((tLine A ps.toList φ as k).dinst .zero).dshift (univ D.level) := by
+        have := (sub_ty hS hP).2.2 T1c T1g Ec
+        rw [hpost, hLeq, ← dd_eq] at this; exact this
+      have T10 := T1.post (I.inst0 .zero) hw (hf .zero trivial)
+      have e0 := (sub_ty hS hP).2.2 T10 TA E0
+      rw [hpost, hLeq, pt_inst hW hD hC hA0 (by omega) (by simp [hpl0]) 0 I.var] at e0
+      rw [hAk] at hatk
+      have ha : HasTy0 S Ψ Φ Γ (as.getD k .abort) ((tLine A ps.toList φ as k).dinst .zero) :=
+        HasTy0.conv hatk (EqTm0.symm e0)
+      have hTF := transpFill_typed hS hLt hφ ec ha
+      have hout := HasTy0.transp hLt hφ ec ha
+      have T11 := T1.post (I.inst0 .one) hw (hf .one trivial)
+      have e1 := (sub_ty hS hP).2.2 T11 TO E1
+      rw [hpost, hLeq] at e1
+      have hout' := HasTy0.conv hout e1
+      refine ⟨?_, ?_, ?_, ?_, ?_, fun j hj => ?_⟩
+      · have := T1.cons (A := A0.ren (C.pointRen k) id) (a := Fall.getD k .abort) (by rw [hLeq, hFk]; exact hTF.1)
+        rw [consT_lsub] at this; exact this
+      · have := TO.cons (A := A0.ren (C.pointRen k) id) (a := osAll.getD k .abort) (by rw [hOk]; exact hout')
+        rw [consT_lsub] at this; exact this
+      · have := E0.cons (A := A0.ren (C.pointRen k) id) (a1 := (Fall.getD k .abort).subst Tm.var (I.inst0 .zero))
+          (a2 := as.getD k .abort) (by rw [hpost, hLeq, hFk]; exact hTF.2.1)
+        simp only [consT_post, consT_lsub] at this; exact this
+      · have := E1.cons (A := A0.ren (C.pointRen k) id) (a1 := (Fall.getD k .abort).subst Tm.var (I.inst0 .one))
+          (a2 := osAll.getD k .abort) (by rw [hpost, hLeq, hFk, hOk]; exact hTF.2.2.1)
+        simp only [consT_post, consT_lsub] at this; exact this
+      · have h2 := EqTm0.conv (EqTm0.restrict hXs hXe (EqTm0.dwk hS hTF.2.1)) (EqTm0.symm ec)
+        have hfe : EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift (Fall.getD k .abort)
+            ((Fall.getD k .abort).subst Tm.var τg) (tLine A ps.toList φ as k) := by
+          rw [hFk, ← dd_eq]; exact EqTm0.trans hTF.2.2.2 (EqTm0.symm h2)
+        have := Ec.cons (A := A0.ren (C.pointRen k) id) (a1 := Fall.getD k .abort)
+          (a2 := (Fall.getD k .abort).subst Tm.var τg) (by rw [hLeq]; exact hfe)
+        simp only [consT_post, consT_lsub] at this; exact this
+      · by_cases hjk : j = k
+        · subst hjk
+          rw [pt_inst hW hD hC hA0 (by omega) (by simp [hpl1]) 0 I.var] at hout'
+          show HasTy0 S Ψ Φ Γ _ ((C.argTy d D.params.length j).substList _)
+          rw [hAk, hOk]; exact hout'
+        · exact hTel j hj hjk
     · simp only [hr, if_true, ptL]
       refine ⟨T1, TO, E0, E1, Ec, fun j hj => ?_⟩
       by_cases hjk : j = k
