@@ -18,6 +18,324 @@ open Tm
 
 variable {S : Sig}
 
+/-! ## Free variables -/
+
+theorem subst_freeIn_congr (t : Tm) : ∀ (σ σ' : Nat → Tm) (τ : Nat → I),
+    (∀ x, t.freeIn x = true → σ x = σ' x) → t.subst σ τ = t.subst σ' τ := by
+  have hup : ∀ {σ σ' : Nat → Tm} {P : Nat → Prop}, (∀ x, P x → σ x = σ' x) →
+      ∀ x, (x = 0 ∨ ∃ y, x = y + 1 ∧ P y) → up σ x = up σ' x := by
+    intro σ σ' P h x hx
+    rcases hx with rfl | ⟨y, rfl, hy⟩
+    · rfl
+    · simp only [up]; rw [h y hy]
+  induction t with
+  | var x => intro σ σ' τ h; exact h x (by simp [freeIn])
+  | const | univ | abort | tnil => intros; rfl
+  | pi A B ihA ihB | sigma A B ihA ihB | lam A B ihA ihB =>
+    intro σ σ' τ h
+    simp only [subst]
+    rw [ihA σ σ' τ (fun x hx => h x (by simp [freeIn, hx])),
+      ihB _ _ τ (fun x hx => hup (P := fun y => B.freeIn (y + 1) = true) (fun y hy => h y (by simp [freeIn, hy])) x
+        (by cases x with
+            | zero => exact Or.inl rfl
+            | succ y => exact Or.inr ⟨y, rfl, hx⟩))]
+  | app f a ihf iha | pair f a ihf iha | tcons f a ihf iha =>
+    intro σ σ' τ h
+    simp only [subst]
+    rw [ihf σ σ' τ (fun x hx => h x (by simp [freeIn, hx])), iha σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | fst p ih | snd p ih | data _ p ih =>
+    intro σ σ' τ h; simp only [subst]; rw [ih σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | plam p ih | ipi p ih =>
+    intro σ σ' τ h; simp only [subst]
+    rw [ih _ _ _ (fun x hx => congrArg Tm.dshift (h x (by simp [freeIn, hx])))]
+  | papp p r ih =>
+    intro σ σ' τ h; simp only [subst]; rw [ih σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | path A a b ihA iha ihb =>
+    intro σ σ' τ h; simp only [subst]
+    rw [ihA _ _ _ (fun x hx => congrArg Tm.dshift (h x (by simp [freeIn, hx]))),
+      iha σ σ' τ (fun x hx => h x (by simp [freeIn, hx])), ihb σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | split φ a ψ b iha ihb =>
+    intro σ σ' τ h; simp only [subst]
+    rw [iha σ σ' τ (fun x hx => h x (by simp [freeIn, hx])), ihb σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | unglue φ a b iha ihb =>
+    intro σ σ' τ h; simp only [subst]
+    rw [iha σ σ' τ (fun x hx => h x (by simp [freeIn, hx])), ihb σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | transp A φ a ihA iha =>
+    intro σ σ' τ h; simp only [subst]
+    rw [ihA _ _ _ (fun x hx => congrArg Tm.dshift (h x (by simp [freeIn, hx]))),
+      iha σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | hcomp A φ u a ihA ihu iha =>
+    intro σ σ' τ h; simp only [subst]
+    rw [ihA σ σ' τ (fun x hx => h x (by simp [freeIn, hx])),
+      ihu _ _ _ (fun x hx => congrArg Tm.dshift (h x (by simp [freeIn, hx]))),
+      iha σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | glue A φ T e ihA ihT ihe =>
+    intro σ σ' τ h; simp only [subst]
+    rw [ihA σ σ' τ (fun x hx => h x (by simp [freeIn, hx])), ihT σ σ' τ (fun x hx => h x (by simp [freeIn, hx])),
+      ihe σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | glueEl φ e t a ihe iht iha =>
+    intro σ σ' τ h; simp only [subst]
+    rw [ihe σ σ' τ (fun x hx => h x (by simp [freeIn, hx])), iht σ σ' τ (fun x hx => h x (by simp [freeIn, hx])),
+      iha σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | con d c ps args rs ihps iha =>
+    intro σ σ' τ h; simp only [subst]
+    rw [ihps σ σ' τ (fun x hx => h x (by simp [freeIn, hx])), iha σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+  | elim d ps P bs t ihps ihP ihbs iht =>
+    intro σ σ' τ h; simp only [subst]
+    rw [ihps σ σ' τ (fun x hx => h x (by simp [freeIn, hx])),
+      ihP _ _ τ (fun x hx => hup (P := fun y => P.freeIn (y + 1) = true) (fun y hy => h y (by simp [freeIn, hy])) x
+        (by cases x with
+            | zero => exact Or.inl rfl
+            | succ y => exact Or.inr ⟨y, rfl, hx⟩)),
+      ihbs σ σ' τ (fun x hx => h x (by simp [freeIn, hx])), iht σ σ' τ (fun x hx => h x (by simp [freeIn, hx]))]
+
+theorem freeIn_lt (t : Tm) : ∀ (n m x : Nat), t.closedB n m = true → t.freeIn x = true → x < n := by
+  induction t with
+  | var y => intro n m x h hx; simp [closedB, freeIn] at h hx; omega
+  | pi A B ihA ihB | sigma A B ihA ihB | lam A B ihA ihB =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true, Bool.or_eq_true] at h hx
+    rcases hx with hx | hx
+    · exact ihA _ _ _ h.1 hx
+    · have := ihB _ _ _ h.2 hx; omega
+  | elim d ps P bs t ihps ihP ihbs iht =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true, Bool.or_eq_true] at h hx
+    rcases hx with ((hx | hx) | hx) | hx
+    · exact ihps _ _ _ h.1.1.1 hx
+    · have := ihP _ _ _ h.1.1.2 hx; omega
+    · exact ihbs _ _ _ h.1.2 hx
+    · exact iht _ _ _ h.2 hx
+  | const | univ | abort | tnil => intro n m x h hx; simp [freeIn] at hx
+  | app f a ihf iha | pair f a ihf iha | tcons f a ihf iha =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true, Bool.or_eq_true] at h hx
+    rcases hx with hx | hx
+    · exact ihf _ _ _ h.1 hx
+    · exact iha _ _ _ h.2 hx
+  | fst p ih | snd p ih | data _ p ih | plam p ih | ipi p ih =>
+    intro n m x h hx; simp only [closedB, freeIn] at h hx; exact ih _ _ _ h hx
+  | papp p r ih =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true] at h hx; exact ih _ _ _ h.1 hx
+  | path A a b ihA iha ihb =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true, Bool.or_eq_true] at h hx
+    rcases hx with (hx | hx) | hx
+    · exact ihA _ _ _ h.1.1 hx
+    · exact iha _ _ _ h.1.2 hx
+    · exact ihb _ _ _ h.2 hx
+  | split φ a ψ b iha ihb =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true, Bool.or_eq_true] at h hx
+    rcases hx with hx | hx
+    · exact iha _ _ _ h.1.1.2 hx
+    · exact ihb _ _ _ h.2 hx
+  | unglue φ a b iha ihb =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true, Bool.or_eq_true] at h hx
+    rcases hx with hx | hx
+    · exact iha _ _ _ h.1.2 hx
+    · exact ihb _ _ _ h.2 hx
+  | transp A φ a ihA iha =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true, Bool.or_eq_true] at h hx
+    rcases hx with hx | hx
+    · exact ihA _ _ _ h.1.1 hx
+    · exact iha _ _ _ h.2 hx
+  | hcomp A φ u a ihA ihu iha | glue A φ u a ihA ihu iha =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true, Bool.or_eq_true] at h hx
+    rcases hx with (hx | hx) | hx
+    · exact ihA _ _ _ h.1.1.1 hx
+    · exact ihu _ _ _ h.1.2 hx
+    · exact iha _ _ _ h.2 hx
+  | glueEl φ e t a ihe iht iha =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true, Bool.or_eq_true] at h hx
+    rcases hx with (hx | hx) | hx
+    · exact ihe _ _ _ h.1.1.2 hx
+    · exact iht _ _ _ h.1.2 hx
+    · exact iha _ _ _ h.2 hx
+  | con d c ps args rs ihps iha =>
+    intro n m x h hx; simp only [closedB, freeIn, Bool.and_eq_true, Bool.or_eq_true] at h hx
+    rcases hx with hx | hx
+    · exact ihps _ _ _ h.1.1 hx
+    · exact iha _ _ _ h.1.2 hx
+
+/-! ## Point arguments -/
+
+/-- The substitution of the list `L` (most recent first), with the variables after it sent to
+`var (y - L.length + c)`. -/
+def lsub (L : List Tm) (c : Nat) (y : Nat) : Tm := L.getD y (.var (y - L.length + c))
+
+theorem consT_lsub (a : Tm) (L : List Tm) (c : Nat) : consT a (lsub L c) = lsub (a :: L) c := by
+  funext y; cases y with
+  | zero => rfl
+  | succ y =>
+    simp only [consT, lsub, List.getD_cons_succ, List.length_cons]
+    congr 2; omega
+
+theorem substList_eq_lsub (L : List Tm) (t : Tm) : t.substList L = t.subst (lsub L 0) I.var := rfl
+
+theorem lsub_lt {L : List Tm} {y : Nat} (h : y < L.length) (c : Nat) : lsub L c y = L[y] := by
+  simp [lsub, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h]
+
+/-- The point arguments among the first `k` arguments `as` (most recent first), before `R`. -/
+def ptL (C : Ctor) (as R : List Tm) : Nat → List Tm
+  | 0 => R
+  | k + 1 => if C.isRec k then ptL C as R k else as.getD k .abort :: ptL C as R k
+
+def recCount (C : Ctor) (k : Nat) : Nat := ((List.range k).filter C.isRec).length
+
+theorem recCount_succ (C : Ctor) (k : Nat) :
+    recCount C (k + 1) = recCount C k + (if C.isRec k then 1 else 0) := by
+  simp only [recCount, List.range_succ, List.filter_append, List.length_append]
+  cases h : C.isRec k <;> simp [List.filter, h]
+
+theorem recCount_le (C : Ctor) (k : Nat) : recCount C k ≤ k := by
+  have := List.length_filter_le C.isRec (List.range k); simp only [List.length_range] at this
+  exact this
+
+theorem pointRen_zero_left (C : Ctor) (x : Nat) : C.pointRen 0 x = x := by
+  simp [Ctor.pointRen]
+
+theorem pointRen_ge (C : Ctor) {n x : Nat} (h : n ≤ x) : C.pointRen n x = x - recCount C n := by
+  simp [Ctor.pointRen, recCount, Nat.not_lt.2 h]
+
+theorem pointRen_succ_zero (C : Ctor) (k : Nat) : C.pointRen (k + 1) 0 = 0 := by
+  simp [Ctor.pointRen]
+
+theorem pointRen_succ_succ (C : Ctor) (k x : Nat) :
+    C.pointRen (k + 1) (x + 1) = (if C.isRec k then 0 else 1) + C.pointRen k x := by
+  by_cases hx : x < k
+  · simp only [Ctor.pointRen, show x + 1 < k + 1 by omega, hx, if_true, List.range_succ_eq_map,
+      List.filter_cons, List.filter_map]
+    have e : ((fun y => !C.isRec (k + 1 - 1 - y)) ∘ Nat.succ) = fun y => !C.isRec (k - 1 - y) := by
+      funext y; simp only [Function.comp]; congr 2; omega
+    rw [e]
+    cases h : C.isRec k <;> simp [h] <;> omega
+  · rw [pointRen_ge C (show k + 1 ≤ x + 1 by omega), pointRen_ge C (show k ≤ x by omega), recCount_succ]
+    have := recCount_le C k
+    cases C.isRec k <;> simp <;> omega
+
+theorem ptL_length (C : Ctor) (as R : List Tm) :
+    ∀ k, (ptL C as R k).length + recCount C k = k + R.length
+  | 0 => by simp [ptL, recCount]
+  | k + 1 => by
+    have := ptL_length C as R k
+    rw [recCount_succ]
+    cases h : C.isRec k <;> simp [ptL, h] <;> omega
+
+theorem ptL_get (C : Ctor) (as R : List Tm) : ∀ k, k ≤ as.length → ∀ x, x < k + R.length →
+    (x < k → C.isRec (k - 1 - x) = false) →
+    (ptL C as R k)[C.pointRen k x]? = ((as.take k).reverse ++ R)[x]?
+  | 0, _, x, _, _ => by simp [ptL, pointRen_zero_left]
+  | k + 1, hk, x, hx, hc => by
+    have htake : (as.take (k + 1)).reverse ++ R = as[k] :: ((as.take k).reverse ++ R) := by
+      rw [List.take_add_one, List.getElem?_eq_getElem (by omega)]
+      simp only [Option.toList_some, List.reverse_append, List.reverse_cons, List.reverse_nil,
+        List.nil_append, List.cons_append]
+      rfl
+    rw [htake]
+    cases x with
+    | zero =>
+      have := hc (by omega); simp only [Nat.add_sub_cancel, Nat.sub_zero] at this
+      simp [ptL, this, pointRen_succ_zero, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (show k < as.length by omega)]
+      all_goals rfl
+    | succ x =>
+      have ih := ptL_get C as R k (by omega) x (by omega) (fun h => by
+        have := hc (by omega); rw [← this]; congr 1; omega)
+      rw [pointRen_succ_succ]
+      cases h : C.isRec k
+      · simp only [ptL, h, Bool.false_eq_true, if_false, Nat.add_comm 1, List.getElem?_cons_succ]; exact ih
+      · simp only [ptL, h, if_true, Nat.zero_add, List.getElem?_cons_succ]; exact ih
+
+theorem lsub_of_getElem? {L : List Tm} {y : Nat} {e : Tm} (h : L[y]? = some e) (c : Nat) :
+    lsub L c y = e := by
+  simp [lsub, List.getD_eq_getElem?_getD, h]
+
+theorem getElem?_params {X ps : List Tm} {p : Nat} (hp : p < ps.length) :
+    (X ++ ps.reverse)[X.length + ps.length - 1 - p]? = some ps[p] := by
+  rw [List.getElem?_append_right (by omega), List.getElem?_reverse (by omega)]
+  rw [show ps.length - 1 - (X.length + ps.length - 1 - p - X.length) = p by omega]
+  exact List.getElem?_eq_getElem hp
+
+theorem paramVars_subst {np k : Nat} {σ : Nat → Tm} {τ : Nat → I} {ps : List Tm}
+    (hlen : ps.length = np) (h : ∀ (p : Nat) (hp : p < ps.length), σ (k + np - 1 - p) = ps[p]) :
+    (Ctor.paramVars np k).subst σ τ = Tm.ofList ps := by
+  simp only [Ctor.paramVars, ofList_subst, List.map_map]
+  congr 1
+  apply List.ext_getElem (by simp [hlen])
+  intro i h1 h2
+  simp only [List.getElem_map, List.getElem_range, Function.comp, Tm.subst]
+  exact h i h2
+
+theorem paramVars_toList (np k : Nat) :
+    (Ctor.paramVars np k).toList = (List.range np).map fun p => Tm.var (k + np - 1 - p) :=
+  toList_ofList _
+
+theorem paramVars_ren (np k e : Nat) :
+    (Ctor.paramVars np k).ren (· + e) id = Ctor.paramVars np (k + e) := by
+  simp only [Ctor.paramVars, ofList_ren, List.map_map]
+  congr 1
+  apply List.map_congr_left
+  intro p hp
+  simp only [List.mem_range] at hp
+  simp only [Function.comp, Tm.ren]
+  congr 1; omega
+
+theorem tele_get {S : Sig} {Ψ Φ Γ} : ∀ {ts Δ prev}, HasTele0 S Ψ Φ Γ ts Δ prev →
+    ∀ (k : Nat) (a A : Tm), ts.toList[k]? = some a → Δ[k]? = some A →
+    HasTy0 S Ψ Φ Γ a (A.substList ((ts.toList.take k).reverse ++ prev))
+  | _, _, _, .nil _ => fun k a A h _ => by simp [Tm.toList] at h
+  | _, _, _, .cons h0 h1 => fun k a A ha hA => by
+    cases k with
+    | zero =>
+      simp only [Tm.toList, List.getElem?_cons_zero, Option.some.injEq] at ha hA
+      subst ha; subst hA; simpa using h0
+    | succ k =>
+      simp only [Tm.toList, List.getElem?_cons_succ] at ha hA
+      have := tele_get h1 k a A ha hA
+      simpa [Tm.toList, List.take_succ_cons] using this
+
+theorem lookup_of_get : ∀ (Γ : Ctx) (x : Nat) (A : Tm), Γ[x]? = some A →
+    Γ.lookup x = some (A.ren (· + (x + 1)) id)
+  | [], _, _, h => by simp at h
+  | B :: Γ, 0, A, h => by
+    simp only [List.getElem?_cons_zero, Option.some.injEq] at h; subst h
+    rfl
+  | B :: Γ, x + 1, A, h => by
+    simp only [List.getElem?_cons_succ] at h
+    simp only [Ctx.lookup, lookup_of_get Γ x A h, Option.map_some, Option.some.injEq, Tm.shift, ren_ren]
+    congr 1
+
+theorem paramCtx_succ (D : DataDecl) {j : Nat} (h : j < D.params.length) :
+    D.paramCtx (j + 1) = D.params[j] :: D.paramCtx j := by
+  simp only [DataDecl.paramCtx]
+  rw [List.take_add_one, List.getElem?_eq_getElem h]
+  simp
+
+theorem pointCtx_succ (D : DataDecl) (d : Nat) (C : Ctor) (k : Nat) :
+    D.pointCtx d C (k + 1) = if C.isRec k then D.pointCtx d C k else
+      (C.argTy d D.params.length k).ren (C.pointRen k) id :: D.pointCtx d C k := by
+  simp only [DataDecl.pointCtx, List.range_succ, List.filter_append]
+  cases h : C.isRec k <;> simp [h]
+
+theorem argCtx_get (D : DataDecl) (d : Nat) (C : Ctor) {n j : Nat} (h : j < n) :
+    (D.argCtx d C n)[j]? = some (C.argTy d D.params.length (n - 1 - j)) := by
+  simp only [DataDecl.argCtx]
+  rw [List.getElem?_append_left (by simp; omega)]
+  simp [h]
+
+theorem pt_agree (C : Ctor) {as R : List Tm} {n x : Nat} (hlen : as.length = n)
+    (hx : x < n → C.isRec (n - 1 - x) = false) :
+    lsub (ptL C as R n) (n + R.length) (C.pointRen n x) = (as.reverse ++ R).getD x (.var x) := by
+  by_cases hxl : x < n + R.length
+  · have h1 := ptL_get C as R n (by omega) x hxl hx
+    rw [List.take_of_length_le (by omega)] at h1
+    have hxl' : x < (as.reverse ++ R).length := by simp; omega
+    have h2 : (as.reverse ++ R)[x]? = some (as.reverse ++ R)[x] := List.getElem?_eq_getElem hxl'
+    rw [h2] at h1
+    rw [lsub_of_getElem? h1, List.getD_eq_getElem?_getD, h2]; rfl
+  · have hl := ptL_length C as R n
+    have hr := recCount_le C n
+    rw [pointRen_ge C (by omega)]
+    simp only [lsub, List.getD_eq_getElem?_getD]
+    rw [List.getElem?_eq_none (by omega), List.getElem?_eq_none (by simp; omega)]
+    simp only [Option.getD_none]
+    congr 1; omega
+
 theorem conBnd_typed (hW : WfSig S) {d : Nat}
     (htr : ∀ {Ψ' Φ' Γ' t u A}, EqTm (S.take d) Ψ' Φ' Γ' t u A → EqTm0 S Ψ' Φ' Γ' t u A)
     {Ψ Φ Γ} {D : DataDecl} {c : Nat} {C : Ctor} {ps args : Tm} {rs : List I} {k : Nat} {ψ : I} {b : Tm}
