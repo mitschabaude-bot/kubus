@@ -1,4 +1,4 @@
-import Model.Rules.PathLemmas
+import Model.Rules.KanLemmas
 
 /-!
 # Semantic validity of the rules
@@ -500,12 +500,33 @@ theorem sem_HasTy_abort {S : Sig} {Ψ Φ Γ A l}
 theorem sem_HasTy_transp {S : Sig} {Ψ Φ Γ A φ a l}
     (h0 : SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) (h1 : φ.Scoped Ψ) (h2 : SemEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (univ l)) (h3 : SemTy S Ψ Φ Γ a (A.dinst .zero)) :
     SemTy S Ψ Φ Γ (transp A φ a) (A.dinst .one) := by
-  sorry
+  refine ⟨h3.1, ⟨h0.2.1, h3.2.1⟩, (show A.ConstsLt S.length from h0.2.1).dinst _, fun m ρ γ hp => ?_⟩
+  obtain ⟨hc, hN, hl, hV, hW⟩ := transp_cond h0 h2 h3 hp
+  have hfib := hW.fib
+  refine ⟨?_, fun k f => ?_, ?_, Natural.dinst (by rw [ival_one]; exact line_endpt_nat hp.kv hN _)⟩
+  · rw [sem_transp hc, sem_dinst, ival_one, line_endpt hp.kv hN, El_res, Hom.comp_id]
+    have := hfib.trMem m (Hom.id (m + 1)) _ _ (isCof_ival_face ρ φ) hc.2.1 hc.2.2
+    rwa [Hom.id_comp] at this
+  · obtain ⟨hc', -⟩ := transp_cond h0 h2 h3 (hp.restr h3.1 f)
+    rw [sem_transp hc', sem_transp hc, hfib.trRes m _ _ _ (isCof_ival_face ρ φ) hc.2.1 hc.2.2 k f,
+      line_restr hN f, transpAt_res, ival.restr, DM.face_restr, (h3.2.2.2 m ρ γ hp).2.1 k f]
+    simp only [Hom.comp_id, Hom.id_comp]
+  · unfold TyOK; rw [sem_dinst, ival_one, line_endpt hp.kv hN]
+    exact ⟨l, hl, Or.inl ⟨hW.res _, res_mem_Vt hV _⟩⟩
 
 theorem sem_HasTy_hcomp {S : Sig} {Ψ Φ Γ A φ u a l}
     (h0 : SemTy S Ψ Φ Γ A (univ l)) (h1 : φ.Scoped Ψ) (h2 : SemTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift) (h3 : SemTy S Ψ Φ Γ a A) (h4 : SemEq S Ψ (cof Φ φ) Γ (u.dinst .zero) a A) :
     SemTy S Ψ Φ Γ (hcomp A φ u a) A := by
-  sorry
+  refine ⟨h3.1, ⟨h0.2.1, h2.2.1, h3.2.1⟩, h3.2.2.1, fun m ρ γ hp => ?_⟩
+  have hc := hcomp_cond h2 h3 h4 hp
+  obtain ⟨hamem, hanat, hAty, hAnat⟩ := h3.2.2.2 m ρ γ hp
+  have hfib := hAty.fib
+  refine ⟨?_, fun k f => ?_, hAty, hAnat⟩
+  · rw [sem_hcomp hc]; exact hfib.hcMem m (Hom.id m) _ _ _ (isCof_ival_face ρ φ) hc.2.2 hc.2.1
+  · have hc' := hcomp_cond h2 h3 h4 (hp.restr h3.1 f)
+    rw [sem_hcomp hc', sem_hcomp hc, hfib.hcRes m _ _ _ _ (isCof_ival_face ρ φ) hc.2.2 hc.2.1 k f,
+      hAnat k f, hcompAt_res_id', hanat k f, ival.restr, DM.face_restr, Hom.id_comp]
+    congr 1; funext n h r; simp only [tubeV, Tube.restr, IEnv.restr_restr, TEnv.restr_restr]
 
 theorem sem_HasTy_glue {S : Sig} {Ψ Φ Γ A φ T e l}
     (h0 : SemTy S Ψ Φ Γ A (univ l)) (h1 : φ.Scoped Ψ) (h2 : SemTy S Ψ (cof Φ φ) Γ T (univ l)) (h3 : SemTy S Ψ (cof Φ φ) Γ e (equiv T A)) :
