@@ -154,7 +154,7 @@ def checkDecl' : Decl → M (Option String)
 
 /-- Process a declaration, then self-check the terms recorded during elaboration. -/
 def checkDecl (d : Decl) : M (Option String) := do
-  modify fun s => { s with metas := #[] }
+  modify fun s => { s with metas := #[], convCache := {} }
   let out ← checkDecl' d
   if (← get).lsp then
     -- print the recorded types while the metavariables are still around

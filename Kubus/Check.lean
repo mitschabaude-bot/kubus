@@ -89,7 +89,7 @@ def ppVal (ctx : Ctx) (v : Val) : M String := do
 def withRollback (x : M Bool) : M Bool := do
   let saved := (← get).metas
   let r ← x
-  if !r then modify fun s => { s with metas := saved }
+  if !r then restoreMetas saved
   return r
 
 /-- A fresh metavariable of type `ty` in `ctx`: returns the core term (the metavariable applied

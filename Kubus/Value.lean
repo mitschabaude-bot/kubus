@@ -98,8 +98,55 @@ end
 /-- `Val.hasAtomRef`, exploring each shared node only once (values are DAGs: closures share
 their environments). -/
 unsafe def Val.hasAtomUnsafe (i : Atom) (v : Val) : Bool :=
-  (go v).run' {}
+  -- small values: a plain traversal (no table); large ones: each shared node once
+  match small v 256 with
+  | some (b, _) => b
+  | none => (go v).run' {}
 where
+  /-- `some (occurs, remaining budget)`, or `none` when the budget runs out. -/
+  small (v : Val) (n : Nat) : Option (Bool × Nat) :=
+    if n == 0 then none else
+    let n := n - 1
+    let rec many : List Val → Nat → Option (Bool × Nat)
+      | [], n => some (false, n)
+      | x :: xs, n => do
+        let (b, n) ← small x n
+        if b then some (true, n) else many xs n
+    let rec env : Env → Nat → Option (Bool × Nat)
+      | [], n => some (false, n)
+      | .d r :: rest, n => if r.mentions i then some (true, n) else env rest n
+      | .v x :: rest, n => do
+        let (b, n) ← small x n
+        if b then some (true, n) else env rest n
+    let rec sys : List (Face × Val) → Nat → Option (Bool × Nat)
+      | [], n => some (false, n)
+      | (α, x) :: rest, n =>
+        if α.mentions i then some (true, n) else do
+        let (b, n) ← small x n
+        if b then some (true, n) else sys rest n
+    match v with
+    | .univ _ => some (false, n)
+    | .pi _ a e _ | .sigma _ a e _ => do
+      let (b, n) ← small a n
+      if b then some (true, n) else env e n
+    | .lam _ e _ | .split _ _ e | .glued _ _ e => env e n
+    | .pair a b | .app a b => many [a, b] n
+    | .piI l | .fst l | .snd l | .var _ l | .gvar _ l => small l n
+    | .pathP l a b => many [l, a, b] n
+    | .plam j b => if j == i then some (false, n) else small b n
+    | .data _ _ ps | .con _ ps => many ps n
+    | .pcon _ as ds => if ds.any (·.mentions i) then some (true, n) else many as n
+    | .hcompF ty u s | .hcomp ty u s | .unglue u ty s => do
+      let (b, n) ← many [ty, u] n
+      if b then some (true, n) else sys s n
+    | .glueTy b s | .glue b s => do
+      let (x, n) ← small b n
+      if x then some (true, n) else sys s n
+    | .papp p r => if r.mentions i then some (true, n) else small p n
+    | .splitApp _ _ e a => do
+      let (b, n) ← small a n
+      if b then some (true, n) else env e n
+    | .transp l φ u => if φ.mentions i then some (true, n) else many [l, u] n
   seen {α : Type} (x : α) : StateM (Std.HashSet USize) Bool := do
     let p := ptrAddrUnsafe x
     if (← get).contains p then return true
@@ -258,8 +305,28 @@ structure St where
   nChecks : Nat := 0
   nSkipped : Nat := 0
   nGaps : Nat := 0
+  /-- pairs of values found convertible (by address; the values are kept so that addresses are
+  not reused); cleared when metavariable solutions are undone or a declaration starts -/
+  convCache : Std.HashMap (USize × USize) (Val × Val) := {}
 
 abbrev M := StateT St (Except String)
+
+unsafe def addrUnsafe {α : Type} (x : α) : USize := ptrAddrUnsafe x
+
+/-- The address of a value, for caches that keep the value alive (the reference
+implementation returns 0; caches keyed by it are only used through `sameAddr`). -/
+@[implemented_by addrUnsafe]
+def addr {α : Type} (_x : α) : USize := 0
+
+unsafe def sameAddrUnsafe {α : Type} (x y : α) : Bool := ptrAddrUnsafe x == ptrAddrUnsafe y
+
+/-- Whether two values are the same object (the reference implementation: never). -/
+@[implemented_by sameAddrUnsafe]
+def sameAddr {α : Type} (_x _y : α) : Bool := false
+
+/-- Undo metavariable solutions (and the conversions that may have used them). -/
+def restoreMetas (saved : Array MetaInfo) : M Unit :=
+  modify fun s => { s with metas := saved, convCache := {} }
 
 def freshAtom : M Atom := modifyGet fun s => (s.fresh, { s with fresh := s.fresh + 1 })
 

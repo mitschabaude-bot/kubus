@@ -49,7 +49,9 @@ partial def quote (q : QCtx) (v : Val) : M Tm := do
   | .glued g k sp =>
     -- applications to an endpoint are shown computed
     let endpoint := sp.any fun | .d r => r.toDir?.isSome | _ => false
-    if q.fold && !endpoint then quoteSpine q (.glob g k) sp else quote q (← unfoldM v)
+    -- internal globals have no surface syntax: always unfolded
+    if q.fold && !endpoint && !g.startsWith "%" then quoteSpine q (.glob g k) sp
+    else quote q (← unfoldM v)
   | .univ l => pure (.univ l)
   | .pi x a env b =>
     let (q', xv) := q.pushV

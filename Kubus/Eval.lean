@@ -60,6 +60,9 @@ def equivPairTm (l : Nat) : Tm :=
 /-- `Σ (x : T), Path A (f x) y` in context `[T, A, f, y]`. -/
 def fiberTm : Tm := (B.fiber (.var 0) (.var 1) (.var 2) (.var 3)) 4
 
+/-- The internal global for `lineEquiv` (not a surface name). -/
+def lineEquivName : String := "%lineEquiv"
+
 /-- Interval terms over de Bruijn levels. -/
 abbrev IB := Nat → ITm
 
@@ -463,6 +466,8 @@ partial def findBranch (f c : String) : M Branch := do
 
 partial def act (i : Atom) (r : Formula) (v : Val) : M Val := do
   tick
+  -- renaming an atom to itself
+  if r == atomF i then return v
   if !v.hasAtom i then return v
   match v with
   | .glued g k sp => return .glued g k (← actEnv i r sp)
@@ -732,14 +737,28 @@ partial def fill (i : Atom) (a u : Val) (us : System Val) : M Val := do
   let us' ← us.mapM fun (α, v) => return (α, ← act i ij v)
   comp j a' u (System.insert [(i, Dir.zero)] u us')
 
-/-- A stuck transport along `line`, recomputed. -/
+/-- A stuck transport along `line`, recomputed (at the line's own atom, so that it is not
+renamed). -/
 partial def transpLine (line : Val) (φ : Formula) (u0 : Val) : M Val := do
-  let k ← freshAtom
-  transp k (← papp line (atomF k)) φ u0
+  match line with
+  | .plam j a => if φ.mentions j then fresh else transp j a φ u0
+  | _ => fresh
+where
+  fresh : M Val := do
+    let k ← freshAtom
+    transp k (← papp line (atomF k)) φ u0
 
 /-- A stuck composition with sides given as lines, recomputed. -/
 partial def hcompLines (a u0 : Val) (sys : System Val) : M Val := do
-  let k ← freshAtom
+  -- the lines of a composition usually share their atom: reuse it, so that they are not renamed
+  let shared := match sys with
+    | (_, .plam j _) :: _ =>
+      if sys.all (fun (α, l) => !α.mentions j && match l with | .plam j' _ => j' == j | _ => false)
+        && !a.hasAtom j && !u0.hasAtom j then some j else none
+    | _ => none
+  let k ← match shared with
+    | some j => pure j
+    | none => freshAtom
   hcomp k a u0 (← sys.mapM fun (α, l) => return (α, ← papp l (atomF k)))
 
 /-- `transpPi`, when a stuck transport in a Π-type is applied:
@@ -766,12 +785,31 @@ partial def appHcomp (a u0 : Val) (sys : System Val) (v : Val) : M Val := do
 /-- `Σ (x : T), Path A (f x) y` -/
 partial def fiberTy (t a f y : Val) : M Val := eval [.v y, .v f, .v a, .v t] fiberTm
 
+/-- `lineEquiv B`, folded: an internal global, so that equivalences of composed types are
+compared by their lines and unfolded only when a computation needs them. -/
+partial def lineEquivV (line : Val) : M Val := do
+  if !(← getGlobals).defs.contains lineEquivName then
+    let tyTm : Tm := .pi "B" (.piI "i" (.univ 0))
+      ((B.equiv (.papp (.var 0) .zero) (.papp (.var 0) .one)) 1)
+    let tyV ← eval [] tyTm
+    let body : Tm := .lam "B" lineEquivTm
+    let info : DefInfo := {
+      name := lineEquivName
+      ty := tyV
+      tyTm := tyTm
+      body := some body
+      value := none
+      nParams := 0
+      branches := [] }
+    modify fun s => { s with globals.defs := s.globals.defs.insert lineEquivName info }
+  app (.glued lineEquivName 0 []) line
+
 /-- `hcompU`: `hcomp U [φ ↦ i. u] u0 = Glue u0 [φ ↦ (u(1), lineEquiv (u(~i)))]`. -/
 partial def hcompU (i : Atom) (u0 : Val) (us : System Val) : M Val := do
   let es ← us.mapM fun (α, v) => do
     let k ← freshAtom
     let line : Val := .plam k (← act i (natomF k) v)
-    return (α, Val.pair (← act i Formula.one v) (← eval [.v line] lineEquivTm))
+    return (α, Val.pair (← act i Formula.one v) (← lineEquivV line))
   mkGlueTy u0 es
 
 /-- `hcompGlue`: `glue [φ ↦ hcomp T [ψ ↦ u] u0]

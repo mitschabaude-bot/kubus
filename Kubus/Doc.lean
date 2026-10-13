@@ -111,7 +111,7 @@ def inRange (p : Pos) (l c : Nat) : Bool :=
 /-- Check a declaration like `checkDecl` in editor mode, keeping the contexts of the recorded
 subterms. -/
 def docDecl (d : Decl) : M (Option String × Records × Array (Pos × String)) := do
-  modify fun s => { s with metas := #[], lsp := true, pendingHovers := #[], pendingGoals := #[] }
+  modify fun s => { s with metas := #[], convCache := {}, lsp := true, pendingHovers := #[], pendingGoals := #[] }
   let out ← checkDecl' d
   let recs ← (← get).pendingHovers.mapM fun (p, ctx, ty) => return (p, ctx, ← ppVal ctx ty)
   let goals ← (← get).pendingGoals.mapM fun (p, ctx, ty) => do

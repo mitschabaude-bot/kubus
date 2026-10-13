@@ -135,11 +135,23 @@ partial def gluedEq (l : Nat) (u v : Val) : M Bool := do
     match next with
     | some t => ty := t
     | none =>
-      modify fun s => { s with metas := saved }
+      restoreMetas saved
       return false
   return true
 
 partial def conv (l : Nat) (ty u v : Val) : M Bool := do
+  -- the same pair compared before
+  let key := (addr u, addr v)
+  if let some (u', v') := (← get).convCache[key]? then
+    if sameAddr u u' && sameAddr v v' then return true
+  let r ← conv' l ty u v
+  if r then
+    modify fun s =>
+      let c := if s.convCache.size > 100000 then {} else s.convCache
+      { s with convCache := c.insert key (u, v) }
+  return r
+
+partial def conv' (l : Nat) (ty u v : Val) : M Bool := do
   let u ← forceM u
   let v ← forceM v
   if let some r ← flexSolve l u v then return r
