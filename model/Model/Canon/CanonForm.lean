@@ -414,7 +414,7 @@ theorem canonicity_of_glueCompat : ∀ (S : Sig) (d : Nat) (D : DataDecl) (t : T
     ∃ t', EqTm S 0 .one [] t t' (.data d .tnil) ∧ Canon S d t' := by
   intro S d D t hW hG hD hp ht
   have hc : t.ConstsLt S.length := (sound_ty (sigOK_of_wfSig _ S rfl hW) ht).2.1
-  have hRE := fund_ty hW (hyp_all hW S.length le_rfl) (spec_to_minimal hW ht) hc 0 (CSub.nil S 0)
+  have hRE := fund_ty hW (hyp_all hW hG S.length le_rfl) hG (spec_to_minimal hW ht) hc 0 (CSub.nil S 0)
   have htc := closed_of_ty hW ht
   rw [closed_subst_id htc (fun x hx => absurd hx (Nat.not_lt_zero _)) (fun i hi => absurd hi (Nat.not_lt_zero _))] at hRE
   have hdT : HasTy S 0 .one [] (.data d .tnil) (.univ D.level) := minimal_to_spec (HasTy0.data hD (hW.2 d D hD).1

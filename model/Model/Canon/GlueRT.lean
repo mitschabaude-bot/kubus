@@ -100,6 +100,31 @@ theorem RE_glue_intro {A T e g : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] 
   · rw [Comp_res_el hW hAt]; exact hun k' σ
   · rw [dat_glue_fiber σ hh]; exact hgT k' σ ((face_holds_iff hφ σ).1 hh)
 
+/-- The base and equivalence of a typed closed Glue type. -/
+theorem glue_data {A T e : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) :
+    φ.Scoped k ∧ ∃ l', HasTy S k .one [] A (.univ l') ∧ HasTy S k (cof .one φ) [] e (Tm.equiv T A) := by
+  obtain ⟨l', ⟨hA0, hφ, -, he0⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) (spec_to_minimal hW hG) rfl
+  exact ⟨hφ, l', minimal_to_spec hA0, minimal_to_spec he0⟩
+
+/-- A Glue introduction is computable when its base and (on the face) fiber components are. -/
+theorem RE_glueEl_intro {A T e t a : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] (.glue A φ T e) (.univ l))
+    (hn : ¬ (ival (idEnv k) φ).holds) (hg : HasTy S k .one [] (.glueEl φ e t a) (.glue A φ T e))
+    (ha : ∀ k' (σ : ISub k' k), RE S k' (A.isub σ) (a.isub σ))
+    (ht : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → RE S k' (T.isub σ) (t.isub σ)) :
+    RE S k (.glue A φ T e) (.glueEl φ e t a) := by
+  obtain ⟨hφ, hdata⟩ := glue_data hW hG
+  have hGK : IsTyK S k (.glue A φ T e) := ⟨l, .inl hG⟩
+  refine RE_glue_intro hW hG hn hg (fun k' σ => ?_) (fun k' σ hh => ?_)
+  · have hgσ := HasTy.isubS hW hg σ
+    rw [isub_glue] at hgσ
+    have hu := unglue_ty hW (by rw [← isub_glue]; exact hGK.isub hW σ) (glueData_isub hW hφ hdata σ) hgσ
+    exact (ha k' σ).conv hW (TyEq.refl _) (EqTm.glueBeta hu (Comp_el_typed (ha k' σ)).1).symm
+  · have hgσ := HasTy.isubS hW hg σ
+    rw [isub_glue] at hgσ
+    have hent := entails_of_holds (I.scoped_subst hφ σ.sc) hh
+    have hface := glue_face_tyEq hW (by rw [← isub_glue]; exact hGK.isub hW σ) hent
+    exact (ht k' σ hh).conv hW (TyEq.refl _) ((EqTm.glueElFace hent hgσ).tyConv hface).symm
+
 /-- The components of an element of a closed Glue type whose face does not hold (using the
 compatibility of Glue annotations to compare with the recorded decomposition). -/
 theorem RE_glue_elim (hGC : GlueCompat S) {A T e g : Tm} {φ : I} {l : ℕ}

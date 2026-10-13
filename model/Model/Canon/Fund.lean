@@ -1,5 +1,6 @@
 import Model.Canon.Kan
 import Model.Canon.Elim
+import Model.Canon.GlueRT
 
 /-!
 # Canonicity: the fundamental lemma
@@ -67,8 +68,8 @@ theorem CSub.upγ_restr_subst (hW : WfSig S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} (c :
     | succ x => exact (isub_shift (c.γ x) σ).symm
   · intro i; rfl
 
-variable (hW : WfSig S) {n : ℕ} (hH : Hyp S n)
-include hW hH
+variable (hW : WfSig S) {n : ℕ} (hH : Hyp S n) (hGC : GlueCompat S)
+include hW hH hGC
 
 mutual
 
@@ -268,11 +269,78 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
         ((u.subst (dupS c.γ) (I.up c.σ.τ)).isub σ.up).dinst r := CSub.cons_restr_subst hW c σ r hr u
     rw [eA, eu] at ih; exact ih
   | @HasTy0.glue _ Ψ Φ Γ A φ T e l h0 h1 h2 h3 => fun hc k c => by
-    sorry
+    have hty : HasTy S k .one [] (.glue (A.subst c.γ c.σ.τ) (φ.subst c.σ.τ) (T.subst c.γ c.σ.τ) (e.subst c.γ c.σ.τ))
+        (.univ l) := c.ty hW (HasTy0.glue h0 h1 h2 h3)
+    show RE S k (.univ l) (.glue (A.subst c.γ c.σ.τ) (φ.subst c.σ.τ) (T.subst c.γ c.σ.τ) (e.subst c.γ c.σ.τ))
+    by_cases hφ : (ival (idEnv k) (φ.subst c.σ.τ)).holds
+    · have he := entails_of_holds (I.scoped_subst h1 c.σ.sc) hφ
+      exact (fund_ty h2 hc.2.1 k (c.cof he)).conv hW (TyEq.refl _) (EqTm.glueFace he hty).symm
+    have hface : ∀ k' (σ : ISub k' k), (ival (idEnv k') ((φ.subst c.σ.τ).subst σ.τ)).holds →
+        I.Entails .one (φ.subst (c.restr hW σ).σ.τ) := fun k' σ hh => by
+      rw [show φ.subst (c.restr hW σ).σ.τ = (φ.subst c.σ.τ).subst σ.τ from (I_subst_subst _ _ _).symm]
+      exact entails_of_holds (I.scoped_subst (I.scoped_subst h1 c.σ.sc) σ.sc) hh
+    refine RE_univ_of hW hty (RT_glue_intro hW hty hφ (fun k' σ => ?_) (fun k' σ hh => ?_) (fun k' σ hh => ?_))
+    · have := (RE_univ_iff hW).1 (fund_ty h0 hc.1 k' (c.restr hW σ))
+      rw [CSub.restr_subst] at this; exact this.2.2
+    · have := (RE_univ_iff hW).1 (fund_ty h2 hc.2.1 k' ((c.restr hW σ).cof (hface k' σ hh)))
+      have e1 := CSub.restr_subst hW c T σ
+      exact e1 ▸ this.2.2
+    · have := fund_ty h3 hc.2.2 k' ((c.restr hW σ).cof (hface k' σ hh))
+      have e1 := CSub.restr_subst hW c (Tm.equiv T A) σ
+      have e2 := CSub.restr_subst hW c e σ
+      change RE S k' ((Tm.equiv T A).subst (c.restr hW σ).γ (c.restr hW σ).σ.τ) (e.subst (c.restr hW σ).γ (c.restr hW σ).σ.τ) at this
+      rw [e1, e2, equiv_subst, isub_equiv] at this
+      exact this
   | @HasTy0.glueEl _ Ψ Φ Γ A φ T e t a l h0 h1 h2 h3 h4 => fun hc k c => by
-    sorry
+    have hG : HasTy S k .one [] (.glue (A.subst c.γ c.σ.τ) (φ.subst c.σ.τ) (T.subst c.γ c.σ.τ) (e.subst c.γ c.σ.τ))
+        (.univ l) := c.ty hW h0
+    have hty : HasTy S k .one [] (.glueEl (φ.subst c.σ.τ) (e.subst c.γ c.σ.τ) (t.subst c.γ c.σ.τ) (a.subst c.γ c.σ.τ))
+        (.glue (A.subst c.γ c.σ.τ) (φ.subst c.σ.τ) (T.subst c.γ c.σ.τ) (e.subst c.γ c.σ.τ)) :=
+      c.ty hW (HasTy0.glueEl h0 h1 h2 h3 h4)
+    have hφs := (glue_data hW hG).1
+    show RE S k (.glue (A.subst c.γ c.σ.τ) (φ.subst c.σ.τ) (T.subst c.γ c.σ.τ) (e.subst c.γ c.σ.τ))
+      (.glueEl (φ.subst c.σ.τ) (e.subst c.γ c.σ.τ) (t.subst c.γ c.σ.τ) (a.subst c.γ c.σ.τ))
+    by_cases hφ : (ival (idEnv k) (φ.subst c.σ.τ)).holds
+    · have he := entails_of_holds hφs hφ
+      have hface := glue_face_tyEq hW ⟨l, .inl hG⟩ he
+      exact (fund_ty h2 hc.2.1 k (c.cof he)).conv hW hface.symm (EqTm.glueElFace he hty).symm
+    have hface : ∀ k' (σ : ISub k' k), (ival (idEnv k') ((φ.subst c.σ.τ).subst σ.τ)).holds →
+        I.Entails .one (φ.subst (c.restr hW σ).σ.τ) := fun k' σ hh => by
+      rw [show φ.subst (c.restr hW σ).σ.τ = (φ.subst c.σ.τ).subst σ.τ from (I_subst_subst _ _ _).symm]
+      exact entails_of_holds (I.scoped_subst hφs σ.sc) hh
+    refine RE_glueEl_intro hW hG hφ hty (fun k' σ => ?_) (fun k' σ hh => ?_)
+    · have := fund_ty h3 hc.2.2 k' (c.restr hW σ)
+      rw [CSub.restr_subst, CSub.restr_subst] at this; exact this
+    · have := fund_ty h2 hc.2.1 k' ((c.restr hW σ).cof (hface k' σ hh))
+      have e1 := CSub.restr_subst hW c T σ
+      have e2 := CSub.restr_subst hW c t σ
+      change RE S k' (T.subst (c.restr hW σ).γ (c.restr hW σ).σ.τ) (t.subst (c.restr hW σ).γ (c.restr hW σ).σ.τ) at this
+      rw [e1, e2] at this; exact this
   | @HasTy0.unglue _ Ψ Φ Γ A φ T e g l h0 h1 h2 h3 => fun hc k c => by
-    sorry
+    have hG : HasTy S k .one [] (.glue (A.subst c.γ c.σ.τ) (φ.subst c.σ.τ) (T.subst c.γ c.σ.τ) (e.subst c.γ c.σ.τ))
+        (.univ l) := c.ty hW h0
+    have hg := fund_ty h3 hc.2 k c
+    have hφs := (glue_data hW hG).1
+    show RE S k (A.subst c.γ c.σ.τ) (.unglue (φ.subst c.σ.τ) (e.subst c.γ c.σ.τ) (g.subst c.γ c.σ.τ))
+    by_cases hφ : (ival (idEnv k) (φ.subst c.σ.τ)).holds
+    · have he := entails_of_holds hφs hφ
+      have hgT : HasTy S k .one [] (g.subst c.γ c.σ.τ) (.glue (A.subst c.γ c.σ.τ) (φ.subst c.σ.τ) (T.subst c.γ c.σ.τ)
+          (e.subst c.γ c.σ.τ)) := (Comp_el_typed hg).1
+      have hface := glue_face_tyEq hW ⟨l, .inl hG⟩ he
+      have hee := fund_ty h2 hc.1 k (c.cof he)
+      change RE S k ((Tm.equiv T A).subst c.γ c.σ.τ) (e.subst c.γ c.σ.τ) at hee
+      rw [equiv_subst] at hee
+      have hf := RE_pi_elim hW (RE_sigma_elim hW hee).1 (hg.conv_ty hW hface)
+      have hA := c.ty hW h1
+      have he' : HasTy S k .one [] (e.subst c.γ c.σ.τ) (Tm.equiv (T.subst c.γ c.σ.τ) (A.subst c.γ c.σ.τ)) :=
+        (Comp_el_typed hee).1
+      have hu := EqTm.unglueFace he hgT hA he'
+      exact hf.conv hW (.inl (shift_inst _ _)) hu.symm
+    have h := (RE_glue_elim hW hGC hG hφ hg).1 k (ISub.id k)
+    have hu : HasTy S k .one [] (.unglue (φ.subst c.σ.τ) (e.subst c.γ c.σ.τ) (g.subst c.γ c.σ.τ)) (A.subst c.γ c.σ.τ) :=
+      c.ty hW (HasTy0.unglue h0 h1 h2 h3)
+    rw [← isub_unglue, isub_id_of_closed (closed_of_ty hW hu), isub_id_of_closed (closed_of_ty hW (c.ty hW h1))] at h
+    exact h
   | @HasTy0.data _ Ψ Φ Γ d D ps h0 h1 h2 => fun hc k c => by
     have hty : HasTy S k .one [] (.data d (ps.subst c.γ c.σ.τ)) (.univ D.level) :=
       c.ty hW (HasTy0.data h0 h1 h2)
