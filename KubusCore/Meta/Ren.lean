@@ -249,6 +249,8 @@ theorem ren_eq (hS : SigClosed S) {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → 
     by simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]; exact EqTm0.pathInjRight (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_eq hS h0).2 hR)⟩
   | .ipiInj h0 h1 => ⟨(ren_eq hS h0).1, fun {Ψ' Φ' Δ ρ δ} hR =>
     by simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]; exact EqTm0.ipiInj (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_eq hS h0).2 hR) (hR.sc h1)⟩
+  | .noConf h0 h1 h2 h3 => ⟨(ren_eq hS h1).1, fun {Ψ' Φ' Δ ρ δ} hR =>
+    EqTm0.noConf (headClash_subst _ _ h0) ((ren_eq hS h1).2 hR) ((ren_ty hS h2).2 hR) ((ren_ty hS h3).2 hR)⟩
   | .piBeta h0 => ⟨(ren_ty hS h0).1, fun {Ψ' Φ' Δ ρ δ} hR =>
     by simp only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil]; exact EqTm0.piBeta (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, rn_dup, dupS_rS, Iup_rI, up_rS, rn_dshift, rn_shift, rn_Ishift, equiv_subst, lit_rn, rS_up_zero, rI_up_zero, List.map_nil] using (ren_ty hS h0).2 hR)⟩
   | .piEta h0 => ⟨(ren_ty hS h0).1, fun {Ψ' Φ' Δ ρ δ} hR =>

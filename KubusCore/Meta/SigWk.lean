@@ -99,6 +99,7 @@ theorem sigwk_eq (hpre : ∀ (k : Nat) (e : Entry), S'[k]? = some e → S[k]? = 
   | .pathInjLeft h0 => EqTm0.pathInjLeft (sigwk_eq hpre h0)
   | .pathInjRight h0 => EqTm0.pathInjRight (sigwk_eq hpre h0)
   | .ipiInj h0 h1 => EqTm0.ipiInj (sigwk_eq hpre h0) h1
+  | .noConf h0 h1 h2 h3 => EqTm0.noConf h0 (sigwk_eq hpre h1) (sigwk_ty hpre h2) (sigwk_ty hpre h3)
   | .piBeta h0 => EqTm0.piBeta (sigwk_ty hpre h0)
   | .piEta h0 => EqTm0.piEta (sigwk_ty hpre h0)
   | .fstBeta h0 => EqTm0.fstBeta (sigwk_ty hpre h0)

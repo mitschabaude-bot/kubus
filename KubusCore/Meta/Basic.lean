@@ -120,6 +120,7 @@ theorem wf_of_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → Wf0 S Ψ Φ Γ
   | .glueElFace _ h1 => wf_of_ty h1
   | .unglueFace _ h1 _ _ => wf_of_ty h1
   | .glueBeta h0 _ => wf_of_ty h0
+  | .noConf _ h1 _ _ => wf_of_eq h1
   | .piInjDom h0 => wf_of_eq h0
   | .piInjCod h0 _ => wf_of_eq h0
   | .sigmaInjDom h0 => wf_of_eq h0

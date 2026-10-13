@@ -234,6 +234,8 @@ theorem toMin_eq {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t
     EqTm0.pathInjRight (toMin_eq h0)
   | .ipiInj h0 h1 =>
     EqTm0.ipiInj (toMin_eq h0) h1
+  | .noConf h0 h1 h2 h3 =>
+    EqTm0.noConf h0 (toMin_eq h1) (toMin_ty h2) (toMin_ty h3)
   | .piBeta h0 =>
     EqTm0.piBeta (toMin_ty h0)
   | .piEta h0 =>
@@ -482,6 +484,8 @@ theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ 
     EqTm.pathInjRight (toFull_eq h0)
   | .ipiInj h0 h1 =>
     EqTm.ipiInj (toFull_eq h0) h1
+  | .noConf h0 h1 h2 h3 =>
+    EqTm.noConf h0 (toFull_eq h1) (toFull_ty h2) (toFull_ty h3)
   | .piBeta h0 =>
     EqTm.piBeta (toFull_ty h0)
   | .piEta h0 =>

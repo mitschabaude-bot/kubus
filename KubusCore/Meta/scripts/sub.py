@@ -273,6 +273,7 @@ eq = {
 'ipi': f"by simp only [{SB}]; exact EqTm0.ipi {WF} {E('h1',DUP)}",
 'ilam': f"by simp only [{SB}]; exact EqTm0.ilam {ST('h0')} {E('h1',DUP)}",
 'iapp': f"by simp only [{SB}]; exact EqTm0.iapp {SE('h0')} (hσ.sc h1) (hσ.sc h2) (I_eq_subst h3 _)",
+'noConf': f"EqTm0.noConf (headClash_subst _ _ h0) {E('h1')} {T('h2')} {T('h3')}",
 'piInjDom': f"by simp only [{SB}]; exact EqTm0.piInjDom {SE('h0')}",
 'piInjCod': f"by simp only [{SB}]; exact EqTm0.piInjCod {SE('h0')} {T('h1')}",
 'sigmaInjDom': f"by simp only [{SB}]; exact EqTm0.sigmaInjDom {SE('h0')}",

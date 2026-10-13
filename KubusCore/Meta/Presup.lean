@@ -290,6 +290,8 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
     by
       obtain ⟨p, p', _⟩ := pre_eq h0
       exact ⟨HasTy0.dsubst hS (HasTy0.ipiLine hS p) h1, HasTy0.dsubst hS (HasTy0.ipiLine hS p') h1, .inr ⟨_, rfl⟩⟩
+  | @EqTm0.noConf _ Ψ Φ Γ X Y l t u T h0 h1 h2 h3 =>
+    ⟨h2, h3, pre_ty h2⟩
   | @EqTm0.piBeta _ Ψ Φ Γ A t a T h0 =>
     ⟨h0, hC.piBeta h0, pre_ty h0⟩
   | @EqTm0.piEta _ Ψ Φ Γ A B f h0 =>

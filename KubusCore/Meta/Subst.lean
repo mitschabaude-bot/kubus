@@ -277,4 +277,18 @@ theorem dinst_ren (t : Tm) (r : I) (ρ δ : Nat → Nat) :
   congr 2
   funext n; cases n <;> rfl
 
+theorem tyHead_subst {X : Tm} {h : Nat × Nat} (σ : Nat → Tm) (τ : Nat → I) (hX : X.tyHead = some h) :
+    (X.subst σ τ).tyHead = some h := by
+  cases X <;> first | exact hX | (simp [Tm.tyHead] at hX)
+
+theorem headClash_subst {X Y : Tm} (σ : Nat → Tm) (τ : Nat → I) (h : X.headClash Y = true) :
+    (X.subst σ τ).headClash (Y.subst σ τ) = true := by
+  unfold Tm.headClash at h ⊢
+  cases hX : X.tyHead with
+  | none => rw [hX] at h; simp at h
+  | some a =>
+    cases hY : Y.tyHead with
+    | none => rw [hX, hY] at h; simp at h
+    | some b => rw [hX, hY] at h; rw [tyHead_subst σ τ hX, tyHead_subst σ τ hY]; exact h
+
 end KubusCore.Meta

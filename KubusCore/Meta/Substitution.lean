@@ -417,6 +417,8 @@ theorem sub_eq (hS : SigClosed S) {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → 
     by simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]; exact EqTm0.pathInjRight (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_eq hS h0).2 hσ)⟩
   | @EqTm0.ipiInj _ Ψ Φ Γ A A' r l h0 h1 => ⟨(sub_eq hS h0).1, fun {Ψ' Φ' Δ σ τ} hσ =>
     by simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]; exact EqTm0.ipiInj (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_eq hS h0).2 hσ) (hσ.sc h1)⟩
+  | @EqTm0.noConf _ Ψ Φ Γ X Y l t u T h0 h1 h2 h3 => ⟨(sub_eq hS h1).1, fun {Ψ' Φ' Δ σ τ} hσ =>
+    EqTm0.noConf (headClash_subst _ _ h0) ((sub_eq hS h1).2 hσ) ((sub_ty hS h2).2.1 hσ) ((sub_ty hS h3).2.1 hσ)⟩
   | @EqTm0.piBeta _ Ψ Φ Γ A t a T h0 => ⟨(sub_ty hS h0).1, fun {Ψ' Φ' Δ σ τ} hσ =>
     by simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]; exact EqTm0.piBeta (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h0).2.1 hσ)⟩
   | @EqTm0.piEta _ Ψ Φ Γ A B f h0 => ⟨(sub_ty hS h0).1, fun {Ψ' Φ' Δ σ τ} hσ =>

@@ -119,6 +119,7 @@ eq = {
 'ilam': "⟨HasTy0.ilam h0 (pre_eq h1).1, HasTy0.ilam h0 (pre_eq h1).2.1, .inl ⟨_, h0⟩⟩",
 'piBeta': C('piBeta'), 'fstBeta': C('fstBeta'), 'sndBeta': C('sndBeta'), 'pathBeta': C('pathBeta'),
 'glueBeta': "⟨h0, h1, pre_ty h0⟩",
+'noConf': "⟨h2, h3, pre_ty h2⟩",
 'piInjDom': """by
       obtain ⟨p, p', _⟩ := pre_eq h0
       exact ⟨HasTy0.piDom hS p, HasTy0.piDom hS p', .inr ⟨_, rfl⟩⟩""",
