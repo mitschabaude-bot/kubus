@@ -585,6 +585,34 @@ variable {A : V} {φ : Cof (n + 1)} {Tp ep : V} (hG : GlueOK A φ Tp ep) {ψ : C
   {u0 : V} (hu0 : u0 ∈ El (glueC (n + 1) A φ Tp ep) (eZ n))
   (hcon : ConstOn (glueC (n + 1) A φ Tp ep) (Hom.id (n + 1)) ψ)
 
+/-- The tube `j ↦ ctr(y)(j)` of a contraction, on a face where the partial element `y` is given. -/
+theorem contr_tube_ok {X cen ctr : V} (hX : Fib X k) (hcen : cen ∈ El X (Hom.id k))
+    (hctr : ctr ∈ piElSet k X (famV k X fun k' h x => pathC k' (res (Hom.wk k') (res h X)) (res h cen) x))
+    {D : Cof k} {y : (n : ℕ) → Hom n k → V}
+    (hy : ∀ n (h : Hom n k), (D.restr h).holds → y n h ∈ El X h)
+    (hycoh : ∀ n (h : Hom n k), (D.restr h).holds → ∀ n' (g : Hom n' n), res g (y n h) = y n' (h.comp g)) :
+    TubeOK X (Hom.id k) D (fun n h r => pappV n (appV n (res h ctr) (y n h)) r) cen := by
+  simp only [piElSet, mem_piEl] at hctr
+  have key : ∀ n (h : Hom n k), (D.restr h).holds → ∃ p, p ∈ El X (h.comp (Hom.wk n)) ∧
+      appV n (res h ctr) (y n h) = pathOfLine n p ∧ res (Hom.endpt n (DM.zero n)) p = res h cen := by
+    intro n h hd
+    have hP := (hctr.2.1 n h).2 (y n h) (hy n h hd)
+    rw [apZ_dat_famV _ _ _ (hy n h hd)] at hP
+    obtain ⟨p, hp, e, h0, -⟩ := mem_pathC.1 hP
+    rw [Hom.lift_id, El_res, El_res, Hom.comp_id] at hp
+    rw [res_id (isKV_res _ _)] at h0
+    exact ⟨p, hp, by rw [appV_res, e], h0⟩
+  refine ⟨fun n h r hd => ?_, fun n h r hd n' g => ?_, fun n h hd => ?_⟩
+  · obtain ⟨p, hp, e, -⟩ := key n h hd
+    have := hX.elRes _ _ _ hp _ (Hom.endpt n r)
+    rw [Hom.comp_assoc, Hom.wk_comp_endpt, Hom.comp_id] at this
+    rw [Hom.id_comp, e, pappV_pathOfLine]; exact this
+  · obtain ⟨p, hp, e, -⟩ := key n h hd
+    rw [e, res_pappV_pathOfLine, ← e, appV_res, appV_res,
+      hctr.2.2 n h _ (hy n h hd) n' g, hycoh n h hd n' g]
+  · obtain ⟨p, -, e, h0⟩ := key n h hd
+    rw [e, pappV_pathOfLine, h0]
+
 include hG hψ hu0 hcon in
 theorem gt_Ω_psi {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (hψg : (ψ.restr g).holds) :
     gtΩ A φ Tp ep ψ u0 g = res (Hom.wk k) (res g (gtA1' A φ ep ψ u0)) := by
@@ -631,6 +659,49 @@ theorem gt_refl_mem {g : Hom k n} (hψg : (ψ.restr g).holds) (hφg : (φ.restr 
   · rw [res_res, Hom.wk_comp_endpt, res_id hakv,
       show appV k (fstV k (gtE1 ep g)) (res g u0) = res g (gtA1' A φ ep ψ u0) from e.symm, res_id hakv]
   · rw [res_res, Hom.wk_comp_endpt]
+
+theorem cof_holds_comp {m : ℕ} {χ : Cof m} (hχ : χ.IsCof) {g : Hom k m} (hg : (χ.restr g).holds) (h : Hom n' k) :
+    (χ.restr (g.comp h)).holds := by
+  rw [← Cof.restr_restr]; exact (hχ.restr g).holds_restr hg h
+
+theorem gt_refl_res (g : Hom k n) (h : Hom n' k) :
+    res h (pairV k (res g u0) (pathOfLine k (res (Hom.wk k) (res g (gtA1' A φ ep ψ u0))))) =
+      pairV n' (res (g.comp h) u0) (pathOfLine n' (res (Hom.wk n') (res (g.comp h) (gtA1' A φ ep ψ u0)))) := by
+  rw [res_pairV, res_pathOfLine, res_res, res_res, res_res, res_res, Hom.wk_comp_lift, Hom.comp_assoc]
+
+include hG hψ hu0 hcon in
+/-- On `δ ∧ ψ`, `(t1', ω) = (u0, refl)`. -/
+theorem gt_pair_psi {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (hψg : (ψ.restr g).holds) :
+    pairV k (gtT1' Tp ψ u0 g) (gtω A φ Tp ep ψ u0 g) =
+      pairV k (res g u0) (pathOfLine k (res (Hom.wk k) (res g (gtA1' A φ ep ψ u0)))) := by
+  rw [gtω, gt_Ω_psi hG hψ hu0 hcon hg hψg, gtT1',
+    (gt_TL_fib hG hg).trFace k _ _ _ (hψ.restr g) (gt_TL_const hG hcon hg) (gt_u0_TL hG hu0 hg) hψg]
+
+include hG hψ hu0 hcon in
+theorem gt_ext_tube_ok {g : Hom k n} (hφg : (φ.restr ((eO n).comp g)).holds) :
+    TubeOK (gtFib A φ Tp ep ψ u0 g) (Hom.id k) (Cof.or ((gtδ φ).restr g) (ψ.restr g))
+      (gtExtTube A φ Tp ep ψ u0 g) (fstV k (gtC A φ ep ψ u0 g)) := by
+  obtain ⟨hX, hcen, hctr, -⟩ := gt_c hG hψ hu0 hcon hφg
+  have hδc := gt_δ_cof (φ := φ) hG.cof
+  refine contr_tube_ok hX hcen hctr (fun n' h hd => ?_) (fun n' h hd n'' g' => ?_)
+  · rw [El_eq_res_id, gt_fib_res hG hψ hu0 hcon hφg]
+    rw [Cof.or_restr, Cof.holds_or, Cof.restr_restr, Cof.restr_restr] at hd
+    split_ifs with hδ
+    · have hP1 : (φ.restr ((eO n).comp (g.comp h))).holds := by rw [← snoc_one_eq]; exact gt_δ_snoc hG.cof hδ _
+      obtain ⟨hT, hA, hp, -⟩ := gt_e1 hG hP1
+      exact pairV_mem_fiberM hT.kv hA.kv (mem_piEl.1 (mem_arrowM hT.kv hp)).1 (isKV_res _ _)
+        (gt_T1'_mem hG hψ hu0 hcon hδ) (gt_ω_mem hG hψ hu0 hcon hδ)
+    · exact gt_refl_mem hG hψ hu0 hcon (hd.resolve_left hδ) (by
+        rw [← Hom.comp_assoc]; exact cof_holds_comp hG.cof hφg h)
+  · rw [Cof.or_restr, Cof.holds_or, Cof.restr_restr, Cof.restr_restr] at hd
+    have e : g.comp (h.comp g') = (g.comp h).comp g' := (Hom.comp_assoc _ _ _).symm
+    by_cases hδ : ((gtδ φ).restr (g.comp h)).holds
+    · rw [if_pos hδ, show g.comp (h.comp g') = (g.comp h).comp g' from e, if_pos (cof_holds_comp hδc hδ g'),
+        res_pairV, gt_T1'_res hG hψ hu0 hcon hδ, gt_ω_res hG hψ hu0 hcon hδ]
+    · rw [if_neg hδ, gt_refl_res, show g.comp (h.comp g') = (g.comp h).comp g' from e]
+      split_ifs with hδ'
+      · rw [gt_pair_psi hG hψ hu0 hcon hδ' (cof_holds_comp hψ (hd.resolve_left hδ) g')]
+      · rfl
 
 end gtExt
 
