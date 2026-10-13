@@ -109,6 +109,21 @@ theorem semK_tyEq {A B : Tm} : TyEq S k A B → semK S k A = semK S k B
   | .inl e => e ▸ rfl
   | .inr ⟨_, e⟩ => semK_eq hW e
 
+/-- Typing under a face is stable under interval substitutions. -/
+theorem HasTy.isubF {Φ : I} (hΦ : Φ.Scoped k) {t A : Tm} (ht : HasTy S k Φ [] t A) (σ : ISub k' k) :
+    HasTy S k' (Φ.subst σ.τ) [] (t.isub σ) (A.isub σ) := by
+  have hS := sigClosed_of_wfSig hW
+  have h0 := spec_to_minimal hW ht
+  exact minimal_to_spec ((sub_ty hS h0).2.1 ⟨σ.sc, I.scoped_subst hΦ σ.sc, I.entails_refl _,
+    fun x A h => by simp [Ctx.lookup] at h, Wf0.nil (I.scoped_subst hΦ σ.sc)⟩)
+
+theorem EqTm.isubF {Φ : I} (hΦ : Φ.Scoped k) {t u A : Tm} (ht : EqTm S k Φ [] t u A) (σ : ISub k' k) :
+    EqTm S k' (Φ.subst σ.τ) [] (t.isub σ) (u.isub σ) (A.isub σ) := by
+  have hS := sigClosed_of_wfSig hW
+  have h0 := spec_to_minimal_eq hW ht
+  exact minimal_to_spec_eq ((sub_eq hS h0).2 ⟨σ.sc, I.scoped_subst hΦ σ.sc, I.entails_refl _,
+    fun x A h => by simp [Ctx.lookup] at h, Wf0.nil (I.scoped_subst hΦ σ.sc)⟩)
+
 end
 
 end Model.Canon

@@ -273,6 +273,7 @@ def core (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal
       (rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k' k'' σ'.hom).el
     { ty := fun A => base A ∧ ∃ A1 φ1 T1 e1, TyEq S k A (.glue A1 φ1 T1 e1) ∧ φ1.Scoped k ∧
           (ival (idEnv k) φ1).face = φ ∧
+          (∃ l, HasTy S k .one [] A1 (.univ l) ∧ HasTy S k (cof .one φ1) [] e1 (Tm.equiv T1 A1)) ∧
           (∀ k' (σ : ISub k' k), (RA k' σ).ty (A1.isub σ)) ∧
           ∀ k' (σ : ISub k' k), (φ.restr σ.hom).holds →
             (RT k' σ).ty (T1.isub σ) ∧
@@ -280,6 +281,7 @@ def core (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal
               (Tm.equiv (T1.isub σ) (A1.isub σ)) (e1.isub σ)
       el := fun A g => HasTy S k .one [] g A ∧ ∃ A1 φ1 T1 e1, TyEq S k A (.glue A1 φ1 T1 e1) ∧ φ1.Scoped k ∧
           (ival (idEnv k) φ1).face = φ ∧
+          (∃ l, HasTy S k .one [] A1 (.univ l) ∧ HasTy S k (cof .one φ1) [] e1 (Tm.equiv T1 A1)) ∧
           (∀ k' (σ : ISub k' k), (RA k' σ).el (A1.isub σ) (.unglue (φ1.subst σ.τ) (e1.isub σ) (g.isub σ))) ∧
           ∀ k' (σ : ISub k' k), (φ.restr σ.hom).holds → (RT k' σ).el (T1.isub σ) (g.isub σ) }
   else if π1 sh = natZ tData then

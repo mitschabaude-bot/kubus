@@ -108,6 +108,7 @@ theorem Comp_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp) 
     Comp S (glueC m A φ Tp ep) m m (Hom.id m) =
       ⟨fun T => (IsTyK S m T ∧ semK S m T = res (Hom.id m) (glueC m A φ Tp ep)) ∧
           ∃ A1 φ1 T1 e1, TyEq S m T (.glue A1 φ1 T1 e1) ∧ φ1.Scoped m ∧ (ival (idEnv m) φ1).face = φ ∧
+          (∃ l, HasTy S m .one [] A1 (.univ l) ∧ HasTy S m (cof .one φ1) [] e1 (Tm.equiv T1 A1)) ∧
           (∀ k' (σ : ISub k' m), (Comp S A m k' σ.hom).ty (A1.isub σ)) ∧
           ∀ k' (σ : ISub k' m), (φ.restr σ.hom).holds →
             (Comp S (dat Tp k' σ.hom) k' k' (Hom.id k')).ty (T1.isub σ) ∧
@@ -117,6 +118,7 @@ theorem Comp_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp) 
         fun T g => HasTy S m .one [] g T ∧ semK S m g ∈ El (res (Hom.id m) (glueC m A φ Tp ep)) (Hom.id m) ∧
           HasTy S m .one [] g T ∧ ∃ A1 φ1 T1 e1, TyEq S m T (.glue A1 φ1 T1 e1) ∧ φ1.Scoped m ∧
           (ival (idEnv m) φ1).face = φ ∧
+          (∃ l, HasTy S m .one [] A1 (.univ l) ∧ HasTy S m (cof .one φ1) [] e1 (Tm.equiv T1 A1)) ∧
           (∀ k' (σ : ISub k' m), (Comp S A m k' σ.hom).el (A1.isub σ) (.unglue (φ1.subst σ.τ) (e1.isub σ) (g.isub σ))) ∧
           ∀ k' (σ : ISub k' m), (φ.restr σ.hom).holds →
             (Comp S (dat Tp k' σ.hom) k' k' (Hom.id k')).el (T1.isub σ) (g.isub σ)⟩ := by

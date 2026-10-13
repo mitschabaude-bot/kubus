@@ -44,6 +44,13 @@ theorem Comp_res {X : V} (hX : X ≠ ∅) (g : Hom k m) (h : Hom k' k) :
   · show res h (res g X) = _
     rw [res_res]
 
+/-- Computable elements are typed and in the code's element set. -/
+theorem Comp_el_typed {X : V} {f : Hom k m} {A t : Tm} (h : (Comp S X m k f).el A t) :
+    HasTy S k .one [] t A ∧ semK S k t ∈ El (res f X) (Hom.id k) := by
+  by_cases hX : X = ∅
+  · subst hX; rw [Comp_eq] at h; unfold compF at h; rw [dif_neg (by simp)] at h; exact h.elim
+  · rw [Comp_unfold hX] at h; exact ⟨h.1, h.2.1⟩
+
 end
 
 end Model.Canon
