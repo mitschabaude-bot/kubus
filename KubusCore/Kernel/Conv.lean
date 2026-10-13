@@ -426,7 +426,8 @@ def convNeElim (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t
         | .inr ⟨hC⟩ => pure ⟨fun C' hC' => by rw [hC] at hC'; cases hC'⟩
     let ⟨ht'⟩ ← R.check E t' (.data d ps) info.D.level info.hD
     let ⟨et⟩ ← R.conv E _ info.D.level info.hD t t' ht ht'
-    return ⟨⟨_, info.m, hT, h1⟩, ⟨EqTm.elim info.hS h1 h2 eps eP hlen
+    let ⟨hbs'⟩ ← ensureList bs'
+    return ⟨⟨_, info.m, hT, h1⟩, ⟨EqTm.elim info.hS h1 h2 eps eP info.hbs hbs' hlen
       (fun c C b b' hC hb hb' => hbr c b b' hb hb' C hC) et⟩⟩
   else fail "kernel: different numbers of branches"
 

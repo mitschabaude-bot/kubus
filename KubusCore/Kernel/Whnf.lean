@@ -24,14 +24,18 @@ def fixedVar {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
       else fixedVar E is
     else fixedVar E is
 
-def transpConK {Ψ Φ Γ} (D : DataDecl) {d : Nat} (hS : S[d]? = some (.data D)) (hp : D.params ≠ [])
+def transpConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) {d : Nat}
+    (hS : S[d]? = some (.data D)) (hp : D.params ≠ [])
     (c : Nat) {ps : Tm} {φ : I} {qs args : Tm} {rs : List I} {T : Tm}
     (ht : HasTy S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T) :
     K S (Option (Red S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T)) := do
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
   let ⟨h1⟩ ← ensureList ps
   let ⟨h2⟩ ← ensureList args
-  return some ⟨_, EqTm.transpCon hS hp hC h1 h2 ht⟩
+  -- the constructor at the parameters of the line's start
+  let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d (ps.dinst .zero))
+  let ⟨hc⟩ ← R.check E (.con d c (ps.dinst .zero) args rs) _ l hD
+  return some ⟨_, EqTm.transpCon hS hp hC h1 h2 hc ht⟩
 
 /-- Computation rule of `transp` for a line in weak-head normal form. -/
 def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a T : Tm)
@@ -53,7 +57,7 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
     else
       match a, ht with
       | .con d' c qs args rs, ht =>
-        if hd : d' = d then (by subst hd; exact transpConK D hS hp c ht) else pure none
+        if hd : d' = d then (by subst hd; exact transpConK R E D hS hp c ht) else pure none
       | .hcomp (.data d' qs) ψ u a0, ht =>
         if hd : d' = d then (by subst hd; exact pure (some ⟨_, EqTm.transpHcomp hS hp ht⟩))
         else pure none
@@ -178,15 +182,18 @@ def conBndStep {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps args : Tm) (rs :
       else pure none
     | none => pure none) C.bnd.length 0
 
-def elimConK {Ψ Φ Γ} (d c : Nat) (ps P bs qs args : Tm) (rs : List I) (T : Tm)
+def elimConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps P bs qs args : Tm) (rs : List I) (T : Tm)
     (ht : HasTy S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) T) :
     K S (Option (Red S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) T × Bool)) := do
   let ⟨D, ⟨hS⟩⟩ ← lookupData S d
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
   let ⟨h1⟩ ← ensureList args
   let ⟨h2⟩ ← ensureList bs
+  -- the constructor at the eliminator's parameters
+  let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d ps)
+  let ⟨hc⟩ ← R.check E (.con d c ps args rs) _ l hD
   match getIdx? bs.toList c with
-  | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb h1 h2 ht⟩, false))
+  | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb h1 h2 hc ht⟩, false))
   | none => fail "kernel: missing branch"
 
 def elimHcompK {Ψ Φ Γ} (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
@@ -206,7 +213,7 @@ def elimTargetStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P 
   have eP := EqTm.subst (EqTm.refl info.hP) (EqTm.symm et)
   have h2 := HasTy.conv (info.typing (HasTy.eqR et)) eP
   let ⟨hps⟩ ← checkTele R E ps info.D.params []
-  have e := EqTm.elim info.hS h1 h2 (HasTele.eqRefl hps) (EqTm.refl info.hP) rfl
+  have e := EqTm.elim info.hS h1 h2 (HasTele.eqRefl hps) (EqTm.refl info.hP) info.hbs info.hbs rfl
     (fun c C b b' hC hb hb' => by
       rw [hb] at hb'; cases hb'; exact EqTm.refl (info.hbr c C b hC hb)) et
   let ⟨e⟩ ← bridge R E (HasTy.subst info.hP (HasTy.eqL et)) hA e
@@ -221,7 +228,7 @@ def dataElimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs
     K S (Option (Red S Ψ Φ Γ (.elim d ps P bs t) A × Bool)) :=
   match t, ht with
   | .con d' c qs args rs, ht =>
-    if hd : d' = d then (by subst hd; exact elimConK d' c ps P bs qs args rs A ht)
+    if hd : d' = d then (by subst hd; exact elimConK R E d' c ps P bs qs args rs A ht)
     else pure none
   | .hcomp (.data d' qs) φ u a, ht =>
     if hd : d' = d then (by subst hd; exact elimHcompK d' ps P bs qs φ u a A ht)

@@ -311,6 +311,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | elim {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} : S[d]? = some (.data D) →
       HasTy S Ψ Φ Γ (elim d ps P bs t) (P.inst t) → HasTy S Ψ Φ Γ (elim d ps' P' bs' t') (P.inst t) →
       EqTele S Ψ Φ Γ ps ps' D.params [] → EqTm S Ψ Φ (data d ps :: Γ) P P' (univ m) →
+      bs = Tm.ofList bs.toList → bs' = Tm.ofList bs'.toList →
       bs.toList.length = bs'.toList.length →
       (∀ (c : Nat) (C : Ctor) (b b' : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
         bs'.toList[c]? = some b' →
@@ -327,6 +328,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | elimCon {Ψ Φ Γ d D c C ps P bs b qs args rs T} : S[d]? = some (.data D) →
       D.ctors[c]? = some C → bs.toList[c]? = some b →
       args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
+      HasTy S Ψ Φ Γ (con d c ps args rs) (data d ps) →
       HasTy S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T →
       EqTm S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
         (Tm.papps (Tm.apps b (args.toList ++
@@ -341,6 +343,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       HasTy S Ψ Φ Γ (transp (data d ps) φ a) T → EqTm S Ψ Φ Γ (transp (data d ps) φ a) a T
   | transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} : S[d]? = some (.data D) → D.params ≠ [] →
       D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
+      HasTy S Ψ Φ Γ (con d c (ps.dinst .zero) args rs) (data d (ps.dinst .zero)) →
       HasTy S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T →
       EqTm S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs))
         (con d c (ps.dinst .one)
