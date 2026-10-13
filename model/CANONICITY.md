@@ -1,10 +1,8 @@
 # Canonicity for Kubus Core: statement and plan
 
-## Design question first (C1): numerals are not canonical forms of `Nat`
+## Decision C1: numerals are canonical forms of `Nat`
 
-In Kubus Core every inductive type treats `hcomp` formally: there is no rule computing `hcomp (data d ps) φ u a` when `φ` is false, not even for constructors without boundaries. In the model, `hcomp` in a data type at a false face is the formal composition `hcV`, which is different from `a`. So the closed term `hcomp (data Nat []) 0 zero.dshift zero` has type `Nat`, and it is *provably not* judgmentally equal to any numeral (the model separates them). Canonicity therefore has to list formal compositions as canonical forms for every inductive type, not only for HITs. The statement below does this.
-
-If numeral canonicity for ordinary inductive types is wanted, the spec needs a CHM-style computation rule for `hcomp` at constructors without boundaries (e.g. `hcomp [φ ↦ con c us] (con c as) ≡ con c (hcomp …)` componentwise, and in particular `hcomp (data d ps) φ u a ≡ a`-like behaviour on empty systems for non-HIT types), and the model's data `hcomp` would have to compute structurally there. This is a design decision for you/Gregor; the plan below works for the spec as it is and would extend to such a rule.
+Originally every inductive type treated `hcomp` formally, so `hcomp (data Nat []) 0 zero.dshift zero` was a closed `Nat` not equal to any numeral. Decision C1 (spec on this branch): in a type without path constructors composition is componentwise (`hcompCon`), and formal compositions exist only in HITs (`elimHcomp`/`transpHcomp` require `D.isHIT`). The model validates this (`Model/DataHR.lean`, `Model/Rules/DataHcomp.lean`). Canonical forms of a non-HIT are constructor terms with canonical recursive arguments; formal compositions remain canonical forms of HITs only.
 
 ## Statement
 
@@ -25,7 +23,8 @@ inductive Canon (S : Sig) (d : Nat) : Tm → Prop
       (∀ k (hk : k < L.length), C.isRec k = true → Canon S d L[k]) →
       HasTy S 0 .one [] (.con d c .tnil (Tm.ofList L) rs) (.data d .tnil) →
       Canon S d (.con d c .tnil (Tm.ofList L) rs)
-  | hcomp {a : Tm} : Canon S d a → Canon S d (.hcomp (.data d .tnil) .zero a.dshift a)
+  | hcomp {D : DataDecl} {a : Tm} : S[d]? = some (.data D) → D.isHIT = true → Canon S d a →
+      Canon S d (.hcomp (.data d .tnil) .zero a.dshift a)
 
 theorem canonicity {S : Sig} {d : Nat} {D : DataDecl} {t : Tm} (hS : WfSig S)
     (hd : S[d]? = some (.data D)) (hp : D.params = [])
@@ -37,7 +36,7 @@ Remarks on the canonical forms:
 
 - `rs` literally `0`/`1`: interval arguments can be normalized by the `con` congruence (`I.Eq`).
 - The boundary of `c` does not hold at `rs` (at `Ψ = 0` the closed cofibration `cofAt ψ rs` is `0` or `1`); where it holds, `conBnd` rewrites the constructor to its boundary, which is canonical by induction.
-- A composition whose face is true is its tube's end (`hcompFace`). A false face is normalized to `.zero` (congruence) and the tube is irrelevant (`EqTm.absurd`), so the canonical tube is `a.dshift`. This is the CHM canonical form of HITs at the empty interval context: a formal composition with an empty system.
+- A composition whose face is true is its tube's end (`hcompFace`). In a non-HIT, a composition of a canonical constructor computes componentwise (`hcompCon`), so only HITs keep formal compositions. There, a false face is normalized to `.zero` (congruence) and the tube is irrelevant (`EqTm.absurd`), so the canonical tube is `a.dshift`. This is the CHM canonical form of HITs at the empty interval context: a formal composition with an empty system.
 - `transp` in a parameterless data type is the identity (`transpData0`); eliminators, applications etc. compute away.
 - Point arguments are only claimed to be closed and typed. The proof will give more (a computability witness for their types); natural strengthenings — canonicity for closed `Π`/`Σ`/path types, data types with closed parameters, and for terms in an interval context `Ψ > 0` (canonical up to faces) — come out of the same construction and can be stated afterwards.
 
@@ -63,6 +62,6 @@ The infrastructure that carries over: the cube category, cofibrations and `Fib`-
 
 ## Risks and expected spec issues
 
-- **C1** above (formal `hcomp` in ordinary inductive types).
+- For `hcompCon` the proof must show that the tube of a composition in a non-HIT is the base's constructor *syntactically*: build `uargs` from the tube's reducts per face of `φ` (nested splits), with "same constructor" from the logical relation.
 - Every computation rule must be stable under interval substitution *syntactically up to `EqTm`* (the model only needed semantic stability). The metatheory branch found M4/M5 for this reason; more may show up where a computability witness has to match a contractum after restriction.
 - Rules stated "at any type `T`" (contracta) need the presupposition/inversion results of the metatheory branch to relate `T` to the canonical type.

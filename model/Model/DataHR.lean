@@ -200,6 +200,14 @@ theorem ty_take_eq {Λ : SData m} (hΛ : Λ.Good) {c j' n : ℕ} {g : Hom n m} {
   rw [List.getElem_take, List.getElem_take, ← gd_eq, ← gd_eq]
   exact he i (by omega) hr
 
+theorem ptValid_congr {Λ : SData m} (hΛ : Λ.Good) {c n : ℕ} {g : Hom n m} {L L' : List V} (hl : L.length = L'.length)
+    (he : ∀ i, i < L.length → (Λ.ctors.getD c default).isRec i = false → L.getD i ∅ = L'.getD i ∅)
+    (hp : Λ.PtValid c n g L) : Λ.PtValid c n g L' := by
+  intro i hi hr
+  have e1 : L'[i] = L[i]'(by omega) := by rw [← gd_eq hi, ← he i (by omega) hr, gd_eq]
+  rw [e1, ← ty_take_eq hΛ (L := L) (L' := L') (j := i) (by omega) (by omega) (fun i' hi' hr' => he i' (by omega) hr')]
+  exact hp i (by omega) hr
+
 /-- The properties of a componentwise composition. -/
 def HRProps (Λ : SData m) (k : ℕ) (g : Hom k m) (φ : Cof k) (u : Tube k) (v w : V) : Prop :=
   φ.IsCof → DElem Λ k g v → TubeOK (dataC Λ) g φ u v →
@@ -577,6 +585,35 @@ theorem dataC_hcRes_nonHIT (hφ : φ.IsCof) (hu0 : u0 ∈ El (dataC Θ) f)
   intro n' h' r hh
   have hh' : (φ.restr (h.comp h')).holds := by rw [← Cof.restr_restr]; exact hh
   simp only [Tube.canon, Tube.restr, if_pos hh, if_pos hh']
+
+
+/-- A composition in `dataC Θ` given by a componentwise composition. -/
+theorem hcompAt_dataC_of_HR (hφ : φ.IsCof) (hu0 : u0 ∈ El (dataC Θ) f) (hu : TubeOK (dataC Θ) f φ u u0) {w : V}
+    (hr : HR Θ k f φ u u0 w) : hcompAt (dataC Θ) f φ u u0 = w := by
+  rw [hcompAt_dataC_gen hu hu0]
+  refine hcD_eq (hΘ.restr f) hH (HR.congr_tube (hr_restr f (by rwa [Hom.comp_id])) fun n h r hh => ?_)
+  simp only [Tube.canon, if_pos hh]
+
+omit hΘ hH in
+/-- Inversion of a componentwise composition. -/
+theorem HR.inv {g : Hom k m} {v w : V} (hr : HR Θ k g φ u v w) :
+    ∃ (c : ℕ) (args outs fills : List V) (ua : (n : ℕ) → Hom n k → DM n → List V),
+      v = conV Θ.ctors k c args [] ∧ w = conV Θ.ctors k c outs [] ∧
+      (Θ.ctors.getD c default).bnd = [] ∧ (∀ a ∈ args, IsKV k a) ∧
+      (∀ n (h : Hom n k) r, (φ.restr h).holds →
+        u n h r = conV Θ.ctors n c (ua n h r) [] ∧ (ua n h r).length = args.length ∧
+          ∀ a ∈ ua n h r, IsKV n a) ∧
+      outs.length = args.length ∧ fills.length = args.length ∧
+      (∀ j (hj : j < args.length), (Θ.ctors.getD c default).isRec j = true →
+        HR Θ k g φ (fun n h r => (ua n h r).getD j ∅) args[j] (outs.getD j ∅)) ∧
+      (∀ j (hj : j < args.length), (Θ.ctors.getD c default).isRec j = false →
+        outs.getD j ∅ = compF (Θ.ty c j (k + 1) (g.comp (Hom.wk k)) (fills.take j)) (Hom.id (k + 1)) φ
+          (fun n h r => (ua n h r).getD j ∅) args[j] ∧
+        fills.getD j ∅ = fillF (Θ.ty c j (k + 1) (g.comp (Hom.wk k)) (fills.take j)) (Hom.id (k + 1)) φ
+          (fun n h r => (ua n h r).getD j ∅) args[j]) := by
+  cases hr with
+  | @con _ c args outs fills ua hb hkv htu hlo hlf hro hpt =>
+    exact ⟨c, args, outs, fills, ua, rfl, rfl, hb, hkv, htu, hlo, hlf, hro, hpt⟩
 
 end
 
