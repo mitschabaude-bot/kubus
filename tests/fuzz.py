@@ -289,7 +289,7 @@ class Gen:
                 if d > 0:
                     o.append((2, lambda: f"({r.choice(['sucInt', 'predInt'])} {sub(INT)})"))
                     o.append((2, lambda: f"(winding {sub(LOOP)})"))
-                    o.append((1, lambda: f"(transport Int Int sucPathInt {sub(INT)})"))
+                    o.append((1, lambda: f"(transport sucPathInt {sub(INT)})"))
             elif n == "S1":
                 o.append((2, lambda: "base"))
                 if dims:
@@ -301,8 +301,8 @@ class Gen:
                 if dims and d > 0:
                     o.append((2, lambda: f"(merid {sub(BOOL)} {atomic(g.ival(dims))})"))
                 if d > 0:
-                    o.append((1, lambda: f"(suspMap Bool Bool not {sub(SUSP)})"))
-                    o.append((1, lambda: f"(transport (Susp Bool) (Susp Bool) suspNot {sub(SUSP)})"))
+                    o.append((1, lambda: f"(suspMap not {sub(SUSP)})"))
+                    o.append((1, lambda: f"(transport suspNot {sub(SUSP)})"))
             elif n == "(Trunc Bool)":
                 o.append((2, lambda: f"(inc {sub(BOOL) if d > 0 else 'true'})"))
                 if dims and d > 0:
@@ -345,13 +345,13 @@ class Gen:
             o.append((2, lambda: r.choice(["loopP", "invLoop", f"(\\{i} -> loop {i})", f"(\\{i} -> base)"])))
             if d > 1:
                 o.append((2, lambda: f"(compS1 {sub(LOOP)} {sub(LOOP)})"))
-                o.append((1, lambda: f"(sym S1 base base {sub(LOOP)})"))
+                o.append((1, lambda: f"(sym {sub(LOOP)})"))
                 o.append((1, lambda: f"(intLoop {sub(INT)})"))
                 k = self.fresh("k")
                 o.append((1, lambda: f"(\\{i} -> hcomp {k} S1 [{i} = 0 -> base, {i} = 1 -> ({sub(LOOP)} : {LOOP.show()}) {k}] (({sub(LOOP)} : {LOOP.show()}) {i}))"))
         elif a.ends == MERID_ENDS:
             o.append((2, lambda: f"(\\{i} -> merid {g.tm(BOOL, vars_, dims, d - 1)} {i})"))
-            o.append((1, lambda: f"(meridP Bool {g.tm(BOOL, vars_, dims, d - 1)})"))
+            o.append((1, lambda: f"(meridP {g.tm(BOOL, vars_, dims, d - 1)})"))
         return o
 
     def elim(self, a, vars_, dims, d):
@@ -438,7 +438,7 @@ class Gen:
     def typeLine(self, a, k):
         """A line of types from `a` to `a`, at dimension `k`."""
         lines = {
-            "Bool": [f"notPath {k}", f"ua Bool Bool notE {k}", f"ua Bool Bool (idEquiv Bool) {k}"],
+            "Bool": [f"notPath {k}", f"ua notE {k}", f"ua (idEquiv Bool) {k}"],
             "Int": [f"sucPathInt {k}", f"helix (loop {k})"],
             "(Susp Bool)": [f"Susp (notPath {k})"],
             "(Trunc Bool)": [f"Trunc (notPath {k})"],
@@ -544,7 +544,7 @@ class Gen:
 
 PRELUDE = """import loopspace
 import hits
-def notE : Equiv Bool Bool := isoToEquiv Bool Bool not not notnot notnot
+def notE : Equiv Bool Bool := isoToEquiv not not notnot notnot
 """
 
 

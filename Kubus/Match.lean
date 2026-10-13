@@ -175,7 +175,7 @@ def errAt {α} (pos : Pos) (msg : String) : M α := throw s!"{pos.line}:{pos.col
 /-- The name to bind a column under: the first row's variable, if it has one. -/
 def colName (rows : List Row) (i : Nat) (dflt : String) : M String := do
   match rows.head? >>= (·.pats[i]?) with
-  | some (.var x _) => if x != "_" && !(← isCtorPat (.var x ⟨0, 0⟩)) then return x else return dflt
+  | some (.var x _) => if x != "_" && !(← isCtorPat (.var x { line := 0, col := 0 })) then return x else return dflt
   | _ => return dflt
 
 /-- Record the variable patterns of the first `n` columns as aliases of the bound values, and
@@ -191,14 +191,14 @@ def bindPats (rows : List Row) (vals : List (String × Val × Val)) : List Row :
 /-- `Π (entries) . ty` over the innermost `n` entries of `ctx`, as a term in the context
 without them. -/
 def piOverEntries (ctx : Ctx) (n : Nat) (ty : Val) : M Tm := do
-  let mut t ← quote ctx.qctx ty
+  let mut t ← quote ctx.fqctx ty
   let mut rest := ctx.entries
   for _ in [0:n] do
     match rest with
     | e :: es =>
       let sub : Ctx := { ctx with entries := es }
       t ← match e.ty with
-        | some a => do pure (Tm.pi e.name (← quote sub.qctx a) t)
+        | some a => do pure (Tm.pi e.name (← quote sub.fqctx a) t)
         | none => pure (Tm.piI e.name t)
       rest := es
     | [] => pure ()

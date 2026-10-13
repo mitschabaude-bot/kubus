@@ -51,7 +51,7 @@ def checkDefn (name : String) (ps : List Binder) (ty body : Raw) (pos : Pos) : M
   let (tty, tbody) ← match ty with
     | .hole => do
       let (tbody, vty) ← inferIns ctx body
-      pure (← quote ctx.qctx vty, tbody)
+      pure (← quote ctx.fqctx vty, tbody)
     | _ => do
       let (tty, _) ← inferType ctx ty
       pure (tty, ← check ctx body (← eval ctx.env tty))
@@ -162,6 +162,22 @@ def checkDecl' : Decl → M (Option String)
 def checkDecl (d : Decl) : M (Option String) := do
   modify fun s => { s with metas := #[] }
   let out ← checkDecl' d
+  if (← get).lsp then
+    -- print the recorded types while the metavariables are still around
+    for (p, ctx, ty) in (← get).pendingHovers do
+      let s ← ppVal ctx ty
+      modify fun st => { st with hovers := st.hovers.push (p, s) }
+    for (p, ctx, ty) in (← get).pendingGoals do
+      let s := s!"goal: {← ppVal ctx ty}\ncontext:\n{← ppCtx ctx}"
+      modify fun st => { st with goals := st.goals.push (p, s) }
+    modify fun st => { st with pendingHovers := #[], pendingGoals := #[] }
+    -- a definition with holes becomes an opaque constant
+    if (← get).metas.any (·.hole) then
+      match d with
+      | .defn n .. | .defSplit n .. =>
+        let mkOpaque := fun (i : DefInfo) => { i with body := none, value := none, branches := [] }
+        modify fun st => { st with globals.defs := st.globals.defs.modify n mkOpaque }
+      | _ => pure ()
   if (← get).selfcheck then scDrain
   return out
 

@@ -52,6 +52,10 @@ if [ "$1" = "--update" ]; then echo "$out" > tests/repl.out; fi
 if [ "$out" != "$(cat tests/repl.out 2>/dev/null)" ]; then
   echo "FAIL tests/repl.in"; diff <(echo "$out") tests/repl.out | head -20; fails=$((fails+1))
 fi
+# the tutorial's examples
+if ! python3 tests/tutorial.py; then fails=$((fails+1)); fi
+# language server
+if ! python3 tests/lsp.py; then fails=$((fails+1)); fi
 for f in tests/fail/*.ktt; do
   exp=$(head -1 "$f" | sed -n 's/^-- expect: //p')
   if out=$(timeout 10 $bin --selfcheck "$f" 2>&1); then

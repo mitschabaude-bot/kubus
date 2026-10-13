@@ -237,6 +237,9 @@ def Tm.substArgs (t : Tm) (args : Array SArg) : Tm :=
 structure Pos where
   line : Nat
   col : Nat
+  /-- end of the source range (exclusive), if known (`eline = 0` otherwise) -/
+  eline : Nat := 0
+  ecol : Nat := 0
   deriving Inhabited, Repr
 
 inductive Raw
