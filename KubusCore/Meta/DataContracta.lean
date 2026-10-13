@@ -147,6 +147,10 @@ theorem transpCon_of (hS : SigClosed S) {Ψ Φ Γ d D c C ps φ qs args rs l0 X 
     (ch : TyChainC S Ψ Φ Γ ((data d ps).dinst .one) T) :
     HasTy0 S Ψ Φ Γ (con d c (ps.dinst .one)
       (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T := by
+  -- Not provable from `SigClosed` alone: `transp L_k φ a_k` needs the argument-type line
+  -- `L_k = (C.argTy d np k).substList (fills ++ ps.toList.reverse)` typed at `Ψ + 1`, but nothing in
+  -- the hypotheses types the constructor's argument types at parameters other than `ps.dinst .zero`
+  -- (only `SigClosed`, not `DataDecl.Wf`, is available).
   sorry
 
 theorem skip1I_dinst0_dshift (A : Tm) : ((A.dsubst skip1I).dinst .zero).dshift = (A.dinst .zero).dshift.dshift := by
