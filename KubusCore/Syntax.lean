@@ -669,6 +669,10 @@ end Ctor
 
 namespace DataDecl
 
+/-- A higher inductive type: some constructor has interval arguments or a boundary. Only these
+have formal compositions; the others compose componentwise (`hcompCon`). -/
+def isHIT (D : DataDecl) : Bool := D.ctors.any fun C => C.dims != 0 || !C.bnd.isEmpty
+
 /-! ### The eliminator
 
 The branch for constructor `c` is a function of the arguments, an induction hypothesis for each
@@ -764,6 +768,21 @@ def transpTele (argTy : Nat → Tm) (psL : List Tm) (φ : I) : Nat → List Tm �
   | k, fills, a :: as =>
     let L := (argTy k).substList (fills ++ psL.reverse)
     transp L φ a :: transpTele argTy psL φ (k + 1) (transpFill L φ a :: fills) as
+
+/-- Composition of a telescope of constructor arguments of a type without path constructors
+(CCHM): `us` are the tube's arguments (in the context extended by the interval variable 0), `as`
+the base's. A recursive argument is composed in the inductive type itself (`dataL`, in the
+extended context), a point argument along its type line, whose earlier arguments are the
+fillers of the earlier arguments; `psL` are the parameters in the extended context. -/
+def hcompTele (C : Ctor) (argTy : Nat → Tm) (dataL : Tm) (psL : List Tm) (φ : I) :
+    Nat → List Tm → List Tm → List Tm → List Tm
+  | k, fills, u :: us, a :: as =>
+    if C.isRec k then
+      hcomp dataL φ u a :: hcompTele C argTy dataL psL φ (k + 1) (hfill dataL φ u a :: fills) us as
+    else
+      let L := (argTy k).substList (fills ++ psL.reverse)
+      comp L φ u a :: hcompTele C argTy dataL psL φ (k + 1) (fill L φ u a :: fills) us as
+  | _, _, _, _ => []
 
 end Tm
 

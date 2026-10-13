@@ -59,13 +59,14 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
       | .con d' c qs args rs, ht =>
         if hd : d' = d then (by subst hd; exact transpConK R E D hS hp c ht) else pure none
       | .hcomp (.data d' qs) ψ u a0, ht =>
-        if hd : d' = d then (by
+        if hd : d' = d ∧ D.isHIT = true then (by
+          obtain ⟨hd, hH⟩ := hd
           subst hd
           exact do
             -- the composition at the parameters of the line's start
             let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d' (ps.dinst .zero))
             let ⟨hh⟩ ← R.check E (.hcomp (.data d' (ps.dinst .zero)) ψ u a0) _ l hD
-            pure (some ⟨_, EqTm.transpHcomp hS hp hh ht⟩))
+            pure (some ⟨_, EqTm.transpHcomp hS hp hH hh ht⟩))
         else pure none
       | _, _ => return none
   | _, _ => pure none
@@ -206,11 +207,13 @@ def elimConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps P bs q
 def elimHcompK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
     (ht : HasTy S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T) :
     K S (Option (Red S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T × Bool)) := do
-  let ⟨_, ⟨hS⟩⟩ ← lookupData S d
-  -- the composition at the eliminator's parameters
-  let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d ps)
-  let ⟨hh⟩ ← R.check E (.hcomp (.data d ps) φ u a) _ l hD
-  pure (some (⟨_, EqTm.elimHcomp hS hh ht⟩, false))
+  let ⟨D, ⟨hS⟩⟩ ← lookupData S d
+  if hH : D.isHIT = true then
+    -- the composition at the eliminator's parameters
+    let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d ps)
+    let ⟨hh⟩ ← R.check E (.hcomp (.data d ps) φ u a) _ l hD
+    pure (some (⟨_, EqTm.elimHcomp hS hH hh ht⟩, false))
+  else pure none
 
 /-- Reduce the target of an eliminator. -/
 def elimTargetStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t A : Tm) (l : Nat)
