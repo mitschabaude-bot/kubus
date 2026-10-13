@@ -4,7 +4,9 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 ## Spec issues (read first)
 
-Status: issues 1–4 below were fixed in the spec in commit `91505c9` (`unglue φ e g`, annotated `lam A t`, `glueBase`/`glueEquiv` removed, `maxLevel = 4`). They are kept here as a record. New issues are added at the top of this section.
+Status: all issues below are fixed in the spec: 1–4 in `91505c9` (`unglue φ e g`, annotated `lam A t`, `glueBase`/`glueEquiv` removed, `maxLevel = 4`), 5–6 in `1c637f0` (`glueEl φ e t a`, `transpGlue` composes the base along the unglued tube). They are kept here as a record. New issues are added at the top of this section.
+
+Check requested after issue 6 (other contracta with the "constant only through its reduct" pattern): in the model the only type formers whose codes reduce on a face are Glue and the universe's `hcomp` (which has no computation rule). The transport proofs for Π, Σ, `PathP` and `(i : I) → A` use, and prove, injectivity of their codes (`piC_inj`, `sigmaC_inj`, `pathC_inj`, `ipiC_inj`): a line of such codes that is constant on `ψ` has constant components on `ψ`. So `transpPi`, `transpSigma`, `transpPath`, `transpIPi` cannot hit the issue-6 pattern; the `hcomp` contracta involve no lines of types. Systems of types (`split`) also reduce on faces, but no computation rule matches on a `split` head.
 
 ### 6. `transpGlue` is ill-typed when the Glue line is constant on `ψ` only through its reduct
 
