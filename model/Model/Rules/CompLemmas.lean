@@ -408,6 +408,67 @@ theorem sem_hcompPath {A a b u p0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
   congr 1
   exact hcompAt_congr et
 
+/-! ### transpFill -/
+
+theorem bind2_and_env (ρ : IEnv m) :
+    (fun i => ival ρ.ext.ext (Tm.bind2 (.and (.var 1) (.var 0)) i)) = ρ.ext.restr (tfLine m) := by
+  funext i
+  rcases i with _ | i
+  · ext p; simp [Tm.bind2, IEnv.ext, IEnv.restr, tfLine, iVar, jVar, I.eval, Hom.snoc, Hom.app, Hom.wk]
+  · simp only [Tm.bind2, ival.var, IEnv.ext, IEnv.restr, DM.restr_restr]
+    congr 1
+    simp only [tfLine, Hom.wk_comp_snoc]
+
+theorem face_fill (ρ : IEnv m) (φ : I) :
+    (ival ρ.ext (.or φ.shift (.neg (.var 0)))).face = fillFace (ival ρ φ).face := by
+  rw [face_ival_or, face_ival_neg, ival_shift, show ρ.ext.tail = ρ.restr (Hom.wk m) from rfl,
+    face_ival_restr]
+  rfl
+
+theorem transpFill_cond {A a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (hc : TranspCond S A φ a m ρ γ) :
+    TranspCond S (A.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))) (.or φ.shift (.neg (.var 0))) a.dshift
+        (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) ∧
+      sem S (Tm.transpFill A φ a) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) =
+        transpFillF (lineV S A m ρ γ) (Hom.id (m + 1)) (ival ρ φ).face (sem S a m ρ γ) := by
+  obtain ⟨hty, hcon, ha, hN, han⟩ := hc
+  have hfib := hty.fib
+  have hφ := isCof_ival_face ρ φ
+  have hwt : (Hom.wk m).comp (tfLine m) = (Hom.wk m).comp (Hom.wk (m + 1)) := by
+    simp only [tfLine, Hom.wk_comp_snoc]
+  have hγt : ∀ k (g : Hom k (m + 2)), TEnv.restr (TEnv.restr (TEnv.restr γ (Hom.wk m)) (Hom.wk (m + 1))) g =
+      TEnv.restr (TEnv.restr γ (Hom.wk m)) ((tfLine m).comp g) := by
+    intro k g
+    rw [TEnv.restr_restr, TEnv.restr_restr, TEnv.restr_restr, ← Hom.comp_assoc (Hom.wk m) (tfLine m) g, hwt]; rfl
+  have eL : ∀ k (g : Hom k (m + 2)),
+      sem S (A.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))) k (ρ.ext.ext.restr g)
+        (TEnv.restr (TEnv.restr (TEnv.restr γ (Hom.wk m)) (Hom.wk (m + 1))) g) =
+        res g (res (tfLine m) (lineV S A m ρ γ)) := by
+    intro k g
+    have e1 : (fun i => ival (ρ.ext.ext.restr g) (Tm.bind2 (.and (.var 1) (.var 0)) i)) =
+        ρ.ext.restr ((tfLine m).comp g) := by
+      rw [← IEnv.restr_restr, ← bind2_and_env]; rfl
+    rw [sem_dsubst, e1, hγt, hN k, res_res]
+  have eL0 : lineV S (A.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) =
+      res (tfLine m) (lineV S A m ρ γ) := by
+    have := eL (m + 2) (Hom.id (m + 2))
+    rwa [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr (TEnv.restr γ (Hom.wk m)) (Hom.wk (m + 1)))
+      (fun x => isKV_res _ _), res_id (isKV_res _ _)] at this
+  have eb : sem S a.dshift (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) = res (Hom.wk m) (sem S a m ρ γ) := by
+    rw [sem_dshift, han]
+  rw [Hom.id_comp] at ha
+  have tc : TranspCond S (A.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))) (.or φ.shift (.neg (.var 0))) a.dshift
+      (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := by
+    refine ⟨?_, ?_, ?_, fun k g => (eL k g).trans (by rw [← eL0]), han.dshift⟩
+    · rw [eL0]; exact hty.res _
+    · rw [eL0, face_fill]
+      have := constOn_tfLine hfib hφ hcon (by rw [Hom.id_comp]; exact ha)
+      rw [Hom.id_comp] at this; exact this.res_id
+    · rw [eL0, eb, El_res, Hom.id_comp]
+      have := tf_base hfib hφ hcon (by rw [Hom.id_comp]; exact ha)
+      rwa [Hom.id_comp] at this
+  refine ⟨tc, ?_⟩
+  rw [Tm.transpFill, sem_transp tc, eL0, eb, face_fill, transpAt_res, Hom.comp_id, transpFillF, Hom.id_comp]
+
 end
 
 end Model
