@@ -2,7 +2,7 @@ import Kubus.Top
 import KubusCore
 
 /-!
-# Bridge to the certified kernel (`kubus --kernel`)
+# Bridge to the certified kernel (run by `kubus` on every definition)
 
 Translates elaborated definitions into KubusCore signature entries and checks them with the
 kernel (`KubusCore.Kernel`). The translation is not trusted: whatever it produces is checked
@@ -229,12 +229,12 @@ abbrev Exp (S : Sig) (Ψ : Nat) (Φ : KI) (Γ : KubusCore.Ctx) :=
 
 variable {S : Sig}
 
-def expOf (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : KTm) : Exp S Ψ Φ Γ :=
-  match KubusCore.Kernel.inferType R E A with
-  | .ok ⟨l, h⟩ => some ⟨A, l, h⟩
-  | .error _ => none
+def expOf (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : KTm) : K S (Exp S Ψ Φ Γ) := do
+  match ← KubusCore.Kernel.tryOpt (KubusCore.Kernel.inferType R E A) with
+  | some ⟨l, h⟩ => pure (some ⟨A, l, h⟩)
+  | none => pure none
 
-def cofOf {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (r : KI) : Except String (KCtx S Ψ (cof Φ r) Γ) := do
+def cofOf {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (r : KI) : K S (KCtx S Ψ (cof Φ r) Γ) := do
   let ⟨h⟩ ← KubusCore.Kernel.ensureScoped r Ψ
   pure (E.cof r h)
 
@@ -297,7 +297,7 @@ mutual
 
 /-- Translate `t`, against the expected type if given. -/
 partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry)
-    (t : Kubus.Tm) (exp : Exp S Ψ Φ Γ) : Except String KTm := do
+    (t : Kubus.Tm) (exp : Exp S Ψ Φ Γ) : K S KTm := do
   match t with
   | .var i => trVar ks i
   | .glob n k =>
@@ -400,7 +400,7 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
       let r ← trI ks key
       let Ek ← cofOf E r
       let pTy : KTm := .sigma (.univ l) (KubusCore.Tm.equiv (.var 0) A.shift)
-      es := es.push (r, ← elabT R env Ek ks p (expOf R Ek pTy))
+      es := es.push (r, ← elabT R env Ek ks p (← expOf R Ek pTy))
     let es' := es.toList
     return .glue A (canonCof (es'.map (·.1))) (mkSys (es'.map fun (r, p) => (r, .fst p)))
       (mkSys (es'.map fun (r, p) => (r, .snd p)))
@@ -426,14 +426,14 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
     let mut es : Array (KI × KTm) := #[]
     for ((_, t), r) in sys.zip keys do
       let Ek ← cofOf E r
-      es := es.push (r, ← elabT R env Ek ks t (expOf R Ek T))
+      es := es.push (r, ← elabT R env Ek ks t (← expOf R Ek T))
     return .glueEl φ e (mkSys es.toList) a'
   | .unglue u base sys => do
     let keys ← sys.mapM fun (r, _) => trI ks r
     -- the argument is checked against the Glue type recorded by Kubus, if it translates
-    let G := match elabT R env E ks (.glueTy base sys) none with
-      | .ok G => expOf R E G
-      | .error _ => none
+    let G ← match ← KubusCore.Kernel.tryOpt (elabT R env E ks (.glueTy base sys) none) with
+      | some G => expOf R E G
+      | none => pure none
     let g ← elabT R env E ks u G
     let i ← R.infer E g
     match i.ty with
@@ -468,12 +468,12 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
     let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d
     let ⟨C, _⟩ ← KubusCore.Kernel.lookupCtor D cIdx
     let args' ← elabTele R env E ks (C.argTys d D.params.length) ps.toList.reverse args
-    return .con d cIdx ps (KubusCore.Tm.ofList args') (← dims.mapM (trI ks))
+    return .con d cIdx ps (KubusCore.Tm.ofList args') (← dims.mapM fun r => (monadLift (trI ks r) : K S KI))
   | .split f k => elabSplit R env E ks f k exp
 
 /-- An application of a global with implicit parameters. -/
 partial def elabImplSpine (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry)
-    (g : String) (k : Nat) (args : List Kubus.Tm) (mask : List Bool) : Except String KTm := do
+    (g : String) (k : Nat) (args : List Kubus.Tm) (mask : List Bool) : K S KTm := do
   let some c := env.consts[(g, k)]? | throw s!"uses {g}, which is not in the kernel signature"
   let F ← match S[c]? with
     | some (.defn _ A) => pure A
@@ -486,8 +486,8 @@ partial def elabImplSpine (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ �
   let mut infd : Array (Option KTm) := Array.replicate n none
   for i in List.range n do
     if !(mask.getD i false) then
-      if let .ok t := elabT R env E ks (args.getD i (.univ 0)) none then
-        if let .ok inf := KubusCore.Kernel.inferW R E t then
+      if let some t ← KubusCore.Kernel.tryOpt (elabT R env E ks (args.getD i (.univ 0)) none) then
+        if let some inf ← KubusCore.Kernel.tryOpt (KubusCore.Kernel.inferW R E t) then
           infd := infd.set! i (some t)
           vals := matchPat i vals 0 0 (doms.getD i (.univ 0)) inf.ty
   let mut final : Array KTm := #[]
@@ -496,14 +496,14 @@ partial def elabImplSpine (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ �
     let given := if mask.getD i false then vals.getD i none else infd.getD i none
     match given with
     | some t => final := final.push t
-    | none => final := final.push (← elabT R env E ks (args.getD i (.univ 0)) (expOf R E D))
+    | none => final := final.push (← elabT R env E ks (args.getD i (.univ 0)) (← expOf R E D))
   return KubusCore.Tm.apps (.const c) final.toList
 
 /-- Translate a list against a telescope. -/
 partial def elabTele (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry) :
-    List KTm → List KTm → List Kubus.Tm → Except String (List KTm)
+    List KTm → List KTm → List Kubus.Tm → K S (List KTm)
   | A :: Δ, prev, t :: ts => do
-    let t' ← elabT R env E ks t (expOf R E (A.substList prev))
+    let t' ← elabT R env E ks t (← expOf R E (A.substList prev))
     return t' :: (← elabTele R env E ks Δ (t' :: prev) ts)
   | [], _, [] => pure []
   | _, _, _ => throw "wrong number of arguments"
@@ -511,8 +511,8 @@ partial def elabTele (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (k
 /-- Translate `body` under binders: `true` for a term binder of the Π type `T`, `false` for an
 interval binder of `(i : I) → T`. -/
 partial def elabUnder (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry)
-    (T : KTm) : List Bool → Kubus.Tm → Except String KTm
-  | [], body => elabT R env E ks body (expOf R E T)
+    (T : KTm) : List Bool → Kubus.Tm → K S KTm
+  | [], body => do elabT R env E ks body (← expOf R E T)
   | true :: bs, body => do
     match T with
     | .pi A B =>
@@ -526,7 +526,7 @@ partial def elabUnder (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (
 
 /-- A pattern-matching function: `λ x. elim d ps (x. B) bs x`, with a branch for each clause. -/
 partial def elabSplit (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry)
-    (f : String) (k : Nat) (exp : Exp S Ψ Φ Γ) : Except String KTm := do
+    (f : String) (k : Nat) (exp : Exp S Ψ Φ Γ) : K S KTm := do
   let some ⟨T, l, ⟨hT⟩⟩ := exp | throw "pattern matching without an expected type"
   let some info := env.globals.defs[f]? | throw s!"unknown definition {f}"
   match ← KubusCore.Kernel.whnfTy R E T l hT with
@@ -553,7 +553,7 @@ elements as a nested `split`, in the context extended by the bound variable. -/
 partial def elabSysUnder (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks : List Entry)
     (sys : List (ITm × Kubus.Tm))
     (ty : (r : KI) → (hk : r.Scoped Ψ) → Exp S (Ψ + 1) (cof Φ r).shift Γ.dshift) :
-    Except String (KI × KTm) := do
+    K S (KI × KTm) := do
   let mut es : Array (KI × KTm) := #[]
   for (key, t) in sys do
     let r ← trI ks key
@@ -648,12 +648,22 @@ def transData (env : Env) (di : DataInfo) (k d : Nat) : Except String KubusCore.
   return { level := di.level + k, params, ctors }
 
 /-- Translate a closed definition. -/
-def translate (env : Env) (S : Sig) (ty body : Kubus.Tm) : Except String (KTm × KTm) := do
-  let (R, E) ← setup S
+def translate (env : Env) (R : Rec S) (E : KCtx S 0 .one []) (ty body : Kubus.Tm) : K S (KTm × KTm) := do
   let kty ← elabT R env E [] (inlineLets ty) none
   let ⟨l, ⟨hA⟩⟩ ← KubusCore.Kernel.inferType R E kty
   let kbody ← elabT R env E [] (inlineLets body) (some ⟨kty, l, ⟨hA⟩⟩)
   return (kty, kbody)
+
+/-- Translate a definition and check it, sharing the kernel's cache. The inner error is a
+failed translation; the outer one a rejection by the kernel. -/
+def translateCheck (env : Env) (C : CheckedSig) (ty body : Kubus.Tm) :
+    Except String (Except String (KTm × KTm × CheckedSig)) := runK do
+  let (R, E) ← setup C.sig
+  match ← tryCatch (Except.ok <$> translate env R E ty body) (fun e => pure (.error e)) with
+  | .error e => return .error e
+  | .ok (kty, kbody) =>
+    let ⟨h⟩ ← checkEntryK C.sig R E kbody kty
+    return .ok (kty, kbody, ⟨C.sig ++ [.defn kbody kty], wfSig_append C.wf h⟩)
 
 mutual
 
@@ -706,15 +716,13 @@ partial def addGlobal (g : Globals) (n : String) (k : Nat) : StateM State (List 
       if m != n then out := out ++ (← addGlobal g m j)
     for (m, j) in datasOf g t do out := out ++ (← addData g m j)
   let s ← get
-  match translate { s.env with globals := g } s.sig.sig ty body with
-  | .error e => return out ++ (← skip e)
-  | .ok (kty, kbody) =>
-    match s.sig.extend kbody kty with
-    | .ok sig' =>
+  match translateCheck { s.env with globals := g } s.sig ty body with
+  | .ok (.error e) => return out ++ (← skip e)
+  | .ok (.ok (_, _, sig')) =>
       set { s with sig := sig', env.consts := s.env.consts.insert (n, k) s.sig.sig.length,
                    certified := s.certified + 1 }
       return out ++ [s!"kernel: certified {showName n k}"]
-    | .error e =>
+  | .error e =>
       set { s with skipped := s.skipped.insert (n, k) "rejected", rejected := s.rejected + 1 }
       return out ++ [s!"kernel: REJECTED {showName n k}: {e}"]
 

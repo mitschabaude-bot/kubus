@@ -12,10 +12,18 @@ structure Driver where
   selfcheck : Bool := false
   /-- self-check imported files too -/
   selfcheckImports : Bool := true
-  /-- `--kernel`: check definitions with the certified kernel -/
-  kernel : Option Bridge.State := none
+  /-- the certified kernel's state (`none` with `--no-kernel`) -/
+  kernel : Option Bridge.State := some {}
 
 abbrev DM := StateT Driver (ExceptT String IO)
+
+/-- Print the kernel's messages: certifications only with `--verbose`, skips and rejections
+always. -/
+def kernelMsgs (msgs : List String) : DM Unit := do
+  for m in msgs do
+    if m.startsWith "kernel: certified" then
+      if (← get).verbose then IO.println m
+    else IO.eprintln m
 
 mutual
 partial def runFile (path : System.FilePath) (top : Bool := true) : DM Unit := do
@@ -60,12 +68,12 @@ partial def runDecls (path : String) (dir : System.FilePath) (decls : List Decl)
             let t0 ← IO.monoMsNow
             let (msgs, ks') := (Bridge.addGlobal st'.globals n 0).run ks
             let t1 ← IO.monoMsNow
-            for m in msgs do IO.println m
+            kernelMsgs msgs
             if (← get).verbose then IO.println s!"kernel: {n}: {t1 - t0} ms"
             modify fun dr => { dr with kernel := some ks' }
           if let .data n .. := d then
             let (msgs, ks') := (Bridge.addData st'.globals n 0).run ks
-            for m in msgs do IO.println m
+            kernelMsgs msgs
             modify fun dr => { dr with kernel := some ks' }
       | .error e => throw s!"{path}:{e}"
 end
@@ -111,14 +119,14 @@ partial def repl : DM Unit := do
       buf := ""
 
 def usage : String :=
-  "usage: kubus [--selfcheck | --selfcheck-main] [--budget N] [--verbose] [--interactive] FILE.ktt...\n" ++
+  "usage: kubus [--selfcheck | --selfcheck-main] [--budget N] [--verbose] [--no-kernel] [--interactive] FILE.ktt...\n" ++
   "  --lsp        run a language server on standard input/output\n" ++
   "  --interactive  after loading the files, read declarations and terms from standard input\n" ++
   "  --selfcheck  check evaluator/checker invariants on every definition and #eval\n" ++
   "  --selfcheck-main  the same, but only for the given files, not their imports\n" ++
   "  --budget N   evaluation steps per self-check before it is skipped (default 1000000)\n" ++
-  "  --verbose    list the self-checks that were skipped\n" ++
-  "  --kernel     also check every definition with the certified KubusCore kernel"
+  "  --verbose    list the self-checks that were skipped and the kernel's certifications\n" ++
+  "  --no-kernel  do not check definitions with the certified KubusCore kernel"
 
 def main (args : List String) : IO UInt32 := do
   if args == ["--lsp"] then return ← Kubus.Lsp.serve
@@ -131,7 +139,7 @@ def main (args : List String) : IO UInt32 := do
     | "--selfcheck" :: r => drv := { drv with selfcheck := true }; rest := r
     | "--selfcheck-main" :: r => drv := { drv with selfcheck := true, selfcheckImports := false }; rest := r
     | "--verbose" :: r => drv := { drv with verbose := true }; rest := r
-    | "--kernel" :: r => drv := { drv with kernel := some {} }; rest := r
+    | "--no-kernel" :: r => drv := { drv with kernel := none }; rest := r
     | "--interactive" :: r => interactive := true; rest := r
     | "--budget" :: n :: r =>
       match n.toNat? with
@@ -157,6 +165,7 @@ def main (args : List String) : IO UInt32 := do
     IO.eprintln s!"selfcheck: {st.nChecks} checks, {st.nSkipped} skipped (budget), {st.nGaps} re-checks skipped (no surface syntax), {drv.violations} violations"
     if drv.violations > 0 then return 1
   if let some ks := drv.kernel then
-    IO.println s!"kernel: {ks.certified} certified, {ks.skipped.size - ks.rejected} skipped, {ks.rejected} rejected"
+    if drv.verbose || ks.skipped.size > 0 then
+      IO.eprintln s!"kernel: {ks.certified} certified, {ks.skipped.size - ks.rejected} skipped, {ks.rejected} rejected"
     if ks.rejected > 0 then return 1
   return 0
