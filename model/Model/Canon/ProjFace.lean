@@ -178,6 +178,38 @@ theorem tele_conv (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
     obtain ⟨-, l', e⟩ := HY k hkC hkY
     exact EqTm0.conv (hXY k (by omega) hkY) (EqTm0.symm e)
 
+/-! ## Constructor tags -/
+
+/-- Judgmentally equal constructor terms (of an inductive type without boundaries) have the same
+constructor. -/
+theorem con_tag (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) {k : ℕ} {c c' : ℕ}
+    {C C' : Ctor} (hC : D.ctors[c]? = some C) (hC' : D.ctors[c']? = some C') (hb : C.bnd = []) (hb' : C'.bnd = [])
+    {ps ps' X X' A : Tm} {l l' : ℕ} (hd : HasTy S k .one [] (.data d ps) (.univ l))
+    (hd' : HasTy S k .one [] (.data d ps') (.univ l'))
+    (h1 : HasTy S k .one [] (.con d c ps X []) (.data d ps)) (h2 : HasTy S k .one [] (.con d c' ps' X' []) (.data d ps'))
+    (e : EqTm S k .one [] (.con d c ps X []) (.con d c' ps' X' []) A) : c = c' := by
+  have hs := semK_eq hW e
+  have hne : ∀ {c0 : ℕ} {ps0 X0 : Tm} {l0 : ℕ}, HasTy S k .one [] (.data d ps0) (.univ l0) →
+      HasTy S k .one [] (.con d c0 ps0 X0 []) (.data d ps0) → semK S k (.con d c0 ps0 X0 []) ≠ ∅ := by
+    intro c0 ps0 X0 l0 hd0 h0
+    have hm := mem_of_ty hW h0
+    rw [semK_dataT hW hD hd0] at hm
+    exact IsKV.ne_empty (dataC_elKV _ _ hm)
+  have n1 := hne hd h1
+  have n2 := hne hd' h2
+  unfold semK at hs n1 n2
+  rw [sem_con_of hD (conGuard_of_sem hD n1), sem_con_of hD (conGuard_of_sem hD n2)] at hs
+  simp only [List.map_nil] at hs
+  have hbm : ∀ {c0 : ℕ} {C0 : Ctor}, D.ctors[c0]? = some C0 → C0.bnd = [] →
+      bndAtMap (D.ctors.getD c0 default) ([] : List (DM k)) (Hom.id k) = none := by
+    intro c0 C0 h0 hb0
+    rw [List.getD_eq_getElem?_getD, h0, Option.getD_some]
+    simp [bndAtMap, hb0]
+  have := congrArg (here k) hs
+  rw [here_conV (hbm hC hb), here_conV (hbm hC' hb'), tagZ_inj] at this
+  simp only [pair_inj', natZ_inj] at this
+  exact this.2.1
+
 /-! ## Projections under interval substitutions -/
 
 theorem upN_var : ∀ k, upN k Tm.var = Tm.var
