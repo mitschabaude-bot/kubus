@@ -205,7 +205,10 @@ def DataSyn (d : ℕ) (D : DataDecl) : Prop :=
   (∀ (j : ℕ) (A : Tm), D.params[j]? = some A → A.closedB j 0 = true ∧ A.ConstsLt d) ∧
   (∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C → ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
     A.closedB (D.params.length + k) 0 = true ∧ A.ConstsLt (d + 1) ∧ A.mentionsData d = false ∧
-      C.noRecDeps k A = true)
+      C.noRecDeps k A = true) ∧
+  (∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C → ∀ (ψ : I) (b : Tm), (ψ, b) ∈ C.bnd →
+    ψ.Scoped C.dims ∧ b.closedB (D.params.length + C.args.length) C.dims = true ∧
+      Ctor.simpleB D.ctors d D.params.length c C.args.length C b = true)
 
 /-- The inductive type `d` with declaration `D` is semantically valid: at valid parameters, its
 semantic data is well-formed and its argument types are well-formed codes of the declared level. -/

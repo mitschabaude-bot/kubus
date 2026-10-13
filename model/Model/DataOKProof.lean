@@ -150,7 +150,7 @@ theorem sem_argTy_eq (S0 : Sig) (E D : DataDecl) (hsyn : DataSyn S0.length D) {c
     sem (S0 ++ [.data E]) A n (fun _ => DM.zero n)
       (argEnvKV n (plist psv D.params.length) (genPre C gf (pre.take i))) =
       argTyRaw (sigV S0) D S0.length c i n psv pre := by
-  obtain ⟨hcl, hcs, hmd, hnr⟩ := hsyn.2.2 c C hC i A hA
+  obtain ⟨hcl, hcs, hmd, hnr⟩ := hsyn.2.2.1 c C hC i A hA
   have harg : (D.ctors.getD c default).argTy S0.length D.params.length i = A := by
     rw [getD_ctors hC]; simp [Ctor.argTy, hA]
   rw [argTyRaw, harg, sem_ext' S0 E hcs hmd]
@@ -254,7 +254,7 @@ theorem isPoint_argCtx (c0 : ℕ) {Φ : I} {j : ℕ} {n : ℕ} (g : Hom n m)
           have hr : C.isRec (j - 1 - x) = false := by simp [Ctor.isRec, hA]
           rw [if_neg (by simp [hr]), List.getElem_take]
           have harg : C.argTy S0.length np (j - 1 - x) = A := by simp [Ctor.argTy, hA]
-          rw [harg, sem_rho_irrel _ (hsyn.2.2 c C hC _ A hA).1 _ (fun _ => DM.zero n),
+          rw [harg, sem_rho_irrel _ (hsyn.2.2.1 c C hC _ A hA).1 _ (fun _ => DM.zero n),
             sem_argTy_eq S0 _ D hsyn hC hA (ps n g) pre (by omega)]
           exact (hpt _ (by omega) hr).1
         | recur =>
@@ -386,7 +386,7 @@ theorem sem_lookup_point (E : DataDecl) {j x : ℕ} (hx : x < j) (hjC : j ≤ C.
     | point A => exact ⟨A, by rw [List.getElem?_eq_getElem hi, h']⟩
     | recur => simp [Ctor.isRec, List.getElem?_eq_getElem hi, h'] at hr
   have harg : C.argTy S0.length D.params.length (j - 1 - x) = A := by simp [Ctor.argTy, hA]
-  rw [harg, sem_rho_irrel _ (hsyn.2.2 c C hC _ A hA).1 _ (fun _ => DM.zero n),
+  rw [harg, sem_rho_irrel _ (hsyn.2.2.1 c C hC _ A hA).1 _ (fun _ => DM.zero n),
     sem_argTy_eq S0 _ D hsyn hC hA psv pre (by omega)]
 
 end argty
@@ -409,7 +409,7 @@ theorem argTyRaw_recIrr {σ : SigV} {D : DataDecl} {d : ℕ} (hsyn : DataSyn d D
     {pre pre' : List V} (hj : j ≤ pre.length) (hj' : j ≤ pre'.length)
     (he : ∀ i (hi : i < j), C.isRec i = false → pre[i]'(by omega) = pre'[i]'(by omega)) :
     argTyRaw σ D d c j n psv pre = argTyRaw σ D d c j n psv pre' := by
-  obtain ⟨hcl, -, -, hnr⟩ := hsyn.2.2 c C hC j A hA
+  obtain ⟨hcl, -, -, hnr⟩ := hsyn.2.2.1 c C hC j A hA
   have harg : (D.ctors.getD c default).argTy d D.params.length j = A := by
     rw [getD_ctors hC]; simp [Ctor.argTy, hA]
   simp only [argTyRaw, harg]
@@ -652,7 +652,7 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
   rw [hE]
   -- the right-hand side
   have harg : C'.argTy S0.length np k = A' := by simp [Ctor.argTy, hA']
-  obtain ⟨hcl, hcs, hmd, hnr⟩ := hsyn.2.2 c' C' hC' k A' hA'
+  obtain ⟨hcl, hcs, hmd, hnr⟩ := hsyn.2.2.1 c' C' hC' k A' hA'
   set L := prev ++ (Ctor.paramVars np n).toList.reverse
   have hPV : (Ctor.paramVars np n).toList = (List.range np).map fun p => Tm.var (n + np - 1 - p) := by
     rw [Ctor.paramVars, toList_ofList]
@@ -939,12 +939,43 @@ variable (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0.length)
   (hXr : ∀ c', B ≤ c' → ∀ C', X[c']? = some C' → C' = genCtor)
   (hokB : ∀ c' < B, SigOK (S0 ++ [.data (D.truncate c')]))
 
+theorem simpleB_congr {ctors1 ctors2 : List Ctor} {d np c n : ℕ} {C : Ctor}
+    (h : ∀ c' < c, ctors1[c']? = ctors2[c']?) : ∀ t : Tm,
+    Ctor.simpleB ctors1 d np c n C t = Ctor.simpleB ctors2 d np c n C t ∧
+      ∀ C' k, Ctor.simpleArgs ctors1 d np c n C C' k t = Ctor.simpleArgs ctors2 d np c n C C' k t := by
+  intro t
+  induction t with
+  | con d' c' ps as rs _ ihas =>
+    refine ⟨?_, fun C' k => by simp [Ctor.simpleArgs]⟩
+    simp only [Ctor.simpleB]
+    by_cases hc : c' < c
+    · rw [h c' hc]
+      cases ctors2[c']? with
+      | none => rfl
+      | some C' => simp only [(ihas.2 C' 0)]
+    · simp [hc]
+  | tcons a as iha ihas =>
+    refine ⟨by simp [Ctor.simpleB], fun C' k => ?_⟩
+    simp only [Ctor.simpleArgs, iha.1, ihas.2]
+  | _ => exact ⟨by simp [Ctor.simpleB], fun _ _ => by simp [Ctor.simpleArgs]⟩
+
 include hS0 hWf hXB hXr in
 theorem dataSyn_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
     DataSyn S0.length { D with ctors := X } := by
-  refine ⟨hWf.1, fun j A hA => ⟨(hWf.2.1 j A hA).1, ?_⟩, fun c C hC k A hA => ?_⟩
+  refine ⟨hWf.1, fun j A hA => ⟨(hWf.2.1 j A hA).1, ?_⟩, fun c C hC k A hA => ?_, fun c C hC ψ b hb => ?_⟩
   · obtain ⟨l, hl⟩ := (hWf.2.1 j A hA).2.2
     exact (sound_ty hS0 hl).2.1
+  rotate_left
+  · by_cases hcB : c < B
+    · rw [show ({ D with ctors := X } : DataDecl).ctors = X from rfl, hXB c hcB] at hC
+      obtain ⟨k, hk⟩ := List.getElem?_of_mem hb
+      obtain ⟨h1, h2, h3, -, -⟩ := (hWf.2.2 c C hC).2.1 k ψ b hk
+      refine ⟨h1, h2, ?_⟩
+      rw [show ({ D with ctors := X } : DataDecl).ctors = X from rfl,
+        (simpleB_congr (fun c' hc' => hXB c' (by omega)) b).1]
+      exact h3
+    · have := hXr c (by omega) C hC
+      subst this; simp at hb
   · by_cases hcB : c < B
     · rw [show ({ D with ctors := X } : DataDecl).ctors = X from rfl, hXB c hcB] at hC
       obtain ⟨h1, h2, h3, h4⟩ := (hWf.2.2 c C hC).1 k A hA

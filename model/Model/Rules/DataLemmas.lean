@@ -156,7 +156,7 @@ theorem sem_argTy_subst {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) (
     (hnat : ∀ t ∈ pre ++ ps.reverse, Natural S t m ρ γ) :
     sem S (A.substList (pre ++ ps.reverse)) m ρ γ =
       argTyRaw (sigUpTo S d) D d c j m (sem S (Tm.ofList ps) m ρ γ) (pre.reverse.map fun t => sem S t m ρ γ) := by
-  obtain ⟨hcl, hcs, hmd, -⟩ := hsyn.2.2 c C hC j A hA
+  obtain ⟨hcl, hcs, hmd, -⟩ := hsyn.2.2.1 c C hC j A hA
   have harg : (D.ctors.getD c default).argTy d D.params.length j = A := by
     rw [getD_ctors hC]; simp [Ctor.argTy, hA]
   rw [Tm.substList, sem_subst S A m ρ γ _ _ (natural_substList hnat), sem_eq_sigUpTo hd hcs hmd, argTyRaw, harg,
