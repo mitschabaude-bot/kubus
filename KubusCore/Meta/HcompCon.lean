@@ -247,6 +247,86 @@ theorem eqtele_get_args {Ψ Φ Γ} {ps ts ts' : Tm}
       (Nat.lt_succ_self k) a a' A ha ha' (by rw [hΔ]; exact hA)
     rwa [hprev] at this
 
+/-! ## The induction along the arguments -/
+
+variable {Ψ : Nat} {Φ : I} {Γ : Ctx} {ps uargs args : Tm} {φ : I} {l0 : Nat}
+  (hps : ps = Tm.ofList ps.toList) (hargs : args = Tm.ofList args.toList)
+  (huargs : uargs = Tm.ofList uargs.toList)
+  (h6 : HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
+  (h7 : HasTele0 S (Ψ + 1) (KubusCore.cof Φ φ).shift Γ.dshift uargs (C.argTys d D.params.length)
+    ps.dshift.toList.reverse)
+  (h9 : EqTele0 S Ψ (KubusCore.cof Φ φ) Γ (uargs.dinst .zero) args (C.argTys d D.params.length)
+    ps.toList.reverse)
+  (hdT : HasTy0 S Ψ Φ Γ (data d ps) (Tm.univ l0)) (hφ : φ.Scoped Ψ)
+include hps hargs huargs h6 h7 h9 hdT hφ
+
+/-- The invariant after `k` arguments: the fillers and the composites as substitutions out of
+the point context, related to the base and tube arguments, and the composites typed so far. -/
+theorem hcompCon_inv :
+    let A := C.argTy d D.params.length
+    let us := uargs.toList
+    let as := args.toList
+    let R := ps.toList.reverse
+    let R1 := ps.dshift.toList.reverse
+    let Fall := hFills C A (data d ps) ps.dshift.toList φ us as C.args.length
+    let osAll := (List.range C.args.length).map (hOut C A (data d ps) ps.dshift.toList φ us as)
+    ∀ k, k ≤ C.args.length →
+    TySub S 0 .one (D.pointCtx d C k) (Ψ + 1) Φ.shift Γ.dshift (lsub (ptL C Fall R1 k) 0) I.var ∧
+    TySub S 0 .one (D.pointCtx d C k) Ψ Φ Γ (lsub (ptL C osAll R k) 0) I.var ∧
+    EqSub S 0 (D.pointCtx d C k) Ψ Φ Γ
+      (fun x => (lsub (ptL C Fall R1 k) 0 x).subst Tm.var (I.inst0 .zero))
+      (fun i => (I.var i).subst (I.inst0 .zero))
+      (lsub (ptL C as R k) 0) I.var ∧
+    EqSub S 0 (D.pointCtx d C k) Ψ Φ Γ
+      (fun x => (lsub (ptL C Fall R1 k) 0 x).subst Tm.var (I.inst0 .one))
+      (fun i => (I.var i).subst (I.inst0 .one))
+      (lsub (ptL C osAll R k) 0) I.var ∧
+    EqSub S 0 (D.pointCtx d C k) (Ψ + 1) (KubusCore.cof Φ φ).shift Γ.dshift
+      (lsub (ptL C Fall R1 k) 0) I.var (lsub (ptL C us R1 k) 0) I.var ∧
+    (∀ j, j < k → HasTy0 S Ψ Φ Γ (osAll.getD j .abort) ((A j).substList ((osAll.take j).reverse ++ R))) := by
+  intro A us as R R1 Fall osAll k hk
+  -- common facts
+  have hw : Wf0 S Ψ Φ Γ := wf_of_tele h6
+  have hs : Φ.Scoped Ψ := scoped_of_wf hw
+  have hXs : (KubusCore.cof Φ φ).shift.Scoped (Ψ + 1) := scoped_shift ⟨hs, hφ⟩
+  have hXe : I.Entails (KubusCore.cof Φ φ).shift Φ.shift := ent_shift (ent_and_left _ _)
+  have hcs : (KubusCore.cof Φ φ).Scoped Ψ := ⟨hs, hφ⟩
+  have hce : I.Entails (KubusCore.cof Φ φ) Φ := ent_and_left _ _
+  have hw1 : Wf0 S (Ψ + 1) Φ.shift Γ.dshift := wf_of_ty (HasTy0.dwk hS hdT)
+  have hwc : Wf0 S (Ψ + 1) (KubusCore.cof Φ φ).shift Γ.dshift := hw1.restrict hXs hXe
+  obtain ⟨D', hD', hpt⟩ := gen_data_tele hdT rfl
+  rw [hD] at hD'; cases hD'
+  have hpl : ps.toList.length = D.params.length := by simpa using tele_length hpt
+  have hf : ∀ (r : I), r.Scoped Ψ → ∀ t B, HasTy0 S (Ψ + 1) Φ.shift Γ.dshift t B →
+      HasTy0 S Ψ Φ Γ (t.subst Tm.var (I.inst0 r)) (B.subst Tm.var (I.inst0 r)) :=
+    fun r hr t B h => HasTy0.dsubst hS h hr
+  have hps1 : IsList ps.dshift := by rw [dshift_eq]; exact isList_subst hps _ _
+  have hpt1 : HasTele0 S (Ψ + 1) Φ.shift Γ.dshift ps.dshift D.params [] := by
+    have := HasTele0.post (fun i => .var (i + 1)) hw1
+      (fun t B h => by rw [← dshift_eq, ← dshift_eq]; exact HasTy0.dwk hS h) hpt (params_closed hS hD)
+    rw [← dshift_eq] at this; simpa using this
+  have hpl1 : ps.dshift.toList.length = D.params.length := by simpa using tele_length hpt1
+  have hdsh : ∀ r, R1.map (·.subst Tm.var (I.inst0 r)) = R := by
+    intro r
+    show (ps.dshift.toList.reverse).map _ = _
+    rw [List.map_reverse, ← toList_subst hps1, dinst_eq, dshift_dinst]
+  have h0 : ∀ {Ψ' Φ' Γ'} (τ σ : Nat → _), Wf0 S Ψ' Φ' Γ' → TySub S 0 .one [] Ψ' Φ' Γ' σ τ :=
+    fun τ σ hw' => tySub_nil (fun i hi => absurd hi (Nat.not_lt_zero _)) (ent_one _) hw'
+  have hP0 := tySub_params hS hD hpt 0 (h0 I.var · hw) _ (Nat.le_refl _)
+  rw [List.take_of_length_le (by omega)] at hP0
+  have hP1 := tySub_params hS hD hpt1 0 (h0 I.var · hw1) _ (Nat.le_refl _)
+  rw [List.take_of_length_le (by omega)] at hP1
+  have hpc : D.pointCtx d C 0 = D.paramCtx D.params.length := by simp [DataDecl.pointCtx]
+  induction k with
+  | zero =>
+    simp only [ptL, hpc]
+    refine ⟨hP1, hP0, ?_, ?_, EqSub.of_eq (hP1.restrict hXs hXe) (fun _ => rfl),
+      fun j hj => absurd hj (Nat.not_lt_zero _)⟩
+    · exact EqSub.of_eq (hP1.post _ hw (hf .zero trivial)) (fun x => by rw [lsub_post, hdsh])
+    · exact EqSub.of_eq (hP1.post _ hw (hf .one trivial)) (fun x => by rw [lsub_post, hdsh])
+  | succ k ih =>
+    sorry
+
 end
 
 end KubusCore.Meta
