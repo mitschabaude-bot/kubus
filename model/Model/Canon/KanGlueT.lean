@@ -376,19 +376,6 @@ theorem L_omega {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) (
   exact hb.conv hW (TyEq.refl _) eβ.symm
 
 omit hW in
-theorem forall0_scoped {φ : I} (h : φ.Scoped (k + 1)) : φ.forall0.Scoped k := by
-  apply scoped_ofFaces
-  intro c hc l hl
-  simp only [List.mem_map, List.mem_filter] at hc
-  obtain ⟨α, ⟨hα, hall⟩, rfl⟩ := hc
-  obtain ⟨⟨i, d⟩, hil, rfl⟩ := List.mem_map.1 hl
-  have h1 := faces_scoped h α hα _ hil
-  have h2 := List.all_eq_true.1 hall _ hil
-  simp only [bne_iff_ne, ne_eq] at h2
-  simp only at h1 ⊢
-  omega
-
-omit hW in
 theorem dshift_isub_up (X : Tm) (ρ : ISub k' k) : X.dshift.isub ρ.up = (X.isub ρ).dshift := by
   have := dshift_subst_dup Tm.var ρ.τ X
   rw [dupS_var] at this

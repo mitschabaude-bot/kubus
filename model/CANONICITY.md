@@ -84,6 +84,8 @@ The faces are a premise, not a conclusion. The first version concluded `φ ⟺ �
 
 Injectivity of `glue` in its base and equivalence, between Glue types with the same face that does not hold, for closed types (stage `k`, no term variables). The relation of a Glue type records one decomposition `glue A1 φ1 T1 e1` of it; to use the components of an element against another decomposition `glue A φ T e` of the same type (`unglue φ e g` versus `unglue φ1 e1 g`), `RE_glue_elim` needs the two decompositions to agree. This is the Glue analogue of the spec's `dataInj`/`ipiInj`. It cannot be a rule: where the face holds, `glue A φ T e ≡ T` leaves `A` and `e` unconstrained, so the premise `¬ φ` is not stable under interval substitution, and a rule with it would break the substitution lemma of the metatheory.
 
+The trivial context `Φ = .one` is essential. At `Φ = i ∨ ~i` with `φ = i`, `glue A i T e ≡ glue A' i T e'` is derivable with `A(1) ≢ A'(1)`, using `local` and `face`. So the statement must not be generalized to arbitrary `Φ`. Taking the premise by reflexivity, `GlueCompat` also gives base inversion (`glue A φ T e : U l` implies `A : U l`). That is not a rule (`glueBase` was removed) and is an obligation of milestone (d).
+
 Why it is believed true:
 
 - It holds semantically. The set model's Glue code (`glueC`, `Model/Glue.lean`) is, where the face does not hold, a datum recording the base family, the face and the equivalence. So two Glue types with equal semantics and the same face that does not hold at the identity have equal bases and equal equivalences under the face.
@@ -103,3 +105,33 @@ The route is Huber's canonicity for cubical type theory with an equality relatio
 - **(d) Corollaries.** `GlueCompat` as the PER at `glue A φ T e ≡ glue A' φ' T' e'`, giving `canonicity` without hypotheses. If cheap: canonicity with equality (equal closed elements of a data type have equal canonical forms) and injectivity of the type formers as stated theorems.
 
 Reduction is not stable under interval substitution, so (c) has to commute reduction with restriction up to `≡`, as in Huber. The existing development is reused for the semantic indexing (ranks), the Kan lemma's syntactic contracta, and the projections. This is also a step toward normalization.
+
+### Milestone (a): done
+
+`Model/Whnf/Step.lean` defines `step : Sig → Tm → Option Tm`, one step of weak-head reduction, structurally recursive, so deterministic by construction. `Red` is its reflexive-transitive closure, `IsWhnf S t := step S t = none`, and `RedW.unique` says normal forms are unique. Notes on the definition:
+
+- Faces are decided by `I.entails .one`. A step taken at `.one` is valid in every context, since `Φ ⊨ .one`.
+- `transp`/`hcomp` reduce their line to a whnf, then compute by its head. At an inductive type they first reduce the base, and they fire only on a constructor or formal `hcomp` of the same inductive type.
+- `transpGlue` uses `δ := φ.forall0`.
+- `hcompCon` takes the tube's arguments to be the projections `proj_j u`.
+- `unglue φ e (glueEl φ' e' t a) ⇒ a` regardless of annotations.
+- `con` reduces by its first boundary that holds.
+
+`Model/Whnf/Sound.lean`, `step_sound`: a typed term's step is a judgmental equality at its type (minimal judgments, any `Ψ`, `Φ`, and `Γ = []`); `red_sound`/`red_sound_spec` extend this to `Red`. Two steps need side conditions that typing alone does not give, stated as hypotheses about closed terms and discharged in milestone (c):
+
+- `HCSound`: the `hcompCon` step, where the tube must be a constructor on its face (cf. `tube_canon`).
+- `UGSound`: `unglue φ e (glueEl φ' e' t a) ≡ a` with different annotations, which needs the annotations to agree up to `≡` under the face. This is `GlueCompat` again, at the element level.
+
+### Milestone (b): subject reduction and restriction
+
+Subject reduction for closed terms is `red_typed` (from soundness and presupposition), under the same side conditions as (a).
+
+Restriction does not commute with `step`. For `σ : ISub k' k` and `step S t = some t'`, the step of `t.isub σ` is `t'.isub σ` except in these cases:
+
+- A face decided false at stage `k` holds after `σ`, while true faces stay true (`entails_one_subst`). This happens for the face of `transp`/`hcomp` (`transpFace`, `hcompFace` instead of computing by the type), for `split`, for the face of `glue`/`glueEl`/`unglue` (`glueFace`, `glueElFace`, `unglueFace`), and for the boundaries of a constructor (`conBnd`), where an earlier boundary may come to hold.
+- The same deviations occur in head positions below, for the line of a Kan operation and the scrutinee of an eliminator.
+- `transpGlue` uses `δ := φ.forall0`. Restriction gives `(φ.forall0).subst τ`, which is equivalent (`forall0_subst`) but not equal to `(φ.subst τ⁺).forall0`.
+
+In every case both results are `≡` to `t.isub σ`, by soundness and substitution.
+
+The PER of (c) does not need a commutation lemma. Like the current relation, it is Kripke by definition: each clause quantifies over all restrictions `σ` and reduces `t.isub σ` at stage `k'` from scratch. Closure under restriction is then composition of restrictions. The fundamental lemma handles each redex at each restriction separately: if the face holds after `σ`, the face rule applies and its reduct is related by the induction hypothesis; otherwise the computation rule applies. This is how `RE_hcomp_face`/`RE_transp_face` already split the Kan lemma. Weak-head normal forms with a type-former head (`univ`, `pi`, `sigma`, `path`, `ipi`, `data`) never step, so they stay normal under restriction. The heads that can start to step after restriction are `glue`, `glueEl`, `split`, `con` with boundaries, and stuck eliminations. These are exactly the cases above.
