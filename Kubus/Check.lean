@@ -127,12 +127,6 @@ partial def zonk (t : Tm) : M Tm := do
         return ← zonk (applySol sol args)
   t.mapChildrenM fun _ => zonk
 
-/-- Fail on the first unsolved metavariable. -/
-def checkMetas : M Unit := do
-  for mi in (← get).metas do
-    if mi.sol.isNone then
-      err mi.ctx s!"could not infer {mi.desc}\n  of type {← ppVal mi.ctx mi.ctxTy}{← ctxMsg mi.ctx}"
-
 /-- Conversion; in self-check mode also checks that it is symmetric. -/
 def convC (ctx : Ctx) (ty u v : Val) : M Bool := do
   let r ← withRollback (conv ctx.lvl ty u v)
@@ -170,6 +164,12 @@ def ppCtx (ctx : Ctx) : M String := do
 def ctxMsg (ctx : Ctx) : M String := do
   if ctx.entries.isEmpty then return ""
   return s!"\ncontext:\n{← ppCtx ctx}"
+
+/-- Fail on the first unsolved metavariable. -/
+def checkMetas : M Unit := do
+  for mi in (← get).metas do
+    if mi.sol.isNone then
+      err mi.ctx s!"could not infer {mi.desc}\n  of type {← ppVal mi.ctx mi.ctxTy}{← ctxMsg mi.ctx}"
 
 /-- The first difference between two terms of the same shape, descending through
 applications, path types, data types, constructors and pairs (`none` if the terms are equal
