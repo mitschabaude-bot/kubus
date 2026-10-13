@@ -450,7 +450,8 @@ overlaps in `S` extended by the declaration truncated to the constructors before
 available (otherwise `conBnd` would make the boundary check vacuous). Parameters and point
 arguments do not mention `d` (so `d` occurs only as the type of recursive arguments: strictly
 positive, not nested), point arguments do not mention earlier recursive arguments and live in
-the declared universe, and boundaries are simple, well-typed (with the argument types of their
+the declared universe (also in `S` itself, over the parameters and earlier point arguments, so
+that their types are typed wherever the parameters are: `transpCon` transports along them), and boundaries are simple, well-typed (with the argument types of their
 nested constructors, `Ctor.bndTyped`) and agree on overlaps. -/
 def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   let np := D.params.length
@@ -461,7 +462,8 @@ def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
     let Sc := S ++ [.data (D.truncate c)]
     (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
       A.mentionsData d = false ∧ C.noRecDeps k A = true ∧
-      HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+      HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level) ∧
+      HasTy S 0 .one (D.pointCtx d C k) (A.ren (C.pointRen k) id) (.univ D.level)) ∧
     (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
       b.closedB (np + C.args.length) C.dims = true ∧
       Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
