@@ -256,7 +256,7 @@ def core (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal
         el := ipiE S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
   else if π1 sh = natZ tUniv then
     { ty := fun A => base A ∧ TyEq S k A (.univ (natOf (π2 sh)))
-      el := fun A T => HasTy S k .one [] T A ∧ ∃ h : semK S k T ∈ π1 (π2 (Dt k (Hom.id k))),
+      el := fun A T => TyEq S k A (.univ (natOf (π2 sh))) ∧ ∃ h : semK S k T ∈ π1 (π2 (Dt k (Hom.id k))),
         (rec (semK S k T) (lt_trans (rank_lt_of_mem h) ((rank_π1_le _).trans_lt ((rank_π2_le _).trans_lt
           (hD k (Hom.id k))))) k k (Hom.id k)).ty T }
   else if π1 sh = natZ tEmpty then

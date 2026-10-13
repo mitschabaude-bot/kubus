@@ -80,7 +80,7 @@ theorem Comp_univC (l : ℕ) (f : Hom k m) :
     Comp S (univC m l) m k f =
       ⟨fun T => (IsTyK S k T ∧ semK S k T = res f (univC m l)) ∧ TyEq S k T (.univ l),
         fun T t => HasTy S k .one [] t T ∧ semK S k t ∈ El (res f (univC m l)) (Hom.id k) ∧
-          HasTy S k .one [] t T ∧ ∃ _ : semK S k t ∈ ZFSet.sep (WF l k) (Vt l), (Comp S (semK S k t) k k (Hom.id k)).ty t⟩ := by
+          TyEq S k T (.univ l) ∧ ∃ _ : semK S k t ∈ ZFSet.sep (WF l k) (Vt l), (Comp S (semK S k t) k k (Hom.id k)).ty t⟩ := by
   rw [Comp_unfold (show univC m l ≠ ∅ from mkKV_ne_empty (fun k _ => univDatum (WF l) l k))]
   simp only [body, core, univC, univCode, dat_mkKV, univDatum, π1_quad, tagZ, π1_pair, π2_pair,
     natZ_inj, tPi, tSigma, tPath, tIPi, tUniv, if_false, show ¬ (6 = 2) by decide,
