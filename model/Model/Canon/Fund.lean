@@ -1,4 +1,4 @@
-import Model.Canon.Formers
+import Model.Canon.Kan
 
 /-!
 # Canonicity: the fundamental lemma
@@ -24,12 +24,11 @@ variable {S : Sig} {k k' m : ℕ}
 structure Hyp (S : Sig) (n : ℕ) : Prop where
   defn : ∀ i < n, ∀ t A, S[i]? = some (.defn t A) → ∀ k, RE S k A t
 
-/-- Computability of the elements of a telescope. -/
-def TeleComp (S : Sig) (k : ℕ) : Tm → List Tm → List Tm → Prop
+/-- Computability of the elements of a telescope, instantiated by a substitution. -/
+def TeleCompS (S : Sig) (k : ℕ) (γ : ℕ → Tm) (τ : ℕ → I) : Tm → List Tm → List Tm → Prop
   | .tnil, [], _ => True
-  | .tcons a as, A :: Δ, prev => RE S k (A.substList prev) a ∧ TeleComp S k as Δ (a :: prev)
+  | .tcons a as, A :: Δ, prev => RE S k ((A.substList prev).subst γ τ) (a.subst γ τ) ∧ TeleCompS S k γ τ as Δ (a :: prev)
   | _, _, _ => False
-
 
 variable (hW : WfSig S) {n : ℕ} (hH : Hyp S n)
 include hW hH
@@ -208,9 +207,29 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
     exfalso
     exact not_holds_zero (entails_holds (ent_subst h0 c.σ.τ) c.face_holds)
   | @HasTy0.transp _ Ψ Φ Γ A φ a l h0 h1 h2 h3 => fun hc k c => by
-    sorry
+    have hty : HasTy S k .one [] (.transp (A.subst (dupS c.γ) (I.up c.σ.τ)) (φ.subst c.σ.τ) (a.subst c.γ c.σ.τ))
+        ((A.subst (dupS c.γ) (I.up c.σ.τ)).dinst .one) := by
+      have := c.ty hW (HasTy0.transp h0 h1 h2 h3); rwa [dinst_subst] at this
+    have hA := (RE_univ_iff hW).1 (fund_ty h0 hc.1 (k + 1) (c.up hW))
+    have ha := fund_ty h3 hc.2 k c
+    rw [dinst_subst] at ha ⊢
+    exact kan_transp hW (l := l) hA.2.2 hty ha
   | @HasTy0.hcomp _ Ψ Φ Γ A φ u a l h0 h1 h2 h3 h4 => fun hc k c => by
-    sorry
+    have hty : HasTy S k .one [] (.hcomp (A.subst c.γ c.σ.τ) (φ.subst c.σ.τ) (u.subst (dupS c.γ) (I.up c.σ.τ))
+        (a.subst c.γ c.σ.τ)) (A.subst c.γ c.σ.τ) := c.ty hW (HasTy0.hcomp h0 h1 h2 h3 h4)
+    have hA := (RE_univ_iff hW).1 (fund_ty h0 hc.1 k c)
+    refine kan_hcomp hW hA.2.2 hty (fun k' σ r hr hh => ?_) (fund_ty h3 hc.2.2 k c)
+    have hface : I.Entails .one (φ.subst (c.restr hW σ).σ.τ) := by
+      rw [show φ.subst (c.restr hW σ).σ.τ = (φ.subst c.σ.τ).subst σ.τ from (I_subst_subst _ _ _).symm]
+      exact entails_of_holds (I.scoped_subst (I.scoped_subst h1 c.σ.sc) σ.sc) hh
+    have ih := fund_ty h2 hc.2.1 k' (((c.restr hW σ).cof hface).cons r hr)
+    have eA : A.dshift.subst (((c.restr hW σ).cof hface).cons r hr).γ (((c.restr hW σ).cof hface).cons r hr).σ.τ =
+        (A.subst c.γ c.σ.τ).isub σ := by
+      show A.dshift.subst (c.restr hW σ).γ (consI r (c.restr hW σ).σ.τ) = _
+      rw [dshift_consI, CSub.restr_subst]
+    have eu : u.subst (((c.restr hW σ).cof hface).cons r hr).γ (((c.restr hW σ).cof hface).cons r hr).σ.τ =
+        ((u.subst (dupS c.γ) (I.up c.σ.τ)).isub σ.up).dinst r := CSub.cons_restr_subst hW c σ r hr u
+    rw [eA, eu] at ih; exact ih
   | @HasTy0.glue _ Ψ Φ Γ A φ T e l h0 h1 h2 h3 => fun hc k c => by
     sorry
   | @HasTy0.glueEl _ Ψ Φ Γ A φ T e t a l h0 h1 h2 h3 h4 => fun hc k c => by
@@ -229,12 +248,10 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
     sorry
 
 theorem fund_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → ts.ConstsLt n → ∀ k (c : CSub S Ψ Φ Γ k),
-    TeleComp S k (ts.subst c.γ c.σ.τ) Δ (prev.map (·.subst c.γ c.σ.τ))
-  | @HasTele0.nil _ Ψ Φ Γ prev h0 => fun _ k c => by simp [TeleComp, Tm.subst]
-  | @HasTele0.cons _ Ψ Φ Γ a as A Δ prev h0 h1 => fun hc k c => by
-    have iha := fund_ty h0 hc.1 k c
-    have ihas := fund_tele h1 hc.2 k c
-    sorry
+    TeleCompS S k c.γ c.σ.τ ts Δ prev
+  | @HasTele0.nil _ Ψ Φ Γ prev h0 => fun _ k c => trivial
+  | @HasTele0.cons _ Ψ Φ Γ a as A Δ prev h0 h1 => fun hc k c =>
+    ⟨fund_ty h0 hc.1 k c, fund_tele h1 hc.2 k c⟩
 
 end
 
