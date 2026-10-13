@@ -21,8 +21,9 @@ theorem consistent : KubusCore.Consistent := by
   intro S t hS ht
   have hok := sigOK_of_wfSig _ S rfl hS
   obtain ⟨-, -, -, hsem⟩ := sound_ty hok ht
-  have hpt : IsPoint S .one [] 0 (fun _ => DM.zero 0) (fun _ => ∅) :=
-    ⟨by simp [DM.holds, ival.fn, I.eval], fun x A h => by simp [Ctx.lookup] at h⟩
+  have hpt : IsPoint S .one [] 0 (fun _ => DM.zero 0) (fun _ => emptyC 0) :=
+    ⟨by simp [DM.holds, ival.fn, I.eval], fun x A h => by simp [Ctx.lookup] at h,
+      fun _ => isKV_mkKV _⟩
   obtain ⟨hmem, -⟩ := hsem 0 _ _ hpt
   simp only [sem, interp, El_piC, piElSet, mem_piEl] at hmem
   obtain ⟨-, hfun, -⟩ := hmem

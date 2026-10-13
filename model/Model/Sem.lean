@@ -65,6 +65,7 @@ variable {S : Sig} {k m n : ℕ}
 structure IsPoint (S : Sig) (Φ : I) (Γ : Ctx) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : Prop where
   cof : (ival ρ Φ).holds
   typ : ∀ x A, Γ.lookup x = some A → γ x ∈ El (sem S A m ρ γ) (Hom.id m)
+  kv : ∀ x, IsKV m (γ x)
 
 /-- `t` commutes with restriction at the point `(ρ, γ)`. -/
 def Natural (S : Sig) (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : Prop :=

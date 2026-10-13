@@ -77,8 +77,8 @@ theorem sem_HasTy_subst {S : Sig} {Ψ Φ Γ A B t a}
     (h0 : SemTy S Ψ Φ (A :: Γ) t B) (h1 : SemTy S Ψ Φ Γ a A) :
     SemTy S Ψ Φ Γ (t.inst a) (B.inst a) := by
   refine ⟨h1.1, h0.2.1.inst h1.2.1, h0.2.2.1.inst h1.2.1, fun m ρ γ hp => ?_⟩
-  obtain ⟨hamem, hanat, -, -⟩ := h1.2.2.2 m ρ γ hp
-  obtain ⟨hmem, hnat, hty, hnatB⟩ := h0.2.2.2 m ρ _ (hp.cons hamem)
+  obtain ⟨hamem, hanat, haty, -⟩ := h1.2.2.2 m ρ γ hp
+  obtain ⟨hmem, hnat, hty, hnatB⟩ := h0.2.2.2 m ρ _ (hp.cons hamem (haty.fib.elKV _ _ _ hamem))
   refine ⟨?_, hanat.inst hnat, ?_, hanat.inst hnatB⟩
   · rw [sem_inst hanat, sem_inst hanat]; exact hmem
   · unfold TyOK; rw [sem_inst hanat]; exact hty
@@ -340,9 +340,10 @@ theorem sem_EqTm_subst {S : Sig} {Ψ Φ Γ A B t t' a a'}
     obtain ⟨-, hanat, -, -⟩ := h1.1.2.2.2 m ρ γ hp
     obtain ⟨-, hanat', -, -⟩ := h1.2.1.2.2.2 m ρ γ hp
     rw [sem_inst hanat, sem_inst hanat', h1.2.2 m ρ γ hp]
-  · obtain ⟨hamem, hanat, -, -⟩ := h1.1.2.2.2 m ρ γ hp
+  · obtain ⟨hamem, hanat, haty, -⟩ := h1.1.2.2.2 m ρ γ hp
     obtain ⟨-, hanat', -, -⟩ := h1.2.1.2.2.2 m ρ γ hp
-    rw [sem_inst hanat, sem_inst hanat', h0.2.2 m ρ _ (hp.cons hamem), h1.2.2 m ρ γ hp]
+    rw [sem_inst hanat, sem_inst hanat', h0.2.2 m ρ _ (hp.cons hamem (haty.fib.elKV _ _ _ hamem)),
+      h1.2.2 m ρ γ hp]
 
 theorem sem_EqTm_dsubst {S : Sig} {Ψ Φ Γ t t' A r}
     (h0 : SemEq S (Ψ + 1) Φ.shift Γ.dshift t t' A) (h1 : r.Scoped Ψ) :

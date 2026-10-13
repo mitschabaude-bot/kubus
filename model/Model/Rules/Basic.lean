@@ -150,10 +150,14 @@ theorem IsPoint.restr {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ →
     rw [hnat k f, El_res, Hom.comp_id]
     have := hty.fib.elRes _ _ _ (hp.typ x A hl) k f
     rwa [Hom.id_comp] at this
+  kv x := isKV_res f (γ x)
 
 theorem IsPoint.cons {Φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V} {A : Tm} {a : V}
-    (hp : IsPoint S Φ Γ m ρ γ) (ha : a ∈ El (sem S A m ρ γ) (Hom.id m)) :
+    (hp : IsPoint S Φ Γ m ρ γ) (ha : a ∈ El (sem S A m ρ γ) (Hom.id m)) (hakv : IsKV m a) :
     IsPoint S Φ (A :: Γ) m ρ (TEnv.cons γ a) where
+  kv x := by cases x with
+    | zero => exact hakv
+    | succ x => exact hp.kv x
   cof := hp.cof
   typ x B hl := by
     cases x with
@@ -171,7 +175,7 @@ theorem TEnv.eq_cons (γ : ℕ → V) : γ = TEnv.cons (fun x => γ (x + 1)) (γ
 theorem IsPoint.tail {Φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V} {A : Tm}
     (hp : IsPoint S Φ (A :: Γ) m ρ γ) :
     IsPoint S Φ Γ m ρ (fun x => γ (x + 1)) ∧ γ 0 ∈ El (sem S A m ρ (fun x => γ (x + 1))) (Hom.id m) := by
-  refine ⟨⟨hp.cof, fun x B hl => ?_⟩, ?_⟩
+  refine ⟨⟨hp.cof, fun x B hl => ?_, fun x => hp.kv (x + 1)⟩, ?_⟩
   · have := hp.typ (x + 1) B.shift (by simp [Ctx.lookup, hl])
     rwa [TEnv.eq_cons γ, sem_shift] at this
   · have := hp.typ 0 A.shift (by simp [Ctx.lookup])
@@ -179,7 +183,7 @@ theorem IsPoint.tail {Φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V} {A : Tm}
 
 theorem IsPoint.of_entails {Φ Φ' : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V} (h : I.Entails Φ' Φ)
     (hp : IsPoint S Φ' Γ m ρ γ) : IsPoint S Φ Γ m ρ γ :=
-  ⟨entails_holds h hp.cof, hp.typ⟩
+  ⟨entails_holds h hp.cof, hp.typ, hp.kv⟩
 
 /-- The interval environment of a point of a context weakened by an interval variable. -/
 def IEnv.tail (ρ : IEnv m) : IEnv m := fun i => ρ (i + 1)
@@ -194,11 +198,11 @@ theorem isPoint_dshift_iff {Φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V} :
     IsPoint S Φ.shift Γ.dshift m ρ γ ↔ IsPoint S Φ Γ m ρ.tail γ := by
   constructor
   · intro hp
-    refine ⟨by rw [← ival_shift]; exact hp.cof, fun x A hl => ?_⟩
+    refine ⟨by rw [← ival_shift]; exact hp.cof, fun x A hl => ?_, hp.kv⟩
     have := hp.typ x A.dshift (by rw [Ctx.lookup_dshift, hl]; rfl)
     rwa [sem_dshift_tail] at this
   · intro hp
-    refine ⟨by rw [ival_shift]; exact hp.cof, fun x A hl => ?_⟩
+    refine ⟨by rw [ival_shift]; exact hp.cof, fun x A hl => ?_, hp.kv⟩
     rw [Ctx.lookup_dshift, Option.map_eq_some_iff] at hl
     obtain ⟨A', hA', rfl⟩ := hl
     rw [sem_dshift_tail]; exact hp.typ x A' hA'
@@ -402,8 +406,8 @@ theorem TyOK.ne_empty {A : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S A m ρ
 theorem isPoint_cof_iff {Φ φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V} :
     IsPoint S (cof Φ φ) Γ m ρ γ ↔ IsPoint S Φ Γ m ρ γ ∧ (ival ρ φ).holds := by
   constructor
-  · intro hp; exact ⟨⟨(holds_and.1 hp.cof).1, hp.typ⟩, (holds_and.1 hp.cof).2⟩
-  · rintro ⟨hp, h⟩; exact ⟨holds_and.2 ⟨hp.cof, h⟩, hp.typ⟩
+  · intro hp; exact ⟨⟨(holds_and.1 hp.cof).1, hp.typ, hp.kv⟩, (holds_and.1 hp.cof).2⟩
+  · rintro ⟨hp, h⟩; exact ⟨holds_and.2 ⟨hp.cof, h⟩, hp.typ, hp.kv⟩
 
 /-- Transfer typing along equal denotations. -/
 theorem SemTy.of_eq {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t t' A : Tm} (h : SemTy S Ψ Φ Γ t A)
