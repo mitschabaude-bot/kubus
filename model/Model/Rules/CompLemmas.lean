@@ -254,6 +254,160 @@ theorem sem_transpIPi {A u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
   show _ = transpAt (sem S (Tm.ipi A) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) _ _ _
   rw [hsem, transpAt_ipiC hLfib hp0', transpIPiF_eq, Hom.lift_id, Hom.id_comp]
 
+/-! ### hcompPath -/
+
+theorem face_ival_or (ρ : IEnv m) (x y : I) :
+    (ival ρ (.or x y)).face = Cof.or (ival ρ x).face (ival ρ y).face := by
+  ext p; simp only [Cof.or, DM.face, Set.mem_union, Set.mem_setOf_eq, ival.fn, I.eval]
+  constructor
+  · rintro ⟨hp, h⟩
+    rcases (M4.join_eq_one_K3 (ival_isK3 ρ x hp) (ival_isK3 ρ y hp)).1 h with h | h
+    · exact Or.inl ⟨hp, h⟩
+    · exact Or.inr ⟨hp, h⟩
+  · rintro (⟨hp, h⟩ | ⟨hp, h⟩) <;> refine ⟨hp, ?_⟩ <;> simp [h]
+
+theorem face_ival_neg (ρ : IEnv m) (x : I) : (ival ρ (.neg x)).face = Cof.eq0 (ival ρ x) := rfl
+
+theorem face_ival_var (ρ : IEnv m) (i : ℕ) : (ival ρ (.var i)).face = Cof.eq1 (ρ i) := rfl
+
+theorem holds_ival_iff_face (ρ : IEnv m) (x : I) : (ival ρ x).holds ↔ Cof.holds (ival ρ x).face :=
+  DM.holds_iff_face_holds _
+
+/-- `a` and `b` of a natural, good path type are natural. -/
+theorem natural_path_ends {A a b : Tm} {ρ : IEnv m} {γ : ℕ → V} (hty : TyOK S (.path A a b) m ρ γ)
+    (hnat : Natural S (.path A a b) m ρ γ) : Natural S a m ρ γ ∧ Natural S b m ρ γ := by
+  obtain ⟨-, hL, ha, hb, hsem, -⟩ := hty.path_at
+  have key : ∀ k (g : Hom k m), sem S a k (ρ.restr g) (TEnv.restr γ g) = res g (sem S a m ρ γ) ∧
+      sem S b k (ρ.restr g) (TEnv.restr γ g) = res g (sem S b m ρ γ) := by
+    intro k g
+    have hty' : TyOK S (.path A a b) k (ρ.restr g) (TEnv.restr γ g) := by
+      unfold TyOK; rw [hnat k g]; exact hty.res g
+    obtain ⟨-, hL', ha', hb', hsem', -⟩ := hty'.path_at
+    have := hnat k g
+    rw [hsem', hsem, res_pathC] at this
+    have := pathC_inj hL' ha' hb' (isKV_res _ _) (isKV_res _ _) (isKV_res _ _) this
+    exact ⟨this.2.1, this.2.2⟩
+  exact ⟨fun k g => (key k g).1, fun k g => (key k g).2⟩
+
+theorem sem_hcompPath {A a b u p0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
+    (hc : HcompCond S (.path A a b) φ u p0 m ρ γ) :
+    sem S (Tm.hcompPath A a b φ u p0) m ρ γ = sem S (.hcomp (.path A a b) φ u p0) m ρ γ := by
+  have hty : TyOK S (.path A a b) m ρ γ := hc.1
+  obtain ⟨hN, hL, ha, hb, hsem, l, hl, hV, hW, ha0, ha1⟩ := hty.path_at
+  obtain ⟨hanat, hbnat⟩ := natural_path_ends hty hc.2.2.2.1
+  have hLfib := hW.fib
+  have hp0 := hc.2.2.1
+  have hu := hc.2.1
+  have hp0nat := hc.2.2.2.2
+  rw [hsem] at hp0 hu
+  have hφ := isCof_ival_face ρ φ
+  set L := lineV S A m ρ γ
+  set a0 := sem S a m ρ γ
+  set a1 := sem S b m ρ γ
+  obtain ⟨hp0eq, hline, -, -⟩ := path_line hLfib hp0
+  rw [Hom.lift_id] at hline
+  have hP := papp_dshift_var0_generic hp0nat hp0eq (hLfib.elKV _ _ _ hline)
+  set ins1 : ℕ → I := fun | 0 => .var 0 | n + 1 => .var (n + 2)
+  set sys := Tm.split φ.shift.shift (.papp (u.dsubst ins1) (.var 1)) (.or (.neg (.var 1)) (.var 1))
+    (.split (.neg (.var 1)) a.dshift.dshift (.var 1) b.dshift.dshift)
+  have hface : (ival ρ.ext (.or φ.shift (.or (.neg (.var 0)) (.var 0)))).face = pathFace (ival ρ φ).face := by
+    rw [face_ival_or, face_ival_or, face_ival_neg, face_ival_var, ival_shift]
+    unfold pathFace
+    rw [show ρ.ext.tail = ρ.restr (Hom.wk m) from rfl, face_ival_restr]; rfl
+  have et : ∀ n (h : Hom n (m + 1)) r, ((pathFace (ival ρ φ).face).restr h).holds →
+      tubeV S sys ρ.ext (TEnv.restr γ (Hom.wk m)) n h r =
+        pathHTube (ival ρ φ).face (Tube.canon (ival ρ φ).face (tubeV S u ρ γ)) a0 a1 n h r := by
+    intro n h r hh
+    set env := (ρ.ext.restr h).cons r
+    set γ' := TEnv.restr (TEnv.restr γ (Hom.wk m)) h
+    have htt : env.tail.tail = (ρ.restr (Hom.wk m)).restr h := rfl
+    have hφ2 : (ival env φ.shift.shift).holds ↔ (Cof.restr (ival ρ φ).face ((Hom.wk m).comp h)).holds := by
+      rw [ival_shift, ival_shift, htt, IEnv.restr_restr, holds_face_restr_iff]
+    have hv1 : env 1 = (lastVar m).restr h := rfl
+    have h0iff : (ival env (.neg (.var 1))).holds ↔ ((Cof.eq0 (lastVar m)).restr h).holds := by
+      rw [holds_ival_iff_face, face_ival_neg, ival.var, hv1, Cof.eq0_restr]
+    have h1iff : (ival env (.var 1)).holds ↔ ((Cof.eq1 (lastVar m)).restr h).holds := by
+      rw [holds_ival_iff_face, face_ival_var, hv1, Cof.eq1_restr]
+    have hγ' : γ' = TEnv.restr γ ((Hom.wk m).comp h) := TEnv.restr_restr _ _ _
+    have eA : sem S a.dshift.dshift n env γ' = res ((Hom.wk m).comp h) a0 := by
+      rw [sem_dshift_tail, sem_dshift_tail, htt, IEnv.restr_restr, hγ', hanat]
+    have eB : sem S b.dshift.dshift n env γ' = res ((Hom.wk m).comp h) a1 := by
+      rw [sem_dshift_tail, sem_dshift_tail, htt, IEnv.restr_restr, hγ', hbnat]
+    have eT : sem S (.papp (u.dsubst ins1) (.var 1)) n env γ' =
+        pappV n (tubeV S u ρ γ n ((Hom.wk m).comp h) r) ((lastVar m).restr h) := by
+      rw [sem_papp, sem_dsubst, ival.var, hv1, hγ']
+      simp only [tubeV]
+      congr 2
+      funext i; cases i with
+      | zero => rfl
+      | succ i => simp [env, ins1, IEnv.cons, IEnv.restr, IEnv.ext, DM.restr_restr]
+    have hne01 : ¬ (((Cof.eq0 (lastVar m)).restr h).holds ∧ ((Cof.eq1 (lastVar m)).restr h).holds) := by
+      rintro ⟨h0, h1⟩
+      exact DM.zero_ne_one' ((lastVar_zero_of h0).symm.trans (lastVar_one_of h1))
+    have eU0 : ((Cof.eq0 (lastVar m)).restr h).holds →
+        sem S (.split (.neg (.var 1)) a.dshift.dshift (.var 1) b.dshift.dshift) n env γ' =
+          res ((Hom.wk m).comp h) a0 := by
+      intro h0
+      rw [sem_split (Or.inl (h0iff.2 h0)) (fun _ h1 => absurd ⟨h0, h1iff.1 h1⟩ hne01),
+        if_pos (h0iff.2 h0), eA]
+    have eU1 : ((Cof.eq1 (lastVar m)).restr h).holds →
+        sem S (.split (.neg (.var 1)) a.dshift.dshift (.var 1) b.dshift.dshift) n env γ' =
+          res ((Hom.wk m).comp h) a1 := by
+      intro h1
+      rw [sem_split (Or.inr (h1iff.2 h1)) (fun h0 _ => absurd ⟨h0iff.1 h0, h1⟩ hne01),
+        if_neg (fun h0 => hne01 ⟨h0iff.1 h0, h1⟩), eB]
+    have hψ : (ival env (.or (.neg (.var 1)) (.var 1))).holds ↔
+        ((Cof.eq0 (lastVar m)).restr h).holds ∨ ((Cof.eq1 (lastVar m)).restr h).holds := by
+      rw [holds_ival_iff_face, face_ival_or, Cof.holds_or, ← holds_ival_iff_face, ← holds_ival_iff_face,
+        h0iff, h1iff]
+    simp only [tubeV]
+    unfold pathHTube
+    by_cases h1 : (Cof.restr (ival ρ φ).face ((Hom.wk m).comp h)).holds
+    · have hm := hu.mem n _ r h1
+      rw [Hom.id_comp] at hm
+      obtain ⟨q, -, hq, hq0, hq1⟩ := mem_pathC.1 hm
+      have hover : (ival env (.or (.neg (.var 1)) (.var 1))).holds →
+          sem S (.papp (u.dsubst ins1) (.var 1)) n env γ' =
+            sem S (.split (.neg (.var 1)) a.dshift.dshift (.var 1) b.dshift.dshift) n env γ' := by
+        intro hψh
+        rw [eT, hq, pappV_pathOfLine]
+        rcases hψ.1 hψh with h0 | h1'
+        · rw [eU0 h0, lastVar_zero_of h0, hq0]
+        · rw [eU1 h1', lastVar_one_of h1', hq1]
+      rw [sem_split (Or.inl (hφ2.2 h1)) (fun _ => hover), if_pos (hφ2.2 h1), if_pos h1, eT,
+        tube_canon_eq h1]
+    · have hcases := pathFace_cases hh
+      rw [sem_split (Or.inr ?_) (fun h => absurd (hφ2.1 h) h1), if_neg (fun h => h1 (hφ2.1 h)), if_neg h1]
+      · by_cases h0 : ((Cof.eq0 (lastVar m)).restr h).holds
+        · rw [if_pos h0, eU0 h0]
+        · rw [if_neg h0]
+          have h1' : ((Cof.eq1 (lastVar m)).restr h).holds := by
+            rcases hcases with h3 | h3 | h3
+            · exact absurd h3 h1
+            · exact absurd (eq0_restr_holds_iff.2 h3) h0
+            · rw [Cof.eq1_restr, h3, Cof.eq1_one]; exact Cof.holds_top
+          rw [eU1 h1']
+      · rcases hcases with h3 | h3 | h3
+        · exact absurd h3 h1
+        · exact hψ.2 (Or.inl (eq0_restr_holds_iff.2 h3))
+        · exact hψ.2 (Or.inr (by rw [Cof.eq1_restr, h3, Cof.eq1_one]; exact Cof.holds_top))
+  have hcb : HcompCond S A (.or φ.shift (.or (.neg (.var 0)) (.var 0))) sys (.papp p0.dshift (.var 0))
+      (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := by
+    refine ⟨⟨l, hl, Or.inl ⟨hW, hV⟩⟩, ?_, ?_, hN, hP.2⟩
+    · rw [hP.1, hface]
+      have := pathHTube_ok hLfib ha0 ha1 hφ hp0 hu
+      rw [Hom.lift_id, res_id ha, res_id hb] at this
+      exact this.congr (isCof_pathFace hφ) fun n h r hh => (et n h r hh).symm
+    · rw [hP.1]; exact hline
+  have e1 : sem S (Tm.hcompPath A a b φ u p0) m ρ γ = pathOfLine m (lineV S (.hcomp A
+      (.or φ.shift (.or (.neg (.var 0)) (.var 0))) sys (.papp p0.dshift (.var 0))) m ρ γ) :=
+    sem_plam hcb.natural
+  rw [e1, sem_hcomp hc, hsem, hcompAt_pathC hp0 hu, hcompPathF_eq, Hom.lift_id, res_id ha, res_id hb]
+  unfold lineV
+  rw [sem_hcomp hcb, hP.1, hface]
+  congr 1
+  exact hcompAt_congr et
+
 end
 
 end Model

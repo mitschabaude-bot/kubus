@@ -1132,7 +1132,15 @@ theorem sem_EqTm_hcompSigma {S : Sig} {Ψ Φ Γ A B φ u u0 T}
 theorem sem_EqTm_hcompPath {S : Sig} {Ψ Φ Γ A a b φ u p0 T}
     (h0 : SemTy S Ψ Φ Γ (hcomp (path A a b) φ u p0) T) :
     SemEq S Ψ Φ Γ (hcomp (path A a b) φ u p0) (hcompPath A a b φ u p0) T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (Tm.hcompPath A a b φ u p0) m ρ γ = sem S (hcomp (path A a b) φ u p0) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    exact sem_hcompPath (cond_of_sem_hcomp (hty.ne_empty hmem))
+  have hcl : (Tm.hcompPath A a b φ u p0).ConstsLt S.length := by
+    obtain ⟨⟨hA, ha, hb⟩, hu, hp0⟩ := h0.2.1
+    exact ⟨hA, ⟨hu.dsubst _, (ha.ren _ _).ren _ _, (hb.ren _ _).ren _ _⟩, hp0.ren _ _⟩
+  exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_hcompGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u u0 T l}
     (h0 : SemTy S Ψ Φ Γ (hcomp (glue A φ T' e) ψ u u0) T) (h1 : SemTy S Ψ Φ Γ A (univ l)) (h2 : SemTy S Ψ (cof Φ φ) Γ e (equiv T' A)) :
