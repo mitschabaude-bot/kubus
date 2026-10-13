@@ -56,6 +56,24 @@ def faceNormTy {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) : Nat → (G'
       else faceNormTy E G l n G' e
     else faceNormTy E G l n G' e
 
+/-- Guess `T` and `A` with `e : Equiv T A` from the type of `e`; a system of equivalences
+gives a system of types. Only a guess: the caller checks it. -/
+def guessEquivTy (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (e : Tm) : K S (Tm × Tm) :=
+  -- under an inconsistent restriction, `[]` is a type
+  if E.ent .zero then pure (.abort, .abort) else
+  match e with
+  | .split φ e1 ψ e2 => do
+    let ⟨hφ⟩ ← ensureScoped φ Ψ
+    let ⟨hψ⟩ ← ensureScoped ψ Ψ
+    let (T1, A1) ← guessEquivTy R (E.cof φ hφ) e1
+    let (T2, A2) ← guessEquivTy R (E.cof ψ hψ) e2
+    -- the base from a branch that is not under an inconsistent restriction
+    pure (.split φ T1 ψ T2, if A1 matches .abort then A2 else A1)
+  | e => do
+    match ← inferW R E e with
+    | ⟨.sigma (.pi T A') _, _, _, _⟩ => pure (T, A'.inst (.var 0))
+    | ⟨Q, _, _, _⟩ => fail s!"kernel: expected an equivalence, got {short Q}"
+
 /-- Bring a type `G` to the form `Glue A [φ ↦ (T, e)]` with the given `φ`, with a derivation
 that the base `A` is a type. -/
 def toGlue (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ Φ Γ G (.univ l))
@@ -98,9 +116,8 @@ def toGlueE (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S �
     if hφ : E.Ent φ then
       let ⟨hsφ⟩ ← ensureScoped φ Ψ
       let E1 := E.cof φ hsφ
-      match ← inferW R E1 e with
-      | ⟨.sigma (.pi T A') _, _, _, _⟩ =>
-        let A := A'.inst (.var 0)
+      let (T, A) ← guessEquivTy R E1 e
+      do
         let ⟨hA⟩ ← checkType R E A l
         let ⟨hT1⟩ ← checkType R E1 T l
         let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A) l
@@ -111,7 +128,6 @@ def toGlueE (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S �
         let ⟨hU⟩ ← univTyK E l
         let ⟨eGT⟩ ← R.conv E (.univ l) (l + 1) hU G T hG (HasTy.restrict E.hsc hc hT1)
         return ⟨A, T, ⟨hA, EqTm.trans eGT (EqTm.symm eF)⟩⟩
-      | ⟨Q, _, _, _⟩ => fail s!"kernel: expected an equivalence, got {short Q}"
     else fail s!"kernel: expected a Glue type, got {short G'}"
 
 /-- Context conversion for the last variable. -/
@@ -128,24 +144,6 @@ theorem ctxConv {Ψ Φ Γ A A1 B m} (hA : HasTy S Ψ Φ Γ A (.univ m))
 theorem HasTy.cofcof {Ψ Φ Γ t A φ ψ} (E : KCtx S Ψ Φ Γ) (hφ : φ.Scoped Ψ) (hψ : ψ.Scoped Ψ)
     (h : HasTy S Ψ Φ Γ t A) : HasTy S Ψ (cof (cof Φ φ) ψ) Γ t A :=
   HasTy.rs (E.cof φ hφ) hψ (HasTy.rs E hφ h)
-
-/-- Guess `T` and `A` with `e : Equiv T A` from the type of `e`; a system of equivalences
-gives a system of types. Only a guess: the caller checks it. -/
-def guessEquivTy (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (e : Tm) : K S (Tm × Tm) :=
-  -- under an inconsistent restriction, `[]` is a type
-  if E.ent .zero then pure (.abort, .abort) else
-  match e with
-  | .split φ e1 ψ e2 => do
-    let ⟨hφ⟩ ← ensureScoped φ Ψ
-    let ⟨hψ⟩ ← ensureScoped ψ Ψ
-    let (T1, A1) ← guessEquivTy R (E.cof φ hφ) e1
-    let (T2, A2) ← guessEquivTy R (E.cof ψ hψ) e2
-    -- the base from a branch that is not under an inconsistent restriction
-    pure (.split φ T1 ψ T2, if A1 matches .abort then A2 else A1)
-  | e => do
-    match ← inferW R E e with
-    | ⟨.sigma (.pi T A') _, _, _, _⟩ => pure (T, A'.inst (.var 0))
-    | ⟨Q, _, _, _⟩ => fail s!"kernel: expected an equivalence, got {short Q}"
 
 /-- The type of `g` in `unglue φ e g`: inferred, or else the Glue type rebuilt from the type
 of `e` (for arguments that cannot be inferred, like `glue` elements). -/

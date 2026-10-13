@@ -348,6 +348,10 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
   | A, hA, ht, hu => do
     -- lazy δ: unfold the head constant defined later first
     if let some (some e) ← tryOpt (lazyDelta R E A l hA 20 t u ht hu) then return e
+    -- the same composition or transport on both sides: by congruence, before reducing them
+    if (t matches .hcomp ..) && (u matches .hcomp ..) || (t matches .transp ..) && (u matches .transp ..) then
+      if let some ⟨ni, ⟨en⟩⟩ ← tryOpt (R.convNe E t u) then
+        if let some ⟨en'⟩ ← tryOpt (bridge R E ni.hty hA en) then return ⟨en'⟩
     let rt ← R.whnf E t A l hA ht
     let ru ← R.whnf E u A l hA hu
     if h : rt.tm = ru.tm then
