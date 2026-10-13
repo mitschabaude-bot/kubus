@@ -658,17 +658,40 @@ theorem sem_EqTm_snd {S : Sig} {Ψ Φ Γ A B p p'}
 theorem sem_EqTm_path {S : Sig} {Ψ Φ Γ A A' a a' b b' l}
     (h0 : SemEq S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l)) (h1 : SemEq S Ψ Φ Γ a a' (A.dinst .zero)) (h2 : SemEq S Ψ Φ Γ b b' (A.dinst .one)) :
     SemEq S Ψ Φ Γ (path A a b) (path A' a' b') (univ l) := by
-  sorry
+  have hwf : SemWf S Ψ Φ Γ := h1.1.1
+  have hd : ∀ (r : I) m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (A.dinst r) m ρ γ = sem S (A'.dinst r) m ρ γ := fun r m ρ γ hp => by
+    rw [sem_dinst, sem_dinst]; exact h0.2.2 m _ _ (isPoint_cons_iff.2 hp)
+  have ha' := h1.2.1.retype (h0.2.1.2.1.dinst _) (hd .zero)
+  have hb' := h2.2.1.retype (h0.2.1.2.1.dinst _) (hd .one)
+  refine ⟨sem_HasTy_path h0.1 h1.1 h2.1, sem_HasTy_path h0.2.1 ha' hb', fun m ρ γ hp => ?_⟩
+  have hpe := hp.dext hwf
+  have eA : ∀ k (g : Hom k (m + 1)),
+      interp (cstFn S) univC TyCode A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+      interp (cstFn S) univC TyCode A' k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) :=
+    fun k g => h0.2.2 k _ _ (hpe.restr h0.1.1 g)
+  have eA0 : interp (cstFn S) univC TyCode A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) =
+      interp (cstFn S) univC TyCode A' (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := h0.2.2 _ _ _ hpe
+  have ea : interp (cstFn S) univC TyCode a m ρ γ = interp (cstFn S) univC TyCode a' m ρ γ :=
+    h1.2.2 m ρ γ hp
+  have eb : interp (cstFn S) univC TyCode b m ρ γ = interp (cstFn S) univC TyCode b' m ρ γ :=
+    h2.2.2 m ρ γ hp
+  simp only [sem, interp, eA, eA0, ea, eb]
 
 theorem sem_EqTm_plam {S : Sig} {Ψ Φ Γ A a b t t' l}
     (h0 : SemTy S Ψ Φ Γ (path A a b) (univ l)) (h1 : SemTy S Ψ Φ Γ (plam t) (path A a b)) (h2 : SemTy S Ψ Φ Γ (plam t') (path A a b)) (h3 : SemEq S (Ψ + 1) Φ.shift Γ.dshift t t' A) :
     SemEq S Ψ Φ Γ (plam t) (plam t') (path A a b) := by
-  sorry
+  refine ⟨h1, h2, fun m ρ γ hp => ?_⟩
+  have hpe := hp.dext h0.1
+  rw [sem_plam (h3.1.2.2.2 _ _ _ hpe).2.1, sem_plam (h3.2.1.2.2.2 _ _ _ hpe).2.1]
+  unfold lineV; rw [h3.2.2 _ _ _ hpe]
 
 theorem sem_EqTm_papp {S : Sig} {Ψ Φ Γ A a b p p' r r'}
     (h0 : SemEq S Ψ Φ Γ p p' (path A a b)) (h1 : r.Scoped Ψ) (h2 : r'.Scoped Ψ) (h3 : I.Eq r r') :
     SemEq S Ψ Φ Γ (papp p r) (papp p' r') (A.dinst r) := by
-  sorry
+  refine ⟨sem_HasTy_papp h0.1 h1, (sem_HasTy_papp h0.2.1 h2).retype (h0.1.2.2.1.1.dinst _)
+    (fun m ρ γ hp => by rw [sem_dinst, sem_dinst, ival.congr_eq h3]), fun m ρ γ hp => ?_⟩
+  rw [sem_papp, sem_papp, h0.2.2 m ρ γ hp, ival.congr_eq h3]
 
 theorem sem_EqTm_split {S : Sig} {Ψ Φ Γ A φ ψ t t' u u'}
     (h0 : SemTy S Ψ Φ Γ (split φ t ψ u) A) (h1 : SemTy S Ψ Φ Γ (split φ t' ψ u') A) (h2 : SemEq S Ψ (cof Φ φ) Γ t t' A) (h3 : SemEq S Ψ (cof Φ ψ) Γ u u' A) :
@@ -801,12 +824,42 @@ theorem sem_EqTm_sigmaEta {S : Sig} {Ψ Φ Γ A B p}
 theorem sem_EqTm_pathBeta {S : Sig} {Ψ Φ Γ t r T}
     (h0 : SemTy S Ψ Φ Γ (papp (plam t) r) T) :
     SemEq S Ψ Φ Γ (papp (plam t) r) (t.dinst r) T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S (t.dinst r) m ρ γ = sem S (papp (plam t) r) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    have hne := hty.ne_empty hmem
+    rw [sem_papp] at hne ⊢
+    have hpne : sem S (plam t) m ρ γ ≠ ∅ := fun h => hne (by rw [h, pappV_empty])
+    rw [sem_plam (nat_of_sem_plam hpne), pappV_pathOfLine, ← line_endpt hp.kv (nat_of_sem_plam hpne),
+      sem_dinst]
+  exact ⟨h0, h0.of_eq ((show t.ConstsLt S.length from h0.2.1).dinst r) he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_pathEta {S : Sig} {Ψ Φ Γ A a b p}
     (h0 : SemTy S Ψ Φ Γ p (path A a b)) :
     SemEq S Ψ Φ Γ p (plam (papp p.dshift (.var 0))) (path A a b) := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (plam (papp p.dshift (.var 0))) m ρ γ = sem S p m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hpmem, hpnat, hpTy, -⟩ := h0.2.2.2 m ρ γ hp
+    obtain ⟨-, hL, ha, hb, hsem, l, hl, hV, hW, -⟩ := hpTy.path_at
+    rw [hsem, mem_El_pathC hL ha hb] at hpmem
+    obtain ⟨P, hP, hPeq, -⟩ := hpmem
+    have hPkv : IsKV (m + 1) P := hW.fib.elKV _ _ _ hP
+    have hb := sem_eta_body hpnat hPeq
+    have hN : Natural S (papp p.dshift (.var 0)) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := by
+      intro k g
+      have h1 := hb k g
+      have h2 := hb (m + 1) (Hom.id (m + 1))
+      rw [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr γ (Hom.wk m)) (fun x => isKV_res _ _),
+      res_id hPkv] at h2
+      rw [h1, h2]
+    rw [sem_plam hN, hPeq]
+    have h2 := hb (m + 1) (Hom.id (m + 1))
+    rw [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr γ (Hom.wk m)) (fun x => isKV_res _ _),
+      res_id hPkv] at h2
+    unfold lineV; rw [h2]
+  exact ⟨h0, h0.of_eq (show (Tm.ConstsLt S.length (p.dshift)) from h0.2.1.ren _ _) he,
+    fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_ipiEta {S : Sig} {Ψ Φ Γ A p}
     (h0 : SemTy S Ψ Φ Γ p (ipi A)) :
@@ -816,12 +869,28 @@ theorem sem_EqTm_ipiEta {S : Sig} {Ψ Φ Γ A p}
 theorem sem_EqTm_pathZero {S : Sig} {Ψ Φ Γ A a b p}
     (h0 : SemTy S Ψ Φ Γ p (path A a b)) :
     SemEq S Ψ Φ Γ (papp p .zero) a (A.dinst .zero) := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S a m ρ γ = sem S (papp p .zero) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hpmem, -, hpTy, -⟩ := h0.2.2.2 m ρ γ hp
+    obtain ⟨-, hL, ha, hb, hsem, -⟩ := hpTy.path_at
+    rw [hsem, mem_El_pathC hL ha hb] at hpmem
+    obtain ⟨P, -, hPeq, h0', -⟩ := hpmem
+    rw [sem_papp, hPeq, ival_zero, pappV_pathOfLine, h0']
+  have hp0 := sem_HasTy_papp (r := .zero) h0 (by simp [I.Scoped])
+  exact ⟨hp0, hp0.of_eq h0.2.2.1.2.1 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_pathOne {S : Sig} {Ψ Φ Γ A a b p}
     (h0 : SemTy S Ψ Φ Γ p (path A a b)) :
     SemEq S Ψ Φ Γ (papp p .one) b (A.dinst .one) := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S b m ρ γ = sem S (papp p .one) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hpmem, -, hpTy, -⟩ := h0.2.2.2 m ρ γ hp
+    obtain ⟨-, hL, ha, hb, hsem, -⟩ := hpTy.path_at
+    rw [hsem, mem_El_pathC hL ha hb] at hpmem
+    obtain ⟨P, -, hPeq, -, h1'⟩ := hpmem
+    rw [sem_papp, hPeq, ival_one, pappV_pathOfLine, h1']
+  have hp1 := sem_HasTy_papp (r := .one) h0 (by simp [I.Scoped])
+  exact ⟨hp1, hp1.of_eq h0.2.2.1.2.2 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_splitL {S : Sig} {Ψ Φ Γ φ ψ t u T}
     (h0 : I.Entails Φ φ) (h1 : SemTy S Ψ Φ Γ (split φ t ψ u) T) :

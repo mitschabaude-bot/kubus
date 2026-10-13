@@ -212,6 +212,23 @@ theorem TyOK.path_at {A a b : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S (.p
       simp [codeTag, pathC, pathDatum, tagZ]
     rw [h, codeTag_univC] at h1; simp [tUniv, tPath] at h1
 
+theorem pappV_empty (r : DM m) : pappV m (∅ : V) r = ∅ := by
+  simp [pappV, here, dat_empty', apC, apZ]
+
+theorem isPoint_cons_iff {Φ : I} {Γ : Ctx} {ρ : IEnv m} {γ : ℕ → V} {r : DM m} :
+    IsPoint S Φ.shift Γ.dshift m (ρ.cons r) γ ↔ IsPoint S Φ Γ m ρ γ := isPoint_dshift_iff
+
+/-- The body of the η-expansion of a path `p = ⟨P⟩` at the generic point is `P`. -/
+theorem sem_eta_body {p : Tm} {ρ : IEnv m} {γ : ℕ → V} {P : V} (hnat : Natural S p m ρ γ)
+    (hP : sem S p m ρ γ = pathOfLine m P) (k : ℕ) (g : Hom k (m + 1)) :
+    sem S (.papp p.dshift (.var 0)) k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) = res g P := by
+  rw [sem_papp, sem_dshift_tail, IEnv.tail_restr]
+  have e1 : (ρ.ext).tail = ρ.restr (Hom.wk m) := rfl
+  rw [e1, IEnv.restr_restr, TEnv.restr_restr, hnat k, hP, res_pathOfLine, pappV_pathOfLine, res_res,
+    Hom.lift_comp_endpt']
+  show res (Hom.snoc ((Hom.wk m).comp g) ((lastVar m).restr g)) P = _
+  rw [snoc_wk_lastVar]
+
 end
 
 end Model
