@@ -146,15 +146,47 @@ def ConvF : Sig → Nat → I → Ctx → List Tm → Type
   | S, Ψ, Φ, Γ, [A, t, u] => PLift (EqTm S Ψ Φ Γ t u A)
   | _, _, _, _, _ => PUnit
 
+/-- The premises of `elim d ps (x. P) bs _` other than the target. -/
+structure ElimInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (d : Nat) (ps P bs : Tm) where
+  D : DataDecl
+  hS : S[d]? = some (.data D)
+  m : Nat
+  hps : ps = Tm.ofList ps.toList
+  hD : HasTy S Ψ Φ Γ (.data d ps) (.univ D.level)
+  hP : HasTy S Ψ Φ (.data d ps :: Γ) P (.univ m)
+  hbs : bs = Tm.ofList bs.toList
+  hlen : bs.toList.length = D.ctors.length
+  hbr : ∀ (c : Nat) (C : Ctor) (b : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
+    HasTy S Ψ Φ Γ b (D.branchTy d c C ps P)
+  hbnd : ∀ (c : Nat) (C : Ctor) (b : Tm) (k : Nat) (ψ : I) (e : Tm), D.ctors[c]? = some C →
+    bs.toList[c]? = some b → C.bnd[k]? = some (ψ, e) →
+    EqTm S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps P Γ)
+      (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P)
+
+def ElimInfo.typing {Ψ Φ Γ d ps P bs t} (i : ElimInfo S Ψ Φ Γ d ps P bs)
+    (ht : HasTy S Ψ Φ Γ t (.data d ps)) : HasTy S Ψ Φ Γ (.elim d ps P bs t) (P.inst t) :=
+  HasTy.elim i.hS i.hps i.hD i.hP i.hbs i.hlen i.hbr i.hbnd ht
+
+def ElimF : Sig → Nat → I → Ctx → List Tm → Type
+  | S, Ψ, Φ, Γ, [.data d ps, P, bs] => ElimInfo S Ψ Φ Γ d ps P bs
+  | _, _, _, _, _ => PUnit
+
 structure Cache (S : Sig) where
   inf : Table S InfF := {}
   whi : Table S WhiF := {}
   wh : Table S WhF := {}
   chk : Table S ChkF := {}
   conv : Table S ConvF := {}
+  elim : Table S ElimF := {}
 
 /-- The kernel monad: errors, and the cache of judgments over the signature `S`. -/
-abbrev K (S : Sig) := StateT (Cache S) (Except String)
+abbrev K (S : Sig) := EStateM String (Cache S)
+
+/-- Errors of pure computations. -/
+instance {S : Sig} : MonadLift (Except String) (K S) where
+  monadLift
+    | .ok a => pure a
+    | .error e => throw e
 
 /-- The recursive calls of the kernel. -/
 structure Rec (S : Sig) where

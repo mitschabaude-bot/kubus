@@ -18,48 +18,8 @@ Each kernel call first replaces the restriction `Φ` by its canonical form `Φ'`
 disjunction of its maximal faces), checking `Φ ⊨ Φ'` and `Φ' ⊨ Φ`, and moves the results
 back with the restriction rule. This keeps `Φ` small under nested systems. -/
 
-/-- Proofs that `Φ'` is equivalent to `Φ`. -/
-structure Equiv' (Ψ : Nat) (Φ Φ' : I) : Type where
-  hs : Φ'.Scoped Ψ
-  h1 : I.Entails Φ' Φ
-  h2 : I.Entails Φ Φ'
-
-/-- A literal `i` or `~i`, and its sort key. -/
-def litKey : I → Option Nat
-  | .var i => some (2 * i + 1)
-  | .neg (.var i) => some (2 * i)
-  | _ => none
-
-/-- A conjunction of literals with strictly increasing keys, ending in `1`. -/
-def faceShape (bound : Nat) : I → Bool
-  | .one => true
-  | .and l r => match litKey l with
-    | some k => decide (bound ≤ k) && faceShape (k + 1) r
-    | none => false
-  | _ => false
-
-/-- Already in the form produced by `canonPhi` (up to absorption): a disjunction of such
-faces ending in `0`. Only a shortcut; the canonical form is not needed for soundness. -/
-def canonShape : I → Bool
-  | .zero => true
-  | .or f r => faceShape 0 f && canonShape r
-  | _ => false
-
-/-- The canonical form of the restriction of `E`, from its cached faces. -/
-def canonical {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : Option ((Φ' : I) × Equiv' Ψ Φ Φ') :=
-  if canonShape Φ then none else
-  let Φ' := I.ofFaces ((maxFaces E.fs.get).map normFace)
-  if Φ' = Φ then none else
-  if hs : Φ'.Scoped Ψ then
-    -- `Φ' ⊨ Φ`, against the cached faces of `Φ`
-    if h1 : (Φ'.faces.all fun c => E.fs.get.any fun d => d.all (c.contains ·)) = true then
-      if h2 : E.Ent Φ' then
-        some ⟨Φ', hs, by
-          show I.entails Φ' Φ = true
-          simp only [I.entails, ← E.hfs]; exact h1, h2⟩
-      else none
-    else none
-  else none
+/-- The canonical form of the restriction of `E` (computed once per context). -/
+def canonical {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : Option ((Φ' : I) × Equiv' Ψ Φ Φ') := E.cn.get
 
 variable {Ψ : Nat} {Φ : I} {Γ : Ctx}
 
@@ -234,8 +194,14 @@ def setup (S : Sig) (fuel : Nat := defaultFuel) : K S (Rec S × KCtx S 0 .one []
   let si ← SigInfo.build R S.length (SigInfo.empty S)
   pure (R, KCtx.root si)
 
+/-- Lift the result of a pure computation. -/
+def liftM' {S : Sig} {α : Type} (x : Except String α) : K S α := monadLift x
+
 /-- Run a kernel computation with an empty cache. -/
-def runK {S : Sig} {α : Type} (x : K S α) : Except String α := x.run' {}
+def runK {S : Sig} {α : Type} (x : K S α) : Except String α :=
+  match x.run {} with
+  | .ok a _ => .ok a
+  | .error e _ => .error e
 
 /-- Check one definition `(t, A)` against the signature `S`, given the kernel for `S`. -/
 def checkEntryK (S : Sig) (R : Rec S) (E : KCtx S 0 .one []) (t A : Tm) :
@@ -484,8 +450,8 @@ def checkData (S : Sig) (d : Nat) (D : DataDecl) : K S (PLift (D.Wf S d)) := do
       (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
         EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
           (.data d (Ctor.paramVars np C.args.length)))) fun c C _ => do
-      let ⟨ha⟩ ← StateT.lift (runK (checkCtorArgs (S ++ [.data (D.truncate 0)]) d D C))
-      let ⟨hb⟩ ← StateT.lift (runK (checkCtorBnd (S ++ [.data (D.truncate c)]) d D c C))
+      let ⟨ha⟩ ← liftM' (runK (checkCtorArgs (S ++ [.data (D.truncate 0)]) d D C))
+      let ⟨hb⟩ ← liftM' (runK (checkCtorBnd (S ++ [.data (D.truncate c)]) d D c C))
       pure ⟨ha, hb.1, hb.2⟩
   pure ⟨hl, hps, fun c C hC => hcs c C hC⟩
 

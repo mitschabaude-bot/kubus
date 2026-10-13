@@ -468,7 +468,7 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
     let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d
     let ⟨C, _⟩ ← KubusCore.Kernel.lookupCtor D cIdx
     let args' ← elabTele R env E ks (C.argTys d D.params.length) ps.toList.reverse args
-    return .con d cIdx ps (KubusCore.Tm.ofList args') (← dims.mapM fun r => (StateT.lift (trI ks r) : K S KI))
+    return .con d cIdx ps (KubusCore.Tm.ofList args') (← dims.mapM fun r => (monadLift (trI ks r) : K S KI))
   | .split f k => elabSplit R env E ks f k exp
 
 /-- An application of a global with implicit parameters. -/

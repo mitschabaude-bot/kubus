@@ -15,21 +15,8 @@ variable {S : Sig}
 
 /-! ## Faces of a cofibration -/
 
-/-- `d ⊆ c` as constraint sets: the face `c` lies in the face `d`. -/
-def faceLe (d c : I.Face) : Bool := d.all (c.contains ·)
-
-/-- The maximal faces of a list of faces. -/
-def maxFaces (fs : List I.Face) : List I.Face :=
-  (fs.foldl (fun acc c =>
-    if acc.any (fun d => faceLe d c) then acc else c :: acc.filter (fun d => !faceLe c d)) []).reverse
-
 /-- The maximal faces of `Φ`. -/
 def canonFaces (Φ : I) : List I.Face := maxFaces Φ.faces
-
-def litLt (a b : Nat × Bool) : Bool := a.1 < b.1 || (a.1 == b.1 && !a.2 && b.2)
-
-/-- A face with sorted, distinct literals. -/
-def normFace (α : I.Face) : I.Face := (α.mergeSort fun a b => !litLt b a).eraseDups
 
 /-- The canonical form of a cofibration: the disjunction of its maximal faces. -/
 def canonPhi (Φ : I) : I := I.ofFaces ((canonFaces Φ).map normFace)
@@ -359,7 +346,7 @@ def convStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm) (ht : HasTy S Ψ Φ Γ t A)
     (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
   if h : t = u then return ⟨h ▸ EqTm.refl ht⟩
-  match canonFaces Φ with
+  match maxFaces E.fs.get with
   | [] =>
     let ⟨h0⟩ ← ensureEntE E .zero
     pure ⟨EqTm.absurd h0 ht hu⟩

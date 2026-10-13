@@ -265,27 +265,6 @@ def typeSpine (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (heads : List (Tm × 
 
 /-! ## The eliminator -/
 
-/-- The premises of `elim d ps (x. P) bs _` other than the target. -/
-structure ElimInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (d : Nat) (ps P bs : Tm) where
-  D : DataDecl
-  hS : S[d]? = some (.data D)
-  m : Nat
-  hps : ps = Tm.ofList ps.toList
-  hD : HasTy S Ψ Φ Γ (.data d ps) (.univ D.level)
-  hP : HasTy S Ψ Φ (.data d ps :: Γ) P (.univ m)
-  hbs : bs = Tm.ofList bs.toList
-  hlen : bs.toList.length = D.ctors.length
-  hbr : ∀ (c : Nat) (C : Ctor) (b : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
-    HasTy S Ψ Φ Γ b (D.branchTy d c C ps P)
-  hbnd : ∀ (c : Nat) (C : Ctor) (b : Tm) (k : Nat) (ψ : I) (e : Tm), D.ctors[c]? = some C →
-    bs.toList[c]? = some b → C.bnd[k]? = some (ψ, e) →
-    EqTm S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps P Γ)
-      (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P)
-
-def ElimInfo.typing {Ψ Φ Γ d ps P bs t} (i : ElimInfo S Ψ Φ Γ d ps P bs)
-    (ht : HasTy S Ψ Φ Γ t (.data d ps)) : HasTy S Ψ Φ Γ (.elim d ps P bs t) (P.inst t) :=
-  HasTy.elim i.hS i.hps i.hD i.hP i.hbs i.hlen i.hbr i.hbnd ht
-
 /-- Check the boundary condition of one branch on one face. -/
 def checkBranchBnd (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) (d c : Nat) (C : Ctor)
     (ps P bs b : Tm) (ψ : I) (e : Tm) :
@@ -304,7 +283,7 @@ def checkBranchBnd (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) (
   let ⟨h2⟩ ← bridgeHas R E' i2.hty hT i2.htm
   R.conv E' _ l hT _ _ h1 h2
 
-def inferElimInfo (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs : Tm) :
+def inferElimInfoRaw (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs : Tm) :
     K S (ElimInfo S Ψ Φ Γ d ps P bs) := do
   let ⟨D, ⟨hS, hD⟩⟩ ← inferData R E d ps
   let ⟨m, ⟨hP⟩⟩ ← inferType R (E.ext (.data d ps) D.level hD) P
@@ -329,5 +308,13 @@ def inferElimInfo (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P b
         fun c C b k ψ e hC hb hk => hbnd c C b hC hb k ψ e hk⟩
     else fail "kernel: wrong number of branches"
   else fail "kernel: branches must be a list"
+
+/-- `inferElimInfoRaw`, memoized. -/
+def inferElimInfo (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs : Tm) :
+    K S (ElimInfo S Ψ Φ Γ d ps P bs) := do
+  if let some v := (← get).elim.find? Ψ Φ Γ [.data d ps, P, bs] then return v
+  let v ← inferElimInfoRaw R E d ps P bs
+  modify fun c => { c with elim := c.elim.insert Ψ Φ Γ [.data d ps, P, bs] v }
+  return v
 
 end KubusCore.Kernel
