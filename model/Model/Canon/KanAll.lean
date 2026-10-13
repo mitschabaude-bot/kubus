@@ -1,4 +1,4 @@
-import Model.Canon.KanUniv
+import Model.Canon.KanGlue
 
 /-!
 # Canonicity: all codes are Kan
@@ -38,7 +38,12 @@ theorem kanP_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KanP S m X := by
       kanP_ipi hW m L (IsKV.ne_empty hL.fib.kv) ihL.1 ihL.2⟩
   · intro m l _ ih
     exact ⟨kr_univC hW fun m' X h => (ih m' X h).1, kanP_univ hW hGC ih⟩
-  · sorry
+  · intro l m A φ Tp ep hl hAw hφ hn hTpE hepE hTw hTn hem hen ihA ihT
+    have hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f) := fun k f hh => (hTw k f hh).fib.kv
+    exact ⟨kr_glueC hW hAw.fib.kv hφ hTn hTw hl
+      (WF.fib (show WF l m (glueC m A φ Tp ep) from WFI.glue hAw hφ hn hTpE hepE hTw hTn hem hen))
+      (fun k f hh => (ihT k f hh).1),
+      kanP_glue hW hGC hAw.fib.kv hφ hTn hTkv ihA.1 ihA.2 ihT⟩
   · intro l m Θ hc hw ih
     have hΘ : Θ.Good := { hc with fib := fun c j n g pre hp => (hw c j n g pre hp).fib }
     have hKR := kr_dataC hW hΘ (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw)) (fun c j n g pre hp => (ih c j n g pre hp).1)

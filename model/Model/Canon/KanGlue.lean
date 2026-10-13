@@ -24,10 +24,9 @@ theorem TubeC.isub {A u : Tm} {φ : I} (hu : TubeC S k A φ u) (σ : ISub k' k) 
   have := hu k'' (σ.comp σ') r hr (by rw [e1]; exact hh)
   rw [Tm.isub_isub, Tm.isub_isub, ← ISub.up_comp]; exact this
 
-/-- Computability data of a closed Glue type whose face does not hold. -/
-structure GlueD (S : Sig) (n : ℕ) (A : Tm) (φ : I) (T e : Tm) : Prop where
+/-- Computability data of a closed Glue type (its base, and its fibre and equivalence where the face holds). -/
+structure GlueL (S : Sig) (n : ℕ) (A : Tm) (φ : I) (T e : Tm) : Prop where
   ty : ∃ l, HasTy S n .one [] (.glue A φ T e) (.univ l)
-  nf : ¬ (ival (idEnv n) φ).holds
   rtA : ∀ k' (σ : ISub k' n), RT S k' (A.isub σ)
   kA : KanAll S n A
   rtT : ∀ k' (σ : ISub k' n), (ival (idEnv k') (φ.subst σ.τ)).holds → RT S k' (T.isub σ)
@@ -218,13 +217,19 @@ theorem holds_restr {φ : I} (hφ : φ.Scoped k) (σ : ISub k' k) {k'' : ℕ} (�
 
 include hGC in
 /-- Composition in a computable Glue type. -/
-theorem kanH_glue {A T e : Tm} {φ : I} (hD : GlueD S k A φ T e) : KanH S k (.glue A φ T e) := by
+theorem kanH_glue {A T e : Tm} {φ : I} (hD : GlueL S k A φ T e) : KanH S k (.glue A φ T e) := by
   intro ψ u u0 hty hu hu0
   by_cases hψ : (ival (idEnv k) ψ).holds
   · exact RE_hcomp_face hW hty hu hψ
   have hS := sigClosed_of_wfSig hW
   obtain ⟨lG, hG⟩ := hD.ty
   obtain ⟨hφs, l', hAt, he⟩ := glue_data hW hG
+  by_cases hn : (ival (idEnv k) φ).holds
+  · have hc := closed_of_ty hW hG
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    have hK := hD.kTH k (ISub.id k) (by rw [I_subst_id hφs]; exact hn)
+    rw [isub_id_of_closed hc.1.2] at hK
+    exact kanH_retype hW (.inr ⟨lG, EqTm.glueFace (entails_of_holds hφs hn) hG⟩) hK ψ u u0 hty hu hu0
   have eq := EqTm.hcompGlue hty hAt he
   rw [hcompGlue_eq] at eq
   have hg := HasTy.eqR eq
@@ -255,7 +260,7 @@ theorem kanH_glue {A T e : Tm} {φ : I} (hD : GlueD S k A φ T e) : KanH S k (.g
     · have h1 := (hu.isub ρ) k'' σ' r hr hh'
       have e1 := EqTm.isubS hW (hGT k' ρ hh) σ'
       exact h1.conv_ty hW (.inr ⟨lG, e1⟩)
-  refine (RE_glueEl_intro hW hG hD.nf hg (fun k' σ => ?_) (fun k' σ hh => ?_)).conv hW (TyEq.refl _) eq.symm
+  refine (RE_glueEl_intro hW hG hn hg (fun k' σ => ?_) (fun k' σ hh => ?_)).conv hW (TyEq.refl _) eq.symm
   · refine hD.kA.1 k' σ _ _ _ (HasTy.isubS hW (minimal_to_spec hbase0) σ) ?_ (hung k' σ _ (hu0.isub hW σ))
     intro k'' σ' r hr hh
     change RE S k'' ((A.isub σ).isub σ') ((((Meta.glueTube φ T e ψ u u0).isub σ.up).isub σ'.up).dinst r)
@@ -290,6 +295,77 @@ theorem kanH_glue {A T e : Tm} {φ : I} (hD : GlueD S k A φ T e) : KanH S k (.g
       rw [shift_inst] at happ
       exact happ.conv hW (TyEq.refl _) e1.symm
   · exact hD.kTH k' σ hh _ _ _ (hfib k' σ hh).1 (hfib k' σ hh).2.1 (hfib k' σ hh).2.2
+
+omit hW in
+theorem rt_of_comp {X : V} {g : Hom k m} {T : Tm} (h : (Comp S X m k g).ty T) : RT S k T := by
+  unfold RT; rw [← Comp_eq_semK h]; exact h
+
+theorem goodR_of_comp {X : V} (hX : KR S m X) {g : Hom k m} {T : Tm} (h : (Comp S X m k g).ty T) :
+    GoodR S k (fun k' σ => (Comp S X m k' (g.comp σ.hom)).el) T := by
+  intro k' σ Z t hZ
+  have h1 := (hX k g k' σ T T).1 h
+  show (Comp S X m k' (g.comp σ.hom)).el Z t ↔ (Comp S (semK S k' Z) k' k' (Hom.id k')).el Z t
+  rw [Comp_eq_semK h1, semK_tyEq hW hZ]
+
+/-- The computability data of a type of a Glue code whose face does not hold. -/
+theorem glueL_of_comp {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
+    (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
+    (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f))
+    (hKA : KR S m A) (ihA : KanP S m A)
+    (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → KR S k (dat Tp k f) ∧ KanP S k (dat Tp k f))
+    {n : ℕ} {f : Hom n m} (hf : ¬ (φ.restr f).holds) {T : Tm} (hT : (Comp S (glueC m A φ Tp ep) m n f).ty T) :
+    ∃ A1 φ1 T1 e1, TyEq S n T (.glue A1 φ1 T1 e1) ∧ GlueL S n A1 φ1 T1 e1 := by
+  rw [Comp_glueC_at hφ hTp hTkv f, if_neg hf, Comp_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr f) hf] at hT
+  simp only [Comp_res (IsKV.ne_empty hA), dat_res, Cof.restr_restr] at hT
+  obtain ⟨⟨hTy, -⟩, A1, φ1, T1, e1, hE, hs, hfc, hdata, hall1, hall2⟩ := hT
+  have hface : ∀ k' (σ : ISub k' n), (ival (idEnv k') (φ1.subst σ.τ)).holds → (φ.restr (f.comp σ.hom)).holds :=
+    fun k' σ hh => by rw [DM.holds_iff_face_holds, face_isub hfc σ, Cof.restr_restr] at hh; exact hh
+  obtain ⟨lG, hG | hG⟩ := hTy.of_tyEq hE
+  swap; · cases hG
+  have hc := closed_of_ty hW hG
+  simp only [Tm.closedB, Bool.and_eq_true] at hc
+  refine ⟨A1, φ1, T1, e1, hE, ⟨lG, hG⟩, fun k' σ => rt_of_comp (hall1 k' σ), ?_,
+    fun k' σ hh => rt_of_comp (hall2 k' σ (hface k' σ hh)).1,
+    fun k' σ hh => (ihT k' _ (hface k' σ hh)).2.1 k' (Hom.id k') _ (hall2 k' σ (hface k' σ hh)).1,
+    fun k' σ hh => (ihT (k' + 1) _ (hface (k' + 1) σ hh)).2.2 k' (Hom.id (k' + 1)) _ (hall2 (k' + 1) σ (hface _ σ hh)).1,
+    fun k' σ hh => ?_⟩
+  · have := kanAll_of hW hKA ihA (hall1 n (ISub.id n))
+    rwa [isub_id_of_closed hc.1.1.1] at this
+  · obtain ⟨h1, h2⟩ := hall2 k' σ (hface k' σ hh)
+    obtain ⟨-, -, heσ⟩ := glue_fiber_ty hW hG σ hh
+    obtain ⟨lE, hEt⟩ := ty_of_tyEq hW (isTyK_of_ty hW heσ) (TyEq.refl _) (fun l h => by cases h)
+    have hGT := goodR_of_comp hW (ihT k' _ (hface k' σ hh)).1 h1
+    have hGA := goodR_of_comp hW hKA (hall1 k' σ)
+    simp only [Hom.id_comp] at hGT
+    simp only [ISub.comp_hom] at hGA
+    exact (goodR_equivE hW hEt hGT hGA k' (ISub.id k') _ _
+      (by rw [isub_id_of_closed (closed_of_ty hW hEt)]; exact TyEq.refl _)).1 h2
+
+include hGC in
+/-- Transport along a computable Glue line. -/
+theorem kanT_glue {A T e : Tm} {φ : I} (hD : GlueL S (k + 1) A φ T e) : KanT S k (.glue A φ T e) := by
+  sorry
+
+include hGC in
+theorem kanP_glue {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
+    (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
+    (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f))
+    (hKA : KR S m A) (ihA : KanP S m A)
+    (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → KR S k (dat Tp k f) ∧ KanP S k (dat Tp k f)) :
+    KanP S m (glueC m A φ Tp ep) := by
+  refine ⟨fun k f T hT => ?_, fun k f T hT => ?_⟩
+  · by_cases hf : (φ.restr f).holds
+    · rw [Comp_glueC_at hφ hTp hTkv f, if_pos hf] at hT
+      exact (ihT k f hf).2.1 k (Hom.id k) T hT
+    · obtain ⟨A1, φ1, T1, e1, hE, hD⟩ := glueL_of_comp hW hA hφ hTp hTkv hKA ihA ihT hf hT
+      exact kanH_retype hW hE (kanH_glue hW hGC hD)
+  · by_cases hf : (φ.restr f).holds
+    · rw [Comp_glueC_at hφ hTp hTkv f, if_pos hf] at hT
+      exact (ihT (k + 1) f hf).2.2 k (Hom.id (k + 1)) T hT
+    · obtain ⟨A1, φ1, T1, e1, hE, hD⟩ := glueL_of_comp hW hA hφ hTp hTkv hKA ihA ihT hf hT
+      rcases hE with rfl | ⟨l, e⟩
+      · exact kanT_glue hW hGC hD
+      · exact kanT_retype hW e (kanT_glue hW hGC hD)
 
 end
 
