@@ -214,11 +214,28 @@ theorem DElem.kv {Θ : SData m} {n : ℕ} {g : Hom n m} {v : V} (h : DElem Θ n 
   | con => exact isKV_conV _ _ _ _
   | hcomp => exact isKV_hcV _ _ _
 
+/-- The point arguments in `pre` (earlier arguments of constructor `c`, oldest first) have
+their types. -/
+def SData.PtValid (Θ : SData m) (c n : ℕ) (g : Hom n m) (pre : List V) : Prop :=
+  ∀ i (hi : i < pre.length), (Θ.ctors.getD c default).isRec i = false →
+    pre[i] ∈ El (Θ.ty c i n g (pre.take i)) (Hom.id n)
+
 /-- The argument types are natural: their elements restrict to elements of the restricted
 types at the restricted earlier arguments. -/
 def SData.ResClosed (Θ : SData m) : Prop :=
-  ∀ c j n (g : Hom n m) pre a, a ∈ El (Θ.ty c j n g pre) (Hom.id n) →
+  ∀ c j n (g : Hom n m) pre a, Θ.PtValid c n g pre → a ∈ El (Θ.ty c j n g pre) (Hom.id n) →
     ∀ n' (h : Hom n' n), res h a ∈ El (Θ.ty c j n' (g.comp h) (pre.map (res h))) (Hom.id n')
+
+theorem SData.ptValid_take {Θ : SData m} {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {n : ℕ}
+    {g : Hom n m} {args : List V}
+    (hpt : ∀ j a, args[j]? = some a → C.isRec j = false → a ∈ El (Θ.ty c j n g (args.take j)) (Hom.id n))
+    (j : ℕ) : Θ.PtValid c n g (args.take j) := by
+  intro i hi hr
+  have hC' : Θ.ctors.getD c default = C := by rw [List.getD_eq_getElem?_getD, hC]; rfl
+  rw [hC'] at hr
+  simp only [List.length_take] at hi
+  rw [List.getElem_take, List.take_take, Nat.min_eq_left (by omega)]
+  exact hpt i _ (List.getElem?_eq_getElem _) hr
 
 theorem DElem.res {Θ : SData m} (hΘ : Θ.ResClosed) {n : ℕ} {g : Hom n m} {v : V} (hv : DElem Θ n g v) :
     ∀ n' (h : Hom n' n), DElem Θ n' (g.comp h) (res h v) := by
@@ -233,7 +250,7 @@ theorem DElem.res {Θ : SData m} (hΘ : Θ.ResClosed) {n : ℕ} {g : Hom n m} {v
     · rw [List.getElem?_map] at ha
       obtain ⟨a0, ha0, rfl⟩ := Option.map_eq_some_iff.1 ha
       rw [← List.map_take]
-      exact hΘ c j n g _ a0 (hpt j a0 ha0 hj) n' h
+      exact hΘ c j n g _ a0 (SData.ptValid_take hC hpt j) (hpt j a0 ha0 hj) n' h
   | @hcomp n g φ u a hφ ha hu hcoh hbase iha ihu =>
     intro n' h
     rw [res_hcV]
