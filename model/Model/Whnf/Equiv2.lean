@@ -1,5 +1,6 @@
 import Model.Whnf.Pack2
 import Model.Canon.GlueEquiv
+import Model.Whnf.EquivCongr
 
 /-!
 # The binary relation of equivalences
@@ -139,6 +140,60 @@ theorem equivF_ok (hT : FamOK S n TP) (hA : FamOK S n AP) : FamOK S n (equivF S 
     (piF_ok hW (sigF_ok hW hT (pathF_ok hW hA)) (pathF_ok hW (sigF_ok hW hT (pathF_ok hW hA))))))
 
 end eqv
+
+omit hW in
+theorem redW_self {t : Tm} (h : step S t = none) : RedW S t t := ⟨.refl _, h⟩
+
+section ty
+variable {n : ℕ}
+
+omit hW in
+theorem sigF_ty {D Cf : (k' : ℕ) → ISub k' n → Pack2} {X Y X' Y' : Tm}
+    (hb : IsTyK S n (.sigma X Y) ∧ IsTyK S n (.sigma X' Y') ∧ TyEq S n (.sigma X Y) (.sigma X' Y'))
+    (h : ∀ k3 (σ3 : ISub k3 n), (D k3 σ3).ty (X.isub σ3) (X'.isub σ3) ∧
+      ∀ a a', (D k3 σ3).el (X.isub σ3) a a' → (Cf k3 σ3).ty ((Y.isub σ3).inst a) ((Y'.isub σ3).inst a')) :
+    (sigF S D Cf n (ISub.id n)).ty (.sigma X Y) (.sigma X' Y') := by
+  refine ⟨hb, fun k3 σ3 => ⟨X.isub σ3, Y.isub σ3, X'.isub σ3, Y'.isub σ3, ?_, ?_, ?_, fun a a' ha => ?_⟩⟩
+  · rw [isub_sigma]; exact redW_self (by simp [step])
+  · rw [isub_sigma]; exact redW_self (by simp [step])
+  · simpa only [ISub.id_comp] using (h k3 σ3).1
+  · simp only [ISub.id_comp, ISub.comp_id] at ha ⊢; exact (h k3 σ3).2 a a' ha
+
+omit hW in
+theorem piF_ty {D Cf : (k' : ℕ) → ISub k' n → Pack2} {X Y X' Y' : Tm}
+    (hb : IsTyK S n (.pi X Y) ∧ IsTyK S n (.pi X' Y') ∧ TyEq S n (.pi X Y) (.pi X' Y'))
+    (h : ∀ k3 (σ3 : ISub k3 n), (D k3 σ3).ty (X.isub σ3) (X'.isub σ3) ∧
+      ∀ a a', (D k3 σ3).el (X.isub σ3) a a' → (Cf k3 σ3).ty ((Y.isub σ3).inst a) ((Y'.isub σ3).inst a')) :
+    (piF S D Cf n (ISub.id n)).ty (.pi X Y) (.pi X' Y') := by
+  refine ⟨hb, fun k3 σ3 => ⟨X.isub σ3, Y.isub σ3, X'.isub σ3, Y'.isub σ3, ?_, ?_, ?_, fun a a' ha => ?_⟩⟩
+  · rw [isub_pi]; exact redW_self (by simp [step])
+  · rw [isub_pi]; exact redW_self (by simp [step])
+  · simpa only [ISub.id_comp] using (h k3 σ3).1
+  · simp only [ISub.id_comp, ISub.comp_id] at ha ⊢; exact (h k3 σ3).2 a a' ha
+
+omit hW in
+theorem pathF_ty {AP : (k' : ℕ) → ISub k' n → Pack2} (hA : FamOK S n AP) {X X' b0 b0' b1 b1' : Tm}
+    (hb : IsTyK S n (Tm.pathC X b0 b1) ∧ IsTyK S n (Tm.pathC X' b0' b1') ∧
+      TyEq S n (Tm.pathC X b0 b1) (Tm.pathC X' b0' b1'))
+    (hX : (AP n (ISub.id n)).ty X X') (h0 : (AP n (ISub.id n)).el X b0 b0') (h1 : (AP n (ISub.id n)).el X b1 b1') :
+    (pathF S AP n (ISub.id n)).ty (Tm.pathC X b0 b1) (Tm.pathC X' b0' b1') := by
+  refine ⟨hb, fun k3 σ3 => ⟨(X.isub σ3).dshift, b0.isub σ3, b1.isub σ3, (X'.isub σ3).dshift, b0'.isub σ3,
+    b1'.isub σ3, ?_, ?_, ?_, ?_, ?_⟩⟩
+  · show RedW S (Tm.path (X.dshift.isub σ3.up) _ _) _
+    rw [isub_dshift]; exact redW_self (by simp [step])
+  · show RedW S (Tm.path (X'.dshift.isub σ3.up) _ _) _
+    rw [isub_dshift]; exact redW_self (by simp [step])
+  · have := hA.kr n (ISub.id n) (k3 + 1) σ3.up.tail X X' hX
+    rw [← dshift_isub_tail, ← dshift_isub_tail, isub_dshift, isub_dshift] at this
+    simpa only [ISub.id_comp] using this
+  · have := hA.krEl n (ISub.id n) k3 σ3 X b0 b0' h0
+    rw [Meta.dshift_dinst]
+    simpa only [ISub.id_comp] using this
+  · have := hA.krEl n (ISub.id n) k3 σ3 X b1 b1' h1
+    rw [Meta.dshift_dinst]
+    simpa only [ISub.id_comp] using this
+
+end ty
 
 end
 
