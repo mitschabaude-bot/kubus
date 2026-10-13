@@ -81,18 +81,28 @@ def equivE2 (T A : ElR2 k) : ElR2 k :=
 
 /-! ### Inductive types -/
 
-/-- Related elements of an inductive type: weak-head normal forms which are the same constructor
-with related arguments (point arguments by `P`, given the values of the earlier arguments of the
-left side), or, in a HIT, formal compositions with equivalent faces that do not hold, related
-bases and tubes related where the face holds. -/
+mutual
+/-- Related elements of an inductive type: related at every restriction (`DR2At`). -/
 inductive DR2 {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m → Tm → Prop)
+    (P : (k : ℕ) → Hom k m → ℕ → ℕ → List V → Tm → Tm → Tm → Prop) :
+    (k : ℕ) → Hom k m → Tm → Tm → Tm → Prop
+  | intro {k : ℕ} {f : Hom k m} {A t t' : Tm} :
+      (∀ k' (σ : ISub k' k), DR2At d D Mem P k' (f.comp σ.hom) (A.isub σ) (t.isub σ) (t'.isub σ)) →
+      DR2 d D Mem P k f A t t'
+
+/-- Related elements of an inductive type at a stage: weak-head normal forms which are the same
+constructor with related arguments (point arguments by `P`, given the values of the earlier
+arguments of the left side), or, in a HIT, formal compositions with equivalent faces that do not
+hold, related bases and tubes related where the face holds. -/
+inductive DR2At {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m → Tm → Prop)
     (P : (k : ℕ) → Hom k m → ℕ → ℕ → List V → Tm → Tm → Tm → Prop) :
     (k : ℕ) → Hom k m → Tm → Tm → Tm → Prop
   | con {k : ℕ} {f : Hom k m} {A t t' ps qs qs' : Tm} {c : ℕ} {C : Ctor} {args args' : List Tm}
       {rs rs' : List I} :
       Mem k f t → Mem k f t' → D.ctors[c]? = some C → RedW S A (.data d ps) → ps = Tm.ofList ps.toList →
       RedW S t (.con d c qs (Tm.ofList args) rs) → RedW S t' (.con d c qs' (Tm.ofList args') rs') →
-      rs.length = C.dims → rs'.length = C.dims → (∀ (i : ℕ) (r r' : I), rs[i]? = some r → rs'[i]? = some r' → I.Eq r r') →
+      rs.length = C.dims → rs'.length = C.dims →
+      (∀ (i : ℕ) (r r' : I), rs[i]? = some r → rs'[i]? = some r' → I.Eq r r') →
       (∀ r ∈ rs, r.Scoped k) → (∀ r ∈ rs', r.Scoped k) →
       args.length = C.args.length → args'.length = C.args.length →
       (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
@@ -100,7 +110,7 @@ inductive DR2 {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m �
       (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
         P k f c j ((args.take j).map (semK S k))
           ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ ps.toList.reverse)) args[j] args'[j]) →
-      DR2 d D Mem P k f A t t'
+      DR2At d D Mem P k f A t t'
   | hcomp {k : ℕ} {f : Hom k m} {A t t' ps qs qs' u u' a a' : Tm} {φ φ' : I} :
       Mem k f t → Mem k f t' → D.isHIT = true → RedW S A (.data d ps) → ps = Tm.ofList ps.toList →
       RedW S t (.hcomp (.data d qs) φ u a) → RedW S t' (.hcomp (.data d qs') φ' u' a') →
@@ -108,7 +118,8 @@ inductive DR2 {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m �
       DR2 d D Mem P k f (.data d ps) a a' →
       (∀ k' (σ : ISub k' k) (r : I), r.Scoped k' → (ival (idEnv k') (φ.subst σ.τ)).holds →
         DR2 d D Mem P k' (f.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r)) →
-      DR2 d D Mem P k f A t t'
+      DR2At d D Mem P k f A t t'
+end
 
 /-! ### The relations -/
 

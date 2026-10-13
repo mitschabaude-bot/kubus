@@ -195,6 +195,16 @@ theorem Comp2_dataC (Θ : SData m) (f : Hom k m) :
     show ¬ (11 = 1) by decide, show ¬ (11 = 7) by decide, or_self, if_true, natOf_natZ, π1π2_quad, dataP2]
   rfl
 
+/-- The relations of a Glue code at a restriction: those of `T` where the face holds. -/
+theorem Comp2_glueC_at {A Tp ep : V} {φ : Cof m} (hφ : φ.IsCof)
+    (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
+    (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f)) (f : Hom k m) :
+    Comp2 S (glueC m A φ Tp ep) m k f =
+      if (φ.restr f).holds then Comp2 S (dat Tp k f) k k (Hom.id k)
+      else Comp2 S (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) k k (Hom.id k) := by
+  rw [Comp2_eq_res (IsKV.ne_empty (isKV_glueC _ _ _ _)), res_glueC hTp hTkv hφ f]
+  split <;> rfl
+
 end
 
 end Model.Whnf
