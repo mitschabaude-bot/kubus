@@ -898,15 +898,63 @@ include hG
 
 /-! ### The transport fields of the fibration structure -/
 
+theorem GlueOK.transp_holds {n : ℕ} {f : Hom (n + 1) m} (hf : (φ.restr f).holds) (ψ : Cof n) (a0 : V) :
+    transpAt (glueC m A φ Tp ep) f ψ a0 = transpAt (dat Tp (n + 1) f) (Hom.id (n + 1)) ψ a0 := by
+  simp only [transpAt, trG_glueC, if_pos hf]
+
+theorem GlueOK.El_holds {n : ℕ} {f : Hom (n + 1) m} (hf : (φ.restr f).holds) (g : Hom k (n + 1)) :
+    El (glueC m A φ Tp ep) (f.comp g) = El (dat Tp (n + 1) f) g := by
+  have hfg : (φ.restr (f.comp g)).holds := cof_holds_comp hG.cof hf g
+  rw [El_glueC, if_pos hfg, ← hG.Tcoh _ f hf k g, El_res, Hom.comp_id]
+
+theorem GlueOK.const_holds {n : ℕ} {f : Hom (n + 1) m} (hf : (φ.restr f).holds) {ψ : Cof n}
+    (hc : ConstOn (glueC m A φ Tp ep) f ψ) : ConstOn (dat Tp (n + 1) f) (Hom.id (n + 1)) ψ := by
+  intro n' h hh r
+  have := hc n' h hh r
+  rw [← res_res, ← res_res, res_glueC hG.Tcoh (fun k f hf => (hG.fibT k f hf).kv) hG.cof f, if_pos hf] at this
+  rwa [Hom.id_comp, Hom.id_comp]
+
+theorem GlueOK.code_not {n : ℕ} {f : Hom (n + 1) m} (hf : ¬ (φ.restr f).holds) (g : Hom k (n + 1)) :
+    El (glueC m A φ Tp ep) (f.comp g) = El (glueC (n + 1) (res f A) (φ.restr f) (res f Tp) (res f ep)) g := by
+  rw [← El_res, hG.res_code hf]
+
+theorem GlueOK.const_not {n : ℕ} {f : Hom (n + 1) m} (hf : ¬ (φ.restr f).holds) {ψ : Cof n}
+    (hc : ConstOn (glueC m A φ Tp ep) f ψ) :
+    ConstOn (glueC (n + 1) (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id (n + 1)) ψ := by
+  intro n' h hh r
+  have := hc n' h hh r
+  rw [← res_res, ← res_res, hG.res_code hf] at this
+  rwa [Hom.id_comp, Hom.id_comp]
+
+theorem GlueOK.transp_not {n : ℕ} {f : Hom (n + 1) m} (hf : ¬ (φ.restr f).holds) (ψ : Cof n) {a0 : V}
+    (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (eZ n))) :
+    transpAt (glueC m A φ Tp ep) f ψ a0 = gtResult (res f A) (φ.restr f) (res f Tp) (res f ep) ψ a0 := by
+  rw [hG.code_not hf, El_glueC] at ha
+  simp only [transpAt, trG_glueC, if_neg hf, glueTr]
+  exact apZ_trGraph _ ha
+
 theorem GlueOK.trMem (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : ψ.IsCof)
     (hc : ConstOn (glueC m A φ Tp ep) f ψ) (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.zero n)))) :
     transpAt (glueC m A φ Tp ep) f ψ a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.one n))) := by
-  sorry
+  by_cases hf : (φ.restr f).holds
+  · rw [hG.transp_holds hf, hG.El_holds hf]
+    rw [hG.El_holds hf] at ha
+    have := (hG.fibT _ f hf).trMem n _ ψ a0 hψ (hG.const_holds hf hc) (by rwa [Hom.id_comp])
+    rwa [Hom.id_comp] at this
+  · rw [hG.transp_not hf ψ ha, hG.code_not hf]
+    rw [hG.code_not hf] at ha
+    exact gt_result_mem (hG.restr f) hψ ha (hG.const_not hf hc)
 
 theorem GlueOK.trFace (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : ψ.IsCof)
     (hc : ConstOn (glueC m A φ Tp ep) f ψ) (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.zero n))))
     (hh : ψ.holds) : transpAt (glueC m A φ Tp ep) f ψ a0 = a0 := by
-  sorry
+  by_cases hf : (φ.restr f).holds
+  · rw [hG.transp_holds hf]
+    rw [hG.El_holds hf] at ha
+    exact (hG.fibT _ f hf).trFace n _ ψ a0 hψ (hG.const_holds hf hc) (by rwa [Hom.id_comp]) hh
+  · rw [hG.transp_not hf ψ ha]
+    rw [hG.code_not hf] at ha
+    exact gt_result_face (hG.restr f) hψ ha (hG.const_not hf hc) hh
 
 theorem GlueOK.trRes (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : ψ.IsCof)
     (hc : ConstOn (glueC m A φ Tp ep) f ψ) (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.zero n))))
