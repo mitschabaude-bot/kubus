@@ -27,3 +27,4 @@ import Model.InterpLemmas
 import Model.SemBasic
 import Model.Sound
 import Model.Consistency
+import Model.EndToEnd

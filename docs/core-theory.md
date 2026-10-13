@@ -103,6 +103,12 @@ The plan is the Orton–Pitts route. Their paper proves that CCHM's rules hold i
 
 Then a closed proof of `Empty` in the specification gives a global section of the empty presheaf, which is `False`.
 
-## Order of work
+## Status
 
-Steps 1–3 cover the core fragment first: Π, Σ, paths, universes and Glue. Inductive types and HITs follow once the fragment is closed end to end.
+All four steps are done for the core fragment (Π, Σ, paths, `(i : I) → A`, universes, Glue):
+- the kernel certifies the univalence development;
+- self-checks and fuzzing run in CI;
+- the specification is in Lean, and the kernel builds a derivation of it for everything it accepts;
+- the model proves `KubusCore.Consistent` unconditionally, and `Model.kernel_consistent` connects it to the kernel.
+
+Six spec bugs were found along the way, by the model and by red-team reviews. Two of them, `unglue` and `glueEl` without their equivalence, made the spec inconsistent. All are fixed and recorded in `model/README.md`. Next is phase 2, inductive types and HITs (`docs/inductive-types.md`).

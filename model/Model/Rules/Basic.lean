@@ -104,7 +104,9 @@ end Model
 
 /-! ### Syntax: renaming and lookup -/
 
-namespace KubusCore
+namespace Model
+
+open KubusCore
 
 theorem Tm.upRen_comp (ρ1 ρ2 : ℕ → ℕ) : (fun x => Tm.upRen ρ2 (Tm.upRen ρ1 x)) = Tm.upRen (fun x => ρ2 (ρ1 x)) := by
   funext x; cases x <;> rfl
@@ -129,7 +131,7 @@ theorem Ctx.lookup_dshift : ∀ (Γ : Ctx) (x : ℕ), Γ.dshift.lookup x = (Γ.l
     rw [this, Option.map_map, Option.map_map]
     congr 1; funext t; exact Tm.shift_dshift t
 
-end KubusCore
+end Model
 
 /-! ### Points -/
 
