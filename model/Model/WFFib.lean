@@ -1,4 +1,4 @@
-import Model.GlueElem
+import Model.GlueFib
 
 /-!
 # Well-formed codes are fibrant
@@ -22,23 +22,6 @@ variable {k m n : ℕ}
 
 theorem isKV_univC (l : ℕ) : IsKV m (univC m l) := by
   unfold univC univCode; exact isKV_mkKV _
-
-/-- Restriction of a Glue code: it reduces to `T` where `φ` holds. -/
-theorem res_glueC {A : V} {φ : Cof m} {Tp ep : V}
-    (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
-    (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f))
-    (hφ : φ.IsCof) (h : Hom k m) :
-    res h (glueC m A φ Tp ep) =
-      if (φ.restr h).holds then dat Tp k h else glueC k (res h A) (φ.restr h) (res h Tp) (res h ep) := by
-  split
-  · rename_i hh
-    refine (isKV_res _ _).ext (hTkv k h hh) fun n g => ?_
-    have hg : (φ.restr (h.comp g)).holds := by
-      rw [← Cof.restr_restr]; exact (hφ.restr h).holds_restr hh g
-    rw [dat_res, glueC, dat_mkKV, if_pos hg, ← hTp k h hh n g, here_res]
-  · rename_i hh
-    refine (isKV_res _ _).ext (isKV_glueC _ _ _ _) fun n g => ?_
-    simp only [dat_res, glueC, dat_mkKV, Cof.restr_restr, res_res]
 
 /-- The universe of level `l` is fibrant, given that its elements are fibrant and closed under
 restriction. -/
@@ -92,15 +75,15 @@ variable {k m n : ℕ}
 theorem res_mem_Vt {l : ℕ} {c : V} (hc : c ∈ Vt l) (h : Hom n k) : res h c ∈ Vt l := by
   sorry
 
-/-- Glue types are fibrant. TODO. -/
-theorem fib_glueC {A : V} {φ : Cof m} {Tp ep : V} (hA : Fib A m) (hφ : φ.IsCof) (hn : ¬ φ.holds)
+/-- Glue types are fibrant. -/
+theorem fib_glueC {A : V} {φ : Cof m} {Tp ep : V} (hA : Fib A m) (hφ : φ.IsCof)
     (hTp : Tp = partialKV m φ (fun k f => dat Tp k f)) (hep : ep = partialKV m φ (fun k f => dat ep k f))
     (hT : ∀ k (f : Hom k m), (φ.restr f).holds → Fib (dat Tp k f) k)
     (hTcoh : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
     (he : ∀ k (f : Hom k m), (φ.restr f).holds → dat ep k f ∈ El (equivCode k (dat Tp k f) (res f A)) (Hom.id k))
     (hecoh : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat ep k f) = dat ep n (f.comp h)) :
-    Fib (glueC m A φ Tp ep) m := by
-  sorry
+    Fib (glueC m A φ Tp ep) m :=
+  GlueOK.fib ⟨hA, hφ, hTp, hep, hT, hTcoh, he, hecoh⟩
 
 theorem famOK_of {l : ℕ} {A B : V} (hBkv : IsKV m B)
     (hgraph : ∀ k (f : Hom k m), dat B k f = fnZ (El A f) (apZ (dat B k f)))
@@ -148,7 +131,7 @@ theorem wf_props : ∀ l, ∀ m c, WF l m c → Fib c m ∧ ∀ k (h : Hom k m),
       (fun k c hc n h => res_mem_Vt hc h), fun k h => ?_⟩
     rw [res_univC, ← Ucodes_lt k hl']; exact WFI.univ hl'
   | @glue m A φ Tp ep hA hφ hn hTp hep hT hTcoh he hecoh ihA ihT =>
-    refine ⟨fib_glueC ihA.1 hφ hn hTp hep (fun k f hf => (ihT k f hf).1) hTcoh he hecoh, fun k h => ?_⟩
+    refine ⟨fib_glueC ihA.1 hφ hTp hep (fun k f hf => (ihT k f hf).1) hTcoh he hecoh, fun k h => ?_⟩
     rw [res_glueC hTcoh (fun k f hf => (ihT k f hf).1.kv) hφ h]
     split
     · exact hT k h ‹_›

@@ -207,6 +207,23 @@ theorem res_partialKV_self {φ : Cof m} {X : V} (hX : X = partialKV m φ (fun k 
   conv_lhs => rw [hX]
   simp only [partialKV, res_mkKV, dat_res, Cof.restr_restr]
 
+/-- Restriction of a Glue code: it reduces to `T` where `φ` holds. -/
+theorem res_glueC {A : V} {φ : Cof m} {Tp ep : V}
+    (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
+    (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f))
+    (hφ : φ.IsCof) (h : Hom k m) :
+    res h (glueC m A φ Tp ep) =
+      if (φ.restr h).holds then dat Tp k h else glueC k (res h A) (φ.restr h) (res h Tp) (res h ep) := by
+  split
+  · rename_i hh
+    refine (isKV_res _ _).ext (hTkv k h hh) fun n g => ?_
+    have hg : (φ.restr (h.comp g)).holds := by
+      rw [← Cof.restr_restr]; exact (hφ.restr h).holds_restr hh g
+    rw [dat_res, glueC, dat_mkKV, if_pos hg, ← hTp k h hh n g, here_res]
+  · rename_i hh
+    refine (isKV_res _ _).ext (isKV_glueC _ _ _ _) fun n g => ?_
+    simp only [dat_res, glueC, dat_mkKV, Cof.restr_restr, res_res]
+
 end
 
 end Model

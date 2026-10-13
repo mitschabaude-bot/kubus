@@ -19,6 +19,7 @@ import Model.Interp
 import Model.Tower
 import Model.Univ
 import Model.GlueElem
+import Model.GlueFib
 import Model.Sem
 import Model.Sound
 import Model.Consistency

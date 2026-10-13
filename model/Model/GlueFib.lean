@@ -435,6 +435,173 @@ theorem glueHcF_face (hh : ψ.holds) : glueHcF m A φ Tp ep ψ u u0 = u m (Hom.i
 
 end hcomp3
 
+section hcomp4
+
+variable {A : V} {φ : Cof m} {Tp ep : V} (hG : GlueOK A φ Tp ep) (hn : ¬ φ.holds) {ψ : Cof m}
+  (hψ : ψ.IsCof) {u : Tube m} {u0 : V} (hu0 : u0 ∈ El (glueC m A φ Tp ep) (Hom.id m))
+  (hu : TubeOK (glueC m A φ Tp ep) (Hom.id m) ψ u u0)
+
+include hG hn hu0 hu in
+theorem hcompAt_glueC_id :
+    hcompAt (glueC m A φ Tp ep) (Hom.id m) ψ u u0 = glueHcF m A φ Tp ep ψ (Tube.canon ψ u) u0 := by
+  rw [hcompAt_glueC_not (by rw [hG.cof.restr_id]; exact hn) (fun n h r hh => hu.mem n h r hh) hu0,
+    hG.cof.restr_id, res_id hG.fibA.kv, res_id hG.TpKV, res_id hG.epKV]
+
+include hG hn hψ hu0 hu in
+/-- `hcompGlue` is natural. -/
+theorem glueHc_res (h : Hom n m) :
+    res h (hcompAt (glueC m A φ Tp ep) (Hom.id m) ψ u u0) =
+      hcompAt (glueC m A φ Tp ep) h (ψ.restr h) (u.restr h) (res h u0) := by
+  have huc := hu.canon hψ
+  rw [hcompAt_glueC_id hG hn hu0 hu, glueHcF_eq]
+  by_cases hh : (φ.restr h).holds
+  · rw [hcompAt_glueC_holds hh]
+    have hcoh : ∀ n' (g : Hom n' n), res g (dat (glueTp m φ Tp ψ (Tube.canon ψ u) u0) n h) =
+        dat (glueTp m φ Tp ψ (Tube.canon ψ u) u0) n' (h.comp g) := by
+      intro n' g
+      have hhg : (φ.restr (h.comp g)).holds := by rw [← Cof.restr_restr]; exact (hG.cof.restr h).holds_restr hh g
+      rw [glueTp, dat_partialKV, if_pos hh, dat_partialKV, if_pos hhg]
+      exact glueTp_coh hG hψ hu0 huc hh n' g
+    have hkv : IsKV n (dat (glueTp m φ Tp ψ (Tube.canon ψ u) u0) n h) := hG.face_kv hh hcoh
+    rw [res_glueV_holds hG.cof hh hcoh hkv, glueTp, dat_partialKV, if_pos hh]
+    apply hcompAt_congr
+    intro n' g r hg
+    rw [Cof.restr_restr] at hg
+    simp only [Tube.restr, tube_canon_eq hg]
+  · rw [hcompAt_glueC_not hh (fun n' g r hg => by
+        have := hu.mem n' (h.comp g) r (by rw [← Cof.restr_restr]; exact hg)
+        rw [Hom.id_comp] at this; exact this) (by have := hG.elRes hu0 h; rwa [Hom.id_comp] at this),
+      glueHcF_eq, res_glueV]
+    have hT := glueTube_ok hG hn hψ hu0 huc
+    have ha0 := glue_a0_mem hG hn hu0
+    congr 1
+    · rw [glueTp, glueTp, res_partialKV]
+      congr 1; funext n' g
+      simp only [dat_res, Cof.restr_restr, res_res, Tube.canon_restr]
+      rfl
+    · rw [hG.fibA.hcRes m _ _ _ _ (hψ.or hG.cof) ha0 hT n h, hcompAt_eq_res_id, Hom.id_comp, Cof.or_restr]
+      congr 1
+      · funext n' g r
+        simp only [glueTube, Tube.restr, Cof.restr_restr, dat_res, res_res, Tube.canon_restr]
+        rfl
+      · have hu0h := hG.elRes hu0 h
+        rw [Hom.id_comp] at hu0h
+        rw [glue_a0 hG hn, hG.ung_res hu0 h, Hom.id_comp, glue_a0 (hG.restr h) hh, Cof.restr_restr, Hom.comp_id,
+          dat_res, Hom.comp_id]
+
+end hcomp4
+
+/-! ### The `hcomp` fields of the fibration structure -/
+
+section fields
+
+variable {A : V} {φ : Cof m} {Tp ep : V} (hG : GlueOK A φ Tp ep)
+include hG
+
+theorem GlueOK.res_code {f : Hom k m} (hf : ¬ (φ.restr f).holds) :
+    res f (glueC m A φ Tp ep) = glueC k (res f A) (φ.restr f) (res f Tp) (res f ep) := by
+  rw [res_glueC hG.Tcoh (fun k f hf => (hG.fibT k f hf).kv) hG.cof f, if_neg hf]
+
+theorem GlueOK.tube_T {f : Hom k m} (hf : (φ.restr f).holds) {ψ : Cof k} {u : Tube k} {u0 : V}
+    (hu : TubeOK (glueC m A φ Tp ep) f ψ u u0) : TubeOK (dat Tp k f) (Hom.id k) ψ u u0 where
+  mem n h r hh := by
+    have hfh : (φ.restr (f.comp h)).holds := by rw [← Cof.restr_restr]; exact (hG.cof.restr f).holds_restr hf h
+    have := hu.mem n h r hh
+    rw [El_glueC, if_pos hfh, ← hG.Tcoh k f hf n h, El_res, Hom.comp_id] at this
+    rw [Hom.id_comp]; exact this
+  coh := hu.coh
+  base := hu.base
+
+theorem GlueOK.hcMem (k : ℕ) (f : Hom k m) (ψ : Cof k) (u : Tube k) (u0 : V) (hψ : ψ.IsCof)
+    (hu0 : u0 ∈ El (glueC m A φ Tp ep) f) (hu : TubeOK (glueC m A φ Tp ep) f ψ u u0) :
+    hcompAt (glueC m A φ Tp ep) f ψ u u0 ∈ El (glueC m A φ Tp ep) f := by
+  by_cases hf : (φ.restr f).holds
+  · rw [hcompAt_glueC_holds hf]
+    rw [El_glueC, if_pos hf] at hu0 ⊢
+    exact (hG.fibT k f hf).hcMem k _ ψ u u0 hψ hu0 (hG.tube_T hf hu)
+  · have e1 : El (glueC m A φ Tp ep) f = El (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id k) := by
+      rw [El_eq_res_id, hG.res_code hf]
+    have e2 : hcompAt (glueC m A φ Tp ep) f ψ u u0 =
+        hcompAt (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id k) ψ u u0 := by
+      rw [hcompAt_eq_res_id, hG.res_code hf]
+    have hu' : TubeOK (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id k) ψ u u0 := by
+      rw [← hG.res_code hf]; apply TubeOK.to_res; rw [Hom.comp_id]; exact hu
+    rw [e1] at hu0; rw [e2, e1, hcompAt_glueC_id (hG.restr f) hf hu0 hu']
+    exact glueHcF_mem (hG.restr f) hf hψ hu0 (hu'.canon hψ)
+
+theorem GlueOK.hcFace (k : ℕ) (f : Hom k m) (ψ : Cof k) (u : Tube k) (u0 : V) (hψ : ψ.IsCof)
+    (hu0 : u0 ∈ El (glueC m A φ Tp ep) f) (hu : TubeOK (glueC m A φ Tp ep) f ψ u u0) (hh : ψ.holds) :
+    hcompAt (glueC m A φ Tp ep) f ψ u u0 = u k (Hom.id k) (DM.one k) := by
+  by_cases hf : (φ.restr f).holds
+  · rw [hcompAt_glueC_holds hf]
+    rw [El_glueC, if_pos hf] at hu0
+    exact (hG.fibT k f hf).hcFace k _ ψ u u0 hψ hu0 (hG.tube_T hf hu) hh
+  · have e1 : El (glueC m A φ Tp ep) f = El (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id k) := by
+      rw [El_eq_res_id, hG.res_code hf]
+    have e2 : hcompAt (glueC m A φ Tp ep) f ψ u u0 =
+        hcompAt (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id k) ψ u u0 := by
+      rw [hcompAt_eq_res_id, hG.res_code hf]
+    have hu' : TubeOK (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id k) ψ u u0 := by
+      rw [← hG.res_code hf]; apply TubeOK.to_res; rw [Hom.comp_id]; exact hu
+    rw [e1] at hu0; rw [e2, hcompAt_glueC_id (hG.restr f) hf hu0 hu',
+      glueHcF_face (hG.restr f) hf hψ hu0 (hu'.canon hψ) hh]
+    have hid : (ψ.restr (Hom.id k)).holds := by rw [hψ.restr_id]; exact hh
+    exact tube_canon_eq hid _
+
+theorem GlueOK.hcRes (k : ℕ) (f : Hom k m) (ψ : Cof k) (u : Tube k) (u0 : V) (hψ : ψ.IsCof)
+    (hu0 : u0 ∈ El (glueC m A φ Tp ep) f) (hu : TubeOK (glueC m A φ Tp ep) f ψ u u0) (n : ℕ) (h : Hom n k) :
+    res h (hcompAt (glueC m A φ Tp ep) f ψ u u0) =
+      hcompAt (glueC m A φ Tp ep) (f.comp h) (ψ.restr h) (u.restr h) (res h u0) := by
+  by_cases hf : (φ.restr f).holds
+  · have hfh : (φ.restr (f.comp h)).holds := by rw [← Cof.restr_restr]; exact (hG.cof.restr f).holds_restr hf h
+    rw [hcompAt_glueC_holds hf, hcompAt_glueC_holds hfh]
+    rw [El_glueC, if_pos hf] at hu0
+    rw [(hG.fibT k f hf).hcRes k _ ψ u u0 hψ hu0 (hG.tube_T hf hu) n h, Hom.id_comp, hcompAt_eq_res_id,
+      hG.Tcoh k f hf n h]
+  · have e1 : El (glueC m A φ Tp ep) f = El (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id k) := by
+      rw [El_eq_res_id, hG.res_code hf]
+    have e2 : hcompAt (glueC m A φ Tp ep) f ψ u u0 =
+        hcompAt (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id k) ψ u u0 := by
+      rw [hcompAt_eq_res_id, hG.res_code hf]
+    have hu' : TubeOK (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) (Hom.id k) ψ u u0 := by
+      rw [← hG.res_code hf]; apply TubeOK.to_res; rw [Hom.comp_id]; exact hu
+    rw [e1] at hu0
+    rw [e2, glueHc_res (hG.restr f) hf hψ hu0 hu' h, ← hG.res_code hf, hcompAt_eq_res_id, res_res,
+      ← hcompAt_eq_res_id]
+
+/-! ### Transport (TODO: the spec's `Tm.transpGlue`, after CCHM) -/
+
+theorem GlueOK.trMem (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : ψ.IsCof)
+    (hc : ConstOn (glueC m A φ Tp ep) f ψ) (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.zero n)))) :
+    transpAt (glueC m A φ Tp ep) f ψ a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.one n))) := by
+  sorry
+
+theorem GlueOK.trFace (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : ψ.IsCof)
+    (hc : ConstOn (glueC m A φ Tp ep) f ψ) (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.zero n))))
+    (hh : ψ.holds) : transpAt (glueC m A φ Tp ep) f ψ a0 = a0 := by
+  sorry
+
+theorem GlueOK.trRes (n : ℕ) (f : Hom (n + 1) m) (ψ : Cof n) (a0 : V) (hψ : ψ.IsCof)
+    (hc : ConstOn (glueC m A φ Tp ep) f ψ) (ha : a0 ∈ El (glueC m A φ Tp ep) (f.comp (Hom.endpt n (DM.zero n))))
+    (n' : ℕ) (h : Hom n' n) :
+    res h (transpAt (glueC m A φ Tp ep) f ψ a0) =
+      transpAt (glueC m A φ Tp ep) (f.comp (Hom.lift h)) (ψ.restr h) (res h a0) := by
+  sorry
+
+/-- Glue codes are fibrant. -/
+theorem GlueOK.fib : Fib (glueC m A φ Tp ep) m where
+  kv := isKV_glueC _ _ _ _
+  elKV _ _ _ hv := hG.elKV hv
+  elRes _ _ _ hv _ h := hG.elRes hv h
+  hcMem := hG.hcMem
+  hcFace := hG.hcFace
+  hcRes := hG.hcRes
+  trMem := hG.trMem
+  trFace := hG.trFace
+  trRes := hG.trRes
+
+end fields
+
 end
 
 end Model
