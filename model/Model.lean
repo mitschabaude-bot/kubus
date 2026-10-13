@@ -15,3 +15,4 @@ import Model.Path
 import Model.PathFib
 import Model.IPiFib
 import Model.Glue
+import Model.Interp
