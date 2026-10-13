@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs the test suite: library files must check, tests/pass/*.ktt must produce
-# tests/pass/*.out, and tests/fail/*.ktt must fail with the message in their `-- expect:` line.
+# tests/pass/*.out, tests/repl.in (on `kubus --interactive`) must produce tests/repl.out,
+# and tests/fail/*.ktt must fail with the message in their `-- expect:` line.
 # Library and tests also run under `--selfcheck`; no invariant violation may be reported.
 cd "$(dirname "$0")/.."
 export KUBUS_PATH=lib
@@ -39,6 +40,12 @@ for f in tests/pass/*.ktt; do
     echo "FAIL $f"; diff <(echo "$out") "$exp" | head -20; fails=$((fails+1))
   fi
 done
+# interactive mode
+out=$(timeout 60 $bin --interactive < tests/repl.in 2>&1)
+if [ "$1" = "--update" ]; then echo "$out" > tests/repl.out; fi
+if [ "$out" != "$(cat tests/repl.out 2>/dev/null)" ]; then
+  echo "FAIL tests/repl.in"; diff <(echo "$out") tests/repl.out | head -20; fails=$((fails+1))
+fi
 for f in tests/fail/*.ktt; do
   exp=$(head -1 "$f" | sed -n 's/^-- expect: //p')
   if out=$(timeout 10 $bin --selfcheck "$f" 2>&1); then

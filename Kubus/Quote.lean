@@ -131,6 +131,8 @@ structure PPI where
   mask : String → List Bool := fun _ => []
   /-- how to print a metavariable -/
   metaStr : Nat → String := fun m => s!"?m{m}"
+  /-- print the arguments for implicit binders (as `{a}`); otherwise they are omitted -/
+  showImplicit : Bool := true
   deriving Inhabited
 
 mutual
@@ -212,9 +214,13 @@ partial def ppApp (names : List String) (p : Nat) (h : Tm) (args : Array SArg) (
   let mask := match h with
     | .glob f _ => im.mask f
     | _ => []
-  let parts := (List.range args.size).zip args.toList |>.map fun (i, a) => match a with
-    | .tm a => if mask[i]?.getD false then "{" ++ pp names 0 a im ++ "}" else pp names 3 a im
-    | .dim r => ppI names 3 r
+  let parts := (List.range args.size).zip args.toList |>.filterMap fun (i, a) => match a with
+    | .tm a =>
+      if mask[i]?.getD false then
+        if im.showImplicit then some ("{" ++ pp names 0 a im ++ "}") else none
+      else some (pp names 3 a im)
+    | .dim r => some (ppI names 3 r)
+  if parts.isEmpty then pp names p h im else
   paren (p > 2) (" ".intercalate (pp names 2 h im :: parts))
 
 partial def ppSys (keyNames elemNames : List String) (sys : List (ITm × Tm)) (im : PPI := {}) : String :=

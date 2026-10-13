@@ -91,7 +91,10 @@ Evaluation follows the cubicaltt approach: interval variables in values are nomi
 lake build
 KUBUS_PATH=lib .lake/build/bin/kubus lib/loopspace.ktt
 tests/run.sh
+KUBUS_PATH=lib .lake/build/bin/kubus --interactive lib/loopspace.ktt
 ```
+
+`kubus --interactive` loads the given files and then reads declarations, `#eval`/`#check` commands and terms (which are evaluated) from standard input; pattern-matching definitions and data types end with an empty line. `#check t` prints the elaborated term (without implicit arguments) and its type.
 
 `tests/run.sh` checks the library, compares `tests/pass/*_test.ktt` against golden outputs, and checks that every file in `tests/fail/` is rejected with the expected error.
 

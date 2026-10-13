@@ -1,0 +1,10 @@
+import circle
+#check trans
+winding (trans loopP loopP)
+def f : Nat -> Nat
+  | zero => zero
+  | suc n => n
+
+f (suc (suc zero))
+foo
+:q

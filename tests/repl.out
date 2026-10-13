@@ -1,0 +1,7 @@
+kubus> kubus> trans : {A : U} → {a : A} → {b : A} → {c : A} → Path A a b → Path A b c → Path A a c
+kubus> pos (suc (suc zero))
+  : Int
+kubus>    ...>    ...>    ...> kubus> suc zero
+  : Nat
+kubus> <input 6>:1:1: unknown identifier foo
+kubus> 

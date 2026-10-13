@@ -1,6 +1,6 @@
-{A : U} → (a : A) → Path A a a
-{A : U} → (a : A) → Path A a a
-Path S1 base base
+refl : {A : U} → (a : A) → Path A a a
+refl : {A : U} → (a : A) → Path A a a
+trans loopP (sym loopP) : Path S1 base base
 λ i → pos (suc zero)
   : Path Int (pos (suc zero)) (pos (suc zero))
 λ i → base

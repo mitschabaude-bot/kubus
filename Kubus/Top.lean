@@ -153,7 +153,9 @@ def checkDecl' : Decl → M (Option String)
     checkMetas
     let tm ← zonk tm
     if (← get).selfcheck then scTerm ctx tm ty "#check" (checkTy := true)
-    pure (some (← ppVal ctx ty))
+    -- the elaborated term (without implicit arguments) and its type
+    let tmS := pp [] 0 tm { (← ppI') with showImplicit := false }
+    pure (some s!"{tmS} : {← ppVal ctx ty}")
   | .importFile .. => pure none
 
 /-- Process a declaration, then self-check the terms recorded during elaboration. -/
