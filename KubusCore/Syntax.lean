@@ -543,6 +543,23 @@ def freeIn (x : Nat) : Tm → Bool
   | con _ _ ps args _ => ps.freeIn x || args.freeIn x
   | elim _ ps P bs t => ps.freeIn x || P.freeIn (x + 1) || bs.freeIn x || t.freeIn x
 
+/-- The head of a type former that no conversion can change: `Π`, `Σ`, path types,
+`(i : I) → A`, universes, and inductive types with their index. -/
+def tyHead : Tm → Option (Nat × Nat)
+  | pi .. => some (0, 0)
+  | sigma .. => some (1, 0)
+  | path .. => some (2, 0)
+  | ipi _ => some (3, 0)
+  | univ _ => some (4, 0)
+  | data d _ => some (5, d)
+  | _ => none
+
+/-- `X` and `Y` are type formers with different heads. -/
+def headClash (X Y : Tm) : Bool :=
+  match X.tyHead, Y.tyHead with
+  | some h, some h' => h != h'
+  | _, _ => false
+
 end Tm
 
 /-- A constructor argument: a point argument of a type not mentioning the inductive type, or a

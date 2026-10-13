@@ -145,6 +145,10 @@ inductive EqTele (S : Sig) : Nat → I → Ctx → Tm → Tm → List Tm → Lis
   | nil {Ψ Φ Γ prev} : Wf S Ψ Φ Γ → EqTele S Ψ Φ Γ .tnil .tnil [] prev
   | cons {Ψ Φ Γ a a' as as' A Δ prev} : EqTm S Ψ Φ Γ a a' (A.substList prev) →
       EqTele S Ψ Φ Γ as as' Δ (a :: prev) → EqTele S Ψ Φ Γ (.tcons a as) (.tcons a' as') (A :: Δ) prev
+  /-- Injectivity of inductive types in their parameters. -/
+  | dataInj {Ψ Φ Γ d D ps ps' l} : S[d]? = some (.data D) →
+      HasTele S Ψ Φ Γ ps D.params [] → HasTele S Ψ Φ Γ ps' D.params [] →
+      EqTm S Ψ Φ Γ (data d ps) (data d ps') (univ l) → EqTele S Ψ Φ Γ ps ps' D.params []
 
 inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   /- equivalence and structure -/
@@ -229,6 +233,35 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S (Ψ + 1) Φ.shift Γ.dshift t t' A → EqTm S Ψ Φ Γ (plam t) (plam t') (ipi A)
   | iapp {Ψ Φ Γ A p p' r r'} : EqTm S Ψ Φ Γ p p' (ipi A) → r.Scoped Ψ → r'.Scoped Ψ →
       I.Eq r r' → EqTm S Ψ Φ Γ (papp p r) (papp p' r') (A.dinst r)
+  /- injectivity of type formers (codomains and lines instantiated, so that the conclusion
+  is in the context of the premise) -/
+  | piInjDom {Ψ Φ Γ A A' B B' l} : EqTm S Ψ Φ Γ (pi A B) (pi A' B') (univ l) →
+      EqTm S Ψ Φ Γ A A' (univ l)
+  | piInjCod {Ψ Φ Γ A A' B B' a l} : EqTm S Ψ Φ Γ (pi A B) (pi A' B') (univ l) →
+      HasTy S Ψ Φ Γ a A → EqTm S Ψ Φ Γ (B.inst a) (B'.inst a) (univ l)
+  | sigmaInjDom {Ψ Φ Γ A A' B B' l} : EqTm S Ψ Φ Γ (sigma A B) (sigma A' B') (univ l) →
+      EqTm S Ψ Φ Γ A A' (univ l)
+  | sigmaInjCod {Ψ Φ Γ A A' B B' a l} : EqTm S Ψ Φ Γ (sigma A B) (sigma A' B') (univ l) →
+      HasTy S Ψ Φ Γ a A → EqTm S Ψ Φ Γ (B.inst a) (B'.inst a) (univ l)
+  | pathInjLine {Ψ Φ Γ A A' a a' b b' r l} : EqTm S Ψ Φ Γ (path A a b) (path A' a' b') (univ l) →
+      r.Scoped Ψ → EqTm S Ψ Φ Γ (A.dinst r) (A'.dinst r) (univ l)
+  | pathInjLeft {Ψ Φ Γ A A' a a' b b' l} : EqTm S Ψ Φ Γ (path A a b) (path A' a' b') (univ l) →
+      EqTm S Ψ Φ Γ a a' (A.dinst .zero)
+  | pathInjRight {Ψ Φ Γ A A' a a' b b' l} : EqTm S Ψ Φ Γ (path A a b) (path A' a' b') (univ l) →
+      EqTm S Ψ Φ Γ b b' (A.dinst .one)
+  | ipiInj {Ψ Φ Γ A A' r l} : EqTm S Ψ Φ Γ (ipi A) (ipi A') (univ l) →
+      r.Scoped Ψ → EqTm S Ψ Φ Γ (A.dinst r) (A'.dinst r) (univ l)
+  | dataInjAt {Ψ Φ Γ d} {D : DataDecl} {ps ps' : Tm} {l k : Nat} {p p' A : Tm} : S[d]? = some (.data D) →
+      ps = Tm.ofList ps.toList → ps' = Tm.ofList ps'.toList →
+      EqTm S Ψ Φ Γ (data d ps) (data d ps') (univ l) →
+      ps.toList[k]? = some p → ps'.toList[k]? = some p' → D.params[k]? = some A →
+      HasTy S Ψ Φ Γ p (A.substList (ps.toList.take k).reverse) →
+      HasTy S Ψ Φ Γ p' (A.substList (ps.toList.take k).reverse) →
+      EqTm S Ψ Φ Γ p p' (A.substList (ps.toList.take k).reverse)
+  /- no-confusion of type formers: an equation between different ones holds only where the
+  restriction is unsatisfiable -/
+  | noConf {Ψ Φ Γ X Y l t u T} : X.headClash Y = true → EqTm S Ψ Φ Γ X Y (univ l) →
+      HasTy S Ψ Φ Γ t T → HasTy S Ψ Φ Γ u T → EqTm S Ψ Φ Γ t u T
   /- β and η -/
   | piBeta {Ψ Φ Γ A t a T} : HasTy S Ψ Φ Γ (app (lam A t) a) T →
       EqTm S Ψ Φ Γ (app (lam A t) a) (t.inst a) T
@@ -270,7 +303,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T l δ} : HasTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
       HasTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
       HasTy S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
-      I.Entails δ φ.forall0 → I.Entails φ.forall0 δ →
+      δ.Scoped Ψ → I.Entails δ φ.forall0 → I.Entails φ.forall0 δ →
       EqTm S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlueWith δ A φ T' e ψ u0) T
   | transpIPi {Ψ Φ Γ A φ u0 T} : HasTy S Ψ Φ Γ (transp (ipi A) φ u0) T →
       EqTm S Ψ Φ Γ (transp (ipi A) φ u0) (transpIPi A φ u0) T
@@ -296,7 +329,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       HasTy S Ψ Φ Γ A (univ l) → HasTy S Ψ Φ Γ e (equiv T A) →
       EqTm S Ψ Φ Γ (unglue φ e g) (app (fst e) g) A
   | glueBeta {Ψ Φ Γ φ e t a G} : HasTy S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) G →
-      EqTm S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
+      HasTy S Ψ Φ Γ a G → EqTm S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
   | glueEta {Ψ Φ Γ A φ T e g} : HasTy S Ψ Φ Γ g (glue A φ T e) →
       EqTm S Ψ Φ Γ g (glueEl φ e g (unglue φ e g)) (glue A φ T e)
   /- inductive types: congruence -/
@@ -435,7 +468,8 @@ overlaps in `S` extended by the declaration truncated to the constructors before
 available (otherwise `conBnd` would make the boundary check vacuous). Parameters and point
 arguments do not mention `d` (so `d` occurs only as the type of recursive arguments: strictly
 positive, not nested), point arguments do not mention earlier recursive arguments and live in
-the declared universe, and boundaries are simple, well-typed (with the argument types of their
+the declared universe (also in `S` itself, over the parameters and earlier point arguments, so
+that their types are typed wherever the parameters are: `transpCon` transports along them), and boundaries are simple, well-typed (with the argument types of their
 nested constructors, `Ctor.bndTyped`) and agree on overlaps. -/
 def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   let np := D.params.length
@@ -446,7 +480,8 @@ def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
     let Sc := S ++ [.data (D.truncate c)]
     (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
       A.mentionsData d = false ∧ C.noRecDeps k A = true ∧
-      HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+      HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level) ∧
+      HasTy S 0 .one (D.pointCtx d C k) (A.ren (C.pointRen k) id) (.univ D.level)) ∧
     (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
       b.closedB (np + C.args.length) C.dims = true ∧
       Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
