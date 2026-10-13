@@ -1,4 +1,5 @@
 import Model.Rules.CompLemmas
+import Model.EquivCode
 
 /-!
 # Helpers for the Glue rules
@@ -23,43 +24,6 @@ theorem equiv_eq_subst (T A : Tm) :
   simp only [Tm.equiv, Tm.isEquiv, Tm.isContr, Tm.fiber, Tm.arrow, Tm.pathC, Tm.subst, Tm.shift, Tm.dshift,
     Tm.ren, Tm.up, Tm.ren_ren]
   simp [Tm.upRen, Tm.ren_ren, Tm.ren]
-
-/-- Terms without constants, universes and Kan operations. -/
-def _root_.KubusCore.Tm.pureB : Tm → Bool
-  | .var _ | .abort => true
-  | .const _ | .univ _ | .transp _ _ _ | .hcomp _ _ _ _ => false
-  | .pi A B | .sigma A B | .lam A B | .app A B | .pair A B => A.pureB && B.pureB
-  | .fst p | .snd p | .plam p | .ipi p | .papp p _ => p.pureB
-  | .unglue _ e g => e.pureB && g.pureB
-  | .path A a b => A.pureB && a.pureB && b.pureB
-  | .split _ t _ u => t.pureB && u.pureB
-  | .glue A _ T e => A.pureB && T.pureB && e.pureB
-  | .glueEl _ e t a => e.pureB && t.pureB && a.pureB
-
-/-- The denotation of a pure term does not depend on constants, universes and good codes. -/
-theorem interp_congr_pure (cst cst' uc uc' : ℕ → ℕ → V) (good good' : ℕ → V → Prop) :
-    ∀ (t : Tm), t.pureB = true → interp cst uc good t = interp cst' uc' good' t := by
-  intro t
-  induction t with
-  | var _ | abort => intro _; rfl
-  | const _ | univ _ => intro h; simp [Tm.pureB] at h
-  | transp _ _ _ _ _ => intro h; simp [Tm.pureB] at h
-  | hcomp _ _ _ _ _ _ _ => intro h; simp [Tm.pureB] at h
-  | pi _ _ iA iB | sigma _ _ iA iB | lam _ _ iA iB | app _ _ iA iB | pair _ _ iA iB =>
-    intro h; simp only [Tm.pureB, Bool.and_eq_true] at h
-    funext m ρ γ; simp only [interp]; rw [iA h.1, iB h.2]
-  | fst _ ip | snd _ ip | plam _ ip | ipi _ ip | papp _ _ ip =>
-    intro h; simp only [Tm.pureB] at h
-    funext m ρ γ; simp only [interp]; rw [ip h]
-  | unglue _ _ _ ie ig =>
-    intro h; simp only [Tm.pureB, Bool.and_eq_true] at h
-    funext m ρ γ; simp only [interp]; rw [ie h.1, ig h.2]
-  | path _ _ _ iA ia ib | glue _ _ _ _ iA ia ib | glueEl _ _ _ _ iA ia ib =>
-    intro h; simp only [Tm.pureB, Bool.and_eq_true] at h
-    funext m ρ γ; simp only [interp]; rw [iA h.1.1, ia h.1.2, ib h.2]
-  | split _ _ _ _ it iu =>
-    intro h; simp only [Tm.pureB, Bool.and_eq_true] at h
-    funext m ρ γ; simp only [interp]; rw [it h.1, iu h.2]
 
 theorem sem_equiv {T A : Tm} {ρ : IEnv m} {γ : ℕ → V} (hT : Natural S T m ρ γ) (hA : Natural S A m ρ γ) :
     sem S (Tm.equiv T A) m ρ γ = equivCode m (sem S T m ρ γ) (sem S A m ρ γ) := by

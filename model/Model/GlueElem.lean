@@ -224,6 +224,50 @@ theorem res_glueC {A : V} {φ : Cof m} {Tp ep : V}
     refine (isKV_res _ _).ext (isKV_glueC _ _ _ _) fun n g => ?_
     simp only [dat_res, glueC, dat_mkKV, Cof.restr_restr, res_res]
 
+theorem TubeOK.of_res {c : V} {f : Hom k m} {g : Hom n k} {φ : Cof n} {u : Tube n} {u0 : V}
+    (hu : TubeOK (res f c) g φ u u0) : TubeOK c (f.comp g) φ u u0 where
+  mem n' h r hh := by have := hu.mem n' h r hh; rwa [El_res, ← Hom.comp_assoc] at this
+  coh := hu.coh
+  base := hu.base
+
+theorem TubeOK.to_res {c : V} {f : Hom k m} {g : Hom n k} {φ : Cof n} {u : Tube n} {u0 : V}
+    (hu : TubeOK c (f.comp g) φ u u0) : TubeOK (res f c) g φ u u0 where
+  mem n' h r hh := by rw [El_res, ← Hom.comp_assoc]; exact hu.mem n' h r hh
+  coh := hu.coh
+  base := hu.base
+
+theorem ConstOn.of_res {c : V} {f : Hom k m} {g : Hom (n + 1) k} {φ : Cof n} (h : ConstOn (res f c) g φ) :
+    ConstOn c (f.comp g) φ := by
+  intro n' h' hh r
+  have := h n' h' hh r
+  rwa [res_res, res_res, ← Hom.comp_assoc, ← Hom.comp_assoc] at this
+
+/-- Restrictions of fibrant codes are fibrant. -/
+theorem Fib.restr {c : V} (hc : Fib c m) (f : Hom k m) : Fib (res f c) k where
+  kv := isKV_res _ _
+  elKV n g v hv := by rw [El_res] at hv; exact hc.elKV _ _ _ hv
+  elRes n g v hv n' h := by rw [El_res] at hv ⊢; rw [← Hom.comp_assoc]; exact hc.elRes _ _ _ hv n' h
+  hcMem n g ψ u u0 hψ hu0 hu := by
+    rw [El_res] at hu0 ⊢; rw [hcompAt_eq_res_id, res_res, ← hcompAt_eq_res_id]
+    exact hc.hcMem n _ ψ u u0 hψ hu0 hu.of_res
+  hcFace n g ψ u u0 hψ hu0 hu hh := by
+    rw [El_res] at hu0; rw [hcompAt_eq_res_id, res_res, ← hcompAt_eq_res_id]
+    exact hc.hcFace n _ ψ u u0 hψ hu0 hu.of_res hh
+  hcRes n g ψ u u0 hψ hu0 hu n' h := by
+    rw [El_res] at hu0
+    rw [hcompAt_eq_res_id, res_res, ← hcompAt_eq_res_id, hc.hcRes n _ ψ u u0 hψ hu0 hu.of_res n' h,
+      hcompAt_eq_res_id, hcompAt_eq_res_id (res f c), res_res, Hom.comp_assoc]
+  trMem n g ψ a0 hψ hcon ha := by
+    rw [El_res] at ha ⊢; rw [transpAt_res]
+    rw [← Hom.comp_assoc] at ha ⊢
+    exact hc.trMem n _ ψ a0 hψ hcon.of_res ha
+  trFace n g ψ a0 hψ hcon ha hh := by
+    rw [El_res, ← Hom.comp_assoc] at ha; rw [transpAt_res]
+    exact hc.trFace n _ ψ a0 hψ hcon.of_res ha hh
+  trRes n g ψ a0 hψ hcon ha n' h := by
+    rw [El_res, ← Hom.comp_assoc] at ha
+    rw [transpAt_res, transpAt_res, hc.trRes n _ ψ a0 hψ hcon.of_res ha n' h, Hom.comp_assoc]
+
 end
 
 end Model
