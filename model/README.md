@@ -6,6 +6,12 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 Status: P5 fixed in `ff388bc`. P4 fixed in `288a259`. P2 fixed in `dc30dbb` (`Ctor.bndTyped`), P3 in `2e8fc06`. P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
 
+### P9. Not sound in the model as stated: `elimHcomp` and `transpHcomp` use the base `a` of `hcomp (data d qs) φ u a` at `ps`
+
+Same gap as P6 for compositions. Where the face holds, `hcomp (data d qs) φ u a` denotes `u(1)`, so the left-hand side's typing says nothing about `a` being an element of `data d ps` (it is in `data d qs`, and `u` may be a path in `data d qs` from `a` to an element that is also in `data d ps`). The right-hand sides use `a` as the base of a composition (`elimHcomp`) or transport (`transpHcomp`) in `data d ps`, which is junk then.
+
+Suggested fix: add `HasTy S Ψ Φ Γ (hcomp (data d ps) φ u a) (data d ps)` to `elimHcomp` and `HasTy S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero))` to `transpHcomp`, or state them with `qs := ps` (resp. `ps.dinst .zero`).
+
 ### P7. Not modelable as stated: the `elim` congruence rule reads `bs.toList`/`bs'.toList` without literal premises
 
 Same gap as P4. The congruence rule compares the branches only at the positions of `bs.toList`, but its premises (`HasTy` of both sides) do not say that `bs` and `bs'` are literals. With `bs = tcons b₀ x` and `bs' = tcons b₀ y` for variables `x y` of a type of (lists of) branches, all premises hold semantically (`b₀ ≡ b₀`, equal syntactic lengths) while the eliminators differ on the second constructor.
@@ -16,7 +22,7 @@ Suggested fix: add `bs = Tm.ofList bs.toList` and `bs' = Tm.ofList bs'.toList` t
 
 The left-hand side `elim d ps P bs (con d c qs args rs)` only tells the model that the constructor value is an element of `data d ps`; the arguments are typed at `qs`. Where a boundary clause of `c` holds (e.g. `Φ` entails it), the constructor value *is* its boundary value, which does not determine the point arguments: with `data D (A : U₀) := nil | c0 (x : A) (y : D) (i : I) [i = 0 ↦ y]`, under `Φ = (i = 0)` the term `con D c0 qs [a, nil] [i]` denotes `nil ∈ D ps` for any `a : A[qs]`, so the left-hand side is typed at `ps` while the right-hand side `b a nil (elim nil) i` applies the branch to `a ∉ A[ps]` (junk in the model). Syntactically `qs ≡ ps` is forced by the conversion that types the scrutinee, but the rule's premise (`HasTy` of the left-hand side) does not carry it. `transpCon` has the same gap (it transports `args` along the `ps` line). `elimHcomp`/`transpHcomp` are fine (formal compositions are injective).
 
-Suggested fix: add the premise `HasTy S Ψ Φ Γ (con d c ps args rs) (data d ps)` to `elimCon` and `transpCon` (the kernel can obtain it by checking the constructor term at `ps`; when `qs` and `ps` are syntactically equal it is the scrutinee's typing). Alternatively state both rules for `con d c ps args rs` only (the kernel then reduces only when `qs == ps` syntactically), or add `EqTele S Ψ Φ Γ qs ps D.params []`.
+Suggested fix (revised): add the argument telescope at `ps` as a premise: `HasTele S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse` for `elimCon`, and the same at `(ps.dinst .zero)` for `transpCon` (whose `ps` is a line). The typing of the constructor term at `ps` is not enough: where a boundary holds it says nothing about the point arguments, neither their type nor their naturality (which the applications in the right-hand side need). Alternatively state both rules for `con d c ps args rs` (resp. `ps.dinst .zero`) only.
 
 ### P5. Not modelable as stated: nested constructor argument lists in simple boundaries may have a non-literal tail
 
