@@ -353,6 +353,25 @@ theorem res_partialKV (φ : Cof m) (F : (k : ℕ) → Hom k m → V) (g : Hom k 
     res g (partialKV m φ F) = partialKV k (φ.restr g) (fun n h => F n (g.comp h)) := by
   simp only [partialKV, res_mkKV, Cof.restr_restr]
 
+theorem equiv_pair {T A v : V} (hT : IsKV m T) (hv : v ∈ El (equivCode m T A) (Hom.id m)) :
+    ∃ p q, IsKV m p ∧ v = pairV m p q := by
+  obtain ⟨Q, hQ⟩ := equivCode_eq (A := A) hT
+  rw [hQ, El_sigmaC, sigmaElSet, mem_sigmaEl] at hv
+  obtain ⟨p, hp, q, -, rfl⟩ := hv
+  have hPkv : IsKV m (piC m T (famV m T fun _ f _ => res f A)) := by unfold piC; exact isKV_mkKV _
+  rw [res_id hPkv, El_piC] at hp
+  exact ⟨p, q, (mem_piEl.1 hp).1, rfl⟩
+
+theorem fstV_res_pairV {p q : V} (f : Hom k m) : fstV k (res f (pairV m p q)) = res f p := by
+  rw [fstV_res]; simp [pairV]
+
+theorem eqFun_res' {T A v x : V} (hT : IsKV m T) (hv : v ∈ El (equivCode m T A) (Hom.id m))
+    (hx : x ∈ El T (Hom.id m)) (f : Hom k m) :
+    res f (eqFun m v x) = eqFun k (res f v) (res f x) := by
+  rw [eqFun_res hT hv hx f, eqFun]
+  obtain ⟨p, q, hp, rfl⟩ := equiv_pair hT hv
+  rw [fstV_res_pairV, fstV_pairV hp]
+
 end
 
 end Model
