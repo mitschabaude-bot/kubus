@@ -98,12 +98,12 @@ def hcompDataK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps : Tm) 
         let E1 := E.cof φ i.hφ
         let Eu := E1.dext
         -- the arguments of the tube
-        let uargs ← if E1.ent .zero then pure args.dshift else do
-          let ru ← R.whnf Eu u (Tm.data d ps).dshift i.l (HasTy.dwkCof E i.hφ i.hA) i.hu
-          match ru.tm with
-          | .con d'' c' _ uargs [] =>
-            if d'' = d ∧ c' = c then pure uargs else fail "kernel: the tube is another constructor"
-          | _ => fail "kernel: the tube is not a constructor"
+        -- (stuck unless the tube is the same constructor)
+        let some uargs ← (if E1.ent .zero then pure (some args.dshift) else do
+            let ru ← R.whnf Eu u (Tm.data d ps).dshift i.l (HasTy.dwkCof E i.hφ i.hA) i.hu
+            match ru.tm with
+            | .con d'' c' _ uargs [] => pure (if d'' = d ∧ c' = c then some uargs else none)
+            | _ => pure none) | return none
         let ⟨hul⟩ ← ensureList uargs
         let ⟨hua⟩ ← checkTele R Eu uargs (C.argTys d D.params.length) ps.dshift.toList.reverse
         let ⟨lc, ⟨hD⟩⟩ ← inferType R Eu (.data d ps.dshift)

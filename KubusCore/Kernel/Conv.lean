@@ -398,7 +398,12 @@ def convStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     let φ := I.ofFace α
     -- first without splitting the restriction into its faces (which multiplies the work
     -- under nested systems); split only if that fails
-    if let some e ← tryOpt (convFace R E A l hA t u ht hu []) then return e
+    -- (not nested: failed attempts would multiply)
+    if !(← get).noSplit then
+      modify fun c => { c with noSplit := true }
+      let r ← tryOpt (convFace R E A l hA t u ht hu [])
+      modify fun c => { c with noSplit := false }
+      if let some e := r then return e
     let ψ := I.ofFaces rest
     let ⟨hφ⟩ ← ensureScoped φ Ψ
     let ⟨hψ⟩ ← ensureScoped ψ Ψ
