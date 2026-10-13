@@ -79,13 +79,13 @@ def Tm.pp : Tm → String
   | .transp A φ a => s!"(transp (i. {Tm.pp A}) {I.pp φ} {Tm.pp a})"
   | .hcomp A φ u a => s!"(hcomp {Tm.pp A} [{I.pp φ} ↦ i. {Tm.pp u}] {Tm.pp a})"
   | .glue A φ T e => s!"(Glue {Tm.pp A} [{I.pp φ} ↦ ({Tm.pp T}, {Tm.pp e})])"
-  | .glueEl φ t a => s!"(glue [{I.pp φ} ↦ {Tm.pp t}] {Tm.pp a})"
+  | .glueEl φ _ t a => s!"(glue [{I.pp φ} ↦ {Tm.pp t}] {Tm.pp a})"
   | .unglue φ _ g => s!"(unglue {I.pp φ} {Tm.pp g})"
 
 def _root_.KubusCore.Tm.size : Tm → Nat
   | .var _ | .const _ | .univ _ | .abort => 1
   | .fst t | .snd t | .plam t | .ipi t | .papp t _ => t.size + 1
-  | .pi A B | .sigma A B | .app A B | .pair A B | .split _ A _ B | .transp A _ B | .glueEl _ A B
+  | .pi A B | .sigma A B | .app A B | .pair A B | .split _ A _ B | .transp A _ B | .glueEl _ _ A B
   | .lam A B | .unglue _ A B => A.size + B.size + 1
   | .path A a b => A.size + a.size + b.size + 1
   | .hcomp A _ u a => A.size + u.size + a.size + 1

@@ -240,7 +240,23 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K (Inf
     let ⟨hEq⟩ ← checkType R E1 (Tm.equiv T A) l
     let ⟨he⟩ ← R.check E1 e (Tm.equiv T A) l hEq
     pure ⟨.univ l, l + 1, hU, HasTy.glue hA hφ hT he⟩
-  | .glueEl .. => fail "kernel: cannot infer the type of glue"
+  | .glueEl φ e t a => do
+    -- the Glue type: the base from `a`, the fibres from the type of the equivalence
+    let ⟨hφ⟩ ← ensureScoped φ Ψ
+    let E1 := E.cof φ hφ
+    let (T, _) ← guessEquivTy R E1 e
+    let ia ← R.infer E a
+    let l := ia.lvl
+    let ⟨hT⟩ ← checkType R E1 T l
+    let ⟨hq⟩ ← checkType R E1 (Tm.equiv T ia.ty) l
+    let ⟨he⟩ ← R.check E1 e (Tm.equiv T ia.ty) l hq
+    have hG := HasTy.glue ia.hty hφ hT he
+    let ⟨ht⟩ ← R.check E1 t T l hT
+    have hfe : HasTy S Ψ (cof Φ φ) Γ (.app (.fst e) t) ia.ty := by
+      have := HasTy.app (HasTy.fst he) ht
+      rwa [Tm.shift_inst] at this
+    let ⟨ee⟩ ← R.conv E1 ia.ty l (HasTy.rs E hφ ia.hty) (.app (.fst e) t) a hfe (HasTy.rs E hφ ia.htm)
+    pure ⟨.glue ia.ty φ T e, l, hG, HasTy.glueEl hG ht ia.htm ee⟩
   | .unglue φ e g => do
     let i ← inferUnglueArg R E φ e g
     let ⟨A, _, ⟨hA, eG⟩⟩ ← toGlueE R E i.ty i.lvl i.hty φ e
@@ -308,9 +324,9 @@ def checkStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .abort => do
     let ⟨h⟩ ← ensureEnt Φ .zero
     pure ⟨HasTy.abort h hA⟩
-  | .glueEl φ t1 a1 => do
+  | .glueEl φ e t1 a1 => do
     let ⟨hφ⟩ ← ensureScoped φ Ψ
-    let ⟨A1, T, e, ⟨hA1, eG⟩⟩ ← toGlue R E A l hA φ
+    let ⟨A1, T, ⟨hA1, eG⟩⟩ ← toGlueE R E A l hA φ e
     have hG := HasTy.eqR eG
     let E1 := E.cof φ hφ
     let ⟨ht⟩ ← R.check E1 t1 T l (HasTy.glueFib hG)

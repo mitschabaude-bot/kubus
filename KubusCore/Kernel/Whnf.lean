@@ -123,10 +123,11 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     else pure none
   | .glue _ φ T _, ht =>
     if h : I.Entails Φ φ then pure (some (⟨T, EqTm.glueFace h ht⟩, false)) else pure none
-  | .unglue φ e (.glueEl φ' t1 a1), ht =>
-    if h : φ' = φ then pure (some (⟨a1, by subst h; exact EqTm.glueBeta ht⟩, false))
-    else elimStep R E (.unglue φ e (.glueEl φ' t1 a1)) A l hA
-  | .glueEl φ t1 _, ht =>
+  | .unglue φ e (.glueEl φ' e' t1 a1), ht =>
+    if h : φ' = φ ∧ e' = e then
+      pure (some (⟨a1, by obtain ⟨h1, h2⟩ := h; subst h1; subst h2; exact EqTm.glueBeta ht⟩, false))
+    else elimStep R E (.unglue φ e (.glueEl φ' e' t1 a1)) A l hA
+  | .glueEl φ _ t1 _, ht =>
     if h : I.Entails Φ φ then pure (some (⟨t1, EqTm.glueElFace h ht⟩, false)) else pure none
   | .const k, _ =>
     match h : S[k]?, hl : E.sig.lv[k]? with
@@ -310,10 +311,10 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
     have e1 : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e gr.tm) A1 :=
       EqTm.unglue inf.htm (HasTy.unglue hG (HasTy.eqR eg)) (I.entails_refl φ) (I.entails_refl φ) eg
     match h : gr.tm with
-    | .glueEl φ' t1 a1 =>
-      if hφ' : φ' = φ then
-        have e1' : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e (.glueEl φ t1 a1)) A1 := by
-          rw [h, hφ'] at e1; exact e1
+    | .glueEl φ' e' t1 a1 =>
+      if hφ' : φ' = φ ∧ e' = e then
+        have e1' : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e (.glueEl φ e t1 a1)) A1 := by
+          rw [h, hφ'.1, hφ'.2] at e1; exact e1
         have e2 := EqTm.glueBeta (HasTy.eqR e1')
         let r3 ← R.whnf E a1 A1 gi.lvl inf.hty (HasTy.eqR e2)
         return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩

@@ -170,7 +170,7 @@ def closedB (n m : Nat) : Tm → Bool
   | transp A φ a => A.closedB n (m + 1) && φ.scopedB m && a.closedB n m
   | hcomp A φ u a => A.closedB n m && φ.scopedB m && u.closedB n (m + 1) && a.closedB n m
   | glue A φ T e => A.closedB n m && φ.scopedB m && T.closedB n m && e.closedB n m
-  | glueEl φ t a => φ.scopedB m && t.closedB n m && a.closedB n m
+  | glueEl φ e t a => φ.scopedB m && e.closedB n m && t.closedB n m && a.closedB n m
   | unglue φ e g => φ.scopedB m && e.closedB n m && g.closedB n m
 
 theorem upRen_fix (ρ : Nat → Nat) (n : Nat) (h : ∀ x < n, ρ x = x) :
@@ -229,11 +229,11 @@ theorem ren_closed (t : Tm) : ∀ (n m : Nat) (ρ δ : Nat → Nat), t.closedB n
     simp only [ren]
     rw [ihA n m ρ δ h.1.1.1 hρ hδ, I.ren_id_of_scoped δ φ m ((I.scopedB_iff _ _).mp h.1.1.2) hδ,
       ihT n m ρ δ h.1.2 hρ hδ, ihe n m ρ δ h.2 hρ hδ]
-  | glueEl φ t a iht iha =>
+  | glueEl φ e t a ihe iht iha =>
     intro n m ρ δ h hρ hδ; simp only [closedB, Bool.and_eq_true] at h
     simp only [ren]
-    rw [I.ren_id_of_scoped δ φ m ((I.scopedB_iff _ _).mp h.1.1) hδ, iht n m ρ δ h.1.2 hρ hδ,
-      iha n m ρ δ h.2 hρ hδ]
+    rw [I.ren_id_of_scoped δ φ m ((I.scopedB_iff _ _).mp h.1.1.1) hδ, ihe n m ρ δ h.1.1.2 hρ hδ,
+      iht n m ρ δ h.1.2 hρ hδ, iha n m ρ δ h.2 hρ hδ]
   | unglue φ e g ihe ih =>
     intro n m ρ δ h hρ hδ; simp only [closedB, Bool.and_eq_true] at h
     simp only [ren]
@@ -258,7 +258,7 @@ def mentionsI (i : Nat) : Tm → Bool
   | transp A φ a => A.mentionsI (i + 1) || φ.vars.contains i || a.mentionsI i
   | hcomp A φ u a => A.mentionsI i || φ.vars.contains i || u.mentionsI (i + 1) || a.mentionsI i
   | glue A φ T e => A.mentionsI i || φ.vars.contains i || T.mentionsI i || e.mentionsI i
-  | glueEl φ t a => φ.vars.contains i || t.mentionsI i || a.mentionsI i
+  | glueEl φ e t a => φ.vars.contains i || e.mentionsI i || t.mentionsI i || a.mentionsI i
   | unglue φ e g => φ.vars.contains i || e.mentionsI i || g.mentionsI i
 
 end Tm

@@ -284,13 +284,13 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
     let keys ← sys.mapM fun (r, _) => trI ks r
     let φ := canonCof keys
     let some ⟨G, l, ⟨hG⟩⟩ := exp | throw "glue without an expected type"
-    let ⟨A, T, _, ⟨hA, _⟩⟩ ← KubusCore.Kernel.toGlue R E G l hG φ
+    let ⟨A, T, e, ⟨hA, _⟩⟩ ← KubusCore.Kernel.toGlue R E G l hG φ
     let a' ← elabT R env E ks a (some ⟨A, l, ⟨hA⟩⟩)
     let mut es : Array (KI × KTm) := #[]
     for ((_, t), r) in sys.zip keys do
       let Ek ← cofOf E r
       es := es.push (r, ← elabT R env Ek ks t (expOf R Ek T))
-    return .glueEl φ (mkSys es.toList) a'
+    return .glueEl φ e (mkSys es.toList) a'
   | .unglue u _ sys => do
     let keys ← sys.mapM fun (r, _) => trI ks r
     let φ := canonCof keys
