@@ -613,6 +613,16 @@ theorem contr_tube_ok {X cen ctr : V} (hX : Fib X k) (hcen : cen ∈ El X (Hom.i
   · obtain ⟨p, -, e, h0⟩ := key n h hd
     rw [e, pappV_pathOfLine, h0]
 
+theorem contr_tube_one {X cen ctr : V} (hX : Fib X k)
+    (hctr : ctr ∈ piElSet k X (famV k X fun k' h x => pathC k' (res (Hom.wk k') (res h X)) (res h cen) x))
+    {n : ℕ} {h : Hom n k} {y : V} (hy : y ∈ El X h) :
+    pappV n (appV n (res h ctr) y) (DM.one n) = y := by
+  simp only [piElSet, mem_piEl] at hctr
+  have hP := (hctr.2.1 n h).2 y hy
+  rw [apZ_dat_famV _ _ _ hy] at hP
+  obtain ⟨p, -, e, -, h1⟩ := mem_pathC.1 hP
+  rw [appV_res, e, pappV_pathOfLine, h1, res_id (hX.elKV _ _ _ hy)]
+
 include hG hψ hu0 hcon in
 theorem gt_Ω_psi {g : Hom k n} (hg : ((gtδ φ).restr g).holds) (hψg : (ψ.restr g).holds) :
     gtΩ A φ Tp ep ψ u0 g = res (Hom.wk k) (res g (gtA1' A φ ep ψ u0)) := by
@@ -722,6 +732,25 @@ theorem gt_ext_res {g : Hom k n} (hφg : (φ.restr ((eO n).comp g)).holds) (h : 
     rw [← gt_C_res hG hψ hu0 hcon hφg, sndV_res_of_pair hpair, res_res]
   simp only [Tube.restr, gtExtTube]
   rw [hs]; rfl
+
+include hG hψ hu0 hcon in
+/-- On `ψ`, `ext = (u0, refl)`. -/
+theorem gt_ext_psi {g : Hom k n} (hφg : (φ.restr ((eO n).comp g)).holds) (hψg : (ψ.restr g).holds) :
+    gtExt A φ Tp ep ψ u0 g = pairV k (res g u0) (pathOfLine k (res (Hom.wk k) (res g (gtA1' A φ ep ψ u0)))) := by
+  obtain ⟨hX, hcen, hctr, -⟩ := gt_c hG hψ hu0 hcon hφg
+  have hok := gt_ext_tube_ok hG hψ hu0 hcon hφg
+  rw [gtExt, hX.hcFace _ _ _ _ _ ((gt_δ_cof hG.cof).restr g |>.or (hψ.restr g)) hcen hok
+    (Cof.holds_or.2 (Or.inr hψg))]
+  simp only [gtExtTube]
+  rw [Hom.comp_id]
+  have e : (if ((gtδ φ).restr g).holds then
+      pairV k (gtT1' Tp ψ u0 g) (gtω A φ Tp ep ψ u0 g)
+      else pairV k (res g u0) (pathOfLine k (res (Hom.wk k) (res g (gtA1' A φ ep ψ u0))))) =
+      pairV k (res g u0) (pathOfLine k (res (Hom.wk k) (res g (gtA1' A φ ep ψ u0)))) := by
+    split_ifs with hδ
+    · exact gt_pair_psi hG hψ hu0 hcon hδ hψg
+    · rfl
+  rw [e, contr_tube_one hX hctr (gt_refl_mem hG hψ hu0 hcon hψg hφg)]
 
 end gtExt
 
