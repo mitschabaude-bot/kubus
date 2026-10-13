@@ -185,7 +185,28 @@ theorem sem_HasTy_elim {Ψ Φ Γ d D ps P bs t m} (hS : SigOK S) (h0 : S[d]? = s
       SemEq S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps P Γ)
         (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P))
     (h7 : SemTy S Ψ Φ Γ t (data d ps)) : SemTy S Ψ Φ Γ (elim d ps P bs t) (P.inst t) := by
-  sorry
+  have hbsc : bs.ConstsLt S.length := by
+    rw [h3]
+    refine constsLt_ofList fun b hb => ?_
+    obtain ⟨c, hc, rfl⟩ := List.getElem_of_mem hb
+    obtain ⟨C, hC⟩ : ∃ C, D.ctors[c]? = some C := ⟨_, List.getElem?_eq_getElem (by omega)⟩
+    exact (h5 c C _ hC (List.getElem?_eq_getElem hc)).2.1
+  refine ⟨h1.1, ⟨h1.2.1.1, h1.2.1.2, h2.2.1, hbsc, h7.2.1⟩, h2.2.1.inst h7.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hsem, hde⟩ := sem_elim_pt hS h0 hpl h1 h2 h4 h5 h6 h7 hp
+  have typed := elimPt_typed hS h0 hpl h1 h2 h4 h5 h6 hp hde
+  obtain ⟨-, hPn⟩ := elimPt_motive h0 h1 h2 hp
+  obtain ⟨-, hnat_t, -, -⟩ := h7.2.2.2 m ρ γ hp
+  have hPinst : sem S (P.inst t) m ρ γ = motV S P ρ γ m (Hom.id m) (sem S t m ρ γ) := by
+    rw [sem_inst hnat_t]; simp only [motV, IEnv.restr_id, TEnv.restr_id_of_kv hp.kv]
+  refine ⟨?_, fun k f => ?_, ?_, fun k f => ?_⟩
+  · rw [hsem, hPinst]; exact typed.1
+  · rw [(sem_elim_pt hS h0 hpl h1 h2 h4 h5 h6 h7 (hp.restr h1.1 f)).1, hsem, typed.2 k f, elimD_restr_pt,
+      Hom.comp_id, Hom.id_comp, hnat_t k f]
+  · unfold TyOK; rw [hPinst]
+    obtain ⟨hmem, -, hty, -⟩ := h2.2.2.2 m _ _ (elimPt_cons h0 h1 hp (Hom.id m) hde)
+    exact TyCode.of_mem_univ hty hmem
+  · rw [sem_inst (hnat_t.restr f), hnat_t k f, hPinst, hPn m (Hom.id m) _ hde k f]
+    simp only [motV, Hom.id_comp]
 
 /-! ### Congruence -/
 

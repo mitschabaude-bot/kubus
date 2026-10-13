@@ -500,6 +500,16 @@ theorem elimPt_bndPoint {ρ : IEnv m} {γ : ℕ → V} (hp : IsPoint S Φ Γ m �
 end
 
 
+theorem elimBranch_restr_pt (d : ℕ) (D : DataDecl) (ps P bs : Tm) (ρ : IEnv m) (γ : ℕ → V) (f : Hom k m)
+    {n : ℕ} (g : Hom n k) (c : ℕ) (args : List V) (rs : List (DM n)) :
+    elimBranch (dataSD (sigUpTo S d) D d k (psRV S ps k (ρ.restr f) (TEnv.restr γ f))) (motV S P (ρ.restr f) (TEnv.restr γ f))
+      (psRV S bs k (ρ.restr f) (TEnv.restr γ f)) n g c args rs =
+    elimBranch (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ) (psRV S bs m ρ γ) n (f.comp g) c args rs := by
+  unfold elimBranch
+  simp only [elimD_restr_pt]
+  rw [psRV_restr]
+  rfl
+
 section tree
 
 variable (hS : SigOK S) {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {Ψ : ℕ} {Φ : I} {Γ : Ctx}
@@ -698,6 +708,176 @@ theorem elim_tree {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) (hIH : ECAll 
   | tnil => exact ⟨fun hs => by simp [Ctor.simpleB] at hs, fun _ _ _ _ i hi => by simp [Tm.toList] at hi⟩
   | _ =>
     exact ⟨fun hs => by simp [Ctor.simpleB] at hs, fun _ _ hs => by simp [Ctor.simpleArgs] at hs⟩
+
+
+variable (h6 : ∀ (c : Nat) (C : Ctor) (b : Tm) (k : Nat) (ψ : I) (e : Tm), D.ctors[c]? = some C →
+      bs.toList[c]? = some b → C.bnd[k]? = some (ψ, e) →
+      SemEq S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps P Γ)
+        (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P))
+include h6
+
+/-- The constructor equation at the identity, given those of the earlier constructors. -/
+theorem elim_conEq_id {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) (hIH : ECAll S d D ps P bs Φ Γ c)
+    {ρ : IEnv m} {γ : ℕ → V} (hp : IsPoint S Φ Γ m ρ γ) {args : List V}
+    (hat : (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)).ArgsTyped c C m (Hom.id m) args)
+    {rs : List (DM m)} (hrs : rs.length = C.dims)
+    (hrec : ∀ j a, args[j]? = some a → C.isRec j = true →
+      ElimTN (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ) (psRV S bs m ρ γ) a) :
+    elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ) (psRV S bs m ρ γ) m (Hom.id m)
+      (conV D.ctors m c args rs) =
+    elimBranch (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ) (psRV S bs m ρ γ) m (Hom.id m) c args rs := by
+  have hok := hS.2 d D hd
+  have hpok := elimPt_pok hd h1 hp
+  have hgood := (hok.2 m _ hpok).1
+  obtain ⟨hP, -⟩ := elimPt_motive hd h1 h2 hp
+  have hl : args.length = C.args.length := hat.1
+  have hPV : (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)).PtValid c m (Hom.id m) args := by
+    have := SData.ptValid_take hC hat.2.2 args.length; rwa [List.take_length] at this
+  have hakv : ∀ a ∈ args, IsKV m a := by
+    intro a ha
+    obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem ha
+    cases hr : C.isRec j
+    · have hct : (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)).ctors = D.ctors := rfl
+      exact hgood.pt_kv hPV hj (by rw [hct, getD_ctors hC]; exact hr)
+    · exact (hat.2.1 j _ (List.getElem?_eq_getElem hj) hr).kv
+  cases hb : bndAtMap C rs (Hom.id m) with
+  | none =>
+    have hb' : bndAtMap ((dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)).ctors.getD c default) rs (Hom.id m) = none := by
+      rw [show (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)).ctors = D.ctors from rfl, getD_ctors hC]; exact hb
+    exact elimD_conV _ _ _ _ hb' hakv
+  | some cl =>
+    obtain ⟨ψ, e⟩ := cl
+    obtain ⟨hmem, hh⟩ := bndAtMap_some hb
+    have hψ : (ival (renv rs) ψ).holds := by simpa using hh
+    rw [show conV D.ctors m c args rs = conV (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)).ctors m c args rs from rfl,
+      conV_eq_bnd hgood hC hat hrs hb]
+    set ihs := C.recPos.map fun j => elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ)
+      (psRV S bs m ρ γ) m (Hom.id m) (args.getD j ∅) with hihs
+    have hil : ihs.length = C.recPos.length := by simp [ihs]
+    have hrp : ∀ s (hs : s < C.recPos.length), C.recPos.getD s 0 < args.length ∧ C.isRec (C.recPos.getD s 0) = true := by
+      intro s hs
+      have hm : C.recPos.getD s 0 ∈ (List.range C.args.length).filter C.isRec := by
+        rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; exact List.getElem_mem _
+      rw [List.mem_filter, List.mem_range] at hm
+      exact ⟨by omega, hm.2⟩
+    have hihT : ∀ s (hs : s < C.recPos.length), ElimTN (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ)
+        (psRV S bs m ρ γ) (args[C.recPos.getD s 0]'(hrp s hs).1) ∧
+        ihs[s]'(by omega) = elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ)
+          (psRV S bs m ρ γ) m (Hom.id m) (args[C.recPos.getD s 0]'(hrp s hs).1) := by
+      intro s hs
+      have e1 : C.recPos.getD s 0 = C.recPos[s] := by
+        rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs, Option.getD_some]
+      refine ⟨hrec _ _ (List.getElem?_eq_getElem (hrp s hs).1) (hrp s hs).2, ?_⟩
+      simp only [ihs, List.getElem_map]
+      rw [← e1, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (hrp s hs).1, Option.getD_some]
+    have hih : ∀ s (hs : s < C.recPos.length), ihs[s]'(by omega) ∈
+        El (sem S P m ρ (TEnv.cons γ (args[C.recPos.getD s 0]'(by have := recPos_lt hs; omega)))) (Hom.id m) := by
+      intro s hs
+      rw [(hihT s hs).2]
+      have := (hihT s hs).1.1
+      simpa [motV, IEnv.restr_id, TEnv.restr_id_of_kv hp.kv] using this
+    have hihkv : ∀ a ∈ ihs, IsKV m a := by
+      intro a ha
+      obtain ⟨s, hs, rfl⟩ := List.getElem_of_mem ha
+      have hs' : s < C.recPos.length := by omega
+      have hde := hat.2.1 _ _ (List.getElem?_eq_getElem (hrp s hs').1) (hrp s hs').2
+      rw [(hihT s hs').2]
+      exact (hP m (Hom.id m) _ hde).elKV m (Hom.id m) _ (hihT s hs').1.1
+    have hkvL : ∀ a ∈ args ++ ihs, IsKV m a := fun a ha => by
+      rcases List.mem_append.1 ha with h | h
+      · exact hakv a h
+      · exact hihkv a h
+    have hbp := elimPt_branch hS hd hpl h1 hp hC hmem args ihs rs hat hil hih hihkv hrs hψ
+    obtain ⟨kk, hkk⟩ := List.mem_iff_getElem?.1 hmem
+    have hc : c < bs.toList.length := by rw [hbsl]; exact (List.getElem?_eq_some_iff.1 hC).1
+    have hbc : bs.toList[c]? = some (bs.toList[c]) := List.getElem?_eq_getElem hc
+    have heq := (h6 c C _ kk ψ e hC hbc hkk).2.2 m _ _ hbp
+    rw [sem_branchApp C _ ρ γ args ihs rs hl hil hrs] at heq
+    have hsyn := (hok.1.2.2.2 c C hC ψ e hmem)
+    have htree := (elim_tree hS hd hpl h1 h2 hbsl h5 hC hIH e).1 hsyn.2.2 hsyn.2.1 m ρ γ hp args hat hrec rs hrs _ _
+      (BrEnv.consL hp.kv hl hil hrs hkvL) (hgood.bnd c C hC ψ e hmem m rs hψ)
+    rw [htree.1] at heq
+    have hBSv : sem S (bs.toList[c]) m ρ γ = vnth (psRV S bs m ρ γ m (Hom.id m)) c := by
+      simp only [psRV, IEnv.restr_id, TEnv.restr_id_of_kv hp.kv]; rw [sem_vnth bs _ _ c hc]
+    refine heq.symm.trans ?_
+    rw [elimBranch_eq (Θ := dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) _ _ hC hl, hBSv]
+
+
+/-- The constructor equations of the eliminator, at every point. -/
+theorem elim_ecAll : ∀ c, ECAll S d D ps P bs Φ Γ c
+  | 0 => fun _ _ _ _ c' hc' => absurd hc' (Nat.not_lt_zero _)
+  | c + 1 => by
+    intro m ρ γ hp c' hc' C' hC'
+    by_cases hlt : c' < c
+    · exact elim_ecAll c m ρ γ hp c' hlt C' hC'
+    have hcc : c' = c := by omega
+    subst hcc
+    intro n g args hat rs hrs hrec
+    have hp' := hp.restr h1.1 g
+    have hat' : (dataSD (sigUpTo S d) D d n (psRV S ps n (ρ.restr g) (TEnv.restr γ g))).ArgsTyped c' C' n (Hom.id n) args := by
+      rw [dataSD_restr, argsTyped_restr_iff, Hom.comp_id]; exact hat
+    have hrec' : ∀ j a, args[j]? = some a → C'.isRec j = true →
+        ElimTN (dataSD (sigUpTo S d) D d n (psRV S ps n (ρ.restr g) (TEnv.restr γ g))) (motV S P (ρ.restr g) (TEnv.restr γ g))
+          (psRV S bs n (ρ.restr g) (TEnv.restr γ g)) a := by
+      intro j a ha hr
+      obtain ⟨h1', h2'⟩ := hrec j a ha hr
+      refine ⟨?_, fun n' h => ?_⟩
+      · rw [elimD_restr_pt, motV_restr]
+        show _ ∈ El (motV S P ρ γ n (g.comp (Hom.id n)) a) _
+        rw [Hom.comp_id]; exact h1'
+      · rw [elimD_restr_pt, elimD_restr_pt, Hom.comp_id, Hom.id_comp]; exact h2' n' h
+    have := elim_conEq_id hS hd hpl h1 h2 hbsl h5 h6 hC' (elim_ecAll c') hp' hat' hrs hrec'
+    rw [elimD_restr_pt, elimBranch_restr_pt] at this
+    simp only [Hom.comp_id] at this
+    exact this
+
+
+theorem elimPt_typed {ρ : IEnv m} {γ : ℕ → V} (hp : IsPoint S Φ Γ m ρ γ) :
+    ∀ {n : ℕ} {g : Hom n m} {v : V}, DElem (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) n g v →
+    elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ) (psRV S bs m ρ γ) n g v ∈
+        El (motV S P ρ γ n g v) (Hom.id n) ∧
+      ∀ n' (h : Hom n' n), res h (elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ) (psRV S bs m ρ γ) n g v) =
+        elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ) (psRV S bs m ρ γ) n' (g.comp h) (res h v) := by
+  have hpok := elimPt_pok hd h1 hp
+  have hgood := ((hS.2 d D hd).2 m _ hpok).1
+  obtain ⟨hP, hPn⟩ := elimPt_motive hd h1 h2 hp
+  intro n g v hv
+  exact elimD_typed hgood _ _ hP hPn (elimPt_hB hS hd hpl h1 hbsl h5 hp)
+    (fun c C hC => elim_ecAll hS hd hpl h1 h2 hbsl h5 h6 (c + 1) m ρ γ hp c (Nat.lt_succ_self c) C hC) hv
+
+theorem elimPt_branchesOK {ρ : IEnv m} {γ : ℕ → V} (hp : IsPoint S Φ Γ m ρ γ) :
+    BranchesOK (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ) (psRV S bs m ρ γ) := by
+  intro n g c C hC ψ b hmem args rs hat hrs hψ
+  have hpok := elimPt_pok hd h1 hp
+  have hgood := ((hS.2 d D hd).2 m _ hpok).1
+  have hEC := elim_ecAll hS hd hpl h1 h2 hbsl h5 h6 (c + 1) m ρ γ hp c (Nat.lt_succ_self c) C hC
+  have e1 := hEC n g args hat rs hrs fun j a ha hr => elimPt_typed hS hd hpl h1 h2 hbsl h5 h6 hp (hat.2.1 j a ha hr)
+  rw [← e1]
+  obtain ⟨⟨ψ0, b0⟩, hb0⟩ := bndAtMap_isSome (cl := (ψ, b)) hmem (by simpa using hψ) (f := Hom.id n)
+  obtain ⟨hmem0, hh0⟩ := bndAtMap_some hb0
+  rw [conV_eq_bnd hgood hC hat hrs hb0,
+    hgood.ovl c C hC ψ0 b0 ψ b hmem0 hmem n g args rs hat hrs (by simpa using hh0) hψ]
+
+variable {t : Tm} (h7 : SemTy S Ψ Φ Γ t (.data d ps))
+include h7
+
+theorem sem_elim_pt {ρ : IEnv m} {γ : ℕ → V} (hp : IsPoint S Φ Γ m ρ γ) :
+    sem S (.elim d ps P bs t) m ρ γ = elimD (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) (motV S P ρ γ)
+      (psRV S bs m ρ γ) m (Hom.id m) (sem S t m ρ γ) ∧
+    DElem (dataSD (sigUpTo S d) D d m (psRV S ps m ρ γ)) m (Hom.id m) (sem S t m ρ γ) := by
+  have hpok := elimPt_pok hd h1 hp
+  have ht := (h7.2.2.2 m ρ γ hp).1
+  rw [sem_data_of hd hpok, mem_El_dataC] at ht
+  have hρ : ρ.restr (Hom.id m) = ρ := IEnv.restr_id ρ
+  have hγ : TEnv.restr γ (Hom.id m) = γ := TEnv.restr_id_of_kv hp.kv
+  have hg : ElimGuard (sigUpTo S d) D d m (psRV S ps m ρ γ) (motV S P ρ γ) (psRV S bs m ρ γ) (psRV S t m ρ γ) := by
+    refine ⟨hpok, ?_, elimPt_branchesOK hS hd hpl h1 h2 hbsl h5 h6 hp⟩
+    simp only [psRV, hρ, hγ]; exact ht
+  refine ⟨?_, ht⟩
+  rw [sem_elim hd]
+  split
+  · simp only [hρ, hγ]; rfl
+  · exact absurd hg ‹_›
 
 end tree
 
