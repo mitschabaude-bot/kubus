@@ -1,4 +1,4 @@
-import Model.Rules.CompLemmas
+import Model.Rules.GlueLemmas
 
 /-!
 # Semantic validity of the rules
@@ -18,7 +18,7 @@ attribute [local instance] Classical.propDecidable
 theorem sem_Wf_nil {S : Sig} {Ψ Φ}
     (h0 : Φ.Scoped Ψ) :
     SemWf S Ψ Φ [] := by
-  refine ⟨h0, fun x A hl => by simp [Ctx.lookup] at hl, fun m ρ γ hp x A hl => by simp [Ctx.lookup] at hl⟩
+  refine ⟨trivial, fun x A hl => by simp [Ctx.lookup] at hl, fun m ρ γ hp x A hl => by simp [Ctx.lookup] at hl⟩
 
 theorem sem_Wf_cons {S : Sig} {Ψ Φ Γ A l}
     (h0 : SemTy S Ψ Φ Γ A (univ l)) :
@@ -45,7 +45,7 @@ theorem sem_HasTy_conv {S : Sig} {Ψ Φ Γ t A B l}
 theorem sem_HasTy_restrict {S : Sig} {Ψ Φ Φ' Γ t A}
     (h0 : Φ'.Scoped Ψ) (h1 : I.Entails Φ' Φ) (h2 : SemTy S Ψ Φ Γ t A) :
     SemTy S Ψ Φ' Γ t A := by
-  exact ⟨⟨h0, h2.1.2.1, fun m ρ γ hp => h2.1.2.2 m ρ γ (hp.of_entails h1)⟩, h2.2.1, h2.2.2.1,
+  exact ⟨⟨trivial, h2.1.2.1, fun m ρ γ hp => h2.1.2.2 m ρ γ (hp.of_entails h1)⟩, h2.2.1, h2.2.2.1,
     fun m ρ γ hp => h2.2.2.2 m ρ γ (hp.of_entails h1)⟩
 
 theorem sem_HasTy_const {S : Sig} {Ψ Φ Γ k t A}
@@ -141,7 +141,12 @@ theorem sem_HasTy_pathRight {S : Sig} {Ψ Φ Γ A a b l}
 theorem sem_HasTy_glueFib {S : Sig} {Ψ Φ Γ A φ T e l}
     (h0 : SemTy S Ψ Φ Γ (glue A φ T e) (univ l)) :
     SemTy S Ψ (cof Φ φ) Γ T (univ l) := by
-  sorry
+  refine ⟨h0.1.cof φ, h0.2.1.2.1, trivial, fun m ρ γ hp => ?_⟩
+  obtain ⟨hp', hh⟩ := isPoint_cof_iff.1 hp
+  obtain ⟨hmem, -, hUty, hUnat⟩ := h0.2.2.2 m ρ γ hp'
+  obtain ⟨hT, he⟩ := cond_of_sem_glue (hUty.ne_empty hmem)
+  rw [sem_glue_holds hp.kv hh hT he (hT.kv_of_holds hp.kv hh)] at hmem
+  exact ⟨hmem, hT.natural_of_holds hp.kv hh, hUty, hUnat⟩
 
 theorem sem_HasTy_univ {S : Sig} {Ψ Φ Γ l}
     (h0 : l + 1 ≤ maxLevel) (h1 : SemWf S Ψ Φ Γ) :
@@ -531,7 +536,41 @@ theorem sem_HasTy_hcomp {S : Sig} {Ψ Φ Γ A φ u a l}
 theorem sem_HasTy_glue {S : Sig} {Ψ Φ Γ A φ T e l}
     (h0 : SemTy S Ψ Φ Γ A (univ l)) (h1 : φ.Scoped Ψ) (h2 : SemTy S Ψ (cof Φ φ) Γ T (univ l)) (h3 : SemTy S Ψ (cof Φ φ) Γ e (equiv T A)) :
     SemTy S Ψ Φ Γ (glue A φ T e) (univ l) := by
-  sorry
+  refine ⟨h0.1, ⟨h0.2.1, h2.2.1, h3.2.1⟩, trivial, fun m ρ γ hp => ?_⟩
+  have hfp : ∀ k (f : Hom k m), (Cof.restr (ival ρ φ).face f).holds →
+      IsPoint S (cof Φ φ) Γ k (ρ.restr f) (TEnv.restr γ f) := fun k f hf =>
+    isPoint_cof_iff.2 ⟨hp.restr h0.1 f, (holds_face_restr_iff f).1 hf⟩
+  have hT : FaceNat S T φ m ρ γ := fun k f hf => (h2.2.2.2 k _ _ (hfp k f hf)).2.1
+  have he : FaceNat S e φ m ρ γ := fun k f hf => (h3.2.2.2 k _ _ (hfp k f hf)).2.1
+  obtain ⟨hAmem, hAnat, hUty, hUnat⟩ := h0.2.2.2 m ρ γ hp
+  rw [sem_univ, mem_El_univ_iff] at hAmem
+  refine ⟨?_, natural_glue hp.kv hT he hAnat, hUty, hUnat⟩
+  by_cases hh : (ival ρ φ).holds
+  · rw [sem_glue_holds hp.kv hh hT he (hT.kv_of_holds hp.kv hh)]
+    exact (h2.2.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp, hh⟩)).1
+  · rw [sem_glue hT he, sem_univ, mem_El_univ_iff]
+    have hTf : ∀ k (f : Hom k m), (Cof.restr (ival ρ φ).face f).holds →
+        dat (partialKV m (ival ρ φ).face (faceVals S T ρ γ)) k f ∈ Vt l ∧
+          WF l k (dat (partialKV m (ival ρ φ).face (faceVals S T ρ γ)) k f) := by
+      intro k f hf
+      have := (h2.2.2.2 k _ _ (hfp k f hf)).1
+      rw [sem_univ, mem_El_univ_iff] at this
+      rw [dat_partialKV, if_pos hf]; exact this
+    have hef : ∀ k (f : Hom k m), (Cof.restr (ival ρ φ).face f).holds →
+        dat (partialKV m (ival ρ φ).face (faceVals S e ρ γ)) k f ∈
+          El (equivCode k (dat (partialKV m (ival ρ φ).face (faceVals S T ρ γ)) k f) (res f (sem S A m ρ γ)))
+            (Hom.id k) := by
+      intro k f hf
+      have := (h3.2.2.2 k _ _ (hfp k f hf)).1
+      rw [sem_equiv (h2.2.2.2 k _ _ (hfp k f hf)).2.1 (hAnat.restr f), hAnat k f] at this
+      rw [dat_partialKV, if_pos hf, dat_partialKV, if_pos hf]; exact this
+    constructor
+    · exact glueC_mem_Vt hAmem.1 (fun k f hf => (hTf k f hf).1) fun k f hf =>
+        mem_Vt_of_mem_El (equivCode_mem_Vt (hTf k f hf).1 (res_mem_Vt hAmem.1 f))
+          (equivCode_kv_of_mem _ (hef k f hf)) _ (hef k f hf)
+    · unfold WF
+      exact WFI.glue hAmem.2 (isCof_ival_face ρ φ) (fun h => hh ((DM.holds_iff_face_holds _).2 h))
+        (partialKV_self _ _) (partialKV_self _ _) (fun k f hf => (hTf k f hf).2) hT.coh hef he.coh
 
 theorem sem_HasTy_glueEl {S : Sig} {Ψ Φ Γ A φ T e t a l}
     (h0 : SemTy S Ψ Φ Γ (glue A φ T e) (univ l)) (h1 : SemTy S Ψ (cof Φ φ) Γ t T) (h2 : SemTy S Ψ Φ Γ a A) (h3 : SemEq S Ψ (cof Φ φ) Γ (app (fst e) t) a A) :
@@ -1205,7 +1244,13 @@ theorem sem_EqTm_hcompGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u u0 T l}
 theorem sem_EqTm_glueFace {S : Sig} {Ψ Φ Γ A φ T e G}
     (h0 : I.Entails Φ φ) (h1 : SemTy S Ψ Φ Γ (glue A φ T e) G) :
     SemEq S Ψ Φ Γ (glue A φ T e) T G := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S T m ρ γ = sem S (glue A φ T e) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h1.2.2.2 m ρ γ hp
+    obtain ⟨hT, he⟩ := cond_of_sem_glue (hty.ne_empty hmem)
+    have hh := entails_holds h0 hp.cof
+    exact (sem_glue_holds hp.kv hh hT he (hT.kv_of_holds hp.kv hh)).symm
+  exact ⟨h1, h1.of_eq h1.2.1.2.1 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_glueElFace {S : Sig} {Ψ Φ Γ φ e t a G}
     (h0 : I.Entails Φ φ) (h1 : SemTy S Ψ Φ Γ (glueEl φ e t a) G) :

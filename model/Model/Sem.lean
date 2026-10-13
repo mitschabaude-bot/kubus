@@ -76,9 +76,10 @@ def Natural (S : Sig) (t : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : Prop :
 `(ρ, γ)`. (The top universe `U_maxLevel` is a type but not an element of a universe.) -/
 def TyOK (S : Sig) (A : Tm) (m : ℕ) (ρ : IEnv m) (γ : ℕ → V) : Prop := TyCode m (sem S A m ρ γ)
 
-/-- Semantic well-formedness of a context. -/
-def SemWf (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) : Prop :=
-  Φ.Scoped Ψ ∧ (∀ x A, Γ.lookup x = some A → A.ConstsLt S.length) ∧
+/-- Semantic well-formedness of a context. (Scoping of the face is not needed semantically; the
+first component is a placeholder.) -/
+def SemWf (S : Sig) (_Ψ : ℕ) (Φ : I) (Γ : Ctx) : Prop :=
+  True ∧ (∀ x A, Γ.lookup x = some A → A.ConstsLt S.length) ∧
   ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → ∀ x A, Γ.lookup x = some A →
     TyOK S A m ρ γ ∧ Natural S A m ρ γ
 

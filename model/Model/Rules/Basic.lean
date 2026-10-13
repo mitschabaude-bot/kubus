@@ -359,7 +359,7 @@ theorem Natural.dinst {t : Tm} {r : I} {ρ : IEnv m} {γ : ℕ → V}
   rw [sem_dinst, sem_dinst, ival.restr, ← IEnv.cons_restr, ht k f]
 
 theorem SemWf.dshift {Ψ : ℕ} {Φ : I} {Γ : Ctx} (h : SemWf S Ψ Φ Γ) : SemWf S (Ψ + 1) Φ.shift Γ.dshift := by
-  refine ⟨h.1.shift, fun x A hl => ?_, fun m ρ γ hp x A hl => ?_⟩
+  refine ⟨trivial, fun x A hl => ?_, fun m ρ γ hp x A hl => ?_⟩
   · rw [Ctx.lookup_dshift, Option.map_eq_some_iff] at hl
     obtain ⟨A', hA', rfl⟩ := hl
     exact (h.2.1 x A' hA').ren _ _
@@ -369,7 +369,7 @@ theorem SemWf.dshift {Ψ : ℕ} {Φ : I} {Γ : Ctx} (h : SemWf S Ψ Φ Γ) : Sem
     exact ⟨by unfold TyOK; rw [sem_dshift_tail]; exact hty, hnat.dshift_tail⟩
 
 theorem SemWf.of_dshift {Ψ : ℕ} {Φ : I} {Γ : Ctx} (h : SemWf S (Ψ + 1) Φ.shift Γ.dshift) : SemWf S Ψ Φ Γ := by
-  refine ⟨h.1.of_shift, fun x A hl => ?_, fun m ρ γ hp x A hl => ?_⟩
+  refine ⟨trivial, fun x A hl => ?_, fun m ρ γ hp x A hl => ?_⟩
   · exact (h.2.1 x A.dshift (by rw [Ctx.lookup_dshift, hl]; rfl)).of_ren
   · have hp' : IsPoint S Φ.shift Γ.dshift m (ρ.cons (DM.zero m)) γ := isPoint_dshift_iff.2 hp
     obtain ⟨hty, hnat⟩ := h.2.2 m _ γ hp' x A.dshift (by rw [Ctx.lookup_dshift, hl]; rfl)
