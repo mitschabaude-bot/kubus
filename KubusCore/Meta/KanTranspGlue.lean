@@ -840,12 +840,70 @@ theorem transpGlue_typed_of_scoped (hS : SigClosed S) {Ψ Φ Γ A φ T' e ψ u0 
       hconst := hconst', hu0 := hu0 }
   exact ch.transport H.typed
 
+/-! ## The scoping of `δ` is necessary -/
+
+theorem gen_fst_typed {Ψ Φ Γ s T} (h : HasTy0 S Ψ Φ Γ s T) {p} (ht : s = .fst p) :
+    ∃ X, HasTy0 S Ψ Φ Γ p X :=
+  match h with
+  | .var _ _ => by cases ht
+  | .conv h0 _ => gen_fst_typed h0 ht
+  | .restrict hs he h2 => by
+    obtain ⟨X, hX⟩ := gen_fst_typed h2 ht
+    exact ⟨X, HasTy0.restrict hs he hX⟩
+  | .const _ _ => by cases ht
+  | .univ _ _ => by cases ht
+  | .cumul _ h1 => gen_fst_typed h1 ht
+  | .pi _ _ => by cases ht
+  | .lam _ _ => by cases ht
+  | .app _ _ => by cases ht
+  | .sigma _ _ => by cases ht
+  | .pair _ _ _ => by cases ht
+  | .fst h0 => by cases ht; exact ⟨_, h0⟩
+  | .snd _ => by cases ht
+  | .path _ _ _ => by cases ht
+  | .plam _ _ _ _ => by cases ht
+  | .papp _ _ => by cases ht
+  | .ipi _ _ => by cases ht
+  | .ilam _ _ => by cases ht
+  | .iapp _ _ => by cases ht
+  | .split _ _ _ _ _ _ _ => by cases ht
+  | .abort _ _ => by cases ht
+  | .transp _ _ _ _ => by cases ht
+  | .hcomp _ _ _ _ _ => by cases ht
+  | .glue _ _ _ _ => by cases ht
+  | .glueEl _ _ _ _ _ => by cases ht
+  | .unglue _ _ _ _ => by cases ht
+  | .data _ _ _ => by cases ht
+  | .con _ _ _ _ _ _ _ _ => by cases ht
+  | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
+
+/-- A typed contractum has a scoped `δ`: the premises of `EqTm.transpGlue` do not suffice, since
+an unscoped `δ` equivalent to `∀i. φ` (e.g. `∀i. φ ∨ (k ∧ ~k)` for a variable `k ≥ Ψ`) satisfies
+them. -/
+theorem transpGlueWith_scoped {Ψ Φ Γ δ A φ T' e ψ u0 X}
+    (h : HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) X) : δ.Scoped Ψ := by
+  rw [transpGlueWith_eq] at h
+  obtain ⟨_, _, _, ⟨_, _, ht, _⟩, _⟩ := gen_glueEl h rfl
+  obtain ⟨_, hx⟩ := gen_fst_typed ht rfl
+  rw [tgExt_eq] at hx
+  obtain ⟨_, ⟨_, hs, _⟩, _⟩ := gen_hcomp hx rfl
+  exact hs.1
+
+/-- `δ ∨ (k ∧ ~k)` is equivalent to `δ` for any variable `k`, in particular one outside the scope. -/
+theorem ent_or_contra (δ : I) (k : Nat) :
+    I.Entails (.or δ (.and (.var k) (.neg (.var k)))) δ ∧ I.Entails δ (.or δ (.and (.var k) (.neg (.var k)))) :=
+  ⟨ent_or_elim (ent_refl _) (ent_of_sem fun ρ _ h => by
+    simp only [I.eval, meet_one_iff, neg_one_iff] at h
+    rw [h.1] at h; cases h.2), ent_or_left _ _⟩
+
 theorem transpGlue_typed (hS : SigClosed S) {Ψ Φ Γ A φ T' e ψ u0 T l δ}
     (h : HasTy0 S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T)
     (hA : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l))
     (he : HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A))
     (hδ1 : I.Entails δ φ.forall0) (hδ2 : I.Entails φ.forall0 δ) :
     HasTy0 S Ψ Φ Γ (transpGlueWith δ A φ T' e ψ u0) T := by
+  -- Not provable as stated: the premises do not make `δ` scoped (`ent_or_contra`), and a typed
+  -- contractum needs it (`transpGlueWith_scoped`). The rule needs the premise `δ.Scoped Ψ`.
   exact transpGlue_typed_of_scoped hS h hδ1 sorry
 
 end KubusCore.Meta
