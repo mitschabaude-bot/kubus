@@ -55,18 +55,18 @@ branchTy c = Π (x₁ : A₁) … (xₙ : Aₙ). Π (h₁ : P[x_{k₁}]) … (h_
 All computation rules have the form "if the redex has some type `T`, it equals its contractum at `T`".
 
 - **Boundary** (`conBnd`): if `Φ ⊨ ψ[rs]`, then `con d c ps args rs ≡ b[ps, args, rs]`.
-- **β for constructors** (`elimCon`): `elim d ps P bs (con d c qs args rs) ≡ bₖ args (ihs) rs`, where each hypothesis is `elim d ps P bs` applied to the recursive argument. The rule matches constructors of the same `d`; the parameters of the eliminator are used, the constructor's `qs` are only presupposed to be equal to them by the typing of the redex.
+- **β for constructors** (`elimCon`): `elim d ps P bs (con d c qs args rs) ≡ bₖ args (ihs) rs`, where each hypothesis is `elim d ps P bs` applied to the recursive argument. The rule matches constructors of the same `d`; the parameters of the eliminator are used, the constructor's `qs` are only presupposed to be equal to them by the typing of the redex. The rule also requires the arguments to form the constructor's telescope at the eliminator's parameters (`HasTele args (C.argTys) ps`, the `con` rule's own premise). Where a boundary of `c` holds, the constructor term denotes its boundary value, which does not determine the arguments the right-hand side applies the branch to (model red team, P6).
 - **β for formal composition** (`elimHcomp`, CHM):
   `elim … (hcomp (data d qs) φ u a) ≡ comp (i. P[hfill (data d ps) φ u a / x]) [φ ↦ i. elim … u] (elim … a)`.
 - **Transport:**
   - without parameters (`transpData0`), `transp (i. data d []) φ a ≡ a`, for any `a`;
-  - with parameters (`transpCon`), transport is componentwise on constructors: the arguments are transported as a telescope along `Δ(i)` (`Tm.transpTele`: argument `k` along its type line, in which the earlier arguments are their transport fillers), interval arguments are unchanged, and the result is annotated with `ps(1)`;
+  - with parameters (`transpCon`), transport is componentwise on constructors: the arguments are transported as a telescope along `Δ(i)` (`Tm.transpTele`: argument `k` along its type line, in which the earlier arguments are their transport fillers), interval arguments are unchanged, and the result is annotated with `ps(1)`. As for `elimCon`, the arguments must form the constructor's telescope at `ps(0)` (P6);
   - with parameters (`transpHcomp`), transport of a formal composition is the formal composition of the transports: `transp (i. D) φ (hcomp D(0) ψ u a) ≡ hcomp D(1) ψ (j. transp (i. D) φ u(j)) (transp (i. D) φ a)`;
   - on neutral elements, transport is stuck.
 
   **Decision: the componentwise rules only apply with parameters.** For a type without parameters, transport is the identity; the componentwise rule would additionally equate `con … args` with `con … (transported args)`, and transport of an argument along a constant closed line (say `Path U₀ U₀ U₀`) is not the identity in CCHM, so the two rules would disagree.
 - **Homogeneous composition:** `hcomp` in a data type never reduces, except by its face rule. This keeps evaluation stable under interval substitution: a componentwise rule would have to agree with the eliminator's composition rule after a later substitution, and in general it doesn't.
-- **Congruence** for `data`, `con` (parameters and arguments as telescopes, interval arguments up to `I.Eq`) and `elim` (parameters, motive, branches at their branch types, target).
+- **Congruence** for `data`, `con` (parameters and arguments as telescopes, interval arguments up to `I.Eq`) and `elim` (parameters, motive, branches at their branch types, target). The `elim` congruence compares branches by list position, so both branch lists must be literals (P7).
 
 No inversion rules are added (none is needed by a kernel that can re-check parameters), so no rule infers well-typedness of a component from a type that could hold via a face reduct. Inductive types never reduce on faces.
 
@@ -84,3 +84,6 @@ Strict positivity, the absence of nesting, and the eliminator form (no general r
 - **Eliminator:** defined by well-founded recursion on the construction of the least fixed point; the boundary premises make it well-defined on path constructors, and the `hcomp` clause is CHM's.
 
 - P5: argument lists of nested constructors in a simple boundary must end in the literal `tnil`. Otherwise a tail like a `split` of list literals passed the syntactic check but could denote a list of a different length in the model.
+- P6: `elimCon` and `transpCon` take the constructor's argument telescope at the eliminator's (resp. the line's initial) parameters as a premise. Their left-hand sides only say that the constructor term is an element of the data type. Where a boundary holds, that element is the boundary value and does not determine the arguments the right-hand side uses.
+- P7: the `elim` congruence rule requires literal branch lists, like the typing rule.
+- P8: the `Ctor.bndTyped` type equations are checked in the signature before the declaration, in the context of the parameters and the constructor's point arguments only (`DataDecl.pointCtx`, with variables renamed by `Ctor.pointRen`; neither side may mention a recursive argument, `Ctor.mentionsRec`). In the truncated signature they could use terms over the truncated declaration (e.g. a large elimination with too few branches), which do not carry over to the full signature, so `conBnd`'s presupposition was not provable (metatheory, `docs/metatheory.md` on the `metatheory` branch). Boundary typing and overlap agreement stay in the truncated signature.

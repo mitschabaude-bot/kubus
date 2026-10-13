@@ -32,9 +32,8 @@ def transpConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) {d : 
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
   let ⟨h1⟩ ← ensureList ps
   let ⟨h2⟩ ← ensureList args
-  -- the constructor at the parameters of the line's start
-  let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d (ps.dinst .zero))
-  let ⟨hc⟩ ← R.check E (.con d c (ps.dinst .zero) args rs) _ l hD
+  -- the arguments at the parameters of the line's start
+  let ⟨hc⟩ ← checkTele R E args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse
   return some ⟨_, EqTm.transpCon hS hp hC h1 h2 hc ht⟩
 
 /-- Computation rule of `transp` for a line in weak-head normal form. -/
@@ -189,9 +188,8 @@ def elimConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps P bs q
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
   let ⟨h1⟩ ← ensureList args
   let ⟨h2⟩ ← ensureList bs
-  -- the constructor at the eliminator's parameters
-  let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d ps)
-  let ⟨hc⟩ ← R.check E (.con d c ps args rs) _ l hD
+  -- the arguments at the eliminator's parameters
+  let ⟨hc⟩ ← checkTele R E args (C.argTys d D.params.length) ps.toList.reverse
   match getIdx? bs.toList c with
   | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb h1 h2 hc ht⟩, false))
   | none => fail "kernel: missing branch"

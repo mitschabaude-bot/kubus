@@ -602,6 +602,18 @@ def noRecDeps (C : Ctor) (k : Nat) (A : Tm) : Bool :=
 
 def argTys (C : Ctor) (d np : Nat) : List Tm := (List.range C.args.length).map (C.argTy d np)
 
+/-- In the context of the parameters and the arguments before position `n`, the index of
+variable `j` in the context of the parameters and the point arguments before `n` (recursive
+arguments are dropped; their variables are mapped to junk, see `mentionsRec`). -/
+def pointRen (C : Ctor) (n j : Nat) : Nat :=
+  if j < n then ((List.range j).filter fun x => !C.isRec (n - 1 - x)).length
+  else j - ((List.range n).filter C.isRec).length
+
+/-- `t`, in the context of the parameters and the arguments before position `n`, mentions a
+recursive argument. -/
+def mentionsRec (C : Ctor) (n : Nat) (t : Tm) : Bool :=
+  (List.range n).any fun x => C.isRec (n - 1 - x) && t.freeIn x
+
 /-- The boundary element `b` at parameters `ps`, arguments `args` and interval arguments `rs`. -/
 def bndAt (b : Tm) (ps args : List Tm) (rs : List I) : Tm :=
   b.subst (fun j => (args.reverse ++ ps.reverse).getD j (.var j)) (fun i => rs.reverse.getD i (.var i))
