@@ -66,14 +66,14 @@ theorem sem_HasTy_data {Ψ Φ Γ d D ps} (hS : SigOK S) (h0 : S[d]? = some (.dat
       sem_data_of h0 (paramsOK_of_tele hd.le hok.1 h2 hp), res_dataC, dataSD_restr]
 
 theorem sem_HasTy_con {Ψ Φ Γ d D c C ps args rs} (hS : SigOK S) (h0 : S[d]? = some (.data D))
-    (h1 : D.ctors[c]? = some C) (h2 : SemTy S Ψ Φ Γ (data d ps) (univ D.level))
+    (h1 : D.ctors[c]? = some C) (hpl : ps = Tm.ofList ps.toList) (h2 : SemTy S Ψ Φ Γ (data d ps) (univ D.level))
     (h3 : SemTele S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
     (h4 : rs.length = C.dims) (h5 : ∀ r ∈ rs, r.Scoped Ψ) :
     SemTy S Ψ Φ Γ (con d c ps args rs) (data d ps) := by
   sorry
 
 theorem sem_HasTy_elim {Ψ Φ Γ d D ps P bs t m} (hS : SigOK S) (h0 : S[d]? = some (.data D))
-    (h1 : SemTy S Ψ Φ Γ (data d ps) (univ D.level)) (h2 : SemTy S Ψ Φ (data d ps :: Γ) P (univ m))
+    (hpl : ps = Tm.ofList ps.toList) (h1 : SemTy S Ψ Φ Γ (data d ps) (univ D.level)) (h2 : SemTy S Ψ Φ (data d ps :: Γ) P (univ m))
     (h3 : bs = Tm.ofList bs.toList) (h4 : bs.toList.length = D.ctors.length)
     (h5 : ∀ (c : Nat) (C : Ctor) (b : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
       SemTy S Ψ Φ Γ b (D.branchTy d c C ps P))
@@ -113,13 +113,13 @@ theorem sem_EqTm_elim {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} (hS : SigOK S) (h
 
 theorem sem_EqTm_conBnd {Ψ Φ Γ d D c C ps args rs} {k : Nat} {ψ b T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : D.ctors[c]? = some C) (h2 : C.bnd[k]? = some (ψ, b)) (h3 : I.Entails Φ (Ctor.cofAt ψ rs))
-    (h4 : SemTy S Ψ Φ Γ (con d c ps args rs) T) :
+    (hpl : ps = Tm.ofList ps.toList) (hal : args = Tm.ofList args.toList) (h4 : SemTy S Ψ Φ Γ (con d c ps args rs) T) :
     SemEq S Ψ Φ Γ (con d c ps args rs) (Ctor.bndAt b ps.toList args.toList rs) T := by
   sorry
 
 theorem sem_EqTm_elimCon {Ψ Φ Γ d D c C ps P bs b qs args rs T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : D.ctors[c]? = some C) (h2 : bs.toList[c]? = some b)
-    (h3 : SemTy S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T) :
+    (hal : args = Tm.ofList args.toList) (hbl : bs = Tm.ofList bs.toList) (h3 : SemTy S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T) :
     SemEq S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
       (Tm.papps (Tm.apps b (args.toList ++
         C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T := by
@@ -139,7 +139,7 @@ theorem sem_EqTm_transpData0 {Ψ Φ Γ d D ps φ a T} (hS : SigOK S) (h0 : S[d]?
 
 theorem sem_EqTm_transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : D.params ≠ []) (h2 : D.ctors[c]? = some C)
-    (h3 : SemTy S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T) :
+    (hpl : ps = Tm.ofList ps.toList) (hal : args = Tm.ofList args.toList) (h3 : SemTy S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T) :
     SemEq S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs))
       (con d c (ps.dinst .one)
         (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T := by

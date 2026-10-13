@@ -4,7 +4,7 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 ## Phase 2 spec issues (read first)
 
-Status: P4 open. P2 fixed in `dc30dbb` (`Ctor.bndTyped`), P3 in `2e8fc06`. P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
+Status: P4 fixed in `288a259`. P2 fixed in `dc30dbb` (`Ctor.bndTyped`), P3 in `2e8fc06`. P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
 
 ### P4. Not modelable as stated: rules read parameter/argument lists syntactically (`ps.toList`) without a premise that they are list literals
 
