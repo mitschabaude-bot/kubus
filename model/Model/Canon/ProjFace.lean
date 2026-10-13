@@ -66,15 +66,16 @@ theorem EqTele0.ofList_of' {Ψ : ℕ} {Φ : I} {Γ : Ctx} (hw : Wf0 S Ψ Φ Γ) 
 /-- Arguments judgmentally equal to typed arguments form a telescope, equal to them. -/
 theorem tele_conv (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
     (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps : Tm}
-    (hps : IsList ps) (hpt : HasTele0 S Ψ Φ Γ ps D.params []) {X Y : List Tm}
+    (hps : IsList ps) (hpt : HasTele0 S Ψ Φ Γ ps D.params []) (hdata : HasTy0 S Ψ Φ Γ (.data d ps) (.univ D.level))
+    {X Y : List Tm}
     (hX : HasTele0 S Ψ Φ Γ (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse) (hYl : Y.length = X.length)
     (hXY : ∀ j (hj : j < X.length) (hj' : j < Y.length), EqTm0 S Ψ Φ Γ Y[j] X[j]
       ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse))) :
     HasTele0 S Ψ Φ Γ (Tm.ofList Y) (C.argTys d D.params.length) ps.toList.reverse ∧
     EqTele0 S Ψ Φ Γ (Tm.ofList Y) (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse ∧
-    ∀ j (hj : j < Y.length), ∃ l', EqTm0 S Ψ Φ Γ
+    ∀ j (hj : j < Y.length), EqTm0 S Ψ Φ Γ
       ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse))
-      ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse)) (.univ l') := by
+      ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse)) (.univ D.level) := by
   have hS := sigClosed_of_wfSig hW
   obtain ⟨hT, hCt⟩ := wf_typed _ S rfl hW
   have hw := wf_of_tele hpt
@@ -97,8 +98,8 @@ theorem tele_conv (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
         (lsub (ptL C X ps.toList.reverse k) 0) I.var ∧
       ∀ j (hj : j < k) (hj' : j < Y.length), HasTy0 S Ψ Φ Γ Y[j]
         ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse)) ∧
-        ∃ l', EqTm0 S Ψ Φ Γ ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse))
-          ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse)) (.univ l') := by
+        EqTm0 S Ψ Φ Γ ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse))
+          ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse)) (.univ D.level) := by
     intro k
     induction k with
     | zero =>
@@ -115,8 +116,8 @@ theorem tele_conv (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
       have hyX := (pre_eq hS hT hCt hxy).1
       have hap : HasTy0 S Ψ Φ Γ Y[k]
           ((C.argTy d D.params.length k).substList ((Y.take k).reverse ++ ps.toList.reverse)) ∧
-          ∃ l', EqTm0 S Ψ Φ Γ ((C.argTy d D.params.length k).substList ((Y.take k).reverse ++ ps.toList.reverse))
-            ((C.argTy d D.params.length k).substList ((X.take k).reverse ++ ps.toList.reverse)) (.univ l') := by
+          EqTm0 S Ψ Φ Γ ((C.argTy d D.params.length k).substList ((Y.take k).reverse ++ ps.toList.reverse))
+            ((C.argTy d D.params.length k).substList ((X.take k).reverse ++ ps.toList.reverse)) (.univ D.level) := by
         cases hr : C.isRec k
         · obtain ⟨A, hA⟩ := point_of_not_rec hk' hr
           have hAk : C.argTy d D.params.length k = A := by simp [Ctor.argTy, hA]
@@ -125,21 +126,17 @@ theorem tele_conv (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
           have F := (sub_ty hS hP).2.2 TY (TX k (by omega) (by omega)) E
           rw [pt_inst hW hD hC hA (by omega) (by simp [hpl]) 0 I.var,
             pt_inst hW hD hC hA (by omega) (by simp [hpl]) 0 I.var] at F
-          exact ⟨HasTy0.conv hyX (EqTm0.symm F), _, F⟩
+          exact ⟨HasTy0.conv hyX (EqTm0.symm F), F⟩
         · have hsl : ∀ L, (Tm.data d (Ctor.paramVars D.params.length k)).substList L =
               Tm.data d ((Ctor.paramVars D.params.length k).substList L) := fun L => rfl
           simp only [argTy_rec hr, hsl] at hyX ⊢
           rw [Meta.paramVars_substList hps hpl (by simp; omega)] at hyX ⊢
           rw [Meta.paramVars_substList hps hpl (by simp; omega)]
-          obtain ⟨l1, hdt⟩ : ∃ l1, HasTy0 S Ψ Φ Γ (.data d ps) (.univ l1) := by
-            rcases pre_ty hS hT hCt hyX with ⟨l1, h⟩ | ⟨l1, h, -⟩
-            · exact ⟨l1, h⟩
-            · cases h
-          exact ⟨hyX, _, EqTm0.refl hdt⟩
+          exact ⟨hyX, EqTm0.refl hdata⟩
       have hFj : ∀ j (hj : j < k + 1) (hj' : j < Y.length), HasTy0 S Ψ Φ Γ Y[j]
           ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse)) ∧
-          ∃ l', EqTm0 S Ψ Φ Γ ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse))
-            ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse)) (.univ l') := by
+          EqTm0 S Ψ Φ Γ ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse))
+            ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse)) (.univ D.level) := by
         intro j hj hj'
         by_cases hjk : j < k
         · exact HY j hjk hj'
@@ -153,7 +150,7 @@ theorem tele_conv (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
         have hgY : Y.getD k .abort = Y[k] := by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hkY]; rfl
         have hgX : X.getD k .abort = X[k] := by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hkX]; rfl
         rw [hAk, hgY, hgX]
-        obtain ⟨hapY, l', hapE⟩ := hap
+        obtain ⟨hapY, hapE⟩ := hap
         rw [hAk] at hapY hapE hxy
         refine ⟨?_, ?_, hFj⟩
         · have := TY.cons (A := A.ren (C.pointRen k) id) (a := Y[k])
@@ -178,7 +175,7 @@ theorem tele_conv (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
     obtain ⟨-, rfl⟩ := List.getElem?_eq_some_iff.1 ha'
     have hkC : k < C.args.length := by omega
     rw [argTys_get hkC, Option.some.injEq] at hA; subst hA
-    obtain ⟨-, l', e⟩ := HY k hkC hkY
+    obtain ⟨-, e⟩ := HY k hkC hkY
     exact EqTm0.conv (hXY k (by omega) hkY) (EqTm0.symm e)
 
 /-! ## Constructor tags -/

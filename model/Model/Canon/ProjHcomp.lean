@@ -173,6 +173,24 @@ end
 
 
 section
+variable {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
+
+/-- The projections of a term equal to a constructor are its arguments. -/
+theorem proj_canon (hS : SigClosed S) (hW : WfSig S) {Ψ : ℕ} {Φ : I} {ps : Tm} (H : PD S Ψ Φ d D ps)
+    (hcC : D.ctors[c]? = some C) {t : Tm} {X : List Tm}
+    (hX : HasTele0 S Ψ Φ [] (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse)
+    (e : EqTm0 S Ψ Φ [] t (.con d c ps (Tm.ofList X) []) (.data d ps)) {i : ℕ} (hi : i < C.args.length) :
+    EqTm0 S Ψ Φ [] (proj d D ps c C i t) (X.getD i .abort)
+      ((C.argTy d D.params.length i).substList ((X.take i).reverse ++ ps.toList.reverse)) := by
+  obtain ⟨hT, hCt⟩ := wf_typed _ S rfl hW
+  obtain ⟨ht, hcon, -⟩ := pre_eq hS hT hCt e
+  have eQ := (HasTy0.inst_congr hS (projQ_typed hS hW H hcC hi) ht hcon e).trans
+    (by have := projQ_con hS hW H hcC hi H.hw hcC hX; rwa [if_pos rfl] at this)
+  exact (EqTm0.conv (proj_congr hS hW H hcC hi e) eQ).trans (proj_con hS hW H hcC hi H.hw hX)
+
+end
+
+section
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
   {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
 include hW hD hH hC
@@ -242,6 +260,203 @@ theorem face_data {k : ℕ} {ps u : Tm} {φ : I} {X : List Tm}
   have e_T := face_all hW (l := D.level) (.inr rfl) hdΞ α hsc (ent_and_right _ _)
   have hdα := (pre_eq hS hT hCt e_T).2.1
   exact ⟨X', hX'Ξ, e_u.trans (EqTm0.conv e'Ξ (EqTm0.symm e_T)), e_T, hdα⟩
+
+/-- The premises of `hcompCon` for the tube's projections. -/
+theorem hcompCon_premises {k : ℕ} {ps u : Tm} {φ : I} {X : List Tm}
+    (hd : HasTy S k .one [] (.data d ps) (.univ D.level)) (hφs : φ.Scoped k)
+    (hut : HasTy0 S (k + 1) (cof .one φ).shift [] u (Tm.data d ps).dshift)
+    (hside : EqTm S k (cof .one φ) [] (u.dinst .zero) (.con d c ps (Tm.ofList X) []) (.data d ps))
+    (hX : HasTele0 S k .one [] (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse)
+    (hcan : TubeCanon S k d D ps φ u) :
+    HasTele0 S (k + 1) (cof .one φ).shift [] (Tm.ofList ((List.range C.args.length).map fun j => proj d D ps.dshift c C j u))
+      (C.argTys d D.params.length) ps.dshift.toList.reverse ∧
+    EqTm0 S (k + 1) (cof .one φ).shift [] u
+      (.con d c ps.dshift (Tm.ofList ((List.range C.args.length).map fun j => proj d D ps.dshift c C j u)) [])
+      (.data d ps.dshift) ∧
+    EqTele0 S k (cof .one φ) [] ((Tm.ofList ((List.range C.args.length).map fun j => proj d D ps.dshift c C j u)).dinst .zero)
+      (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨hT, hCt⟩ := wf_typed _ S rfl hW
+  have hΦs : ((cof .one φ).shift).Scoped (k + 1) := I.scoped_shift ⟨trivial, hφs⟩
+  have hd1 : HasTy0 S (k + 1) (cof .one φ).shift [] (.data d ps.dshift) (.univ D.level) :=
+    HasTy0.restrict hΦs (ent_one _) (HasTy0.dwk hS (Φ := .one) (Γ := []) (spec_to_minimal hW hd))
+  have H' := PD.of hW hD hH hd1
+  set uargs := (List.range C.args.length).map fun j => proj d D ps.dshift c C j u with huargs
+  have hul : uargs.length = C.args.length := by simp [uargs]
+  have huget : ∀ i (hi : i < uargs.length), uargs[i] = proj d D ps.dshift c C i u := by intro i hi; simp [uargs]
+  -- facewise data
+  have FD : ∀ α ∈ ((cof .one φ).shift).faces, ∃ X' : List Tm,
+      HasTele0 S (k + 1) (cof (cof .one φ).shift (I.ofFace α)) [] (Tm.ofList X') (C.argTys d D.params.length)
+        (ps.dshift.subst Tm.var (faceSub α)).toList.reverse ∧
+      EqTm0 S (k + 1) (cof (cof .one φ).shift (I.ofFace α)) [] u
+        (.con d c (ps.dshift.subst Tm.var (faceSub α)) (Tm.ofList X') []) (.data d ps.dshift) ∧
+      EqTm0 S (k + 1) (cof (cof .one φ).shift (I.ofFace α)) [] (.data d ps.dshift)
+        (.data d (ps.dshift.subst Tm.var (faceSub α))) (.univ D.level) ∧
+      HasTy0 S (k + 1) (cof (cof .one φ).shift (I.ofFace α)) [] (.data d (ps.dshift.subst Tm.var (faceSub α)))
+        (.univ D.level) := fun α hα => face_data hW hD hH hC hd hφs hut hside hcan hα
+  -- the projections of the tube are a telescope
+  have claim : ∀ j, j ≤ C.args.length → ∀ i (hi : i < j) (hi' : i < uargs.length),
+      HasTy0 S (k + 1) (cof .one φ).shift [] uargs[i]
+        ((C.argTy d D.params.length i).substList ((uargs.take i).reverse ++ ps.dshift.toList.reverse)) := by
+    intro j
+    induction j with
+    | zero => intro _ i hi; omega
+    | succ j ih =>
+      intro hj i hi hi'
+      by_cases hij : i < j
+      · exact ih (by omega) i hij hi'
+      obtain rfl : i = j := by omega
+      have hjC : i < C.args.length := by omega
+      have hat : ∀ k' (hk : k' < (uargs.take i).length), k' < C.args.length →
+          HasTy0 S (k + 1) (cof .one φ).shift [] (uargs.take i)[k']
+            ((C.argTy d D.params.length k').substList (((uargs.take i).take k').reverse ++ ps.dshift.toList.reverse)) := by
+        intro k' hk _
+        have hk' : k' < i := by simp at hk; omega
+        rw [List.getElem_take, List.take_take, Nat.min_eq_left hk'.le]
+        exact ih (by omega) k' hk' (by omega)
+      have hR := argTy_inst_typed hS hW hD hC H'.hpsL H'.hpl H'.hpt H'.hdata H'.hw hat (j := i) (by simp; omega) hjC
+      rw [List.take_take, Nat.min_self] at hR
+      have hL : HasTy0 S (k + 1) (cof .one φ).shift [] ((projQ d D ps.dshift c C i).inst u) (.univ D.level) :=
+        HasTy0.subst hS (projQ_typedΓ hS hW H' hC hjC H'.hw) hut
+      have e : EqTm0 S (k + 1) (cof .one φ).shift [] ((projQ d D ps.dshift c C i).inst u)
+          ((C.argTy d D.params.length i).substList ((uargs.take i).reverse ++ ps.dshift.toList.reverse)) (.univ D.level) := by
+        refine eq_local_faces hL hR fun α hα => ?_
+        obtain ⟨X', hX', e_u, e_T, hdα⟩ := FD α hα
+        have hsc := faces_scoped hΦs α hα
+        have hsα : (I.ofFace α).Scoped (k + 1) := scoped_ofFace hsc
+        have hΞs : (cof (cof .one φ).shift (I.ofFace α)).Scoped (k + 1) := ⟨hΦs, hsα⟩
+        have hent : I.Entails (cof (cof .one φ).shift (I.ofFace α)) (I.ofFace α) := ent_and_right _ _
+        have hΞe : I.Entails (cof (cof .one φ).shift (I.ofFace α)) (cof .one φ).shift := ent_and_left _ _
+        have Hα := PD.of hW hD hH hdα
+        have huΞ := HasTy0.restrict hΞs hΞe hut
+        have hd1Ξ := HasTy0.restrict hΞs hΞe hd1
+        have e_uu := face_all hW (.inl hd1Ξ) huΞ α hsc hent
+        have e_uαc := EqTm0.conv (e_uu.symm.trans e_u) e_T
+        have hX'l : X'.length = C.args.length := by
+          have := tele_length hX'; rwa [toList_ofList, argTys_length] at this
+        set Y := (List.range C.args.length).map fun i' =>
+          proj d D (ps.dshift.subst Tm.var (faceSub α)) c C i' (u.subst Tm.var (faceSub α)) with hY
+        have hYl : Y.length = X'.length := by simp [Y, hX'l]
+        have hYX : ∀ i' (h1 : i' < X'.length) (h2 : i' < Y.length), EqTm0 S (k + 1)
+            (cof (cof .one φ).shift (I.ofFace α)) [] Y[i'] X'[i']
+            ((C.argTy d D.params.length i').substList ((X'.take i').reverse ++
+              (ps.dshift.subst Tm.var (faceSub α)).toList.reverse)) := by
+          intro i' h1 h2
+          have := proj_canon hS hW Hα hC hX' e_uαc (i := i') (by omega)
+          rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h1, Option.getD_some] at this
+          simpa [Y] using this
+        have tc := tele_conv hW hD hC Hα.hpsL Hα.hpt Hα.hdata hX' hYl hYX
+        have a1 := face_all hW (l := D.level) (.inr rfl) (HasTy0.restrict hΞs hΞe hL) α hsc hent
+        rw [inst_dsubst, projQ_dsubst hS hD hC hjC H'.hpsL H'.hpl] at a1
+        obtain ⟨hua, hca, -⟩ := pre_eq hS hT hCt e_uαc
+        have a2 := HasTy0.inst_congr hS (projQ_typed hS hW Hα hC hjC) hua hca e_uαc
+        have a3 := projQ_con hS hW Hα hC hjC Hα.hw hC hX'
+        rw [if_pos rfl] at a3
+        have a4 := (tc.2.2 i (by omega)).symm
+        have a5 : (C.argTy d D.params.length i).substList ((Y.take i).reverse ++
+            (ps.dshift.subst Tm.var (faceSub α)).toList.reverse) =
+            ((C.argTy d D.params.length i).substList ((uargs.take i).reverse ++ ps.dshift.toList.reverse)).subst
+              Tm.var (faceSub α) := by
+          have hcl := argTy_closed hS hD hC i
+          rw [substList_subst (by simpa [H'.hpl, hul, Nat.min_eq_left hjC.le, Nat.add_comm] using hcl),
+            List.map_append, toList_subst H'.hpsL, List.map_reverse, List.map_reverse]
+          congr 3
+          apply List.ext_getElem (by simp [Y, uargs])
+          intro i' h1 h2
+          simp only [Y, uargs, List.getElem_take, List.getElem_map, List.getElem_range]
+          rw [proj_dsubst hS hD hC (by simp at h1; omega) H'.hpsL H'.hpl]
+        have a6 := (face_all hW (l := D.level) (.inr rfl) (HasTy0.restrict hΞs hΞe hR) α hsc hent).symm
+        rw [← a5] at a6
+        exact a1.trans (a2.trans (a3.trans (a4.trans a6)))
+      rw [huget i hi']
+      exact HasTy0.conv (proj_typed hS hW H' hC hjC H'.hw hut) e
+  have hdims := (nonHIT_ctor hH hC).1
+  have G1 : HasTele0 S (k + 1) (cof .one φ).shift [] (Tm.ofList uargs) (C.argTys d D.params.length)
+      ps.dshift.toList.reverse := by
+    refine HasTele0.ofList_of H'.hw uargs _ _ (by simp [hul, argTys_length]) (fun i a A ha hA => ?_)
+    have hi := (List.getElem?_eq_some_iff.1 ha).1
+    obtain ⟨-, rfl⟩ := List.getElem?_eq_some_iff.1 ha
+    rw [argTys_get (by omega), Option.some.injEq] at hA; subst hA
+    exact claim C.args.length (Nat.le_refl _) i (by omega) hi
+  have hcon : HasTy0 S (k + 1) (cof .one φ).shift [] (.con d c ps.dshift (Tm.ofList uargs) []) (.data d ps.dshift) :=
+    HasTy0.con hD hC H'.hpsL H'.hdata H'.hpt G1 (by simp [hdims]) (by simp)
+  refine ⟨G1, eq_local_faces hut hcon fun α hα => ?_, ?_⟩
+  · obtain ⟨X', hX', e_u, e_T, hdα⟩ := FD α hα
+    have hsc := faces_scoped hΦs α hα
+    have hsα : (I.ofFace α).Scoped (k + 1) := scoped_ofFace hsc
+    have hΞs : (cof (cof .one φ).shift (I.ofFace α)).Scoped (k + 1) := ⟨hΦs, hsα⟩
+    have hent : I.Entails (cof (cof .one φ).shift (I.ofFace α)) (I.ofFace α) := ent_and_right _ _
+    have hΞe : I.Entails (cof (cof .one φ).shift (I.ofFace α)) (cof .one φ).shift := ent_and_left _ _
+    have Hα := PD.of hW hD hH hdα
+    have huΞ := HasTy0.restrict hΞs hΞe hut
+    have hd1Ξ := HasTy0.restrict hΞs hΞe hd1
+    have e_uu := face_all hW (.inl hd1Ξ) huΞ α hsc hent
+    have e_uαc := EqTm0.conv (e_uu.symm.trans e_u) e_T
+    have hX'l : X'.length = C.args.length := by
+      have := tele_length hX'; rwa [toList_ofList, argTys_length] at this
+    set Y := (List.range C.args.length).map fun i' =>
+      proj d D (ps.dshift.subst Tm.var (faceSub α)) c C i' (u.subst Tm.var (faceSub α)) with hY
+    have hYl : Y.length = X'.length := by simp [Y, hX'l]
+    have hYX : ∀ i' (h1 : i' < X'.length) (h2 : i' < Y.length), EqTm0 S (k + 1)
+        (cof (cof .one φ).shift (I.ofFace α)) [] Y[i'] X'[i']
+        ((C.argTy d D.params.length i').substList ((X'.take i').reverse ++
+          (ps.dshift.subst Tm.var (faceSub α)).toList.reverse)) := by
+      intro i' h1 h2
+      have := proj_canon hS hW Hα hC hX' e_uαc (i := i') (by omega)
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h1, Option.getD_some] at this
+      simpa [Y] using this
+    have tc := tele_conv hW hD hC Hα.hpsL Hα.hpt Hα.hdata hX' hYl hYX
+    have b1 : EqTm0 S (k + 1) (cof (cof .one φ).shift (I.ofFace α)) []
+        (.con d c (ps.dshift.subst Tm.var (faceSub α)) (Tm.ofList X') [])
+        (.con d c (ps.dshift.subst Tm.var (faceSub α)) (Tm.ofList Y) [])
+        (.data d (ps.dshift.subst Tm.var (faceSub α))) :=
+      EqTm0.con hD hC (HasTy0.con hD hC Hα.hpsL Hα.hdata Hα.hpt hX' (by simp [hdims]) (by simp))
+        (HasTy0.con hD hC Hα.hpsL Hα.hdata Hα.hpt tc.1 (by simp [hdims]) (by simp)) (EqTele0.refl Hα.hpt)
+        (EqTele0.ofList_of' Hα.hw X' Y _ _ (by simp [argTys_length, hX'l]) (by simp [argTys_length, Y])
+          (fun i a a' A ha ha' hA => by
+            have hi := (List.getElem?_eq_some_iff.1 ha).1
+            obtain ⟨-, rfl⟩ := List.getElem?_eq_some_iff.1 ha
+            obtain ⟨-, rfl⟩ := List.getElem?_eq_some_iff.1 ha'
+            rw [argTys_get (by omega), Option.some.injEq] at hA; subst hA
+            exact EqTm0.symm (hYX i hi (by omega))))
+        rfl (fun _ _ _ h => by simp at h)
+    have b2 : (Tm.con d c ps.dshift (Tm.ofList uargs) []).subst Tm.var (faceSub α) =
+        .con d c (ps.dshift.subst Tm.var (faceSub α)) (Tm.ofList Y) [] := by
+      show Tm.con d c _ ((Tm.ofList uargs).subst Tm.var (faceSub α)) [] = _
+      rw [ofList_subst]
+      congr 2
+      apply List.ext_getElem (by simp [Y, uargs])
+      intro i' h1 h2
+      simp only [Y, uargs, List.getElem_map, List.getElem_range]
+      rw [proj_dsubst hS hD hC (by simp [Y] at h2; omega) H'.hpsL H'.hpl]
+    have b3 := face_all hW (.inl hd1Ξ) (HasTy0.restrict hΞs hΞe hcon) α hsc hent
+    rw [b2] at b3
+    exact e_u.trans ((EqTm0.conv b1 (EqTm0.symm e_T)).trans b3.symm)
+  · have hd0 : HasTy0 S k (cof .one φ) [] (.data d ps) (.univ D.level) :=
+      HasTy0.restrict (show (cof .one φ).Scoped k from ⟨trivial, hφs⟩) (ent_and_left _ _) (spec_to_minimal hW hd)
+    have H0 := PD.of hW hD hH hd0
+    have hX0 := HasTele0.restrict (show (cof .one φ).Scoped k from ⟨trivial, hφs⟩) (ent_and_left _ _) hX
+    have hside0 := spec_to_minimal_eq hW hside
+    have hXl : X.length = C.args.length := by
+      have := tele_length hX; rwa [toList_ofList, argTys_length] at this
+    set Y0 := (List.range C.args.length).map fun i => proj d D ps c C i (u.dinst .zero) with hY0
+    have e0 : (Tm.ofList uargs).dinst .zero = Tm.ofList Y0 := by
+      rw [Tm.dinst, Tm.dsubst, ofList_subst]
+      congr 1
+      apply List.ext_getElem (by simp [Y0, uargs])
+      intro i' h1 h2
+      simp only [Y0, uargs, List.getElem_map, List.getElem_range]
+      rw [proj_dsubst hS hD hC (by simp [Y0] at h2; omega) H'.hpsL H'.hpl]
+      congr 1
+      exact Meta.dshift_dinst ps .zero
+    have hY0X : ∀ i (h1 : i < X.length) (h2 : i < Y0.length), EqTm0 S k (cof .one φ) [] Y0[i] X[i]
+        ((C.argTy d D.params.length i).substList ((X.take i).reverse ++ ps.toList.reverse)) := by
+      intro i h1 h2
+      have := proj_canon hS hW H0 hC hX0 hside0 (i := i) (by omega)
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h1, Option.getD_some] at this
+      simpa [Y0] using this
+    rw [e0]
+    exact (tele_conv hW hD hC H0.hpsL H0.hpt H0.hdata hX0 (by simp [Y0, hXl]) hY0X).2.1
 
 end
 
