@@ -115,6 +115,9 @@ theorem tySub_pointsP (hS : SigClosed S) (hW : WfSig S) {d : ℕ} {D : DataDecl}
 argument outermost). -/
 def argVars (j : ℕ) : List Tm := (List.range j).map fun i => Tm.var (j - 1 - i)
 
+/-- The arguments as variables, under `r` further variables. -/
+def argVarsE (r j : ℕ) : List Tm := (List.range j).map fun i => Tm.var (r + j - 1 - i)
+
 /-- The context of the first `j` arguments of a branch (innermost first). -/
 def BCtx (d np : ℕ) (C : Ctor) (ps : Tm) (j : ℕ) : Ctx :=
   (List.range j).reverse.map (DataDecl.branchArgTy d np C ps)
@@ -126,97 +129,6 @@ theorem substList_ren {t : Tm} {L : List Tm} (ht : t.closedB L.length 0 = true) 
   rw [substList_eq_lsub, substList_eq_lsub, ren_subst]
   exact closed_subst_eq t _ 0 _ _ _ _ ht (fun x hx => by
     rw [lsub_lt hx, lsub_lt (by simpa using hx)]; simp) (fun i hi => absurd hi (Nat.not_lt_zero _))
-
-section
-variable {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {ps : Tm} {Ψ : ℕ}
-
-theorem branchArgTy_eq (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (k : ℕ) :
-    DataDecl.branchArgTy d D.params.length C ps k =
-      (C.argTy d D.params.length k).substList ((List.range k).map Tm.var ++ ps.toList.reverse) := by
-  unfold DataDecl.branchArgTy
-  congr 2
-  conv => rhs; rw [← List.map_id ps.toList.reverse]
-  exact List.map_congr_left fun p hp => wkN_closed (hpc p (List.mem_reverse.1 hp)) k
-
-theorem lookup_BCtx (hS : SigClosed S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
-    (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length) {j i : ℕ} (hij : i < j) :
-    (BCtx d D.params.length C ps j).lookup (j - 1 - i) =
-      some ((C.argTy d D.params.length i).substList (((argVars j).take i).reverse ++ ps.toList.reverse)) := by
-  have hg : (BCtx d D.params.length C ps j)[j - 1 - i]? = some (DataDecl.branchArgTy d D.params.length C ps i) := by
-    simp only [BCtx, List.getElem?_map, List.getElem?_reverse (show j - 1 - i < (List.range j).length by simp; omega)]
-    simp only [List.length_range, show j - 1 - (j - 1 - i) = i by omega, List.getElem?_range hij, Option.map_some]
-  rw [lookup_of_get _ _ _ hg, branchArgTy_eq hpc,
-    substList_ren (by simpa [hpl, Nat.add_comm] using argTy_closed hS hD hC i)]
-  congr 2
-  rw [List.map_append]
-  congr 1
-  · apply List.ext_getElem (by simp [argVars]; omega)
-    intro x h1 h2
-    simp only [List.getElem_map, List.getElem_range, List.getElem_reverse, List.getElem_take, argVars,
-      List.length_map, List.length_range, List.length_take]
-    simp only [Tm.ren, Tm.var.injEq]
-    simp at h1
-    omega
-  · conv => rhs; rw [← List.map_id ps.toList.reverse]
-    exact List.map_congr_left fun p hp => ren_closed (hpc p (List.mem_reverse.1 hp)) _
-
-theorem argVars_get {j i : ℕ} (hi : i < (argVars j).length) : (argVars j)[i] = Tm.var (j - 1 - i) := by
-  simp [argVars]
-
-theorem argVars_rev (j : ℕ) : (argVars j).reverse = (List.range j).map Tm.var := by
-  apply List.ext_getElem (by simp [argVars])
-  intro x h1 h2
-  simp only [List.getElem_reverse, argVars, List.getElem_map, List.getElem_range, List.length_map,
-    List.length_range]
-  simp at h2
-  congr 1; omega
-
-/-- The branch context of the arguments is well formed, and its variables are a telescope of
-arguments. -/
-theorem bc_wf (hS : SigClosed S) (hW : WfSig S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {Φ : I}
-    (hpsL : IsList ps) (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length)
-    (hpt : HasTele0 S Ψ Φ [] ps D.params []) (hdata : HasTy0 S Ψ Φ [] (.data d ps) (.univ D.level))
-    (hw : Wf0 S Ψ Φ []) : ∀ j, j ≤ C.args.length → Wf0 S Ψ Φ (BCtx d D.params.length C ps j)
-  | 0, _ => hw
-  | j + 1, hj => by
-    have ih := bc_wf hS hW hD hC hpsL hpc hpl hpt hdata hw j (by omega)
-    have hty : HasTy0 S Ψ Φ (BCtx d D.params.length C ps j) (DataDecl.branchArgTy d D.params.length C ps j)
-        (.univ D.level) := by
-      rw [branchArgTy_eq hpc]
-      cases hr : C.isRec j
-      · have hjC : j < C.args.length := by omega
-        obtain ⟨A, hA⟩ : ∃ A, C.args[j]? = some (.point A) := by
-          simp only [Ctor.isRec, List.getElem?_eq_getElem hjC] at hr ⊢
-          cases h : C.args[j] with
-          | point A => exact ⟨A, rfl⟩
-          | recur => simp [h] at hr
-        have hAk : C.argTy d D.params.length j = A := by simp [Ctor.argTy, hA]
-        have h0 : ∀ σ, TySub S 0 .one [] Ψ Φ (BCtx d D.params.length C ps j) σ (fun _ => .zero) := fun σ =>
-          ⟨fun i hi => absurd hi (Nat.not_lt_zero _), scoped_of_wf ih, ent_one _,
-            fun x A hx => by simp [Ctx.lookup] at hx, ih⟩
-        have hP := tySub_params hS hD (HasTele0.of_closed hW ih hpt) 0 h0 D.params.length (Nat.le_refl _)
-        rw [List.take_of_length_le (by omega)] at hP
-        have hvars : ∀ i (hi : i < (argVars j).length), i < C.args.length →
-            HasTy0 S Ψ Φ (BCtx d D.params.length C ps j) (argVars j)[i]
-              ((C.argTy d D.params.length i).substList (((argVars j).take i).reverse ++ ps.toList.reverse)) := by
-          intro i hi _
-          rw [argVars_get hi]
-          exact HasTy0.var ih (lookup_BCtx hS hD hC hpc hpl (by simpa [argVars] using hi))
-        have hσ := tySub_pointsP hS hW hD hC hP hvars hpl j (by simp [argVars]) (by omega)
-        have ht := (sub_ty hS (pt_typed hW (htr_of hW d) hD hC hA)).2.1 hσ
-        rw [pt_inst hW hD hC hA (by simp [argVars]) (by simp [hpl]) 0 _] at ht
-        rw [List.take_of_length_le (by simp [argVars]), argVars_rev] at ht
-        rw [hAk]; exact ht
-      · rw [argTy_rec hr]
-        show HasTy0 S Ψ Φ _ (.data d ((Ctor.paramVars D.params.length j).substList _)) _
-        rw [Meta.paramVars_substList hpsL hpl (by simp)]
-        exact HasTy0.of_closed hS hdata rfl ih
-    have e : BCtx d D.params.length C ps (j + 1) =
-        DataDecl.branchArgTy d D.params.length C ps j :: BCtx d D.params.length C ps j := by
-      simp [BCtx, List.range_succ]
-    rw [e]; exact Wf0.cons hty
-
-end
 
 /-! ## Iterated abstraction and application -/
 
@@ -341,6 +253,304 @@ theorem apps_lams (hS : SigClosed S) {Ψ : ℕ} {Φ : I} {Ts vals : List Tm} {b 
   have := claim Ts.length (Nat.le_refl _)
   rw [List.drop_length, List.take_of_length_le (by omega)] at this
   simpa [lams, pis, substList_eq] using this
+
+
+section
+variable {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {ps : Tm} {Ψ : ℕ}
+
+theorem branchArgTy_eq (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (k : ℕ) :
+    DataDecl.branchArgTy d D.params.length C ps k =
+      (C.argTy d D.params.length k).substList ((List.range k).map Tm.var ++ ps.toList.reverse) := by
+  unfold DataDecl.branchArgTy
+  congr 2
+  conv => rhs; rw [← List.map_id ps.toList.reverse]
+  exact List.map_congr_left fun p hp => wkN_closed (hpc p (List.mem_reverse.1 hp)) k
+
+theorem lookup_BCtx (hS : SigClosed S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+    (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length) {j i : ℕ} (hij : i < j) :
+    (BCtx d D.params.length C ps j).lookup (j - 1 - i) =
+      some ((C.argTy d D.params.length i).substList (((argVars j).take i).reverse ++ ps.toList.reverse)) := by
+  have hg : (BCtx d D.params.length C ps j)[j - 1 - i]? = some (DataDecl.branchArgTy d D.params.length C ps i) := by
+    simp only [BCtx, List.getElem?_map, List.getElem?_reverse (show j - 1 - i < (List.range j).length by simp; omega)]
+    simp only [List.length_range, show j - 1 - (j - 1 - i) = i by omega, List.getElem?_range hij, Option.map_some]
+  rw [lookup_of_get _ _ _ hg, branchArgTy_eq hpc,
+    substList_ren (by simpa [hpl, Nat.add_comm] using argTy_closed hS hD hC i)]
+  congr 2
+  rw [List.map_append]
+  congr 1
+  · apply List.ext_getElem (by simp [argVars]; omega)
+    intro x h1 h2
+    simp only [List.getElem_map, List.getElem_range, List.getElem_reverse, List.getElem_take, argVars,
+      List.length_map, List.length_range, List.length_take]
+    simp only [Tm.ren, Tm.var.injEq]
+    simp at h1
+    omega
+  · conv => rhs; rw [← List.map_id ps.toList.reverse]
+    exact List.map_congr_left fun p hp => ren_closed (hpc p (List.mem_reverse.1 hp)) _
+
+theorem lookup_BCtxE (hS : SigClosed S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+    (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length) (E : Ctx)
+    {j i : ℕ} (hij : i < j) :
+    (E ++ BCtx d D.params.length C ps j).lookup (E.length + (j - 1 - i)) =
+      some ((C.argTy d D.params.length i).substList (((argVarsE E.length j).take i).reverse ++ ps.toList.reverse)) := by
+  have hg : (E ++ BCtx d D.params.length C ps j)[E.length + (j - 1 - i)]? =
+      some (DataDecl.branchArgTy d D.params.length C ps i) := by
+    rw [List.getElem?_append_right (by omega), show E.length + (j - 1 - i) - E.length = j - 1 - i by omega]
+    simp only [BCtx, List.getElem?_map, List.getElem?_reverse (show j - 1 - i < (List.range j).length by simp; omega)]
+    simp only [List.length_range, show j - 1 - (j - 1 - i) = i by omega, List.getElem?_range hij, Option.map_some]
+  rw [lookup_of_get _ _ _ hg, branchArgTy_eq hpc,
+    substList_ren (by simpa [hpl, Nat.add_comm] using argTy_closed hS hD hC i)]
+  congr 2
+  rw [List.map_append]
+  congr 1
+  · apply List.ext_getElem (by simp [argVarsE]; omega)
+    intro x h1 h2
+    simp only [List.getElem_map, List.getElem_range, List.getElem_reverse, List.getElem_take, argVarsE,
+      List.length_map, List.length_range, List.length_take]
+    simp only [Tm.ren, Tm.var.injEq]
+    simp at h1
+    omega
+  · conv => rhs; rw [← List.map_id ps.toList.reverse]
+    exact List.map_congr_left fun p hp => ren_closed (hpc p (List.mem_reverse.1 hp)) _
+
+theorem argVarsE_get {r j i : ℕ} (hi : i < (argVarsE r j).length) : (argVarsE r j)[i] = Tm.var (r + j - 1 - i) := by
+  simp [argVarsE]
+
+theorem argVars_get {j i : ℕ} (hi : i < (argVars j).length) : (argVars j)[i] = Tm.var (j - 1 - i) := by
+  simp [argVars]
+
+theorem argVars_rev (j : ℕ) : (argVars j).reverse = (List.range j).map Tm.var := by
+  apply List.ext_getElem (by simp [argVars])
+  intro x h1 h2
+  simp only [List.getElem_reverse, argVars, List.getElem_map, List.getElem_range, List.length_map,
+    List.length_range]
+  simp at h2
+  congr 1; omega
+
+/-- An argument type of `C` at typed arguments, in any context. -/
+theorem argTy_inst_typed (hS : SigClosed S) (hW : WfSig S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+    {Φ : I} {Δ : Ctx} (hpsL : IsList ps) (hpl : ps.toList.length = D.params.length)
+    (hpt : HasTele0 S Ψ Φ [] ps D.params []) (hdata : HasTy0 S Ψ Φ [] (.data d ps) (.univ D.level))
+    (hw : Wf0 S Ψ Φ Δ) {args : List Tm}
+    (hat : ∀ k (hk : k < args.length), k < C.args.length →
+      HasTy0 S Ψ Φ Δ args[k] ((C.argTy d D.params.length k).substList ((args.take k).reverse ++ ps.toList.reverse)))
+    {j : ℕ} (hj : j ≤ args.length) (hjC : j < C.args.length) :
+    HasTy0 S Ψ Φ Δ ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ ps.toList.reverse))
+      (.univ D.level) := by
+  cases hr : C.isRec j
+  · obtain ⟨A, hA⟩ : ∃ A, C.args[j]? = some (.point A) := by
+      simp only [Ctor.isRec, List.getElem?_eq_getElem hjC] at hr ⊢
+      cases h : C.args[j] with
+      | point A => exact ⟨A, rfl⟩
+      | recur => simp [h] at hr
+    have hAk : C.argTy d D.params.length j = A := by simp [Ctor.argTy, hA]
+    have h0 : ∀ σ, TySub S 0 .one [] Ψ Φ Δ σ (fun _ => .zero) := fun σ =>
+      ⟨fun i hi => absurd hi (Nat.not_lt_zero _), scoped_of_wf hw, ent_one _,
+        fun x A hx => by simp [Ctx.lookup] at hx, hw⟩
+    have hP := tySub_params hS hD (HasTele0.of_closed hW hw hpt) 0 h0 D.params.length (Nat.le_refl _)
+    rw [List.take_of_length_le (by omega)] at hP
+    have hσ := tySub_pointsP hS hW hD hC hP hat hpl j hj (by omega)
+    have ht := (sub_ty hS (pt_typed hW (htr_of hW d) hD hC hA)).2.1 hσ
+    rw [pt_inst hW hD hC hA hj (by simp [hpl]) 0 _] at ht
+    rw [hAk]; exact ht
+  · rw [argTy_rec hr]
+    show HasTy0 S Ψ Φ _ (.data d ((Ctor.paramVars D.params.length j).substList _)) _
+    rw [Meta.paramVars_substList hpsL hpl (by simp; omega)]
+    exact HasTy0.of_closed hS hdata rfl hw
+
+/-- The branch context of the arguments is well formed. -/
+theorem bc_wf (hS : SigClosed S) (hW : WfSig S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {Φ : I}
+    (hpsL : IsList ps) (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length)
+    (hpt : HasTele0 S Ψ Φ [] ps D.params []) (hdata : HasTy0 S Ψ Φ [] (.data d ps) (.univ D.level))
+    (hw : Wf0 S Ψ Φ []) : ∀ j, j ≤ C.args.length → Wf0 S Ψ Φ (BCtx d D.params.length C ps j)
+  | 0, _ => hw
+  | j + 1, hj => by
+    have ih := bc_wf hS hW hD hC hpsL hpc hpl hpt hdata hw j (by omega)
+    have hvars : ∀ i (hi : i < (argVars j).length), i < C.args.length →
+        HasTy0 S Ψ Φ (BCtx d D.params.length C ps j) (argVars j)[i]
+          ((C.argTy d D.params.length i).substList (((argVars j).take i).reverse ++ ps.toList.reverse)) := by
+      intro i hi _
+      rw [argVars_get hi]
+      exact HasTy0.var ih (lookup_BCtx hS hD hC hpc hpl (by simpa [argVars] using hi))
+    have hty := argTy_inst_typed hS hW hD hC hpsL hpl hpt hdata ih hvars (j := j) (by simp [argVars]) (by omega)
+    rw [List.take_of_length_le (by simp [argVars]), argVars_rev, ← branchArgTy_eq hpc] at hty
+    have e : BCtx d D.params.length C ps (j + 1) =
+        DataDecl.branchArgTy d D.params.length C ps j :: BCtx d D.params.length C ps j := by
+      simp [BCtx, List.range_succ]
+    rw [e]; exact Wf0.cons hty
+
+/-- The context of the first `s` induction hypotheses of a branch, over the arguments. -/
+def ihCtx (C : Ctor) (P : Tm) (s : ℕ) : Ctx := (List.range s).reverse.map (DataDecl.branchIhTy C P)
+
+theorem ihCtx_length (C : Ctor) (P : Tm) (s : ℕ) : (ihCtx C P s).length = s := by simp [ihCtx]
+
+theorem subst_closed0 {t : Tm} (h : t.closedB 0 Ψ = true) (σ : ℕ → Tm) : t.subst σ I.var = t :=
+  (closed_subst_eq t 0 Ψ σ Tm.var _ _ h (fun x hx => absurd hx (Nat.not_lt_zero _)) (fun _ _ => rfl)).trans (subst_var t)
+
+/-- A recursive argument, as a variable of the branch context, is in the inductive type. -/
+theorem rec_var_typed (hS : SigClosed S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {Φ : I}
+    (hpsL : IsList ps) (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length)
+    {E : Ctx} (hw : Wf0 S Ψ Φ (E ++ BCtx d D.params.length C ps C.args.length)) {i : ℕ} (hi : i < C.args.length)
+    (hr : C.isRec i = true) :
+    HasTy0 S Ψ Φ (E ++ BCtx d D.params.length C ps C.args.length) (.var (E.length + (C.args.length - 1 - i)))
+      (.data d ps) := by
+  have h := lookup_BCtxE hS hD hC hpc hpl E hi
+  rw [argTy_rec hr] at h
+  change _ = some (Tm.data d ((Ctor.paramVars D.params.length i).substList _)) at h
+  rw [Meta.paramVars_substList hpsL hpl (by simp [argVarsE]; omega)] at h
+  exact HasTy0.var hw h
+
+theorem ihTy_typed (hS : SigClosed S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {Φ : I}
+    (hpsL : IsList ps) (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length)
+    (hdata : HasTy0 S Ψ Φ [] (.data d ps) (.univ D.level)) {P : Tm} {m : ℕ} (hP : HasTy0 S Ψ Φ [Tm.data d ps] P (.univ m))
+    {s : ℕ} (hs : s < C.recPos.length) (ih : Wf0 S Ψ Φ (ihCtx C P s ++ BCtx d D.params.length C ps C.args.length)) :
+    HasTy0 S Ψ Φ (ihCtx C P s ++ BCtx d D.params.length C ps C.args.length) (DataDecl.branchIhTy C P s) (.univ m) := by
+  have hdc : (Tm.data d ps).closedB 0 Ψ = true := closed_ty hdata
+  have hmem : C.recPos.getD s 0 ∈ C.recPos := by
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; exact List.getElem_mem _
+  obtain ⟨hrpn, hrpr⟩ := mem_recPos hmem
+  have hv := rec_var_typed hS hD hC hpsL hpc hpl ih hrpn hrpr
+  rw [ihCtx_length] at hv
+  have hσ : TySub S Ψ Φ [Tm.data d ps] Ψ Φ (ihCtx C P s ++ BCtx d D.params.length C ps C.args.length)
+      (fun | 0 => .var (s + C.args.length - 1 - C.recPos.getD s 0) | j + 1 => .var (j + C.args.length + s)) I.var :=
+    ⟨fun i hi => hi, scoped_of_wf ih, by rw [I_subst_var]; exact ent_refl _, fun x A hx => by
+      cases x with
+      | zero =>
+        simp only [Ctx.lookup, Option.some.injEq] at hx; subst hx
+        rw [shift_closed hdc, subst_closed0 hdc]
+        rw [show s + C.args.length - 1 - C.recPos.getD s 0 = s + (C.args.length - 1 - C.recPos.getD s 0) by omega]
+        exact hv
+      | succ x => simp [Ctx.lookup] at hx, ih⟩
+  exact (sub_ty hS hP).2.1 hσ
+
+theorem ih_wf (hS : SigClosed S) (hW : WfSig S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {Φ : I}
+    (hpsL : IsList ps) (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length)
+    (hpt : HasTele0 S Ψ Φ [] ps D.params []) (hdata : HasTy0 S Ψ Φ [] (.data d ps) (.univ D.level))
+    (hw : Wf0 S Ψ Φ []) {P : Tm} {m : ℕ} (hP : HasTy0 S Ψ Φ [Tm.data d ps] P (.univ m)) :
+    ∀ s, s ≤ C.recPos.length → Wf0 S Ψ Φ (ihCtx C P s ++ BCtx d D.params.length C ps C.args.length)
+  | 0, _ => by simpa [ihCtx] using bc_wf hS hW hD hC hpsL hpc hpl hpt hdata hw C.args.length (Nat.le_refl _)
+  | s + 1, hs => by
+    have ih := ih_wf hS hW hD hC hpsL hpc hpl hpt hdata hw hP s (by omega)
+    have hty := ihTy_typed hS hD hC hpsL hpc hpl hdata hP (by omega) ih
+    have e : ihCtx C P (s + 1) = DataDecl.branchIhTy C P s :: ihCtx C P s := by simp [ihCtx, List.range_succ]
+    rw [e]
+    exact Wf0.cons (l := m) hty
+
+/-- The constructor at the variables of the branch context. -/
+theorem con_vars_typed (hS : SigClosed S) (hW : WfSig S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+    {Φ : I} (hpsL : IsList ps) (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length)
+    (hpt : HasTele0 S Ψ Φ [] ps D.params []) (hdata : HasTy0 S Ψ Φ [] (.data d ps) (.univ D.level))
+    (hdims : C.dims = 0) {E : Ctx} (hw : Wf0 S Ψ Φ (E ++ BCtx d D.params.length C ps C.args.length)) :
+    HasTy0 S Ψ Φ (E ++ BCtx d D.params.length C ps C.args.length)
+      (.con d c ps (Tm.ofList (argVarsE E.length C.args.length)) []) (.data d ps) := by
+  refine HasTy0.con hD hC hpsL (HasTy0.of_closed hS hdata rfl hw) (HasTele0.of_closed hW hw hpt) ?_ (by simp [hdims])
+    (by simp)
+  refine HasTele0.ofList_of hw _ _ _ (by simp [argVarsE, argTys_length]) (fun k a A ha hA => ?_)
+  have hk : k < C.args.length := by
+    have := (List.getElem?_eq_some_iff.1 ha).1; simpa [argVarsE] using this
+  obtain ⟨-, rfl⟩ := List.getElem?_eq_some_iff.1 ha
+  have hA' : A = C.argTy d D.params.length k := by
+    simp only [Ctor.argTys, List.getElem?_map, List.getElem?_range hk, Option.map_some, Option.some.injEq] at hA
+    exact hA.symm
+  subst hA'
+  rw [argVarsE_get, show E.length + C.args.length - 1 - k = E.length + (C.args.length - 1 - k) by omega]
+  exact HasTy0.var hw (lookup_BCtxE hS hD hC hpc hpl E hk)
+
+/-- The motive at the constructor, in the branch context. -/
+theorem branchBody_typed (hS : SigClosed S) (hW : WfSig S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+    {Φ : I} (hpsL : IsList ps) (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length)
+    (hpt : HasTele0 S Ψ Φ [] ps D.params []) (hdata : HasTy0 S Ψ Φ [] (.data d ps) (.univ D.level))
+    (hw0 : Wf0 S Ψ Φ []) (hdims : C.dims = 0) {P : Tm} {m : ℕ} (hP : HasTy0 S Ψ Φ [Tm.data d ps] P (.univ m)) :
+    HasTy0 S Ψ Φ (ihCtx C P C.recPos.length ++ BCtx d D.params.length C ps C.args.length)
+      (DataDecl.branchBody d c C ps P) (.univ m) := by
+  have hw := ih_wf hS hW hD hC hpsL hpc hpl hpt hdata hw0 hP C.recPos.length (Nat.le_refl _)
+  have hcon := con_vars_typed hS hW hD hC hpsL hpc hpl hpt hdata hdims hw
+  rw [ihCtx_length] at hcon
+  have hdc : (Tm.data d ps).closedB 0 Ψ = true := closed_ty hdata
+  have hpsc : ps.closedB 0 Ψ = true := by simpa [Tm.closedB] using hdc
+  unfold DataDecl.branchBody
+  simp only [hdims, List.range_zero, List.map_nil, wkN_closed hpsc]
+  rw [show (fun i => I.var (i + 0)) = I.var from rfl]
+  refine (sub_ty hS hP).2.1 ⟨fun i hi => hi, scoped_of_wf hw, by rw [I_subst_var]; exact ent_refl _,
+    fun x A hx => ?_, hw⟩
+  cases x with
+  | zero =>
+    simp only [Ctx.lookup, Option.some.injEq] at hx; subst hx
+    rw [shift_closed hdc, subst_closed0 hdc]
+    exact hcon
+  | succ x => simp [Ctx.lookup] at hx
+
+theorem branchArgTy_typed (hS : SigClosed S) (hW : WfSig S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+    {Φ : I} (hpsL : IsList ps) (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length)
+    (hpt : HasTele0 S Ψ Φ [] ps D.params []) (hdata : HasTy0 S Ψ Φ [] (.data d ps) (.univ D.level))
+    (hw : Wf0 S Ψ Φ []) {j : ℕ} (hj : j < C.args.length) :
+    HasTy0 S Ψ Φ (BCtx d D.params.length C ps j) (DataDecl.branchArgTy d D.params.length C ps j) (.univ D.level) := by
+  have ih := bc_wf hS hW hD hC hpsL hpc hpl hpt hdata hw j hj.le
+  have hvars : ∀ i (hi : i < (argVars j).length), i < C.args.length →
+      HasTy0 S Ψ Φ (BCtx d D.params.length C ps j) (argVars j)[i]
+        ((C.argTy d D.params.length i).substList (((argVars j).take i).reverse ++ ps.toList.reverse)) := by
+    intro i hi _
+    rw [argVars_get hi]
+    exact HasTy0.var ih (lookup_BCtx hS hD hC hpc hpl (by simpa [argVars] using hi))
+  have hty := argTy_inst_typed hS hW hD hC hpsL hpl hpt hdata ih hvars (j := j) (by simp [argVars]) hj
+  rwa [List.take_of_length_le (by simp [argVars]), argVars_rev, ← branchArgTy_eq hpc] at hty
+
+theorem branchTy_pis (hdims : C.dims = 0) (P : Tm) :
+    D.branchTy d c C ps P = pis ((List.range C.args.length).map (DataDecl.branchArgTy d D.params.length C ps) ++
+      (List.range C.recPos.length).map (DataDecl.branchIhTy C P)) (DataDecl.branchBody d c C ps P) := by
+  unfold DataDecl.branchTy pis
+  simp [hdims, List.foldr_append, List.foldr_map]
+
+/-- An abstraction over the branch context is a branch. -/
+theorem branch_typed (hS : SigClosed S) (hW : WfSig S) (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+    {Φ : I} (hpsL : IsList ps) (hpc : ∀ p ∈ ps.toList, p.closedB 0 Ψ = true) (hpl : ps.toList.length = D.params.length)
+    (hpt : HasTele0 S Ψ Φ [] ps D.params []) (hdata : HasTy0 S Ψ Φ [] (.data d ps) (.univ D.level))
+    (hw0 : Wf0 S Ψ Φ []) (hdims : C.dims = 0) {P : Tm} {m : ℕ} (hm : m ≤ maxLevel)
+    (hP : HasTy0 S Ψ Φ [Tm.data d ps] P (.univ m)) {body : Tm}
+    (hb : HasTy0 S Ψ Φ (ihCtx C P C.recPos.length ++ BCtx d D.params.length C ps C.args.length) body
+      (DataDecl.branchBody d c C ps P)) :
+    HasTy0 S Ψ Φ [] (lams ((List.range C.args.length).map (DataDecl.branchArgTy d D.params.length C ps) ++
+      (List.range C.recPos.length).map (DataDecl.branchIhTy C P)) body) (D.branchTy d c C ps P) := by
+  have hDl : D.level + 1 ≤ maxLevel := ((hW.2 d D hD).1)
+  have hrev : (((List.range C.args.length).map (DataDecl.branchArgTy d D.params.length C ps) ++
+      (List.range C.recPos.length).map (DataDecl.branchIhTy C P))).reverse =
+      ihCtx C P C.recPos.length ++ BCtx d D.params.length C ps C.args.length := by
+    simp [ihCtx, BCtx, List.map_reverse]
+  rw [branchTy_pis hdims]
+  refine lams_typed hS _ (l := max D.level m) (pis_typed hS _ (fun i hi => ?_) ?_) (by rw [List.append_nil, hrev]; exact hb)
+  · simp only [List.length_append, List.length_map, List.length_range] at hi
+    by_cases hin : i < C.args.length
+    · have e1 : ((((List.range C.args.length).map (DataDecl.branchArgTy d D.params.length C ps) ++
+          (List.range C.recPos.length).map (DataDecl.branchIhTy C P))).take i).reverse ++ [] =
+          BCtx d D.params.length C ps i := by
+        rw [List.take_append_of_le_length (by simp; omega)]
+        simp only [BCtx, List.append_nil, List.map_reverse]
+        rw [← List.map_take, List.take_range, Nat.min_eq_left hin.le]
+      rw [e1, List.getElem_append_left (by simpa using hin)]
+      simp only [List.getElem_map, List.getElem_range]
+      exact HasTy0.cumulTo (branchArgTy_typed hS hW hD hC hpsL hpc hpl hpt hdata hw0 hin) (le_max_left _ _)
+        (max_le (by omega) hm)
+    · obtain ⟨s, rfl⟩ : ∃ s, i = C.args.length + s := ⟨i - C.args.length, by omega⟩
+      have hs : s < C.recPos.length := by omega
+      have e1 : ((((List.range C.args.length).map (DataDecl.branchArgTy d D.params.length C ps) ++
+          (List.range C.recPos.length).map (DataDecl.branchIhTy C P))).take (C.args.length + s)).reverse ++ [] =
+          ihCtx C P s ++ BCtx d D.params.length C ps C.args.length := by
+        rw [List.take_append]
+        simp only [List.length_map, List.length_range, Nat.add_sub_cancel_left, List.append_nil,
+          List.take_of_length_le (show (List.map (DataDecl.branchArgTy d D.params.length C ps)
+            (List.range C.args.length)).length ≤ C.args.length + s by simp), List.reverse_append]
+        rw [← List.map_take, List.take_range, Nat.min_eq_left hs.le]
+        simp [ihCtx, BCtx, List.map_reverse]
+      rw [e1, List.getElem_append_right (by simp)]
+      simp only [List.length_map, List.length_range, Nat.add_sub_cancel_left, List.getElem_map, List.getElem_range]
+      exact HasTy0.cumulTo (ihTy_typed hS hD hC hpsL hpc hpl hdata hP hs
+        (ih_wf hS hW hD hC hpsL hpc hpl hpt hdata hw0 hP s hs.le)) (le_max_right _ _) (max_le (by omega) hm)
+  · rw [List.append_nil, hrev]
+    exact HasTy0.cumulTo (branchBody_typed hS hW hD hC hpsL hpc hpl hpt hdata hw0 hdims hP) (le_max_right _ _)
+      (max_le (by omega) hm)
+
+end
+
 
 end
 
