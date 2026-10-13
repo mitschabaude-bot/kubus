@@ -131,17 +131,17 @@ Violations are reported with the name of the invariant, and the exit code is 1. 
 
 ## Certified kernel
 
-`kubus --kernel FILE` additionally translates every definition into KubusCore (`KubusCore/Syntax.lean`, `KubusCore/Rules.lean`) and checks it with a kernel whose functions return derivations of the specification's judgments, so that a certified signature comes with a proof of `WfSig` (`KubusCore/KERNEL.md`). Data types and pattern matching are not translated yet; definitions using them are skipped. `kubus --kernel lib/univalence.ktt` certifies everything else in `basic`, `equiv` and `univalence`, including `EquivContr`.
+`kubus FILE` translates every definition and data type into KubusCore (`KubusCore/Syntax.lean`, `KubusCore/Rules.lean`) after elaboration and checks it with a kernel whose functions return derivations of the specification's judgments, so that a certified signature comes with a proof of `WfSig` (`KubusCore/KERNEL.md`). The Kubus evaluator only helps the elaborator; a definition the kernel rejects is an error (exit code 1), one the translation cannot handle is reported as skipped. `--verbose` lists the certified definitions with their checking times, and `--no-kernel` turns the kernel off. Everything in `lib/` is certified, including `EquivContr` and `loopSpaceS1`; the kernel takes about 2.5 s for `lib/loopspace.ktt` and its imports and well under a second for the other files.
 
 ## Verified kernel and consistency
 
 The language is backed by a verified kernel for its core theory, Kubus Core (`docs/core-theory.md`):
 
 - `KubusCore/Syntax.lean`, `KubusCore/Rules.lean`: the formal specification. It has de Bruijn syntax with term and interval variables, the CCHM face lattice, and typing and equality judgments with the Coquand–Huber–Mörtberg (CHM) computation rules for `transp`/`hcomp`, Glue types, universes, and global definitions.
-- `KubusCore/Kernel/`: a small kernel whose functions return derivations of the specification's judgments. Its soundness holds by construction (`checkSig_sound`). `kubus --kernel FILE` translates the elaborated definitions and certifies them; the univalence development in `lib/` (`ua`, `isoToEquiv`, `EquivContr`, …) is certified.
+- `KubusCore/Kernel/`: a small kernel whose functions return derivations of the specification's judgments. Its soundness holds by construction (`checkSig_sound`). `kubus FILE` translates the elaborated definitions and certifies them; all of `lib/` is certified.
 - `model/`: the cubical-sets model in Lean (with Mathlib). It validates every rule of the specification and proves `KubusCore.Consistent`: in any well-formed signature there is no closed term of `(A : U₀) → A`. `Model.kernel_consistent` combines this with the kernel. Whatever the kernel certifies lives in a consistent theory. Both theorems depend only on Lean's standard axioms (`propext`, `Classical.choice`, `Quot.sound`).
 
-Data types and higher inductive types are not yet in the verified core (`docs/inductive-types.md` has the design). Definitions using them are checked by the Kubus elaborator only.
+Data types and higher inductive types are in the specification and the kernel (`docs/inductive-types.md`), but not yet in the model.
 
 ## Limitations
 

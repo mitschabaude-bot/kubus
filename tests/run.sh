@@ -7,9 +7,12 @@ cd "$(dirname "$0")/.."
 export KUBUS_PATH=lib
 bin=.lake/build/bin/kubus
 fails=0
+# the library checks, and the certified kernel certifies every definition and data type
 for f in lib/*.ktt; do
-  if ! timeout 60 $bin "$f" > /dev/null 2> /tmp/kubus-err; then
-    echo "FAIL $f"; cat /tmp/kubus-err; fails=$((fails+1))
+  if ! out=$(timeout 120 $bin --verbose "$f" 2>&1) || grep -q "kernel: skipped" <<< "$out"; then
+    echo "FAIL $f"; grep -vE "^kernel: (certified|.*: [0-9]+ ms$)" <<< "$out" | head -20; fails=$((fails+1))
+  else
+    echo "$f: $(grep "certified," <<< "$out")"
   fi
 done
 # invariant self-checks on the library and the passing tests (SELFCHECK=0 to skip)
@@ -25,14 +28,6 @@ if [ "${SELFCHECK:-1}" = 1 ]; then
     fi
   done
 fi
-# certified kernel: every definition and data type of the library is certified
-for f in lib/univalence.ktt lib/hits.ktt lib/loopspace.ktt; do
-  if ! out=$(timeout 900 $bin --kernel "$f" 2>&1) || grep -q "kernel: skipped" <<< "$out"; then
-    echo "FAIL kernel $f"; grep -E "REJECTED|skipped" <<< "$out" | head -10; fails=$((fails+1))
-  else
-    echo "$f: $(tail -1 <<< "$out")"
-  fi
-done
 # kernel regression tests (signatures the kernel must reject or accept)
 for f in tests/kernel/*.lean; do
   if ! lake env lean "$f" > /tmp/kubus-err 2>&1; then

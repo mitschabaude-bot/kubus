@@ -2,7 +2,7 @@ import Kubus.Top
 import KubusCore
 
 /-!
-# Bridge to the certified kernel (`kubus --kernel`)
+# Bridge to the certified kernel (run by `kubus` on every definition)
 
 Translates elaborated definitions into KubusCore signature entries and checks them with the
 kernel (`KubusCore.Kernel`). The translation is not trusted: whatever it produces is checked

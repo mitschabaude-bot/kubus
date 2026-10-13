@@ -202,7 +202,7 @@ def g0 (b : G 0) : Bool := b
 def unglueG (i : I) (x : G i) : Bool := unglue x
 ```
 
-The full univalence axiom holds in the form "the type of types equivalent to `A` is contractible" (`EquivContr` in `lib/univalence.ktt`). It is certified by the verified kernel (`kubus --kernel`), together with the rest of `basic`, `equiv` and `univalence`, except `absurd`, which uses a data type.
+The full univalence axiom holds in the form "the type of types equivalent to `A` is contractible" (`EquivContr` in `lib/univalence.ktt`). It is certified by the verified kernel, which checks every definition, together with the rest of `lib/`.
 
 ## 7. Higher inductive types: the circle
 
