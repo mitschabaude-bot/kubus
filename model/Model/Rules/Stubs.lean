@@ -1,4 +1,4 @@
-import Model.Rules.KanLemmas
+import Model.Rules.CompLemmas
 
 /-!
 # Semantic validity of the rules
@@ -1098,7 +1098,15 @@ theorem sem_EqTm_hcompIPi {S : Sig} {Ψ Φ Γ A φ u u0 T}
 theorem sem_EqTm_hcompPi {S : Sig} {Ψ Φ Γ A B φ u u0 T}
     (h0 : SemTy S Ψ Φ Γ (hcomp (pi A B) φ u u0) T) :
     SemEq S Ψ Φ Γ (hcomp (pi A B) φ u u0) (hcompPi A B φ u u0) T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (Tm.hcompPi A B φ u u0) m ρ γ = sem S (hcomp (pi A B) φ u u0) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    exact sem_hcompPi (cond_of_sem_hcomp (hty.ne_empty hmem))
+  have hcl : (Tm.hcompPi A B φ u u0).ConstsLt S.length := by
+    obtain ⟨⟨hA, hB⟩, hu, hu0⟩ := h0.2.1
+    exact ⟨hA, hB, ⟨hu.ren _ _, trivial⟩, ⟨hu0.ren _ _, trivial⟩⟩
+  exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_hcompSigma {S : Sig} {Ψ Φ Γ A B φ u u0 T}
     (h0 : SemTy S Ψ Φ Γ (hcomp (sigma A B) φ u u0) T) :
