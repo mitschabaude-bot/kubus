@@ -350,7 +350,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (con d c ps.dshift uargs []) (data d ps.dshift) →
       HasTy S Ψ Φ Γ (hcomp (data d ps) φ u (con d c qs args [])) T →
       EqTm S Ψ Φ Γ (hcomp (data d ps) φ u (con d c qs args []))
-        (con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (data d ps.dshift) ps.dshift.toList φ 0 []
+        (con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (data d ps) ps.dshift.toList φ 0 []
           uargs.toList args.toList)) []) T
   /- inductive types: transport (`hcomp` in a higher inductive type is a canonical form) -/
   | transpData0 {Ψ Φ Γ d D ps φ a T} : S[d]? = some (.data D) → D.params = [] →

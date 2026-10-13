@@ -754,17 +754,17 @@ def transpTele (argTy : Nat → Tm) (psL : List Tm) (φ : I) : Nat → List Tm �
 
 /-- Composition of a telescope of constructor arguments of a type without path constructors
 (CCHM): `us` are the tube's arguments (in the context extended by the interval variable 0), `as`
-the base's. A recursive argument is composed in the inductive type itself (`dataL`, in the
-extended context), a point argument along its type line, whose earlier arguments are the
+the base's. A recursive argument is composed in the inductive type itself (`dataT`, the type
+`data d ps` in the original context), a point argument along its type line, whose earlier arguments are the
 fillers of the earlier arguments; `psL` are the parameters in the extended context. -/
-def hcompTele (C : Ctor) (argTy : Nat → Tm) (dataL : Tm) (psL : List Tm) (φ : I) :
+def hcompTele (C : Ctor) (argTy : Nat → Tm) (dataT : Tm) (psL : List Tm) (φ : I) :
     Nat → List Tm → List Tm → List Tm → List Tm
   | k, fills, u :: us, a :: as =>
     if C.isRec k then
-      hcomp dataL φ u a :: hcompTele C argTy dataL psL φ (k + 1) (hfill dataL φ u a :: fills) us as
+      hcomp dataT φ u a :: hcompTele C argTy dataT psL φ (k + 1) (hfill dataT φ u a :: fills) us as
     else
       let L := (argTy k).substList (fills ++ psL.reverse)
-      comp L φ u a :: hcompTele C argTy dataL psL φ (k + 1) (fill L φ u a :: fills) us as
+      comp L φ u a :: hcompTele C argTy dataT psL φ (k + 1) (fill L φ u a :: fills) us as
   | _, _, _, _ => []
 
 end Tm
