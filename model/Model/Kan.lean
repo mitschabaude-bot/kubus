@@ -395,3 +395,66 @@ end transpFill
 end
 
 end Model
+
+/-! ### Congruence and restriction lemmas for the derived operations -/
+
+namespace Model
+
+open ZFSet
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {k m n n' : ℕ}
+
+theorem TubeOK.canon {c : V} {f : Hom k m} {φ : Cof k} (hφ : φ.IsCof) {u : Tube k} {u0 : V}
+    (hu : TubeOK c f φ u u0) : TubeOK c f φ (Tube.canon φ u) u0 where
+  mem n h r hh := by rw [tube_canon_eq hh]; exact hu.mem n h r hh
+  coh n h r hh n' g := by
+    have hg : (φ.restr (h.comp g)).holds := by
+      rw [← Cof.restr_restr]; exact Cof.IsCof.holds_restr (hφ.restr _) hh g
+    rw [tube_canon_eq hh, tube_canon_eq hg]; exact hu.coh n h r hh n' g
+  base n h hh := by rw [tube_canon_eq hh]; exact hu.base n h hh
+
+theorem hfillF_congr {c : V} {f : Hom k m} {φ : Cof k} {u u' : Tube k} {u0 : V}
+    (h : ∀ n (g : Hom n k) r, (φ.restr g).holds → u n g r = u' n g r) :
+    hfillF c f φ u u0 = hfillF c f φ u' u0 := by
+  unfold hfillF fillTube
+  congr 1; funext n g r; split
+  · exact h _ _ _ ‹_›
+  · rfl
+
+theorem hfillF_res_id (c : V) (f : Hom k m) (φ : Cof k) (u : Tube k) (u0 : V) :
+    hfillF (res f c) (Hom.id k) φ u u0 = hfillF c f φ u u0 := by
+  simp only [hfillF, hcompAt, hcG_res, Hom.id_comp]
+
+theorem compF_congr {c : V} {f : Hom (k + 1) m} {ψ : Cof k} {u u' : Tube k} {u0 : V}
+    (h : ∀ n (g : Hom n k) r, (ψ.restr g).holds → u n g r = u' n g r) :
+    compF c f ψ u u0 = compF c f ψ u' u0 := by
+  unfold compF
+  apply hcompAt_congr
+  intro n g r hg
+  simp only [compTube, h n g r hg]
+
+theorem compF_res_id (c : V) (f : Hom (k + 1) m) (ψ : Cof k) (u : Tube k) (u0 : V) :
+    compF (res f c) (Hom.id (k + 1)) ψ u u0 = compF c f ψ u u0 := by
+  have : compTube (res f c) (Hom.id (k + 1)) u = compTube c f u := by
+    funext n g r; simp only [compTube, transpAt, trG_res, Hom.id_comp]
+  simp only [compF, this, hcompAt, hcG_res, transpAt, trG_res, Hom.id_comp, Hom.comp_id]
+
+theorem transpFillF_res_id (c : V) (f : Hom (k + 1) m) (φ : Cof k) (a0 : V) :
+    transpFillF (res f c) (Hom.id (k + 1)) φ a0 = transpFillF c f φ a0 := by
+  simp only [transpFillF, transpAt, trG_res, Hom.id_comp]
+
+theorem hcompAt_res_id' (c : V) (f : Hom k m) (φ : Cof k) (u : Tube k) (u0 : V) :
+    hcompAt (res f c) (Hom.id k) φ u u0 = hcompAt c f φ u u0 := by
+  simp only [hcompAt, hcG_res, Hom.comp_id]
+
+theorem transpAt_res_id' (c : V) (f : Hom (k + 1) m) (φ : Cof k) (a0 : V) :
+    transpAt (res f c) (Hom.id (k + 1)) φ a0 = transpAt c f φ a0 := by
+  simp only [transpAt, trG_res, Hom.comp_id]
+
+end
+
+end Model

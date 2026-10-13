@@ -9,3 +9,5 @@ import Model.Pi
 import Model.PiFib
 import Model.PiTransp
 import Model.Kan
+import Model.Sigma
+import Model.SigmaFib
