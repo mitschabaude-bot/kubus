@@ -78,7 +78,39 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
     refine ⟨hty, ?_, TyEq.refl _, hmem, hrt⟩
     rw [res_id (isKV_univC _), El_univC]; exact hmem
   | @HasTy0.pi _ Ψ Φ Γ A B l h0 h1 => fun hc k c => by
-    sorry
+    have hty := c.ty hW (HasTy0.pi h0 h1)
+    refine RE_univ_of hW hty ?_
+    have hA := (RE_univ_iff hW).1 (fund_ty h0 hc.1 k c)
+    have hAwf : WF l k (sem S A k c.ρ c.γv) := by rw [← c.semK_subst]; exact (ZFSet.mem_sep.1 hA.2.1).2
+    have hAne : sem S A k c.ρ c.γv ≠ ∅ := IsKV.ne_empty hAwf.fib.kv
+    unfold RT
+    rw [c.semK_subst, sem_pi hAwf.fib.kv, Comp_piC _ _ hAne]
+    refine ⟨⟨isTyK_of_ty hW (c.ty hW h0) |>.of_tyEq (TyEq.refl _) |> fun _ => ⟨l, .inl hty⟩, ?_⟩,
+      A.subst c.γ c.σ.τ, B.subst (Tm.up c.γ) c.σ.τ, TyEq.refl _, fun k' σ => ?_⟩
+    · rw [← sem_pi hAwf.fib.kv, ← c.semK_subst, res_id]
+      have := mem_of_ty hW hty
+      rw [show semK S k (Tm.subst c.γ c.σ.τ (.univ l)) = univC k l from rfl, El_univC] at this
+      exact (ZFSet.mem_sep.1 this).2.fib.kv
+    simp only [Hom.id_comp]
+    have hX : ∀ X, sem S A k c.ρ c.γv = X → (Comp S X k k' σ.hom = Comp S (semK S k' ((A.subst c.γ c.σ.τ).isub σ))
+        k' k' (Hom.id k')) := by
+      intro X hX
+      rw [semK_isubS hW hA.1, c.semK_subst, hX, Comp_eq_res (hX ▸ hAne)]
+    rw [hX _ rfl]
+    refine ⟨?_, fun a ha => ?_⟩
+    · have := (RE_univ_iff hW).1 (fund_ty h0 hc.1 k' (c.restr hW σ))
+      rw [CSub.restr_subst] at this; exact this.2.2
+    · have ha' : RE S k' (A.subst (c.restr hW σ).γ (c.restr hW σ).σ.τ) a := by rw [CSub.restr_subst]; exact ha
+      have hamem : semK S k' a ∈ El (sem S A k c.ρ c.γv) σ.hom := by
+        have := (Comp_el_typed ha).2
+        rwa [El_res, Hom.comp_id, semK_isubS hW hA.1, El_res, Hom.comp_id, c.semK_subst] at this
+      have ih := (RE_univ_iff hW).1 (fund_ty h1 hc.2 k' ((c.restr hW σ).ext hW A a ha'))
+      have e : sem S B k' (c.ρ.restr σ.hom) (TEnv.cons (TEnv.restr c.γv σ.hom) (semK S k' a)) =
+          semK S k' (B.subst ((c.restr hW σ).ext hW A a ha').γ ((c.restr hW σ).ext hW A a ha').σ.τ) := by
+        rw [CSub.semK_subst, CSub.ext_γv, CSub.ext_ρ, CSub.restr_ρ, CSub.restr_γv]
+      unfold famV
+      rw [dat_lamV, apZ_fnZ _ hamem, e, subst_up_isub_inst]
+      exact ih.2.2
   | @HasTy0.lam _ Ψ Φ Γ A B t l h0 h1 => fun hc k c => by
     sorry
   | @HasTy0.app _ Ψ Φ Γ A B f a h0 h1 => fun hc k c => by

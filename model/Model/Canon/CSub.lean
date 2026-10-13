@@ -249,6 +249,60 @@ def up (hW : WfSig S) (c : CSub S Ψ Φ Γ k) : CSub S (Ψ + 1) Φ.shift Γ.dshi
 
 end CSub
 
+theorem semK_isub_of_nat {t : Tm} (h : Natural S t k (idEnv k) (γ0 k)) (σ : ISub k' k) :
+    semK S k' (t.isub σ) = res σ.hom (semK S k t) := by
+  unfold semK
+  rw [show t.isub σ = t.dsubst σ.τ from rfl, sem_dsubst, env_isub, ← γ0_restr σ.hom, h]
+
+theorem subst_up_isub_inst (B a : Tm) (γ : ℕ → Tm) (τ : ℕ → I) (σ : ISub k' k) :
+    ((B.subst (Tm.up γ) τ).isub σ).inst a = B.subst (consT a fun x => (γ x).isub σ) (fun i => (τ i).subst σ.τ) := by
+  simp only [Tm.isub, Tm.inst, subst_subst]
+  apply subst_congr
+  · intro x; cases x with
+    | zero => rfl
+    | succ x =>
+      simp only [Tm.up, consT]
+      rw [shift_subst]
+      exact subst_congr (fun n => rfl) (fun i => I_subst_var _) _
+  · intro i; exact I_subst_var _
+
+namespace CSub
+
+variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
+
+theorem restr_ρ (hW : WfSig S) (c : CSub S Ψ Φ Γ k) (σ : ISub k' k) : (c.restr hW σ).ρ = c.ρ.restr σ.hom := by
+  simp only [ρ, restr, ISub.hom_comp, IEnv.restr_restr]
+
+theorem restr_γv (hW : WfSig S) (c : CSub S Ψ Φ Γ k) (σ : ISub k' k) :
+    (c.restr hW σ).γv = TEnv.restr c.γv σ.hom := by
+  funext x; simp only [γv, restr, TEnv.restr]; exact semK_isub_of_nat (c.nat x) σ
+
+theorem ext_ρ (hW : WfSig S) (c : CSub S Ψ Φ Γ k) (A a : Tm) (ha : RE S k (A.subst c.γ c.σ.τ) a) :
+    (c.ext hW A a ha).ρ = c.ρ := rfl
+
+theorem ext_γv (hW : WfSig S) (c : CSub S Ψ Φ Γ k) (A a : Tm) (ha : RE S k (A.subst c.γ c.σ.τ) a) :
+    (c.ext hW A a ha).γv = TEnv.cons c.γv (semK S k a) := by
+  funext x; cases x <;> rfl
+
+end CSub
+
+/-- Computable elements of a universe are the computable types. -/
+theorem RE_univ_iff (hW : WfSig S) {l : ℕ} {T : Tm} :
+    RE S k (.univ l) T ↔ HasTy S k .one [] T (.univ l) ∧ semK S k T ∈ ZFSet.sep (WF l k) (Vt l) ∧ RT S k T := by
+  unfold RE RT
+  rw [show semK S k (.univ l) = univC k l from rfl, Comp_univC]
+  constructor
+  · rintro ⟨ht, -, -, hm, hrt⟩; exact ⟨ht, hm, hrt⟩
+  · rintro ⟨ht, hm, hrt⟩
+    refine ⟨ht, ?_, TyEq.refl _, hm, hrt⟩
+    rw [res_id (isKV_univC _), El_univC]; exact hm
+
+theorem RE_univ_of (hW : WfSig S) {l : ℕ} {T : Tm} (ht : HasTy S k .one [] T (.univ l)) (hrt : RT S k T) :
+    RE S k (.univ l) T := by
+  refine (RE_univ_iff hW).2 ⟨ht, ?_, hrt⟩
+  have := mem_of_ty hW ht
+  rwa [show semK S k (.univ l) = univC k l from rfl, El_univC] at this
+
 end
 
 end Model.Canon
