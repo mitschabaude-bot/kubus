@@ -11,3 +11,5 @@ import Model.PiTransp
 import Model.Kan
 import Model.Sigma
 import Model.SigmaFib
+import Model.Path
+import Model.PathFib
