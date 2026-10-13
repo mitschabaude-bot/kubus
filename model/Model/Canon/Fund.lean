@@ -1,4 +1,4 @@
-import Model.Canon.KripkeAll
+import Model.Canon.CSub
 
 /-!
 # Canonicity: the fundamental lemma
@@ -20,20 +20,6 @@ noncomputable section
 
 variable {S : Sig} {k k' m : ℕ}
 
-/-- A computable element of a closed type at stage `k` (at the type's own code). -/
-def RE (S : Sig) (k : ℕ) (A t : Tm) : Prop := (Comp S (semK S k A) k k (Hom.id k)).el A t
-
-/-- A computable closed type at stage `k`. -/
-def RT (S : Sig) (k : ℕ) (A : Tm) : Prop := (Comp S (semK S k A) k k (Hom.id k)).ty A
-
-/-- A computable substitution from the context `Ψ; Φ; Γ` to stage `k`. -/
-structure CSub (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (k : ℕ) where
-  σ : ISub k Ψ
-  γ : ℕ → Tm
-  face : I.Entails .one (Φ.subst σ.τ)
-  nat : ∀ x, Natural S (γ x) k (idEnv k) (γ0 k)
-  look : ∀ x A, Γ.lookup x = some A → RE S k (A.subst γ σ.τ) (γ x)
-
 /-- The definitions and inductive types below `n` are computable. -/
 structure Hyp (S : Sig) (n : ℕ) : Prop where
   defn : ∀ i < n, ∀ t A, S[i]? = some (.defn t A) → ∀ k, RE S k A t
@@ -44,67 +30,6 @@ def TeleComp (S : Sig) (k : ℕ) : Tm → List Tm → List Tm → Prop
   | .tcons a as, A :: Δ, prev => RE S k (A.substList prev) a ∧ TeleComp S k as Δ (a :: prev)
   | _, _, _ => False
 
-
-/-! ### Computable substitutions -/
-
-namespace CSub
-
-variable {Ψ : ℕ} {Φ : I} {Γ : Ctx} (c : CSub S Ψ Φ Γ k)
-
-/-- The point of the model given by a computable substitution. -/
-def ρ : IEnv k := (idEnv Ψ).restr c.σ.hom
-def γv : ℕ → V := fun x => semK S k (c.γ x)
-
-theorem semK_subst (t : Tm) : semK S k (t.subst c.γ c.σ.τ) = sem S t k c.ρ c.γv := by
-  unfold semK; rw [sem_subst S t k _ _ _ _ c.nat, env_isub]; rfl
-
-theorem kv (x : ℕ) : IsKV k (c.γv x) := by
-  have := c.nat x k (Hom.id k)
-  rw [IEnv.restr_id, γ0_restr] at this
-  show IsKV k (semK S k (c.γ x))
-  unfold semK; rw [this]; exact isKV_res _ _
-
-variable (hW : WfSig S)
-include hW
-
-theorem isPoint : IsPoint S Φ Γ k c.ρ c.γv where
-  cof := by
-    have := entails_holds c.face (ρ := idEnv k) (by rw [ival_one]; rfl)
-    rw [ival_subst, env_isub] at this; exact this
-  typ x A h := by
-    have := (Comp_el_typed (c.look x A h)).2
-    rw [El_res, Hom.comp_id, c.semK_subst] at this
-    exact this
-  kv := c.kv
-
-theorem tySub : TySub S Ψ Φ Γ k .one [] c.γ c.σ.τ :=
-  ⟨c.σ.sc, trivial, c.face, fun x A h => spec_to_minimal hW (Comp_el_typed (c.look x A h)).1, Wf0.nil trivial⟩
-
-theorem ty {t A : Tm} (h : HasTy0 S Ψ Φ Γ t A) : HasTy S k .one [] (t.subst c.γ c.σ.τ) (A.subst c.γ c.σ.τ) :=
-  minimal_to_spec ((sub_ty (sigClosed_of_wfSig hW) h).2.1 (c.tySub hW))
-
-theorem eq {t u A : Tm} (h : EqTm0 S Ψ Φ Γ t u A) :
-    EqTm S k .one [] (t.subst c.γ c.σ.τ) (u.subst c.γ c.σ.τ) (A.subst c.γ c.σ.τ) :=
-  minimal_to_spec_eq ((sub_eq (sigClosed_of_wfSig hW) h).2 (c.tySub hW))
-
-/-- Restrict to a smaller face. -/
-def restrictTo {Φ' : I} (he : I.Entails Φ' Φ) (c : CSub S Ψ Φ' Γ k) : CSub S Ψ Φ Γ k :=
-  { c with face := ent_trans c.face (ent_subst he _) }
-
-end CSub
-
-/-- The type of a typed closed term has a type code. -/
-theorem tyCode_of_ty (hW : WfSig S) {t A : Tm} (ht : HasTy S k .one [] t A) : TyCode k (semK S k A) :=
-  ((sound_ty (sigOK_of_wfSig _ S rfl hW) ht).2.2.2 k (idEnv k) (γ0 k) (isPoint_idEnv S k)).2.2.1
-
-theorem RE.conv (hW : WfSig S) {A B t t' : Tm} (h : RE S k A t) (hAB : TyEq S k A B)
-    (htt : EqTm S k .one [] t t' B) : RE S k B t' := by
-  unfold RE at h ⊢
-  rw [← semK_tyEq hW hAB]
-  exact ((cv_tyCode hW (tyCode_of_ty hW (Comp_el_typed h).1)) k (Hom.id k) A B t t').2 h hAB htt
-
-theorem RE.conv_ty (hW : WfSig S) {A B t : Tm} (h : RE S k A t) (hAB : TyEq S k A B) : RE S k B t :=
-  h.conv hW hAB (EqTm.refl ((Comp_el_typed h).1.tyConv hAB))
 
 variable (hW : WfSig S) {n : ℕ} (hH : Hyp S n)
 include hW hH
