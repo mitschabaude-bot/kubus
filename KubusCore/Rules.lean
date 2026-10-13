@@ -251,6 +251,10 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ b b' (A.dinst .one)
   | ipiInj {Ψ Φ Γ A A' r l} : EqTm S Ψ Φ Γ (ipi A) (ipi A') (univ l) →
       r.Scoped Ψ → EqTm S Ψ Φ Γ (A.dinst r) (A'.dinst r) (univ l)
+  /- no-confusion of type formers: an equation between different ones holds only where the
+  restriction is unsatisfiable -/
+  | noConf {Ψ Φ Γ X Y l t u T} : X.headClash Y = true → EqTm S Ψ Φ Γ X Y (univ l) →
+      HasTy S Ψ Φ Γ t T → HasTy S Ψ Φ Γ u T → EqTm S Ψ Φ Γ t u T
   /- β and η -/
   | piBeta {Ψ Φ Γ A t a T} : HasTy S Ψ Φ Γ (app (lam A t) a) T →
       EqTm S Ψ Φ Γ (app (lam A t) a) (t.inst a) T
