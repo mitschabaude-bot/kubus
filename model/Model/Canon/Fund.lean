@@ -1,4 +1,4 @@
-import Model.Canon.CSub
+import Model.Canon.Formers
 
 /-!
 # Canonicity: the fundamental lemma
@@ -112,9 +112,38 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
       rw [dat_lamV, apZ_fnZ _ hamem, e, subst_up_isub_inst]
       exact ih.2.2
   | @HasTy0.lam _ Ψ Φ Γ A B t l h0 h1 => fun hc k c => by
-    sorry
+    have hpi : HasTy S k .one [] (.pi (A.subst c.γ c.σ.τ) (B.subst (Tm.up c.γ) c.σ.τ)) (.univ l) := c.ty hW h0
+    have hf : HasTy S k .one [] (.lam (A.subst c.γ c.σ.τ) (t.subst (Tm.up c.γ) c.σ.τ))
+        (.pi (A.subst c.γ c.σ.τ) (B.subst (Tm.up c.γ) c.σ.τ)) := c.ty hW (HasTy0.lam h0 h1)
+    show RE S k (.pi (A.subst c.γ c.σ.τ) (B.subst (Tm.up c.γ) c.σ.τ))
+      (.lam (A.subst c.γ c.σ.τ) (t.subst (Tm.up c.γ) c.σ.τ))
+    refine RE_pi_intro hW hpi hf fun k' σ a ha => ?_
+    have ha' : RE S k' (A.subst (c.restr hW σ).γ (c.restr hW σ).σ.τ) a := by rw [CSub.restr_subst]; exact ha
+    have ih := fund_ty h1 hc.2 k' ((c.restr hW σ).ext hW A a ha')
+    have e : ((B.subst (Tm.up c.γ) c.σ.τ).isub σ).inst a =
+        B.subst ((c.restr hW σ).ext hW A a ha').γ ((c.restr hW σ).ext hW A a ha').σ.τ :=
+      subst_up_isub_inst _ _ _ _ _
+    have et : ((t.subst (Tm.up c.γ) c.σ.τ).isub σ).inst a =
+        t.subst ((c.restr hW σ).ext hW A a ha').γ ((c.restr hW σ).ext hW A a ha').σ.τ :=
+      subst_up_isub_inst _ _ _ _ _
+    have hpiσ := HasTy.isubS hW hpi σ
+    have hfσ := HasTy.isubS hW hf σ
+    rw [isub_pi] at hpiσ hfσ
+    have happ := HasTy.app hfσ (Comp_el_typed ha).1
+    have hbeta : EqTm S k' .one [] (.app ((Tm.lam (A.subst c.γ c.σ.τ) (t.subst (Tm.up c.γ) c.σ.τ)).isub σ) a)
+        (((t.subst (Tm.up c.γ) c.σ.τ).isub σ).inst a) (((B.subst (Tm.up c.γ) c.σ.τ).isub σ).inst a) := by
+      have : (Tm.lam (A.subst c.γ c.σ.τ) (t.subst (Tm.up c.γ) c.σ.τ)).isub σ =
+          .lam ((A.subst c.γ c.σ.τ).isub σ) ((t.subst (Tm.up c.γ) c.σ.τ).isub σ) := by
+        simp only [Tm.isub, Tm.subst, up_var]
+      rw [this] at happ ⊢
+      exact EqTm.piBeta happ
+    rw [← e, ← et] at ih
+    exact ih.conv hW (TyEq.refl _) (EqTm.symm hbeta)
   | @HasTy0.app _ Ψ Φ Γ A B f a h0 h1 => fun hc k c => by
-    sorry
+    have ihf := fund_ty h0 hc.1 k c
+    have iha := fund_ty h1 hc.2 k c
+    rw [inst_subst]
+    exact RE_pi_elim hW ihf iha
   | @HasTy0.sigma _ Ψ Φ Γ A B l h0 h1 => fun hc k c => by
     sorry
   | @HasTy0.pair _ Ψ Φ Γ A B a b l h0 h1 h2 => fun hc k c => by

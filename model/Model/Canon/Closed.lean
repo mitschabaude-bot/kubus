@@ -109,8 +109,8 @@ theorem closed_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → t
 
 end
 
-theorem isub_id_of_closed {k : ℕ} {t : Tm} (h : t.closedB 0 k = true) : t.isub (ISub.id k) = t :=
-  closed_subst_id h (fun x hx => absurd hx (Nat.not_lt_zero _)) (fun i hi => by simp [ISub.id, hi])
+theorem isub_id_of_closed {k n : ℕ} {t : Tm} (h : t.closedB n k = true) : t.isub (ISub.id k) = t :=
+  closed_subst_id h (fun x _ => rfl) (fun i hi => by simp [ISub.id, hi])
 
 theorem isub_wk_of_closed {k : ℕ} {t : Tm} (h : t.closedB 0 k = true) : t.isub (ISub.wk k) = t.dshift := by
   rw [dshift_eq]
