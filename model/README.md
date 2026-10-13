@@ -4,7 +4,7 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 ## Phase 2 spec issues (read first)
 
-Status: P5 open. P4 fixed in `288a259`. P2 fixed in `dc30dbb` (`Ctor.bndTyped`), P3 in `2e8fc06`. P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
+Status: P5 fixed in `ff388bc`. P4 fixed in `288a259`. P2 fixed in `dc30dbb` (`Ctor.bndTyped`), P3 in `2e8fc06`. P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
 
 ### P5. Not modelable as stated: nested constructor argument lists in simple boundaries may have a non-literal tail
 
