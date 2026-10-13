@@ -258,6 +258,67 @@ theorem sem_EqTm_con {Ψ Φ Γ d D c C ps ps' args args' rs rs'} (hS : SigOK S) 
       (List.getElem?_eq_getElem (by simpa using hi'))) ρ
   rw [sem_con h0, sem_con h0, eps, eargs, ers, h5.sem_eq m _ _ (hp.restr h5.wf (Hom.id m))]
 
+theorem vnth_vlist_ge : ∀ (L : List V) (c : ℕ), L.length ≤ c → vnth (vlist L) c = vnth ∅ (c - L.length)
+  | [], c, _ => by simp [vlist]
+  | a :: L, c + 1, h => by
+    simp only [List.length_cons] at h
+    show vnth (π2 (ZFSet.pair a (vlist L))) c = _
+    simp only [π2_pair]
+    rw [vnth_vlist_ge L c (by omega)]
+    congr 1; simp
+  | _ :: _, 0, h => by simp at h
+
+/-- The congruence rule of the eliminator, given literal branch lists (P7). -/
+theorem sem_EqTm_elim' {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} (hS : SigOK S) (h0 : S[d]? = some (.data D))
+    (h1 : SemTy S Ψ Φ Γ (elim d ps P bs t) (P.inst t)) (h2 : SemTy S Ψ Φ Γ (elim d ps' P' bs' t') (P.inst t))
+    (h3 : SemEqTele S Ψ Φ Γ ps ps' D.params []) (h4 : SemEq S Ψ Φ (data d ps :: Γ) P P' (univ m))
+    (hbl : bs = Tm.ofList bs.toList) (hbl' : bs' = Tm.ofList bs'.toList)
+    (h5 : bs.toList.length = bs'.toList.length)
+    (h6 : ∀ (c : Nat) (C : Ctor) (b b' : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
+      bs'.toList[c]? = some b' → SemEq S Ψ Φ Γ b b' (D.branchTy d c C ps P))
+    (h7 : SemEq S Ψ Φ Γ t t' (data d ps)) :
+    SemEq S Ψ Φ Γ (elim d ps P bs t) (elim d ps' P' bs' t') (P.inst t) := by
+  refine ⟨h1, h2, fun m ρ γ hp => ?_⟩
+  obtain ⟨hm1, -, hty1, -⟩ := h1.2.2.2 m ρ γ hp
+  obtain ⟨hm2, -, hty2, -⟩ := h2.2.2.2 m ρ γ hp
+  have hne1 := hty1.ne_empty hm1
+  have hne2 := hty2.ne_empty hm2
+  have eps : psRV S ps m ρ γ = psRV S ps' m ρ γ := by
+    funext k f; exact h3.sem_eq k _ _ (hp.restr h3.wf f)
+  have et : psRV S t m ρ γ = psRV S t' m ρ γ := by
+    funext k f; exact h7.2.2 k _ _ (hp.restr h7.1.1 f)
+  rw [sem_elim h0] at hne1 hne2 ⊢
+  rw [sem_elim h0]
+  split at hne1
+  · rename_i g1
+    split at hne2
+    · rename_i g2
+      rw [if_pos g1, if_pos g2]
+      have hgood := ((hS.2 d D h0).2 m _ g1.1).1
+      rw [← eps] at g2 ⊢
+      have ett : sem S t m (ρ.restr (Hom.id m)) (TEnv.restr γ (Hom.id m)) =
+          sem S t' m (ρ.restr (Hom.id m)) (TEnv.restr γ (Hom.id m)) := congrFun (congrFun et m) (Hom.id m)
+      rw [← ett]
+      refine elimD_congr hgood g1.2.2 g2.2.2 (fun n g v hv => ?_) (fun n g c hc => ?_) g1.2.1
+      · have hp' := hp.restr h1.1 g
+        have hpok' : ParamsOK (sigUpTo S d) D n (psRV S ps n (ρ.restr g) (TEnv.restr γ g)) := by
+          rw [psRV_restr]; exact g1.1.restr g
+        have hmem : v ∈ El (sem S (data d ps) n (ρ.restr g) (TEnv.restr γ g)) (Hom.id n) := by
+          rw [sem_data_of h0 hpok', mem_El_dataC, dataSD_restr, delem_restr_iff, Hom.comp_id]; exact hv
+        exact h4.2.2 n _ _ (hp'.cons hmem hv.kv)
+      · have hp' := hp.restr h1.1 g
+        show vnth (sem S bs n (ρ.restr g) (TEnv.restr γ g)) c = vnth (sem S bs' n (ρ.restr g) (TEnv.restr γ g)) c
+        by_cases hcl : c < bs.toList.length
+        · obtain ⟨C, hC⟩ : ∃ C, D.ctors[c]? = some C := ⟨_, List.getElem?_eq_getElem hc⟩
+          rw [sem_vnth bs _ _ c hcl, sem_vnth bs' _ _ c (by omega)]
+          exact (h6 c C _ _ hC (List.getElem?_eq_getElem hcl) (List.getElem?_eq_getElem (by omega))).2.2 n _ _ hp'
+        · conv_lhs => rw [hbl, sem_ofList_vlist]
+          conv_rhs => rw [hbl', sem_ofList_vlist]
+          rw [vnth_vlist_ge _ _ (by simp; omega), vnth_vlist_ge _ _ (by simp; omega)]
+          simp [h5]
+    · exact absurd rfl hne2
+  · exact absurd rfl hne1
+
 theorem sem_EqTm_elim {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} (hS : SigOK S) (h0 : S[d]? = some (.data D))
     (h1 : SemTy S Ψ Φ Γ (elim d ps P bs t) (P.inst t)) (h2 : SemTy S Ψ Φ Γ (elim d ps' P' bs' t') (P.inst t))
     (h3 : SemEqTele S Ψ Φ Γ ps ps' D.params []) (h4 : SemEq S Ψ Φ (data d ps :: Γ) P P' (univ m))

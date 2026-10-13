@@ -229,6 +229,53 @@ theorem elimD_typed (hG : ∀ c C, Θ.ctors[c]? = some C → ElimConEq Θ P bs c
 
 end typed
 
+
+section congr
+
+variable {Θ : SData m} (hΘ : Θ.Good) {P P' : (n : ℕ) → Hom n m → V → V} {bs bs' : (k : ℕ) → Hom k m → V}
+  (hBO : BranchesOK Θ P bs) (hBO' : BranchesOK Θ P' bs')
+  (hPP : ∀ n (g : Hom n m) v, DElem Θ n g v → P n g v = P' n g v)
+  (hbb : ∀ n (g : Hom n m) c, c < Θ.ctors.length → vnth (bs n g) c = vnth (bs' n g) c)
+include hΘ hBO hBO' hPP hbb
+
+/-- The eliminator only depends on the motive at elements and on the branches of the constructors. -/
+theorem elimD_congr : ∀ {n : ℕ} {g : Hom n m} {v : V}, DElem Θ n g v → elimD Θ P bs n g v = elimD Θ P' bs' n g v := by
+  intro n g v hv
+  induction hv with
+  | @con n g c C args rs hC hlen hrs hrec hpt ih =>
+    have hat : Θ.ArgsTyped c C n g args := ⟨hlen, hrec, hpt⟩
+    rw [elimD_conV_typed hΘ P bs hBO hC hat hrs, elimD_conV_typed hΘ P' bs' hBO' hC hat hrs,
+      elimBranch_eq (Θ := Θ) P bs hC hlen, elimBranch_eq (Θ := Θ) P' bs' hC hlen,
+      hbb n g c (List.getElem?_eq_some_iff.1 hC).1]
+    congr 3
+    apply List.map_congr_left
+    intro j hj
+    have hj' : j ∈ (List.range C.args.length).filter C.isRec := hj
+    rw [List.mem_filter, List.mem_range] at hj'
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega), Option.getD_some]
+    exact ih j _ (List.getElem?_eq_getElem (by omega)) hj'.2
+  | @hcomp n g φ u a hφ ha hu hcoh hbase iha ihu =>
+    have hfib := fib_dataC hΘ
+    have hu0 : a ∈ El (dataC Θ) g := mem_El_dataC.2 ha
+    have hut : TubeOK (dataC Θ) g φ u a :=
+      ⟨fun n' h r hh => mem_El_dataC.2 (hu n' h r hh), hcoh, hbase⟩
+    by_cases hh : φ.holds
+    · have hid : (φ.restr (Hom.id n)).holds := hφ.holds_restr hh _
+      have hkv := (hu n (Hom.id n) (DM.one n) hid).kv
+      rw [hcV_eq_of_holds a hφ hh hkv hcoh]
+      have := ihu n (Hom.id n) (DM.one n) hid
+      simpa only [Hom.comp_id] using this
+    · have hWv : hcV (n + 1) (fillFace φ) (fillTube φ u a) (res (Hom.wk n) a) = hfillF (dataC Θ) g φ u a := by
+        rw [hfillF, hcompAt_dataC (fillTube_ok hfib hφ hu0 hut) (hfib.elRes _ _ a hu0 _ _)]
+        exact hcV_congr _ fun n' h r hh' => by simp [Tube.canon, hh']
+      have hWd : DElem Θ (n + 1) (g.comp (Hom.wk n)) (hcV (n + 1) (fillFace φ) (fillTube φ u a) (res (Hom.wk n) a)) := by
+        rw [hWv]; exact mem_El_dataC.1 (hfillF_mem hfib hφ hu0 hut)
+      have hka : IsKV n a := ha.kv
+      rw [elimD_hcV Θ P bs g hφ hh hka, elimD_hcV Θ P' bs' g hφ hh hka, hPP _ _ _ hWd, iha]
+      exact compF_congr fun n' g' r hg => ihu n' g' r hg
+
+end congr
+
 end
 
 end Model
