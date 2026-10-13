@@ -52,6 +52,7 @@ def hcompRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u 
     let ⟨he⟩ ← checkEquiv R E A ψ T' e l
     pure (some ⟨Tm.hcompGlue A ψ T' e φ u a, EqTm.hcompGlue ht hA he⟩)
   | .ipi A, ht => pure (some ⟨Tm.hcompIPi A φ u a, EqTm.hcompIPi ht⟩)
+  | .univ _, ht => pure (some ⟨Tm.hcompU φ u a, EqTm.hcompU ht⟩)
   | _, _ => pure none
 
 /-- `transp`: face rule, reduction of the line, computation rule. -/
