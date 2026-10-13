@@ -168,4 +168,126 @@ theorem comp_cong (hS : SigClosed S) {Ψ Φ Γ C C' ψ ψ' u u' u0 u0' l}
     rwa [ctxI_add1, sk_one1] at e
   exact EqTm0.hcomp hc hc' eC1 h1 h2 (EqTm0.conv et eC1') eb
 
+/-! ## The transport filler -/
+
+theorem transpFill_eq (C : Tm) (ψ : I) (a : Tm) : transpFill C ψ a =
+    transp (C.dsubst (bind2 (.and (.var 1) (.var 0)))) (.or ψ.shift (.neg (.var 0))) a.dshift := rfl
+
+theorem transpFill_d1 (C : Tm) (ψ : I) (a : Tm) : (transpFill C ψ a).dinst .one =
+    transp (C.subst Tm.var (sk (.and .one (.var 0)) 1)) (.or ψ (.neg .one)) a := by
+  show transp ((C.dsubst (bind2 (.and (.var 1) (.var 0)))).subst (fun n => (Tm.var n).dshift)
+    (I.up (I.inst0 .one))) ((I.or ψ.shift (.neg (.var 0))).subst (I.inst0 .one)) (a.dshift.dinst .one) = _
+  rw [dshift_dinst]
+  congr 1
+  · ssub
+  · show I.or (ψ.shift.subst (I.inst0 .one)) _ = _
+    simp only [I.shift, I.ren, I_subst_subst]; congr 1; exact I_subst_var ψ
+
+theorem transpFill_typed (hS : SigClosed S) {Ψ Φ Γ C ψ a l}
+    (hC : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift C (univ l)) (hψ : ψ.Scoped Ψ)
+    (hconst : EqTm0 S (Ψ + 1) (cof Φ ψ).shift Γ.dshift C (C.dinst .zero).dshift (univ l))
+    (ha : HasTy0 S Ψ Φ Γ a (C.dinst .zero)) :
+    HasTy0 S (Ψ + 1) Φ.shift Γ.dshift (transpFill C ψ a) C ∧
+    EqTm0 S Ψ Φ Γ ((transpFill C ψ a).dinst .zero) a (C.dinst .zero) ∧
+    EqTm0 S Ψ Φ Γ ((transpFill C ψ a).dinst .one) (transp C ψ a) (C.dinst .one) ∧
+    EqTm0 S (Ψ + 1) (cof Φ ψ).shift Γ.dshift (transpFill C ψ a) a.dshift C := by
+  have hw0 := wf_unshift hS (wf_of_ty hC)
+  have hs := scoped_of_wf hw0
+  have hv0 : (I.var 0).Scoped (Ψ + 1) := show 0 < Ψ + 1 by omega
+  have hv1 : (I.var 1).Scoped (Ψ + 1 + 1) := show 1 < Ψ + 1 + 1 by omega
+  have hv0' : (I.var 0).Scoped (Ψ + 1 + 1) := show 0 < Ψ + 1 + 1 by omega
+  have hL : HasTy0 S (Ψ + 1 + 1) Φ.shift.shift Γ.dshift.dshift
+      (C.dsubst (bind2 (.and (.var 1) (.var 0)))) (univ l) := by
+    have := HasTy0.isub hS (τ := bind2 (.and (.var 1) (.var 0))) hC
+      (fun i hi => by rcases i with _ | i
+                      · exact ⟨hv1, hv0'⟩
+                      · show i + 2 < Ψ + 1 + 1; omega)
+      (ent_bind2_shift _ (ent_refl _))
+      (by rw [ctxI_bind2]; exact hw0.dwk2 hS)
+    rwa [ctxI_bind2] at this
+  let χ : I := .or ψ.shift (.neg (.var 0))
+  have hχs : χ.Scoped (Ψ + 1) := ⟨scoped_shift hψ, hv0⟩
+  have hXs : (cof Φ.shift χ).shift.Scoped (Ψ + 1 + 1) := scoped_shift ⟨scoped_shift hs, hχs⟩
+  have hYX : I.Entails (cof Φ.shift χ).shift Φ.shift.shift := ent_shift (ent_and_left _ _)
+  have hYΦ : I.Entails (cof Φ.shift χ).shift (Φ.subst (fun n => .var (n + 2))) := by
+    rw [I_add2]; exact hYX
+  have hwY : Wf0 S (Ψ + 1 + 1) (cof Φ.shift χ).shift (ctxI (fun n => .var (n + 2)) Γ) := by
+    rw [ctxI_add2]; exact (hw0.dwk2 hS).restrict hXs hYX
+  -- `L(0) ≡ C(0)`
+  have eL0 : EqTm0 S (Ψ + 1 + 1) (cof Φ.shift χ).shift Γ.dshift.dshift
+      ((C.dsubst (bind2 (.and (.var 1) (.var 0)))).dinst .zero).dshift (C.dinst .zero).dshift.dshift (univ l) := by
+    have e := line_ieq hS hC (k := 2) (Ψ' := Ψ + 1 + 1) (r := .and (.var 1) .zero) (r' := .zero) hYΦ
+      ⟨hv1, trivial⟩ trivial (by omega) (I_eq_and_zero_r _) hwY
+    rw [ctxI_add2, sk_zero2] at e
+    rw [tf_L0s]; exact e
+  have hconstL : EqTm0 S (Ψ + 1 + 1) (cof Φ.shift χ).shift Γ.dshift.dshift
+      (C.dsubst (bind2 (.and (.var 1) (.var 0))))
+      ((C.dsubst (bind2 (.and (.var 1) (.var 0)))).dinst .zero).dshift (univ l) := by
+    have hLY := HasTy0.restrict hXs hYX hL
+    have hL0 := HasTy0.restrict hXs hYX (HasTy0.dwk hS (HasTy0.dsubst hS (Φ := Φ.shift) (Γ := Γ.dshift) hL (r := .zero) trivial))
+    have hψ2 : ψ.shift.shift.Scoped (Ψ + 1 + 1) := scoped_shift (scoped_shift hψ)
+    refine EqTm0.local (φ := ψ.shift.shift) (ψ := .neg (.var 1)) hψ2 hv1
+      (ent_shift (ent_and_right Φ.shift χ)) hLY hL0 ?_ ?_
+    · have hZs : (cof (cof Φ.shift χ).shift ψ.shift.shift).Scoped (Ψ + 1 + 1) := ⟨hXs, hψ2⟩
+      have hZ : I.Entails (cof (cof Φ.shift χ).shift ψ.shift.shift) (cof Φ ψ).shift.shift :=
+        show I.Entails _ (.and _ _) from ent_and_intro (ent_trans (ent_and_left _ _) hYX) (ent_and_right _ _)
+      have e1 := EqTm0.isub hS (τ := bind2 (.and (.var 1) (.var 0))) hconst
+        (fun i hi => by rcases i with _ | i
+                        · exact ⟨hv1, hv0'⟩
+                        · show i + 2 < Ψ + 1 + 1; omega)
+        (ent_bind2_shift _ hZ)
+        (by rw [ctxI_bind2]; exact (hw0.dwk2 hS).restrict hZs (ent_trans (ent_and_left _ _) hYX))
+      rw [ctxI_bind2, dshift_bind2] at e1
+      exact EqTm0.trans e1 (EqTm0.symm (EqTm0.restrict hZs (ent_and_left _ _) eL0))
+    · have hZs : (cof (cof Φ.shift χ).shift (.neg (.var 1))).Scoped (Ψ + 1 + 1) := ⟨hXs, hv1⟩
+      have hZΦ : I.Entails (cof (cof Φ.shift χ).shift (.neg (.var 1))) (Φ.subst (fun n => .var (n + 2))) :=
+        ent_trans (ent_and_left _ _) hYΦ
+      have e1 := EqTm0.faceU (i := 1) (d := false) hv1 (ent_and_right _ _)
+        (HasTy0.restrict hZs (ent_and_left _ _) hLY)
+      rw [tf_L1] at e1
+      have e2 := line_ieq hS hC (k := 2) (Ψ' := Ψ + 1 + 1) (r := .and .zero (.var 0)) (r' := .zero) hZΦ
+        ⟨trivial, hv0'⟩ trivial (by omega) (I_eq_and_zero _) (by rw [ctxI_add2]; exact (hw0.dwk2 hS).restrict hZs (by rw [← I_add2]; exact hZΦ))
+      rw [ctxI_add2, sk_zero2] at e2
+      exact EqTm0.trans e1 (EqTm0.trans e2 (EqTm0.symm (EqTm0.restrict hZs (ent_and_left _ _) eL0)))
+  have hwX : Wf0 S (Ψ + 1) Φ.shift (ctxI (fun n => .var (n + 1)) Γ) := by
+    rw [ctxI_add1]; exact wf_of_ty hC
+  have ha' : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift a.dshift
+      ((C.dsubst (bind2 (.and (.var 1) (.var 0)))).dinst .zero) := by
+    rw [tf_L0]
+    have e := line_ieq hS hC (k := 1) (Ψ' := Ψ + 1) (r := .zero) (r' := .and (.var 0) .zero) (ent_refl _) trivial
+      ⟨hv0, trivial⟩ (by omega) (I_eq_symm (I_eq_and_zero_r _)) hwX
+    rw [ctxI_add1, sk_zero1] at e
+    exact HasTy0.conv (HasTy0.dwk hS ha) e
+  have ht0 := HasTy0.transp hL hχs hconstL ha'
+  have eC : EqTm0 S (Ψ + 1) Φ.shift Γ.dshift ((C.dsubst (bind2 (.and (.var 1) (.var 0)))).dinst .one) C (univ l) := by
+    have e := line_ieq hS hC (k := 1) (Ψ' := Ψ + 1) (r := .and (.var 0) .one) (r' := .var 0) (ent_refl _)
+      ⟨hv0, trivial⟩ hv0 (by omega) (I_eq_and_one_r _) hwX
+    rw [ctxI_add1, sk_var1] at e
+    rw [tf_L1']; exact e
+  have hT : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift (transpFill C ψ a) C := HasTy0.conv ht0 eC
+  refine ⟨hT, ?_, ?_, ?_⟩
+  · have h0 := HasTy0.dsubst hS ht0 (r := .zero) trivial
+    have eC0 := EqTm0.dsubst hS eC (r := .zero) trivial
+    have hf := EqTm0.transpFace (ent_trans (ent_negzero Φ) (ent_or_right _ _))
+      (show HasTy0 S Ψ Φ Γ (transp ((C.dsubst (bind2 (.and (.var 1) (.var 0)))).subst
+        (fun n => (Tm.var n).dshift) (I.up (I.inst0 .zero))) (χ.subst (I.inst0 .zero)) (a.dshift.dinst .zero)) _ from h0)
+    have hf' : EqTm0 S Ψ Φ Γ ((transpFill C ψ a).dinst .zero) (a.dshift.dinst .zero) _ := hf
+    rw [dshift_dinst] at hf'
+    exact EqTm0.conv hf' eC0
+  · have h1 := HasTy0.dsubst hS hT (r := .one) trivial
+    rw [transpFill_d1] at h1
+    have htC := HasTy0.transp hC hψ hconst ha
+    have eA := line_ieq hS hC (k := 1) (Ψ' := Ψ + 1) (r := .and .one (.var 0)) (r' := .var 0) (ent_refl _)
+      ⟨trivial, hv0⟩ hv0 (by omega) (I_eq_and_one_l _) hwX
+    rw [ctxI_add1, sk_var1] at eA
+    have eA1 := EqTm0.dsubst hS eA (r := .one) trivial
+    have eA0 := EqTm0.dsubst hS eA (r := .zero) trivial
+    have e := EqTm0.transp (HasTy0.conv h1 (EqTm0.symm eA1)) (HasTy0.conv htC (EqTm0.symm eA1)) eA
+      (ent_neg_one ψ) (ent_or_left _ _) (EqTm0.refl (HasTy0.conv ha (EqTm0.symm eA0)))
+    rw [transpFill_d1]
+    exact EqTm0.conv e eA1
+  · have hXs' : (cof Φ ψ).shift.Scoped (Ψ + 1) := scoped_shift ⟨hs, hψ⟩
+    exact EqTm0.transpFace (ent_trans (ent_shift (ent_and_right Φ ψ)) (ent_or_left _ _))
+      (HasTy0.restrict hXs' (ent_shift (ent_and_left Φ ψ)) hT)
+
 end KubusCore.Meta
