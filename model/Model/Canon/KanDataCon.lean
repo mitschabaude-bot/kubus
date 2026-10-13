@@ -345,7 +345,238 @@ theorem transp_data_DR {Θ : SData m} (hΘ : Θ.Good)
   intro k' g A t h
   induction h with
   | @con k' g A t qs c C args rs hm hC hrs hsc hqs hAeq he hlen hrec hpt ihrec =>
-    sorry
+    intro k'' σ' ρ hg hA ψ htyT
+    have hdr : DR S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP S Θ f) k' g A t :=
+      DR.con hm hC hrs hsc hqs hAeq he hlen hrec hpt
+    obtain ⟨l0, ⟨hLt, hψ, hc, hbase⟩, -⟩ := gen_transpF (Φ := .one) (Γ := []) (spec_to_minimal hW htyT) rfl
+    obtain ⟨D, hD, hPt⟩ := gen_data_tele hLt rfl
+    have hdD := dataD_eq hW hD
+    by_cases hcase : (ival (idEnv k'') ψ).holds ∨ D.params = []
+    · exact common hdr k'' σ' ρ hg hA ψ htyT D hD hcase
+    have hp : (dataD S Θ.idx).params ≠ [] := by rw [hdD]; exact fun h => hcase (.inr h)
+    -- the restricted constructor
+    have he' : EqTm S k'' .one [] (t.isub σ')
+        (.con Θ.idx c (qs.isub σ') (Tm.ofList (args.map (·.isub σ'))) (rs.map (·.subst σ'.τ))) (A.isub σ') := by
+      have := EqTm.isubS hW he σ'
+      rwa [show (Tm.con Θ.idx c qs (Tm.ofList args) rs).isub σ' =
+        .con Θ.idx c (qs.isub σ') ((Tm.ofList args).isub σ') (rs.map (·.subst σ'.τ)) from rfl, ofList_isub] at this
+    have hqL : TyEq S k'' (.data Θ.idx (qs.isub σ')) (.data Θ.idx ((P.isub ρ).dinst .zero)) :=
+      (hAeq.isub hW σ').symm.trans hW hA
+    have htyT2 : HasTy S k'' .one [] (.transp (.data Θ.idx (P.isub ρ)) ψ
+        (.con Θ.idx c (qs.isub σ') (Tm.ofList (args.map (·.isub σ'))) (rs.map (·.subst σ'.τ))))
+        (.data Θ.idx ((P.isub ρ).dinst .one)) :=
+      HasTy.transp (minimal_to_spec hLt) hψ (minimal_to_spec_eq hc) ((HasTy.eqR he').tyConv hA)
+    have eb := EqTm.transp htyT htyT2 (EqTm.refl (minimal_to_spec hLt)) (ent_refl _) (ent_refl _) (he'.tyConv hA)
+    have hargL : (args.map (·.isub σ')).length = args.length := by simp
+    have hargi : ∀ i (hi : i < (args.map (·.isub σ')).length),
+        (args.map (·.isub σ'))[i] = (args[i]'(by simpa using hi)).isub σ' := by
+      intro i hi; simp
+    refine (transpCon_RE hW hΘ ihT hcodeT hKR hT hall ρ hC hp htyT2 hqL (fun i hi hri => ?_) (fun i hi hri => ?_)
+      (fun i hi hri => ?_)).conv hW (TyEq.refl _) (EqTm.symm eb)
+    · have hi' : i < args.length := by simpa using hi
+      rw [hargi i hi]
+      exact ihrec i hi' hri k'' σ' ρ hg hqL ψ (HasTy.transp (minimal_to_spec hLt) hψ (minimal_to_spec_eq hc)
+        ((HasTy.isubS hW (hrec i hi' hri).typed σ').tyConv hqL))
+    · have hi' : i < args.length := by simpa using hi
+      rw [hargi i hi]
+      have hS := sigClosed_of_wfSig hW
+      -- the filler is a transport along the line `i ∧ j`
+      let B : ℕ → I := Tm.bind2 (.and (.var 1) (.var 0))
+      have hscB : ∀ x < k'' + 1, (B x).Scoped (k'' + 1 + 1) := fun x hx => by
+        rcases x with _ | x
+        · exact ⟨show 1 < k'' + 1 + 1 by omega, show 0 < k'' + 1 + 1 by omega⟩
+        · show x + 2 < k'' + 1 + 1; omega
+      have hPc : (P.isub ρ).closedB 0 (k'' + 1) = true := by
+        have := closed_ty hLt; simpa [Tm.closedB] using this
+      let ρF := ρ.comp (ISub.ofFun (k'' + 1) B hscB)
+      have hPF : P.isub ρF = (P.isub ρ).dsubst B := by
+        rw [← Tm.isub_isub, isub_ofFun hPc]; rfl
+      have hai := (hrec i hi' hri).typed
+      have haic : ((args[i]).isub σ').closedB 0 k'' = true := closed_of_ty hW (HasTy.isubS hW hai σ')
+      have haF : (args[i]).isub (σ'.comp (ISub.wk k'')) = ((args[i]).isub σ').dshift := by
+        rw [← Tm.isub_isub, isub_wk_of_closed haic]
+      have hgF : g.comp (σ'.comp (ISub.wk k'')).hom = (ρF.comp (ISub.cons .zero trivial (ISub.id (k'' + 1)))).hom := by
+        rw [ISub.hom_comp, ← Hom.comp_assoc, hg, ← ISub.hom_comp, ISub.comp_assoc, ISub.comp_assoc,
+          ISub.hom_comp, ISub.hom_comp ρ]
+        congr 1
+        refine ISub.hom_ieq fun x hx => ?_
+        rcases x with _ | x
+        · intro ρ'; simp [ISub.comp, ISub.cons, ISub.ofFun, B, Tm.bind2, I.subst, I.eval, ISub.id]
+        · show I.Eq ((ISub.id k'').τ x |>.subst (ISub.wk k'').τ) (((ISub.ofFun (k'' + 1) B hscB).τ (x + 1)).subst _)
+          simp [ISub.id, ISub.ofFun, B, Tm.bind2, ISub.wk, ISub.cons, show x < k'' by omega, I.subst]
+          exact I_eq_refl _
+      have hLt' : HasTy0 S (k'' + 1) .one [] (.data Θ.idx (P.isub ρ)) (.univ l0) := hLt
+      have hsc0 : ∀ x < k'' + 1, ((I.inst0 .zero x).shift).Scoped (k'' + 1) := fun x hx =>
+        I.scoped_shift (by rcases x with _ | x <;> simp [I.inst0, I.Scoped] <;> omega)
+      have hscB0 : ∀ x < k'' + 1, ((B x).subst (I.inst0 .zero)).Scoped (k'' + 1) := fun x hx => by
+        rcases x with _ | x
+        · exact ⟨show 0 < k'' + 1 by omega, trivial⟩
+        · show x + 1 < k'' + 1; omega
+      have hscB1 : ∀ x < k'' + 1, ((B x).subst (I.inst0 .one)).Scoped (k'' + 1) := fun x hx => by
+        rcases x with _ | x
+        · exact ⟨show 0 < k'' + 1 by omega, trivial⟩
+        · show x + 1 < k'' + 1; omega
+      have e0 : TyEq S (k'' + 1) (Tm.data Θ.idx ((P.isub ρ).dinst .zero)).dshift
+          (.data Θ.idx (((P.isub ρ).dsubst B).dinst .zero)) :=
+        tyEq_ieq hW hLt' hsc0 hscB0 (fun x hx => by
+          rcases x with _ | x
+          · intro ρ'; simp [B, Tm.bind2, I.subst, I.eval, I.inst0, I.shift, I.ren]
+          · intro ρ'; rfl)
+          (by show Tm.data _ ((P.isub ρ).dinst .zero).dshift = Tm.data _ ((P.isub ρ).subst .var _)
+              congr 1; simp only [dshift_eq, Tm.dinst, Tm.dsubst, subst_subst]; rfl)
+          (by show Tm.data _ (((P.isub ρ).dsubst B).dinst .zero) = Tm.data _ ((P.isub ρ).subst .var _)
+              congr 1; simp only [Tm.dinst, Tm.dsubst, subst_subst]; rfl)
+      have e1 : TyEq S (k'' + 1) (.data Θ.idx (((P.isub ρ).dsubst B).dinst .one)) (.data Θ.idx (P.isub ρ)) :=
+        tyEq_ieq hW hLt' hscB1 (fun x hx => show (I.var x).Scoped (k'' + 1) from hx) (fun x hx => by
+          rcases x with _ | x
+          · intro ρ'; simp [B, Tm.bind2, I.subst, I.eval, I.inst0]
+          · intro ρ'; rfl)
+          (by show Tm.data _ (((P.isub ρ).dsubst B).dinst .one) = Tm.data _ ((P.isub ρ).subst .var _)
+              congr 1; simp only [Tm.dinst, Tm.dsubst, subst_subst]; rfl) (subst_var _).symm
+      have hqw : TyEq S (k'' + 1) ((Tm.data Θ.idx qs).isub (σ'.comp (ISub.wk k''))) (Tm.data Θ.idx ((P.isub ρ).dinst .zero)).dshift := by
+        have hL0 := minimal_to_spec (HasTy0.dsubst hS (Φ := .one) (Γ := []) hLt (r := .zero) trivial)
+        have h1 := hqL.isub hW (ISub.wk k'')
+        rw [isub_wk_of_closed (closed_of_ty hW hL0 : (Tm.data Θ.idx ((P.isub ρ).dinst .zero)).closedB 0 k'' = true)] at h1
+        rw [show (Tm.data Θ.idx qs).isub (σ'.comp (ISub.wk k'')) = (Tm.data Θ.idx (qs.isub σ')).isub (ISub.wk k'')
+          from (Tm.isub_isub _ _ _).symm]
+        exact h1
+      have hAF : TyEq S (k'' + 1) ((Tm.data Θ.idx qs).isub (σ'.comp (ISub.wk k'')))
+          (.data Θ.idx ((P.isub ρF).dinst .zero)) := by
+        rw [hPF]; exact hqw.trans hW e0
+      have hbt := minimal_to_spec (transpFill_typed hS hLt hψ hc
+        (spec_to_minimal hW ((HasTy.isubS hW hai σ').tyConv hqL))).1
+      have htyF : HasTy S (k'' + 1) .one [] (.transp (.data Θ.idx (P.isub ρF)) (.or ψ.shift (.neg (.var 0)))
+          ((args[i]).isub (σ'.comp (ISub.wk k'')))) (.data Θ.idx ((P.isub ρF).dinst .one)) := by
+        rw [hPF, haF]
+        exact HasTy.tyConv hbt (TyEq.symm e1)
+      have key := ihrec i hi' hri (k'' + 1) (σ'.comp (ISub.wk k'')) ρF hgF hAF _ htyF
+      rw [hPF, haF] at key
+      exact key.conv_ty hW e1
+    · have hS := sigClosed_of_wfSig hW
+      rw [hdD] at hC
+      -- the restriction of the start of the line
+      let σc := ρ.comp (ISub.cons .zero trivial (ISub.id k''))
+      have hPc : (P.isub ρ).closedB 0 (k'' + 1) = true := by
+        have := closed_ty hLt; simpa [Tm.closedB] using this
+      have hPσc : P.isub σc = (P.isub ρ).dinst .zero := by
+        rw [← Tm.isub_isub, isub_cons_id_of_closed hPc]
+      have hgc : g.comp σ'.hom = σc.hom := hg
+      -- the arguments, restricted, are typed at the restricted parameters
+      have hcon := spec_to_minimal hW (HasTy.eqR he')
+      obtain ⟨hI, -⟩ := gen_conF hcon rfl
+      obtain ⟨-, D0, C0, hD0, hC0, hqs', hdq, hqt, haq, -, -⟩ := hI
+      rw [hD] at hD0; cases hD0; rw [hC] at hC0; cases hC0
+      have hL0 := minimal_to_spec (HasTy0.dsubst hS (Φ := .one) (Γ := []) hLt (r := .zero) trivial)
+      obtain ⟨lq, eq⟩ := tyEq_eq hW hqL ⟨_, hL0⟩
+      have hPl : P.isub ρ = Tm.ofList (P.isub ρ).toList := tele_isList hPt
+      have hw : Wf0 S k'' .one [] := Wf0.nil trivial
+      have hP0t : HasTele0 S k'' .one [] ((P.isub ρ).dinst .zero) D.params [] := by
+        have := HasTele0.post (I.inst0 .zero) hw (fun t B h => HasTy0.dsubst hS h (r := .zero) trivial) hPt
+          (params_closed hS hD)
+        simpa using this
+      have hteq := (args_retype hW hD hC hqs' (isList_subst hPl _ _) hqt hP0t (spec_to_minimal_eq hW eq) haq).2
+      rw [toList_ofList] at hteq
+      unfold ArgClause at hall
+      rw [hdD] at hall
+      set as := args.map (·.isub σ') with has
+      have hasl : as.length = args.length := by simp [as]
+      have hasi : ∀ j (hj : j < args.length), as[j]'(by omega) = (args[j]).isub σ' := by intro j hj; simp [as]
+      have hargT : ∀ j (hj : j < args.length), ∃ T, HasTy S k' .one [] args[j] T := by
+        intro j hj
+        cases hrj : C.isRec j
+        · have := hpt j hj hrj; unfold dataP at this; exact ⟨_, (Comp_el_typed this).1⟩
+        · exact ⟨_, (hrec j hj hrj).typed⟩
+      have hpre : ∀ j, j ≤ args.length → ((args.take j).map (semK S k')).map (res σ'.hom) =
+          (as.take j).map (semK S k'') := by
+        intro j hj
+        apply List.ext_getElem (by simp [as])
+        intro x h1 h2
+        simp only [List.getElem_map, List.getElem_take, as]
+        obtain ⟨T, hT⟩ := hargT x (by simp at h1; omega)
+        exact (semK_isubS hW hT σ').symm
+      have hXq : ∀ j, j ≤ args.length → ((C.argTy Θ.idx D.params.length j).substList
+          ((args.take j).reverse ++ qs.toList.reverse)).isub σ' =
+          (C.argTy Θ.idx D.params.length j).substList ((as.take j).reverse ++ (qs.isub σ').toList.reverse) := by
+        intro j hj
+        rw [substList_isub (argTy_closed hS hD hC j), List.map_append, List.map_reverse, List.map_reverse,
+          ← List.map_take, toList_isub hqs]
+      -- the restricted arguments are valid at the start of the line
+      let Valid : ℕ → Prop := fun j =>
+        (∀ i (hi : i < j) (hi' : i < as.length), C.isRec i = true →
+          DR S Θ.idx D (dataMem S Θ f) (dataP S Θ f) k'' σc.hom ((Tm.data Θ.idx P).isub σc) as[i]) ∧
+        (∀ i (hi : i < j) (hi' : i < as.length), C.isRec i = false →
+          dataP S Θ f k'' σc.hom c i ((as.take i).map (semK S k''))
+            ((C.argTy Θ.idx D.params.length i).substList ((as.take i).reverse ++ (P.isub σc).toList.reverse)) as[i])
+      have clause : ∀ j (hj : j < as.length), C.isRec j = false → Valid j →
+          (Comp S (tyLook (shapeV (Θ.restr (f.comp σc.hom))) c j ((as.take j).map (semK S k''))) k'' k''
+            (Hom.id k'')).ty ((C.argTy Θ.idx D.params.length j).substList
+              ((as.take j).reverse ++ (P.isub σc).toList.reverse)) := by
+        intro j hj hr hv
+        have hlj : (as.take j).length = j := by simp; omega
+        have := hall k'' σc c C (as.take j) hC (by omega) (by rw [hlj]; exact hr)
+          (fun i hi hri => by
+            rw [hlj] at hi; rw [List.getElem_take]; exact hv.1 i hi (by omega) hri)
+          (fun i hi hri => by
+            rw [hlj] at hi; rw [List.getElem_take, List.take_take, Nat.min_eq_left hi.le]
+            exact hv.2 i hi (by omega) hri)
+        rwa [hlj] at this
+      rw [hdD] at hpt
+      have hMem : ∀ k1 (f1 : Hom k1 (k0 + 1)) t t' A, EqTm S k1 .one [] t t' A → dataMem S Θ f k1 f1 t →
+          dataMem S Θ f k1 f1 t' := fun k1 f1 t t' A e hm => by unfold dataMem at hm ⊢; rwa [← semK_eq hW e]
+      have hTσc : TyEq S k'' ((Tm.data Θ.idx qs).isub σ') ((Tm.data Θ.idx P).isub σc) := by
+        rw [show (Tm.data Θ.idx P).isub σc = Tm.data Θ.idx (P.isub σc) from rfl, hPσc]; exact hqL
+      have hrecR : ∀ i (hi : i < args.length), C.isRec i = true →
+          DR S Θ.idx D (dataMem S Θ f) (dataP S Θ f) k'' σc.hom ((Tm.data Θ.idx P).isub σc) (as[i]'(by omega)) := by
+        intro i hi hri
+        have := DR.isub hW hΘ f ihT (hrec i hi hri) k'' σ'
+        rw [hdD, hgc, ← hasi i hi] at this
+        exact DR.conv hW hMem this hTσc (EqTm.refl ((this.typed).tyConv hTσc))
+      have hptR : ∀ i (hi : i < args.length), C.isRec i = false →
+          dataP S Θ f k'' σc.hom c i ((as.take i).map (semK S k''))
+            ((C.argTy Θ.idx D.params.length i).substList ((as.take i).reverse ++ (qs.isub σ').toList.reverse))
+            (as[i]'(by omega)) := by
+        intro i hi hri
+        have := dataP_isub hΘ f ihT (hpt i hi hri) σ'
+        rw [hgc, hpre i hi.le, hXq i hi.le, ← hasi i hi] at this
+        exact this
+      -- from the start type of the constructor to the start of the line
+      have conv : ∀ j (hj : j < args.length), C.isRec j = false → Valid j →
+          RE S k'' ((C.argTy Θ.idx D.params.length j).substList ((as.take j).reverse ++ (P.isub σc).toList.reverse))
+            (as[j]'(by omega)) := by
+        intro j hj hr hv
+        have tyXp := clause j (by omega) hr hv
+        obtain ⟨l', e⟩ := hteq j (by omega)
+        have eT : TyEq S k'' ((C.argTy Θ.idx D.params.length j).substList ((as.take j).reverse ++ (qs.isub σ').toList.reverse))
+            ((C.argTy Θ.idx D.params.length j).substList ((as.take j).reverse ++ (P.isub σc).toList.reverse)) :=
+          .inr ⟨l', by rw [hPσc]; exact minimal_to_spec_eq e⟩
+        have hel := hptR j hj hr
+        unfold dataP at hel
+        have hre : RE S k'' ((C.argTy Θ.idx D.params.length j).substList ((as.take j).reverse ++ (qs.isub σ').toList.reverse))
+            (as[j]'(by omega)) := by
+          unfold RE; rw [semK_tyEq hW eT, ← Comp_eq_semK tyXp]; exact hel
+        exact hre.conv_ty hW eT
+      have key : ∀ j, j ≤ args.length → Valid j := by
+        intro j
+        induction j with
+        | zero => intro _; exact ⟨fun i hi => absurd hi (Nat.not_lt_zero _), fun i hi => absurd hi (Nat.not_lt_zero _)⟩
+        | succ j ih =>
+          intro hj
+          have hv := ih (by omega)
+          refine ⟨fun i hi hi' hri => ?_, fun i hi hi' hri => ?_⟩
+          · by_cases hij : i < j
+            · exact hv.1 i hij hi' hri
+            obtain rfl : i = j := by omega
+            exact hrecR i (by omega) hri
+          · by_cases hij : i < j
+            · exact hv.2 i hij hi' hri
+            obtain rfl : i = j := by omega
+            have tyXp := clause i hi' hri hv
+            show (Comp S _ k'' k'' (Hom.id k'')).el _ _
+            rw [Comp_eq_semK tyXp]
+            exact conv i (by omega) hri hv
+      rw [hdD, ← hPσc]
+      exact conv i (by omega) hri ⟨fun i' hi'' hi' hr' => (key args.length (Nat.le_refl _)).1 i' (by omega) hi' hr',
+        fun i' hi'' hi' hr' => (key args.length (Nat.le_refl _)).2 i' (by omega) hi' hr'⟩
   | @hcomp k' g A t qs u a ψ' hm hH hsc hn hqs hAeq he ha hu iha ihu =>
     intro k'' σ' ρ hg hA ψ htyT
     have hdr : DR S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP S Θ f) k' g A t := DR.hcomp hm hH hsc hn hqs hAeq he ha hu
