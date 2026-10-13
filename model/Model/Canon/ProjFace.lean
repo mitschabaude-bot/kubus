@@ -71,7 +71,10 @@ theorem tele_conv (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
     (hXY : ∀ j (hj : j < X.length) (hj' : j < Y.length), EqTm0 S Ψ Φ Γ Y[j] X[j]
       ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse))) :
     HasTele0 S Ψ Φ Γ (Tm.ofList Y) (C.argTys d D.params.length) ps.toList.reverse ∧
-    EqTele0 S Ψ Φ Γ (Tm.ofList Y) (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse := by
+    EqTele0 S Ψ Φ Γ (Tm.ofList Y) (Tm.ofList X) (C.argTys d D.params.length) ps.toList.reverse ∧
+    ∀ j (hj : j < Y.length), ∃ l', EqTm0 S Ψ Φ Γ
+      ((C.argTy d D.params.length j).substList ((Y.take j).reverse ++ ps.toList.reverse))
+      ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ ps.toList.reverse)) (.univ l') := by
   have hS := sigClosed_of_wfSig hW
   obtain ⟨hT, hCt⟩ := wf_typed _ S rfl hW
   have hw := wf_of_tele hpt
@@ -164,7 +167,7 @@ theorem tele_conv (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
   obtain ⟨-, -, HY⟩ := key C.args.length (Nat.le_refl _)
   refine ⟨HasTele0.ofList_of hw Y _ _ (by simp [argTys_length]; omega) (fun k a A ha hA => ?_),
     EqTele0.ofList_of' hw Y X _ _ (by simp [argTys_length]; omega) (by simp [argTys_length]; omega)
-      (fun k a a' A ha ha' hA => ?_)⟩
+      (fun k a a' A ha ha' hA => ?_), fun j hj => (HY j (by omega) hj).2⟩
   · have hkY := (List.getElem?_eq_some_iff.1 ha).1
     obtain ⟨-, rfl⟩ := List.getElem?_eq_some_iff.1 ha
     have hkC : k < C.args.length := by omega

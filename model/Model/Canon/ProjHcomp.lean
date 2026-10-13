@@ -1,0 +1,133 @@
+import Model.Canon.ProjFace
+import Model.Canon.KanDerived
+
+/-!
+# Canonicity: composition of a constructor in an inductive type without path constructors
+
+The tube of a composition in such a type is, on each face of its cofibration, a constructor
+(computability); the projections glue the arguments uniformly, so that `hcompCon` applies.
+-/
+
+set_option autoImplicit false
+
+namespace Model.Canon
+
+open KubusCore KubusCore.Meta
+
+noncomputable section
+
+variable {S : Sig}
+
+theorem nonHIT_ctor {D : DataDecl} (hH : D.isHIT = false) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) :
+    C.dims = 0 ∧ C.bnd = [] := by
+  unfold DataDecl.isHIT at hH
+  have h := (List.any_eq_false.1 hH) C (List.mem_of_getElem? hC)
+  simp only [Bool.or_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true', List.isEmpty_eq_false_iff, not_or,
+    Decidable.not_not] at h
+  exact ⟨h.1, by simpa using h.2⟩
+
+theorem closedB_toList {t : Tm} {n m : ℕ} (h : t.closedB n m = true) : ∀ x ∈ t.toList, x.closedB n m = true := by
+  induction t with
+  | tcons a as _ ih =>
+    simp only [Tm.closedB, Bool.and_eq_true] at h
+    intro x hx
+    simp only [Tm.toList, List.mem_cons] at hx
+    rcases hx with rfl | hx
+    · exact h.1
+    · exact ih h.2 x hx
+  | _ => intro x hx; simp [Tm.toList] at hx
+
+theorem PD.of (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
+    {Ψ : ℕ} {Φ : I} {ps : Tm} (hd : HasTy0 S Ψ Φ [] (.data d ps) (.univ D.level)) : PD S Ψ Φ d D ps := by
+  obtain ⟨D', hD', hpt⟩ := gen_data_tele hd rfl
+  rw [hD] at hD'; cases hD'
+  have hc : ps.closedB 0 Ψ = true := by simpa [Tm.closedB] using closed_ty hd
+  exact ⟨hD, tele_isList hpt, closedB_toList hc, by simpa using tele_length hpt, hpt, hd, wf_of_ty hd,
+    fun c C hC => (nonHIT_ctor hH hC).1, fun c C hC => (nonHIT_ctor hH hC).2⟩
+
+/-- Canonical forms of a tube at its faces. -/
+def TubeCanon (S : Sig) (k d : ℕ) (D : DataDecl) (ps : Tm) (φ : I) (u : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) (r : I), r.Scoped k' → (ival (idEnv k') (φ.subst σ.τ)).holds →
+    ∃ c' C' X', D.ctors[c']? = some C' ∧
+      HasTele0 S k' .one [] (Tm.ofList X') (C'.argTys d D.params.length) (ps.isub σ).toList.reverse ∧
+      EqTm S k' .one [] ((u.isub σ.up).dinst r) (.con d c' (ps.isub σ) (Tm.ofList X') []) (.data d (ps.isub σ))
+
+theorem holds_sub {k k'' : ℕ} {φ : I} (hφ : φ.Scoped k) (hh : (ival (idEnv k) φ).holds) (σ : ISub k'' k) :
+    (ival (idEnv k'') (φ.subst σ.τ)).holds := by
+  rw [holds_iff_entails (I.scoped_subst hφ σ.sc)]
+  exact ent_subst (entails_of_holds hφ hh) σ.τ
+
+/-- An interval substitution, weakened by one interval variable. -/
+def ISub.sh {k' k : ℕ} (σ : ISub k' k) : ISub (k' + 1) k :=
+  ISub.ofFun k (fun i => (σ.τ i).shift) fun i hi => I.scoped_shift (σ.sc i hi)
+
+theorem isub_sh_up_var {k' k : ℕ} {u : Tm} (hu : u.closedB 0 (k + 1) = true) (σ : ISub k' k) :
+    (u.isub σ.sh.up).dinst (.var 0) = u.isub σ.up := by
+  simp only [Tm.isub, Tm.dinst, Tm.dsubst, subst_subst]
+  apply closed_subst_eq u 0 (k + 1) _ _ _ _ hu (fun x hx => absurd hx (Nat.not_lt_zero _))
+  intro i hi
+  rcases i with _ | i
+  · rfl
+  · show (((ISub.ofFun k (fun i => (σ.τ i).shift) _).τ i).shift).subst _ = (σ.τ i).shift
+    simp only [ISub.ofFun, if_pos (show i < k by omega)]
+    rw [I_shift_inst0]
+
+theorem isub_sh {k' k : ℕ} {t : Tm} (ht : t.closedB 0 k = true) (σ : ISub k' k) :
+    t.isub σ.sh = (t.isub σ).dshift := by
+  unfold ISub.sh
+  rw [isub_ofFun ht, dshift_eq]
+  simp only [Tm.isub, subst_subst]
+  rfl
+
+theorem dinst_isub_end' {k' k : ℕ} (X : Tm) {r : I} (hr : r = .zero ∨ r = .one) (σ : ISub k' k) :
+    (X.dinst r).isub σ = (X.isub σ.up).dinst r := by
+  simp only [Tm.isub, Tm.dinst, Tm.dsubst, subst_subst]
+  congr 1; funext i; rcases i with _ | i
+  · rcases hr with rfl | rfl <;> rfl
+  · show σ.τ i = ((σ.τ i).shift).subst _; rw [I_shift_inst0]
+
+/-- All canonical forms of a tube have the base's constructor. -/
+theorem tube_tag (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
+    {k : ℕ} {ps u : Tm} {φ : I} {c : ℕ} {C : Ctor} {X : List Tm} (hC : D.ctors[c]? = some C)
+    (hd : HasTy S k .one [] (.data d ps) (.univ D.level)) (hφs : φ.Scoped k) (hut : u.closedB 0 (k + 1) = true)
+    (hside : EqTm S k (cof .one φ) [] (u.dinst .zero) (.con d c ps (Tm.ofList X) []) (.data d ps))
+    (hcan : TubeCanon S k d D ps φ u) {k' : ℕ} (σ : ISub k' k) {r : I} (hr : r.Scoped k')
+    (hh : (ival (idEnv k') (φ.subst σ.τ)).holds) {c' : ℕ} {C' : Ctor} {X' : List Tm} (hC' : D.ctors[c']? = some C')
+    (he : EqTm S k' .one [] ((u.isub σ.up).dinst r) (.con d c' (ps.isub σ) (Tm.ofList X') []) (.data d (ps.isub σ))) :
+    c' = c := by
+  have hS := sigClosed_of_wfSig hW
+  have hpsc : ps.closedB 0 k = true := by simpa [Tm.closedB] using closed_of_ty hW hd
+  have hdσ := HasTy.isubS hW hd σ
+  -- the canonical form of the whole restricted line
+  have hh1 : (ival (idEnv (k' + 1)) (φ.subst σ.sh.τ)).holds := by
+    rw [holds_iff_entails (I.scoped_subst hφs σ.sh.sc)]
+    rw [I_subst_congr_scoped (τ := fun i => (σ.τ i).shift) (fun i hi => by simp [ISub.sh, ISub.ofFun, hi]) hφs]
+    rw [show (fun i => (σ.τ i).shift) = (fun i => (σ.τ i).subst fun j => .var (j + 1)) from rfl, ← I_subst_subst]
+    exact ent_subst (entails_of_holds (I.scoped_subst hφs σ.sc) hh) _
+  obtain ⟨c1, C1, X1, hC1, -, e1⟩ := hcan (k' + 1) σ.sh (.var 0) (show 0 < k' + 1 by omega) hh1
+  rw [isub_sh_up_var hut, isub_sh hpsc] at e1
+  -- its instances
+  have inst : ∀ s : I, s.Scoped k' → EqTm S k' .one [] ((u.isub σ.up).dinst s)
+      (.con d c1 (ps.isub σ) ((Tm.ofList X1).dinst s) []) (.data d (ps.isub σ)) := by
+    intro s hs
+    have := minimal_to_spec_eq (EqTm0.dsubst hS (Ψ := k') (Φ := .one) (Γ := []) (spec_to_minimal_eq hW e1) (r := s) hs)
+    rw [show (Tm.con d c1 (ps.isub σ).dshift (Tm.ofList X1) []).dinst s =
+        Tm.con d c1 ((ps.isub σ).dshift.dinst s) ((Tm.ofList X1).dinst s) [] from rfl,
+      show (Tm.data d (ps.isub σ).dshift).dinst s = Tm.data d ((ps.isub σ).dshift.dinst s) from rfl,
+      Meta.dshift_dinst] at this
+    exact this
+  have hd1 := HasTy.eqR he
+  have tagr := con_tag hW hD hC1 hC' (nonHIT_ctor hH hC1).2 (nonHIT_ctor hH hC').2 hdσ hdσ
+    (HasTy.eqR (inst r hr)) hd1 ((inst r hr).symm.trans he)
+  -- at the start of the tube
+  have hent : I.Entails .one (cof .one (φ.subst σ.τ)) := ent_cof_one hW (entails_of_holds (I.scoped_subst hφs σ.sc) hh)
+  have hs0 := EqTm.restrict (Φ' := .one) trivial hent (EqTm.isubF hW (show (cof .one φ).Scoped k from ⟨trivial, hφs⟩) hside σ)
+  rw [dinst_isub_end' _ (.inl rfl)] at hs0
+  have e0 := (inst .zero trivial).symm.trans hs0
+  have tag0 := con_tag hW hD hC1 hC (nonHIT_ctor hH hC1).2 (nonHIT_ctor hH hC).2 hdσ hdσ
+    (HasTy.eqR (inst .zero trivial)) (HasTy.eqR hs0) e0
+  rw [← tagr, tag0]
+
+end
+
+end Model.Canon
