@@ -561,6 +561,47 @@ theorem hpψ : HasTy0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ
   rw [tgFib_eq] at hf ⊢
   exact HasTy0.pair hf H.hu0T1 (by rw [P_inst]; exact H.hpl)
 
+/-- On `δ ∧ ψ` the two partial elements agree. -/
+theorem hpEq : EqTm0 S Ψ (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ) Γ
+    (pair (tgT1 T ψ u0) (tgOmega A φ T e ψ u0)) (pair u0 (plam (tgA1' A φ e ψ u0).dshift)) (tgFib A φ T e ψ u0) := by
+  have hv0 : (I.var 0).Scoped (Ψ + 1) := show 0 < Ψ + 1 by omega
+  have hVs : (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ).Scoped Ψ := ⟨H.hWδs, H.hψ⟩
+  have hVW : I.Entails (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ) (cof Φ (φ.subst (I.inst0 .one))) :=
+    ent_trans (ent_and_left _ _) (ent_and_left _ _)
+  have hVWψ : I.Entails (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ) (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) :=
+    ent_and_mono (ent_and_left _ _) (ent_refl _)
+  have hVZ : I.Entails (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ) (cof Φ δ) :=
+    ent_trans (ent_and_left _ _) H.hWδZ
+  have hVΦ : I.Entails (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ) Φ := ent_trans hVW (ent_and_left _ _)
+  have et := EqTm0.transpFace (ent_and_right _ _) (HasTy0.restrict hVs hVZ H.ht1)
+  have he1V := H.he1W hVs hVW
+  have hA1V := H.hA1X hVs hVΦ
+  have ha1V := HasTy0.restrict hVs hVΦ H.ha1'
+  have ea := EqTm0.trans (EqTm0.restrict hVs hVWψ H.ha1'eq) (app_fst_congr he1V (EqTm0.symm et))
+  have hpl' := plam_const H.hS hA1V (app_fst_equiv he1V (HasTy0.restrict hVs hVZ H.ht1)) ha1V ea
+  have hωV := HasTy0.restrict hVs hVZ H.hω
+  -- the bodies
+  have hVs1 := scoped_shift hVs
+  have hbV := HasTy0.restrict hVs1 (ent_shift hVZ) H.hbody
+  have hVχ : I.Entails (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ).shift (tgChi ψ) :=
+    ent_trans (ent_shift (ent_and_right _ _)) (ent_or_left _ _)
+  have e1 := comp_face H.hS hbV hVχ
+  have hs1 := HasTy0.dsubst H.hS H.hsys (r := .one) trivial
+  rw [L_C1] at hs1
+  have hs1V := HasTy0.restrict hVs1 (ent_and_intro (ent_shift hVZ) hVχ) hs1
+  simp only [tgSys] at e1 hs1V
+  rw [sys_d _ _ _ _ _ _ (.inr rfl)] at e1 hs1V
+  have e2 := EqTm0.splitL (ent_shift (ent_and_right _ _)) hs1V
+  have e3 := EqTm0.dwk H.hS (EqTm0.symm (EqTm0.restrict hVs hVWψ H.ha1'eq))
+  have eb : EqTm0 S (Ψ + 1) (cof (cof (cof Φ (φ.subst (I.inst0 .one))) δ) ψ).shift Γ.dshift
+      (tgBody A φ T e ψ u0) (tgA1' A φ e ψ u0).dshift (A.dinst .one).dshift :=
+    EqTm0.trans e1 (EqTm0.trans e2 e3)
+  have eω := EqTm0.plam (pathC_typed H.hS hA1V (app_fst_equiv he1V (HasTy0.restrict hVs hVZ H.ht1)) ha1V)
+    hωV hpl' eb
+  have hf := HasTy0.restrict hVs (ent_trans (ent_and_left _ _) (ent_and_left _ _)) H.hfib
+  rw [tgFib_eq] at hf ⊢
+  exact EqTm0.pair hf et (by rw [P_inst]; exact eω)
+
 end TG
 
 end KubusCore.Meta
