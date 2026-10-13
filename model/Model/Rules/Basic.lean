@@ -390,12 +390,6 @@ attribute [local instance] Classical.propDecidable
 
 variable {S : Sig} {k m n : ℕ}
 
-theorem not_isKV_empty : ¬ IsKV m (∅ : V) := by
-  rintro ⟨F, h⟩
-  have : ZFSet.pair (enc (⟨m, Hom.id m⟩ : Dom m)) (F m (Hom.id m)) ∈ (∅ : V) := by
-    rw [h]; exact mem_fnC.2 ⟨⟨m, Hom.id m⟩, rfl⟩
-  exact ZFSet.notMem_empty _ this
-
 theorem Fib.empty_notMem {c : V} (hc : Fib c m) (f : Hom k m) : (∅ : V) ∉ El c f :=
   fun h => not_isKV_empty (hc.elKV _ _ _ h)
 
@@ -559,16 +553,6 @@ theorem kv_of_sem_pi {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.pi A
   · assumption
   · exact absurd rfl h
 
-theorem dat_famV (A : V) (F : (k : ℕ) → Hom k m → V → V) (f : Hom k m) :
-    dat (famV m A F) k f = fnZ (El A f) (F k f) := by simp [famV]
-
-theorem apZ_dat_famV (A : V) (F : (k : ℕ) → Hom k m → V → V) (f : Hom k m) {a : V} (ha : a ∈ El A f) :
-    apZ (dat (famV m A F) k f) a = F k f a := by rw [dat_famV, apZ_fnZ _ ha]
-
-theorem res_famV (A : V) (F : (k : ℕ) → Hom k m → V → V) (h : Hom n m) :
-    res h (famV m A F) = famV n (res h A) (fun k' g => F k' (h.comp g)) := by
-  simp only [famV, res_lamV, El_res]
-
 /-- Extending a point of `Γ` by an element of `A`, restricted along `f`. -/
 theorem IsPoint.ext {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A : Tm} {ρ : IEnv m} {γ : ℕ → V}
     (hwf : SemWf S Ψ Φ Γ) (hp : IsPoint S Φ Γ m ρ γ) (hAty : TyOK S A m ρ γ) (hAnat : Natural S A m ρ γ)
@@ -600,9 +584,6 @@ noncomputable section
 attribute [local instance] Classical.propDecidable
 
 variable {S : Sig} {k m n : ℕ}
-
-theorem isKV_famV (A : V) (F : (k : ℕ) → Hom k m → V → V) : IsKV m (famV m A F) := by
-  unfold famV lamV; exact isKV_mkKV _
 
 /-- What a Π-type of a universe gives at a point. -/
 theorem SemTy.pi_at {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A B : Tm} {l : ℕ}
@@ -910,20 +891,6 @@ theorem kv_of_sem_pair {a b : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.pa
 theorem sem_fst (p : Tm) (ρ : IEnv m) (γ : ℕ → V) : sem S (.fst p) m ρ γ = fstV m (sem S p m ρ γ) := rfl
 theorem sem_snd (p : Tm) (ρ : IEnv m) (γ : ℕ → V) : sem S (.snd p) m ρ γ = sndV m (sem S p m ρ γ) := rfl
 
-theorem dat_empty' (f : Hom k m) : dat (∅ : V) k f = ∅ := by
-  simp only [dat, apC, apZ]; rw [dif_neg]; rintro ⟨y, hy⟩; exact ZFSet.notMem_empty _ hy
-
-theorem ne_pair_empty : ¬ ∃ a b : V, (∅ : V) = ZFSet.pair a b := by
-  rintro ⟨a, b, h⟩
-  have : ({a} : V) ∈ ZFSet.pair a b := by simp [ZFSet.pair]
-  rw [← h] at this; exact ZFSet.notMem_empty _ this
-
-theorem π1_empty : π1 (∅ : V) = ∅ := by simp only [π1]; rw [dif_neg ne_pair_empty]
-theorem π2_empty : π2 (∅ : V) = ∅ := by simp only [π2]; rw [dif_neg ne_pair_empty]
-
-theorem fstV_empty : fstV m (∅ : V) = ∅ := by simp only [fstV, here, dat_empty', π1_empty]
-theorem sndV_empty : sndV m (∅ : V) = ∅ := by simp only [sndV, here, dat_empty', π2_empty]
-
 end
 
 end Model
@@ -1096,7 +1063,6 @@ theorem interp_congr_closed (cst uc : ℕ → ℕ → V) (good : ℕ → V → P
     simp only [Tm.closedB, Bool.and_eq_true] at hc
     simp only [interp, ie n d hc.1.2 m ρ ρ' γ γ' hρ hg, ig n d hc.2 m ρ ρ' γ γ' hρ hg, iv hc.1.1 hρ]
 
-
 theorem _root_.KubusCore.Tm.ConstsLt.mono {k n : ℕ} (hkn : k ≤ n) :
     ∀ {t : Tm}, t.ConstsLt k → t.ConstsLt n := by
   intro t; induction t <;> simp_all [Tm.ConstsLt] <;> omega
@@ -1149,7 +1115,6 @@ theorem sem_take {S : Sig} {k : ℕ} (hk : k ≤ S.length) {t : Tm} (ht : t.Cons
 theorem sem_closed {S : Sig} {t : Tm} (ht : t.closedB 0 0 = true) {m : ℕ} (ρ ρ' : IEnv m) (γ γ' : ℕ → V) :
     sem S t m ρ γ = sem S t m ρ' γ' :=
   interp_congr_closed _ _ _ t 0 0 ht m ρ ρ' γ γ' (by simp) (by simp)
-
 
 /-- The base point of the empty context. -/
 theorem isPoint_base (S : Sig) (m : ℕ) : IsPoint S .one [] m (fun _ => DM.zero m) (fun _ => emptyC m) :=

@@ -18,8 +18,6 @@ variable {k m n : ℕ}
 
 /-! ### Environments -/
 
-@[simp] theorem TEnv.cons_zero (γ : ℕ → V) (a : V) : TEnv.cons γ a 0 = a := rfl
-@[simp] theorem TEnv.cons_succ (γ : ℕ → V) (a : V) (x : ℕ) : TEnv.cons γ a (x + 1) = γ x := rfl
 
 theorem TEnv.restr_cons (γ : ℕ → V) (a : V) (f : Hom k m) :
     TEnv.restr (TEnv.cons γ a) f = TEnv.cons (TEnv.restr γ f) (res f a) := by

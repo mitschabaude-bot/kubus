@@ -1,4 +1,4 @@
-import Model.Univ
+import Model.GlueElem
 
 /-!
 # Well-formed codes are fibrant
@@ -22,9 +22,6 @@ variable {k m n : ℕ}
 
 theorem isKV_univC (l : ℕ) : IsKV m (univC m l) := by
   unfold univC univCode; exact isKV_mkKV _
-
-theorem isKV_glueC (A : V) (φ : Cof m) (Tp ep : V) : IsKV m (glueC m A φ Tp ep) := by
-  unfold glueC; exact isKV_mkKV _
 
 /-- Restriction of a Glue code: it reduces to `T` where `φ` holds. -/
 theorem res_glueC {A : V} {φ : Cof m} {Tp ep : V}

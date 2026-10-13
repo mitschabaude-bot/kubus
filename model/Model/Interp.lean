@@ -55,6 +55,9 @@ def TEnv.cons (γ : ℕ → V) (a : V) : ℕ → V := fun
   | 0 => a
   | x + 1 => γ x
 
+@[simp] theorem TEnv.cons_zero (γ : ℕ → V) (a : V) : TEnv.cons γ a 0 = a := rfl
+@[simp] theorem TEnv.cons_succ (γ : ℕ → V) (a : V) (x : ℕ) : TEnv.cons γ a (x + 1) = γ x := rfl
+
 /-- A family of codes over the code `A` at stage `m`, from its values. -/
 def famV (m : ℕ) (A : V) (F : (k : ℕ) → Hom k m → V → V) : V := lamV m (fun _ f => El A f) F
 

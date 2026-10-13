@@ -110,22 +110,6 @@ theorem cond_of_sem_glue {A T e : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
   · rename_i hc; exact ⟨fun k f hf n g => (hc k f hf n g).1, fun k f hf n g => (hc k f hf n g).2⟩
   · exact absurd rfl h
 
-@[simp] theorem dat_partialKV (φ : Cof m) (F : (k : ℕ) → Hom k m → V) (f : Hom k m) :
-    dat (partialKV m φ F) k f = if (φ.restr f).holds then F k f else ∅ := by
-  simp [partialKV]
-
-theorem partialKV_self (φ : Cof m) (F : (k : ℕ) → Hom k m → V) :
-    partialKV m φ F = partialKV m φ (fun k f => dat (partialKV m φ F) k f) := by
-  unfold partialKV; congr 1; funext k f; by_cases h : (φ.restr f).holds <;> simp [h]
-
-/-- On its face, a Glue code is its `T`. -/
-theorem glueC_holds {A : V} {φ : Cof m} {Tp ep : V} (hφ : φ.IsCof) (hh : φ.holds)
-    (hcoh : ∀ k (f : Hom k m), (φ.restr f).holds → dat Tp k f = res f (dat Tp m (Hom.id m)))
-    (hkv : IsKV m (dat Tp m (Hom.id m))) : glueC m A φ Tp ep = dat Tp m (Hom.id m) := by
-  refine (isKV_glueC _ _ _ _).ext hkv fun k f => ?_
-  have hf : (φ.restr f).holds := hφ.holds_restr hh f
-  rw [glueC, dat_mkKV, if_pos hf, hcoh k f hf, here_res]
-
 /-- The face values of a natural term on a face that holds. -/
 theorem faceVals_holds {t : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (hγ : ∀ x, IsKV m (γ x))
     (hh : (ival ρ φ).holds) (ht : FaceNat S t φ m ρ γ) (k : ℕ) (f : Hom k m) :
@@ -244,93 +228,9 @@ theorem glueC_mem_Vt {l : ℕ} {A : V} {φ : Cof m} {Tp ep : V} (hA : A ∈ Vt l
     (he : ∀ k (f : Hom k m), (φ.restr f).holds → dat ep k f ∈ Vt l) : glueC m A φ Tp ep ∈ Vt l := by
   sorry
 
-theorem El_empty' (f : Hom k m) : El (∅ : V) f = ∅ := by
-  have : π1 (∅ : V) = ∅ := by simp only [π1]; rw [dif_neg ne_pair_empty]
-  have h2 : π2 (∅ : V) = ∅ := by simp only [π2]; rw [dif_neg ne_pair_empty]
-  simp only [El, dat_empty', h2, this]
-
-theorem equivCode_kv_of_mem {T A v : V} (f : Hom k m) (hv : v ∈ El (equivCode m T A) f) :
-    IsKV m (equivCode m T A) := by
-  unfold equivCode Tm.equiv at *
-  simp only [interp] at hv ⊢
-  split at hv
-  · rename_i h; rw [if_pos h]; exact isKV_mkKV _
-  · rw [El_empty'] at hv; exact absurd hv (ZFSet.notMem_empty _)
-
 /-! ### The function of an equivalence -/
 
-theorem equivCode_eq {T A : V} (hT : IsKV m T) :
-    ∃ Q, equivCode m T A = sigmaC m (piC m T (famV m T fun _ f _ => res f A)) Q := by
-  have hP : IsKV m (piC m T (famV m T fun _ f _ => res f A)) := by unfold piC; exact isKV_mkKV _
-  unfold equivCode Tm.equiv Tm.arrow
-  simp only [interp, Tm.shift, Tm.ren, TEnv.cons_zero, TEnv.cons_succ, TEnv.restr, Nat.succ_eq_add_one, zero_add,
-    hT, if_true]
-  rw [if_pos hP]
-  exact ⟨_, rfl⟩
-
-theorem equiv_fst {T A v : V} (hT : IsKV m T) (hv : v ∈ El (equivCode m T A) (Hom.id m)) :
-    fstV m v ∈ piElSet m T (famV m T fun _ f _ => res f A) := by
-  obtain ⟨Q, hQ⟩ := equivCode_eq (A := A) hT
-  rw [hQ, El_sigmaC, sigmaElSet, mem_sigmaEl] at hv
-  obtain ⟨p, hp, q, -, rfl⟩ := hv
-  have hPkv : IsKV m (piC m T (famV m T fun _ f _ => res f A)) := by unfold piC; exact isKV_mkKV _
-  rw [res_id hPkv, El_piC, res_id hT, res_id (isKV_famV _ _)] at hp
-  have hpkv : IsKV m p := (mem_piEl.1 hp).1
-  rw [fstV_pairV hpkv]; exact hp
-
-theorem eqFun_mem {T A v x : V} (hT : IsKV m T) (hA : IsKV m A) (hv : v ∈ El (equivCode m T A) (Hom.id m))
-    (hx : x ∈ El T (Hom.id m)) : eqFun m v x ∈ El A (Hom.id m) := by
-  have := appV_mem_piElSet (equiv_fst hT hv) hx
-  rwa [apZ_dat_famV _ _ _ hx, res_id hA] at this
-
-theorem eqFun_res {T A v x : V} (hT : IsKV m T) (hv : v ∈ El (equivCode m T A) (Hom.id m))
-    (hx : x ∈ El T (Hom.id m)) (h : Hom k m) :
-    res h (eqFun m v x) = appV k (res h (fstV m v)) (res h x) :=
-  res_appV (equiv_fst hT hv) hx h
-
 /-! ### Glue elements -/
-
-theorem res_glueV (φ : Cof m) (tp a : V) (g : Hom k m) :
-    res g (glueV m φ tp a) = glueV k (φ.restr g) (res g tp) (res g a) := by
-  simp only [glueV, res_mkKV, dat_mkKV, Cof.restr_restr, dat_res, res_res]
-
-theorem unglue_glueV {φ : Cof m} (hn : ¬ φ.holds) (hφ : φ.IsCof) (tp : V) {a : V} (ha : IsKV m a) :
-    π2 (π2 (here m (glueV m φ tp a))) = a := by
-  simp only [here, glueV, dat_mkKV, hφ.restr_id, if_neg hn, tagZ, π2_pair, res_id ha]
-
-theorem res_glueV_holds {φ : Cof m} (hφ : φ.IsCof) {tp a : V} {g : Hom k m} (hg : (φ.restr g).holds)
-    (hcoh : ∀ n (h : Hom n k), res h (dat tp k g) = dat tp n (g.comp h)) (hkv : IsKV k (dat tp k g)) :
-    res g (glueV m φ tp a) = dat tp k g := by
-  refine (isKV_res _ _).ext hkv fun n h => ?_
-  have hgh : (φ.restr (g.comp h)).holds := by rw [← Cof.restr_restr]; exact (hφ.restr g).holds_restr hg h
-  rw [dat_res, glueV, dat_mkKV, if_pos hgh, ← hcoh n h, here_res]
-
-theorem El_glueC_id {A : V} {φ : Cof m} {Tp ep : V} (hn : ¬ φ.holds) (hφ : φ.IsCof) (hA : IsKV m A)
-    (hTp : IsKV m Tp) (hep : IsKV m ep) :
-    El (glueC m A φ Tp ep) (Hom.id m) = glueElSet m A φ Tp ep := by
-  simp only [El, glueC, dat_mkKV, hφ.restr_id, if_neg hn, glueDatum, π1π2_quad, res_id hA, res_id hTp,
-    res_id hep]
-
-theorem isKV_partialKV (φ : Cof m) (F : (k : ℕ) → Hom k m → V) : IsKV m (partialKV m φ F) := by
-  unfold partialKV; exact isKV_mkKV _
-
-theorem mem_glueElSet {A : V} {φ : Cof k} {Tp ep v : V} :
-    v ∈ glueElSet k A φ Tp ep ↔ ∃ tp a, v = glueV k φ tp a ∧ a ∈ El A (Hom.id k) ∧
-      tp = partialKV k φ (fun n g => dat tp n g) ∧
-      (∀ n (g : Hom n k), (φ.restr g).holds → dat tp n g ∈ El (dat Tp n g) (Hom.id n)) ∧
-      (∀ n (g : Hom n k), (φ.restr g).holds → ∀ n' (h : Hom n' n), res h (dat tp n g) = dat tp n' (g.comp h)) ∧
-      (∀ n (g : Hom n k), (φ.restr g).holds → eqFun n (dat ep n g) (dat tp n g) = res g a) := by
-  rw [glueElSet, ZFSet.mem_sep]
-  refine ⟨And.right, fun h => ⟨?_, h⟩⟩
-  obtain ⟨tp, a, rfl, ha, htp, htm, -, -⟩ := h
-  refine ZFSet.mem_range.2 ⟨⟨fun y => ⟨if (φ.restr y.2).holds then dat tp y.1 y.2 else ∅, ?_⟩, ⟨a, ha⟩⟩, ?_⟩
-  · split
-    · exact ZFSet.mem_insert_of_mem _ (htm _ _ ‹_›)
-    · exact ZFSet.mem_insert _ _
-  · dsimp only
-    congr 1
-    conv_rhs => rw [htp]
-    unfold partialKV; congr 2; funext n g; by_cases hg : (φ.restr g).holds <;> simp [hg]
 
 theorem sem_glueEl_holds {e t a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (hh : (ival ρ φ).holds)
     (hc : eqFun m (sem S e m ρ γ) (sem S t m ρ γ) = sem S a m ρ γ) :
@@ -349,29 +249,6 @@ theorem sem_unglue (φ : I) (e g : Tm) (ρ : IEnv m) (γ : ℕ → V) :
 theorem holds_iff_face (ρ : IEnv m) (φ : I) : (ival ρ φ).holds ↔ Cof.holds (ival ρ φ).face :=
   DM.holds_iff_face_holds _
 
-theorem res_partialKV (φ : Cof m) (F : (k : ℕ) → Hom k m → V) (g : Hom k m) :
-    res g (partialKV m φ F) = partialKV k (φ.restr g) (fun n h => F n (g.comp h)) := by
-  simp only [partialKV, res_mkKV, Cof.restr_restr]
-
-theorem equiv_pair {T A v : V} (hT : IsKV m T) (hv : v ∈ El (equivCode m T A) (Hom.id m)) :
-    ∃ p q, IsKV m p ∧ v = pairV m p q := by
-  obtain ⟨Q, hQ⟩ := equivCode_eq (A := A) hT
-  rw [hQ, El_sigmaC, sigmaElSet, mem_sigmaEl] at hv
-  obtain ⟨p, hp, q, -, rfl⟩ := hv
-  have hPkv : IsKV m (piC m T (famV m T fun _ f _ => res f A)) := by unfold piC; exact isKV_mkKV _
-  rw [res_id hPkv, El_piC] at hp
-  exact ⟨p, q, (mem_piEl.1 hp).1, rfl⟩
-
-theorem fstV_res_pairV {p q : V} (f : Hom k m) : fstV k (res f (pairV m p q)) = res f p := by
-  rw [fstV_res]; simp [pairV]
-
-theorem eqFun_res' {T A v x : V} (hT : IsKV m T) (hv : v ∈ El (equivCode m T A) (Hom.id m))
-    (hx : x ∈ El T (Hom.id m)) (f : Hom k m) :
-    res f (eqFun m v x) = eqFun k (res f v) (res f x) := by
-  rw [eqFun_res hT hv hx f, eqFun]
-  obtain ⟨p, q, hp, rfl⟩ := equiv_pair hT hv
-  rw [fstV_res_pairV, fstV_pairV hp]
-
 theorem sem_glueEl_cases {e t a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
     (hne : sem S (.glueEl φ e t a) m ρ γ ≠ ∅) :
     ((ival ρ φ).holds ∧ eqFun m (sem S e m ρ γ) (sem S t m ρ γ) = sem S a m ρ γ ∧
@@ -386,22 +263,6 @@ theorem sem_glueEl_cases {e t a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
   · split at hne
     · right; rw [if_neg ‹_›, if_pos ‹_›]; exact ⟨‹_›, ‹_›, rfl⟩
     · exact absurd rfl hne
-
-theorem here_empty : here m (∅ : V) = ∅ := dat_empty' _
-
-theorem ungAt_empty (φ : Cof m) (e : V) : ungAt m φ e ∅ = ∅ := by
-  unfold ungAt
-  split
-  · rw [if_neg (not_isKV_empty)]
-  · rw [here_empty, π2_empty, π2_empty]
-
-theorem glueC_shape {A : V} {φ : Cof m} {Tp ep : V} (hn : ¬ φ.holds) (hφ : φ.IsCof) :
-    shapeOf (glueC m A φ Tp ep) (Hom.id m) =
-      tagZ tGlue (ZFSet.pair (res (Hom.id m) A) (ZFSet.pair (enc φ) (ZFSet.pair (res (Hom.id m) Tp)
-        (res (Hom.id m) ep)))) := by
-  unfold glueC
-  rw [shapeOf_mkKV, hφ.restr_id, if_neg hn]
-  simp [glueDatum]
 
 theorem glueC_ne_univC (A : V) {φ : Cof m} (Tp ep : V) (hn : ¬ φ.holds) (hφ : φ.IsCof) (l : ℕ) :
     glueC m A φ Tp ep ≠ univC m l := by
@@ -430,11 +291,6 @@ theorem WF.glue_inv {l : ℕ} {A : V} {φ : Cof m} {Tp ep : V} (hn : ¬ φ.holds
     have h2 := (pair_inj'.1 h1.2).1
     rw [res_id (wf_props l m A' hA').1.kv] at h2
     rw [h2]; exact hA'
-
-theorem El_glueC_id' {A : V} {φ : Cof m} {Tp ep : V} (hn : ¬ φ.holds) (hφ : φ.IsCof)
-    (hTp : IsKV m Tp) (hep : IsKV m ep) :
-    El (glueC m A φ Tp ep) (Hom.id m) = glueElSet m (Model.res (Hom.id m) A) φ Tp ep := by
-  simp only [El, glueC, dat_mkKV, hφ.restr_id, if_neg hn, glueDatum, π1π2_quad, res_id hTp, res_id hep]
 
 /-- The unglued component of an element of a Glue type (at a stage where the face fails). -/
 theorem glue_elem {A : V} {φ : Cof m} {Tp ep g : V} {l : ℕ} (hn : ¬ φ.holds) (hφ : φ.IsCof)
