@@ -731,3 +731,199 @@ theorem nat_of_sem_app {f a : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.ap
 end
 
 end Model
+
+/-! ### Σ helpers (mirroring Π) -/
+
+namespace Model
+
+open KubusCore
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {S : Sig} {k m n : ℕ}
+
+theorem sigmaC_mem_Vt {l : ℕ} {A B : V} (hA : A ∈ Vt l)
+    (hB : ∀ k (f : Hom k m), ∀ a ∈ El A f, apZ (dat B k f) a ∈ Vt l) : sigmaC m A B ∈ Vt l := by
+  sorry
+
+theorem sem_sigma {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (hA : IsKV m (sem S A m ρ γ)) :
+    sem S (.sigma A B) m ρ γ = sigmaC m (sem S A m ρ γ)
+      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := by
+  simp only [sem, interp] at hA ⊢; rw [if_pos hA]
+
+theorem kv_of_sem_sigma {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.sigma A B) m ρ γ ≠ ∅) :
+    IsKV m (sem S A m ρ γ) := by
+  simp only [sem, interp] at h ⊢; split at h
+  · assumption
+  · exact absurd rfl h
+
+@[simp] theorem codeTag_sigmaC' (A B : V) : codeTag m (sigmaC m A B) = natZ tSigma := codeTag_sigmaC A B
+
+theorem below_sigmaC_fam (A B : V) (hB : IsKV m B) (a : V) (ha : ∃ y, ZFSet.pair a y ∈ dat B m (Hom.id m)) :
+    Below (apZ (dat B m (Hom.id m)) a) (sigmaC m A B) := by
+  have h1 : Below (apZ (dat B m (Hom.id m)) a) B := (below_apZ ha).trans (below_dat hB _)
+  have h2 : Below (res (Hom.id m) B) (sigmaC m A B) := by
+    unfold sigmaC
+    refine Below.trans ?_ (below_dat_mkKV _ (Hom.id m))
+    simp only [sigmaDatum, quad, tagZ]
+    exact ((below_pair_right _ _).trans (below_pair_right _ _)).trans (below_pair_left _ _)
+  rw [res_id hB] at h2
+  exact h1.trans h2
+
+theorem below_sigmaC_dom (A B : V) (hA : IsKV m A) : Below A (sigmaC m A B) := by
+  have h2 : Below (res (Hom.id m) A) (sigmaC m A B) := by
+    unfold sigmaC
+    refine Below.trans ?_ (below_dat_mkKV _ (Hom.id m))
+    simp only [sigmaDatum, quad, tagZ]
+    exact ((below_pair_left _ _).trans (below_pair_right _ _)).trans (below_pair_left _ _)
+  rwa [res_id hA] at h2
+
+theorem WF.sigma_inv {l : ℕ} {A B : V} (hA : IsKV m A) (hB : IsKV m B) (h : WF l m (sigmaC m A B)) :
+    WF l m A ∧ (∀ k (f : Hom k m), ∀ a ∈ El A f, WF l k (apZ (dat B k f) a)) ∧
+      (∀ k (f : Hom k m), ∀ a ∈ El A f, ∀ n (g : Hom n k),
+        Model.res g (apZ (dat B k f) a) = apZ (dat B n (f.comp g)) (Model.res g a)) ∧
+      (∀ k (f : Hom k m), dat B k f = fnZ (El A f) (apZ (dat B k f))) := by
+  generalize hc : sigmaC m A B = c at h
+  have htag : codeTag m c = natZ tSigma := by rw [← hc]; simp
+  unfold WF at h
+  cases h with
+  | empty => simp [tEmpty, tSigma] at htag
+  | pi => simp [tPi, tSigma] at htag
+  | @sigma _ A' B' hA' _ hgraph hfam hcoh =>
+    obtain ⟨rfl, rfl⟩ := sigmaC_inj hA hB ((wf_props l _ A' hA').1.kv) ‹_› hc
+    exact ⟨hA', hfam, hcoh, hgraph⟩
+  | path => simp [tPath, tSigma] at htag
+  | ipi => simp [tIPi, tSigma] at htag
+  | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tSigma] at htag
+  | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tSigma] at htag
+
+theorem TyCode.sigma_inv {A B : V} (h : TyCode m (sigmaC m A B)) :
+    ∃ l ≤ maxLevel, sigmaC m A B ∈ Vt l ∧ WF l m (sigmaC m A B) := by
+  obtain ⟨l, hl, h | h⟩ := h
+  · exact ⟨l, hl, h.2, h.1⟩
+  · have := congrArg (codeTag m) h; simp [tSigma, tUniv] at this
+
+theorem TyOK.sigma_at {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S (.sigma A B) m ρ γ) :
+    IsKV m (sem S A m ρ γ) ∧ ∃ l ≤ maxLevel,
+      sem S (.sigma A B) m ρ γ ∈ Vt l ∧ WF l m (sem S (.sigma A B) m ρ γ) := by
+  have hne : sem S (.sigma A B) m ρ γ ≠ ∅ := by
+    intro he; unfold TyOK at h; rw [he] at h; exact not_isKV_empty h.fib.kv
+  have hAkv := kv_of_sem_sigma hne
+  refine ⟨hAkv, ?_⟩
+  unfold TyOK at h; rw [sem_sigma hAkv] at h ⊢
+  exact h.sigma_inv
+
+theorem SemTy.sigma_at {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A B : Tm} {l : ℕ}
+    (h : SemTy S Ψ Φ Γ (.sigma A B) (.univ l)) {ρ : IEnv m} {γ : ℕ → V} (hp : IsPoint S Φ Γ m ρ γ) :
+    IsKV m (sem S A m ρ γ) ∧
+    sem S (.sigma A B) m ρ γ = sigmaC m (sem S A m ρ γ)
+      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) ∧
+    sigmaC m (sem S A m ρ γ)
+      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) ∈ Vt l ∧
+    WF l m (sigmaC m (sem S A m ρ γ)
+      (famV m (sem S A m ρ γ) fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a))) := by
+  obtain ⟨hmem, -, hUty, -⟩ := h.2.2.2 m ρ γ hp
+  have hAkv := kv_of_sem_sigma (hUty.ne_empty hmem)
+  rw [sem_sigma hAkv, sem_univ, mem_El_univ_iff] at hmem
+  exact ⟨hAkv, sem_sigma hAkv, hmem⟩
+
+theorem SemTy.sigmaDom {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A B : Tm} {l : ℕ}
+    (h : SemTy S Ψ Φ Γ (.sigma A B) (.univ l)) : SemTy S Ψ Φ Γ A (.univ l) := by
+  refine ⟨h.1, h.2.1.1, trivial, fun m ρ γ hp => ?_⟩
+  obtain ⟨-, hnat, hUty, hUnat⟩ := h.2.2.2 m ρ γ hp
+  obtain ⟨hAkv, hsem, hV, hWF⟩ := h.sigma_at hp
+  obtain ⟨hAWF, -, -, -⟩ := WF.sigma_inv hAkv (isKV_famV _ _) hWF
+  refine ⟨mem_El_univ_iff.2 ⟨Vt_below (below_sigmaC_dom _ _ hAkv) hV, hAWF⟩, fun k f => ?_, hUty, hUnat⟩
+  obtain ⟨hAkv', hsem', -, -⟩ := h.sigma_at (hp.restr h.1 f)
+  have := hnat k f
+  rw [hsem', hsem, res_sigmaC] at this
+  exact (sigmaC_inj hAkv' (isKV_famV _ _) (isKV_res _ _) (isKV_res _ _) this).1
+
+theorem SemTy.sigmaCod {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A B : Tm} {l : ℕ}
+    (h : SemTy S Ψ Φ Γ (.sigma A B) (.univ l)) : SemTy S Ψ Φ (A :: Γ) B (.univ l) := by
+  refine ⟨SemWf.cons h.sigmaDom, h.2.1.2, trivial, fun m ρ γ hp => ?_⟩
+  obtain ⟨hpt, ha⟩ := hp.tail
+  obtain ⟨-, -, hUty, hUnat⟩ := h.2.2.2 m ρ _ hpt
+  obtain ⟨hAkv, -, hV, hWF⟩ := h.sigma_at hpt
+  obtain ⟨-, hfam, hcoh, -⟩ := WF.sigma_inv hAkv (isKV_famV _ _) hWF
+  have hval : ∀ k (f : Hom k m) a, a ∈ El (sem S A m ρ fun x => γ (x + 1)) f →
+      apZ (dat (famV m (sem S A m ρ fun x => γ (x + 1)) fun k f a =>
+        sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr (fun x => γ (x + 1)) f) a)) k f) a =
+      sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr (fun x => γ (x + 1)) f) a) :=
+    fun k f a ha => apZ_dat_famV _ _ _ ha
+  have hid : sem S B m ρ γ = sem S B m (ρ.restr (Hom.id m))
+      (TEnv.cons (TEnv.restr (fun x => γ (x + 1)) (Hom.id m)) (γ 0)) := by
+    rw [IEnv.restr_id, TEnv.restr_id_of_kv (fun x => hpt.kv x), ← TEnv.eq_cons]
+  refine ⟨?_, fun k f => ?_, hUty, hUnat⟩
+  · rw [sem_univ, mem_El_univ_iff, hid, ← hval m (Hom.id m) _ ha]
+    exact ⟨Vt_below (below_sigmaC_fam _ _ (isKV_famV _ _) _ ⟨_, by rw [dat_famV]; exact mem_fnZ.2 ⟨_, ha, rfl⟩⟩) hV,
+      hfam m _ _ ha⟩
+  · have hfa : res f (γ 0) ∈ El (sem S A m ρ fun x => γ (x + 1)) f := by
+      have := ((h.sigmaDom.ty_at hpt).1.fib).elRes _ _ _ ha k f; rwa [Hom.id_comp] at this
+    have e1 : res f (sem S B m ρ γ) = sem S B k (ρ.restr f)
+        (TEnv.cons (TEnv.restr (fun x => γ (x + 1)) f) (res f (γ 0))) := by
+      rw [hid, ← hval m (Hom.id m) _ ha, hcoh m (Hom.id m) _ ha k f, Hom.id_comp, hval k f _ hfa]
+    rw [e1]; conv_lhs => rw [TEnv.eq_cons γ]
+    rw [TEnv.restr_cons]
+
+end
+
+end Model
+
+namespace Model
+
+open KubusCore
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {S : Sig} {k m n : ℕ}
+
+/-- The Σ data of a good Σ-code at a point. -/
+theorem TyOK.sigma_data {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S (.sigma A B) m ρ γ) :
+    let Av := sem S A m ρ γ
+    let Bf := famV m Av fun k f a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)
+    IsKV m Av ∧ sem S (.sigma A B) m ρ γ = sigmaC m Av Bf ∧ Fib Av m ∧ FamOK Av Bf m ∧
+      ∃ l ≤ maxLevel, sigmaC m Av Bf ∈ Vt l ∧ WF l m Av ∧ Av ∈ Vt l ∧
+        (∀ a ∈ El Av (Hom.id m), apZ (dat Bf m (Hom.id m)) a ∈ Vt l ∧ WF l m (apZ (dat Bf m (Hom.id m)) a)) := by
+  intro Av Bf
+  obtain ⟨hAkv, l, hl, hV, hWF⟩ := h.sigma_at
+  rw [sem_sigma hAkv] at hV hWF
+  obtain ⟨hAWF, hfam, hcoh, hgraph⟩ := WF.sigma_inv hAkv (isKV_famV _ _) hWF
+  refine ⟨hAkv, sem_sigma hAkv, hAWF.fib, ⟨isKV_famV _ _, hgraph, fun k f a ha => (hfam k f a ha).fib, hcoh⟩,
+    l, hl, hV, hAWF, Vt_below (below_sigmaC_dom _ _ hAkv) hV, fun a ha => ⟨?_, hfam m _ a ha⟩⟩
+  exact Vt_below (below_sigmaC_fam _ _ (isKV_famV _ _) _ ⟨_, by rw [dat_famV]; exact mem_fnZ.2 ⟨_, ha, rfl⟩⟩) hV
+
+theorem sem_pair_of_kv {a b : Tm} {ρ : IEnv m} {γ : ℕ → V} (ha : IsKV m (sem S a m ρ γ))
+    (hb : IsKV m (sem S b m ρ γ)) : sem S (.pair a b) m ρ γ = pairV m (sem S a m ρ γ) (sem S b m ρ γ) := by
+  simp only [sem, interp] at ha hb ⊢; rw [if_pos ⟨ha, hb⟩]
+
+theorem kv_of_sem_pair {a b : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.pair a b) m ρ γ ≠ ∅) :
+    IsKV m (sem S a m ρ γ) ∧ IsKV m (sem S b m ρ γ) := by
+  simp only [sem, interp] at h ⊢; split at h
+  · assumption
+  · exact absurd rfl h
+
+theorem sem_fst (p : Tm) (ρ : IEnv m) (γ : ℕ → V) : sem S (.fst p) m ρ γ = fstV m (sem S p m ρ γ) := rfl
+theorem sem_snd (p : Tm) (ρ : IEnv m) (γ : ℕ → V) : sem S (.snd p) m ρ γ = sndV m (sem S p m ρ γ) := rfl
+
+theorem dat_empty' (f : Hom k m) : dat (∅ : V) k f = ∅ := by
+  simp only [dat, apC, apZ]; rw [dif_neg]; rintro ⟨y, hy⟩; exact ZFSet.notMem_empty _ hy
+
+theorem ne_pair_empty : ¬ ∃ a b : V, (∅ : V) = ZFSet.pair a b := by
+  rintro ⟨a, b, h⟩
+  have : ({a} : V) ∈ ZFSet.pair a b := by simp [ZFSet.pair]
+  rw [← h] at this; exact ZFSet.notMem_empty _ this
+
+theorem π1_empty : π1 (∅ : V) = ∅ := by simp only [π1]; rw [dif_neg ne_pair_empty]
+theorem π2_empty : π2 (∅ : V) = ∅ := by simp only [π2]; rw [dif_neg ne_pair_empty]
+
+theorem fstV_empty : fstV m (∅ : V) = ∅ := by simp only [fstV, here, dat_empty', π1_empty]
+theorem sndV_empty : sndV m (∅ : V) = ∅ := by simp only [sndV, here, dat_empty', π2_empty]
+
+end
+
+end Model

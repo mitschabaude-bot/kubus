@@ -116,12 +116,12 @@ theorem sem_HasTy_piCod {S : Sig} {Ψ Φ Γ A B l}
 theorem sem_HasTy_sigmaDom {S : Sig} {Ψ Φ Γ A B l}
     (h0 : SemTy S Ψ Φ Γ (sigma A B) (univ l)) :
     SemTy S Ψ Φ Γ A (univ l) := by
-  sorry
+  exact h0.sigmaDom
 
 theorem sem_HasTy_sigmaCod {S : Sig} {Ψ Φ Γ A B l}
     (h0 : SemTy S Ψ Φ Γ (sigma A B) (univ l)) :
     SemTy S Ψ Φ (A :: Γ) B (univ l) := by
-  sorry
+  exact h0.sigmaCod
 
 theorem sem_HasTy_pathLine {S : Sig} {Ψ Φ Γ A a b l}
     (h0 : SemTy S Ψ Φ Γ (path A a b) (univ l)) :
@@ -251,22 +251,91 @@ theorem sem_HasTy_app {S : Sig} {Ψ Φ Γ A B f a}
 theorem sem_HasTy_sigma {S : Sig} {Ψ Φ Γ A B l}
     (h0 : SemTy S Ψ Φ Γ A (univ l)) (h1 : SemTy S Ψ Φ (A :: Γ) B (univ l)) :
     SemTy S Ψ Φ Γ (sigma A B) (univ l) := by
-  sorry
+  refine ⟨h0.1, ⟨h0.2.1, h1.2.1⟩, trivial, fun m ρ γ hp => ?_⟩
+  obtain ⟨hAmem, hAnat, hUty, hUnat⟩ := h0.2.2.2 m ρ γ hp
+  obtain ⟨hAty, -⟩ := h0.ty_at hp
+  have hAfib := hAty.fib
+  rw [sem_univ, mem_El_univ_iff] at hAmem
+  have hBat : ∀ k (f : Hom k m) a, a ∈ El (sem S A m ρ γ) f →
+      sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a) ∈ Vt l ∧
+        WF l k (sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) := fun k f a ha => by
+    have := (h1.2.2.2 k _ _ (hp.ext h0.1 hAty hAnat f ha)).1
+    rwa [sem_univ, mem_El_univ_iff] at this
+  have hAkv : IsKV m (sem S A m ρ γ) := (wf_props l m _ hAmem.2).1.kv
+  refine ⟨?_, fun k f => ?_, hUty, hUnat⟩
+  · rw [sem_univ, mem_El_univ_iff, sem_sigma hAkv]
+    constructor
+    · exact sigmaC_mem_Vt hAmem.1 fun k f a ha => by rw [apZ_dat_famV _ _ _ ha]; exact (hBat k f a ha).1
+    · unfold WF
+      refine WFI.sigma hAmem.2 (isKV_famV _ _) (fun k f => ?_) (fun k f a ha => ?_) (fun k f a ha n h => ?_)
+      · rw [dat_famV]
+        exact fnZ_congr fun a ha =>
+          (apZ_fnZ (fun a => sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) ha).symm
+      · rw [apZ_dat_famV _ _ _ ha]; exact (hBat k f a ha).2
+      · rw [apZ_dat_famV _ _ _ ha, apZ_dat_famV _ _ _ (hAfib.elRes _ _ _ ha n h)]
+        have := (h1.2.2.2 k _ _ (hp.ext h0.1 hAty hAnat f ha)).2.1 n h
+        rw [← this, TEnv.restr_cons, TEnv.restr_restr]; rfl
+  · rw [sem_sigma hAkv, sem_sigma (by rw [hAnat k f]; exact isKV_res _ _), res_sigmaC, hAnat k f, res_famV]
+    congr 1; unfold famV; congr 1
+    funext k' g; funext a; rw [TEnv.restr_restr]; rfl
 
 theorem sem_HasTy_pair {S : Sig} {Ψ Φ Γ A B a b l}
     (h0 : SemTy S Ψ Φ Γ (sigma A B) (univ l)) (h1 : SemTy S Ψ Φ Γ a A) (h2 : SemTy S Ψ Φ Γ b (B.inst a)) :
     SemTy S Ψ Φ Γ (pair a b) (sigma A B) := by
-  sorry
+  refine ⟨h1.1, ⟨h1.2.1, h2.2.1⟩, h0.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hsmem, hsnat, hUty, -⟩ := h0.2.2.2 m ρ γ hp
+  have hsTy : TyOK S (sigma A B) m ρ γ := TyCode.of_mem_univ hUty hsmem
+  obtain ⟨hAkv, hsem, hAfib, hfam, -⟩ := hsTy.sigma_data
+  obtain ⟨hamem, hanat, haty, -⟩ := h1.2.2.2 m ρ γ hp
+  obtain ⟨hbmem, hbnat, hbty, -⟩ := h2.2.2.2 m ρ γ hp
+  have hakv := haty.fib.elKV _ _ _ hamem
+  have hbkv := hbty.fib.elKV _ _ _ hbmem
+  refine ⟨?_, fun k f => ?_, hsTy, hsnat⟩
+  · rw [hsem, sem_pair_of_kv hakv hbkv, mem_sigmaC hAfib hfam]
+    refine ⟨_, hamem, _, ?_, rfl⟩
+    rw [apZ_dat_famV _ _ _ hamem, IEnv.restr_id, TEnv.restr_id_of_kv hp.kv, ← sem_inst hanat]
+    exact hbmem
+  · rw [sem_pair_of_kv (by rw [hanat k f]; exact isKV_res _ _) (by rw [hbnat k f]; exact isKV_res _ _),
+      sem_pair_of_kv hakv hbkv, res_pairV, hanat k f, hbnat k f]
 
 theorem sem_HasTy_fst {S : Sig} {Ψ Φ Γ A B p}
     (h0 : SemTy S Ψ Φ Γ p (sigma A B)) :
     SemTy S Ψ Φ Γ (fst p) A := by
-  sorry
+  refine ⟨h0.1, h0.2.1, h0.2.2.1.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hpmem, hpnat, hsTy, hsnat⟩ := h0.2.2.2 m ρ γ hp
+  obtain ⟨hAkv, hsem, hAfib, hfam, l, hl, hV, hAWF, hAV, -⟩ := hsTy.sigma_data
+  rw [hsem] at hpmem
+  have heta := sigma_eta hAfib hfam hpmem
+  refine ⟨heta.2.1, fun k f => ?_, ⟨l, hl, Or.inl ⟨hAWF, hAV⟩⟩, fun k f => ?_⟩
+  · rw [sem_fst, sem_fst, hpnat k f]
+    exact sigma_fst_res hAfib hfam hpmem f
+  · obtain ⟨hAkv', hsem', -⟩ := (h0.2.2.2 k _ _ (hp.restr h0.1 f)).2.2.1.sigma_data
+    have := hsnat k f
+    rw [hsem', hsem, res_sigmaC] at this
+    exact (sigmaC_inj hAkv' (isKV_famV _ _) (isKV_res _ _) (isKV_res _ _) this).1
 
 theorem sem_HasTy_snd {S : Sig} {Ψ Φ Γ A B p}
     (h0 : SemTy S Ψ Φ Γ p (sigma A B)) :
     SemTy S Ψ Φ Γ (snd p) (B.inst (fst p)) := by
-  sorry
+  refine ⟨h0.1, h0.2.1, h0.2.2.1.2.inst h0.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hpmem, hpnat, hsTy, hsnat⟩ := h0.2.2.2 m ρ γ hp
+  obtain ⟨hAkv, hsem, hAfib, hfam, l, hl, hV, hAWF, hAV, hfamV⟩ := hsTy.sigma_data
+  rw [hsem] at hpmem
+  have heta := sigma_eta hAfib hfam hpmem
+  have hfnat : Natural S (fst p) m ρ γ := fun k f => by
+    rw [sem_fst, sem_fst, hpnat k f]; exact sigma_fst_res hAfib hfam hpmem f
+  have hBi : sem S (B.inst (fst p)) m ρ γ = apZ (dat (famV m (sem S A m ρ γ) fun k f a =>
+      sem S B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a)) m (Hom.id m)) (fstV m (sem S p m ρ γ)) := by
+    rw [apZ_dat_famV _ _ _ heta.2.1, sem_inst hfnat, IEnv.restr_id, TEnv.restr_id_of_kv hp.kv]; rfl
+  refine ⟨?_, fun k f => ?_, ?_, fun k f => ?_⟩
+  · rw [sem_snd, hBi]; exact heta.2.2
+  · rw [sem_snd, sem_snd, hpnat k f]; exact sigma_snd_res hAfib hfam hpmem f
+  · unfold TyOK; rw [hBi]
+    exact ⟨l, hl, Or.inl ⟨(hfamV _ heta.2.1).2, (hfamV _ heta.2.1).1⟩⟩
+  · have hga : res f (fstV m (sem S p m ρ γ)) ∈ El (sem S A m ρ γ) f := by
+      have := hAfib.elRes _ _ _ heta.2.1 k f; rwa [Hom.id_comp] at this
+    rw [sem_inst (hfnat.restr f), hBi, hfam.coh m _ _ heta.2.1 k f, Hom.id_comp, apZ_dat_famV _ _ _ hga,
+      hfnat k f, sem_fst]
 
 theorem sem_HasTy_path {S : Sig} {Ψ Φ Γ A a b l}
     (h0 : SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) (h1 : SemTy S Ψ Φ Γ a (A.dinst .zero)) (h2 : SemTy S Ψ Φ Γ b (A.dinst .one)) :
@@ -492,22 +561,44 @@ theorem sem_EqTm_app {S : Sig} {Ψ Φ Γ A B f f' a a'}
 theorem sem_EqTm_sigma {S : Sig} {Ψ Φ Γ A A' B B' l}
     (h0 : SemEq S Ψ Φ Γ A A' (univ l)) (h1 : SemEq S Ψ Φ (A :: Γ) B B' (univ l)) :
     SemEq S Ψ Φ Γ (sigma A B) (sigma A' B') (univ l) := by
-  sorry
+  have h1' : SemTy S Ψ Φ (A' :: Γ) B' (univ l) := h1.2.1.ctx_conv h0
+  refine ⟨sem_HasTy_sigma h0.1 h1.1, sem_HasTy_sigma h0.2.1 h1', fun m ρ γ hp => ?_⟩
+  obtain ⟨hAmem, hAnat, -, -⟩ := h0.1.2.2.2 m ρ γ hp
+  obtain ⟨hAty, -⟩ := h0.1.ty_at hp
+  have hAkv : IsKV m (sem S A m ρ γ) := hAty.fib.kv
+  have hAeq := h0.2.2 m ρ γ hp
+  rw [sem_sigma hAkv, sem_sigma (hAeq ▸ hAkv), ← hAeq]
+  congr 1; unfold famV lamV; congr 1; funext k g
+  apply fnZ_congr; intro x hx
+  exact h1.2.2 k _ _ (hp.ext h0.1.1 hAty hAnat g hx)
 
 theorem sem_EqTm_pair {S : Sig} {Ψ Φ Γ A B a a' b b' l}
     (h0 : SemTy S Ψ Φ Γ (sigma A B) (univ l)) (h1 : SemEq S Ψ Φ Γ a a' A) (h2 : SemEq S Ψ Φ Γ b b' (B.inst a)) :
     SemEq S Ψ Φ Γ (pair a b) (pair a' b') (sigma A B) := by
-  sorry
+  have hb' : SemTy S Ψ Φ Γ b' (B.inst a') := h2.2.1.retype (h0.2.1.2.inst h1.2.1.2.1) fun m ρ γ hp => by
+    obtain ⟨-, hanat, -, -⟩ := h1.1.2.2.2 m ρ γ hp
+    obtain ⟨-, hanat', -, -⟩ := h1.2.1.2.2.2 m ρ γ hp
+    rw [sem_inst hanat, sem_inst hanat', h1.2.2 m ρ γ hp]
+  refine ⟨sem_HasTy_pair h0 h1.1 h2.1, sem_HasTy_pair h0 h1.2.1 hb', fun m ρ γ hp => ?_⟩
+  simp only [sem, interp]
+  rw [show interp (cstFn S) univC TyCode a m ρ γ = interp (cstFn S) univC TyCode a' m ρ γ from h1.2.2 m ρ γ hp,
+    show interp (cstFn S) univC TyCode b m ρ γ = interp (cstFn S) univC TyCode b' m ρ γ from h2.2.2 m ρ γ hp]
 
 theorem sem_EqTm_fst {S : Sig} {Ψ Φ Γ A B p p'}
     (h0 : SemEq S Ψ Φ Γ p p' (sigma A B)) :
     SemEq S Ψ Φ Γ (fst p) (fst p') A := by
-  sorry
+  refine ⟨sem_HasTy_fst h0.1, sem_HasTy_fst h0.2.1, fun m ρ γ hp => ?_⟩
+  rw [sem_fst, sem_fst, h0.2.2 m ρ γ hp]
 
 theorem sem_EqTm_snd {S : Sig} {Ψ Φ Γ A B p p'}
     (h0 : SemEq S Ψ Φ Γ p p' (sigma A B)) :
     SemEq S Ψ Φ Γ (snd p) (snd p') (B.inst (fst p)) := by
-  sorry
+  refine ⟨sem_HasTy_snd h0.1, (sem_HasTy_snd h0.2.1).retype (h0.1.2.2.1.2.inst h0.1.2.1)
+    (fun m ρ γ hp => ?_), fun m ρ γ hp => ?_⟩
+  · have hf := (sem_HasTy_fst h0.1).2.2.2 m ρ γ hp
+    have hf' := (sem_HasTy_fst h0.2.1).2.2.2 m ρ γ hp
+    rw [sem_inst hf.2.1, sem_inst hf'.2.1, sem_fst, sem_fst, h0.2.2 m ρ γ hp]
+  · rw [sem_snd, sem_snd, h0.2.2 m ρ γ hp]
 
 theorem sem_EqTm_path {S : Sig} {Ψ Φ Γ A A' a a' b b' l}
     (h0 : SemEq S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l)) (h1 : SemEq S Ψ Φ Γ a a' (A.dinst .zero)) (h2 : SemEq S Ψ Φ Γ b b' (A.dinst .one)) :
@@ -615,17 +706,42 @@ theorem sem_EqTm_piEta {S : Sig} {Ψ Φ Γ A B f}
 theorem sem_EqTm_fstBeta {S : Sig} {Ψ Φ Γ a b T}
     (h0 : SemTy S Ψ Φ Γ (fst (pair a b)) T) :
     SemEq S Ψ Φ Γ (fst (pair a b)) a T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S a m ρ γ = sem S (fst (pair a b)) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    have hne := hty.ne_empty hmem
+    rw [sem_fst] at hne ⊢
+    have hpne : sem S (pair a b) m ρ γ ≠ ∅ := fun h => hne (by rw [h, fstV_empty])
+    obtain ⟨hakv, hbkv⟩ := kv_of_sem_pair hpne
+    rw [sem_pair_of_kv hakv hbkv, fstV_pairV hakv]
+  exact ⟨h0, h0.of_eq h0.2.1.1 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_sndBeta {S : Sig} {Ψ Φ Γ a b T}
     (h0 : SemTy S Ψ Φ Γ (snd (pair a b)) T) :
     SemEq S Ψ Φ Γ (snd (pair a b)) b T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S b m ρ γ = sem S (snd (pair a b)) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    have hne := hty.ne_empty hmem
+    rw [sem_snd] at hne ⊢
+    have hpne : sem S (pair a b) m ρ γ ≠ ∅ := fun h => hne (by rw [h, sndV_empty])
+    obtain ⟨hakv, hbkv⟩ := kv_of_sem_pair hpne
+    rw [sem_pair_of_kv hakv hbkv, sndV_pairV hbkv]
+  exact ⟨h0, h0.of_eq h0.2.1.2 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_sigmaEta {S : Sig} {Ψ Φ Γ A B p}
     (h0 : SemTy S Ψ Φ Γ p (sigma A B)) :
     SemEq S Ψ Φ Γ p (pair (fst p) (snd p)) (sigma A B) := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ → sem S (pair (fst p) (snd p)) m ρ γ = sem S p m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hpmem, -, hsTy, -⟩ := h0.2.2.2 m ρ γ hp
+    obtain ⟨hAkv, hsem, hAfib, hfam, -⟩ := hsTy.sigma_data
+    rw [hsem] at hpmem
+    have heta := sigma_eta hAfib hfam hpmem
+    rw [sem_pair_of_kv (hAfib.elKV _ _ _ heta.2.1) ((hfam.fib _ _ _ heta.2.1).elKV _ _ _ heta.2.2),
+      sem_fst, sem_snd]
+    exact heta.1.symm
+  exact ⟨h0, h0.of_eq ⟨h0.2.1, h0.2.1⟩ he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_pathBeta {S : Sig} {Ψ Φ Γ t r T}
     (h0 : SemTy S Ψ Φ Γ (papp (plam t) r) T) :
