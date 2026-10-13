@@ -34,6 +34,11 @@ theorem dshift_isub_cons (t : Tm) (r : I) (hr : r.Scoped k') (σ : ISub k' k) :
 variable (hW : WfSig S)
 include hW
 
+theorem ent_cof_cons {X : I} (hX : X.Scoped k) (r : I) (hr : r.Scoped k') (σ : ISub k' k)
+    (h : (ival (idEnv k') (X.subst σ.τ)).holds) : I.Entails .one ((cof .one X).shift.subst (ISub.cons r hr σ).τ) := by
+  show I.Entails .one (I.and .one (X.shift.subst (ISub.cons r hr σ).τ))
+  rw [I_shift_cons]; exact ent_cof_one hW (entails_of_holds (I.scoped_subst hX σ.sc) h)
+
 theorem tyEq_ieq {n : ℕ} {C : Tm} {l : ℕ} (hCt : HasTy0 S n .one [] C (.univ l)) {τ1 τ2 : ℕ → I}
     (hb1 : ∀ i < n, (τ1 i).Scoped k) (hb2 : ∀ i < n, (τ2 i).Scoped k) (heq : ∀ i < n, I.Eq (τ1 i) (τ2 i))
     {T1 T2 : Tm} (h1 : T1 = C.subst .var τ1) (h2 : T2 = C.subst .var τ2) : TyEq S k T1 T2 :=

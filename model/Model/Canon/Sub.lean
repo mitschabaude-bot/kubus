@@ -143,6 +143,26 @@ theorem holds_iff_entails {φ : I} (hφ : φ.Scoped k) : (ival (idEnv k) φ).hol
     show (ival (idEnv k) φ).fn (Pt.allA k) = _
     rw [ival_idEnv_fn]; exact this
 
+/-- A cofibration holding at the generic point is constantly `1` in the De Morgan algebra. -/
+theorem ieq_one_of_holds {φ : I} (hφ : φ.Scoped k) (h : (ival (idEnv k) φ).holds) : I.Eq φ .one := by
+  intro ρ
+  let p : Pt k := fun j => ρ (k - 1 - j)
+  have := (DM.holds_iff _).1 h p
+  rw [ival_idEnv_fn] at this
+  show I.eval ρ φ = I.M4.one
+  rw [← this]
+  apply Cof.eval_congr hφ
+  intro n hn
+  simp only [Pt.rev, dif_pos hn, p]
+  congr 1; omega
+
+theorem ieq_zero_of_holds_neg {r : I} (hr : r.Scoped k) (h : (ival (idEnv k) (.neg r)).holds) : I.Eq r .zero := by
+  intro ρ
+  have := ieq_one_of_holds (φ := .neg r) hr h ρ
+  simp only [I.eval] at this ⊢
+  generalize I.eval ρ r = x at this ⊢
+  cases x <;> first | rfl | (simp [I.M4.neg, I.M4.ofPair, I.M4.toPair] at this)
+
 end
 
 end Model.Canon
