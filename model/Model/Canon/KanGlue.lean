@@ -341,32 +341,6 @@ theorem glueL_of_comp {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof
     exact (goodR_equivE hW hEt hGT hGA k' (ISub.id k') _ _
       (by rw [isub_id_of_closed (closed_of_ty hW hEt)]; exact TyEq.refl _)).1 h2
 
-include hGC in
-/-- Transport along a computable Glue line. -/
-theorem kanT_glue {A T e : Tm} {φ : I} (hD : GlueL S (k + 1) A φ T e) : KanT S k (.glue A φ T e) := by
-  sorry
-
-include hGC in
-theorem kanP_glue {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
-    (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
-    (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f))
-    (hKA : KR S m A) (ihA : KanP S m A)
-    (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → KR S k (dat Tp k f) ∧ KanP S k (dat Tp k f)) :
-    KanP S m (glueC m A φ Tp ep) := by
-  refine ⟨fun k f T hT => ?_, fun k f T hT => ?_⟩
-  · by_cases hf : (φ.restr f).holds
-    · rw [Comp_glueC_at hφ hTp hTkv f, if_pos hf] at hT
-      exact (ihT k f hf).2.1 k (Hom.id k) T hT
-    · obtain ⟨A1, φ1, T1, e1, hE, hD⟩ := glueL_of_comp hW hA hφ hTp hTkv hKA ihA ihT hf hT
-      exact kanH_retype hW hE (kanH_glue hW hGC hD)
-  · by_cases hf : (φ.restr f).holds
-    · rw [Comp_glueC_at hφ hTp hTkv f, if_pos hf] at hT
-      exact (ihT (k + 1) f hf).2.2 k (Hom.id (k + 1)) T hT
-    · obtain ⟨A1, φ1, T1, e1, hE, hD⟩ := glueL_of_comp hW hA hφ hTp hTkv hKA ihA ihT hf hT
-      rcases hE with rfl | ⟨l, e⟩
-      · exact kanT_glue hW hGC hD
-      · exact kanT_retype hW e (kanT_glue hW hGC hD)
-
 end
 
 end Model.Canon
