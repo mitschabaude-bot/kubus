@@ -1062,6 +1062,50 @@ theorem sem_a1 (h : TGCond S A φ T e ψ u0 m ρ γ)
   rw [sem_hcomp hc, h.sem_A1o, h.sem_a1', hface, hcompAt_res_id', gtA1]
   exact hcompAt_congr fun n h' r hh => h.sem_a1Tube hτ0 hτs n h' r hh
 
+theorem sem_contractum_gen (h : TGCond S A φ T e ψ u0 m ρ γ)
+    {τ : ℕ → I} (hτ0 : τ 0 = .var 0) (hτs : ∀ i, τ (i + 1) = .var (i + 2)) :
+    sem S (.glueEl (φ.subst (I.inst0 .one)) (e.dinst .one) (.fst (tExt A φ T e ψ u0 τ))
+      (.hcomp (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
+        (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+          ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
+        (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)))) m ρ γ =
+    gtResult (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) := by
+  have hψ := isCof_ival_face ρ ψ
+  obtain ⟨-, ea1⟩ := h.sem_a1 hτ0 hτs
+  have ha1kv := h.G.fibA.elKV _ _ _ (gt_a1_mem h.G hψ h.u0mem h.con)
+  have hiff : (ival ρ (φ.subst (I.inst0 .one))).holds ↔ (Cof.restr (tgφ ρ φ) (eO m)).holds := by
+    rw [holds_iff_face, face_φ1]
+  rw [gtResult]
+  by_cases h1 : (Cof.restr (tgφ ρ φ) (eO m)).holds
+  · have hc : eqFun m (sem S (e.dinst .one) m ρ γ) (sem S (.fst (tExt A φ T e ψ u0 τ)) m ρ γ) =
+        sem S (.hcomp (A.dinst .one) (.or (φ.subst (I.inst0 .one)) ψ)
+          (.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tExt A φ T e ψ u0 τ)).dshift (.neg (.var 0)))
+            ψ.shift (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0)).dshift)
+          (Tm.comp A ψ (.unglue φ e u0.dshift) (.unglue (φ.subst (I.inst0 .zero)) (e.dinst .zero) u0))) m ρ γ := by
+      rw [ea1, h.sem_e1 h1, sem_fst, h.sem_ext_id h1 hτ0 hτs, ← gt_a1_face h.G hψ h.u0mem h.con (h.h1' h1), res_id ha1kv]
+    rw [sem_glueEl_holds (hiff.2 h1) hc, if_pos h1, sem_fst, h.sem_ext_id h1 hτ0 hτs]
+  · rw [sem_glueEl_not (fun a => h1 (hiff.1 a)) (by rw [ea1]; exact ha1kv), if_neg h1, ea1, face_φ1]
+    congr 1
+    unfold partialKV; congr 1; funext k f; split
+    · rename_i hf
+      rw [Cof.restr_restr] at hf
+      rw [faceVals, sem_fst, h.sem_ext_at hf hτ0 hτs]
+    · rfl
+
+theorem sem_lhs (h : TGCond S A φ T e ψ u0 m ρ γ) :
+    sem S (.transp (.glue A φ T e) ψ u0) m ρ γ =
+    gtResult (lineV S A m ρ γ) (tgφ ρ φ) (tgP S T φ ρ γ) (tgP S e φ ρ γ) (ival ρ ψ).face (sem S u0 m ρ γ) := by
+  have hψ := isCof_ival_face ρ ψ
+  have := gt_result_res h.G hψ h.u0mem h.con (Hom.id m)
+  rw [Hom.lift_id, hψ.restr_id, res_id (h.G.elKV h.u0mem),
+    res_id (h.G.elKV (gt_result_mem h.G hψ h.u0mem h.con))] at this
+  rw [sem_transp h.tr, h.line, this]
+
+theorem sem_transpGlue (h : TGCond S A φ T e ψ u0 m ρ γ) :
+    sem S (Tm.transpGlue A φ T e ψ u0) m ρ γ = sem S (.transp (.glue A φ T e) ψ u0) m ρ γ := by
+  rw [h.sem_lhs]
+  exact h.sem_contractum_gen rfl (fun _ => rfl)
+
 end TGCond
 
 end tg

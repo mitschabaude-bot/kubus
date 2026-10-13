@@ -1,4 +1,5 @@
 import Model.Rules.GlueComp
+import Model.Rules.TranspGlue
 
 /-!
 # Semantic validity of the rules
@@ -1311,7 +1312,27 @@ theorem sem_EqTm_transpPath {S : Sig} {Ψ Φ Γ A a b φ p0 T}
 theorem sem_EqTm_transpGlue {S : Sig} {Ψ Φ Γ A φ T' e ψ u0 T l}
     (h0 : SemTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T) (h1 : SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) (h2 : SemTy S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A)) :
     SemEq S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlue A φ T' e ψ u0) T := by
-  sorry
+  have hwf : SemWf S Ψ Φ Γ := h0.1
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (Tm.transpGlue A φ T' e ψ u0) m ρ γ = sem S (transp (glue A φ T' e) ψ u0) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    have hpe := hp.dext hwf
+    obtain ⟨hAmem, hAnat, hUty, -⟩ := h1.2.2.2 _ _ _ hpe
+    refine TGCond.sem_transpGlue ⟨hp.kv, cond_of_sem_transp (hty.ne_empty hmem), TyCode.of_mem_univ hUty hAmem,
+      hAnat, fun k f hf => ?_⟩
+    have hpt : IsPoint S (cof Φ.shift φ) Γ.dshift k (ρ.ext.restr f) (TEnv.restr (TEnv.restr γ (Hom.wk m)) f) :=
+      isPoint_cof_iff.2 ⟨hpe.restr h1.1 f, (holds_face_restr_iff f).1 hf⟩
+    exact ⟨(h2.2.2.2 k _ _ hpt).1, (h2.2.2.2 k _ _ hpt).2.2.1⟩
+  have hcl : (Tm.transpGlue A φ T' e ψ u0).ConstsLt S.length := by
+    obtain ⟨⟨hA, hT, he⟩, hu0⟩ := h0.2.1
+    simp only [Tm.transpGlue, Tm.ConstsLt, Tm.comp, Tm.fill, Tm.transpFill, Tm.fiber, Tm.dshift, Tm.dinst,
+      Tm.constsLt_ren_iff]
+    simp [hA, hT, he, hu0, Tm.ConstsLt.dsubst, Tm.shift, Tm.pathC, Tm.ConstsLt, Tm.constsLt_ren_iff,
+      Tm.dinst, Tm.dshift]
+    all_goals apply Tm.ConstsLt.dsubst
+    all_goals simp [hA, hT, he, hu0, Tm.ConstsLt.dsubst, Tm.ConstsLt, Tm.constsLt_ren_iff]
+  exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_transpIPi {S : Sig} {Ψ Φ Γ A φ u0 T}
     (h0 : SemTy S Ψ Φ Γ (transp (ipi A) φ u0) T) :
