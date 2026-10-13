@@ -26,15 +26,39 @@ def decode : (x : S1) -> helix x -> Path S1 base x
 def encode (x : S1) (p : Path S1 base x) : helix x := transport (\i -> helix (p i)) (pos zero)
 
 def decodeEncode (x : S1) (p : Path S1 base x) : Path (Path S1 base x) (decode x (encode x p)) p :=
-  J (\x p -> Path (Path S1 base x) (decode x (encode x p)) p) (\i -> refl base) p
+  J (\x p -> Path (Path S1 base x) (decode x (encode x p)) p) (cong (decode base) (transportRefl (pos zero))) p
+
+-- Transport along helix, propositionally (composition does not compute away in Int in CCHM)
+
+-- transport along a composite path is the composite of the transports
+def substComp {X : U} (F : X -> U) {a b : X} (p : Path X a b) (u : F a) {c : X} (q : Path X b c)
+  : Path (F c) (transport (\i -> F (trans p q i)) u) (transport (\i -> F (q i)) (transport (\i -> F (p i)) u)) :=
+  J (\c q -> Path (F c) (transport (\i -> F (trans p q i)) u) (transport (\i -> F (q i)) (transport (\i -> F (p i)) u)))
+    (trans (cong (\(r : Path X a b) -> transport (\i -> F (r i)) u) (sym (rUnit p)))
+           (sym (transportRefl (transport (\i -> F (p i)) u))))
+    q
+
+-- transporting back undoes transport
+def transportInv {A B : U} (p : Path U A B) (x : A) : Path A (transport (\i -> p (~i)) (transport p x)) x :=
+  J^1 (\B p -> Path A (transport (\i -> p (~i)) (transport p x)) x)
+    (trans (cong (transport (\i -> A)) (transportRefl x)) (transportRefl x)) p
+
+def transportLoop (x : Int) : Path Int (sucInt x) (transport (\i -> helix (loopP i)) x) :=
+  uaβ (isoToEquiv sucInt predInt sucPred predSuc) x
+
+def transportInvLoop (y : Int) : Path Int (transport (\i -> helix (invLoop i)) y) (predInt y) :=
+  trans (cong (transport (\i -> helix (invLoop i))) (trans (sym (sucPred y)) (transportLoop (predInt y))))
+        (transportInv (\i -> helix (loopP i)) (predInt y))
 
 def windingPos : (n : Nat) -> Path Int (winding (intLoopPos n)) (pos n)
-  | zero => \i -> pos zero
-  | suc n => \i -> sucInt (windingPos n i)
+  | zero => transportRefl (pos zero)
+  | suc n => trans (substComp helix (intLoopPos n) (pos zero) loopP)
+                   (trans (sym (transportLoop (winding (intLoopPos n)))) (cong sucInt (windingPos n)))
 
 def windingNeg : (n : Nat) -> Path Int (winding (intLoopNeg n)) (negsuc n)
-  | zero => \i -> negsuc zero
-  | suc n => \i -> predInt (windingNeg n i)
+  | zero => transportInvLoop (pos zero)
+  | suc n => trans (substComp helix (intLoopNeg n) (pos zero) invLoop)
+                   (trans (transportInvLoop (winding (intLoopNeg n))) (cong predInt (windingNeg n)))
 
 def encodeDecode : (n : Int) -> Path Int (encode base (decode base n)) n
   | pos n => windingPos n

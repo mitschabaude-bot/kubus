@@ -66,6 +66,17 @@ theorem ctxConvSigma {Ψ Φ Γ A1 B1 A2 B2 m} (hX : HasTy S Ψ Φ Γ (.sigma A1 
   have := HasTy.subst (HasTy.sigmaCod h1) hv
   rwa [Tm.upShift_inst0] at this
 
+/-- Both terms are spines (applications, path applications, projections) of the same constant. -/
+def constHead : Tm → Option Nat
+  | .app f _ | .papp f _ | .fst f | .snd f => constHead f
+  | .const k => some k
+  | _ => none
+
+def sameConstHead (t u : Tm) : Bool :=
+  match constHead t, constHead u with
+  | some k, some k' => k == k'
+  | _, _ => false
+
 /-- The first projection of `t`, contracted if `t` is a pair. -/
 def projFst {Ψ Φ Γ} (t A : Tm) (h : HasTy S Ψ Φ Γ (.fst t) A) : Red S Ψ Φ Γ (.fst t) A :=
   match t, h with
@@ -78,8 +89,102 @@ def projSnd {Ψ Φ Γ} (t A : Tm) (h : HasTy S Ψ Φ Γ (.snd t) A) : Red S Ψ �
   | .pair _ b, h => ⟨b, EqTm.sndBeta h⟩
   | t, h => ⟨.snd t, EqTm.refl h⟩
 
+/-- Unfold the head constant of a spine once, and contract the β-redexes this exposes along the
+spine, without reducing further. Returns the inferred type of the spine. -/
+def unfoldHead (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
+    (t : Tm) → K (Option ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty))
+  | .const k =>
+    match h : S[k]?, hl : E.sig.lv[k]? with
+    | some (.defn b Ak), some lk =>
+      pure (some ⟨⟨Ak, lk, E.constOk k b Ak lk h hl, HasTy.const E.wf h⟩,
+        ⟨b, EqTm.delta (HasTy.const E.wf h) h⟩⟩)
+    | _, _ => pure none
+  | .app f a => do
+    match ← unfoldHead R E f with
+    | none => pure none
+    | some ⟨fi, fr⟩ =>
+      match ← whnfTy R E fi.ty fi.lvl fi.hty with
+      | ⟨.pi A1 B1, eF⟩ =>
+        have hP := HasTy.eqR eF
+        let ⟨ha⟩ ← R.check E a A1 fi.lvl (HasTy.piDom hP)
+        let inf : Inf S Ψ Φ Γ (.app f a) :=
+          ⟨B1.inst a, fi.lvl, HasTy.subst (HasTy.piCod hP) ha, HasTy.app (HasTy.conv fi.htm eF) ha⟩
+        have e1 : EqTm S Ψ Φ Γ (.app f a) (.app fr.tm a) (B1.inst a) :=
+          EqTm.app (EqTm.conv fr.eq eF) (EqTm.refl ha)
+        match h : fr.tm with
+        | .lam D b =>
+          have e1' : EqTm S Ψ Φ Γ (.app f a) (.app (.lam D b) a) (B1.inst a) := h ▸ e1
+          pure (some ⟨inf, ⟨_, EqTm.trans e1' (EqTm.piBeta (HasTy.eqR e1'))⟩⟩)
+        | f' => pure (some ⟨inf, ⟨.app f' a, h ▸ e1⟩⟩)
+      | _ => pure none
+  | .papp p r => do
+    match ← unfoldHead R E p with
+    | none => pure none
+    | some ⟨pi, pr⟩ =>
+      let ⟨hr⟩ ← ensureScoped r Ψ
+      match ← whnfTy R E pi.ty pi.lvl pi.hty with
+      | ⟨.path A1 _ _, eP⟩ =>
+        have hP := HasTy.eqR eP
+        have hp := HasTy.conv pi.htm eP
+        let inf : Inf S Ψ Φ Γ (.papp p r) :=
+          ⟨A1.dinst r, pi.lvl, HasTy.dsubst (HasTy.pathLine hP) hr, HasTy.papp hp hr⟩
+        have e1 : EqTm S Ψ Φ Γ (.papp p r) (.papp pr.tm r) (A1.dinst r) :=
+          EqTm.papp (EqTm.conv pr.eq eP) hr hr (fun _ => rfl)
+        match h : pr.tm with
+        | .plam b =>
+          have e1' : EqTm S Ψ Φ Γ (.papp p r) (.papp (.plam b) r) (A1.dinst r) := h ▸ e1
+          pure (some ⟨inf, ⟨_, EqTm.trans e1' (EqTm.pathBeta (HasTy.eqR e1'))⟩⟩)
+        | p' => pure (some ⟨inf, ⟨.papp p' r, h ▸ e1⟩⟩)
+      | ⟨.ipi A1, eP⟩ =>
+        have hP := HasTy.eqR eP
+        have hp := HasTy.conv pi.htm eP
+        let inf : Inf S Ψ Φ Γ (.papp p r) :=
+          ⟨A1.dinst r, pi.lvl, HasTy.dsubst (HasTy.ipiLine hP) hr, HasTy.iapp hp hr⟩
+        have e1 : EqTm S Ψ Φ Γ (.papp p r) (.papp pr.tm r) (A1.dinst r) :=
+          EqTm.iapp (EqTm.conv pr.eq eP) hr hr (fun _ => rfl)
+        match h : pr.tm with
+        | .plam b =>
+          have e1' : EqTm S Ψ Φ Γ (.papp p r) (.papp (.plam b) r) (A1.dinst r) := h ▸ e1
+          pure (some ⟨inf, ⟨_, EqTm.trans e1' (EqTm.pathBeta (HasTy.eqR e1'))⟩⟩)
+        | p' => pure (some ⟨inf, ⟨.papp p' r, h ▸ e1⟩⟩)
+      | _ => pure none
+  | _ => pure none
+
 section
 variable (R : Rec S) {Ψ : Nat} {Φ : I} {Γ : Ctx} (E : KCtx S Ψ Φ Γ)
+
+/-- Lazy δ: compare `t ≡ u` (both of type `A`) by unfolding the head constant defined later
+first, and comparing again; `none` if neither side has a constant head or nothing matched. -/
+def lazyDelta (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) :
+    Nat → (t u : Tm) → HasTy S Ψ Φ Γ t A → HasTy S Ψ Φ Γ u A →
+    K (Option (PLift (EqTm S Ψ Φ Γ t u A)))
+  | 0, _, _, _, _ => pure none
+  | n + 1, t, u, ht, hu => do
+    if h : t = u then return some ⟨h ▸ EqTm.refl ht⟩
+    if sameConstHead t u then
+      if let .ok ⟨ni, ⟨en⟩⟩ := R.convNe E t u then
+        if let .ok ⟨en'⟩ := bridge R E ni.hty hA en then return some ⟨en'⟩
+    let unfoldLeft := match constHead t, constHead u with
+      | some k, some k' => decide (k' ≤ k)
+      | some _, none => true
+      | _, _ => false
+    let unfoldRight := match constHead t, constHead u with
+      | some k, some k' => decide (k ≤ k')
+      | none, some _ => true
+      | _, _ => false
+    if unfoldLeft then
+      if let some ⟨ti, tr⟩ ← unfoldHead R E t then
+        let ⟨et⟩ ← bridge R E ti.hty hA tr.eq
+        if let some ⟨e⟩ ← lazyDelta A l hA n tr.tm u (HasTy.eqR et) hu then
+          return some ⟨EqTm.trans et e⟩
+        return none
+    if unfoldRight then
+      if let some ⟨ui, ur⟩ ← unfoldHead R E u then
+        let ⟨eu⟩ ← bridge R E ui.hty hA ur.eq
+        if let some ⟨e⟩ ← lazyDelta A l hA n t ur.tm ht (HasTy.eqR eu) then
+          return some ⟨EqTm.trans e (EqTm.symm eu)⟩
+        return none
+    pure none
 
 def convTyData (m d : Nat) (ps ps' : Tm) (hm : m + 1 ≤ maxLevel) :
     K (PLift (EqTm S Ψ Φ Γ (.data d ps) (.data d ps') (.univ m))) := do
@@ -221,6 +326,8 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
     pure ⟨EqTm.trans (EqTm.glueEta ht) (EqTm.trans e (EqTm.symm (EqTm.glueEta hu)))⟩
   | .univ m, _, ht, hu => convTypes R E m t u ht hu
   | A, hA, ht, hu => do
+    -- lazy δ: unfold the head constant defined later first
+    if let .ok (some e) := lazyDelta R E A l hA 20 t u ht hu then return e
     let rt ← R.whnf E t A l hA ht
     let ru ← R.whnf E u A l hA hu
     if h : rt.tm = ru.tm then
@@ -337,6 +444,11 @@ def convNeElim (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t
 def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
     K ((i : Inf S Ψ Φ Γ t) × PLift (EqTm S Ψ Φ Γ t u i.ty)) :=
   match t, u with
+  | .const k, .const k' => do
+    if h : k = k' then
+      let i ← R.infer E (.const k)
+      return ⟨i, ⟨h ▸ EqTm.refl i.htm⟩⟩
+    else fail s!"kernel: constants c{k} and c{k'} differ"
   | .var x, .var y => do
     if h : x = y then
       let i ← R.infer E (.var x)
