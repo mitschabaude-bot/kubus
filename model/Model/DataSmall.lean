@@ -245,14 +245,9 @@ abbrev HcInY (Y : (n : ℕ) → Hom n m → V) (n : ℕ) (g : Hom n m) :=
 def hcPart (Y : (n : ℕ) → Hom n m → V) (n : ℕ) (g : Hom n m) : V :=
   ZFSet.range fun x : HcInY Y n g => hcV n x.1 (fun n' h r => (x.2.1 ⟨n', h, r⟩).1) x.2.2.1
 
-/-- The restrictions of elements of `Y`. -/
-def resPart (Y : (n : ℕ) → Hom n m → V) (n : ℕ) (g : Hom n m) : V :=
-  ⋃ x : (Σ n' : ℕ, Σ g' : Hom n' m, {h : Hom n n' // g'.comp h = g}),
-    ZFSet.range fun v : ↥(Y x.1 x.2.1) => res x.2.2.1 v.1
-
 /-- One stage. -/
 def stepY (Y : (n : ℕ) → Hom n m → V) (n : ℕ) (g : Hom n m) : V :=
-  conPart Θ Y n g ∪ hcPart Y n g ∪ resPart Y n g
+  conPart Θ Y n g ∪ hcPart Y n g
 
 /-- The stages of the construction of the elements. -/
 def stages : Ordinal.{0} → (n : ℕ) → Hom n m → V :=
@@ -288,7 +283,7 @@ theorem union_mem_Vt' {x y : V} (hx : x ∈ Vt l) (hy : y ∈ Vt l) : x ∪ y �
 
 theorem stepY_mem_Vt {Y : (n : ℕ) → Hom n m → V} (hY : ∀ n g, Y n g ∈ Vt l) (n : ℕ) (g : Hom n m) :
     stepY Θ Y n g ∈ Vt l := by
-  refine union_mem_Vt' hl (union_mem_Vt' hl ?_ ?_) ?_
+  refine union_mem_Vt' hl ?_ ?_
   · refine iUnion_mem_Vt IsSmallAt.of_countable (fun c => ?_) hl
     refine range_mem_Vt' ((vpref_small hl hY hty _).2.prod IsSmallAt.of_countable) (fun x => ?_) hl
     exact conV_mem_Vt hl _ _ _ fun a ha => by
@@ -299,8 +294,6 @@ theorem stepY_mem_Vt {Y : (n : ℕ) → Hom n m → V} (hY : ∀ n g, Y n g ∈ 
         isSmallAt_of_mem_Vt (insert_mem_Vt (empty_mem_Vt hl) (hY y.1 (g.comp y.2.1)))).prod
       (isSmallAt_of_mem_Vt (hY n g))) (fun x => hcV_mem_Vt hl (fun n' h r _ => ?_) (Vt_trans l (hY n g) x.2.2.2)) hl
     exact Vt_trans l (insert_mem_Vt (empty_mem_Vt hl) (hY _ _)) (x.2.1 ⟨n', h, r⟩).2
-  · exact iUnion_mem_Vt IsSmallAt.of_countable (fun x => range_mem_Vt' (isSmallAt_of_mem_Vt (hY _ _))
-      (fun v => res_mem_Vt' hl (Vt_trans l (hY _ _) v.2) _) hl) hl
 
 theorem stages_mem_Vt : ∀ α < omega1, ∀ n (g : Hom n m), stages Θ α n g ∈ Vt l := by
   intro α
@@ -343,7 +336,7 @@ theorem delem_stage {Θ : SData m} {n : ℕ} {g : Hom n m} {v : V} (h : DElem Θ
     have hα := iSup_lt_omega1 f hf
     refine ⟨(⨆ j, f j) + 1, succ_lt_omega1 hα, ?_⟩
     rw [stages_eq]
-    refine ZFSet.mem_union.2 (Or.inl (ZFSet.mem_union.2 (Or.inl (ZFSet.mem_iUnion.2 ⟨⟨c, hcl⟩, ?_⟩))))
+    refine ZFSet.mem_union.2 (Or.inl (ZFSet.mem_iUnion.2 ⟨⟨c, hcl⟩, ?_⟩))
     subst hCe
     refine ZFSet.mem_range.2 ⟨(⟨args, hlen, fun i hi => ?_⟩, ⟨rs, hrs⟩), rfl⟩
     unfold argSet
@@ -371,7 +364,7 @@ theorem delem_stage {Θ : SData m} {n : ℕ} {g : Hom n m} {v : V} (h : DElem Θ
     have hlt : ∀ {β}, β ≤ max αa (⨆ y, f y) → β < max αa (⨆ y, f y) + 1 := fun h =>
       lt_of_le_of_lt h (Order.lt_add_one_iff.2 le_rfl)
     rw [stages_eq]
-    refine ZFSet.mem_union.2 (Or.inl (ZFSet.mem_union.2 (Or.inr ?_)))
+    refine ZFSet.mem_union.2 (Or.inr ?_)
     let tube : (y : TubeDom n) → ↥(insert ∅ ((fun n' g' => ZFSet.iUnion (fun β : Set.Iio (max αa (⨆ y, f y) + 1) =>
         stages Θ β.1 n' g')) y.1 (g.comp y.2.1))) := fun y =>
       if hy : (φ.restr y.2.1).holds then
@@ -381,12 +374,6 @@ theorem delem_stage {Θ : SData m} {n : ℕ} {g : Hom n m} {v : V} (h : DElem Θ
       else ⟨∅, ZFSet.mem_insert _ _⟩
     refine ZFSet.mem_range.2 ⟨⟨φ, tube, ⟨a, mem_iUnion_Iio (f := fun β => stages Θ β n g) (hlt (le_max_left _ _)) haα⟩⟩, ?_⟩
     exact hcV_congr a fun n' h r hh => by simp only [tube, dif_pos hh]
-  | @res n n' g v h hv ih =>
-    obtain ⟨α, hα, hvα⟩ := ih
-    refine ⟨α + 1, succ_lt_omega1 hα, ?_⟩
-    rw [stages_eq]
-    refine ZFSet.mem_union.2 (Or.inr (ZFSet.mem_iUnion.2 ⟨⟨n, g, ⟨h, rfl⟩⟩, ZFSet.mem_range.2
-      ⟨⟨v, mem_iUnion_Iio (f := fun β => stages Θ β n g) (Order.lt_add_one_iff.2 le_rfl) hvα⟩, rfl⟩⟩))
 
 theorem delem_mem_bound {Θ : SData m} {n : ℕ} {g : Hom n m} {v : V} (h : DElem Θ n g v) :
     v ∈ dataBound Θ n g := by

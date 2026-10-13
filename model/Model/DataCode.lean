@@ -194,8 +194,8 @@ def SData.restr (Θ : SData m) (h : Hom k m) : SData k :=
   { Θ with ty := fun c j n g pre => Θ.ty c j n (h.comp g) pre }
 
 /-- The elements of an inductive type, at the restriction `g` of its stage: the least set of
-Kripke values closed under the constructors (with typed arguments), formal composition and
-restriction. -/
+Kripke values closed under the constructors (with typed arguments) and formal composition.
+Closure under restriction is a lemma (`DElem.res`), for argument types that are natural. -/
 inductive DElem (Θ : SData m) : (n : ℕ) → Hom n m → V → Prop
   | con {n : ℕ} {g : Hom n m} {c : ℕ} {C : Ctor} {args : List V} {rs : List (DM n)} :
       Θ.ctors[c]? = some C → args.length = C.args.length → rs.length = C.dims →
@@ -208,13 +208,60 @@ inductive DElem (Θ : SData m) : (n : ℕ) → Hom n m → V → Prop
         res h' (u n' h r) = u n'' (h.comp h') (r.restr h')) →
       (∀ n' (h : Hom n' n), (φ.restr h).holds → u n' h (DM.zero n') = res h a) →
       DElem Θ n g (hcV n φ u a)
-  | res {n n' : ℕ} {g : Hom n m} {v : V} (h : Hom n' n) : DElem Θ n g v → DElem Θ n' (g.comp h) (res h v)
 
 theorem DElem.kv {Θ : SData m} {n : ℕ} {g : Hom n m} {v : V} (h : DElem Θ n g v) : IsKV n v := by
   cases h with
   | con => exact isKV_conV _ _ _ _
   | hcomp => exact isKV_hcV _ _ _
-  | res h _ => exact isKV_res _ _
+
+/-- The argument types are natural: their elements restrict to elements of the restricted
+types at the restricted earlier arguments. -/
+def SData.ResClosed (Θ : SData m) : Prop :=
+  ∀ c j n (g : Hom n m) pre a, a ∈ El (Θ.ty c j n g pre) (Hom.id n) →
+    ∀ n' (h : Hom n' n), res h a ∈ El (Θ.ty c j n' (g.comp h) (pre.map (res h))) (Hom.id n')
+
+theorem DElem.res {Θ : SData m} (hΘ : Θ.ResClosed) {n : ℕ} {g : Hom n m} {v : V} (hv : DElem Θ n g v) :
+    ∀ n' (h : Hom n' n), DElem Θ n' (g.comp h) (res h v) := by
+  induction hv with
+  | @con n g c C args rs hC hlen hrs hrec hpt ih =>
+    intro n' h
+    rw [res_conV]
+    refine DElem.con hC (by simp [hlen]) (by simp [hrs]) (fun j a ha hj => ?_) (fun j a ha hj => ?_)
+    · rw [List.getElem?_map] at ha
+      obtain ⟨a0, ha0, rfl⟩ := Option.map_eq_some_iff.1 ha
+      exact ih j a0 ha0 hj n' h
+    · rw [List.getElem?_map] at ha
+      obtain ⟨a0, ha0, rfl⟩ := Option.map_eq_some_iff.1 ha
+      rw [← List.map_take]
+      exact hΘ c j n g _ a0 (hpt j a0 ha0 hj) n' h
+  | @hcomp n g φ u a hφ ha hu hcoh hbase iha ihu =>
+    intro n' h
+    rw [res_hcV]
+    refine DElem.hcomp (hφ.restr h) (iha n' h) (fun n₁ h₁ r hh => ?_) (fun n₁ h₁ r hh n₂ h₂ => ?_)
+      (fun n₁ h₁ hh => ?_)
+    · rw [Cof.restr_restr] at hh; exact hu n₁ (h.comp h₁) r hh
+    · rw [Cof.restr_restr] at hh; exact hcoh n₁ (h.comp h₁) r hh n₂ h₂
+    · rw [Cof.restr_restr] at hh; show u n₁ (h.comp h₁) _ = _
+      rw [hbase n₁ (h.comp h₁) hh, res_res]
+
+theorem delem_restr_iff (Θ : SData m) (h : Hom k m) {n : ℕ} (g : Hom n k) (v : V) :
+    DElem (Θ.restr h) n g v ↔ DElem Θ n (h.comp g) v := by
+  constructor
+  · intro hv
+    induction hv with
+    | con hC hlen hrs _ hpt ih => exact DElem.con hC hlen hrs ih hpt
+    | hcomp hφ _ _ hcoh hbase iha ihu => exact DElem.hcomp hφ iha ihu hcoh hbase
+  · intro hv
+    suffices ∀ g', DElem Θ n g' v → ∀ g, g' = h.comp g → DElem (Θ.restr h) n g v from this _ hv g rfl
+    clear hv g
+    intro g' hv'
+    induction hv' with
+    | con hC hlen hrs _ hpt ih =>
+      intro g e; subst e
+      exact DElem.con hC hlen hrs (fun j a ha hj => ih j a ha hj g rfl) hpt
+    | hcomp hφ _ _ hcoh hbase iha ihu =>
+      intro g e; subst e
+      exact DElem.hcomp hφ (iha g rfl) (fun n₁ h₁ r hh => ihu n₁ h₁ r hh (g.comp h₁) rfl) hcoh hbase
 
 end
 
