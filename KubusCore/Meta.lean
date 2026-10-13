@@ -1,1 +1,1 @@
-import KubusCore.Meta.SigWk
+import KubusCore.Meta.Final

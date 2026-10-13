@@ -181,17 +181,7 @@ theorem sigTyped0_of_wfSig : ∀ (n : Nat) (S : Sig), S.length = n → WfSig S �
     have hpre : ∀ (j : Nat) (e : Entry), (S.take k)[j]? = some e → S[j]? = some e :=
       fun j e h => (getElem?_take_some h).2
     obtain ⟨l, hA⟩ := hwf.2.2.1
-    exact ⟨⟨l, sigwk_ty hpre (spec_to_minimal hS' hT' (hC k) hA)⟩,
-      sigwk_ty hpre (spec_to_minimal hS' hT' (hC k) hwf.2.2.2)⟩
-
-/-- The spec's typing judgment adds nothing to the minimal one, for a well-formed signature
-whose prefixes satisfy `ContractaTyped`. -/
-theorem spec_to_minimal' {S : Sig} (hS : WfSig S) (hC : ∀ k, ContractaTyped (S.take k)) {Ψ Φ Γ t A}
-    (h : HasTy S Ψ Φ Γ t A) : HasTy0 S Ψ Φ Γ t A :=
-  spec_to_minimal hS (sigTyped0_of_wfSig _ S rfl hS hC) (by simpa using hC S.length) h
-
-theorem spec_to_minimal_eq' {S : Sig} (hS : WfSig S) (hC : ∀ k, ContractaTyped (S.take k))
-    {Ψ Φ Γ t u A} (h : EqTm S Ψ Φ Γ t u A) : EqTm0 S Ψ Φ Γ t u A :=
-  spec_to_minimal_eq hS (sigTyped0_of_wfSig _ S rfl hS hC) (by simpa using hC S.length) h
+    exact ⟨⟨l, sigwk_ty hpre (spec_to_minimal_of hS' hT' (hC k) hA)⟩,
+      sigwk_ty hpre (spec_to_minimal_of hS' hT' (hC k) hwf.2.2.2)⟩
 
 end KubusCore.Meta
