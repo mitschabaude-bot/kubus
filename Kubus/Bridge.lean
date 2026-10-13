@@ -406,22 +406,44 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
       (mkSys (es'.map fun (r, p) => (r, .snd p)))
   | .glue sys a => do
     let keys ← sys.mapM fun (r, _) => trI ks r
-    let φ := canonCof keys
     let some ⟨G, l, ⟨hG⟩⟩ := exp | throw "glue without an expected type"
-    let ⟨A, T, e, ⟨hA, _⟩⟩ ← KubusCore.Kernel.toGlue R E G l hG φ
-    let a' ← elabT R env E ks a (some ⟨A, l, ⟨hA⟩⟩)
+    -- the cofibration of the Glue type as the kernel sees it (Kubus may have elaborated the
+    -- element against the Glue type restricted to a face)
+    -- under a face the Glue type may reduce: use its unreduced form if it is one
+    let parts : Option (KTm × KTm × KTm × KI) := match G with
+      | .glue A φ' T e => some (A, T, e, φ')
+      | _ => none
+    let (A, T, e, φ) ← match parts with
+      | some p => pure p
+      | none => do
+        let φ ← match ← KubusCore.Kernel.whnfTy R E G l hG with
+          | ⟨.glue _ φ' _ _, _⟩ => pure φ'
+          | _ => pure (canonCof keys)
+        let ⟨A, T, e, _⟩ ← KubusCore.Kernel.toGlue R E G l hG φ
+        pure (A, T, e, φ)
+    let ⟨_, ⟨hA⟩⟩ ← KubusCore.Kernel.inferType R E A
+    let a' ← elabT R env E ks a (some ⟨A, _, ⟨hA⟩⟩)
     let mut es : Array (KI × KTm) := #[]
     for ((_, t), r) in sys.zip keys do
       let Ek ← cofOf E r
       es := es.push (r, ← elabT R env Ek ks t (expOf R Ek T))
     return .glueEl φ e (mkSys es.toList) a'
-  | .unglue u _ sys => do
+  | .unglue u base sys => do
     let keys ← sys.mapM fun (r, _) => trI ks r
-    let φ := canonCof keys
-    let g ← elabT R env E ks u none
+    -- the argument is checked against the Glue type recorded by Kubus, if it translates
+    let G := match elabT R env E ks (.glueTy base sys) none with
+      | .ok G => expOf R E G
+      | .error _ => none
+    let g ← elabT R env E ks u G
     let i ← R.infer E g
-    let ⟨_, _, e, _⟩ ← KubusCore.Kernel.toGlue R E i.ty i.lvl i.hty φ
-    return .unglue φ e g
+    match i.ty with
+    | .glue _ φ' _ e => return .unglue φ' e g
+    | _ =>
+      let φ ← match ← KubusCore.Kernel.whnfTy R E i.ty i.lvl i.hty with
+        | ⟨.glue _ φ' _ _, _⟩ => pure φ'
+        | _ => pure (canonCof keys)
+      let ⟨_, _, e, _⟩ ← KubusCore.Kernel.toGlue R E i.ty i.lvl i.hty φ
+      return .unglue φ e g
   | .letE _ t b => do
     let t' ← elabT R env E ks t none
     elabT R env E (.defn t' :: ks) b exp
