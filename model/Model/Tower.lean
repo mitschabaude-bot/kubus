@@ -171,7 +171,7 @@ theorem Vt_trans : ∀ l {x y : V}, x ∈ Vt l → y ∈ x → y ∈ Vt l
   | _ + 5, _, _, hx, _ => absurd hx (ZFSet.notMem_empty _)
 
 /-- `α` is small for level `l`. -/
-def IsSmallAt (l : ℕ) (α : Type) : Prop :=
+def IsSmallAt (l : ℕ) (α : Type w) : Prop :=
   match l with
   | 0 => Small.{0} α
   | 1 => Small.{1} α
@@ -180,13 +180,13 @@ def IsSmallAt (l : ℕ) (α : Type) : Prop :=
   | 4 => Small.{4} α
   | _ => True
 
-theorem range_mem_Vt : ∀ (l : ℕ) {α : Type} (_ : IsSmallAt l α) (f : α → V), (∀ a, f a ∈ Vt l) →
+theorem range_mem_Vt : ∀ (l : ℕ) {α : Type w} [Small.{5} α] (_ : IsSmallAt l α) (f : α → V), (∀ a, f a ∈ Vt l) →
     l ≤ 4 → ZFSet.range f ∈ Vt l
-  | 0, _, h, f, hf, _ => @range_mem_embedSet.{0, 5, 0} _ h _ f hf
-  | 1, _, h, f, hf, _ => @range_mem_embedSet.{1, 5, 0} _ h _ f hf
-  | 2, _, h, f, hf, _ => @range_mem_embedSet.{2, 5, 0} _ h _ f hf
-  | 3, _, h, f, hf, _ => @range_mem_embedSet.{3, 5, 0} _ h _ f hf
-  | 4, _, h, f, hf, _ => @range_mem_embedSet.{4, 5, 0} _ h _ f hf
-  | _ + 5, _, _, _, _, hl => absurd hl (by omega)
+  | 0, α, _, h, f, hf, _ => @range_mem_embedSet.{0, 5, w} α h _ f hf
+  | 1, α, _, h, f, hf, _ => @range_mem_embedSet.{1, 5, w} α h _ f hf
+  | 2, α, _, h, f, hf, _ => @range_mem_embedSet.{2, 5, w} α h _ f hf
+  | 3, α, _, h, f, hf, _ => @range_mem_embedSet.{3, 5, w} α h _ f hf
+  | 4, α, _, h, f, hf, _ => @range_mem_embedSet.{4, 5, w} α h _ f hf
+  | _ + 5, _, _, _, _, _, hl => absurd hl (by omega)
 
 end Model
