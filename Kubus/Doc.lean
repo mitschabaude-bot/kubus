@@ -333,7 +333,7 @@ def docFile (path : System.FilePath) (kernel : Bool) : ExceptT String IO FileOut
       let (ep, msg) := Lsp.parseError e
       dout := { dout with error := some (ep, msg) }
       -- tokens without semantic information
-      match (classify dtoks #[] sites none []).run st with
+      match (classify dtoks #[] sites (declName d) ((ctorsOf d).map (·.1))).run st with
       | .ok (ts, _) => out := { out with tokens := out.tokens ++ ts }
       | .error _ => pure ()
     out := { out with decls := out.decls.push dout }
