@@ -828,6 +828,203 @@ theorem sem_hcompSigma {A B u u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
     hcompAt_sigmaC hAfib hfam hu0 hu, hcompSigmaF_eq, hcompAt_congr hfstT, compF_congr hsndT, sem_fst, sem_snd,
     Hom.id_comp]
 
+/-! ### transpPi -/
+
+theorem natural_pi_dom {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (hty : TyOK S (.pi A B) m ρ γ)
+    (hnat : Natural S (.pi A B) m ρ γ) : Natural S A m ρ γ := by
+  intro k g
+  have hty' : TyOK S (.pi A B) k (ρ.restr g) (TEnv.restr γ g) := by
+    unfold TyOK; rw [hnat k g]; exact hty.res g
+  obtain ⟨hAkv', hsem', -⟩ := hty'.pi_data
+  obtain ⟨hAkv, hsem, -⟩ := hty.pi_data
+  have := hnat k g
+  rw [hsem', hsem, res_piC] at this
+  exact (piC_inj hAkv' (isKV_famV _ _) (isKV_res _ _) (isKV_res _ _) this).1
+
+theorem TyOK.pi_dom {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S (.pi A B) m ρ γ) :
+    TyCode m (sem S A m ρ γ) := by
+  obtain ⟨hAkv, l, hl, hV, hWF⟩ := h.pi_at
+  rw [sem_pi hAkv] at hV hWF
+  exact ⟨l, hl, Or.inl ⟨(WF.pi_inv hAkv (isKV_famV _ _) hWF).1, Vt_below (below_piC_dom _ _ hAkv) hV⟩⟩
+
+theorem env_γ0 (ρ : IEnv m) (g : Hom n m) :
+    (fun i => ival (ρ.restr g).ext ((fun | 0 => .neg (.var 0) | n + 1 => .var (n + 1) : ℕ → I) i)) =
+      ρ.ext.restr (TranspPi.γ0 g) := by
+  funext i
+  rcases i with _ | i
+  · ext p; simp [IEnv.ext, IEnv.restr, TranspPi.γ0, I.eval, Hom.snoc, Hom.app, Hom.wk]
+  · simp only [ival.var, IEnv.ext, IEnv.restr, DM.restr_restr]
+    congr 1
+    simp only [TranspPi.γ0, Hom.wk_comp_snoc]
+
+theorem env_γ (ρ : IEnv m) (g : Hom n m) :
+    (fun i => ival (ρ.restr g).ext.ext (Tm.bind2 (.or (.var 1) (.neg (.var 0))) i)) =
+      ρ.ext.restr (TranspPi.γ g) := by
+  funext i
+  rcases i with _ | i
+  · ext p; simp [Tm.bind2, IEnv.ext, IEnv.restr, TranspPi.γ, iVar, jVar, I.eval, Hom.snoc, Hom.app, Hom.wk]
+  · simp only [Tm.bind2, ival.var, IEnv.ext, IEnv.restr, DM.restr_restr]
+    congr 1
+    simp only [TranspPi.γ, Hom.wk_comp_snoc, Hom.comp_assoc]
+
+theorem sem_transpPi {A B u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
+    (hc : TranspCond S (.pi A B) φ u0 m ρ γ) (hγ : ∀ x, IsKV m (γ x)) :
+    sem S (Tm.transpPi A B φ u0) m ρ γ = sem S (.transp (.pi A B) φ u0) m ρ γ := by
+  have hTy : TyOK S (.pi A B) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := hc.1
+  obtain ⟨hAkv, hsem, hAfib, hfam, l, hl, hfamW⟩ := hTy.pi_data
+  have hAty := hTy.pi_dom
+  have hNA := natural_pi_dom hTy hc.2.2.2.1
+  have hφ := isCof_ival_face ρ φ
+  have hcon := hc.2.1
+  have hu0 := hc.2.2.1
+  have hu0nat := hc.2.2.2.2
+  unfold lineV at hcon hu0
+  rw [hsem] at hcon hu0
+  set Ac := sem S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))
+  set Bf := famV (m + 1) Ac fun k f a => sem S B k (ρ.ext.restr f)
+    (TEnv.cons (TEnv.restr (TEnv.restr γ (Hom.wk m)) f) a)
+  set A0 := A.shift.dsubst (fun | 0 => .neg (.var 0) | n + 1 => .var (n + 1))
+  set Aw := A.shift.dsubst (Tm.bind2 (.or (.var 1) (.neg (.var 0))))
+  set wt := Tm.transp Aw (.or φ.shift (.var 0)) (.var 0)
+  set w0t := Tm.transp A0 φ (.var 0)
+  set B' := B.subst (fun | 0 => wt | n + 1 => .var (n + 1)) .var
+  -- the line `A`, at the points of the contractum
+  have eLine : ∀ k (H : Hom k (m + 1)), sem S A k (ρ.ext.restr H) (TEnv.restr γ ((Hom.wk m).comp H)) =
+      res H Ac := by
+    intro k H; rw [← TEnv.restr_restr]; exact hNA k H
+  have key : ∀ n' (g : Hom n' m) v, v ∈ El Ac ((Hom.id (m + 1)).comp ((Hom.endpt m (DM.one m)).comp g)) →
+      sem S (.transp B' φ (.app u0.shift w0t)) n' (ρ.restr g) (TEnv.cons (TEnv.restr γ g) v) =
+        transpAt (TranspPi.C (res (Hom.id (m + 1)) Ac) (res (Hom.id (m + 1)) Bf) (ival ρ φ).face g v)
+          (Hom.id (n' + 1)) (Cof.restr (ival ρ φ).face g)
+          (appV n' (res g (sem S u0 m ρ γ)) (TranspPi.w0 (res (Hom.id (m + 1)) Ac) (ival ρ φ).face g v)) := by
+    intro n' g v hv
+    have hv' := hv
+    rw [Hom.id_comp] at hv'
+    set γ'' := TEnv.cons (TEnv.restr γ g) v
+    -- `w0`
+    have eA0 : ∀ k (h : Hom k (n' + 1)), sem S A0 k ((ρ.restr g).ext.restr h)
+        (TEnv.restr (TEnv.restr γ'' (Hom.wk n')) h) = res h (res (TranspPi.γ0 g) Ac) := by
+      intro k h
+      have e1 : (fun i => ival ((ρ.restr g).ext.restr h)
+          ((fun | 0 => .neg (.var 0) | n + 1 => .var (n + 1) : ℕ → I) i)) = ρ.ext.restr ((TranspPi.γ0 g).comp h) := by
+        rw [← IEnv.restr_restr, ← env_γ0]; rfl
+      have e2 : (Hom.wk m).comp ((TranspPi.γ0 g).comp h) = g.comp ((Hom.wk n').comp h) := by
+        rw [← Hom.comp_assoc]; simp only [TranspPi.γ0, Hom.wk_comp_snoc]; rfl
+      rw [sem_dsubst, TEnv.restr_restr, TEnv.restr_cons, sem_shift, e1, TEnv.restr_restr, ← e2, eLine, res_res]
+    have eA00 : lineV S A0 n' (ρ.restr g) γ'' = res (TranspPi.γ0 g) Ac := by
+      have := eA0 (n' + 1) (Hom.id (n' + 1))
+      rwa [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr γ'' (Hom.wk n')) (fun x => isKV_res _ _),
+        res_id (isKV_res _ _)] at this
+    have c0 : TranspCond S A0 φ (.var 0) n' (ρ.restr g) γ'' := by
+      refine ⟨?_, ?_, ?_, fun k h => (eA0 k h).trans (by rw [← eA00]), natural_var S 0 _ _⟩
+      · rw [eA00]; exact hAty.res _
+      · rw [eA00, face_ival_restr]
+        have := constW0 hAfib hfam hcon g
+        rw [Hom.id_comp] at this; exact this.res_id
+      · rw [eA00, El_res, Hom.id_comp, TranspPi.γ0_endpt0]; exact hv'
+    have hw0v : sem S w0t n' (ρ.restr g) γ'' = TranspPi.w0 (res (Hom.id (m + 1)) Ac) (ival ρ φ).face g v := by
+      rw [sem_transp c0, eA00, face_ival_restr, transpAt_res, w0_eq, Hom.comp_id, Hom.id_comp]; rfl
+    -- `w`
+    have eAw : ∀ k (h : Hom k (n' + 2)), sem S Aw k ((ρ.restr g).ext.ext.restr h)
+        (TEnv.restr (TEnv.restr (TEnv.restr γ'' (Hom.wk n')) (Hom.wk (n' + 1))) h) = res h (res (TranspPi.γ g) Ac) := by
+      intro k h
+      have e1 : (fun i => ival ((ρ.restr g).ext.ext.restr h) (Tm.bind2 (.or (.var 1) (.neg (.var 0))) i)) =
+          ρ.ext.restr ((TranspPi.γ g).comp h) := by
+        rw [← IEnv.restr_restr, ← env_γ]; rfl
+      have e2 : (Hom.wk m).comp ((TranspPi.γ g).comp h) = g.comp ((Hom.wk n').comp ((Hom.wk (n' + 1)).comp h)) := by
+        rw [← Hom.comp_assoc]; simp only [TranspPi.γ, Hom.wk_comp_snoc]; rfl
+      rw [sem_dsubst, TEnv.restr_restr, TEnv.restr_restr, TEnv.restr_cons, sem_shift, e1, TEnv.restr_restr,
+        ← e2, eLine, res_res]
+    have eAw0 : lineV S Aw (n' + 1) (ρ.restr g).ext (TEnv.restr γ'' (Hom.wk n')) = res (TranspPi.γ g) Ac := by
+      have := eAw (n' + 2) (Hom.id (n' + 2))
+      rwa [IEnv.restr_id, TEnv.restr_id_of_kv
+        (γ := TEnv.restr (TEnv.restr γ'' (Hom.wk n')) (Hom.wk (n' + 1))) (fun x => isKV_res _ _),
+        res_id (isKV_res _ _)] at this
+    have hψ : (ival (ρ.restr g).ext (.or φ.shift (.var 0))).face = TranspPi.ψ (ival ρ φ).face g := by
+      rw [face_ival_or, face_ival_var, ival_shift, show (ρ.restr g).ext.tail = (ρ.restr g).restr (Hom.wk n') from rfl,
+        face_ival_restr, face_ival_restr, Cof.restr_restr]
+      rfl
+    have cw : TranspCond S Aw (.or φ.shift (.var 0)) (.var 0) (n' + 1) (ρ.restr g).ext
+        (TEnv.restr γ'' (Hom.wk n')) := by
+      refine ⟨?_, ?_, ?_, fun k h => (eAw k h).trans (by rw [← eAw0]), natural_var S 0 _ _⟩
+      · rw [eAw0]; exact hAty.res _
+      · rw [eAw0, hψ]
+        have := constW hAfib hfam hcon g
+        rw [Hom.id_comp] at this; exact this.res_id
+      · rw [eAw0, El_res, Hom.id_comp]
+        have := baseW hAfib g hv
+        rw [Hom.id_comp] at this; exact this
+    have hwv : sem S wt (n' + 1) (ρ.restr g).ext (TEnv.restr γ'' (Hom.wk n')) =
+        TranspPi.w (res (Hom.id (m + 1)) Ac) (ival ρ φ).face g v := by
+      rw [sem_transp cw, eAw0, hψ, transpAt_res, w_eq, Hom.comp_id, Hom.id_comp]; rfl
+    set wv := TranspPi.w (res (Hom.id (m + 1)) Ac) (ival ρ φ).face g v
+    set w0v := TranspPi.w0 (res (Hom.id (m + 1)) Ac) (ival ρ φ).face g v
+    have hwm : wv ∈ El Ac (Hom.lift g) := by
+      have := memW hAfib hfam hφ hcon g hv; rwa [Hom.id_comp] at this
+    -- the line `B[w]`
+    have eB : ∀ k (h : Hom k (n' + 1)), sem S B' k ((ρ.restr g).ext.restr h)
+        (TEnv.restr (TEnv.restr γ'' (Hom.wk n')) h) = apZ (dat Bf k ((Hom.lift g).comp h)) (res h wv) := by
+      intro k h
+      have hσ : ∀ x, Natural S ((fun | 0 => wt | n + 1 => .var (n + 1) : ℕ → Tm) x) k
+          ((ρ.restr g).ext.restr h) (TEnv.restr (TEnv.restr γ'' (Hom.wk n')) h) := by
+        intro x; cases x with
+        | zero => exact cw.natural.restr h
+        | succ x => exact natural_var S _ _ _
+      rw [sem_subst S _ k _ _ _ _ hσ]
+      have hg : res h wv ∈ El Ac ((Hom.lift g).comp h) := hAfib.elRes _ _ _ hwm k h
+      rw [apZ_dat_famV _ _ _ hg]
+      have e1 : (fun i => ival ((ρ.restr g).ext.restr h) (.var i)) = ρ.ext.restr ((Hom.lift g).comp h) := by
+        rw [← IEnv.restr_restr, IEnv.ext_restr_lift]; rfl
+      rw [e1]
+      congr 1
+      funext x; cases x with
+      | zero => show sem S wt k _ _ = _; rw [cw.natural k h, hwv]; rfl
+      | succ x =>
+        simp only [γ'', sem_var, TEnv.restr, TEnv.cons, res_res]
+        rw [← Hom.comp_assoc (Hom.wk m) (Hom.lift g) h, Hom.wk_comp_lift]
+    have eB0 : lineV S B' n' (ρ.restr g) γ'' = apZ (dat Bf (n' + 1) (Hom.lift g)) wv := by
+      have := eB (n' + 1) (Hom.id (n' + 1))
+      rwa [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr γ'' (Hom.wk n')) (fun x => isKV_res _ _),
+        Hom.comp_id, res_id (hAfib.elKV _ _ _ hwm)] at this
+    have hC : TranspPi.C (res (Hom.id (m + 1)) Ac) (res (Hom.id (m + 1)) Bf) (ival ρ φ).face g v =
+        apZ (dat Bf (n' + 1) (Hom.lift g)) wv := by
+      rw [C_eq, Hom.id_comp]
+    -- the base `u0 w0`
+    have hu0' : res g (sem S u0 m ρ γ) ∈ piElSet n' (res ((Hom.endpt m (DM.zero m)).comp g) Ac)
+        (res ((Hom.endpt m (DM.zero m)).comp g) Bf) := by
+      rw [El_piC, Hom.id_comp] at hu0
+      have := res_mem_piElSet hu0 g; rwa [res_res, res_res] at this
+    have hw0m : w0v ∈ El (res ((Hom.endpt m (DM.zero m)).comp g) Ac) (Hom.id n') := by
+      rw [El_res, Hom.comp_id]
+      have := memW0 hAfib hfam hφ hcon g hv; rwa [Hom.id_comp] at this
+    have hbase : sem S (.app u0.shift w0t) n' (ρ.restr g) γ'' = appV n' (res g (sem S u0 m ρ γ)) w0v := by
+      rw [sem_app_of_nat c0.natural, sem_shift, hu0nat, hw0v]
+    have hbnat : Natural S (.app u0.shift w0t) n' (ρ.restr g) γ'' := by
+      intro k h
+      rw [sem_app_of_nat (c0.natural.restr h), hbase, c0.natural k h, hw0v, TEnv.restr_cons, sem_shift,
+        IEnv.restr_restr, TEnv.restr_restr, hu0nat, res_appV hu0' hw0m h, res_res]
+    have c2 : TranspCond S B' φ (.app u0.shift w0t) n' (ρ.restr g) γ'' := by
+      refine ⟨?_, ?_, ?_, fun k h => ?_, hbnat⟩
+      · rw [eB0]; exact ⟨l, hl, Or.inl ⟨(hfamW _ _ wv hwm).2, (hfamW _ _ wv hwm).1⟩⟩
+      · rw [eB0, face_ival_restr, ← hC]; exact constC hAfib hfam hφ hcon g hv
+      · rw [eB0, hbase, ← hC]; exact baseC hAfib hfam hφ hcon g hv hu0
+      · show _ = res h (lineV S B' n' (ρ.restr g) γ'')
+        rw [eB k h, eB0]
+        exact (hfam.coh (n' + 1) (Hom.lift g) wv hwm k h).symm
+    rw [sem_transp c2, eB0, hbase, face_ival_restr, hC]
+  show sem S (.lam (A.dinst .one) (.transp B' φ (.app u0.shift w0t))) m ρ γ = _
+  rw [sem_lam, sem_transp hc]
+  unfold lineV
+  rw [hsem, transpAt_piC hu0, transpPiF_eq]
+  unfold lamV
+  congr 1; funext n' g
+  have hdom : El (sem S (A.dinst .one) m ρ γ) g = El (res (Hom.id (m + 1)) Ac) ((Hom.endpt m (DM.one m)).comp g) := by
+    rw [sem_dinst, ival_one, line_endpt hγ hNA, El_res, El_res, Hom.id_comp]
+  dsimp only
+  rw [hdom]
+  apply fnZ_congr; intro v hv
+  exact key n' g v (by rw [El_res] at hv; exact hv)
+
 end
 
 end Model

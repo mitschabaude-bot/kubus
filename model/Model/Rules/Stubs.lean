@@ -1068,7 +1068,20 @@ theorem sem_EqTm_transpU {S : Sig} {Ψ Φ Γ l φ a T}
 theorem sem_EqTm_transpPi {S : Sig} {Ψ Φ Γ A B φ u0 T}
     (h0 : SemTy S Ψ Φ Γ (transp (pi A B) φ u0) T) :
     SemEq S Ψ Φ Γ (transp (pi A B) φ u0) (transpPi A B φ u0) T := by
-  sorry
+  have he : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      sem S (Tm.transpPi A B φ u0) m ρ γ = sem S (transp (pi A B) φ u0) m ρ γ := by
+    intro m ρ γ hp
+    obtain ⟨hmem, -, hty, -⟩ := h0.2.2.2 m ρ γ hp
+    exact sem_transpPi (cond_of_sem_transp (hty.ne_empty hmem)) hp.kv
+  have hcl : (Tm.transpPi A B φ u0).ConstsLt S.length := by
+    obtain ⟨⟨hA, hB⟩, hu0⟩ := h0.2.1
+    have hw : (Tm.transp (A.shift.dsubst (Tm.bind2 (.or (.var 1) (.neg (.var 0))))) (.or φ.shift (.var 0))
+        (.var 0)).ConstsLt S.length := ⟨(hA.ren _ _).dsubst _, trivial⟩
+    refine ⟨hA.dinst _, hB.subst (fun x => ?_) _, hu0.ren _ _, (hA.ren _ _).dsubst _, trivial⟩
+    cases x with
+    | zero => exact hw
+    | succ x => trivial
+  exact ⟨h0, h0.of_eq hcl he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
 theorem sem_EqTm_transpSigma {S : Sig} {Ψ Φ Γ A B φ u0 T}
     (h0 : SemTy S Ψ Φ Γ (transp (sigma A B) φ u0) T) :
