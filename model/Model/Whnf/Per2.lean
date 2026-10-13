@@ -1,4 +1,5 @@
 import Model.Whnf.Data2
+import Model.Canon.KanDerived
 
 /-!
 # The binary relation is a partial equivalence
@@ -265,6 +266,133 @@ theorem per2_sigmaC {A B : V} (hA : A ≠ ∅) (ihA : PER2 S m A)
     have P := ihA k'' (f.comp σ'.hom)
     exact ⟨A1', B1', hr', P.conv h3 hfst,
       (hB k'' σ' hfst).conv (h4 _ _ (P.reflEl h3 hfst)) hsnd⟩
+
+/-- A related pair of type lines, at a point. -/
+theorem line_ty {L : V} (hL : KR2 S (m + 1) L) {f : Hom k m} (σ : ISub k' k) {L1 L1' : Tm}
+    (h : (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1') (r : I) (hr : r.Scoped k') :
+    (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L1.dinst r) (L1'.dinst r) := by
+  obtain ⟨-, h1, h2, -⟩ := Comp2_ty_base h
+  have := (hL _ _ k' (ISub.cons r hr (ISub.id k')) L1 L1' L1 L1).1 h
+  rw [Hom.comp_assoc, ← ISub.hom_comp, ISub.up_comp_cons_id, isub_cons_id_of_closed (closed_of_isTyK hW h1),
+    isub_cons_id_of_closed (closed_of_isTyK hW h2)] at this
+  exact this
+
+/-- The PER properties at a path code. -/
+theorem per2_pathC {L a0 a1 : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 S (m + 1) L) :
+    PER2 S m (pathC m L a0 a1) := by
+  intro k f
+  rw [Comp2_pathC L a0 a1 hLne]
+  refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
+    fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
+  · obtain ⟨hb, hall⟩ := hT
+    refine ⟨base_symm hb, fun k' σ => ?_⟩
+    obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := hall k' σ
+    have P0 := ihL k' ((Hom.lift f).comp (ISub.cons .zero trivial σ).hom)
+    have P1 := ihL k' ((Hom.lift f).comp (ISub.cons .one trivial σ).hom)
+    have c0 := line_ty hW hL σ h3 .zero trivial
+    have c1 := line_ty hW hL σ h3 .one trivial
+    exact ⟨L1', b0', b1', L1, b0, b1, h2, h1, (ihL _ _).symTy h3, P0.conv c0 (P0.symEl c0 h4),
+      P1.conv c1 (P1.symEl c1 h5)⟩
+  · obtain ⟨hb, hall⟩ := hT
+    obtain ⟨hb', hall'⟩ := hT'
+    refine ⟨base_trans hW hb hb', fun k' σ => ?_⟩
+    obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := hall k' σ
+    obtain ⟨L2, c0, c1, L2', c0', c1', h1', h2', h3', h4', h5'⟩ := hall' k' σ
+    obtain ⟨rfl, rfl, rfl⟩ : L1' = L2 ∧ b0' = c0 ∧ b1' = c1 := by
+      have := RedW.unique h2 h1'; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
+    have P0 := ihL k' ((Hom.lift f).comp (ISub.cons .zero trivial σ).hom)
+    have P1 := ihL k' ((Hom.lift f).comp (ISub.cons .one trivial σ).hom)
+    have d0 := line_ty hW hL σ h3 .zero trivial
+    have d1 := line_ty hW hL σ h3 .one trivial
+    exact ⟨L1, b0, b1, L2', c0', c1', h1, h2', (ihL _ _).transTy h3 h3',
+      P0.transEl d0 h4 (P0.conv (P0.symTy d0) h4'), P1.transEl d1 h5 (P1.conv (P1.symTy d1) h5')⟩
+  · obtain ⟨he, hmem, -, hall⟩ := ht
+    refine ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm, fun k'' σ' => ?_⟩
+    obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
+    obtain ⟨L1x, b0x, b1x, L1', b0', b1', hrx, -, h3, -⟩ := hT.2 k'' σ'
+    obtain ⟨rfl, rfl, rfl⟩ : L1x = L1 ∧ b0x = b0 ∧ b1x = b1 := by
+      have := RedW.unique hrx hr; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
+    refine ⟨L1x, b0x, b1x, hr, fun r hr' => ?_⟩
+    have := hel r hr'
+    simp only [ISub.id_comp] at this ⊢
+    exact (ihL _ _).symEl (line_ty hW hL σ' h3 r hr') this
+  · obtain ⟨he, hmem, -, hall⟩ := ht
+    obtain ⟨he', -, -, hall'⟩ := ht'
+    refine ⟨he.trans he', hmem, he.trans he', fun k'' σ' => ?_⟩
+    obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
+    obtain ⟨L1x, b0x, b1x, hrx, hel'⟩ := hall' k'' σ'
+    obtain ⟨rfl, rfl, rfl⟩ : L1x = L1 ∧ b0x = b0 ∧ b1x = b1 := by
+      have := RedW.unique hrx hr; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
+    obtain ⟨L1y, b0y, b1y, L1', b0', b1', hry, -, h3, -⟩ := hT.2 k'' σ'
+    obtain ⟨rfl, rfl, rfl⟩ : L1y = L1x ∧ b0y = b0x ∧ b1y = b1x := by
+      have := RedW.unique hry hr; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
+    refine ⟨L1y, b0y, b1y, hr, fun r hr' => ?_⟩
+    have x := hel r hr'
+    have y := hel' r hr'
+    simp only [ISub.id_comp] at x y ⊢
+    exact (ihL _ _).transEl (line_ty hW hL σ' h3 r hr') x y
+  · obtain ⟨he, hmem, -, hall⟩ := ht
+    have hTT := hT.1.2.2.2.2
+    refine ⟨he.conv hTT, hmem, he.conv hTT, fun k'' σ' => ?_⟩
+    obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
+    obtain ⟨L1x, b0x, b1x, L1', b0', b1', hrx, hr2, h3, -⟩ := hT.2 k'' σ'
+    obtain ⟨rfl, rfl, rfl⟩ : L1x = L1 ∧ b0x = b0 ∧ b1x = b1 := by
+      have := RedW.unique hrx hr; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
+    refine ⟨L1', b0', b1', hr2, fun r hr' => ?_⟩
+    have x := hel r hr'
+    simp only [ISub.id_comp] at x ⊢
+    exact (ihL _ _).conv (line_ty hW hL σ' h3 r hr') x
+
+/-- The PER properties at a code `(i : I) → L`. -/
+theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 S (m + 1) L) :
+    PER2 S m (ipiC m L) := by
+  intro k f
+  rw [Comp2_ipiC L hLne]
+  refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
+    fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
+  · obtain ⟨hb, hall⟩ := hT
+    refine ⟨base_symm hb, fun k' σ => ?_⟩
+    obtain ⟨L1, L1', h1, h2, h3⟩ := hall k' σ
+    exact ⟨L1', L1, h2, h1, (ihL _ _).symTy h3⟩
+  · obtain ⟨hb, hall⟩ := hT
+    obtain ⟨hb', hall'⟩ := hT'
+    refine ⟨base_trans hW hb hb', fun k' σ => ?_⟩
+    obtain ⟨L1, L1', h1, h2, h3⟩ := hall k' σ
+    obtain ⟨L2, L2', h1', h2', h3'⟩ := hall' k' σ
+    obtain rfl : L1' = L2 := by have := RedW.unique h2 h1'; injection this
+    exact ⟨L1, L2', h1, h2', (ihL _ _).transTy h3 h3'⟩
+  · obtain ⟨he, hmem, -, hall⟩ := ht
+    refine ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm, fun k'' σ' => ?_⟩
+    obtain ⟨L1, hr, hel⟩ := hall k'' σ'
+    obtain ⟨L1x, L1', hrx, -, h3⟩ := hT.2 k'' σ'
+    obtain rfl : L1x = L1 := by have := RedW.unique hrx hr; injection this
+    refine ⟨L1x, hr, fun r hr' => ?_⟩
+    have := hel r hr'
+    simp only [ISub.id_comp] at this ⊢
+    exact (ihL _ _).symEl (line_ty hW hL σ' h3 r hr') this
+  · obtain ⟨he, hmem, -, hall⟩ := ht
+    obtain ⟨he', -, -, hall'⟩ := ht'
+    refine ⟨he.trans he', hmem, he.trans he', fun k'' σ' => ?_⟩
+    obtain ⟨L1, hr, hel⟩ := hall k'' σ'
+    obtain ⟨L1x, hrx, hel'⟩ := hall' k'' σ'
+    obtain rfl : L1x = L1 := by have := RedW.unique hrx hr; injection this
+    obtain ⟨L1y, L1', hry, -, h3⟩ := hT.2 k'' σ'
+    obtain rfl : L1y = L1x := by have := RedW.unique hry hr; injection this
+    refine ⟨L1y, hr, fun r hr' => ?_⟩
+    have x := hel r hr'
+    have y := hel' r hr'
+    simp only [ISub.id_comp] at x y ⊢
+    exact (ihL _ _).transEl (line_ty hW hL σ' h3 r hr') x y
+  · obtain ⟨he, hmem, -, hall⟩ := ht
+    have hTT := hT.1.2.2.2.2
+    refine ⟨he.conv hTT, hmem, he.conv hTT, fun k'' σ' => ?_⟩
+    obtain ⟨L1, hr, hel⟩ := hall k'' σ'
+    obtain ⟨L1x, L1', hrx, hr2, h3⟩ := hT.2 k'' σ'
+    obtain rfl : L1x = L1 := by have := RedW.unique hrx hr; injection this
+    refine ⟨L1', hr2, fun r hr' => ?_⟩
+    have x := hel r hr'
+    simp only [ISub.id_comp] at x ⊢
+    exact (ihL _ _).conv (line_ty hW hL σ' h3 r hr') x
 
 end
 

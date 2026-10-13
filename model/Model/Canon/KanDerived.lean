@@ -44,6 +44,18 @@ theorem tyEq_ieq {n : ℕ} {C : Tm} {l : ℕ} (hCt : HasTy0 S n .one [] C (.univ
     {T1 T2 : Tm} (h1 : T1 = C.subst .var τ1) (h2 : T2 = C.subst .var τ2) : TyEq S k T1 T2 :=
   .inr ⟨l, by subst h1 h2; exact ieq0 hW hCt hb1 hb2 heq⟩
 
+omit hW in
+theorem ISub.up_comp_cons_id (σ : ISub k' k) (r : I) (hr : r.Scoped k') :
+    σ.up.comp (ISub.cons r hr (ISub.id k')) = ISub.cons r hr σ := by
+  ext i
+  rcases i with _ | i
+  · rfl
+  · show ((σ.τ i).shift).subst (ISub.cons r hr (ISub.id k')).τ = σ.τ i
+    rw [I_shift_cons]
+    by_cases h : i < k
+    · exact ISub.I.subst_scoped_id (σ.sc i h) fun j hj => by simp [ISub.id, hj]
+    · rw [σ.hi i (by omega)]; rfl
+
 /-- Heterogeneous composition along a computable line preserves computability. -/
 theorem RE_comp {C u u0 : Tm} {ψ : I} (hC : KanAll S (k + 1) C)
     (hty : HasTy S k .one [] (Tm.comp C ψ u u0) (C.dinst .one))

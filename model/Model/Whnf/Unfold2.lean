@@ -208,6 +208,22 @@ theorem Comp2_glueC_at {A Tp ep : V} {φ : Cof m} (hφ : φ.IsCof)
   rw [Comp2_eq_res (IsKV.ne_empty (isKV_glueC _ _ _ _)), res_glueC hTp hTkv hφ f]
   split <;> rfl
 
+/-- Every pair of related types has the base clause. -/
+theorem Comp2_ty_base {X : V} {f : Hom k m} {T T' : Tm} (h : (Comp2 S X m k f).ty T T') :
+    X ≠ ∅ ∧ IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f X ∧ semK S k T' = res f X ∧ TyEq S k T T' := by
+  rw [Comp2_eq] at h; unfold compF2 at h
+  split at h
+  · rename_i hX
+    refine ⟨hX, ?_⟩
+    simp only [body2, core2] at h
+    split_ifs at h <;> first | exact h.1 | exact h | exact h.elim
+  · exact h.elim
+
+theorem Comp2_eq_semK {X : V} {f : Hom k m} {T T' : Tm} (h : (Comp2 S X m k f).ty T T') :
+    Comp2 S X m k f = Comp2 S (semK S k T) k k (Hom.id k) := by
+  obtain ⟨hX, -, -, hs, -⟩ := Comp2_ty_base h
+  rw [hs, Comp2_eq_res hX]
+
 end
 
 end Model.Whnf
