@@ -1,6 +1,7 @@
 -- Programs the elaborator accepts that the certified kernel once rejected (found by the fuzzer).
 import loopspace
 import bool
+import hits
 
 -- a filler in a line of types given by composition in the universe: comparing `t3 (1 ∧ i)`
 -- with `t3 i` must not unfold `t3`
