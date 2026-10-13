@@ -469,6 +469,83 @@ theorem transpFill_cond {A a : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V} (hc :
   refine ⟨tc, ?_⟩
   rw [Tm.transpFill, sem_transp tc, eL0, eb, face_fill, transpAt_res, Hom.comp_id, transpFillF, Hom.id_comp]
 
+/-! ### transpSigma -/
+
+theorem natural_sigma_dom {A B : Tm} {ρ : IEnv m} {γ : ℕ → V} (hty : TyOK S (.sigma A B) m ρ γ)
+    (hnat : Natural S (.sigma A B) m ρ γ) : Natural S A m ρ γ := by
+  intro k g
+  have hty' : TyOK S (.sigma A B) k (ρ.restr g) (TEnv.restr γ g) := by
+    unfold TyOK; rw [hnat k g]; exact hty.res g
+  obtain ⟨hAkv', hsem', -⟩ := hty'.sigma_data
+  obtain ⟨hAkv, hsem, -⟩ := hty.sigma_data
+  have := hnat k g
+  rw [hsem', hsem, res_sigmaC] at this
+  exact (sigmaC_inj hAkv' (isKV_famV _ _) (isKV_res _ _) (isKV_res _ _) this).1
+
+theorem sem_transpSigma {A B u0 : Tm} {φ : I} {ρ : IEnv m} {γ : ℕ → V}
+    (hc : TranspCond S (.sigma A B) φ u0 m ρ γ) :
+    sem S (Tm.transpSigma A B φ u0) m ρ γ = sem S (.transp (.sigma A B) φ u0) m ρ γ := by
+  have hTy : TyOK S (.sigma A B) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := hc.1
+  obtain ⟨hAkv, hsem, hAfib, hfam, l, hl, -, hAWF, hAV, hfamW⟩ := hTy.sigma_data
+  have hNA := natural_sigma_dom hTy hc.2.2.2.1
+  have hφ := isCof_ival_face ρ φ
+  have hcon := hc.2.1
+  have hu0 := hc.2.2.1
+  have hu0nat := hc.2.2.2.2
+  unfold lineV at hcon hu0
+  rw [hsem] at hcon hu0
+  set Av := sem S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))
+  set Bf := famV (m + 1) Av fun k f a => sem S B k (ρ.ext.restr f) (TEnv.cons (TEnv.restr (TEnv.restr γ (Hom.wk m)) f) a)
+  have heta := sigma_eta hAfib hfam hu0
+  -- the first component
+  have hfnat : Natural S (.fst u0) m ρ γ := fun k g => by
+    rw [sem_fst, sem_fst, hu0nat k g]; exact sigma_fst_res hAfib hfam hu0 g
+  have hsnat : Natural S (.snd u0) m ρ γ := fun k g => by
+    rw [sem_snd, sem_snd, hu0nat k g]; exact sigma_snd_res hAfib hfam hu0 g
+  have c1 : TranspCond S A φ (.fst u0) m ρ γ :=
+    ⟨⟨l, hl, Or.inl ⟨hAWF, hAV⟩⟩, sigma_constA hAfib hfam hcon, heta.2.1, hNA, hfnat⟩
+  obtain ⟨ca, hav⟩ := transpFill_cond c1
+  have hanat : Natural S (Tm.transpFill A φ (.fst u0)) (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) := ca.natural
+  rw [sem_fst] at hav
+  have htfa := tfa_mem hAfib hfam hφ hcon hu0
+  set tfa := transpFillF Av (Hom.id (m + 1)) (ival ρ φ).face (fstV m (sem S u0 m ρ γ))
+  set B' := B.subst (fun | 0 => Tm.transpFill A φ (.fst u0) | n + 1 => .var n) .var
+  have eB : ∀ k (g : Hom k (m + 1)), sem S B' k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+      apZ (dat Bf k g) (res g tfa) := by
+    intro k g
+    have hσ : ∀ x, Natural S ((fun | 0 => Tm.transpFill A φ (.fst u0) | n + 1 => .var n : ℕ → Tm) x) k
+        (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) := by
+      intro x; cases x with
+      | zero => exact hanat.restr g
+      | succ x => exact natural_var S x _ _
+    rw [sem_subst S B k _ _ _ _ hσ]
+    have hg : res g tfa ∈ El Av g := by
+      have := hAfib.elRes _ _ _ htfa k g; rwa [Hom.id_comp] at this
+    rw [apZ_dat_famV _ _ _ hg]
+    congr 1
+    funext x; cases x with
+    | zero => show sem S (Tm.transpFill A φ (.fst u0)) k _ _ = _; rw [hanat k g, hav]; rfl
+    | succ x => rfl
+  have eB0 : lineV S B' m ρ γ = apZ (dat Bf (m + 1) (Hom.id (m + 1))) tfa := by
+    have := eB (m + 1) (Hom.id (m + 1))
+    rwa [IEnv.restr_id, TEnv.restr_id_of_kv (γ := TEnv.restr γ (Hom.wk m)) (fun x => isKV_res _ _),
+      res_id (hAfib.elKV _ _ _ htfa)] at this
+  have c2 : TranspCond S B' φ (.snd u0) m ρ γ := by
+    refine ⟨?_, ?_, ?_, fun k g => ?_, hsnat⟩
+    · rw [eB0]; exact ⟨l, hl, Or.inl ⟨(hfamW tfa htfa).2, (hfamW tfa htfa).1⟩⟩
+    · rw [eB0]; exact constOn_Bt hAfib hfam hφ hcon hu0
+    · rw [eB0, sem_snd]; exact base_Bt hAfib hfam hφ hcon hu0
+    · rw [eB k g, show sem S B' (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) = lineV S B' m ρ γ from rfl, eB0]
+      have := (res_Bt hAfib hfam hφ hcon hu0 g).symm
+      rw [Hom.id_comp] at this; exact this
+  have hm1 := c1.1.fib.trMem m _ _ _ hφ c1.2.1 c1.2.2.1
+  have hm2 := c2.1.fib.trMem m _ _ _ hφ c2.2.1 c2.2.2.1
+  show sem S (.pair (.transp A φ (.fst u0)) (.transp B' φ (.snd u0))) m ρ γ = _
+  rw [sem_pair_of_kv (by rw [sem_transp c1]; exact c1.1.fib.elKV _ _ _ hm1)
+    (by rw [sem_transp c2]; exact c2.1.fib.elKV _ _ _ hm2), sem_transp c1, sem_transp c2, sem_transp hc, eB0]
+  unfold lineV
+  rw [hsem, transpAt_sigmaC hAfib hfam hu0, transpSigmaF_eq, sem_fst, sem_snd]
+
 end
 
 end Model
