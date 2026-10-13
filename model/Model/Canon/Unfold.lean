@@ -135,6 +135,10 @@ theorem Comp_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp) 
 def dataP (S : Sig) (Θ : SData m) (f : Hom k m) : (k' : ℕ) → Hom k' k → ℕ → ℕ → List V → Tm → Tm → Prop :=
   fun k' g c j pre A t => (Comp S (tyLook (shapeV (Θ.restr (f.comp g))) c j pre) k' k' (Hom.id k')).el A t
 
+/-- Membership in an inductive type's code. -/
+def dataMem (S : Sig) (Θ : SData m) (f : Hom k m) : (k' : ℕ) → Hom k' k → Tm → Prop :=
+  fun k' g t => semK S k' t ∈ delemSet (Θ.restr (f.comp g)) k' (Hom.id k')
+
 theorem Comp_dataC (Θ : SData m) (f : Hom k m) :
     Comp S (dataC Θ) m k f =
       ⟨fun T => (IsTyK S k T ∧ semK S k T = res f (dataC Θ)) ∧ ∃ ps, TyEq S k T (.data Θ.idx ps) ∧
@@ -142,7 +146,7 @@ theorem Comp_dataC (Θ : SData m) (f : Hom k m) :
           ∀ k' (σ : ISub k' k) (c : ℕ) (C : Ctor) (args : List Tm), (dataD S Θ.idx).ctors[c]? = some C →
             args.length < C.args.length → C.isRec args.length = false →
             (∀ j (hj : j < args.length), C.isRec j = true →
-              DR S Θ.idx (dataD S Θ.idx) (dataP S Θ f) k' σ.hom (T.isub σ) args[j]) →
+              DR S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP S Θ f) k' σ.hom ((Tm.data Θ.idx ps).isub σ) args[j]) →
             (∀ j (hj : j < args.length), C.isRec j = false →
               dataP S Θ f k' σ.hom c j ((args.take j).map (semK S k'))
                 ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList
@@ -152,12 +156,13 @@ theorem Comp_dataC (Θ : SData m) (f : Hom k m) :
               ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
                 (args.reverse ++ (ps.isub σ).toList.reverse)),
         fun T t => HasTy S k .one [] t T ∧ semK S k t ∈ El (res f (dataC Θ)) (Hom.id k) ∧
-          HasTy S k .one [] t T ∧ DR S Θ.idx (dataD S Θ.idx) (dataP S Θ f) k (Hom.id k) T t⟩ := by
+          HasTy S k .one [] t T ∧ DR S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP S Θ f) k (Hom.id k) T t⟩ := by
   rw [Comp_unfold (show dataC Θ ≠ ∅ from mkKV_ne_empty _)]
   simp only [body, core, dataC, dat_mkKV, dataDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id,
     natZ_inj, tPi, tSigma, tPath, tIPi, tUniv, tEmpty, tGlue, tData, if_false, show ¬ (11 = 2) by decide,
     show ¬ (11 = 3) by decide, show ¬ (11 = 4) by decide, show ¬ (11 = 5) by decide, show ¬ (11 = 6) by decide,
-    show ¬ (11 = 1) by decide, show ¬ (11 = 7) by decide, or_self, if_true, natOf_natZ]
+    show ¬ (11 = 1) by decide, show ¬ (11 = 7) by decide, or_self, if_true, natOf_natZ, π1π2_quad, dataMem,
+    dataP]
   rfl
 
 end

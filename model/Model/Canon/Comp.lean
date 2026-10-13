@@ -151,30 +151,30 @@ def equivE (T A : ElR k) : ElR k :=
 /-! ### Inductive types -/
 
 /-- Computable elements of an inductive type (`d`, declaration `D`) at the restriction `f` of its
-code: canonical constructors with computable arguments (`P` for point arguments, given the code's
-argument types: the constructor, the position and the values of the earlier arguments), and in
-a HIT formal compositions whose face does not hold. -/
-inductive DR {m : ℕ} (d : ℕ) (D : DataDecl)
+code: constructors with computable arguments (`P` for point arguments, given the code's argument
+types: the constructor, the position and the values of the earlier arguments), and in a HIT
+formal compositions whose face does not hold. A constructor's boundary may hold; it is reduced
+away only at the end (`conBnd`). -/
+inductive DR {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m → Tm → Prop)
     (P : (k : ℕ) → Hom k m → ℕ → ℕ → List V → Tm → Tm → Prop) : (k : ℕ) → Hom k m → Tm → Tm → Prop
   | con {k : ℕ} {f : Hom k m} {A t ps : Tm} {c : ℕ} {C : Ctor} {args : List Tm} {rs : List I} :
-      D.ctors[c]? = some C → rs.length = C.dims → (∀ r ∈ rs, r.Scoped k) →
-      bndAtMap C (rs.map (ival (idEnv k))) (Hom.id k) = none →
+      Mem k f t → D.ctors[c]? = some C → rs.length = C.dims → (∀ r ∈ rs, r.Scoped k) →
       TyEq S k A (.data d ps) →
       EqTm S k .one [] t (.con d c ps (Tm.ofList args) rs) A →
       args.length = C.args.length →
-      (∀ j (hj : j < args.length), C.isRec j = true → DR d D P k f A args[j]) →
+      (∀ j (hj : j < args.length), C.isRec j = true → DR d D Mem P k f (.data d ps) args[j]) →
       (∀ j (hj : j < args.length), C.isRec j = false →
         P k f c j ((args.take j).map (semK S k))
           ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ ps.toList.reverse)) args[j]) →
-      DR d D P k f A t
+      DR d D Mem P k f A t
   | hcomp {k : ℕ} {f : Hom k m} {A t ps u a : Tm} {φ : I} :
-      D.isHIT = true → φ.Scoped k → ¬ (ival (idEnv k) φ).holds →
+      Mem k f t → D.isHIT = true → φ.Scoped k → ¬ (ival (idEnv k) φ).holds →
       TyEq S k A (.data d ps) →
       EqTm S k .one [] t (.hcomp (.data d ps) φ u a) A →
-      DR d D P k f A a →
+      DR d D Mem P k f (.data d ps) a →
       (∀ k' (σ : ISub k' k) (r : I), r.Scoped k' → (ival (idEnv k') (φ.subst σ.τ)).holds →
-        DR d D P k' (f.comp σ.hom) (A.isub σ) ((u.isub σ.up).dinst r)) →
-      DR d D P k f A t
+        DR d D Mem P k' (f.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst r)) →
+      DR d D Mem P k f A t
 
 /-! ### Decoding codes -/
 
@@ -287,12 +287,13 @@ def core (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal
   else if π1 sh = natZ tData then
     let d := natOf (π1 (π2 sh))
     let D : DataDecl := dataD S d
+    let Mem : (k' : ℕ) → Hom k' k → Tm → Prop := fun k' g t => semK S k' t ∈ π1 (π2 (Dt k' g))
     let P : (k' : ℕ) → Hom k' k → ℕ → ℕ → List V → Tm → Tm → Prop := fun k' g c j pre A t =>
       (rec (tyLook (π2 (π2 (π2 (π1 (Dt k' g))))) c j pre) (tyLook_rank_lt (hD k' g)) k' k' (Hom.id k')).el A t
     { ty := fun A => base A ∧ ∃ ps, TyEq S k A (.data d ps) ∧ ps = Tm.ofList ps.toList ∧
           ∀ k' (σ : ISub k' k) (c : ℕ) (C : Ctor) (args : List Tm), D.ctors[c]? = some C →
             args.length < C.args.length → C.isRec args.length = false →
-            (∀ j (hj : j < args.length), C.isRec j = true → DR S d D P k' σ.hom (A.isub σ) args[j]) →
+            (∀ j (hj : j < args.length), C.isRec j = true → DR S d D Mem P k' σ.hom ((Tm.data d ps).isub σ) args[j]) →
             (∀ j (hj : j < args.length), C.isRec j = false →
               P k' σ.hom c j ((args.take j).map (semK S k'))
                 ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ (ps.isub σ).toList.reverse))
@@ -300,7 +301,7 @@ def core (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal
             (rec (tyLook (π2 (π2 (π2 (π1 (Dt k' σ.hom))))) c args.length (args.map (semK S k')))
               (tyLook_rank_lt (hD k' σ.hom)) k' k' (Hom.id k')).ty
               ((C.argTy d D.params.length args.length).substList (args.reverse ++ (ps.isub σ).toList.reverse))
-      el := fun A t => HasTy S k .one [] t A ∧ DR S d D P k (Hom.id k) A t }
+      el := fun A t => HasTy S k .one [] t A ∧ DR S d D Mem P k (Hom.id k) A t }
   else Pack.bot
 
 /-- The relations, with the elements typed and in the code's element set. -/
