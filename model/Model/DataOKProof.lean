@@ -499,11 +499,25 @@ theorem ctor_of_lt {D : DataDecl} {c j : ℕ} (h : j < (D.ctors.getD c default).
 
 section dataok
 
-variable (S0 : Sig) (E : DataDecl) (hsyn : DataSyn S0.length E)
-  (hok0 : SigOK (S0 ++ [.data (E.truncate 0)]))
-  (hck : ∀ (c : ℕ) (C : Ctor), E.ctors[c]? = some C → ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
-    HasTy (S0 ++ [.data (E.truncate 0)]) 0 .one (E.argCtx S0.length C k) A (.univ E.level))
-include hsyn hok0 hck
+/-- The argument types of `E` are well-formed codes (`argTy_univ`). -/
+def ArgTysOK (S0 : Sig) (E : DataDecl) : Prop :=
+  ∀ (c : ℕ) (C : Ctor), E.ctors[c]? = some C → ∀ (j : ℕ) (A : Tm), C.args[j]? = some (.point A) →
+    ∀ (m : ℕ) (ps : RV m), ParamsOK (sigV S0) E m ps → ∀ n (g : Hom n m) (pre : List V) (hjp : j ≤ pre.length),
+      (∀ i (hi : i < j), C.isRec i = false →
+        pre[i]'(by omega) ∈ El (argTyRaw (sigV S0) E S0.length c i n (ps n g) pre) (Hom.id n)) →
+      argTyRaw (sigV S0) E S0.length c j n (ps n g) pre ∈ El (univC n E.level) (Hom.id n) ∧
+      ∀ n' (h : Hom n' n), res h (argTyRaw (sigV S0) E S0.length c j n (ps n g) pre) =
+        argTyRaw (sigV S0) E S0.length c j n' (ps n' (g.comp h)) (pre.map (res h))
+
+theorem argTysOK_of (S0 : Sig) (E : DataDecl) (hsyn : DataSyn S0.length E)
+    (hok0 : SigOK (S0 ++ [.data (E.truncate 0)]))
+    (hck : ∀ (c : ℕ) (C : Ctor), E.ctors[c]? = some C → ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
+      HasTy (S0 ++ [.data (E.truncate 0)]) 0 .one (E.argCtx S0.length C k) A (.univ E.level)) :
+    ArgTysOK S0 E := fun c C hC j A hA m ps hps n g pre hjp hpre =>
+  argTy_univ S0 E hsyn hC hps hok0 (hck c C hC) j A hA n g pre hjp hpre
+
+variable (S0 : Sig) (E : DataDecl) (hsyn : DataSyn S0.length E) (hU : ArgTysOK S0 E)
+include hsyn hU
 
 theorem argTySem_facts {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) E m ps) (c j n : ℕ) (g : Hom n m)
     (pre : List V) :
@@ -516,7 +530,7 @@ theorem argTySem_facts {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) E m ps) (
     have hv1 := hv.1
     obtain ⟨C, A, hC, hA, -⟩ := ctor_of_lt hj hr
     left
-    exact (argTy_univ S0 E hsyn hC hps hok0 (hck c C hC) j A hA n g pre hv.1
+    exact (hU c C hC j A hA m ps hps n g pre hv.1
       fun i hi hr' => hv.2 i hi (by omega) (by rw [getD_ctors hC]; exact hr')).1
   · right; rfl
 
@@ -529,7 +543,7 @@ theorem argTySem_nat {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) E m ps) (c 
   · obtain ⟨hj, hr, hv⟩ := hc
     have hv1 := hv.1
     obtain ⟨C, A, hC, hA, hgC⟩ := ctor_of_lt hj hr
-    have hU : ∀ i (hi : i < j), C.isRec i = false →
+    have hUi : ∀ i (hi : i < j), C.isRec i = false →
         argTyRaw (sigV S0) E S0.length c i n (ps n g) pre ∈ El (univC n E.level) (Hom.id n) ∧
         ∀ n' (h : Hom n' n), res h (argTyRaw (sigV S0) E S0.length c i n (ps n g) pre) =
           argTyRaw (sigV S0) E S0.length c i n' (ps n' (g.comp h)) (pre.map (res h)) := by
@@ -539,19 +553,19 @@ theorem argTySem_nat {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) E m ps) (c 
         cases h' : C.args[i]'hiC with
         | point Ai => exact ⟨Ai, by rw [List.getElem?_eq_getElem hiC, h']⟩
         | recur => simp [Ctor.isRec, List.getElem?_eq_getElem hiC, h'] at hri
-      exact argTy_univ S0 E hsyn hC hps hok0 (hck c C hC) i Ai hAi n g pre (by omega)
+      exact hU c C hC i Ai hAi m ps hps n g pre (by omega)
         fun i' hi' hr' => hv.2 i' (by omega) (by omega) (by rw [hgC]; exact hr')
     have hc' : j < (E.ctors.getD c default).args.length ∧ (E.ctors.getD c default).isRec j = false ∧
         argPreValid (sigV S0) E S0.length c j n' (ps n' (g.comp h)) (pre.map (res h)) := by
       refine ⟨hj, hr, by simpa using hv1, fun i hi hip hri => ?_⟩
       rw [hgC] at hri
-      obtain ⟨hmem, hnat⟩ := hU i hi hri
+      obtain ⟨hmem, hnat⟩ := hUi i hi hri
       rw [← hnat n' h, List.getElem_map]
       rw [mem_El_univ_iff] at hmem
       have := hmem.2.fib.elRes n (Hom.id n) _ (hv.2 i hi (by omega) (by rw [hgC]; exact hri)) n' h
       rwa [El_eq_res_id, Hom.id_comp] at this
     rw [argTySem_eq, if_pos ⟨hj, hr, hv⟩, argTySem_eq, if_pos hc']
-    exact (argTy_univ S0 E hsyn hC hps hok0 (hck c C hC) j A hA n g pre hv1
+    exact (hU c C hC j A hA m ps hps n g pre hv1
       fun i' hi' hr' => hv.2 i' hi' (by omega) (by rw [hgC]; exact hr')).2 n' h
   · have hc' : ¬ (j < (E.ctors.getD c default).args.length ∧ (E.ctors.getD c default).isRec j = false ∧
         argPreValid (sigV S0) E S0.length c j n' (ps n' (g.comp h)) (pre.map (res h))) := by
@@ -559,7 +573,7 @@ theorem argTySem_nat {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) E m ps) (c 
       exact hc ⟨hj, hr, ptValid_argPreValid hp (by simpa using hv.1)⟩
     rw [argTySem_eq, if_neg hc, argTySem_eq, if_neg hc', res_emptyC]
 
-omit hok0 hck in
+omit hU in
 theorem argTySem_recIrr (c j n : ℕ) (psv : V) (pre pre' : List V) (hl : pre.length = pre'.length)
     (he : ∀ i (hi : i < pre.length) (hi' : i < pre'.length), (E.ctors.getD c default).isRec i = false →
       pre[i] = pre'[i]) :
@@ -589,7 +603,7 @@ theorem argTySem_recIrr (c j n : ℕ) (psv : V) (pre pre' : List V) (hl : pre.le
     exact hraw j h.1 h.2.1 h.2.2.1
   · rw [if_neg h, if_neg (fun h' => h (hcond.2 h'))]
 
-omit hsyn hok0 hck in
+omit hsyn hU in
 theorem argTySem_noparams (hnp : E.params = []) (c j n : ℕ) (psv psv' : V) (pre : List V) :
     argTySem (sigV S0) E S0.length c j n psv pre = argTySem (sigV S0) E S0.length c j n psv' pre := by
   have h0 : ∀ v, plist v E.params.length = [] := by intro v; simp [plist, hnp]
@@ -610,18 +624,18 @@ theorem dataOK_of
   rw [sigUpTo_ext] at hps ⊢
   obtain ⟨hb, ho⟩ := hbo m ps hps
   have hl : E.level ≤ 4 := by have := hsyn.1; unfold maxLevel at this; omega
-  refine ⟨{ nat := fun c j n g pre hp n' h => argTySem_nat S0 E hsyn hok0 hck hps c j n g pre hp n' h
+  refine ⟨{ nat := fun c j n g pre hp n' h => argTySem_nat S0 E hsyn hU hps c j n g pre hp n' h
             recIrr := fun c j n g pre pre' hl he => argTySem_recIrr S0 E hsyn c j n _ pre pre' hl he
             bnd := hb
             const := fun hp c j n g g' pre => argTySem_noparams S0 E (by
               simpa [dataSD] using hp) c j n _ _ pre
             ovl := ho
             fib := fun c j n g pre _ => ?_ }, fun c j n g pre => ?_⟩
-  · rcases argTySem_facts S0 E hsyn hok0 hck hps c j n g pre with h | h
+  · rcases argTySem_facts S0 E hsyn hU hps c j n g pre with h | h
     · rw [mem_El_univ_iff] at h; exact h.2.fib
     · show Fib (argTySem _ _ _ _ _ _ _ _) n
       rw [h]; exact fib_emptyC
-  · rcases argTySem_facts S0 E hsyn hok0 hck hps c j n g pre with h | h
+  · rcases argTySem_facts S0 E hsyn hU hps c j n g pre with h | h
     · rw [mem_El_univ_iff] at h; exact ⟨h.1, fun _ => h.2⟩
     · show argTySem _ _ _ _ _ _ _ _ ∈ Vt E.level ∧ (_ → WF E.level n (argTySem _ _ _ _ _ _ _ _))
       rw [h]; exact ⟨emptyC_mem_Vt' hl, fun _ => WFI.empty⟩
@@ -931,6 +945,69 @@ theorem bty_of_wf (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
     exact ⟨fun hs _ => by simp [Ctor.simpleB] at hs, fun _ _ _ _ _ _ _ _ _ _ _ _ => ⟨trivial, trivial⟩⟩
 
 end tyeq
+
+/-! ### Assembly -/
+
+/-- The generator constructor of truncated declarations. -/
+abbrev genCtor : Ctor := { args := [], dims := 0, bnd := [] }
+
+theorem sigOK_ext {S0 : Sig} (hS0 : SigOK S0) {E : DataDecl} (hE : DataOK (S0 ++ [.data E]) S0.length E) :
+    SigOK (S0 ++ [.data E]) := by
+  refine ⟨fun k t A hk => ?_, fun k D' hk => ?_⟩
+  · have hkl : k < S0.length := by
+      by_contra h
+      have : k < (S0 ++ [Entry.data E]).length := (List.getElem?_eq_some_iff.1 hk).1
+      simp at this
+      have hk' : k = S0.length := by omega
+      subst hk'; simp at hk
+    rw [List.getElem?_append_left hkl] at hk
+    have := hS0.1 k t A hk
+    rwa [List.take_append_of_le_length hkl.le]
+  · by_cases hkl : k < S0.length
+    · rw [List.getElem?_append_left hkl] at hk
+      have := hS0.2 k D' hk
+      have e : sigUpTo (S0 ++ [Entry.data E]) k = sigUpTo S0 k := by
+        rw [← sigUpTo_take (S0 ++ [Entry.data E]) (K := S0.length) k hkl.le, List.take_left' rfl]
+      unfold DataOK at this ⊢
+      rwa [e]
+    · have : k < (S0 ++ [Entry.data E]).length := (List.getElem?_eq_some_iff.1 hk).1
+      simp at this
+      have hk' : k = S0.length := by omega
+      subst hk'
+      simp at hk; subst hk; exact hE
+
+section assembly
+
+variable (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0.length)
+  (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
+  (X : List Ctor) (B : ℕ) (hB : B ≤ D.ctors.length) (hXB : ∀ c' < B, X[c']? = D.ctors[c']?)
+  (hXr : ∀ c', B ≤ c' → ∀ C', X[c']? = some C' → C' = genCtor)
+  (hokB : ∀ c' < B, SigOK (S0 ++ [.data (D.truncate c')]))
+
+include hS0 hWf hok0 hXB hXr in
+theorem dataSyn_X : DataSyn S0.length { D with ctors := X } := by
+  refine ⟨hWf.1, fun j A hA => ⟨(hWf.2.1 j A hA).1, ?_⟩, fun c C hC k A hA => ?_⟩
+  · obtain ⟨l, hl⟩ := (hWf.2.1 j A hA).2.2
+    exact (sound_ty hS0 hl).2.1
+  · by_cases hcB : c < B
+    · rw [show ({ D with ctors := X } : DataDecl).ctors = X from rfl, hXB c hcB] at hC
+      obtain ⟨h1, h2, h3, h4⟩ := (hWf.2.2 c C hC).1 k A hA
+      refine ⟨h1, ?_, h2, h3⟩
+      have := (sound_ty hok0 h4).2.1
+      simpa using this
+    · have := hXr c (by omega) C hC
+      subst this; simp at hA
+
+include hWf hXB in
+theorem hck_X : ∀ (c : ℕ) (C : Ctor), ({ D with ctors := X } : DataDecl).ctors[c]? = some C → c < B →
+    ∀ (k : ℕ) (A : Tm), C.args[k]? = some (.point A) →
+    HasTy (S0 ++ [.data (({ D with ctors := X } : DataDecl).truncate 0)]) 0 .one
+      (({ D with ctors := X } : DataDecl).argCtx S0.length C k) A (.univ D.level) := by
+  intro c C hC hcB k A hA
+  rw [show ({ D with ctors := X } : DataDecl).ctors = X from rfl, hXB c hcB] at hC
+  exact ((hWf.2.2 c C hC).1 k A hA).2.2.2
+
+end assembly
 
 end
 
