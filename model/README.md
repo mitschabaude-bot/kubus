@@ -90,7 +90,8 @@ The model is the CCHM cubical-sets model over the De Morgan cube category, prese
 | `Model/Pi.lean`, `PiFib.lean`, `PiTransp.lean` | Π-types: Kripke function elements; `hcompPiF`/`transpPiF` read off the spec's `Tm.hcompPi`/`Tm.transpPi`; `fib_piC` |
 | `Model/Kan.lean` | derived operations `hfillF`, `compF`, `transpFillF` |
 | `Model/Sigma.lean`, `SigmaFib.lean`, `Path.lean`, `PathFib.lean`, `IPiFib.lean` | Σ, path and `(i : I) → A` codes and their fibrancy (`fib_sigmaC`, `fib_pathC`, `fib_ipiC`) |
-| `Model/Glue.lean` | Glue elements, `unglue`, `hcompGlue`; `glueC` |
+| `Model/Glue.lean`, `GlueElem.lean`, `GlueFib.lean` | Glue elements, `unglue`, `hcompGlue`; `glueC`; `GlueOK` (the Glue hypotheses) and the `hcomp` fields |
+| `Model/GlueTransp.lean`, `EquivCode.lean`, `CompFill.lean`, `CofForall.lean` | Glue transport (`gtResult`, the semantic reading of `Tm.transpGlue` after CCHM) and its fields; model codes for fibers/`isContr`/`isEquiv`/`Equiv`; heterogeneous `fill`; `∀i. φ` |
 | `Model/Interp.lean` | defensive interpretation `interp` of raw syntax (see its header for the side conditions it checks) |
 | `Model/Tower.lean`, `Univ.lean`, `WFFib.lean` | the tower `Vt l` (embedded `ZFSet.{l}`), the empty type, well-formed codes `WF l` (inductive), `univC m l`; well-formed codes are fibrant and stable under restriction |
 | `Model/Sem.lean`, `InterpLemmas.lean` | `sem S`, constants from the signature, points, naturality, the semantic judgments `SemWf`/`SemTy`/`SemEq`/`SigOK`; renaming and substitution lemmas |
@@ -113,6 +114,6 @@ All rules of `KubusCore/Rules.lean` are validated (sorry-free lemma in `Model/Ru
 
 Remaining `sorry`s:
 
-1. Glue transport: `GlueOK.trMem`/`trFace`/`trRes` (`Model/GlueFib.lean`) and the rule `transpGlue` (the code's transport is still a placeholder; it will be the semantic reading of `Tm.transpGlue`, after CCHM).
+1. The rule `transpGlue` (`sem_EqTm_transpGlue`): the contractum's denotation is the code's transport `gtResult`. Glue codes themselves are fully fibrant (`GlueOK.fib`, sorry-free).
 2. `hcomp` in universes (`fib_univC` in `Model/WFFib.lean`): Glue along the transport equivalence.
 3. Smallness: `Vt l` is closed under the code constructors (`emptyC_mem_Vt`, `res_mem_Vt`, `univC_mem_Vt`, `piC_mem_Vt`, `sigmaC_mem_Vt`, `pathC_mem_Vt`, `ipiC_mem_Vt`, `equivCode_mem_Vt`, `glueC_mem_Vt`).
