@@ -68,10 +68,6 @@ theorem famV_congr {A : V} {F G : (n : ℕ) → Hom n m → V → V}
 
 /-! ### The model codes -/
 
-/-- `fiber f y = Σ (t : T), Path A (f t) y`. -/
-def fiberM (k : ℕ) (T A f y : V) : V :=
-  sigmaC k T (famV k T fun k' g t => pathC k' (res (Hom.wk k') (res g A)) (appV k' (res g f) t) (res g y))
-
 /-- `isContr X = Σ (c : X), (x : X) → Path X c x`. -/
 def isContrM (k : ℕ) (X : V) : V :=
   sigmaC k X (famV k X fun k' g c => piC k' (res g X)

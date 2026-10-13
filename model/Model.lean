@@ -20,6 +20,8 @@ import Model.Tower
 import Model.Univ
 import Model.GlueElem
 import Model.GlueFib
+import Model.EquivCode
+import Model.GlueTransp
 import Model.Sem
 import Model.InterpLemmas
 import Model.SemBasic
