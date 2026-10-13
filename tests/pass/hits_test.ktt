@@ -1,7 +1,7 @@
 import hits
 
-#eval transport (Susp Bool) (Susp Bool) suspNot (merid true (~ 0))
-#eval \(i : I) -> transport (Susp Bool) (Susp Bool) suspNot (merid true i)
-#eval transport (Trunc Bool) (Trunc Bool) (\i -> Trunc (notPath i)) (squash (inc true) (inc false) 1)
+#eval transport suspNot (merid true (~ 0))
+#eval \(i : I) -> transport suspNot (merid true i)
+#eval transport (\i -> Trunc (notPath i)) (squash (inc true) (inc false) 1)
 #eval t2
 #eval t2 0

@@ -11,7 +11,7 @@ def helix : S1 -> U
   | base => Int
   | loop i => sucPathInt i          -- ua of the successor equivalence
 
-def winding (p : Path S1 base base) : Int := transport Int Int (\i -> helix (p i)) (pos zero)
+def winding (p : Path S1 base base) : Int := transport (\i -> helix (p i)) (pos zero)
 
 #eval winding (compS1 loopP loopP)   -- pos (suc (suc zero))
 ```
@@ -33,9 +33,15 @@ The underlying theory is CCHM extended with higher inductive types following Coq
 
 ```
 def name (x : A) (i : I) : T := body              -- definitions; (i : I) binds an interval variable
-def f (params) : (x : D) -> B                      -- pattern matching on the last argument
+def name {A : U} (x : A) : T := body               -- {A : U} is an implicit argument
+def name := body                                   -- the type is inferred
+def f (params) : (x : D) -> B                      -- pattern matching
   | c x y => ...
   | p x i => ...                                   -- path constructors bind interval variables
+def max : Nat -> Nat -> Nat                        -- several arguments, nested patterns
+  | zero, n => n
+  | suc m, zero => suc m
+  | suc m, suc n => suc (max m n)
 data D (params) : U n := c (x : A) | p (x : A) (i : I) [i = 0 -> ..., i = 1 -> ...]
 import name                                        -- loads name.ktt (file directory, then KUBUS_PATH)
 #eval t                                            -- print the normal form and type of t
@@ -43,6 +49,10 @@ import name                                        -- loads name.ktt (file direc
 ```
 
 Terms: `U`, `U 1`, `(x : A) -> B`, `A -> B`, `(x : A) × B`, `(a, b)`, `p.1`, `p.2`, `\x y -> t`, `\(x : A) -> t`, `let x : A := t in u`, `(t : A)`, and `?` (a hole that reports its goal).
+
+Implicit arguments: `{x : A} -> B` is an implicit Π-type, `\{x} -> t` an implicit lambda. At application sites, implicit arguments are inserted as metavariables and solved by unification (pattern unification, with a first-order fallback): `trans p (sym q)`, `transport (\i -> helix (p i)) x`. They can be given explicitly as `f {a}` or by name as `f {x := a}`, and `@f` takes all arguments explicitly. A term checked against an implicit Π-type gets an implicit lambda inserted. `_` in term position is a metavariable to be solved by unification; an unsolved metavariable is an error. Elaborated core terms are fully explicit: metavariables are replaced by their solutions (normal forms) before a definition is added.
+
+Pattern matching: clauses `| p1, ..., pn => t` match the first `n` arguments (after the parameters) against nested constructor patterns, variables and `_`; the first matching clause applies. They are compiled to a case tree of single-argument splits (auxiliary definitions `f#n`), checking that every case is covered and every clause is reachable. Recursion is structural: recursive calls are allowed only on a recursive argument of the constructor matched at the root of the case tree (under nested patterns, with the same earlier arguments).
 
 Cubical primitives:
 
@@ -69,7 +79,8 @@ Cubical primitives:
 | `Kubus/Conv.lean` | type-directed conversion with η for Π, Σ, paths and Glue |
 | `Kubus/Quote.lean` | read-back to normal forms and pretty printing |
 | `Kubus/Check.lean` | bidirectional elaborator, including checking under faces |
-| `Kubus/Top.lean` | definitions, data types, termination and positivity checks |
+| `Kubus/Match.lean` | pattern matching: compilation to case trees, coverage, termination check |
+| `Kubus/Top.lean` | definitions, data types, positivity checks |
 | `Kubus/SelfCheck.lean` | invariant self-checks (`--selfcheck`) |
 
 Evaluation follows the cubicaltt approach: interval variables in values are nominal atoms, and composition is defined by cases on the type. Neutral variables carry their types, so that `p 0` reduces to the endpoint of a neutral path. Composition in the universe produces a Glue-like composite type with an equivalence built from transport along the line. Transport along a constant closed first-order data type (like `Nat` or `Int`) is the identity definitionally. This regularity holds stably for those types only.
@@ -80,7 +91,10 @@ Evaluation follows the cubicaltt approach: interval variables in values are nomi
 lake build
 KUBUS_PATH=lib .lake/build/bin/kubus lib/loopspace.ktt
 tests/run.sh
+KUBUS_PATH=lib .lake/build/bin/kubus --interactive lib/loopspace.ktt
 ```
+
+`kubus --interactive` loads the given files and then reads declarations, `#eval`/`#check` commands and terms (which are evaluated) from standard input; pattern-matching definitions and data types end with an empty line. `#check t` prints the elaborated term (without implicit arguments) and its type.
 
 `tests/run.sh` checks the library, compares `tests/pass/*_test.ktt` against golden outputs, and checks that every file in `tests/fail/` is rejected with the expected error.
 
@@ -116,7 +130,7 @@ Data types and higher inductive types are not yet in the verified core (`docs/in
 
 ## Limitations
 
-All arguments are explicit; there are no implicit arguments or unification. Pattern matching covers one argument, with no nested patterns and no mutual or indexed definitions. For higher inductive types with parameters, path-constructor boundaries must be built from the constructor's point arguments and constructors. The evaluator is strict, and some composite Kan operations can still blow up.
+Pattern matching has no mutual or indexed definitions, and clauses for path constructors cannot use nested patterns or match on further arguments. For higher inductive types with parameters, path-constructor boundaries must be built from the constructor's point arguments and constructors. The evaluator is strict, and some composite Kan operations can still blow up.
 
 ## License
 

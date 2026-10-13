@@ -1,0 +1,24 @@
+import circle
+
+-- implicit arguments are inserted and solved by unification
+#check refl
+#check @refl
+#check trans loopP (sym loopP)
+#eval cong sucInt (refl (pos zero))
+#eval refl {S1} base
+#eval sym {b := base} loopP
+
+-- holes, implicit lambdas, explicit instantiation
+def t1 : Path S1 base base := refl _
+def t2 : {A : U} -> A -> A := \x -> x
+def t3 : {A : U} -> A -> A := \{B} (x : B) -> x
+def t4 : Path S1 base base := @refl S1 base
+#eval t2 {Int} (pos zero)
+
+-- a definition without a type annotation
+def loop2 := trans loopP loopP
+#eval winding loop2
+
+-- higher-order pattern unification: the motive of J
+def jtest (p : Path S1 base base) : Path (Path S1 base base) (trans (refl base) p) p :=
+  J (\x q -> Path (Path S1 base x) (trans (refl base) q) q) (sym (lUnit (refl base))) p

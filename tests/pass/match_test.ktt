@@ -1,0 +1,52 @@
+import int
+
+def add2 : Nat -> Nat -> Nat
+  | zero, n => n
+  | suc m, n => suc (add2 m n)
+
+def addR : Nat -> Nat -> Nat
+  | m, zero => m
+  | m, suc n => suc (addR m n)
+
+def max : Nat -> Nat -> Nat
+  | zero, n => n
+  | suc m, zero => suc m
+  | suc m, suc n => suc (max m n)
+
+def pred2 : Nat -> Nat
+  | zero => zero
+  | suc zero => zero
+  | suc (suc n) => n
+
+def isEven : Nat -> Nat -> Nat
+  | zero, acc => acc
+  | suc zero, acc => acc
+  | suc (suc n), acc => acc
+
+def minus : Nat -> Nat -> Nat
+  | m, zero => m
+  | zero, suc n => zero
+  | suc m, suc n => minus m n
+
+def eqNat : Nat -> Nat -> Nat
+  | zero, zero => suc zero
+  | suc m, suc n => eqNat m n
+  | _, _ => zero
+
+def two : Nat := suc (suc zero)
+def three : Nat := suc two
+#eval max two three
+#eval max three two
+#eval minus three two
+#eval minus two three
+#eval eqNat three three
+#eval eqNat three two
+#eval pred2 three
+#eval addR two three
+-- auxiliary splits get the recursive calls as arguments
+#eval \(n : Nat) -> max three n
+
+def orB : Nat -> Nat -> Nat
+  | zero, zero => zero
+  | _, _ => suc zero
+#eval orB zero two

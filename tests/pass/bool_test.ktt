@@ -1,4 +1,4 @@
 import bool
 
-#eval transport Bool Bool notPath true
-#eval transport Bool Bool (\i -> notPath (~i)) false
+#eval transport notPath true
+#eval transport (\i -> notPath (~i)) false

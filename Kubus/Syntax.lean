@@ -50,7 +50,7 @@ inductive Tm
   /-- The pattern-matching function body of the global `f`; its environment holds `f`'s parameters. -/
   | split (f : String) (k : Nat)
   | letE (x : String) (t b : Tm)
-  deriving Inhabited, Repr
+  deriving Inhabited, Repr, BEq
 
 def ITm.occurs (k : Nat) : ITm → Bool
   | .var i => i == k
@@ -113,6 +113,125 @@ partial def Tm.lift (k : Nat) (t : Tm) : Tm :=
   | .con c as ds => .con c (as.map l) ds
   | .letE x t b => .letE x (l t) (l b)
 
+/-! ## Implicit binders and metavariables
+
+A binder name of the form `{x}` marks an implicit binder (in `pi`, `lam`, surface binders and
+values). Implicitness only guides elaboration; conversion ignores binder names.
+
+Metavariables only exist during the elaboration of one declaration and are zonked away before
+it is added. In core terms a metavariable is the global `?mN`, applied to the variables of the
+context it was created in. -/
+
+def implName (x : String) : String := "{" ++ x ++ "}"
+def isImplName (x : String) : Bool := x.startsWith "{" && x.endsWith "}" && x.length ≥ 2
+def plainName (x : String) : String := if isImplName x then ((x.drop 1).dropEnd 1).toString else x
+
+def metaName (m : Nat) : String := s!"?m{m}"
+def metaId? (n : String) : Option Nat := if n.startsWith "?m" then (n.drop 2).toString.toNat? else none
+
+def ITm.mapVars (f : Nat → Nat → ITm) (c : Nat) : ITm → ITm
+  | .var i => f c i
+  | .neg r => .neg (r.mapVars f c)
+  | .and r s => .and (r.mapVars f c) (s.mapVars f c)
+  | .or r s => .or (r.mapVars f c) (s.mapVars f c)
+  | r => r
+
+/-- Map the free variables (term and interval variables share one index space); `c` counts
+the binders crossed. -/
+partial def Tm.mapVars (f : Nat → Nat → Tm) (g : Nat → Nat → ITm) (c : Nat) : Tm → Tm
+  | .var i => f c i
+  | .pi x a b => .pi x (a.mapVars f g c) (b.mapVars f g (c + 1))
+  | .sigma x a b => .sigma x (a.mapVars f g c) (b.mapVars f g (c + 1))
+  | .lam x b => .lam x (b.mapVars f g (c + 1))
+  | .app a b => .app (a.mapVars f g c) (b.mapVars f g c)
+  | .pair a b => .pair (a.mapVars f g c) (b.mapVars f g c)
+  | .fst t => .fst (t.mapVars f g c)
+  | .snd t => .snd (t.mapVars f g c)
+  | .piI i a => .piI i (a.mapVars f g (c + 1))
+  | .pathP a u v => .pathP (a.mapVars f g c) (u.mapVars f g c) (v.mapVars f g c)
+  | .plam i b => .plam i (b.mapVars f g (c + 1))
+  | .papp t r => .papp (t.mapVars f g c) (r.mapVars g c)
+  | .comp i a sys u0 => .comp i (a.mapVars f g (c + 1)) (sysUnder sys) (u0.mapVars f g c)
+  | .hcomp i a sys u0 => .hcomp i (a.mapVars f g c) (sysUnder sys) (u0.mapVars f g c)
+  | .fill i a sys u0 => .fill i (a.mapVars f g (c + 1)) (sysUnder sys) (u0.mapVars f g c)
+  | .glueTy a sys => .glueTy (a.mapVars f g c) (sys0 sys)
+  | .glue sys a => .glue (sys0 sys) (a.mapVars f g c)
+  | .unglue u b sys => .unglue (u.mapVars f g c) (b.mapVars f g c) (sys0 sys)
+  | .compU a sys => .compU (a.mapVars f g c) (sys0 sys)
+  | .unglueU u b sys => .unglueU (u.mapVars f g c) (b.mapVars f g c) (sys0 sys)
+  | .data d k ps => .data d k (ps.map (·.mapVars f g c))
+  | .con n as ds => .con n (as.map (·.mapVars f g c)) (ds.map (·.mapVars g c))
+  | .letE x t b => .letE x (t.mapVars f g c) (b.mapVars f g (c + 1))
+  | t => t
+where
+  sysUnder (sys : List (ITm × Tm)) := sys.map fun (r, t) => (r.mapVars g c, t.mapVars f g (c + 1))
+  sys0 (sys : List (ITm × Tm)) := sys.map fun (r, t) => (r.mapVars g c, t.mapVars f g c)
+
+def Tm.shift (n : Nat) (t : Tm) : Tm :=
+  if n == 0 then t else
+  t.mapVars (fun c i => .var (if i ≥ c then i + n else i)) (fun c i => .var (if i ≥ c then i + n else i)) 0
+
+def ITm.shift (n : Nat) (r : ITm) : ITm :=
+  r.mapVars (fun c i => .var (if i ≥ c then i + n else i)) 0
+
+/-- Apply `f` to the immediate subterms; `f` also gets the number of binders crossed. -/
+def Tm.mapChildrenM {m : Type → Type} [Monad m] (f : Nat → Tm → m Tm) : Tm → m Tm
+  | .pi x a b => return .pi x (← f 0 a) (← f 1 b)
+  | .sigma x a b => return .sigma x (← f 0 a) (← f 1 b)
+  | .lam x b => return .lam x (← f 1 b)
+  | .app a b => return .app (← f 0 a) (← f 0 b)
+  | .pair a b => return .pair (← f 0 a) (← f 0 b)
+  | .fst t => return .fst (← f 0 t)
+  | .snd t => return .snd (← f 0 t)
+  | .piI i a => return .piI i (← f 1 a)
+  | .pathP a u v => return .pathP (← f 0 a) (← f 0 u) (← f 0 v)
+  | .plam i b => return .plam i (← f 1 b)
+  | .papp t r => return .papp (← f 0 t) r
+  | .comp i a sys u0 => return .comp i (← f 1 a) (← sysM 1 sys) (← f 0 u0)
+  | .hcomp i a sys u0 => return .hcomp i (← f 0 a) (← sysM 1 sys) (← f 0 u0)
+  | .fill i a sys u0 => return .fill i (← f 1 a) (← sysM 1 sys) (← f 0 u0)
+  | .glueTy a sys => return .glueTy (← f 0 a) (← sysM 0 sys)
+  | .glue sys a => return .glue (← sysM 0 sys) (← f 0 a)
+  | .unglue u b sys => return .unglue (← f 0 u) (← f 0 b) (← sysM 0 sys)
+  | .compU a sys => return .compU (← f 0 a) (← sysM 0 sys)
+  | .unglueU u b sys => return .unglueU (← f 0 u) (← f 0 b) (← sysM 0 sys)
+  | .data d k ps => return .data d k (← ps.mapM (f 0))
+  | .con n as ds => return .con n (← as.mapM (f 0)) ds
+  | .letE x t b => return .letE x (← f 0 t) (← f 1 b)
+  | t => pure t
+where
+  sysM (n : Nat) (sys : List (ITm × Tm)) : m (List (ITm × Tm)) := sys.mapM fun (r, t) => return (r, ← f n t)
+
+/-- An argument of an application spine. -/
+inductive SArg
+  | tm (t : Tm)
+  | dim (r : ITm)
+  deriving Inhabited
+
+/-- Application spine of a core term. -/
+def Tm.sargs : Tm → Tm × Array SArg
+  | .app f a => let (h, as) := f.sargs; (h, as.push (.tm a))
+  | .papp f r => let (h, as) := f.sargs; (h, as.push (.dim r))
+  | t => (t, #[])
+
+def SArg.apply (t : Tm) : SArg → Tm
+  | .tm a => .app t a
+  | .dim r => .papp t r
+
+/-- Substitute `args` for the outermost `args.length` binders' variables: index `j < n` of `t`
+becomes `args[n - 1 - j]`, and free indices `j ≥ n` become `j - n`. -/
+def Tm.substArgs (t : Tm) (args : Array SArg) : Tm :=
+  let n := args.size
+  t.mapVars
+    (fun c i => if i < c then .var i else
+      let j := i - c
+      if h : j < n then (match args[n - 1 - j] with | .tm a => a.shift c | .dim _ => .var i)
+      else .var (i - n))
+    (fun c i => if i < c then .var i else
+      let j := i - c
+      if h : j < n then (match args[n - 1 - j] with | .dim r => r.shift c | .tm _ => .var i)
+      else .var (i - n)) 0
+
 /-! ## Surface syntax -/
 
 structure Pos where
@@ -150,6 +269,10 @@ inductive Raw
   | hole
   | letE (x : String) (ty : Option Raw) (t b : Raw)
   | loc (p : Pos) (t : Raw)
+  /-- `f {a}` (`name = none`) or `f {x := a}` -/
+  | iapp (f : Raw) (name : Option String) (a : Raw)
+  /-- `@f`: no implicit arguments are inserted; implicit binders take explicit arguments -/
+  | explicit (x : String)
   deriving Inhabited, Repr
 
 structure Binder where
@@ -157,9 +280,18 @@ structure Binder where
   ty : Raw
   deriving Inhabited, Repr
 
+/-- Patterns. A variable pattern whose name is a constructor is that constructor. -/
+inductive Pat
+  | var (x : String) (pos : Pos)
+  | con (c : String) (args : List Pat) (pos : Pos)
+  deriving Inhabited, Repr
+
+def Pat.pos : Pat → Pos
+  | .var _ p | .con _ _ p => p
+
+/-- A clause `| p1, ..., pn => body`. -/
 structure Clause' where
-  ctor : String
-  vars : List String
+  pats : List Pat
   body : Raw
   pos : Pos
   deriving Inhabited, Repr

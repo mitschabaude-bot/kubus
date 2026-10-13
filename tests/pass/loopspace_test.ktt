@@ -1,4 +1,4 @@
 import loopspace
 
-#eval transport (Path S1 base base) Int loopSpaceS1 (compS1 loopP (compS1 loopP loopP))
+#eval transport loopSpaceS1 (compS1 loopP (compS1 loopP loopP))
 #eval winding (intLoop (negsuc (suc (suc zero))))

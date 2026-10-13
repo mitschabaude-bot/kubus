@@ -350,6 +350,34 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
 
 end
 
+namespace Ctor
+
+mutual
+/-- The point arguments of the nested constructors of a boundary element have, judgmentally,
+the argument types of those constructors (instantiated as in the `con` rule), not merely
+types the arguments also belong to: transport of a constructor is computed from its argument
+types (`transpCon`), so the boundary and the constructor must agree on them. -/
+def bndTyped (S : Sig) (m : Nat) (ψ : I) (Γ : Ctx) (lvl : Nat) (ctors : List Ctor) (d np : Nat) :
+    Tm → Prop
+  | .con _ c' ps as _ =>
+    match ctors[c']? with
+    | some C' => bndTypedArgs S m ψ Γ lvl ctors d np C' ps 0 [] as
+    | none => True
+  | _ => True
+/-- The same for the arguments of a nested constructor `C'`, from position `k` on, with the
+earlier arguments `prev` (most recent first). -/
+def bndTypedArgs (S : Sig) (m : Nat) (ψ : I) (Γ : Ctx) (lvl : Nat) (ctors : List Ctor) (d np : Nat)
+    (C' : Ctor) (ps : Tm) (k : Nat) (prev : List Tm) : Tm → Prop
+  | .tcons a as =>
+    (∀ (j : Nat) (T : Tm), a = .var j → C'.isRec k = false → Γ.lookup j = some T →
+      EqTm S m ψ Γ T ((C'.argTy d np k).substList (prev ++ ps.toList.reverse)) (.univ lvl)) ∧
+    (C'.isRec k = true → bndTyped S m ψ Γ lvl ctors d np a) ∧
+    bndTypedArgs S m ψ Γ lvl ctors d np C' ps (k + 1) (a :: prev) as
+  | _ => True
+end
+
+end Ctor
+
 namespace DataDecl
 
 /-- The context of the parameters before parameter `j`. -/
@@ -359,8 +387,11 @@ def paramCtx (D : DataDecl) (j : Nat) : Ctx := (D.params.take j).reverse
 def argCtx (D : DataDecl) (d : Nat) (C : Ctor) (k : Nat) : Ctx :=
   (List.range k).reverse.map (C.argTy d D.params.length) ++ D.paramCtx D.params.length
 
-/-- The declaration with only the constructors before `c`. -/
-def truncate (D : DataDecl) (c : Nat) : DataDecl := { D with ctors := D.ctors.take c }
+/-- The declaration with only the constructors before `c`, and an extra nullary constructor
+(at index `c`, which no boundary of constructor `c` can refer to) so that the type is inhabited:
+judgments in a context with an empty type would hold vacuously in the model. -/
+def truncate (D : DataDecl) (c : Nat) : DataDecl :=
+  { D with ctors := D.ctors.take c ++ [{ args := [], dims := 0, bnd := [] }] }
 
 /-- A well-formed declaration of the inductive type `d = S.length`, checked against the
 signature `S` before it: the parameters in `S` itself, the point arguments in `S` extended by
@@ -368,8 +399,9 @@ the declaration without constructors, and the boundary of constructor `c` and it
 overlaps in `S` extended by the declaration truncated to the constructors before `c`, so that neither `c`'s own boundary rule nor later constructors are
 available (otherwise `conBnd` would make the boundary check vacuous). Parameters and point
 arguments do not mention `d` (so `d` occurs only as the type of recursive arguments: strictly
-positive, not nested), point arguments live in the declared universe, and boundaries are
-simple, well-typed and agree on overlaps. -/
+positive, not nested), point arguments do not mention earlier recursive arguments and live in
+the declared universe, and boundaries are simple, well-typed (with the argument types of their
+nested constructors, `Ctor.bndTyped`) and agree on overlaps. -/
 def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   let np := D.params.length
   D.level + 1 ≤ maxLevel ∧
@@ -378,12 +410,14 @@ def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   ∀ (c : Nat) (C : Ctor), D.ctors[c]? = some C →
     let Sc := S ++ [.data (D.truncate c)]
     (∀ (k : Nat) (A : Tm), C.args[k]? = some (.point A) → A.closedB (np + k) 0 = true ∧
-      A.mentionsData d = false ∧ HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
+      A.mentionsData d = false ∧ C.noRecDeps k A = true ∧
+      HasTy (S ++ [.data (D.truncate 0)]) 0 .one (D.argCtx d C k) A (.univ D.level)) ∧
     (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
       b.closedB (np + C.args.length) C.dims = true ∧
       Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
       HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b
-        (.data d (Ctor.paramVars np C.args.length))) ∧
+        (.data d (Ctor.paramVars np C.args.length)) ∧
+      Ctor.bndTyped Sc C.dims ψ (D.argCtx d C C.args.length) D.level D.ctors d np b) ∧
     (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
       EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
         (.data d (Ctor.paramVars np C.args.length)))

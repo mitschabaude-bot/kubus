@@ -1,0 +1,3 @@
+-- expect: (zero vs suc zero)
+import int
+def f : Path Int (sucInt (pos zero)) (pos zero) := refl _

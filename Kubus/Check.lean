@@ -1,4 +1,4 @@
-import Kubus.Quote
+import Kubus.Conv
 
 /-! # Bidirectional elaboration of surface syntax into core terms -/
 
@@ -10,6 +10,8 @@ def env (c : Ctx) : Env := c.entries.map (·.val)
 def lvl (c : Ctx) : Nat := c.entries.length
 def names (c : Ctx) : List String := c.entries.map (·.name)
 
+/-- Bind a term variable. User-written implicit binders `{x}` are bound as `x`; binders inserted
+by the elaborator keep their braces and cannot be referred to. -/
 def bindVar (c : Ctx) (x : String) (a : Val) : Ctx × Val :=
   let v := Val.var c.lvl a
   ({ c with entries := ⟨x, some a, .v v⟩ :: c.entries }, v)
@@ -50,12 +52,84 @@ end Ctx
 def err {α} (ctx : Ctx) (msg : String) : M α :=
   throw s!"{ctx.pos.line}:{ctx.pos.col}: {msg}"
 
+/-- Which binders of the type of each global are implicit, for printing. -/
+def implMasks : M (String → List Bool) := do
+  let g ← getGlobals
+  return fun f => match g.defs[f]? with
+    | some info => mask info.tyTm
+    | none => []
+where
+  mask : Tm → List Bool
+    | .pi x _ b => isImplName x :: mask b
+    | .piI _ b => false :: mask b
+    | _ => []
+
+def ppI' : M PPI := do
+  let ms := (← get).metas
+  return { mask := ← implMasks, metaStr := fun m => "?" ++ ((ms[m]?.map (·.short)).getD s!"m{m}") }
+
+def ppTm (ctx : Ctx) (t : Tm) : M String := do
+  return pp ctx.names 0 t (← ppI')
+
 def ppVal (ctx : Ctx) (v : Val) : M String := do
-  return pp ctx.names 0 (← quote ctx.qctx v)
+  ppTm ctx (← quote ctx.qctx v)
+
+/-- Undo metavariable solutions made by a failed conversion check. -/
+def withRollback (x : M Bool) : M Bool := do
+  let saved := (← get).metas
+  let r ← x
+  if !r then modify fun s => { s with metas := saved }
+  return r
+
+/-- A fresh metavariable of type `ty` in `ctx`: returns the core term (the metavariable applied
+to the variables of the context) and its value. -/
+def freshMeta (ctx : Ctx) (ty : Val) (desc : String) (short : String := "_") : M (Tm × Val) := do
+  let m := (← get).metas.size
+  let mut tyTm ← quote ctx.qctx ty
+  let mut rest := ctx.entries
+  while true do
+    match rest with
+    | e :: es =>
+      let sub : Ctx := { ctx with entries := es }
+      tyTm ← match e.ty with
+        | some a => do pure (Tm.pi e.name (← quote sub.qctx a) tyTm)
+        | none => pure (Tm.piI e.name tyTm)
+      rest := es
+    | [] => break
+  let closedTy ← eval [] tyTm
+  modify fun s => { s with metas := s.metas.push { ty := closedTy, ctx, ctxTy := ty, desc, short } }
+  let n := ctx.entries.length
+  let mut tm : Tm := .glob (metaName m) 0
+  for idx in (List.range n).reverse do
+    tm := match ctx.entries[idx]? with
+      | some { ty := some _, .. } => .app tm (.var idx)
+      | _ => .papp tm (.var idx)
+  return (tm, ← eval ctx.env tm)
+
+/-- Apply a closed metavariable solution `λ xs. b` to a spine, substituting. -/
+def applySol (sol : Tm) (args : Array SArg) : Tm :=
+  let rec go (b : Tm) (i : Nat) (acc : Array SArg) (fuel : Nat) : Tm :=
+    match fuel, b, args[i]? with
+    | fuel + 1, .lam _ b, some (.tm a) => go b (i + 1) (acc.push (.tm a)) fuel
+    | fuel + 1, .plam _ b, some (.dim r) => go b (i + 1) (acc.push (.dim r)) fuel
+    | _, _, _ => (args.extract i args.size).foldl SArg.apply (b.substArgs acc)
+  go sol 0 #[] (args.size + 1)
+
+/-- Replace solved metavariables by their solutions. -/
+partial def zonk (t : Tm) : M Tm := do
+  let (h, args) := t.sargs
+  if let .glob n _ := h then
+    if let some m := metaId? n then
+      if let some sol := (← get).metas[m]?.bind (·.sol) then
+        let args ← args.mapM fun
+          | .tm a => SArg.tm <$> zonk a
+          | .dim r => pure (SArg.dim r)
+        return ← zonk (applySol sol args)
+  t.mapChildrenM fun _ => zonk
 
 /-- Conversion; in self-check mode also checks that it is symmetric. -/
 def convC (ctx : Ctx) (ty u v : Val) : M Bool := do
-  let r ← conv ctx.lvl ty u v
+  let r ← withRollback (conv ctx.lvl ty u v)
   if (← get).selfcheck then
     let r' ← try conv ctx.lvl ty v u catch e => do
       recordViolation s!"{ctx.pos.line}:{ctx.pos.col}: [conv-symmetry] conv v u raised: {e}"; pure r
@@ -64,7 +138,7 @@ def convC (ctx : Ctx) (ty u v : Val) : M Bool := do
   return r
 
 def convTyC (ctx : Ctx) (a b : Val) : M Bool := do
-  let r ← convTy ctx.lvl a b
+  let r ← withRollback (convTy ctx.lvl a b)
   if (← get).selfcheck then
     let r' ← try convTy ctx.lvl b a catch e => do
       recordViolation s!"{ctx.pos.line}:{ctx.pos.col}: [conv-symmetry] convTy b a raised: {e}"; pure r
@@ -86,18 +160,66 @@ def ppCtx (ctx : Ctx) : M String := do
     | [] => pure ()
   return "\n".intercalate lines.reverse.toList
 
+/-- The context, for error messages (empty if there are no variables). -/
+def ctxMsg (ctx : Ctx) : M String := do
+  if ctx.entries.isEmpty then return ""
+  return s!"\ncontext:\n{← ppCtx ctx}"
+
+/-- Fail on the first unsolved metavariable. -/
+def checkMetas : M Unit := do
+  for mi in (← get).metas do
+    if mi.sol.isNone then
+      err mi.ctx s!"could not infer {mi.desc}\n  of type {← ppVal mi.ctx mi.ctxTy}{← ctxMsg mi.ctx}"
+
+/-- The first difference between two terms of the same shape, descending through
+applications, path types, data types, constructors and pairs (`none` if the terms are equal
+or differ at the top). -/
+partial def tmDiff (a b : Tm) : Option (Tm × Tm) :=
+  go a b |>.bind fun (x, y) => if x == a && y == b then none else some (x, y)
+where
+  go (a b : Tm) : Option (Tm × Tm) :=
+    if a == b then none else
+    match a, b with
+    | .app f x, .app g y => if f == g then go x y else if x == y then go f g else some (a, b)
+    | .papp f r, .papp g s => if r == s then go f g else some (a, b)
+    | .pathP l u v, .pathP l' u' v' =>
+      if l == l' && u == u' then go v v'
+      else if l == l' && v == v' then go u u'
+      else if u == u' && v == v' then go l l'
+      else some (a, b)
+    | .pair x y, .pair x' y' => if x == x' then go y y' else if y == y' then go x x' else some (a, b)
+    | .data d _ ps, .data d' _ ps' | .con d ps _, .con d' ps' _ =>
+      if d != d' || ps.length != ps'.length then some (a, b) else
+      match (ps.zip ps').filter (fun (x, y) => !(x == y)) with
+      | [(x, y)] => go x y
+      | _ => some (a, b)
+    | _, _ => some (a, b)
+
 def stripLoc : Raw → Raw
   | .loc _ t => stripLoc t
   | t => t
 
+/-- An argument in an application spine: explicit, or `{a}` / `{x := a}`. -/
+inductive SpArg
+  | expl (a : Raw)
+  | impl (x : Option String) (a : Raw)
+  deriving Inhabited
+
 /-- Collect an application spine `h a1 ... an`. -/
-def unspine (t : Raw) : Raw × List Raw :=
-  let rec go (t : Raw) (acc : List Raw) : Raw × List Raw :=
+def unspine (t : Raw) : Raw × List SpArg :=
+  let rec go (t : Raw) (acc : List SpArg) : Raw × List SpArg :=
     match t with
-    | .app f a => go f (a :: acc)
-    | .loc _ (.app f a) => go f (a :: acc)
+    | .app f a | .loc _ (.app f a) => go f (.expl a :: acc)
+    | .iapp f x a | .loc _ (.iapp f x a) => go f (.impl x a :: acc)
     | t => (t, acc)
   go t []
+
+/-- The explicit arguments of a spine (for constructors and data types, which have no
+implicit arguments). -/
+def explArgs (ctx : Ctx) (args : List SpArg) : M (List Raw) :=
+  args.mapM fun
+    | .expl a => pure a
+    | .impl .. => throw s!"{ctx.pos.line}:{ctx.pos.col}: constructors and data types take no implicit arguments"
 
 def headVar? (t : Raw) : Option String :=
   match stripLoc t with
@@ -107,9 +229,25 @@ def headVar? (t : Raw) : Option String :=
 /-- Head of a spine that may be a displaced global. -/
 def headGlobal? (t : Raw) : Option (String × Nat) :=
   match stripLoc t with
-  | .var x => some (x, 0)
+  | .var x | .explicit x => some (x, 0)
   | .lift x k => some (x, k)
   | _ => none
+
+def isExplicitHead (t : Raw) : Bool :=
+  match stripLoc (unspine t).1 with
+  | .explicit _ => true
+  | _ => false
+
+def isImplLam (t : Raw) : Bool :=
+  match stripLoc t with
+  | .lam x .. => isImplName x
+  | _ => false
+
+/-- Description of the head of an application, for messages about its implicit arguments. -/
+def headDesc (t : Raw) : String :=
+  match headGlobal? t with
+  | some (x, _) => s!" of {x}"
+  | none => ""
 
 def defType (info : DefInfo) (k : Nat) : M Val :=
   if k == 0 then pure info.ty else eval [] (info.tyTm.lift k)
@@ -118,28 +256,23 @@ def headPos (ctx : Ctx) : Raw → Pos
   | .loc p _ => p
   | _ => ctx.pos
 
-/-- Universe level of a type. -/
-partial def levelOf (l : Nat) (v : Val) : M Nat := do
-  match v with
-  | .univ n => pure (n + 1)
-  | .pi _ a env b | .sigma _ a env b =>
-    return max (← levelOf l a) (← levelOf (l + 1) (← inst env b (.var l a)))
-  | .piI line | .pathP line _ _ => do
-    let k ← freshAtom
-    levelOf l (← papp line (atomF k))
-  | .data d k _ => return (← lookupData d).level + k
-  | .glueTy b _ | .compU b _ => levelOf l b
-  | _ =>
-    match ← inferNe v with
-    | some (.univ n) => pure n
-    | _ => pure 0
-
 mutual
 
 partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
+  if let .loc p t := t then return ← check { ctx with pos := p } t ty
+  let ty ← force ty
+  -- against an implicit Π-type, insert an implicit lambda
+  if let .pi x a env bTy := ty then
+    if isImplName x && !isImplLam t then
+      let (ctx', xv) := ctx.bindVar x a
+      return .lam x (← check ctx' t (← inst env bTy xv))
   match t with
-  | .loc p t => check { ctx with pos := p } t ty
+  | .var "_" => return (← freshMeta ctx ty "the hole _").1
   | .lam x tyR b =>
+    if isImplName x then
+      match ty with
+      | .pi y .. => if !isImplName y then err ctx s!"implicit lambda, but the expected type is the explicit function type {← ppVal ctx ty}"
+      | _ => pure ()
     if let some tyR := tyR then
       let isI := match stripLoc tyR with | .intervalTy => true | _ => false
       match ty, isI with
@@ -152,7 +285,7 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
       | _, true => pure ()
     match ty with
     | .pi _ a env bTy =>
-      let (ctx', xv) := ctx.bindVar x a
+      let (ctx', xv) := ctx.bindVar (plainName x) a
       return .lam x (← check ctx' b (← inst env bTy xv))
     | .piI line =>
       let (ctx', k) ← ctx.bindDim x
@@ -171,7 +304,7 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
         let tyd ← papp line (Formula.ofDir d)
         if !(← convC ctx tyd vd e) then
           let ds := if d == .zero then "0" else "1"
-          err ctx s!"path boundary mismatch at {x} = {ds}:\n  expected {← ppVal ctx e}\n  but got  {← ppVal ctx vd}"
+          err ctx s!"path boundary mismatch at {x} = {ds}:\n  expected {← ppVal ctx e}\n  but got  {← ppVal ctx vd}{← ctxMsg ctx}"
       return .plam x tb
     | _ => err ctx s!"a lambda cannot have type {← ppVal ctx ty}"
   | .pair a b =>
@@ -227,16 +360,44 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
     match headVar? h, ty with
     | some c, .data d k ps =>
       if (ctx.lookup c).isNone && (← getGlobals).ctors.contains c then
-        let (tm, _) ← elabCon { ctx with pos := headPos ctx h } c args (some (d, k, ps))
+        let (tm, _) ← elabCon { ctx with pos := headPos ctx h } c (← explArgs ctx args) (some (d, k, ps))
         return tm
       else checkInfer ctx t ty
     | _, _ => checkInfer ctx t ty
 
 partial def checkInfer (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
-  let (tm, ty') ← infer ctx t
+  let (tm, ty') ← inferIns ctx t
   if !(← subtype ctx.lvl ty' ty) then
-    err ctx s!"type mismatch\n  expected: {← ppVal ctx ty}\n  but got:  {← ppVal ctx ty'}"
+    let e ← quote ctx.qctx ty
+    let g ← quote ctx.qctx ty'
+    let diff ← match tmDiff e g with
+      | some (a, b) => pure s!"\n  ({← ppTm ctx a} vs {← ppTm ctx b})"
+      | none => pure ""
+    err ctx s!"type mismatch\n  expected: {← ppTm ctx e}\n  but got:  {← ppTm ctx g}{diff}{← ctxMsg ctx}"
   return tm
+
+/-- Infer, then insert metavariables for leading implicit arguments (unless the term is `@f …`
+or an implicit lambda). -/
+partial def inferIns (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
+  let (tm, ty) ← infer ctx t
+  if isExplicitHead t || isImplLam t then return (tm, ty)
+  insertImplicits ctx (headDesc (unspine t).1) tm ty none
+
+/-- Apply `tm : ty` to fresh metavariables while `ty` is an implicit Π-type (up to the binder
+named `stop`). -/
+partial def insertImplicits (ctx : Ctx) (desc : String) (tm : Tm) (ty : Val) (stop : Option String) :
+    M (Tm × Val) := do
+  let mut tm := tm
+  let mut ty := ty
+  repeat
+    match ← force ty with
+    | .pi x a env b =>
+      if !isImplName x || stop == some (plainName x) then break
+      let (mt, mv) ← freshMeta ctx a s!"the implicit argument {plainName x}{desc}" (plainName x)
+      tm := .app tm mt
+      ty ← inst env b mv
+    | _ => break
+  return (tm, ty)
 
 partial def inferLet (ctx : Ctx) (tyR : Option Raw) (t : Raw) : M (Tm × Val) := do
   match tyR with
@@ -248,7 +409,7 @@ partial def inferLet (ctx : Ctx) (tyR : Option Raw) (t : Raw) : M (Tm × Val) :=
 
 partial def inferType (ctx : Ctx) (t : Raw) : M (Tm × Nat) := do
   let (tm, ty) ← infer ctx t
-  match ty with
+  match ← force ty with
   | .univ l => pure (tm, l)
   | _ => err ctx s!"expected a type, but this has type {← ppVal ctx ty}"
 
@@ -312,7 +473,7 @@ partial def checkBase (ctx : Ctx) (elems : List (Face × Tm)) (a0 u0 : Val) : M 
     let ctxα ← ctx.face α
     let v ← eval (.d Formula.zero :: ctxα.env) tα
     if !(← convC ctxα (← faceV a0 α) v (← faceV u0 α)) then
-      err ctx s!"the system does not agree with the base:\n  base:   {← ppVal ctxα (← faceV u0 α)}\n  system: {← ppVal ctxα v}"
+      err ctx s!"the system does not agree with the base:\n  base:   {← ppVal ctxα (← faceV u0 α)}\n  system: {← ppVal ctxα v}{← ctxMsg ctxα}"
 
 partial def elabCon (ctx : Ctx) (c : String) (args : List Raw) (expected : Option (String × Nat × List Val)) :
     M (Tm × Val) := do
@@ -323,8 +484,13 @@ partial def elabCon (ctx : Ctx) (c : String) (args : List Raw) (expected : Optio
       if d != ctor.data then err ctx s!"constructor {c} does not belong to {d}"
       pure (k, ps)
     | none =>
-      if !info.params.isEmpty then err ctx s!"cannot infer the parameters of {c}; add a type annotation"
-      pure (0, [])
+      let mut env : Env := []
+      let mut ps : Array Val := #[]
+      for (x, pTy) in info.params do
+        let (_, mv) ← freshMeta ctx (← eval env pTy) s!"the parameter {x} of {c}" x
+        ps := ps.push mv
+        env := .v mv :: env
+      pure (0, ps.toList)
   let n := ctor.tele.length
   if args.length != n + ctor.dims.length then
     err ctx s!"constructor {c} expects {n + ctor.dims.length} arguments, got {args.length}"
@@ -341,6 +507,7 @@ partial def elabCon (ctx : Ctx) (c : String) (args : List Raw) (expected : Optio
 partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
   match t with
   | .loc p t => infer { ctx with pos := p } t
+  | .var "_" => err ctx "cannot infer the type of the hole _; add a type annotation"
   | .var x =>
     match ctx.lookup x with
     | some (i, { ty := some a, .. }) => pure (.var i, a)
@@ -372,33 +539,35 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
       let (tb, l) ← inferType ctx' b
       return (.piI x tb, .univ l)
     let (ta, la) ← inferType ctx a
-    let (ctx', _) := ctx.bindVar x (← eval ctx.env ta)
+    let (ctx', _) := ctx.bindVar (plainName x) (← eval ctx.env ta)
     let (tb, lb) ← inferType ctx' b
     return (.pi x ta tb, .univ (max la lb))
   | .sigma x a b =>
     let (ta, la) ← inferType ctx a
-    let (ctx', _) := ctx.bindVar x (← eval ctx.env ta)
+    let (ctx', _) := ctx.bindVar (plainName x) (← eval ctx.env ta)
     let (tb, lb) ← inferType ctx' b
     return (.sigma x ta tb, .univ (max la lb))
-  | .app .. =>
+  | .app .. | .iapp .. =>
     let (h, args) := unspine t
     let g ← getGlobals
-    match headGlobal? h with
-    | some (c, k) =>
+    match headGlobal? h, stripLoc h with
+    | some (c, k), .var _ | some (c, k), .lift .. =>
+      let hctx := { ctx with pos := headPos ctx h }
       if (ctx.lookup c).isNone && g.ctors.contains c && k == 0 then
-        return ← elabCon { ctx with pos := headPos ctx h } c args none
+        return ← elabCon hctx c (← explArgs hctx args) none
       if (ctx.lookup c).isNone && g.datas.contains c then
-        return ← elabData { ctx with pos := headPos ctx h } c k args
+        return ← elabData hctx c k (← explArgs hctx args)
       inferApp ctx h args
-    | none => inferApp ctx h args
+    | _, _ => inferApp ctx h args
+  | .explicit x => infer ctx (.var x)
   | .fst p =>
-    let (tp, ty) ← infer ctx p
-    match ty with
+    let (tp, ty) ← inferIns ctx p
+    match ← force ty with
     | .sigma _ a _ _ => pure (.fst tp, a)
     | _ => err ctx s!"projection from a non-Σ type {← ppVal ctx ty}"
   | .snd p =>
-    let (tp, ty) ← infer ctx p
-    match ty with
+    let (tp, ty) ← inferIns ctx p
+    match ← force ty with
     | .sigma _ _ env b => return (.snd tp, ← inst env b (← fstV (← eval ctx.env tp)))
     | _ => err ctx s!"projection from a non-Σ type {← ppVal ctx ty}"
   | .path a u v =>
@@ -428,7 +597,7 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
       return (.pathP (.plam i tb) tu tv, .univ l)
     | _ =>
       let (tp, tyP) ← infer ctx p
-      match tyP with
+      match ← force tyP with
       | .pathP lineU _ _ =>
         let k ← freshAtom
         match ← papp lineU (atomF k) with
@@ -477,7 +646,7 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
     let (tu, ty) ← match stripLoc u with
       | .ann t a => inferAnnGlue ctx t a
       | _ => infer ctx u
-    match ty with
+    match ← force ty with
     | .glueTy b sys =>
       let q := ctx.qctx
       return (.unglue tu (← quote q b) (← quoteSys q sys), b)
@@ -507,7 +676,7 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
       return (.plam x tb, .piI (.plam k bTy))
     let (ta, _) ← inferType ctx tyR
     let a ← eval ctx.env ta
-    let (ctx', _) := ctx.bindVar x a
+    let (ctx', _) := ctx.bindVar (plainName x) a
     let (tb, bTy) ← infer ctx' b
     return (.lam x tb, .pi x a ctx.env (← quote ctx'.qctx bTy))
   | .lam _ none _ => err ctx "cannot infer the type of a lambda; annotate the binder"
@@ -531,21 +700,42 @@ partial def inferAnnGlue (ctx : Ctx) (t a : Raw) : M (Tm × Val) := do
     | _ => return (← check ctx t av, g)
   | _ => return (← check ctx t av, av)
 
-partial def inferApp (ctx : Ctx) (h : Raw) (args : List Raw) : M (Tm × Val) := do
+partial def inferApp (ctx : Ctx) (h : Raw) (args : List SpArg) : M (Tm × Val) := do
+  let expl := match stripLoc h with | .explicit _ => true | _ => false
+  let hctx := { ctx with pos := headPos ctx h }
+  let desc := headDesc h
   let (tf, tyf) ← infer ctx h
   let mut tf := tf
   let mut tyf := tyf
   for arg in args do
-    match tyf with
-    | .pi _ a env b =>
-      let ta ← check ctx arg a
-      tyf ← inst env b (← eval ctx.env ta)
-      tf := .app tf ta
-    | .pathP line _ _ | .piI line =>
-      let r ← elabI ctx arg
-      tyf ← papp line (← evalI ctx.env r)
-      tf := .papp tf r
-    | _ => err ctx s!"too many arguments: a term of type {← ppVal ctx tyf} is not a function"
+    match arg with
+    | .expl arg =>
+      if !expl then (tf, tyf) ← insertImplicits hctx desc tf tyf none
+      match ← force tyf with
+      | .pi _ a env b =>
+        let ta ← check ctx arg a
+        tyf ← inst env b (← eval ctx.env ta)
+        tf := .app tf ta
+      | .pathP line _ _ | .piI line =>
+        let r ← elabI ctx arg
+        tyf ← papp line (← evalI ctx.env r)
+        tf := .papp tf r
+      | ty => err ctx s!"too many arguments: a term of type {← ppVal ctx ty} is not a function"
+    | .impl x arg =>
+      if expl then err hctx "with @, implicit arguments are given as ordinary arguments"
+      if let some x := x then (tf, tyf) ← insertImplicits hctx desc tf tyf (some x)
+      match ← force tyf, x with
+      | .pi y a env b, _ =>
+        if !isImplName y then
+          match x with
+          | some x => err ctx s!"no implicit argument named {x}"
+          | none => err ctx s!"unexpected implicit argument: the function expects an explicit argument of type {← ppVal ctx a}"
+        let ta ← check ctx arg a
+        tyf ← inst env b (← eval ctx.env ta)
+        tf := .app tf ta
+      | _, some x => err ctx s!"no implicit argument named {x}"
+      | ty, none => err ctx s!"unexpected implicit argument: a term of type {← ppVal ctx ty} has no implicit arguments"
+  if !expl then (tf, tyf) ← insertImplicits hctx desc tf tyf none
   return (tf, tyf)
 
 partial def elabData (ctx : Ctx) (d : String) (k : Nat) (args : List Raw) : M (Tm × Val) := do

@@ -24,7 +24,7 @@ def TokK.show : TokK → String
 
 def symbols : List String :=
   [":=", "->", "=>", "/\\", "\\/", ".1", ".2", "(", ")", "[", "]", ",", ":", "\\", "~", "=", "|", "?",
-   "*", "→", "λ", "×", "↦", "∧", "∨", "≡", "^"]
+   "*", "→", "λ", "×", "↦", "∧", "∨", "≡", "^", "{", "}", "@"]
 
 def unicodeSyms : List Char := ['→', 'λ', '×', '↦', '∧', '∨', '≡']
 
@@ -129,6 +129,7 @@ def isMapsto : P Bool := return (← isSym "->") || (← isSym "→") || (← is
 mutual
 
 partial def expr : P Raw := do
+  let pos ← curPos
   if (← isSym "\\") || (← isSym "λ") || (← isIdent "fun") then
     advance
     let mut xs : Array (String × Option Raw) := #[]
@@ -141,11 +142,19 @@ partial def expr : P Raw := do
         let ty ← expr
         expectSym ")"
         for y in ys do xs := xs.push (y, some ty)
+      else if ← isSym "{" then
+        -- implicit binders `{x y}` or `{x y : A}`
+        advance
+        let mut ys : Array String := #[]
+        while !(← isSym ":") && !(← isSym "}") do ys := ys.push (← ident)
+        let ty ← if ← isSym ":" then do advance; some <$> expr else pure none
+        expectSym "}"
+        for y in ys do xs := xs.push (implName y, ty)
       else xs := xs.push (← ident, none)
     if xs.isEmpty then perr "expected a binder"
     advance
     let b ← expr
-    return xs.foldr (fun (x, ty) b => .lam x ty b) b
+    return .loc pos (xs.foldr (fun (x, ty) b => .lam x ty b) b)
   if ← isIdent "let" then
     advance
     let x ← ident
@@ -155,15 +164,16 @@ partial def expr : P Raw := do
     if !(← isIdent "in") then perr "expected 'in'"
     advance
     let b ← expr
-    return .letE x ty t b
+    return .loc pos (.letE x ty t b)
   arrowExpr
 
 /-- Try to parse telescope binders `(x y : A) (z : B)`; returns none (and backtracks) on failure. -/
 partial def binderGroups? : P (Option (List Binder)) := do
   let start ← get
   let mut bs : Array Binder := #[]
-  while ← isSym "(" do
+  while (← isSym "(") || (← isSym "{") do
     let save ← get
+    let impl ← isSym "{"
     advance
     let mut xs : Array String := #[]
     let mut ok := true
@@ -177,14 +187,14 @@ partial def binderGroups? : P (Option (List Binder)) := do
     if !ok || xs.isEmpty || !(← isSym ":") then set save; break
     advance
     let ty ← expr
-    expectSym ")"
-    for x in xs do bs := bs.push ⟨x, ty⟩
+    expectSym (if impl then "}" else ")")
+    for x in xs do bs := bs.push ⟨if impl then implName x else x, ty⟩
   if bs.isEmpty then set start; return none
   return some bs.toList
 
 partial def arrowExpr : P Raw := do
   let start ← get
-  if ← isSym "(" then
+  if (← isSym "(") || (← isSym "{") then
     try
       match ← binderGroups? with
       | some bs =>
@@ -250,7 +260,7 @@ partial def isAtomStart : P Bool := do
   match ← peek with
   | .ident s => return !keywords.contains s || s == "U" || s == "I"
   | .num _ => return true
-  | .sym s => return s == "(" || s == "?" || s == "~"
+  | .sym s => return s == "(" || s == "?" || s == "~" || s == "@"
   | _ => return false
 
 partial def appExpr : P Raw := do
@@ -271,14 +281,26 @@ partial def appExpr : P Raw := do
       | _ => pure (Raw.univ 0)
     | _ => atom
   let mut t := Raw.loc pos head
-  while ← isAtomStart do
-    t := .app t (← atom)
+  while (← isAtomStart) || (← isSym "{") do
+    if ← isSym "{" then
+      -- implicit argument `{a}` or `{x := a}`
+      advance
+      let named ← match ← peek, ← peekAt 1 with
+        | .ident x, .sym ":=" => do advance; advance; pure (some x)
+        | _, _ => pure none
+      let a ← expr
+      expectSym "}"
+      t := .iapp t named a
+    else
+      t := .app t (← atom)
   -- `a ≡ b` is notation for `Path _ a b`
   if ← isSym "≡" then
     advance
     let rhs ← appExpr
-    return .path .hole t rhs
-  return t
+    return .loc pos (.path .hole t rhs)
+  return match t with
+    | .loc .. => t
+    | _ => .loc pos t
 
 partial def atom : P Raw := do
   let pos ← curPos
@@ -304,6 +326,7 @@ partial def primary : P Raw := do
   | .num 1 => advance; return .ione
   | .num _ => perr "only 0 and 1 are numerals"
   | .sym "?" => advance; return .hole
+  | .sym "@" => advance; return .explicit (← ident)
   | .sym "~" => advance; return .ineg (← atom)
   | .sym "(" =>
     advance
@@ -324,6 +347,31 @@ partial def primary : P Raw := do
 
 end
 
+mutual
+partial def patAtom : P Pat := do
+  let pos ← curPos
+  match ← peek with
+  | .ident _ => return .var (← ident) pos
+  | .sym "(" =>
+    advance
+    let p ← pattern
+    expectSym ")"
+    return p
+  | _ => perr "expected a pattern"
+
+/-- `c p1 ... pn`, a variable, or `_` -/
+partial def pattern : P Pat := do
+  let pos ← curPos
+  let h ← patAtom
+  let mut args : Array Pat := #[]
+  while (← isSym "(") || (match ← peek with | .ident s => !keywords.contains s | _ => false) do
+    args := args.push (← patAtom)
+  if args.isEmpty then return h
+  match h with
+  | .var c _ => return .con c args.toList pos
+  | _ => throw s!"{pos.line}:{pos.col}: parse error: a constructor pattern must start with a constructor"
+end
+
 partial def binders : P (List Binder) := do
   match ← binderGroups? with
   | some bs => pure bs
@@ -342,6 +390,10 @@ partial def decl : P Decl := do
     advance
     let name ← ident
     let ps ← binders
+    -- `def x (params) := t` infers the type
+    if ← isSym ":=" then
+      advance
+      return .defn name ps .hole (← expr) pos
     expectSym ":"
     let ty ← expr
     if ← isSym ":=" then
@@ -351,11 +403,13 @@ partial def decl : P Decl := do
     while ← isSym "|" do
       let cpos ← curPos
       advance
-      let c ← ident
-      let mut vs : Array String := #[]
-      while !(← isMapsto) do vs := vs.push (← ident)
+      let mut ps : Array Pat := #[← pattern]
+      while ← isSym "," do
+        advance
+        ps := ps.push (← pattern)
+      if !(← isMapsto) then perr "expected '=>' after the patterns"
       advance
-      cls := cls.push ⟨c, vs.toList, ← expr, cpos⟩
+      cls := cls.push ⟨ps.toList, ← expr, cpos⟩
     if cls.isEmpty && !(← isDeclStart) then perr "expected ':=' or pattern-matching clauses"
     return .defSplit name ps ty cls.toList pos
   | .ident "data" =>

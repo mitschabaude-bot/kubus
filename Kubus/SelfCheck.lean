@@ -46,7 +46,7 @@ def uniqueCtx (ctx : Ctx) : M Ctx := do
   let mut taken ← globalNames
   let mut out : List CEntry := []
   for e in ctx.entries.reverse do
-    let x := freshName taken (if e.name == "_" || e.name == "" then "x" else e.name)
+    let x := freshName taken (if e.name == "_" || e.name == "" then "x" else plainName e.name)
     taken := x :: taken
     out := { e with name := x } :: out
   return { ctx with entries := out }
@@ -111,7 +111,7 @@ def scTerm (ctx : Ctx) (tm : Tm) (ty : Val) (label : String) (checkTy : Bool := 
         try k raw catch e =>
           if e == budgetExceeded then throw e
           fail "recheck" s!"printed normal form does not re-elaborate: {e}\n  {truncate src}"
-    let src := pp names 0 nf
+    let src := pp names 0 nf { mask := ← implMasks }
     reparse src fun raw => do
       let tm' ← check ctx' raw ty
       let v'' ← eval ctx.env tm'
@@ -120,7 +120,7 @@ def scTerm (ctx : Ctx) (tm : Tm) (ty : Val) (label : String) (checkTy : Bool := 
     if checkTy then
       let tnf ← quote ctx.qctx ty
       if tnf.hasSurface then
-        let tsrc := pp names 0 tnf
+        let tsrc := pp names 0 tnf { mask := ← implMasks }
         reparse tsrc fun raw => do
           let (tt, _) ← inferType ctx' raw
           if !(← convTy lvl (← eval ctx.env tt) ty) then

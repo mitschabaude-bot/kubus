@@ -1,0 +1,6 @@
+-- expect: termination check failed
+data Nat : U := zero | suc (n : Nat)
+def f : Nat -> Nat -> Nat
+  | zero, n => n
+  | suc m, zero => zero
+  | suc m, suc n => f (suc m) n

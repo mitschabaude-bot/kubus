@@ -1,65 +1,65 @@
 -- Basic path algebra
 
-def id (A : U) (x : A) : A := x
+def id {A : U} (x : A) : A := x
 
-def refl (A : U) (a : A) : Path A a a := \i -> a
+def refl {A : U} (a : A) : Path A a a := \i -> a
 
-def sym (A : U) (a b : A) (p : Path A a b) : Path A b a := \i -> p (~i)
+def sym {A : U} {a b : A} (p : Path A a b) : Path A b a := \i -> p (~i)
 
-def cong (A B : U) (f : A -> B) (a b : A) (p : Path A a b) : Path B (f a) (f b) :=
+def cong {A B : U} (f : A -> B) {a b : A} (p : Path A a b) : Path B (f a) (f b) :=
   \i -> f (p i)
 
-def funext (A B : U) (f g : A -> B) (h : (x : A) -> Path B (f x) (g x)) : Path (A -> B) f g :=
+def funext {A B : U} {f g : A -> B} (h : (x : A) -> Path B (f x) (g x)) : Path (A -> B) f g :=
   \i x -> h x i
 
-def trans (A : U) (a b c : A) (p : Path A a b) (q : Path A b c) : Path A a c :=
+def trans {A : U} {a b c : A} (p : Path A a b) (q : Path A b c) : Path A a c :=
   \i -> hcomp j A [i = 0 -> a, i = 1 -> q j] (p i)
 
-def transport (A B : U) (p : Path U A B) (a : A) : B := comp i (p i) [] a
+def transport {A B : U} (p : Path U A B) (a : A) : B := comp i (p i) [] a
 
-def symInv (A : U) (a b : A) (p : Path A a b) : Path (Path A a b) (sym A b a (sym A a b p)) p :=
+def symInv {A : U} {a b : A} (p : Path A a b) : Path (Path A a b) (sym (sym p)) p :=
   \i -> p
 
 -- contractibility of singletons
-def singl (A : U) (a : A) : U := (x : A) × Path A a x
+def singl {A : U} (a : A) : U := (x : A) × Path A a x
 
-def contrSingl (A : U) (a b : A) (p : Path A a b) : Path (singl A a) (a, refl A a) (b, p) :=
+def contrSingl {A : U} {a b : A} (p : Path A a b) : Path (singl a) (a, refl a) (b, p) :=
   \i -> (p i, \j -> p (i /\ j))
 
-def J (A : U) (a : A) (C : (x : A) -> Path A a x -> U) (d : C a (refl A a)) (x : A) (p : Path A a x) : C x p :=
-  transport (C a (refl A a)) (C x p) (\i -> C (contrSingl A a x p i).1 (contrSingl A a x p i).2) d
+def J {A : U} {a : A} (C : (x : A) -> Path A a x -> U) (d : C a (refl a)) {x : A} (p : Path A a x) : C x p :=
+  transport (\i -> C (contrSingl p i).1 (contrSingl p i).2) d
 
 
 data Empty : U
 
-def absurd (A : U) : Empty -> A
+def absurd {A : U} : Empty -> A
 
 data Unit : U := tt
 
 -- transport along refl is the identity, up to a path
-def transportRefl (A : U) (x : A) : Path A (transport A A (\i -> A) x) x :=
+def transportRefl {A : U} (x : A) : Path A (transport (\i -> A) x) x :=
   \i -> comp j A [i = 1 -> x] x
 
-def JRefl (A : U) (a : A) (C : (x : A) -> Path A a x -> U) (d : C a (refl A a))
-  : Path (C a (refl A a)) (J A a C d a (refl A a)) d :=
-  transportRefl (C a (refl A a)) d
+def JRefl {A : U} {a : A} (C : (x : A) -> Path A a x -> U) (d : C a (refl a))
+  : Path (C a (refl a)) (J C d (refl a)) d :=
+  transportRefl d
 
 -- the right unit law for path composition
-def rUnit (A : U) (a b : A) (p : Path A a b) : Path (Path A a b) p (trans A a b b p (refl A b)) :=
+def rUnit {A : U} {a b : A} (p : Path A a b) : Path (Path A a b) p (trans p (refl b)) :=
   \j i -> fill k A [i = 0 -> a, i = 1 -> b] (p i) j
 
-def lUnit (A : U) (a b : A) (p : Path A a b) : Path (Path A a b) p (trans A a a b (refl A a) p) :=
+def lUnit {A : U} {a b : A} (p : Path A a b) : Path (Path A a b) p (trans (refl a) p) :=
   \j i -> hcomp k A [i = 0 -> a, i = 1 -> p k, j = 0 -> p (i /\ k)] a
 
 def isProp (A : U) : U := (x y : A) -> Path A x y
 def isSet (A : U) : U := (x y : A) -> isProp (Path A x y)
 
 -- paths in Σ-types
-def sigmaPath (A : U) (B : A -> U) (u v : (x : A) × B x)
+def sigmaPath {A : U} {B : A -> U} {u v : (x : A) × B x}
     (p : Path A u.1 v.1) (q : PathP (\i -> B (p i)) u.2 v.2) : Path ((x : A) × B x) u v :=
   \i -> (p i, q i)
 
 -- dependent function extensionality
-def funextDep (A : U) (B : A -> U) (f g : (x : A) -> B x) (h : (x : A) -> Path (B x) (f x) (g x))
+def funextDep {A : U} {B : A -> U} {f g : (x : A) -> B x} (h : (x : A) -> Path (B x) (f x) (g x))
   : Path ((x : A) -> B x) f g :=
   \i x -> h x i

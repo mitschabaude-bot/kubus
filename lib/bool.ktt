@@ -10,4 +10,4 @@ def notnot : (b : Bool) -> Path Bool (not (not b)) b
   | false => \i -> false
   | true => \i -> true
 
-def notPath : Path U Bool Bool := isoToPath Bool Bool not not notnot notnot
+def notPath : Path U Bool Bool := isoToPath not not notnot notnot
