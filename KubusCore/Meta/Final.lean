@@ -1,5 +1,6 @@
 import KubusCore.Meta.SigWk
 import KubusCore.Meta.ConBnd
+import KubusCore.Meta.HcompCon
 
 /-!
 # Metatheory: the spec and the minimal judgments agree on well-formed signatures
@@ -64,6 +65,8 @@ theorem contractaTyped_of (hW : WfSig S)
     (htr' : ∀ (d : Nat) (D : DataDecl), S[d]? = some (.data D) →
       ∀ {Ψ Φ Γ t A}, HasTy (S.take d) Ψ Φ Γ t A → HasTy0 S Ψ Φ Γ t A) :
     ContractaTyped S where
+  hcompCon := fun h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 =>
+    hcompCon_of (sigClosed_of_wfSig hW) hW (htr' _ _ h0) h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10
   transpCon := fun hD hne hC hps hargs htele hL hφ hc hI hX hl r tb ch =>
     transpCon_of (sigClosed_of_wfSig hW) hW (htr' _ _ hD) hD hne hC hps hargs htele hL hφ hc hI hX hl r tb ch
   conBnd := fun hD hC hk hent hps hargs h => by

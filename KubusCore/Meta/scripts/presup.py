@@ -133,6 +133,7 @@ eq = {
       exact ⟨h0, pathBeta_of hS hI hX hl hY hr r tb ch, pre_ty h0⟩""",
 'glueBeta': "⟨h0, h1, pre_ty h0⟩",
 'noConf': "⟨h2, h3, pre_ty h2⟩",
+'hcompCon': "⟨h10, hC.hcompCon h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10, pre_ty h10⟩",
 'dataInjAt': "⟨h7, h8, pre_ty h7⟩",
 'piInjDom': """by
       obtain ⟨p, p', _⟩ := pre_eq h0
@@ -284,8 +285,8 @@ eq = {
       obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h7 rfl rfl
       exact ⟨h7, elimCon_of hS h0 h1 h2 h3 h4 h5 h6 hE hI hX hl r tb ch, pre_ty h7⟩""",
 'elimHcomp': """by
-      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h2 rfl rfl
-      exact ⟨h2, elimHcomp_of hS h0 h1 hE hI hX hl r tb ch, pre_ty h2⟩""",
+      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h3 rfl rfl
+      exact ⟨h3, elimHcomp_of hS h0 h2 hE hI hX hl r tb ch, pre_ty h3⟩""",
 'transpData0': """by
       have hv := pre_ty h2
       obtain ⟨l, ⟨hL, _, _, ha⟩, ch⟩ := gen_transpF h2 rfl
@@ -298,8 +299,8 @@ eq = {
       obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h6 rfl rfl
       exact ⟨h6, hC.transpCon h0 h1 h2 h3 h4 h5 hL hφ hc hI hX hl r tb ch, pre_ty h6⟩""",
 'transpHcomp': """by
-      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h3 rfl rfl
-      exact ⟨h3, transpHcomp_of hS h0 h1 h2 hL hφ hc hI hX hl r tb ch, pre_ty h3⟩""",
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h4 rfl rfl
+      exact ⟨h4, transpHcomp_of hS h0 h1 h3 hL hφ hc hI hX hl r tb ch, pre_ty h4⟩""",
 }
 out=[]
 out.append("theorem pre_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → IsTypB S Ψ Φ Γ A")
@@ -469,6 +470,16 @@ structure ContractaTyped (S : Sig) : Prop where
     ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
     HasTy0 S Ψ Φ Γ (con d c ps args rs) T →
     HasTy0 S Ψ Φ Γ (Ctor.bndAt b ps.toList args.toList rs) T
+  hcompCon : ∀ {Ψ Φ Γ d D c C ps φ u qs uargs args T}, S[d]? = some (.data D) → D.isHIT = false →
+    D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
+    uargs = Tm.ofList uargs.toList →
+    HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
+    HasTele0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift uargs (C.argTys d D.params.length) ps.dshift.toList.reverse →
+    EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (con d c ps.dshift uargs []) (data d ps.dshift) →
+    EqTele0 S Ψ (cof Φ φ) Γ (uargs.dinst .zero) args (C.argTys d D.params.length) ps.toList.reverse →
+    HasTy0 S Ψ Φ Γ (hcomp (data d ps) φ u (con d c qs args [])) T →
+    HasTy0 S Ψ Φ Γ (con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (data d ps)
+      ps.dshift.toList φ 0 [] uargs.toList args.toList)) []) T
   transpCon : ∀ {Ψ Φ Γ d D c C ps φ qs args rs l0 X l T}, S[d]? = some (.data D) → D.params ≠ [] →
     D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
     HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →

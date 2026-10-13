@@ -96,4 +96,77 @@ theorem transpCon_subst {S : Sig} (hS : SigClosed S) {d : Nat} {D : DataDecl} {c
     toList_subst hps, toList_subst hargs]
   rfl
 
+section
+variable (σ : Nat → Tm) (τ : Nat → I)
+
+theorem dshift_toList' {ps : Tm} (h : IsList ps) : ps.dshift.toList = ps.toList.map Tm.dshift := by
+  rw [dshift_eq ps, toList_subst h]; congr 1; funext x; rw [dshift_eq]
+
+theorem comp_subst (C : Tm) (ψ : I) (u u0 : Tm) :
+    (comp C ψ u u0).subst σ τ =
+      comp (C.subst (dupS σ) (I.up τ)) (ψ.subst τ) (u.subst (dupS σ) (I.up τ)) (u0.subst σ τ) := by
+  simp only [comp]; scalc
+
+theorem fill_subst (C : Tm) (ψ : I) (u u0 : Tm) :
+    (fill C ψ u u0).subst (dupS σ) (I.up τ) =
+      fill (C.subst (dupS σ) (I.up τ)) (ψ.subst τ) (u.subst (dupS σ) (I.up τ)) (u0.subst σ τ) := by
+  simp only [fill, comp]; scalc
+
+theorem hfill_subst (A : Tm) (φ : I) (u u0 : Tm) :
+    (hfill A φ u u0).subst (dupS σ) (I.up τ) =
+      hfill (A.subst σ τ) (φ.subst τ) (u.subst (dupS σ) (I.up τ)) (u0.subst σ τ) := by
+  simp only [hfill]; scalc
+
+theorem dshift_subst_dup (t : Tm) : t.dshift.subst (dupS σ) (I.up τ) = (t.subst σ τ).dshift := by
+  scalc
+
+theorem hcompTele_subst {C : Ctor} {argTy : Nat → Tm} {np : Nat}
+    (hA : ∀ k, (argTy k).closedB (np + k) 0 = true) {dataT : Tm}
+    {psL : List Tm} (hlen : psL.length = np) (φ : I) :
+    ∀ (us as : List Tm) (k : Nat) (fills : List Tm), fills.length = k →
+    (Tm.hcompTele C argTy dataT psL φ k fills us as).map (·.subst σ τ) =
+      Tm.hcompTele C argTy (dataT.subst σ τ) (psL.map (·.subst (dupS σ) (I.up τ))) (φ.subst τ) k
+        (fills.map (·.subst (dupS σ) (I.up τ))) (us.map (·.subst (dupS σ) (I.up τ))) (as.map (·.subst σ τ))
+  | [], _, _, _, _ => by cases ‹List Tm› <;> rfl
+  | _ :: _, [], _, _, _ => rfl
+  | u :: us, a :: as, k, fills, hf => by
+    have hL : ((argTy k).substList (fills ++ psL.reverse)).subst (dupS σ) (I.up τ) =
+        (argTy k).substList (fills.map (·.subst (dupS σ) (I.up τ)) ++
+          (psL.map (·.subst (dupS σ) (I.up τ))).reverse) := by
+      rw [substList_subst (by simp [hf, hlen]; rw [Nat.add_comm]; exact hA k)]
+      simp [List.map_append, List.map_reverse]
+    simp only [Tm.hcompTele, List.map_cons]
+    split
+    · simp only [List.map_cons, Tm.subst]
+      congr 1
+      rw [hcompTele_subst hA hlen φ us as (k + 1) _ (by simp [hf])]
+      simp only [List.map_cons, hfill_subst]
+    · simp only [List.map_cons, comp_subst, hL]
+      congr 1
+      rw [hcompTele_subst hA hlen φ us as (k + 1) _ (by simp [hf])]
+      simp only [List.map_cons, fill_subst, hL]
+
+theorem hcompCon_subst {S : Sig} (hS : SigClosed S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+    (hd : S[d]? = some (.data D)) (hc : D.ctors[c]? = some C) {ps uargs args : Tm} {φ : I}
+    (hps : IsList ps) (huargs : IsList uargs) (hargs : IsList args) (hlen : ps.toList.length = D.params.length) :
+    (con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (data d ps) ps.dshift.toList φ 0 []
+      uargs.toList args.toList)) []).subst σ τ =
+    con d c (ps.subst σ τ) (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (data d (ps.subst σ τ))
+      (ps.subst σ τ).dshift.toList (φ.subst τ) 0 [] (uargs.subst (dupS σ) (I.up τ)).toList
+      (args.subst σ τ).toList)) [] := by
+  have e : ps.dshift.toList.map (·.subst (dupS σ) (I.up τ)) = (ps.subst σ τ).dshift.toList := by
+    rw [dshift_eq ps, dshift_eq (ps.subst σ τ), toList_subst hps, toList_subst (isList_subst hps _ _),
+      toList_subst hps, List.map_map, List.map_map]
+    apply List.map_congr_left; intro x _
+    show (x.subst Tm.var _).subst (dupS σ) (I.up τ) = ((x.subst σ τ).subst Tm.var _)
+    rw [← dshift_eq, ← dshift_eq]; exact dshift_subst_dup σ τ x
+  have hl' : ps.dshift.toList.length = D.params.length := by
+    rw [dshift_eq ps, toList_subst hps, List.length_map, hlen]
+  simp only [Tm.subst, ofList_subst]
+  rw [hcompTele_subst σ τ (fun k => argTy_closed hS hd hc k) hl' φ uargs.toList args.toList 0 [] rfl,
+    toList_subst huargs, toList_subst hargs, e]
+  rfl
+
+end
+
 end KubusCore.Meta

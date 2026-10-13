@@ -137,10 +137,11 @@ theorem sigwk_eq (hpre : ∀ (k : Nat) (e : Entry), S'[k]? = some e → S[k]? = 
   | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => EqTm0.elim (hpre _ _ h0) (sigwk_ty hpre h1) (sigwk_ty hpre h2) (sigwk_eqtele hpre h3) (sigwk_eq hpre h4) h5 h6 h7 (fun c C b b' a0 a1 a2 => sigwk_eq hpre (h8 c C b b' a0 a1 a2)) (sigwk_eq hpre h9)
   | .conBnd h0 h1 h2 h3 h4 h5 h6 => EqTm0.conBnd (hpre _ _ h0) h1 h2 h3 h4 h5 (sigwk_ty hpre h6)
   | .elimCon h0 h1 h2 h3 h4 h5 h6 h7 => EqTm0.elimCon (hpre _ _ h0) h1 h2 h3 h4 h5 (sigwk_tele hpre h6) (sigwk_ty hpre h7)
-  | .elimHcomp h0 h1 h2 => EqTm0.elimHcomp (hpre _ _ h0) (sigwk_ty hpre h1) (sigwk_ty hpre h2)
+  | .elimHcomp h0 h1 h2 h3 => EqTm0.elimHcomp (hpre _ _ h0) h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3)
+  | .hcompCon h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 => EqTm0.hcompCon (hpre _ _ h0) h1 h2 h3 h4 h5 (sigwk_tele hpre h6) (sigwk_tele hpre h7) (sigwk_eq hpre h8) (sigwk_eqtele hpre h9) (sigwk_ty hpre h10)
   | .transpData0 h0 h1 h2 => EqTm0.transpData0 (hpre _ _ h0) h1 (sigwk_ty hpre h2)
   | .transpCon h0 h1 h2 h3 h4 h5 h6 => EqTm0.transpCon (hpre _ _ h0) h1 h2 h3 h4 (sigwk_tele hpre h5) (sigwk_ty hpre h6)
-  | .transpHcomp h0 h1 h2 h3 => EqTm0.transpHcomp (hpre _ _ h0) h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3)
+  | .transpHcomp h0 h1 h2 h3 h4 => EqTm0.transpHcomp (hpre _ _ h0) h1 h2 (sigwk_ty hpre h3) (sigwk_ty hpre h4)
 end
 
 end KubusCore.Meta

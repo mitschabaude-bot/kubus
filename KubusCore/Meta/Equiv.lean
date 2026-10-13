@@ -311,14 +311,16 @@ theorem toMin_eq {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t
     EqTm0.conBnd h0 h1 h2 h3 h4 h5 (toMin_ty h6)
   | .elimCon h0 h1 h2 h3 h4 h5 h6 h7 =>
     EqTm0.elimCon h0 h1 h2 h3 h4 h5 (toMin_tele h6) (toMin_ty h7)
-  | .elimHcomp h0 h1 h2 =>
-    EqTm0.elimHcomp h0 (toMin_ty h1) (toMin_ty h2)
+  | .elimHcomp h0 h1 h2 h3 =>
+    EqTm0.elimHcomp h0 h1 (toMin_ty h2) (toMin_ty h3)
+  | .hcompCon h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 =>
+    EqTm0.hcompCon h0 h1 h2 h3 h4 h5 (toMin_tele h6) (toMin_tele h7) (toMin_eq h8) (toMin_eqtele h9) (toMin_ty h10)
   | .transpData0 h0 h1 h2 =>
     EqTm0.transpData0 h0 h1 (toMin_ty h2)
   | .transpCon h0 h1 h2 h3 h4 h5 h6 =>
     EqTm0.transpCon h0 h1 h2 h3 h4 (toMin_tele h5) (toMin_ty h6)
-  | .transpHcomp h0 h1 h2 h3 =>
-    EqTm0.transpHcomp h0 h1 (toMin_ty h2) (toMin_ty h3)
+  | .transpHcomp h0 h1 h2 h3 h4 =>
+    EqTm0.transpHcomp h0 h1 h2 (toMin_ty h3) (toMin_ty h4)
 end
 
 end
@@ -563,14 +565,16 @@ theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ 
     EqTm.conBnd h0 h1 h2 h3 h4 h5 (toFull_ty h6)
   | .elimCon h0 h1 h2 h3 h4 h5 h6 h7 =>
     EqTm.elimCon h0 h1 h2 h3 h4 h5 (toFull_tele h6) (toFull_ty h7)
-  | .elimHcomp h0 h1 h2 =>
-    EqTm.elimHcomp h0 (toFull_ty h1) (toFull_ty h2)
+  | .elimHcomp h0 h1 h2 h3 =>
+    EqTm.elimHcomp h0 h1 (toFull_ty h2) (toFull_ty h3)
+  | .hcompCon h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 =>
+    EqTm.hcompCon h0 h1 h2 h3 h4 h5 (toFull_tele h6) (toFull_tele h7) (toFull_eq h8) (toFull_eqtele h9) (toFull_ty h10)
   | .transpData0 h0 h1 h2 =>
     EqTm.transpData0 h0 h1 (toFull_ty h2)
   | .transpCon h0 h1 h2 h3 h4 h5 h6 =>
     EqTm.transpCon h0 h1 h2 h3 h4 (toFull_tele h5) (toFull_ty h6)
-  | .transpHcomp h0 h1 h2 h3 =>
-    EqTm.transpHcomp h0 h1 (toFull_ty h2) (toFull_ty h3)
+  | .transpHcomp h0 h1 h2 h3 h4 =>
+    EqTm.transpHcomp h0 h1 h2 (toFull_ty h3) (toFull_ty h4)
 end
 
 end KubusCore.Meta

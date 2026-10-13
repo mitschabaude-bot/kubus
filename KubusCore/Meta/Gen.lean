@@ -169,6 +169,41 @@ theorem gen_transp {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {A φ a} (ht : t =
   | .con _ _ _ _ _ _ _ _ => by cases ht
   | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
 
+theorem gen_hcompA {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {A φ u a} (ht : t = .hcomp A φ u a) :
+    ∃ Φ0 l, I.Entails Φ Φ0 ∧ HasTy0 S Ψ Φ0 Γ A (univ l) :=
+  match h with
+  | .var _ _ => by cases ht
+  | .conv h0 _ => gen_hcompA h0 ht
+  | .restrict _ h1 h2 => by
+    obtain ⟨Φ0, l, he, h⟩ := gen_hcompA h2 ht
+    exact ⟨Φ0, l, ent_trans h1 he, h⟩
+  | .const _ _ => by cases ht
+  | .univ _ _ => by cases ht
+  | .cumul _ h1 => gen_hcompA h1 ht
+  | .pi _ _ => by cases ht
+  | .lam _ _ => by cases ht
+  | .app _ _ => by cases ht
+  | .sigma _ _ => by cases ht
+  | .pair _ _ _ => by cases ht
+  | .fst _ => by cases ht
+  | .snd _ => by cases ht
+  | .path _ _ _ => by cases ht
+  | .plam _ _ _ _ => by cases ht
+  | .papp _ _ => by cases ht
+  | .ipi _ _ => by cases ht
+  | .ilam _ _ => by cases ht
+  | .iapp _ _ => by cases ht
+  | .split _ _ _ _ _ _ _ => by cases ht
+  | .abort _ _ => by cases ht
+  | .transp _ _ _ _ => by cases ht
+  | .hcomp h0 _ _ _ _ => by cases ht; exact ⟨_, _, ent_refl _, h0⟩
+  | .glue _ _ _ _ => by cases ht
+  | .glueEl _ _ _ _ _ => by cases ht
+  | .unglue _ _ _ _ => by cases ht
+  | .data _ _ _ => by cases ht
+  | .con _ _ _ _ _ _ _ _ => by cases ht
+  | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
+
 theorem gen_transp_data {Ψ Φ Γ t T} (h : HasTy0 S Ψ Φ Γ t T) {d ps φ a}
     (ht : t = .transp (.data d ps) φ a) :
     ∃ D, S[d]? = some (.data D) ∧ ps.toList.length = D.params.length := by
