@@ -133,13 +133,13 @@ theorem sigwk_eq (hpre : ∀ (k : Nat) (e : Entry), S'[k]? = some e → S[k]? = 
   | .glueEta h0 => EqTm0.glueEta (sigwk_ty hpre h0)
   | .data h0 h1 h2 h3 => EqTm0.data (hpre _ _ h0) (sigwk_ty hpre h1) (sigwk_ty hpre h2) (sigwk_eqtele hpre h3)
   | .con h0 h1 h2 h3 h4 h5 h6 h7 => EqTm0.con (hpre _ _ h0) h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (sigwk_eqtele hpre h4) (sigwk_eqtele hpre h5) h6 h7
-  | .elim h0 h1 h2 h3 h4 h5 h6 h7 => EqTm0.elim (hpre _ _ h0) (sigwk_ty hpre h1) (sigwk_ty hpre h2) (sigwk_eqtele hpre h3) (sigwk_eq hpre h4) h5 (fun c C b b' a0 a1 a2 => sigwk_eq hpre (h6 c C b b' a0 a1 a2)) (sigwk_eq hpre h7)
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => EqTm0.elim (hpre _ _ h0) (sigwk_ty hpre h1) (sigwk_ty hpre h2) (sigwk_eqtele hpre h3) (sigwk_eq hpre h4) h5 h6 h7 (fun c C b b' a0 a1 a2 => sigwk_eq hpre (h8 c C b b' a0 a1 a2)) (sigwk_eq hpre h9)
   | .conBnd h0 h1 h2 h3 h4 h5 h6 => EqTm0.conBnd (hpre _ _ h0) h1 h2 h3 h4 h5 (sigwk_ty hpre h6)
-  | .elimCon h0 h1 h2 h3 h4 h5 => EqTm0.elimCon (hpre _ _ h0) h1 h2 h3 h4 (sigwk_ty hpre h5)
-  | .elimHcomp h0 h1 => EqTm0.elimHcomp (hpre _ _ h0) (sigwk_ty hpre h1)
+  | .elimCon h0 h1 h2 h3 h4 h5 h6 h7 => EqTm0.elimCon (hpre _ _ h0) h1 h2 h3 h4 h5 (sigwk_tele hpre h6) (sigwk_ty hpre h7)
+  | .elimHcomp h0 h1 h2 => EqTm0.elimHcomp (hpre _ _ h0) (sigwk_ty hpre h1) (sigwk_ty hpre h2)
   | .transpData0 h0 h1 h2 => EqTm0.transpData0 (hpre _ _ h0) h1 (sigwk_ty hpre h2)
-  | .transpCon h0 h1 h2 h3 h4 h5 => EqTm0.transpCon (hpre _ _ h0) h1 h2 h3 h4 (sigwk_ty hpre h5)
-  | .transpHcomp h0 h1 h2 => EqTm0.transpHcomp (hpre _ _ h0) h1 (sigwk_ty hpre h2)
+  | .transpCon h0 h1 h2 h3 h4 h5 h6 => EqTm0.transpCon (hpre _ _ h0) h1 h2 h3 h4 (sigwk_tele hpre h5) (sigwk_ty hpre h6)
+  | .transpHcomp h0 h1 h2 h3 => EqTm0.transpHcomp (hpre _ _ h0) h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3)
 end
 
 end KubusCore.Meta

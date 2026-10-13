@@ -269,7 +269,7 @@ theorem sub_ty (hS : SigClosed S) {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A →
       have hel2 := HasTy0.conv (hsub k2) (EqTm0.symm hP)
       simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] at hel1 hel2 ⊢
       refine EqTm0.elim h0 hel1 hel2
-        (((sub_tele hS h3).2 (fun k A hk => by simpa using hS.params _ _ _ _ h0 hk)).2 k1 k2 kE) ((sub_ty hS h4).2.2 u1 u2 uE)
+        (((sub_tele hS h3).2 (fun k A hk => by simpa using hS.params _ _ _ _ h0 hk)).2 k1 k2 kE) ((sub_ty hS h4).2.2 u1 u2 uE) (isList_subst h5 _ _) (isList_subst h5 _ _)
         (by rw [toList_subst h5, toList_subst h5, List.length_map, List.length_map]) ?_ (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h9).2.2 k1 k2 kE)
       intro c C b b' hc hb hb'
       rw [toList_subst h5, List.getElem?_map] at hb hb'
@@ -502,20 +502,20 @@ theorem sub_eq (hS : SigClosed S) {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → 
         obtain ⟨r0, hr0, rfl⟩ := Option.map_eq_some_iff.1 hr
         obtain ⟨r0', hr0', rfl⟩ := Option.map_eq_some_iff.1 hr'
         exact I_eq_subst (h7 k r0 r0' hr0 hr0') _⟩
-  | @EqTm0.elim _ Ψ Φ Γ d D ps ps' P P' bs bs' t t' m h0 h1 h2 h3 h4 h5 h6 h7 => ⟨(sub_ty hS h1).1, fun {Ψ' Φ' Δ σ τ} hσ =>
+  | @EqTm0.elim _ Ψ Φ Γ d D ps ps' P P' bs bs' t t' m h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => ⟨(sub_ty hS h1).1, fun {Ψ' Φ' Δ σ τ} hσ =>
     by
-      obtain ⟨D', hD', hps, hlen, hbs⟩ := gen_elim h1 rfl
+      obtain ⟨D', hD', hps, hlen, _⟩ := gen_elim h1 rfl
       rw [h0] at hD'; cases hD'
-      obtain ⟨_, _, _, _, hbs'⟩ := gen_elim h2 rfl
       simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]
       refine EqTm0.elim h0 (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h1).2.1 hσ) (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h2).2.1 hσ) ((sub_eqtele hS h3).2 (fun k A hk => by simpa using hS.params _ _ _ _ h0 hk) hσ)
-        ((sub_eq hS h4).2 (hσ.upC hS (sub_eq hS h4).1)) (by rw [toList_subst hbs, toList_subst hbs', List.length_map, List.length_map, h5]) ?_ ((sub_eq hS h7).2 hσ)
+        ((sub_eq hS h4).2 (hσ.upC hS (sub_eq hS h4).1)) (isList_subst h5 _ _) (isList_subst h6 _ _)
+        (by rw [toList_subst h5, toList_subst h6, List.length_map, List.length_map, h7]) ?_ ((sub_eq hS h9).2 hσ)
       intro c C b b' hc hb hb'
-      rw [toList_subst hbs, List.getElem?_map] at hb
-      rw [toList_subst hbs', List.getElem?_map] at hb'
+      rw [toList_subst h5, List.getElem?_map] at hb
+      rw [toList_subst h6, List.getElem?_map] at hb'
       obtain ⟨b0, hb0, rfl⟩ := Option.map_eq_some_iff.1 hb
       obtain ⟨b0', hb0', rfl⟩ := Option.map_eq_some_iff.1 hb'
-      have := (sub_eq hS (h6 c C b0 b0' hc hb0 hb0')).2 hσ
+      have := (sub_eq hS (h8 c C b0 b0' hc hb0 hb0')).2 hσ
       rwa [branchTy_subst _ _ hS h0 hc hps hlen] at this⟩
   | @EqTm0.conBnd _ Ψ Φ Γ d D c C ps args rs k ψ b T h0 h1 h2 h3 h4 h5 h6 => ⟨(sub_ty hS h6).1, fun {Ψ' Φ' Δ σ τ} hσ =>
     by
@@ -526,23 +526,33 @@ theorem sub_eq (hS : SigClosed S) {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → 
       exact EqTm0.conBnd h0 h1 h2 (by
           have := ent_trans hσ.ent (ent_subst h3 τ); rwa [cofAt_subst _ (by rw [hlenr]; exact hb.1)] at this)
         (isList_subst h4 _ _) (isList_subst h5 _ _) ((sub_ty hS h6).2.1 hσ)⟩
-  | @EqTm0.elimCon _ Ψ Φ Γ d D c C ps P bs b qs args rs T h0 h1 h2 h3 h4 h5 => ⟨(sub_ty hS h5).1, fun {Ψ' Φ' Δ σ τ} hσ =>
+  | @EqTm0.elimCon _ Ψ Φ Γ d D c C ps P bs b qs args rs T h0 h1 h2 h3 h4 h5 h6 h7 => ⟨(sub_tele hS h6).1, fun {Ψ' Φ' Δ σ τ} hσ =>
     by
-      rw [elimCon_subst h3]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]
-      refine EqTm0.elimCon h0 h1 ?_ (isList_subst h3 _ _) (isList_subst h4 _ _) (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h5).2.1 hσ)
-      rw [toList_subst h4, List.getElem?_map, h2]; rfl⟩
-  | @EqTm0.elimHcomp _ Ψ Φ Γ d D ps P bs qs φ u a T h0 h1 => ⟨(sub_ty hS h1).1, fun {Ψ' Φ' Δ σ τ} hσ =>
-    by rw [elimHcomp_subst]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]; exact EqTm0.elimHcomp h0 (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h1).2.1 hσ)⟩
+      obtain ⟨D', hD', _, hlen, _⟩ := gen_elim h7 rfl
+      rw [h0] at hD'; cases hD'
+      have ht := ((sub_tele hS h6).2 (fun k A hk => by rw [List.length_reverse, hlen]; exact argTys_closed hS h0 h1 k A hk)).1 hσ
+      rw [elimCon_subst h4]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]
+      refine EqTm0.elimCon h0 h1 ?_ (isList_subst h3 _ _) (isList_subst h4 _ _) (isList_subst h5 _ _) ?_ (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h7).2.1 hσ)
+      · rw [toList_subst h5, List.getElem?_map, h2]; rfl
+      · rw [toList_subst h3, ← List.map_reverse]; exact ht⟩
+  | @EqTm0.elimHcomp _ Ψ Φ Γ d D ps P bs qs φ u a T h0 h1 h2 => ⟨(sub_ty hS h1).1, fun {Ψ' Φ' Δ σ τ} hσ =>
+    by rw [elimHcomp_subst]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]; exact EqTm0.elimHcomp h0 (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h1).2.1 hσ) (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h2).2.1 hσ)⟩
   | @EqTm0.transpData0 _ Ψ Φ Γ d D ps φ a T h0 h1 h2 => ⟨(sub_ty hS h2).1, fun {Ψ' Φ' Δ σ τ} hσ =>
     by simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]; exact EqTm0.transpData0 h0 h1 (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h2).2.1 hσ)⟩
-  | @EqTm0.transpCon _ Ψ Φ Γ d D c C ps φ qs args rs T h0 h1 h2 h3 h4 h5 => ⟨(sub_ty hS h5).1, fun {Ψ' Φ' Δ σ τ} hσ =>
+  | @EqTm0.transpCon _ Ψ Φ Γ d D c C ps φ qs args rs T h0 h1 h2 h3 h4 h5 h6 => ⟨(sub_tele hS h5).1, fun {Ψ' Φ' Δ σ τ} hσ =>
     by
-      obtain ⟨D', hD', hlen⟩ := gen_transp_data h5 rfl
+      obtain ⟨D', hD', hlen0⟩ := gen_transp_data h6 rfl
       rw [h0] at hD'; cases hD'
-      rw [transpCon_subst hS h0 h2 h3 h4 hlen]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]
-      exact EqTm0.transpCon h0 h1 h2 (isList_subst h3 _ _) (isList_subst h4 _ _) (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h5).2.1 hσ)⟩
-  | @EqTm0.transpHcomp _ Ψ Φ Γ d D ps φ qs ψ u a T h0 h1 h2 => ⟨(sub_ty hS h2).1, fun {Ψ' Φ' Δ σ τ} hσ =>
-    by rw [transpHcomp_subst]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]; exact EqTm0.transpHcomp h0 h1 (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h2).2.1 hσ)⟩
+      have hlen := hlen0
+      rw [← List.length_map (f := (·.dinst .zero)), ← dinst_toList h3] at hlen
+      have ht := ((sub_tele hS h5).2 (fun k A hk => by rw [List.length_reverse, hlen]; exact argTys_closed hS h0 h2 k A hk)).1 hσ
+      rw [transpCon_subst hS h0 h2 h3 h4 hlen0]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]
+      refine EqTm0.transpCon h0 h1 h2 (isList_subst h3 _ _) (isList_subst h4 _ _) ?_ (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h6).2.1 hσ)
+      rw [dinst_toList (isList_subst h3 _ _), toList_subst h3]
+      rw [dinst_toList h3] at ht
+      simpa only [List.map_reverse, List.map_map, Function.comp_def, dinst_subst, I.subst, Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using ht⟩
+  | @EqTm0.transpHcomp _ Ψ Φ Γ d D ps φ qs ψ u a T h0 h1 h2 h3 => ⟨(sub_ty hS h2).1, fun {Ψ' Φ' Δ σ τ} hσ =>
+    by rw [transpHcomp_subst]; simp only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil]; exact EqTm0.transpHcomp h0 h1 (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h2).2.1 hσ) (by simpa only [Tm.subst, I.subst, inst_subst, dinst_subst, equiv_subst, dshift_dup_subst, shift_up_subst, Ishift_up_subst, Tm.up, I.up, List.map_nil] using (sub_ty hS h3).2.1 hσ)⟩
 end
 
 end KubusCore.Meta

@@ -310,6 +310,7 @@ inductive EqTm0 (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | elim {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} : S[d]? = some (.data D) →
       HasTy0 S Ψ Φ Γ (elim d ps P bs t) (P.inst t) → HasTy0 S Ψ Φ Γ (elim d ps' P' bs' t') (P.inst t) →
       EqTele0 S Ψ Φ Γ ps ps' D.params [] → EqTm0 S Ψ Φ (data d ps :: Γ) P P' (univ m) →
+      bs = Tm.ofList bs.toList → bs' = Tm.ofList bs'.toList →
       bs.toList.length = bs'.toList.length →
       (∀ (c : Nat) (C : Ctor) (b b' : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
         bs'.toList[c]? = some b' →
@@ -325,12 +326,14 @@ inductive EqTm0 (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   /- inductive types: elimination -/
   | elimCon {Ψ Φ Γ d D c C ps P bs b qs args rs T} : S[d]? = some (.data D) →
       D.ctors[c]? = some C → bs.toList[c]? = some b →
-      args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
+      ps = Tm.ofList ps.toList → args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
+      HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
       HasTy0 S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T →
       EqTm0 S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
         (Tm.papps (Tm.apps b (args.toList ++
           C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T
   | elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} : S[d]? = some (.data D) →
+      HasTy0 S Ψ Φ Γ (hcomp (data d ps) φ u a) (data d ps) →
       HasTy0 S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T →
       EqTm0 S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a))
         (comp (P.subst (consSub (hfill (data d ps) φ u a)) (fun i => .var (i + 1))) φ
@@ -340,11 +343,13 @@ inductive EqTm0 (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       HasTy0 S Ψ Φ Γ (transp (data d ps) φ a) T → EqTm0 S Ψ Φ Γ (transp (data d ps) φ a) a T
   | transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} : S[d]? = some (.data D) → D.params ≠ [] →
       D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
+      HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →
       HasTy0 S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T →
       EqTm0 S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs))
         (con d c (ps.dinst .one)
           (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
   | transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} : S[d]? = some (.data D) → D.params ≠ [] →
+      HasTy0 S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero)) →
       HasTy0 S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T →
       EqTm0 S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a))
         (hcomp (data d (ps.dinst .one)) ψ

@@ -57,7 +57,7 @@ The judgments use a face rule: if `Φ ⊨ (i = d)` for an endpoint `d`, then `t 
 - `U_l : U_(l+1)` for `l + 1 ≤ maxLevel` (currently 4). Cumulativity: `A : U_l` implies `A : U_(l+1)`, with the same equations. No other subtyping. Levels are bounded so that the model needs only finitely many Grothendieck universes, which Lean can construct; an unbounded tower would make the consistency theorem conditional.
 - `Π`, `Σ`, with β and η. Lambdas are annotated with their domain, `λ (x : A). t`, so that raw terms have type-independent denotations in the set-valued model.
 - `PathP (i. A) a b`, where `a : A(0/i)` and `b : A(1/i)`. The introduction `⟨i⟩ t` requires `t(0/i) ≡ a` and `t(1/i) ≡ b`. Application `p r` reduces: `p 0 ≡ a`, `p 1 ≡ b`, β, and η.
-- `Glue A [φ ↦ (T, e)]` with `T` and `e : Equiv T A` under `φ`. Under `φ`, `Glue … ≡ T`, `glue [φ ↦ t] a ≡ t` and `unglue φ e g ≡ e.1 g`. `unglue` must carry the equivalence `e`: under `φ` an element of `T` inhabits the Glue type for *every* equivalence, so without it the rule would identify `e.1 g` and `e'.1 g` for any two equivalences, which is inconsistent. There are β and η rules for glue/unglue. `Equiv` is the contractible-fibers definition, built from `Π`, `Σ` and `PathP`.
+- `Glue A [φ ↦ (T, e)]` with `T` and `e : Equiv T A` under `φ`. Under `φ`, `Glue … ≡ T`, `glue [φ ↦ t] a ≡ t` and `unglue φ e g ≡ e.1 g`. `unglue` must carry the equivalence `e`: under `φ` an element of `T` inhabits the Glue type for *every* equivalence, so without it the rule would identify `e.1 g` and `e'.1 g` for any two equivalences, which is inconsistent. There are β and η rules for glue/unglue. The congruence rules for `glue [φ ↦ t] a` and `unglue φ e g` allow equivalences that are only judgmentally equal under `φ` (M4), as the Glue type former does. `Equiv` is the contractible-fibers definition, built from `Π`, `Σ` and `PathP`.
 
 ### Structural rules, presupposition and inversion
 
@@ -75,7 +75,7 @@ Judgments are parameterized by a signature `S` of closed definitions `(t, A)`. `
 
 The computation rules are those of CHM (§2 and §3 of *On Higher Inductive Types in Cubical Type Theory*):
 
-- `transp` for `U` (identity), `Π`, `Σ`, `PathP` and `Glue`;
+- `transp` for `U` (identity), `Π`, `Σ`, `PathP` and `Glue`; the Glue rule accepts any cofibration `δ` equivalent to `∀i. φ` in its contractum (M5). The syntactic `∀i. φ` commutes with interval substitution only up to equivalence;
 - `hcomp` for `Π`, `Σ`, `PathP` and `Glue`;
 - `hcomp` in `U_l` (`hcompU`): `hcomp U [φ ↦ i. u] u0 ≡ Glue u0 [φ ↦ (u(1/i), e)]`, where `e : u(1/i) ≃ u0` is transport backwards along the tube (`lineEquiv` of `u(~i/i)`; on `φ`, `u(0/i) ≡ u0`). `lineEquiv B` pairs `f_1` with a proof that it is an equivalence, where `f_i = λ x. transp (j. B(i ∧ j)) (i = 0) x : B(0) → B(i)`: `f_0` is the identity, so the evident proof `idIsEquiv` that it is an equivalence is transported along `i ↦ isEquiv f_i`. All of this is defined by core terms, so no extra type former is needed.
 

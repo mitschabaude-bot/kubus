@@ -330,6 +330,14 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
       | _ => none
     if let some (g, k, mask) := implicit then
       return ← elabImplSpine R env E ks g k args mask
+    -- a β-redex: the domain of the λ is the type of the argument
+    if let .lam _ body := f then
+      let a' ← elabT R env E ks a none
+      let i ← KubusCore.Kernel.inferW R E a'
+      let bexp : Exp S Ψ Φ (i.ty :: Γ) := match exp with
+        | some ⟨T, l, ⟨hT⟩⟩ => some ⟨T.shift, l, ⟨HasTy.wk i.hty hT⟩⟩
+        | none => none
+      return .app (.lam i.ty (← elabT R env (E.ext i.ty i.lvl i.hty) (.tm :: ks) body bexp)) a'
     let f' ← elabT R env E ks f none
     match ← KubusCore.Kernel.inferW R E f' with
     | ⟨.pi A _, l, hP, _⟩ => return .app f' (← elabT R env E ks a (some ⟨A, l, ⟨HasTy.piDom hP⟩⟩))
@@ -347,6 +355,9 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
         return .pair a' b'
       | _ => dflt
     | none => dflt
+  -- a projection of a pair literal: the projected component gets the expected type
+  | .fst (.pair a b) => return .fst (.pair (← elabT R env E ks a exp) (← elabT R env E ks b none))
+  | .snd (.pair a b) => return .snd (.pair (← elabT R env E ks a none) (← elabT R env E ks b exp))
   | .fst p => return .fst (← elabT R env E ks p none)
   | .snd p => return .snd (← elabT R env E ks p none)
   | .piI _ a => return .ipi (← elabT R env E.dext (.dim :: ks) a none)
@@ -367,6 +378,15 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
         | _ => pure none
       | none => pure none
     return .plam (← elabT R env E.dext (.dim :: ks) b line)
+  | .papp (.plam _ b) r => do
+    -- a path abstraction applied: the body gets the expected type, if the line is constant
+    let r' ← trI ks r
+    let bexp : Exp S (Ψ + 1) Φ.shift Γ.dshift := match exp with
+      | some ⟨T, l, ⟨hT⟩⟩ => some ⟨T.dshift, l, ⟨HasTy.dwk hT⟩⟩
+      | none => none
+    if let some b' ← KubusCore.Kernel.tryOpt (elabT R env E.dext (.dim :: ks) b bexp) then
+      return .papp (.plam b') r'
+    return .papp (.plam (← elabT R env E.dext (.dim :: ks) b none)) r'
   | .papp p r => return .papp (← elabT R env E ks p none) (← trI ks r)
   | .comp _ a sys u0 => do
     let L ← elabT R env E.dext (.dim :: ks) a none
@@ -464,7 +484,19 @@ partial def elabT (R : Rec S) (env : Env) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ks :
         let d ← env.dataIdx dn 0
         let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d
         if D.params.isEmpty then pure (d, KubusCore.Tm.tnil)
-        else throw s!"cannot infer the parameters of {c}"
+        else
+          -- match the argument types of the constructor against the arguments' types
+          let ⟨C, _⟩ ← KubusCore.Kernel.lookupCtor D cIdx
+          let np := D.params.length
+          let mut vals : Array (Option KTm) := Array.replicate np none
+          for (a, k) in args.zipIdx do
+            if let some t ← KubusCore.Kernel.tryOpt (elabT R env E ks a none) then
+              if let some inf ← KubusCore.Kernel.tryOpt (KubusCore.Kernel.inferW R E t) then
+                let pat := (C.argTy d np k).subst (fun x => if x < k then .abort else .var (x - k)) .var
+                vals := matchPat np vals 0 0 pat inf.ty
+          match vals.toList.mapM id with
+          | some ps => pure (d, KubusCore.Tm.ofList ps)
+          | none => throw s!"cannot infer the parameters of {c}"
     let ⟨D, _⟩ ← KubusCore.Kernel.lookupData S d
     let ⟨C, _⟩ ← KubusCore.Kernel.lookupCtor D cIdx
     let args' ← elabTele R env E ks (C.argTys d D.params.length) ps.toList.reverse args
@@ -573,6 +605,8 @@ structure State where
   skipped : Std.HashMap (String × Nat) String := {}
   certified : Nat := 0
   rejected : Nat := 0
+  /-- add the translated term and type to rejections -/
+  verbose : Bool := false
 
 def showName (n : String) (k : Nat) : String := if k == 0 then n else s!"{n}^{k}"
 
@@ -656,13 +690,16 @@ def translate (env : Env) (R : Rec S) (E : KCtx S 0 .one []) (ty body : Kubus.Tm
 
 /-- Translate a definition and check it, sharing the kernel's cache. The inner error is a
 failed translation; the outer one a rejection by the kernel. -/
-def translateCheck (env : Env) (C : CheckedSig) (ty body : Kubus.Tm) :
+def translateCheck (env : Env) (C : CheckedSig) (ty body : Kubus.Tm) (verbose : Bool := false) :
     Except String (Except String (KTm × KTm × CheckedSig)) := runK do
   let (R, E) ← setup C.sig
   match ← tryCatch (Except.ok <$> translate env R E ty body) (fun e => pure (.error e)) with
   | .error e => return .error e
   | .ok (kty, kbody) =>
-    let ⟨h⟩ ← checkEntryK C.sig R E kbody kty
+    let ⟨h⟩ ← if verbose then
+        mapErr (· ++ s!"\n  translated term: {Tm.pp kbody}\n  translated type: {Tm.pp kty}")
+          (checkEntryK C.sig R E kbody kty)
+      else checkEntryK C.sig R E kbody kty
     return .ok (kty, kbody, ⟨C.sig ++ [.defn kbody kty], wfSig_append C.wf h⟩)
 
 mutual
@@ -716,7 +753,7 @@ partial def addGlobal (g : Globals) (n : String) (k : Nat) : StateM State (List 
       if m != n then out := out ++ (← addGlobal g m j)
     for (m, j) in datasOf g t do out := out ++ (← addData g m j)
   let s ← get
-  match translateCheck { s.env with globals := g } s.sig ty body with
+  match translateCheck { s.env with globals := g } s.sig ty body s.verbose with
   | .ok (.error e) => return out ++ (← skip e)
   | .ok (.ok (_, _, sig')) =>
       set { s with sig := sig', env.consts := s.env.consts.insert (n, k) s.sig.sig.length,

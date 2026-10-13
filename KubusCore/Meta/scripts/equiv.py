@@ -54,8 +54,8 @@ special = {
 
 
 ('EqTm','ipi'): "EqTm0.ipi (wf_unshift hS (wf_of_eq (toMin_eq h0))) (toMin_eq h0)",
-('EqTm','elim'): """EqTm0.elim h0 (toMin_ty h1) (toMin_ty h2) (toMin_eqtele h3) (toMin_eq h4) h5
-        (fun c C b b' a1 a2 a3 => toMin_eq (h6 c C b b' a1 a2 a3)) (toMin_eq h7)""",
+('EqTm','elim'): """EqTm0.elim h0 (toMin_ty h1) (toMin_ty h2) (toMin_eqtele h3) (toMin_eq h4) h5 h6 h7
+        (fun c C b b' a1 a2 a3 => toMin_eq (h8 c C b b' a1 a2 a3)) (toMin_eq h9)""",
 }
 sigs={
 'Wf':"theorem toMin_wf {Ψ Φ Γ} : Wf S Ψ Φ Γ → Wf0 S Ψ Φ Γ",
@@ -130,8 +130,8 @@ special2 = {
 ('EqTm0','ipi'): "EqTm.ipi (toFull_eq h1)",
 ('EqTm0','face'): "EqTm.face h0 h1 (toFull_ty h3)",
 ('EqTm0','faceU'): "EqTm.face h0 h1 (toFull_ty h2)",
-('EqTm0','elim'): """EqTm.elim h0 (toFull_ty h1) (toFull_ty h2) (toFull_eqtele h3) (toFull_eq h4) h5
-        (fun c C b b' a1 a2 a3 => toFull_eq (h6 c C b b' a1 a2 a3)) (toFull_eq h7)""",
+('EqTm0','elim'): """EqTm.elim h0 (toFull_ty h1) (toFull_ty h2) (toFull_eqtele h3) (toFull_eq h4) h5 h6 h7
+        (fun c C b b' a1 a2 a3 => toFull_eq (h8 c C b b' a1 a2 a3)) (toFull_eq h9)""",
 }
 sigs2={
 'Wf0':"theorem toFull_wf {Ψ Φ Γ} : Wf0 S Ψ Φ Γ → Wf S Ψ Φ Γ",

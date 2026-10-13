@@ -63,7 +63,7 @@ Nested systems make the syntactic restriction `Φ ∧ φ₁ ∧ φ₂ …` grow,
 
 ## The bridge
 
-`kubus` runs the kernel on every definition and data type by default (`--no-kernel` turns it off). After normal elaboration each definition is translated and checked in one kernel run, sharing the cache (`translateCheck`), and data types with `CheckedSig.extendData`. The driver reports `skipped` (with the reason) and `REJECTED`, and fails if anything is rejected; `--verbose` also lists the certified definitions with their checking times.
+`kubus` runs the kernel on every definition and data type by default (`--no-kernel` turns it off). After normal elaboration each definition is translated and checked in one kernel run, sharing the cache (`translateCheck`), and data types with `CheckedSig.extendData`. The driver reports `skipped` (with the reason) and `REJECTED`, and fails if anything is rejected; `--verbose` also lists the certified definitions with their checking times. Declarations of the files given on the command line are certified; imported declarations are certified when they are used. The language server (`kubus --lsp`) runs the kernel on every declaration of the document, caching the results per declaration (keyed by its source text, reused while the document is unchanged up to it).
 
 - Indices are split into term and interval variables. Globals become constants; `f^k` becomes a separate constant with the body and type displaced by `k`.
 - KubusCore λ carries its domain and `glue`/`unglue` carry the Glue equivalence; Kubus core terms record neither. The translation is type-directed: it runs alongside the kernel (`elabT`), taking λ domains from the expected Π type and equivalences from the expected Glue type of `glue` and the Glue type of `unglue`'s argument.
@@ -98,8 +98,9 @@ Kernel time (translation and check, summed over the definitions, `--verbose`), o
 | canonical restriction computed once per context | 4.9 s | ~0.49 s |
 | reuse of results from weaker restrictions | 3.4 s | ~0.14 s |
 | fast paths before the cache | 2.5 s | 0.12–0.17 s |
+| cache entries grouped by context and terms (restrictions as variants) | 1.4 s | 0.04–0.08 s |
 
-The Kubus elaborator itself takes about 17.5 s on `lib/loopspace.ktt` (0.05–0.07 s on the other files), so the kernel is no longer the bottleneck. In `loopspace`, `windingPos` and `windingNeg` take about 1 s each, `decode` 0.35 s and `lemIso` 0.1 s; everything else takes milliseconds.
+Since imported declarations are certified only when used, the times for the other files cover their own declarations and dependencies. `kubus lib/loopspace.ktt` takes 1.8 s end to end (elaboration 0.33 s, after the evaluator stopped applying interval substitutions to values that do not mention the substituted variable).
 
 Findings from profiling (`perf`), in order:
 
@@ -107,5 +108,5 @@ Findings from profiling (`perf`), in order:
 - **Re-derivation.** Without subject reduction the kernel re-derives typings: `whnfI` re-infers heads, eliminations re-check their branches and boundary conditions, and conversion re-checks arguments. On `loopspace`, `infer` ran 9.4 million times on 257 thousand distinct inputs, and each `whnfI` input was reduced about 21 times. The per-definition cache removes this.
 - **Cache copies.** In `StateT σ (Except ε)`, `tryCatch` captures the state for the handler, so every cache insertion under `mapErr`/`tryOpt` copied the hash table. `EStateM` threads the state through errors instead.
 - **Cofibration arithmetic.** `I.dnf`/`I.faces` for canonicalization and entailment were recomputed on every call; the faces and the canonical form are now computed once per context.
-- **Many restrictions.** Nested systems (up to 14 interval variables in `lemIso`) produce many distinct restrictions over the same context and terms, so exact-match lookups missed; reusing results from weaker restrictions fixed this.
-- **What remains.** About two thirds of the remaining kernel time is spent comparing cache keys: contexts and terms rebuilt by substitution or interval weakening are structurally equal but not pointer-equal, so a hit costs a full structural comparison. Hash-consing terms, or kernel contexts that share their interval-weakened copies, would reduce this.
+- **Many restrictions.** Nested systems (up to 14 interval variables in `lemIso`) produce many distinct restrictions over the same context and terms, so exact-match lookups missed; reusing results from weaker restrictions fixed this. Entries for the same context and terms then piled up under different restrictions, each compared in full; grouping them (one comparison of the keys, then a scan of the restrictions) fixed that.
+- **What remains.** Comparing cache keys is still the largest item: contexts and terms rebuilt by substitution or interval weakening are structurally equal but not pointer-equal, so a hit costs a full structural comparison (hash-consing would need a sharing-preserving substitution, which is in the spec). The other large item is `inferElimInfo` (re-checking an eliminator's branches and boundary conditions), whose cached results are only reused under the same restriction; reusing them under stronger restrictions needs a lemma that entailment is stable under the interval renaming of the branch contexts.

@@ -428,18 +428,18 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
     ⟨h1, h2, pre_ty h1⟩
   | @EqTm0.con _ Ψ Φ Γ d D c C ps ps' args args' rs rs' h0 h1 h2 h3 h4 h5 h6 h7 =>
     ⟨h2, h3, pre_ty h2⟩
-  | @EqTm0.elim _ Ψ Φ Γ d D ps ps' P P' bs bs' t t' m h0 h1 h2 h3 h4 h5 h6 h7 =>
+  | @EqTm0.elim _ Ψ Φ Γ d D ps ps' P P' bs bs' t t' m h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 =>
     ⟨h1, h2, pre_ty h1⟩
   | @EqTm0.conBnd _ Ψ Φ Γ d D c C ps args rs k ψ b T h0 h1 h2 h3 h4 h5 h6 =>
     ⟨h6, hC.conBnd h0 h1 h2 h3 h4 h5 h6, pre_ty h6⟩
-  | @EqTm0.elimCon _ Ψ Φ Γ d D c C ps P bs b qs args rs T h0 h1 h2 h3 h4 h5 =>
+  | @EqTm0.elimCon _ Ψ Φ Γ d D c C ps P bs b qs args rs T h0 h1 h2 h3 h4 h5 h6 h7 =>
     by
-      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h5 rfl rfl
-      exact ⟨h5, elimCon_of hS h0 h1 h2 h3 h4 hE hI hX hl r tb ch, pre_ty h5⟩
-  | @EqTm0.elimHcomp _ Ψ Φ Γ d D ps P bs qs φ u a T h0 h1 =>
+      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h7 rfl rfl
+      exact ⟨h7, elimCon_of hS h0 h1 h2 h3 h4 h5 h6 hE hI hX hl r tb ch, pre_ty h7⟩
+  | @EqTm0.elimHcomp _ Ψ Φ Γ d D ps P bs qs φ u a T h0 h1 h2 =>
     by
-      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h1 rfl rfl
-      exact ⟨h1, elimHcomp_of hS h0 hE hI hX hl r tb ch, pre_ty h1⟩
+      obtain ⟨D', m, X, l, hE, hI, hX, hl, r, tb, ch⟩ := genElim h2 rfl rfl
+      exact ⟨h2, elimHcomp_of hS h0 h1 hE hI hX hl r tb ch, pre_ty h2⟩
   | @EqTm0.transpData0 _ Ψ Φ Γ d D ps φ a T h0 h1 h2 =>
     by
       have hv := pre_ty h2
@@ -449,14 +449,14 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
       rw [h1] at htele
       cases htele
       exact ⟨h2, ch.transport ha, hv⟩
-  | @EqTm0.transpCon _ Ψ Φ Γ d D c C ps φ qs args rs T h0 h1 h2 h3 h4 h5 =>
+  | @EqTm0.transpCon _ Ψ Φ Γ d D c C ps φ qs args rs T h0 h1 h2 h3 h4 h5 h6 =>
     by
-      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h5 rfl rfl
-      exact ⟨h5, transpCon_of hS h0 h1 h2 h3 h4 hL hφ hc hI hX hl r tb ch, pre_ty h5⟩
-  | @EqTm0.transpHcomp _ Ψ Φ Γ d D ps φ qs ψ u a T h0 h1 h2 =>
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h6 rfl rfl
+      exact ⟨h6, transpCon_of hS h0 h1 h2 h3 h4 h5 hL hφ hc hI hX hl r tb ch, pre_ty h6⟩
+  | @EqTm0.transpHcomp _ Ψ Φ Γ d D ps φ qs ψ u a T h0 h1 h2 h3 =>
     by
-      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h2 rfl rfl
-      exact ⟨h2, transpHcomp_of hS h0 h1 hL hφ hc hI hX hl r tb ch, pre_ty h2⟩
+      obtain ⟨l0, X, l, hL, hφ, hc, hI, hX, hl, r, tb, ch⟩ := genTransp h3 rfl rfl
+      exact ⟨h3, transpHcomp_of hS h0 h1 h2 hL hφ hc hI hX hl r tb ch, pre_ty h3⟩
 
 theorem genI {Ψ Φ Γ s T} : HasTy0 S Ψ Φ Γ s T → isIntro s = true →
     ∃ X l, IntroTy S Ψ Φ Γ s X ∧ HasTy0 S Ψ Φ Γ X (univ l) ∧ l ≤ maxLevel ∧ Rel S Ψ Φ Γ X T ∧
