@@ -134,6 +134,28 @@ def localInfo (ctx : Ctx) (x : String) : M (Option (Bool × String)) := do
     | none => return some (true, "I")
   | none => return none
 
+/-- The types of data types and constructors, for hovers: `D : (ps) → U n`, and
+`c : {ps} → (args) → (i : I) → D ps`. -/
+def dataTypeTm (info : DataInfo) : Tm :=
+  info.params.foldr (fun (x, a) b => .pi x a b) (.univ info.level)
+
+def ctorTypeTm (info : DataInfo) (c : CtorInfo) : Tm :=
+  let np := info.params.length
+  let na := c.tele.length
+  let nd := c.dims.length
+  let res : Tm := .data info.name 0 ((List.range np).map fun j => .var (na + nd + np - 1 - j))
+  let withDims := c.dims.foldr (fun i b => .piI i b) res
+  let withArgs := c.tele.foldr (fun (x, a) b => .pi x a b) withDims
+  info.params.foldr (fun (x, a) b => .pi (implName x) a b) withArgs
+
+def globalHover (x : String) : M (Option String) := do
+  let g ← getGlobals
+  if let some info := g.defs[x]? then return some s!"{x} : {← ppVal {} info.ty}"
+  if let some info := g.datas[x]? then return some s!"{x} : {← ppTm {} (dataTypeTm info)}"
+  if let some c := g.ctors[x]? then
+    if let some info := g.datas[c.data]? then return some s!"{x} : {← ppTm {} (ctorTypeTm info c)}"
+  return none
+
 /-- Classify the identifier tokens of a declaration. -/
 def classify (src : Array Kubus.Tok) (recs : Records) (defs : Std.HashMap String Site)
     (declName : Option String) (ctorNames : List String) : M (Array Tok) := do
@@ -161,12 +183,7 @@ def classify (src : Array Kubus.Tok) (recs : Records) (defs : Std.HashMap String
         let isDefSite := (prev == some (.ident "def") || prev == some (.ident "data")) && declName == some x
         let isCtorSite := ctorNames.contains x && (prev == some (.ident "data") || prev == some (.sym "|") || prev == some (.sym ":="))
         if isDefSite || isCtorSite then
-          let ty := match g.defs[x]? with
-            | some info => some info.ty
-            | none => none
-          let hover ← match ty with
-            | some v => pure (some s!"{x} : {← ppVal {} v}")
-            | none => pure none
+          let hover ← globalHover x
           out := out.push { line := l, col := c, len := t.len, kind := if isDefSite then "definition" else "constructor",
                             anchor := some x, hover }
         else
@@ -203,9 +220,9 @@ def classify (src : Array Kubus.Tok) (recs : Records) (defs : Std.HashMap String
               else if g.defs.contains x then "global"
               else "unknown"
             let hover := (exact.map fun (_, _, ty) => s!"{x} : {ty}")
-            let hover ← match hover, g.defs[x]? with
-              | none, some info => pure (some s!"{x} : {← ppVal {} info.ty}")
-              | h, _ => pure h
+            let hover ← match hover with
+              | none => globalHover x
+              | h => pure h
             out := out.push { line := l, col := c, len := t.len, kind, hover, site := defs[x]? }
     | .eof => pure ()
     prevUniverse := t.k == .ident "U"
