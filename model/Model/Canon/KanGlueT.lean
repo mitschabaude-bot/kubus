@@ -854,6 +854,97 @@ theorem L_ext {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ)
     rw [Meta.dshift_dinst] at this
     exact this.conv hW (TyEq.refl _) e1.symm
 
+include hGC in
+theorem L_a1 {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) :
+    RE S k (A.dinst .one) (tgA1 A φ T e ψ u0 δ) := by
+  obtain ⟨l, H⟩ := D.tg hW
+  obtain ⟨hAc, -, -⟩ := D.closed hW
+  have hφ1s : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have KA := (D.gl.slice hW .one trivial).kA.1 k (ISub.id k)
+  rw [isub_id_of_closed (closed_of_ty hW (minimal_to_spec (H.hAr (r := .one) trivial)))] at KA
+  rw [tgA1_eq]
+  refine KA _ _ _ (by have := minimal_to_spec H.ha1; rwa [tgA1_eq] at this) (fun k' σ r hr hh => ?_) (L_a1' hW hGC D)
+  have hsp := HasTy.isubF hW (show ((cof .one (.or (φ.subst (I.inst0 .one)) ψ)).shift).Scoped (k + 1) from
+    I.scoped_shift ⟨trivial, hφ1s, H.hψ⟩) (minimal_to_spec H.hasys) (ISub.cons r hr σ)
+  rw [I_shift_cons, dshift_isub_cons, ← isub_up_dinst _ _ _ hr, asys_isub] at hsp
+  have hsp' := HasTy.restrict (Φ' := .one) trivial (ent_cof_one hW
+    (entails_of_holds (I.scoped_subst (show (I.or (φ.subst (I.inst0 .one)) ψ).Scoped k from ⟨hφ1s, H.hψ⟩) σ.sc) hh)) hsp
+  rw [asys_isub]
+  rcases holds_or hh with h1 | h2
+  · have e1 := EqTm.splitL (entails_of_holds (I.scoped_subst hφ1s σ.sc) h1) hsp'
+    have hφ1σ := h1
+    rw [I_phi1_isub] at hφ1σ
+    have hE := L_ext hW hGC (D.isub hW σ) hφ1σ
+    rw [tgFib_eq] at hE
+    have h2 := (RE_sigma_elim hW hE).2
+    rw [P_inst] at h2
+    unfold Tm.pathC at h2
+    have h3 := RE_path_elim hW h2 (.neg r) hr
+    rw [Meta.dshift_dinst, ← dinst_isub_end _ (.inr rfl)] at h3
+    obtain ⟨-, -, -, -, hX, -⟩ := tg_isub A φ T e ψ u0 δ σ
+    have hsnd : (Tm.snd (tgExt A φ T e ψ u0 δ)).isub σ = .snd ((tgExt A φ T e ψ u0 δ).isub σ) := rfl
+    rw [hsnd, hX] at e1 ⊢
+    exact h3.conv hW (TyEq.refl _) e1.symm
+  · have e1 := EqTm.splitR (entails_of_holds (I.scoped_subst H.hψ σ.sc) h2) hsp'
+    exact (L_a1'_isub hW hGC D σ).conv hW (TyEq.refl _) e1.symm
+
+include hGC in
+/-- Transport along a computable Glue line. -/
+theorem kanT_glue {A T e : Tm} {φ : I} (hD : GlueL S (k + 1) A φ T e) : KanT S k (.glue A φ T e) := by
+  intro ψ u0 hty hu0
+  by_cases hψ : (ival (idEnv k) ψ).holds
+  · exact RE_transp_face hW hty hψ hu0
+  obtain ⟨l, hG⟩ := hD.ty
+  obtain ⟨hφs, l', hAt, he⟩ := glue_data hW hG
+  have hδs := forall0_scoped hφs
+  have D : TGD S k A φ T e ψ u0 φ.forall0 := ⟨hD, hty, hu0, hδs, ent_refl _, ent_refl _⟩
+  have eq := EqTm.transpGlue hty hAt he hδs (ent_refl _) (ent_refl _)
+  rw [transpGlueWith_eq] at eq
+  have D1 := hD.slice hW .one trivial
+  obtain ⟨l1, hG1⟩ := D1.ty
+  have hg := HasTy.eqR eq
+  have hφ1s : (φ.subst (I.inst0 .one)).Scoped k := (glue_data hW hG1).1
+  by_cases hφ1 : (ival (idEnv k) (φ.subst (I.inst0 .one))).holds
+  · have hE := L_ext hW hGC D hφ1
+    rw [tgFib_eq] at hE
+    have hT := (RE_sigma_elim hW hE).1
+    have hent := entails_of_holds hφ1s hφ1
+    have eGT := EqTm.glueFace hent hG1
+    have eF := EqTm.glueElFace hent hg
+    exact hT.conv hW (TyEq.symm (.inr ⟨l1, eGT⟩)) (eq.trans eF).symm
+  · refine (RE_glueEl_intro hW hG1 hφ1 hg (fun k' σ => ?_) (fun k' σ hh => ?_)).conv hW (TyEq.refl _) eq.symm
+    · rw [(tg_isub A φ T e ψ u0 φ.forall0 σ).2.2.2.2.2, dinst_isub_end _ (.inr rfl)]
+      exact L_a1 hW hGC (D.isub hW σ)
+    · rw [I_phi1_isub] at hh
+      have hE := L_ext hW hGC (D.isub hW σ) hh
+      rw [tgFib_eq] at hE
+      have hX := (tg_isub A φ T e ψ u0 φ.forall0 σ).2.2.2.2.1
+      rw [show (Tm.fst (tgExt A φ T e ψ u0 φ.forall0)).isub σ = .fst ((tgExt A φ T e ψ u0 φ.forall0).isub σ) from rfl,
+        hX, dinst_isub_end _ (.inr rfl)]
+      exact (RE_sigma_elim hW hE).1
+
+
+include hGC in
+theorem kanP_glue {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
+    (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
+    (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f))
+    (hKA : KR S m A) (ihA : KanP S m A)
+    (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → KR S k (dat Tp k f) ∧ KanP S k (dat Tp k f)) :
+    KanP S m (glueC m A φ Tp ep) := by
+  refine ⟨fun k f T hT => ?_, fun k f T hT => ?_⟩
+  · by_cases hf : (φ.restr f).holds
+    · rw [Comp_glueC_at hφ hTp hTkv f, if_pos hf] at hT
+      exact (ihT k f hf).2.1 k (Hom.id k) T hT
+    · obtain ⟨A1, φ1, T1, e1, hE, hD⟩ := glueL_of_comp hW hA hφ hTp hTkv hKA ihA ihT hf hT
+      exact kanH_retype hW hE (kanH_glue hW hGC hD)
+  · by_cases hf : (φ.restr f).holds
+    · rw [Comp_glueC_at hφ hTp hTkv f, if_pos hf] at hT
+      exact (ihT (k + 1) f hf).2.2 k (Hom.id (k + 1)) T hT
+    · obtain ⟨A1, φ1, T1, e1, hE, hD⟩ := glueL_of_comp hW hA hφ hTp hTkv hKA ihA ihT hf hT
+      rcases hE with rfl | ⟨l, e⟩
+      · exact kanT_glue hW hGC hD
+      · exact kanT_retype hW e (kanT_glue hW hGC hD)
+
 end
 
 end Model.Canon

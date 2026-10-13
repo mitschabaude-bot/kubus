@@ -1,4 +1,4 @@
-import Model.Canon.KanGlue
+import Model.Canon.KanGlueT
 
 /-!
 # Canonicity: all codes are Kan
