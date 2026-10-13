@@ -16,6 +16,12 @@ jobs:
           lint: false
       - name: Tests (with --selfcheck)
         run: tests/run.sh
+      - name: Website (fails on broken snippets)
+        run: python3 site/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site/_site
       - name: Fuzz
         run: tests/fuzz.sh 16 ci-${{ github.run_number }} --keep fuzz-out
       - uses: actions/upload-artifact@v4

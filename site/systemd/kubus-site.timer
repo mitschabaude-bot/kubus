@@ -1,0 +1,9 @@
+[Unit]
+Description=Rebuild the Kubus website when main changes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10min
+
+[Install]
+WantedBy=timers.target

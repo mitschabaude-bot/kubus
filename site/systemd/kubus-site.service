@@ -1,0 +1,7 @@
+[Unit]
+Description=Build and deploy the Kubus website from origin/main
+
+[Service]
+Type=oneshot
+ExecStart=%h/sites/kubus-src/site/deploy.sh
+Nice=10

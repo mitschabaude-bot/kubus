@@ -48,8 +48,10 @@ if [ "$1" = "--update" ]; then echo "$out" > tests/repl.out; fi
 if [ "$out" != "$(cat tests/repl.out 2>/dev/null)" ]; then
   echo "FAIL tests/repl.in"; diff <(echo "$out") tests/repl.out | head -20; fails=$((fails+1))
 fi
-# the tutorial's examples
-if ! python3 tests/tutorial.py; then fails=$((fails+1)); fi
+# the website: every tutorial snippet elaborates and is certified, `fails` snippets fail
+if ! out=$(python3 site/build.py --out "$(mktemp -d)/site" 2>&1); then
+  echo "FAIL site"; echo "$out" | tail -20; fails=$((fails+1))
+fi
 # language server
 if ! python3 tests/lsp.py; then fails=$((fails+1)); fi
 for f in tests/fail/*.ktt; do

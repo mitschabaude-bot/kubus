@@ -1,6 +1,7 @@
 import Kubus
 import Kubus.Bridge
 import Kubus.Lsp
+import Kubus.Doc
 
 open Kubus
 
@@ -129,6 +130,7 @@ partial def repl : DM Unit := do
 def usage : String :=
   "usage: kubus [--selfcheck | --selfcheck-main] [--budget N] [--verbose] [--no-kernel] [--interactive] FILE.ktt...\n" ++
   "  --lsp        run a language server on standard input/output\n" ++
+  "  --doc FILE   print highlighting, types, outputs and kernel verdicts of FILE as JSON (for the website)\n" ++
   "  --interactive  after loading the files, read declarations and terms from standard input\n" ++
   "  --selfcheck  check evaluator/checker invariants on every definition and #eval\n" ++
   "  --selfcheck-main  the same, but only for the given files, not their imports\n" ++
@@ -138,6 +140,7 @@ def usage : String :=
 
 def main (args : List String) : IO UInt32 := do
   if args == ["--lsp"] then return ← Kubus.Lsp.serve
+  if let "--doc" :: file :: rest := args then return ← Kubus.Doc.main file (!rest.contains "--no-kernel")
   let mut drv : Driver := {}
   let mut files : Array String := #[]
   let mut interactive := false
