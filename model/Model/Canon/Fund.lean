@@ -136,6 +136,98 @@ theorem KOK.of_constsLt {n : ℕ} {O : Prop} (hO : O) : ∀ {t : Tm}, t.ConstsLt
   | con _ _ _ _ _ h1 h2 => exact fun h => ⟨h.1, h1 h.2.1, h2 h.2.2⟩
   | elim _ _ _ _ _ h1 h2 h3 h4 => exact fun h => ⟨⟨h.1, h1 h.2.1, h2 h.2.2.1, h3 h.2.2.2.1, h4 h.2.2.2.2⟩, hO⟩
 
+
+theorem I.scoped_subst_all {σ : ℕ → I} {k : ℕ} (hσ : ∀ j, (σ j).Scoped k) : ∀ r : I, (r.subst σ).Scoped k
+  | .zero => trivial
+  | .one => trivial
+  | .var i => hσ i
+  | .neg r => I.scoped_subst_all hσ r
+  | .and r s => ⟨I.scoped_subst_all hσ r, I.scoped_subst_all hσ s⟩
+  | .or r s => ⟨I.scoped_subst_all hσ r, I.scoped_subst_all hσ s⟩
+
+theorem I_up_subst_up (τ' τ : ℕ → I) : (fun i => (I.up τ' i).subst (I.up τ)) = I.up (fun i => (τ' i).subst τ) := by
+  funext i; cases i with
+  | zero => rfl
+  | succ i => exact I_shift_subst_up τ (τ' i)
+
+theorem NKH.subst {A : Tm} (h : NKH S A) (σ : ℕ → Tm) (τ' : ℕ → I) : NKH S (A.subst σ τ') := by
+  intro k γ τ l hτ hty
+  rw [subst_subst] at hty ⊢
+  exact h k _ _ l (fun i => I.scoped_subst_all hτ _) hty
+
+theorem NKT.subst {A : Tm} (h : NKT S A) (σ : ℕ → Tm) (τ' : ℕ → I) : NKT S (A.subst σ (I.up τ')) := by
+  intro k γ τ l hτ hty
+  rw [subst_subst, I_up_subst_up] at hty ⊢
+  exact h k _ _ l (fun i => I.scoped_subst_all hτ _) hty
+
+theorem KOK.ren {n : ℕ} {O : Prop} : ∀ {t : Tm} (ρ δ : ℕ → ℕ), KOK S n O t → KOK S n O (t.ren ρ δ) := by
+  intro t
+  induction t with
+  | var | univ | abort | tnil | const => intro _ _ h; exact h
+  | pi _ _ h1 h2 | sigma _ _ h1 h2 | app _ _ h1 h2 | pair _ _ h1 h2 | tcons _ _ h1 h2 =>
+    exact fun ρ δ h => ⟨h1 _ _ h.1, h2 _ _ h.2⟩
+  | lam _ _ _ h2 => exact fun ρ δ h => ⟨trivial, h2 _ _ h.2⟩
+  | fst _ h | snd _ h | plam _ h | ipi _ h | papp _ _ h => exact fun ρ δ h' => h _ _ h'
+  | unglue _ _ _ h1 h2 | split _ _ _ _ h1 h2 => exact fun ρ δ h => ⟨h1 _ _ h.1, h2 _ _ h.2⟩
+  | path _ _ _ h1 h2 h3 | glue _ _ _ _ h1 h2 h3 | glueEl _ _ _ _ h1 h2 h3 =>
+    exact fun ρ δ h => ⟨h1 _ _ h.1, h2 _ _ h.2.1, h3 _ _ h.2.2⟩
+  | transp A _ _ h1 h2 =>
+    refine fun ρ δ h => ⟨?_, h2 _ _ h.2⟩
+    rcases h.1 with ⟨hA, hO⟩ | hN
+    · exact .inl ⟨h1 _ _ hA, hO⟩
+    · refine .inr ?_
+      have e : A.ren ρ (Tm.upRen δ) = A.subst (fun x => .var (ρ x)) (I.up fun i => .var (δ i)) := by
+        rw [ren_eq_subst, I_up_ren]
+      show NKT S (A.ren ρ (Tm.upRen δ)); rw [e]; exact hN.subst _ _
+  | hcomp A _ _ _ h1 h2 h3 =>
+    refine fun ρ δ h => ⟨?_, h2 _ _ h.2.1, h3 _ _ h.2.2⟩
+    rcases h.1 with ⟨hA, hO⟩ | hN
+    · exact .inl ⟨h1 _ _ hA, hO⟩
+    · refine .inr ?_
+      show NKH S (A.ren ρ δ); rw [ren_eq_subst]; exact hN.subst _ _
+  | data _ _ h => exact fun ρ δ h' => ⟨h'.1, h _ _ h'.2⟩
+  | con _ _ _ _ _ h1 h2 => exact fun ρ δ h => ⟨h.1, h1 _ _ h.2.1, h2 _ _ h.2.2⟩
+  | elim _ _ _ _ _ h1 h2 h3 h4 => exact fun ρ δ h =>
+    ⟨⟨h.1.1, h1 _ _ h.1.2.1, h2 _ _ h.1.2.2.1, h3 _ _ h.1.2.2.2.1, h4 _ _ h.1.2.2.2.2⟩, h.2⟩
+
+theorem KOK.subst {n : ℕ} {O : Prop} : ∀ {t : Tm} {σ : ℕ → Tm} (τ : ℕ → I), KOK S n O t →
+    (∀ x, KOK S n O (σ x)) → KOK S n O (t.subst σ τ) := by
+  intro t
+  have hup : ∀ {σ : ℕ → Tm}, (∀ x, KOK S n O (σ x)) → ∀ x, KOK S n O (Tm.up σ x) := fun hσ x => by
+    cases x with
+    | zero => trivial
+    | succ x => exact KOK.ren _ _ (hσ x)
+  have hdup : ∀ {σ : ℕ → Tm}, (∀ x, KOK S n O (σ x)) → ∀ x, KOK S n O ((σ x).dshift) := fun hσ x =>
+    KOK.ren _ _ (hσ x)
+  induction t with
+  | var x => intro σ _ _ hσ; exact hσ x
+  | univ | abort | tnil | const => intro _ _ h _; exact h
+  | pi _ _ h1 h2 | sigma _ _ h1 h2 => exact fun τ h hσ => ⟨h1 τ h.1 hσ, h2 τ h.2 (hup hσ)⟩
+  | app _ _ h1 h2 | pair _ _ h1 h2 | tcons _ _ h1 h2 => exact fun τ h hσ => ⟨h1 τ h.1 hσ, h2 τ h.2 hσ⟩
+  | lam _ _ _ h2 => exact fun τ h hσ => ⟨trivial, h2 τ h.2 (hup hσ)⟩
+  | fst _ h | snd _ h | papp _ _ h => exact fun τ h' hσ => h τ h' hσ
+  | plam _ h | ipi _ h => exact fun τ h' hσ => h _ h' (hdup hσ)
+  | unglue _ _ _ h1 h2 | split _ _ _ _ h1 h2 => exact fun τ h hσ => ⟨h1 τ h.1 hσ, h2 τ h.2 hσ⟩
+  | path _ _ _ h1 h2 h3 => exact fun τ h hσ => ⟨h1 _ h.1 (hdup hσ), h2 τ h.2.1 hσ, h3 τ h.2.2 hσ⟩
+  | glue _ _ _ _ h1 h2 h3 | glueEl _ _ _ _ h1 h2 h3 =>
+    exact fun τ h hσ => ⟨h1 τ h.1 hσ, h2 τ h.2.1 hσ, h3 τ h.2.2 hσ⟩
+  | transp A _ _ h1 h2 =>
+    intro σ τ h hσ
+    refine ⟨?_, h2 τ h.2 hσ⟩
+    rcases h.1 with ⟨hA, hO⟩ | hN
+    · exact .inl ⟨h1 _ hA (hdup hσ), hO⟩
+    · exact .inr (hN.subst _ _)
+  | hcomp A _ _ _ h1 h2 h3 =>
+    intro σ τ h hσ
+    refine ⟨?_, h2 _ h.2.1 (hdup hσ), h3 τ h.2.2 hσ⟩
+    rcases h.1 with ⟨hA, hO⟩ | hN
+    · exact .inl ⟨h1 τ hA hσ, hO⟩
+    · exact .inr (hN.subst _ _)
+  | data _ _ h => exact fun τ h' hσ => ⟨h'.1, h τ h'.2 hσ⟩
+  | con _ _ _ _ _ h1 h2 => exact fun τ h hσ => ⟨h.1, h1 τ h.2.1 hσ, h2 τ h.2.2 hσ⟩
+  | elim _ _ _ _ _ h1 h2 h3 h4 => exact fun τ h hσ =>
+    ⟨⟨h.1.1, h1 τ h.1.2.1 hσ, h2 τ h.1.2.2.1 (hup hσ), h3 τ h.1.2.2.2.1 hσ, h4 τ h.1.2.2.2.2 hσ⟩, h.2⟩
+
 variable (hW : WfSig S) {n : ℕ} {O : Prop} (hOK : O → KanOracle S) (hH : Hyp S n) (hGC : GlueCompat S)
 include hW hOK hH hGC
 

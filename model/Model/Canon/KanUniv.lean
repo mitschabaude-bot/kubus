@@ -18,14 +18,6 @@ noncomputable section
 
 variable {S : Sig} {k k' m : ℕ}
 
-theorem I.scoped_subst_all {σ : ℕ → I} {k : ℕ} (hσ : ∀ j, (σ j).Scoped k) : ∀ r : I, (r.subst σ).Scoped k
-  | .zero => trivial
-  | .one => trivial
-  | .var i => hσ i
-  | .neg r => I.scoped_subst_all hσ r
-  | .and r s => ⟨I.scoped_subst_all hσ r, I.scoped_subst_all hσ s⟩
-  | .or r s => ⟨I.scoped_subst_all hσ r, I.scoped_subst_all hσ s⟩
-
 theorem I.up_scoped_all {τ : ℕ → I} {k : ℕ} (hτ : ∀ i, (τ i).Scoped k) : ∀ i, (I.up τ i).Scoped (k + 1)
   | 0 => show (0 : ℕ) < k + 1 by omega
   | i + 1 => I.scoped_shift (hτ i)
@@ -89,6 +81,91 @@ theorem nkh_inst {n : ℕ} {B : Tm} (hB : HasTy S n .one [] B (.univ l)) (hR : �
   have hsc : ∀ i < n, ((τ0 i).subst τ).Scoped k := fun i _ => I.scoped_subst_all hτ _
   rw [subst_subst, subst_isub_ofFun hc _ _ hsc]
   exact ⟨hR _ _, kanH_of_ty hW ih (HasTy.isubS hW hB _) (hR _ _)⟩
+
+omit hW ih in
+theorem isEquiv_subst' (T A f : Tm) (σ : ℕ → Tm) (τ : ℕ → I) :
+    (Tm.isEquiv T A f).subst σ τ = Tm.isEquiv (T.subst σ τ) (A.subst σ τ) (f.subst σ τ) := by
+  simp only [Tm.isEquiv, Tm.isContr, Tm.fiber, Tm.pathC]; scalc
+omit hW ih in
+theorem arrow_subst' (T A : Tm) (σ : ℕ → Tm) (τ : ℕ → I) :
+    (Tm.arrow T A).subst σ τ = Tm.arrow (T.subst σ τ) (A.subst σ τ) := by
+  simp only [Tm.arrow]; scalc
+
+omit ih in
+include hGC in
+/-- `isEquiv T A f` is computable for computable `T`, `A`, `f`: the fundamental lemma on a generic,
+Kan-free term. -/
+theorem RT_isEquiv (hl : l + 1 ≤ maxLevel) {T A f : Tm}
+    (hT : RE S k (.univ l) T) (hA : RE S k (.univ l) A) (hf : RE S k (Tm.arrow T A) f) :
+    RT S k (Tm.isEquiv T A f) := by
+  have hS := sigClosed_of_wfSig hW
+  have w0 : Wf0 S k .one [] := Wf0.nil trivial
+  have hU0 : HasTy0 S k .one [] (.univ l) (.univ (l + 1)) := HasTy0.univ hl w0
+  have w1 : Wf0 S k .one [.univ l] := Wf0.cons hU0
+  have hU1 : HasTy0 S k .one [.univ l] (.univ l) (.univ (l + 1)) := HasTy0.univ hl w1
+  have w2 : Wf0 S k .one [.univ l, .univ l] := Wf0.cons hU1
+  have harr : HasTy0 S k .one [.univ l, .univ l] (Tm.arrow (.var 1) (.var 0)) (.univ l) :=
+    arrow_typed hS (HasTy0.var w2 rfl) (HasTy0.var w2 rfl)
+  have w3 : Wf0 S k .one [Tm.arrow (.var 1) (.var 0), .univ l, .univ l] := Wf0.cons harr
+  have hG : HasTy0 S k .one [Tm.arrow (.var 1) (.var 0), .univ l, .univ l]
+      (Tm.isEquiv (.var 2) (.var 1) (.var 0)) (.univ l) :=
+    isEquiv_typed hS (HasTy0.var w3 rfl) (HasTy0.var w3 rfl) (HasTy0.var w3 rfl)
+  have hf' : RE S k ((Tm.arrow (.var 1) (.var 0)).subst
+      (((CSub.idS S k).ext hW (.univ l) T hT).ext hW (.univ l) A hA).γ
+      (((CSub.idS S k).ext hW (.univ l) T hT).ext hW (.univ l) A hA).σ.τ) f := by
+    rw [arrow_subst']; exact hf
+  have h := fund_ty hW (O := False) False.elim hyp_zero hGC hG (by simp [Tm.isEquiv, Tm.isContr, Tm.fiber, Tm.pathC, Tm.shift, Tm.dshift, Tm.ren, KOK]) k
+    ((((CSub.idS S k).ext hW (.univ l) T hT).ext hW (.univ l) A hA).ext hW _ f hf')
+  rw [isEquiv_subst'] at h
+  exact ((RE_univ_iff hW).1 h).2.2
+
+/-- Instances of a type computable at all restrictions are computable. -/
+theorem re_univ_inst {n : ℕ} {B : Tm} (hB : HasTy S n .one [] B (.univ l)) (hR : ∀ k' (ρ : ISub k' n), RT S k' (B.isub ρ))
+    (γ0 : ℕ → Tm) (τ0 : ℕ → I) (hτ : ∀ i, (τ0 i).Scoped k') : RE S k' (.univ l) (B.subst γ0 τ0) := by
+  rw [subst_isub_ofFun (closed_of_ty hW hB) _ _ (fun i _ => hτ i)]
+  exact RE_univ_of hW (HasTy.isubS hW hB _) (hR _ _)
+
+theorem kok_lineFun {B : Tm} (hB : HasTy S (k + 1) .one [] B (.univ l))
+    (hR : ∀ k' (ρ : ISub k' (k + 1)), RT S k' (B.isub ρ)) : KOK S 0 False (Tm.lineFun B) := by
+  refine ⟨trivial, .inr ?_, trivial⟩
+  show NKT S ((B.shift).dsubst _)
+  rw [Tm.dsubst, Tm.shift, subst_ren]
+  exact nkt_inst hW ih hB hR _ _
+
+include hGC in
+theorem RE_lineFun {B : Tm} (hB : HasTy S (k + 1) .one [] B (.univ l))
+    (hR : ∀ k' (ρ : ISub k' (k + 1)), RT S k' (B.isub ρ)) :
+    RE S (k + 1) (Tm.arrow (B.dinst .zero).dshift B) (Tm.lineFun B) :=
+  fund_closed hW hGC (lineFun_typed (sigClosed_of_wfSig hW) (Ψ := k) (Φ := .one) (Γ := []) (spec_to_minimal hW hB)).1
+    (kok_lineFun hW ih hB hR)
+
+
+include hGC in
+/-- Transport along a computable line of types is a computable equivalence. -/
+theorem RE_lineEquiv (hl : l + 1 ≤ maxLevel) {B : Tm} (hB : HasTy S (k + 1) .one [] B (.univ l))
+    (hR : ∀ k' (ρ : ISub k' (k + 1)), RT S k' (B.isub ρ)) :
+    RE S k (Tm.equiv (B.dinst .zero) (B.dinst .one)) (Tm.lineEquiv B) := by
+  have hS := sigClosed_of_wfSig hW
+  have h0 := spec_to_minimal hW hB
+  have hB0 : HasTy0 S k .one [] (B.dinst .zero) (.univ l) := HasTy0.dsubst hS (Ψ := k) (Φ := .one) (Γ := []) h0 (r := .zero) trivial
+  have hB0d := HasTy0.dwk hS hB0
+  have hlf := (lineFun_typed hS (Ψ := k) (Φ := .one) (Γ := []) h0).1
+  have hL : HasTy S (k + 1) .one [] (Tm.isEquiv (B.dinst .zero).dshift B (Tm.lineFun B)) (.univ l) :=
+    minimal_to_spec (isEquiv_typed hS hB0d h0 hlf)
+  have hkf := kok_lineFun hW ih hB hR
+  refine fund_closed hW hGC (lineEquiv_typed hS (Ψ := k) (Φ := .one) (Γ := []) h0)
+    ⟨KOK.subst _ hkf (fun _ => trivial), .inr ?_, by simp [Tm.idIsEquiv, KOK]⟩
+  intro k' γ τ l' hτ _
+  rw [subst_isub_ofFun (closed_of_ty hW hL) γ (I.up τ) (fun i _ => I.up_scoped_all hτ i)]
+  generalize ISub.ofFun (k + 1) (I.up τ) _ = ρ
+  have hRT : RT S (k' + 1) ((Tm.isEquiv (B.dinst .zero).dshift B (Tm.lineFun B)).isub ρ) := by
+    rw [Tm.isub, isEquiv_subst']
+    refine RT_isEquiv hW hGC hl ?_ (re_univ_inst hW ih hB hR _ _ ρ.scAll) ?_
+    · rw [Tm.dshift, ren_eq_subst, Tm.dinst, Tm.dsubst, subst_subst, subst_subst]
+      exact re_univ_inst hW ih hB hR _ _ (fun i => I.scoped_subst_all (fun j => I.scoped_subst_all ρ.scAll _) _)
+    · have := (RE_lineFun hW hGC ih hB hR).isub hW ρ
+      rwa [Tm.isub, Tm.isub, arrow_subst'] at this
+  exact ⟨hRT, kanT_of_ty hW ih (HasTy.isubS hW hL ρ) hRT⟩
 
 end
 
