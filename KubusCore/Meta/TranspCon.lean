@@ -208,4 +208,39 @@ theorem eqSub_params (hS : SigClosed S) (hW : WfSig S) {d : Nat}
     rw [paramCtx_succ D (by omega), ht1, ht2]
     exact this
 
+/-! ## Small facts -/
+
+/-- `(t(0))⁺` as one interval substitution. -/
+def τg : Nat → I := fun i => (I.inst0 .zero i).subst (fun i => .var (i + 1))
+
+theorem dd_eq (t : Tm) : (t.dinst .zero).dshift = t.subst Tm.var τg := by
+  rw [dshift_eq, Tm.dinst, Tm.dsubst, subst_subst]; rfl
+
+theorem consT_post (a : Tm) (σ : Nat → Tm) (τ' : Nat → I) :
+    consT (a.subst Tm.var τ') (fun x => (σ x).subst Tm.var τ') = fun x => (consT a σ x).subst Tm.var τ' := by
+  funext x; cases x <;> rfl
+
+theorem EqSub.congr2 {Ψs Δ Ψ' Φ' Γ' σ1 τ1 σ2 τ2 σ2'} (h : EqSub S Ψs Δ Ψ' Φ' Γ' σ1 τ1 σ2 τ2)
+    (he : ∀ x, σ2 x = σ2' x) : EqSub S Ψs Δ Ψ' Φ' Γ' σ1 τ1 σ2' τ2 := by
+  rw [show σ2' = σ2 from funext fun x => (he x).symm]; exact h
+
+/-- A telescope under an interval substitution preserving typing. -/
+theorem HasTele0.post {Ψ1 Φ1 Γ1 Ψ2 Φ2 Γ2} (τ' : Nat → I) (hw : Wf0 S Ψ2 Φ2 Γ2)
+    (hf : ∀ t A, HasTy0 S Ψ1 Φ1 Γ1 t A → HasTy0 S Ψ2 Φ2 Γ2 (t.subst Tm.var τ') (A.subst Tm.var τ')) :
+    ∀ {ts Δ prev}, HasTele0 S Ψ1 Φ1 Γ1 ts Δ prev →
+    (∀ (k : Nat) (A : Tm), Δ[k]? = some A → A.closedB (prev.length + k) 0 = true) →
+    HasTele0 S Ψ2 Φ2 Γ2 (ts.subst Tm.var τ') Δ (prev.map (·.subst Tm.var τ'))
+  | _, _, _, .nil _, _ => .nil hw
+  | _, _, _, .cons (A := A) (prev := prev) ha hs, hcl => by
+    have h1 := hf _ _ ha
+    rw [substList_subst (by simpa using hcl 0 A rfl)] at h1
+    refine .cons h1 ?_
+    have := HasTele0.post τ' hw hf hs (fun k B hB => by
+      have := hcl (k + 1) B (by simpa using hB); simp only [List.length_cons]; rwa [Nat.add_assoc, Nat.add_comm 1 k])
+    simpa using this
+
+theorem params_closed (hS : SigClosed S) {d : Nat} {D : DataDecl} (hD : S[d]? = some (.data D)) :
+    ∀ (k : Nat) (A : Tm), D.params[k]? = some A → A.closedB (([] : List Tm).length + k) 0 = true :=
+  fun k A hA => by simpa using hS.params d D k A hD hA
+
 end KubusCore.Meta
