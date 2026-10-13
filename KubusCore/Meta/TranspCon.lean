@@ -243,4 +243,99 @@ theorem params_closed (hS : SigClosed S) {d : Nat} {D : DataDecl} (hD : S[d]? = 
     ∀ (k : Nat) (A : Tm), D.params[k]? = some A → A.closedB (([] : List Tm).length + k) 0 = true :=
   fun k A hA => by simpa using hS.params d D k A hD hA
 
+/-! ## The induction along the arguments -/
+
+section
+variable (hS : SigClosed S) (hW : WfSig S) {d : Nat}
+  (htr : ∀ {Ψ' Φ' Γ' t A}, HasTy (S.take d) Ψ' Φ' Γ' t A → HasTy0 S Ψ' Φ' Γ' t A)
+  {D : DataDecl} {c : Nat} {C : Ctor} (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+  {Ψ : Nat} {Φ : I} {Γ : Ctx} {ps : Tm} {φ : I} {args : Tm} {l0 : Nat}
+  (hps : ps = Tm.ofList ps.toList)
+  (htele : HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse)
+  (hL : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift (data d ps) (univ l0)) (hφ : φ.Scoped Ψ)
+  (hc : EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift (data d ps) ((data d ps).dinst .zero).dshift (univ l0))
+include hS hW htr hD hC hps htele hL hφ hc
+
+/-- The invariant after `k` arguments: the fillers and the transported arguments, as
+substitutions out of the point context, and the transported arguments typed so far. -/
+theorem transpCon_inv :
+    let A := C.argTy d D.params.length
+    let as := args.toList
+    let Fall := tFills A ps.toList φ as C.args.length
+    let osAll := (List.range C.args.length).map fun j => transp (tLine A ps.toList φ as j) φ (as.getD j .abort)
+    ∀ k, k ≤ C.args.length →
+    TySub S 0 .one (D.pointCtx d C k) (Ψ + 1) Φ.shift Γ.dshift (lsub (ptL C Fall ps.toList.reverse k) 0) I.var ∧
+    TySub S 0 .one (D.pointCtx d C k) Ψ Φ Γ (lsub (ptL C osAll (ps.dinst .one).toList.reverse k) 0) I.var ∧
+    EqSub S 0 (D.pointCtx d C k) Ψ Φ Γ
+      (fun x => (lsub (ptL C Fall ps.toList.reverse k) 0 x).subst Tm.var (I.inst0 .zero))
+      (fun i => (I.var i).subst (I.inst0 .zero))
+      (lsub (ptL C as (ps.dinst .zero).toList.reverse k) 0) I.var ∧
+    EqSub S 0 (D.pointCtx d C k) Ψ Φ Γ
+      (fun x => (lsub (ptL C Fall ps.toList.reverse k) 0 x).subst Tm.var (I.inst0 .one))
+      (fun i => (I.var i).subst (I.inst0 .one))
+      (lsub (ptL C osAll (ps.dinst .one).toList.reverse k) 0) I.var ∧
+    EqSub S 0 (D.pointCtx d C k) (Ψ + 1) (cof Φ φ).shift Γ.dshift
+      (lsub (ptL C Fall ps.toList.reverse k) 0) I.var
+      (fun x => (lsub (ptL C Fall ps.toList.reverse k) 0 x).subst Tm.var τg) (fun i => (I.var i).subst τg) ∧
+    (∀ j, j < k → HasTy0 S Ψ Φ Γ (osAll.getD j .abort)
+      ((A j).substList ((osAll.take j).reverse ++ (ps.dinst .one).toList.reverse))) := by
+  intro A as Fall osAll k hk
+  -- common facts
+  have hw : Wf0 S Ψ Φ Γ := wf_of_tele htele
+  have hs : Φ.Scoped Ψ := scoped_of_wf hw
+  have hXs : (cof Φ φ).shift.Scoped (Ψ + 1) := scoped_shift ⟨hs, hφ⟩
+  have hXe : I.Entails (cof Φ φ).shift Φ.shift := ent_shift (ent_and_left _ _)
+  have hw1 : Wf0 S (Ψ + 1) Φ.shift Γ.dshift := wf_of_ty hL
+  have hwc : Wf0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift := hw1.restrict hXs hXe
+  obtain ⟨D', hD', hptL⟩ := gen_data_tele hL rfl
+  rw [hD] at hD'; cases hD'
+  have hpl : ps.toList.length = D.params.length := by simpa using tele_length hptL
+  have hf : ∀ (r : I), r.Scoped Ψ → ∀ t B, HasTy0 S (Ψ + 1) Φ.shift Γ.dshift t B →
+      HasTy0 S Ψ Φ Γ (t.subst Tm.var (I.inst0 r)) (B.subst Tm.var (I.inst0 r)) :=
+    fun r hr t B h => HasTy0.dsubst hS h hr
+  have hfg : ∀ t B, HasTy0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift t B →
+      HasTy0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift (t.subst Tm.var τg) (B.subst Tm.var τg) := by
+    intro t B h
+    have := HasTy0.dwk hS (HasTy0.dsubst hS h (r := .zero) trivial)
+    rwa [dd_eq, dd_eq] at this
+  have hpsr : ∀ τ' : Nat → I, (ps.subst Tm.var τ').toList = ps.toList.map (·.subst Tm.var τ') :=
+    fun τ' => toList_subst hps _ _
+  have hpt1 : HasTele0 S Ψ Φ Γ (ps.dinst .one) D.params [] := by
+    have := HasTele0.post (I.inst0 .one) hw (hf .one trivial) hptL (params_closed hS hD)
+    simpa using this
+  have hpl1 : (ps.dinst .one).toList.length = D.params.length := by simpa using tele_length hpt1
+  have hpl0 : (ps.dinst .zero).toList.length = D.params.length := by
+    show (ps.subst Tm.var _).toList.length = _; rw [hpsr]; simpa using hpl
+  have hal : as.length = C.args.length := by
+    have := tele_length htele; rwa [argTys_length] at this
+  have h0 : ∀ {Ψ' Φ' Γ'} (τ σ : Nat → _), Wf0 S Ψ' Φ' Γ' → TySub S 0 .one [] Ψ' Φ' Γ' σ τ :=
+    fun τ σ hw' => tySub_nil (fun i hi => absurd hi (Nat.not_lt_zero _)) (ent_one _) hw'
+  have hpc : D.pointCtx d C 0 = D.paramCtx D.params.length := by simp [DataDecl.pointCtx]
+  induction k with
+  | zero =>
+    simp only [ptL, hpc]
+    have T1 := tySub_params hS hD hptL 0 (h0 I.var · hw1) _ (Nat.le_refl _)
+    rw [List.take_of_length_le (by omega)] at T1
+    have TO := tySub_params hS hD hpt1 0 (h0 I.var · hw) _ (Nat.le_refl _)
+    rw [List.take_of_length_le (by omega)] at TO
+    have hpost : ∀ τ' : Nat → I, ∀ x, (lsub ps.toList.reverse 0 x).subst Tm.var τ' =
+        lsub (ps.subst Tm.var τ').toList.reverse 0 x := by
+      intro τ' x; rw [lsub_post, hpsr, List.map_reverse]
+    refine ⟨T1, TO, ?_, ?_, ?_, fun j hj => absurd hj (Nat.not_lt_zero _)⟩
+    · exact EqSub.of_eq (T1.post _ hw (hf .zero trivial)) (hpost _)
+    · exact EqSub.of_eq (T1.post _ hw (hf .one trivial)) (hpost _)
+    · have hptc := HasTele0.restrict hXs hXe hptL
+      have hptg : HasTele0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift (ps.subst Tm.var τg) D.params [] := by
+        simpa using HasTele0.post τg hwc hfg hptc (params_closed hS hD)
+      have e : EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift (data d ps) (data d (ps.subst Tm.var τg)) (univ l0) := by
+        rw [← show ((data d ps).dinst .zero).dshift = data d (ps.subst Tm.var τg) from dd_eq _]; exact hc
+      have hpsg : ps.subst Tm.var τg = Tm.ofList (ps.subst Tm.var τg).toList := isList_subst hps _ _
+      have E := eqSub_params hS hW htr hD hps hpsg e hptc hptg 0 I.var (fun i => (I.var i).subst τg) _
+        (Nat.le_refl _)
+      rw [List.take_of_length_le (by omega), List.take_of_length_le (by rw [hpsr, List.length_map]; omega)] at E
+      exact E.congr2 (fun x => (hpost τg x).symm)
+  | succ k ih => sorry
+
+end
+
 end KubusCore.Meta
