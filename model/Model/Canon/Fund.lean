@@ -24,6 +24,13 @@ variable {S : Sig} {k k' m : ℕ}
 /-- The definitions and inductive types below `n` are computable. -/
 structure Hyp (S : Sig) (n : ℕ) : Prop where
   defn : ∀ i < n, ∀ t A, S[i]? = some (.defn t A) → ∀ k, RE S k A t
+  data : ∀ d < n, ∀ (D : DataDecl), S[d]? = some (.data D) → ∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C → ∀ k (ps args : List Tm),
+    ps.length = D.params.length →
+    (∀ j (hj : j < ps.length) (hj' : j < D.params.length), RE S k (D.params[j].substList (ps.take j).reverse) ps[j]) →
+    args.length < C.args.length → C.isRec args.length = false →
+    (∀ i (hi : i < args.length), C.isRec i = false →
+      RE S k ((C.argTy d D.params.length i).substList ((args.take i).reverse ++ ps.reverse)) args[i]) →
+    RT S k ((C.argTy d D.params.length args.length).substList (args.reverse ++ ps.reverse))
 
 /-- Computability of the elements of a telescope, instantiated by a substitution. -/
 def TeleCompS (S : Sig) (k : ℕ) (γ : ℕ → Tm) (τ : ℕ → I) : Tm → List Tm → List Tm → Prop
@@ -262,8 +269,26 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
   | @HasTy0.unglue _ Ψ Φ Γ A φ T e g l h0 h1 h2 h3 => fun hc k c => by
     sorry
   | @HasTy0.data _ Ψ Φ Γ d D ps h0 h1 h2 => fun hc k c => by
-    have ih := fund_tele h2
-    sorry
+    have hty : HasTy S k .one [] (.data d (ps.subst c.γ c.σ.τ)) (.univ D.level) :=
+      c.ty hW (HasTy0.data h0 h1 h2)
+    have hpl := tele_isList h2
+    have hpl' : ps.subst c.γ c.σ.τ = Tm.ofList (ps.subst c.γ c.σ.τ).toList := isList_subst hpl _ _
+    have hpsl : ps.toList.length = D.params.length := by simpa using tele_length h2
+    have hS := sigClosed_of_wfSig hW
+    show RE S k (.univ D.level) (.data d (ps.subst c.γ c.σ.τ))
+    refine RE_univ_of hW hty (RT_data_of hW h0 hty hpl' fun k' σ c' C hC args hlt hnr hpt => ?_)
+    have iht := fund_tele h2 hc.2 k' (c.restr hW σ)
+    have e : (ps.subst c.γ c.σ.τ).isub σ = ps.subst (c.restr hW σ).γ (c.restr hW σ).σ.τ :=
+      (CSub.restr_subst hW c ps σ).symm
+    rw [e] at hpt ⊢
+    refine hH.data d hc.1 D h0 c' C hC k' _ args (by rw [toList_subst hpl]; simpa using hpsl) (fun j hj hj' => ?_)
+      hlt hnr hpt
+    have hj0 : j < ps.toList.length := by rw [toList_subst hpl] at hj; simpa using hj
+    have h := teleCompS_get iht j hj0 hj'
+    have hcl : (D.params[j]).closedB ((ps.toList.take j).reverse ++ []).length 0 = true := by
+      simpa [Nat.min_eq_left hj0.le] using params_closed hS h0 j _ (List.getElem?_eq_getElem hj')
+    rw [substList_subst hcl, List.append_nil, List.map_reverse, List.map_take, ← toList_subst hpl] at h
+    simpa [toList_subst hpl] using h
   | @HasTy0.con _ Ψ Φ Γ d D c C ps args rs h0 h1 h2 h3 h4 h5 h6 h7 => fun hc k c' => by
     have iha := fund_tele h5 hc.2.2 k c'
     have hpsT : HasTy S k .one [] (.data d (ps.subst c'.γ c'.σ.τ)) (.univ D.level) := c'.ty hW h3

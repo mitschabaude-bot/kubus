@@ -175,6 +175,81 @@ theorem RE_con {ps : Tm} {l : ℕ} (hpsT : HasTy S k .one [] (.data d ps) (.univ
       (fun t ht => hnat t (List.mem_of_mem_take ht)) (hv j (by omega))]
     exact hpt j hj hr
 
+omit hW hd in
+/-- Valid prefixes have their point arguments in their types. -/
+theorem ptValid_of_validPre {Λ : SData m} {c j : ℕ} {pre : List V} (h : ValidPre Λ c j pre) :
+    Λ.PtValid c m (Hom.id m) pre := by
+  obtain ⟨hc, -, -, hp⟩ := h
+  intro i hi hr
+  have := hp i hi
+  rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hc, Option.getD_some] at hr
+  simp only [argSet, hr] at this
+  simpa using this
+
+/-- A closed data type is computable when the argument types of its constructors are, at all
+restrictions and computable earlier point arguments. -/
+theorem RT_data_of {ps : Tm} {l : ℕ} (hpsT : HasTy S k .one [] (.data d ps) (.univ l))
+    (hpl : ps = Tm.ofList ps.toList)
+    (hpt : ∀ k' (σ : ISub k' k) (c : ℕ) (C : Ctor), D.ctors[c]? = some C → ∀ args : List Tm,
+      args.length < C.args.length → C.isRec args.length = false →
+      (∀ i (hi : i < args.length), C.isRec i = false →
+        RE S k' ((C.argTy d D.params.length i).substList ((args.take i).reverse ++ (ps.isub σ).toList.reverse))
+          args[i]) →
+      RT S k' ((C.argTy d D.params.length args.length).substList (args.reverse ++ (ps.isub σ).toList.reverse))) :
+    RT S k (.data d ps) := by
+  unfold RT
+  rw [semK_dataT hW hd hpsT, Comp_dataC]
+  simp only [show (ΘK S D d k ps).idx = d from rfl, dataD_eq hW hd]
+  refine ⟨⟨⟨l, .inl hpsT⟩, by rw [← semK_dataT hW hd hpsT, res_id (kv_semK_of_univ hW hpsT)]⟩, ps, TyEq.refl _, hpl,
+    fun k' σ c C args hC hlt hnr hrec hptd => ?_⟩
+  have hΛ : (ΘK S D d k ps).restr ((Hom.id k).comp σ.hom) = ΘK S D d k' (ps.isub σ) := by
+    rw [Hom.id_comp]; exact ΘK_restr ps σ
+  simp only [dataP, dataMem, hΛ] at hrec hptd
+  rw [hΛ]
+  have hpsT' : HasTy S k' .one [] (.data d (ps.isub σ)) (.univ l) := HasTy.isubS hW hpsT σ
+  have hpl' : ps.isub σ = Tm.ofList (ps.isub σ).toList := isList_subst hpl _ _
+  obtain ⟨hc', hCeq⟩ := List.getElem?_eq_some_iff.1 hC
+  have hnat : ∀ t ∈ args, Natural S t k' (idEnv k') (γ0 k') := by
+    intro t ht
+    obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ht
+    cases hri : C.isRec i
+    · exact natural_of_ty hW (Comp_el_typed (hptd i hi hri)).1
+    · exact natural_of_ty hW (hrec i hi hri).typed
+  -- the point arguments, at their types
+  have hpoint : ∀ i (hi : i < args.length), C.isRec i = false →
+      ValidPre (ΘK S D d k' (ps.isub σ)) c i ((args.take i).map (semK S k')) ∧
+      RE S k' ((C.argTy d D.params.length i).substList ((args.take i).reverse ++ (ps.isub σ).toList.reverse))
+        args[i] := by
+    intro i hi hri
+    have h := hptd i hi hri
+    have hv := validPre_of_el h
+    refine ⟨hv, ?_⟩
+    obtain ⟨Ai, hAi⟩ := argTy_point (C := C) (by omega) hri
+    rw [tyLook_eq hv, ΘK_ty_id hW hd hpsT' hpl' hC hAi (by simp; omega) (fun t ht => hnat t (List.mem_of_mem_take ht))
+      (ptValid_of_validPre hv)] at h
+    exact h
+  have hv : ValidPre (ΘK S D d k' (ps.isub σ)) c args.length (args.map (semK S k')) := by
+    refine ⟨hc', by simp only [show (ΘK S D d k' (ps.isub σ)).ctors = D.ctors from rfl, hCeq]; omega,
+      by simp, fun i hi => ?_⟩
+    simp only [List.length_map] at hi
+    simp only [argSet, show (ΘK S D d k' (ps.isub σ)).ctors = D.ctors from rfl, hCeq]
+    split
+    · rename_i hri
+      have := (hrec i hi hri).mem
+      unfold dataMem at this; rw [hΛ] at this
+      simpa using this
+    · rename_i hri
+      have hri' : C.isRec i = false := by simpa using hri
+      have hp := hpoint i hi hri'
+      have := (Comp_el_typed hp.2).2
+      obtain ⟨Ai, hAi⟩ := argTy_point (C := C) (by omega) hri'
+      rw [El_res, Hom.comp_id, ← ΘK_ty_id hW hd hpsT' hpl' hC hAi
+        (by simp; omega) (fun t ht => hnat t (List.mem_of_mem_take ht)) (ptValid_of_validPre hp.1)] at this
+      simpa [List.map_take] using this
+  obtain ⟨A, hA⟩ := argTy_point (C := C) hlt hnr
+  rw [tyLook_eq hv, ΘK_ty_id hW hd hpsT' hpl' hC hA rfl hnat (ptValid_of_validPre hv)]
+  exact hpt k' σ c C hC args hlt hnr (fun i hi hri => (hpoint i hi hri).2)
+
 end
 
 end Model.Canon
