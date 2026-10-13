@@ -1,4 +1,5 @@
 import KubusCore.Meta.TranspCon
+import KubusCore.Meta.KanTranspGlueAux
 
 /-!
 # Metatheory: typing the contractum of `hcompCon`
@@ -372,7 +373,70 @@ theorem hcompCon_inv :
       fun j hj hjk => Tel j (by omega)
     rw [pointCtx_succ]
     cases hr : C.isRec k
-    · sorry
+    · simp only [hr, Bool.false_eq_true, if_false, ptL]
+      obtain ⟨A0, hA0⟩ := point_of_not_rec hkn hr
+      have hAk : C.argTy d D.params.length k = A0 := by simp [Ctor.argTy, hA0]
+      rw [hAk]
+      have hP := pt_typed hW htr hD hC hA0
+      have hpost : ∀ (σ : Nat → Tm) (τ' : Nat → I),
+          (A0.ren (C.pointRen k) id).subst (fun x => (σ x).subst Tm.var τ') (fun i => (I.var i).subst τ') =
+            ((A0.ren (C.pointRen k) id).subst σ I.var).subst Tm.var τ' :=
+        fun σ τ' => (subst_subst _ _ _ _ _).symm
+      have hLeq : (A0.ren (C.pointRen k) id).subst (lsub (ptL C Fall R1 k) 0) I.var =
+          hLine C A (data d ps) ps.dshift.toList φ us as k := by
+        rw [pt_inst hW hD hC hA0 (by omega) (by simp [R1, hpl1]) 0 I.var, hLk]
+        show _ = (C.argTy d D.params.length k).substList _
+        rw [hAk]
+      have hLt : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift (hLine C A (data d ps) ps.dshift.toList φ us as k)
+          (Tm.univ D.level) := by
+        have := (sub_ty hS hP).2.1 T1; rw [hLeq] at this; exact this
+      -- the tube argument, typed in the line
+      have hP1c := hP1.restrict hXs hXe
+      have TU := tySub_points hS hW hD hC hP1c h7 hpl1 k (by omega)
+      have ecL := (sub_ty hS hP).2.2 (T1.restrict hXs hXe) TU Ec
+      rw [hLeq, pt_inst hW hD hC hA0 (by omega) (by simp [hpl1]) 0 I.var] at ecL
+      rw [hAk] at hutk hatk
+      rw [show A k = A0 from hAk] at hside
+      have hu := HasTy0.conv hutk (EqTm0.symm ecL)
+      -- the base argument, typed at the start of the line
+      have TA := tySub_points hS hW hD hC hP0 h6 hpl k (by omega)
+      have T10 := T1.post (I.inst0 .zero) hw (hf .zero trivial)
+      have e0 := (sub_ty hS hP).2.2 T10 TA E0
+      rw [hpost, hLeq, pt_inst hW hD hC hA0 (by omega) (by simp [hpl]) 0 I.var] at e0
+      have ha := HasTy0.conv hatk (EqTm0.symm e0)
+      -- the side condition, in the line
+      have ecL0 := EqTm0.dsubst hS ecL (r := .zero) trivial
+      have hside' := EqTm0.conv hside (EqTm0.symm ecL0)
+      have hTF := fill_typed hS hLt hφ hu ha hside'
+      have hout := comp_typed hS hLt hφ hu ha hside'
+      have T11 := T1.post (I.inst0 .one) hw (hf .one trivial)
+      have e1 := (sub_ty hS hP).2.2 T11 TO E1
+      rw [hpost, hLeq] at e1
+      have hout' := HasTy0.conv hout e1
+      have hFk' : Fall.getD k .abort = fill (hLine C A (data d ps) ps.dshift.toList φ us as k) φ
+          (us.getD k .abort) (as.getD k .abort) := by rw [hFk]; simp [hFill, hr]
+      have hOk' : osAll.getD k .abort = comp (hLine C A (data d ps) ps.dshift.toList φ us as k) φ
+          (us.getD k .abort) (as.getD k .abort) := by rw [hOk]; simp [hOut, hr]
+      refine ⟨?_, ?_, ?_, ?_, ?_, fun j hj => ?_⟩
+      · have := T1.cons (A := A0.ren (C.pointRen k) id) (a := Fall.getD k .abort) (by rw [hLeq, hFk']; exact hTF.1)
+        rw [consT_lsub] at this; exact this
+      · have := TO.cons (A := A0.ren (C.pointRen k) id) (a := osAll.getD k .abort) (by rw [hOk']; exact hout')
+        rw [consT_lsub] at this; exact this
+      · have := E0.cons (A := A0.ren (C.pointRen k) id) (a1 := (Fall.getD k .abort).subst Tm.var (I.inst0 .zero))
+          (a2 := as.getD k .abort) (by rw [hpost, hLeq, hFk']; exact hTF.2.1)
+        simp only [consT_post, consT_lsub] at this; exact this
+      · have := E1.cons (A := A0.ren (C.pointRen k) id) (a1 := (Fall.getD k .abort).subst Tm.var (I.inst0 .one))
+          (a2 := osAll.getD k .abort) (by rw [hpost, hLeq, hFk', hOk']; exact hTF.2.2.1)
+        simp only [consT_post, consT_lsub] at this; exact this
+      · have := Ec.cons (A := A0.ren (C.pointRen k) id) (a1 := Fall.getD k .abort)
+          (a2 := us.getD k .abort) (by rw [hLeq, hFk']; exact hTF.2.2.2)
+        rw [consT_lsub, consT_lsub] at this; exact this
+      · by_cases hjk : j = k
+        · subst hjk
+          rw [pt_inst hW hD hC hA0 (by simp [hOl]; omega) (by simp [R, hpl]) 0 I.var] at hout'
+          show HasTy0 S Ψ Φ Γ _ ((C.argTy d D.params.length j).substList _)
+          rw [hAk, hOk']; exact hout'
+        · exact hTel j hj hjk
     · simp only [hr, if_true, ptL]
       refine ⟨T1, TO, E0, E1, Ec, fun j hj => ?_⟩
       by_cases hjk : j = k
