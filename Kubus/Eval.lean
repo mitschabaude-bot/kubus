@@ -92,7 +92,14 @@ partial def eval (env : Env) (t : Tm) : M Val := do
   | .hcomp _ a sys u0 => do
     let i ← freshAtom
     let us ← evalSysUnder env i sys
-    comp i (← eval env a) (← eval env u0) us
+    let av ← eval env a
+    -- in a higher inductive type, homogeneous composition is the formal `hcomp` constructor
+    -- (read-back prints `hcompF` as `hcomp`, so this keeps evaluation stable under read-back)
+    if let .data d _ _ := av then
+      if (← lookupData d).isHIT then
+        if let some v := us.eps? then return ← act i Formula.one v
+        return ← mkHCompF av (← eval env u0) (lines i us)
+    comp i av (← eval env u0) us
   | .fill _ a sys u0 => do
     let i ← freshAtom
     let av ← eval (.d (atomF i) :: env) a

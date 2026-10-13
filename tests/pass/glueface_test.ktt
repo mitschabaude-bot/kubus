@@ -1,0 +1,10 @@
+-- glue/unglue under a face where the Glue type reduces (found by the fuzzer)
+import bool
+def notE : Equiv Bool Bool := isoToEquiv Bool Bool not not notnot notnot
+def h (i : I) : Bool :=
+  hcomp k Bool [i = 0 -> unglue (glue [i = 0 -> false] (not false) : Glue Bool [i = 0 -> (Bool, notE)])]
+    (unglue (glue [i = 0 -> false] (not false) : Glue Bool [i = 0 -> (Bool, notE)]))
+#eval h
+def h2 (i : I) (x : Glue Bool [i = 0 -> (Bool, notE)]) : Bool :=
+  hcomp k Bool [i = 0 -> unglue (x : Glue Bool [i = 0 -> (Bool, notE)])] (unglue x)
+#eval h2 0 true

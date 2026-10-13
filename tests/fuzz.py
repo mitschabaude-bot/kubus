@@ -336,7 +336,7 @@ class Gen:
         if a.line:
             L = a.line
             o.append((3, lambda: f"(\\{i} -> {L} {i})"))
-            o.append((1, lambda: f"(\\{i} -> (\\{self.fresh('j')} -> {L} {i}) 0)"))
+            o.append((1, lambda: f"(\\{i} -> (\\({self.fresh('j')} : I) -> {L} {i}) 0)"))
             k = self.fresh("k")
             o.append((2, lambda: f"(\\{i} -> hcomp {k} {a.a.show()} [{i} = 0 -> {L} 0, {i} = 1 -> {L} 1] ({L} {i}))"))
             o.append((1, lambda: f"(\\{i} -> fill {k} {a.a.show()} [{i} = 0 -> {L} 0, {i} = 1 -> {L} 1] ({L} {i}) {atomic(g.ival(dims + [i]))})"))

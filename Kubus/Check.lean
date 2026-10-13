@@ -186,7 +186,10 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
     | .glueTy base esys =>
       let ta ← check ctx a base
       let va ← eval ctx.env ta
-      let (tsys, elems) ← checkSys ctx none sys fun _ α _ => faceV ty α
+      let (tsys, elems) ← checkSys ctx none sys fun _ α _ => do
+        match (← faceSys esys α).eps? with
+        | some te => fstV te
+        | none => faceV ty α
       -- the system must be defined exactly where the Glue type is
       for (α, _) in esys do
         if !(elems.any fun (β, _) => α.leq β) then
@@ -463,7 +466,9 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
     let (tsys, _) ← checkSys ctx none sys fun _ α _ => do equivPairTy l (← faceV av α)
     return (.glueTy ta tsys, .univ l)
   | .unglue u =>
-    let (tu, ty) ← infer ctx u
+    let (tu, ty) ← match stripLoc u with
+      | .ann t a => inferAnnGlue ctx t a
+      | _ => infer ctx u
     match ty with
     | .glueTy b sys =>
       let q := ctx.qctx
@@ -472,7 +477,10 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
   | .ann t a =>
     let (ta, _) ← inferType ctx a
     let av ← eval ctx.env ta
-    return (← check ctx t av, av)
+    match stripLoc t, ta, av with
+    | .glue .., .glueTy .., .glueTy .. => return (← check ctx t av, av)
+    | .glue .., .glueTy .., _ => return ((← inferAnnGlue ctx t a).1, av)
+    | _, _, _ => return (← check ctx t av, av)
   | .letE x tyR t b =>
     let (tt, a) ← inferLet ctx tyR t
     let vt ← eval ctx.env tt
@@ -498,6 +506,22 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
   | .glue .. => err ctx "cannot infer the type of glue; add a type annotation"
   | .izero | .ione | .ineg _ | .iand .. | .ior .. | .ieq .. =>
     err ctx "an interval expression cannot be used as a term"
+
+/-- `(t : Glue A [φ ↦ (T, e)])`, typed by the Glue type *before* it reduces: under a face
+where `φ` holds the annotation evaluates to `T`, but `glue` and `unglue` still need `A` and
+`e` (system elements are checked under their faces, so this arises from well-typed terms). -/
+partial def inferAnnGlue (ctx : Ctx) (t a : Raw) : M (Tm × Val) := do
+  let (ta, _) ← inferType ctx a
+  let av ← eval ctx.env ta
+  match ta with
+  | .glueTy tA tsys =>
+    let g ← match av with
+      | .glueTy .. => pure av
+      | _ => pure (.glueTy (← eval ctx.env tA) (← evalSys ctx.env tsys))
+    match stripLoc t with
+    | .glue .. => return (← check ctx t g, g)
+    | _ => return (← check ctx t av, g)
+  | _ => return (← check ctx t av, av)
 
 partial def inferApp (ctx : Ctx) (h : Raw) (args : List Raw) : M (Tm × Val) := do
   let (tf, tyf) ← infer ctx h

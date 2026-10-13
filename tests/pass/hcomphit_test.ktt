@@ -1,0 +1,7 @@
+import hits
+-- composition in a path type over a parameterised HIT; its normal form contains `hcomp`,
+-- which must evaluate back to the same value (found by the fuzzer: --selfcheck roundtrip)
+def c (j : I) (b : Bool) : Path (Susp Bool) north south :=
+  comp k (Path (Susp Bool) north south) [j = 0 -> \i -> merid b i] (\i -> merid b i)
+#eval \(j : I) -> c j true
+#eval \(b : Bool) (j : I) -> c j b

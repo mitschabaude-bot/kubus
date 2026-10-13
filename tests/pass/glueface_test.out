@@ -1,0 +1,4 @@
+λ i → true
+  : (i : I) → Bool
+false
+  : Bool
