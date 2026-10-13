@@ -50,6 +50,21 @@ theorem ctxEq_sound : ∀ {Γ Δ : Ctx}, ctxEq Γ Δ = true → Γ = Δ
     rw [tmEq_sound h.1, ctxEq_sound h.2]
   | [], _ :: _, h | _ :: _, [], h => by simp [ctxEq] at h
 
+/-- Equality of interval expressions, with a pointer-equality shortcut. -/
+def iEq (a b : I) : Bool := withPtrEq a b (fun _ => decide (a = b)) (by intro h; simp [h])
+
+theorem iEq_sound {a b : I} (h : iEq a b = true) : a = b := by
+  simp only [iEq, withPtrEq, decide_eq_true_eq] at h; exact h
+
+/-- A hash of an interval expression. -/
+def _root_.KubusCore.I.hashI : I → UInt64
+  | .zero => 31
+  | .one => 32
+  | .var i => mixHash 33 (hash i)
+  | .neg r => mixHash 34 r.hashI
+  | .and r s => mixHash 35 (mixHash r.hashI s.hashI)
+  | .or r s => mixHash 36 (mixHash r.hashI s.hashI)
+
 /-- A hash of the top of a term (a few levels deep), for the cache buckets. -/
 def Tm.hashTop : Nat → Tm → UInt64
   | 0, _ => 7
@@ -68,15 +83,15 @@ def Tm.hashTop : Nat → Tm → UInt64
     | .snd p => mixHash 10 (h p)
     | .path A a b => mixHash 11 (mixHash (h A) (mixHash (h a) (h b)))
     | .plam b => mixHash 12 (h b)
-    | .papp p _ => mixHash 13 (h p)
+    | .papp p r => mixHash 13 (mixHash (h p) r.hashI)
     | .ipi A => mixHash 14 (h A)
-    | .split _ t _ u => mixHash 15 (mixHash (h t) (h u))
+    | .split φ t ψ u => mixHash 15 (mixHash (mixHash φ.hashI ψ.hashI) (mixHash (h t) (h u)))
     | .abort => 16
-    | .transp A _ a => mixHash 17 (mixHash (h A) (h a))
-    | .hcomp A _ u a => mixHash 18 (mixHash (h A) (mixHash (h u) (h a)))
-    | .glue A _ T e => mixHash 19 (mixHash (h A) (mixHash (h T) (h e)))
-    | .glueEl _ e t a => mixHash 20 (mixHash (h e) (mixHash (h t) (h a)))
-    | .unglue _ e g => mixHash 21 (mixHash (h e) (h g))
+    | .transp A φ a => mixHash 17 (mixHash φ.hashI (mixHash (h A) (h a)))
+    | .hcomp A φ u a => mixHash 18 (mixHash φ.hashI (mixHash (h A) (mixHash (h u) (h a))))
+    | .glue A φ T e => mixHash 19 <| mixHash φ.hashI <| (mixHash (h A) (mixHash (h T) (h e)))
+    | .glueEl φ e t a => mixHash 20 <| mixHash φ.hashI <| (mixHash (h e) (mixHash (h t) (h a)))
+    | .unglue φ e g => mixHash 21 <| mixHash φ.hashI <| (mixHash (h e) (h g))
     | .tnil => 22
     | .tcons t ts => mixHash 23 (mixHash (h t) (h ts))
     | .data d ps => mixHash 24 (mixHash (hash d) (h ps))
@@ -86,13 +101,20 @@ def Tm.hashTop : Nat → Tm → UInt64
 def keyOf (Ψ : Nat) (Γ : Ctx) (ts : List Tm) : UInt64 :=
   ts.foldl (fun acc t => mixHash acc (Tm.hashTop 4 t)) (mixHash (hash Ψ) (hash Γ.length))
 
-/-- A cached result for the terms `ts` in the context `Ψ; Φ; Γ`. -/
+/-- A cached result for the terms `ts` in the context `Ψ; Φ; Γ`, with the faces of `Φ`. -/
 structure CEntry (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) where
   Ψ : Nat
   Φ : I
   Γ : Ctx
   ts : List Tm
   v : F S Ψ Φ Γ ts
+  fs : List I.Face
+  hfs : fs = Φ.faces
+
+/-- Moving a cached result to a stronger restriction (`none`: not reusable there). -/
+abbrev Restr (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) :=
+  ∀ {Ψ : Nat} {Φ Φ' : I} {Γ : Ctx} {ts : List Tm}, Φ'.Scoped Ψ → I.Entails Φ' Φ →
+    F S Ψ Φ Γ ts → Option (F S Ψ Φ' Γ ts)
 
 def termsEq : List Tm → List Tm → Bool
   | [], [] => true
@@ -109,21 +131,26 @@ theorem termsEq_sound : ∀ {as bs : List Tm}, termsEq as bs = true → as = bs
 abbrev Table (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) :=
   Std.HashMap UInt64 (List (CEntry S F))
 
-def Table.find? {S F} (tab : Table S F) (Ψ : Nat) (Φ : I) (Γ : Ctx) (ts : List Tm) :
+/-- A cached result for `ts` in `Ψ; Φ; Γ` (`fs` are the faces of `Φ`): one for the same
+restriction, or one for a weaker restriction moved along `res`. -/
+def Table.find? {S F} (tab : Table S F) (Ψ : Nat) (Φ : I) (Γ : Ctx) (ts : List Tm)
+    (fs : List I.Face) (hfs : fs = Φ.faces) (hsc : Φ.Scoped Ψ) (res : Restr S F) :
     Option (F S Ψ Φ Γ ts) :=
-  (tab.getD (keyOf Ψ Γ ts) []).findSome? fun e =>
-    if h : e.Ψ = Ψ ∧ e.Φ = Φ ∧ termsEq e.ts ts = true ∧ ctxEq e.Γ Γ = true then
-      some (by
-        obtain ⟨h1, h2, h3, h4⟩ := h
-        have h3 := termsEq_sound h3
-        have h4 := ctxEq_sound h4
-        exact h1 ▸ h2 ▸ h3 ▸ h4 ▸ e.v)
+  (tab.getD (keyOf Ψ Γ ts) []).findSome? fun ⟨Ψ', Φ', Γ', ts', v, fs', hfs'⟩ =>
+    if h : Ψ' = Ψ ∧ termsEq ts' ts = true ∧ ctxEq Γ' Γ = true then
+      have v : F S Ψ Φ' Γ ts := by
+        obtain ⟨h1, h3, h4⟩ := h
+        rw [← h1, ← termsEq_sound h3, ← ctxEq_sound h4]; exact v
+      if h2 : iEq Φ' Φ = true then some (iEq_sound h2 ▸ v)
+      else if he : (fs.all fun c => fs'.any fun d => d.all (c.contains ·)) = true then
+        res hsc (by show I.entails Φ Φ' = true; unfold I.entails; rw [← hfs, ← hfs']; exact he) v
+      else none
     else none
 
 def Table.insert {S F} (tab : Table S F) (Ψ : Nat) (Φ : I) (Γ : Ctx) (ts : List Tm)
-    (v : F S Ψ Φ Γ ts) : Table S F :=
+    (fs : List I.Face) (hfs : fs = Φ.faces) (v : F S Ψ Φ Γ ts) : Table S F :=
   let k := keyOf Ψ Γ ts
-  Std.HashMap.insert tab k (⟨Ψ, Φ, Γ, ts, v⟩ :: (tab.getD k []).take 7)
+  Std.HashMap.insert tab k (⟨Ψ, Φ, Γ, ts, v, fs, hfs⟩ :: (tab.getD k []).take 63)
 
 /-- The cached judgments. -/
 def InfF : Sig → Nat → I → Ctx → List Tm → Type
@@ -145,6 +172,43 @@ def ChkF : Sig → Nat → I → Ctx → List Tm → Type
 def ConvF : Sig → Nat → I → Ctx → List Tm → Type
   | S, Ψ, Φ, Γ, [A, t, u] => PLift (EqTm S Ψ Φ Γ t u A)
   | _, _, _, _, _ => PUnit
+
+/-- Weak-head normal forms that stay normal under any stronger restriction. -/
+def _root_.KubusCore.Tm.rigid : Tm → Bool
+  | .univ _ | .pi .. | .sigma .. | .path .. | .ipi _ | .lam .. | .pair .. | .plam _
+  | .data .. | .con _ _ _ _ [] => true
+  | _ => false
+
+def InfF.restr {S : Sig} : Restr S InfF := fun {Ψ Φ Φ' Γ ts} hs he v =>
+  match ts, v with
+  | [_], i => some ⟨i.ty, i.lvl, HasTy.restrict hs he i.hty, HasTy.restrict hs he i.htm⟩
+  | [], _ | _ :: _ :: _, _ => none
+
+def ChkF.restr {S : Sig} : Restr S ChkF := fun {Ψ Φ Φ' Γ ts} hs he v =>
+  match ts, v with
+  | [_, _], ⟨h⟩ => some ⟨HasTy.restrict hs he h⟩
+  | [], _ | [_], _ | _ :: _ :: _ :: _, _ => none
+
+def ConvF.restr {S : Sig} : Restr S ConvF := fun {Ψ Φ Φ' Γ ts} hs he v =>
+  match ts, v with
+  | [_, _, _], ⟨h⟩ => some ⟨EqTm.restrict hs he h⟩
+  | [], _ | [_], _ | [_, _], _ | _ :: _ :: _ :: _ :: _, _ => none
+
+def WhF.restr {S : Sig} : Restr S WhF := fun {Ψ Φ Φ' Γ ts} hs he v =>
+  match ts, v with
+  | [_, _], r => if r.tm.rigid then some ⟨r.tm, EqTm.restrict hs he r.eq⟩ else none
+  | [], _ | [_], _ | _ :: _ :: _ :: _, _ => none
+
+def WhiF.restr {S : Sig} : Restr S WhiF := fun {Ψ Φ Φ' Γ ts} hs he v =>
+  match ts, v with
+  | [_], ⟨i, r⟩ =>
+    if r.tm.rigid then
+      some ⟨⟨i.ty, i.lvl, HasTy.restrict hs he i.hty, HasTy.restrict hs he i.htm⟩,
+        ⟨r.tm, EqTm.restrict hs he r.eq⟩⟩
+    else none
+  | [], _ | _ :: _ :: _, _ => none
+
+def noRestr {S : Sig} {F} : Restr S F := fun _ _ _ => none
 
 /-- The premises of `elim d ps (x. P) bs _` other than the target. -/
 structure ElimInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (d : Nat) (ps P bs : Tm) where

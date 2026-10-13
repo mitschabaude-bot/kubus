@@ -312,9 +312,9 @@ def inferElimInfoRaw (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps 
 /-- `inferElimInfoRaw`, memoized. -/
 def inferElimInfo (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs : Tm) :
     K S (ElimInfo S Ψ Φ Γ d ps P bs) := do
-  if let some v := (← get).elim.find? Ψ Φ Γ [.data d ps, P, bs] then return v
+  if let some v := (← get).elim.find? Ψ Φ Γ [.data d ps, P, bs] E.fs.get E.hfs E.hsc noRestr then return v
   let v ← inferElimInfoRaw R E d ps P bs
-  modify fun c => { c with elim := c.elim.insert Ψ Φ Γ [.data d ps, P, bs] v }
+  modify fun c => { c with elim := c.elim.insert Ψ Φ Γ [.data d ps, P, bs] E.fs.get E.hfs v }
   return v
 
 end KubusCore.Kernel

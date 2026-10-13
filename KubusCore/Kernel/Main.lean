@@ -80,38 +80,38 @@ def canonConvNe (R : Rec S) (E : KCtx S Ψ Φ Γ) (t u : Tm) :
 keys (checked structurally, with a pointer-equality shortcut). -/
 
 def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ t) := do
-  if let some v := (← get).inf.find? Ψ Φ Γ [t] then return v
+  if let some v := (← get).inf.find? Ψ Φ Γ [t] E.fs.get E.hfs E.hsc InfF.restr then return v
   let v ← canonInferRaw R E t
-  modify fun c => { c with inf := c.inf.insert Ψ Φ Γ [t] v }
+  modify fun c => { c with inf := c.inf.insert Ψ Φ Γ [t] E.fs.get E.hfs v }
   return v
 
 def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (PLift (HasTy S Ψ Φ Γ t A)) := do
-  if let some v := (← get).chk.find? Ψ Φ Γ [t, A] then return v
+  if let some v := (← get).chk.find? Ψ Φ Γ [t, A] E.fs.get E.hfs E.hsc ChkF.restr then return v
   let v ← canonCheckRaw R E t A l hA
-  modify fun c => { c with chk := c.chk.insert Ψ Φ Γ [t, A] v }
+  modify fun c => { c with chk := c.chk.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
   return v
 
 def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K S (Red S Ψ Φ Γ t A) := do
-  if let some v := (← get).wh.find? Ψ Φ Γ [t, A] then return v
+  if let some v := (← get).wh.find? Ψ Φ Γ [t, A] E.fs.get E.hfs E.hsc WhF.restr then return v
   let v ← canonWhnfRaw R E t A l hA ht
-  modify fun c => { c with wh := c.wh.insert Ψ Φ Γ [t, A] v }
+  modify fun c => { c with wh := c.wh.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
   return v
 
 def canonWhnfI (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
     K S ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) := do
-  if let some v := (← get).whi.find? Ψ Φ Γ [t] then return v
+  if let some v := (← get).whi.find? Ψ Φ Γ [t] E.fs.get E.hfs E.hsc WhiF.restr then return v
   let v ← canonWhnfIRaw R E t
-  modify fun c => { c with whi := c.whi.insert Ψ Φ Γ [t] v }
+  modify fun c => { c with whi := c.whi.insert Ψ Φ Γ [t] E.fs.get E.hfs v }
   return v
 
 def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm) (ht : HasTy S Ψ Φ Γ t A)
     (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
-  if let some v := (← get).conv.find? Ψ Φ Γ [A, t, u] then return v
+  if let some v := (← get).conv.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc ConvF.restr then return v
   let v ← canonConvRaw R E A l hA t u ht hu
-  modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] v }
+  modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }
   return v
 
 /-- The kernel with `n` levels of nested recursive calls. Each level is built lazily. -/
