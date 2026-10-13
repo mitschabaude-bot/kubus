@@ -87,7 +87,9 @@ partial def solveMeta (l : Nat) (m : Nat) (sp : List EnvE) (v : Val) : M Bool :=
       | [[lit]] => if lit.pos then .dim lit.atom else .other
       | _ => .other
     | _ => .other
-  let body ← quote { es, next := l } v
+  -- prefer the solution with definitions folded
+  let body ← quote { es, next := l, fold := true } v
+  let body ← if body.badSolution m then quote { es, next := l } v else pure body
   if body.badSolution m then return false
   let some mi := (← get).metas[m]? | return false
   if let .univ n ← spineType mi.ty sp then
@@ -112,10 +114,37 @@ partial def flexSolve (l : Nat) (u v : Val) : M (Option Bool) := do
 
 mutual
 
+/-- Applications of the same global to convertible arguments are equal, without unfolding.
+(If the arguments differ, the caller unfolds; solutions made on the way are undone.) -/
+partial def gluedEq (l : Nat) (u v : Val) : M Bool := do
+  let .glued g k sp _ := u | return false
+  let .glued g' k' sp' _ := v | return false
+  if g != g' || k != k' || sp.length != sp'.length then return false
+  let info ← lookupDef g
+  let saved := (← get).metas
+  let ty0 ← if k == 0 then pure info.ty else eval [] (info.tyTm.lift k)
+  let mut ty := ty0
+  for (a, b) in sp.reverse.zip sp'.reverse do
+    let next ← match ← force ty, a, b with
+      | .pi _ dom env cod, .v x, .v y => do
+        if ← conv l dom x y then some <$> inst env cod x else pure none
+      | .piI line, .d r, .d r' | .pathP line _ _, .d r, .d r' => do
+        if r == r' then some <$> papp line r else pure none
+      | _, _, _ => pure none
+    match next with
+    | some t => ty := t
+    | none =>
+      modify fun s => { s with metas := saved }
+      return false
+  return true
+
 partial def conv (l : Nat) (ty u v : Val) : M Bool := do
+  let u ← forceM u
+  let v ← forceM v
+  if let some r ← flexSolve l u v then return r
+  if ← gluedEq l u v then return true
   let u ← force u
   let v ← force v
-  if let some r ← flexSolve l u v then return r
   match ← force ty with
   | .pi _ a env b =>
     let x := Val.var l a
@@ -181,9 +210,12 @@ partial def convSysWith (cmp : Face → Val → Val → M Bool) (s1 s2 : System 
   return true
 
 partial def convTy (l : Nat) (a b : Val) : M Bool := do
+  let a ← forceM a
+  let b ← forceM b
+  if let some r ← flexSolve l a b then return r
+  if ← gluedEq l a b then return true
   let a ← force a
   let b ← force b
-  if let some r ← flexSolve l a b then return r
   match a, b with
   | .univ m, .univ n => pure (m == n)
   | .pi _ a1 e1 b1, .pi _ a2 e2 b2 | .sigma _ a1 e1 b1, .sigma _ a2 e2 b2 =>
@@ -251,7 +283,7 @@ partial def convNe' (l : Nat) (u v : Val) : M (Option Val) := do
     let ty0 ← if k == 0 then pure info.ty else eval [] (info.tyTm.lift k)
     let mut ty := ty0
     for (e, e') in env.reverse.zip env'.reverse do
-      match ty, e, e' with
+      match ty.unfold, e, e' with
       | .pi _ dom envB cod, .v p, .v q =>
         if !(← conv l dom p q) then return none
         ty ← inst envB cod p
@@ -280,9 +312,12 @@ end
 
 /-- Subtyping by cumulativity of universes. -/
 partial def subtype (l : Nat) (a b : Val) : M Bool := do
+  let a ← forceM a
+  let b ← forceM b
+  if let some r ← flexSolve l a b then return r
+  if ← gluedEq l a b then return true
   let a ← force a
   let b ← force b
-  if let some r ← flexSolve l a b then return r
   match a, b with
   | .univ m, .univ n => pure (m ≤ n)
   | .pi _ a1 e1 b1, .pi _ a2 e2 b2 =>

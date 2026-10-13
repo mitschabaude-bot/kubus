@@ -47,6 +47,9 @@ def qctx (c : Ctx) : QCtx :=
       | _ => .other
     next := c.lvl }
 
+/-- Read-back context that keeps definitions folded. -/
+def fqctx (c : Ctx) : QCtx := { c.qctx with fold := true }
+
 end Ctx
 
 def err {α} (ctx : Ctx) (msg : String) : M α :=
@@ -69,10 +72,11 @@ def ppI' : M PPI := do
   return { mask := ← implMasks, metaStr := fun m => "?" ++ ((ms[m]?.map (·.short)).getD s!"m{m}") }
 
 def ppTm (ctx : Ctx) (t : Tm) : M String := do
-  return pp ctx.names 0 t (← ppI')
+  return pp ctx.names 0 t { (← ppI') with showImplicit := false }
 
+/-- Print a value, with definitions folded. -/
 def ppVal (ctx : Ctx) (v : Val) : M String := do
-  ppTm ctx (← quote ctx.qctx v)
+  ppTm ctx (← quote ctx.fqctx v)
 
 /-- Undo metavariable solutions made by a failed conversion check. -/
 def withRollback (x : M Bool) : M Bool := do
@@ -85,14 +89,14 @@ def withRollback (x : M Bool) : M Bool := do
 to the variables of the context) and its value. -/
 def freshMeta (ctx : Ctx) (ty : Val) (desc : String) (short : String := "_") : M (Tm × Val) := do
   let m := (← get).metas.size
-  let mut tyTm ← quote ctx.qctx ty
+  let mut tyTm ← quote ctx.fqctx ty
   let mut rest := ctx.entries
   while true do
     match rest with
     | e :: es =>
       let sub : Ctx := { ctx with entries := es }
       tyTm ← match e.ty with
-        | some a => do pure (Tm.pi e.name (← quote sub.qctx a) tyTm)
+        | some a => do pure (Tm.pi e.name (← quote sub.fqctx a) tyTm)
         | none => pure (Tm.piI e.name tyTm)
       rest := es
     | [] => break
@@ -368,8 +372,8 @@ partial def check (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
 partial def checkInfer (ctx : Ctx) (t : Raw) (ty : Val) : M Tm := do
   let (tm, ty') ← inferIns ctx t
   if !(← subtype ctx.lvl ty' ty) then
-    let e ← quote ctx.qctx ty
-    let g ← quote ctx.qctx ty'
+    let e ← quote ctx.fqctx ty
+    let g ← quote ctx.fqctx ty'
     let diff ← match tmDiff e g with
       | some (a, b) => pure s!"\n  ({← ppTm ctx a} vs {← ppTm ctx b})"
       | none => pure ""
@@ -600,7 +604,7 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
       match ← force tyP with
       | .pathP lineU _ _ =>
         let k ← freshAtom
-        match ← papp lineU (atomF k) with
+        match ← force (← papp lineU (atomF k)) with
         | .univ l =>
           let line ← eval ctx.env tp
           let tu ← check ctx u (← papp line Formula.zero)
@@ -692,7 +696,7 @@ partial def inferAnnGlue (ctx : Ctx) (t a : Raw) : M (Tm × Val) := do
   let av ← eval ctx.env ta
   match ta with
   | .glueTy tA tsys =>
-    let g ← match av with
+    let g ← match av.unfold with
       | .glueTy .. => pure av
       | _ => pure (.glueTy (← eval ctx.env tA) (← evalSys ctx.env tsys))
     match stripLoc t with

@@ -191,14 +191,14 @@ def bindPats (rows : List Row) (vals : List (String × Val × Val)) : List Row :
 /-- `Π (entries) . ty` over the innermost `n` entries of `ctx`, as a term in the context
 without them. -/
 def piOverEntries (ctx : Ctx) (n : Nat) (ty : Val) : M Tm := do
-  let mut t ← quote ctx.qctx ty
+  let mut t ← quote ctx.fqctx ty
   let mut rest := ctx.entries
   for _ in [0:n] do
     match rest with
     | e :: es =>
       let sub : Ctx := { ctx with entries := es }
       t ← match e.ty with
-        | some a => do pure (Tm.pi e.name (← quote sub.qctx a) t)
+        | some a => do pure (Tm.pi e.name (← quote sub.fqctx a) t)
         | none => pure (Tm.piI e.name t)
       rest := es
     | [] => pure ()

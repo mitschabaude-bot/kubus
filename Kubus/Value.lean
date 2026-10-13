@@ -34,6 +34,10 @@ inductive Val
   | compU (base : Val) (sys : List (Face × Val))
   /-- pattern-matching function `f` with parameters `env` -/
   | split (f : String) (k : Nat) (env : List EnvE)
+  /-- `v`, the value of the global `g^k` applied to the spine `sp` (innermost argument first).
+  Kept for printing definitions folded, and for comparing applications of the same global
+  without unfolding them. -/
+  | glued (g : String) (k : Nat) (sp : List EnvE) (v : Val)
   -- neutrals
   | var (lvl : Nat) (ty : Val)
   | gvar (n : String) (ty : Val)
@@ -56,6 +60,11 @@ instance : Inhabited Val := ⟨.univ 0⟩
 instance : Inhabited EnvE := ⟨.d Formula.zero⟩
 
 abbrev Env := List EnvE
+
+/-- The value behind glued globals. -/
+def Val.unfold : Val → Val
+  | .glued _ _ _ v => v.unfold
+  | v => v
 
 def Val.isNeutral : Val → Bool
   | .var .. | .gvar .. | .app .. | .fst _ | .snd _ | .papp .. | .splitApp .. | .comp .. | .unglue ..

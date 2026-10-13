@@ -51,7 +51,7 @@ def checkDefn (name : String) (ps : List Binder) (ty body : Raw) (pos : Pos) : M
   let (tty, tbody) ← match ty with
     | .hole => do
       let (tbody, vty) ← inferIns ctx body
-      pure (← quote ctx.qctx vty, tbody)
+      pure (← quote ctx.fqctx vty, tbody)
     | _ => do
       let (tty, _) ← inferType ctx ty
       pure (tty, ← check ctx body (← eval ctx.env tty))

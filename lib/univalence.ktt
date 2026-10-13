@@ -13,7 +13,7 @@ def GlueI {A : U} (w : (T : U) × Equiv T A) (i : I) : U :=
 
 def unglueI {A : U} (w : (T : U) × Equiv T A) (i : I) (g : GlueI w i) : A := unglue g
 
-def unglueIsEquivI {A : U} (w : (T : U) × Equiv T A) (i : I) : isEquiv {GlueI w i} (unglueI w i) :=
+def unglueIsEquivI {A : U} (w : (T : U) × Equiv T A) (i : I) : isEquiv (unglueI w i) :=
   \b ->
     let c0 : fiber (idEquiv A).1 b := equivCtr (idEquiv A) b in
     let c1 : fiber w.2.1 b := equivCtr w.2 b in
