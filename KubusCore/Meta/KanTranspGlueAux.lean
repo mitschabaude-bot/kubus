@@ -611,4 +611,73 @@ theorem fill_typed (hS : SigClosed S) {Ψ Φ Γ C ψ u u0 l}
     rw [tf_L1'] at e2 eC'
     exact EqTm0.trans e1 (EqTm0.conv (EqTm0.trans e2 e3) eC')
 
+/-! ## Judgments under a cofibration in the line variable -/
+
+theorem sk0_inst0 (r : I) : sk r 0 = I.inst0 r := funext fun i => by rcases i with _ | i <;> rfl
+theorem sk1_var : sk (.var 0) 1 = I.var := funext fun i => by rcases i with _ | i <;> rfl
+
+section
+variable (hS : SigClosed S)
+include hS
+
+theorem HasTy0.cof_sk {Ψ : Nat} {Φ φ : I} {Γ : Ctx} {t T : Tm}
+    (h : HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift t T) (hw : Wf0 S Ψ Φ Γ) {k : Nat} {X r : I}
+    (hr : r.Scoped (Ψ + k)) (hXs : X.Scoped (Ψ + k)) (hXΦ : I.Entails X (Φ.subst (fun n => .var (n + k))))
+    (hXφ : I.Entails X (φ.subst (sk r k))) :
+    HasTy0 S (Ψ + k) X (ctxI (fun n => .var (n + k)) Γ) (t.subst Tm.var (sk r k)) (T.subst Tm.var (sk r k)) := by
+  have := HasTy0.isub hS (τ := sk r k) h (sk_scoped hr (by omega))
+    (show I.Entails X (.and _ _) from ent_and_intro (ent_skk r k hXΦ) hXφ)
+    (by rw [ctxI_skk]; exact (wf_sk hS k hw).restrict hXs hXΦ)
+  rwa [ctxI_skk] at this
+
+theorem EqTm0.cof_sk {Ψ : Nat} {Φ φ : I} {Γ : Ctx} {t t' T : Tm}
+    (h : EqTm0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift t t' T) (hw : Wf0 S Ψ Φ Γ) {k : Nat} {X r : I}
+    (hr : r.Scoped (Ψ + k)) (hXs : X.Scoped (Ψ + k)) (hXΦ : I.Entails X (Φ.subst (fun n => .var (n + k))))
+    (hXφ : I.Entails X (φ.subst (sk r k))) :
+    EqTm0 S (Ψ + k) X (ctxI (fun n => .var (n + k)) Γ) (t.subst Tm.var (sk r k)) (t'.subst Tm.var (sk r k))
+      (T.subst Tm.var (sk r k)) := by
+  have := EqTm0.isub hS (τ := sk r k) h (sk_scoped hr (by omega))
+    (show I.Entails X (.and _ _) from ent_and_intro (ent_skk r k hXΦ) hXφ)
+    (by rw [ctxI_skk]; exact (wf_sk hS k hw).restrict hXs hXΦ)
+  rwa [ctxI_skk] at this
+
+theorem HasTy0.cof_inst {Ψ : Nat} {Φ φ : I} {Γ : Ctx} {t T : Tm}
+    (h : HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift t T) (hw : Wf0 S Ψ Φ Γ) {X r : I}
+    (hr : r.Scoped Ψ) (hXs : X.Scoped Ψ) (hXΦ : I.Entails X Φ) (hXφ : I.Entails X (φ.subst (I.inst0 r))) :
+    HasTy0 S Ψ X Γ (t.dinst r) (T.dinst r) := by
+  have := HasTy0.cof_sk hS h hw (k := 0) hr hXs (by rw [I_add0]; exact hXΦ) (by rw [sk0_inst0]; exact hXφ)
+  rwa [ctxI_add0, sk0_inst0] at this
+
+theorem EqTm0.cof_inst {Ψ : Nat} {Φ φ : I} {Γ : Ctx} {t t' T : Tm}
+    (h : EqTm0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift t t' T) (hw : Wf0 S Ψ Φ Γ) {X r : I}
+    (hr : r.Scoped Ψ) (hXs : X.Scoped Ψ) (hXΦ : I.Entails X Φ) (hXφ : I.Entails X (φ.subst (I.inst0 r))) :
+    EqTm0 S Ψ X Γ (t.dinst r) (t'.dinst r) (T.dinst r) := by
+  have := EqTm0.cof_sk hS h hw (k := 0) hr hXs (by rw [I_add0]; exact hXΦ) (by rw [sk0_inst0]; exact hXφ)
+  rwa [ctxI_add0, sk0_inst0] at this
+
+theorem HasTy0.cof_ins {Ψ : Nat} {Φ φ : I} {Γ : Ctx} {t T : Tm}
+    (h : HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift t T) (hw : Wf0 S Ψ Φ Γ) {X : I}
+    (hXs : X.Scoped (Ψ + 1 + 1)) (hXΦ : I.Entails X Φ.shift.shift) (hXφ : I.Entails X (φ.subst (sk (.var 0) 2))) :
+    HasTy0 S (Ψ + 1 + 1) X Γ.dshift.dshift (t.subst Tm.var (sk (.var 0) 2)) (T.subst Tm.var (sk (.var 0) 2)) := by
+  have := HasTy0.cof_sk hS h hw (k := 2) (r := .var 0) (show 0 < Ψ + 2 by omega) hXs (by rw [I_add2]; exact hXΦ) hXφ
+  rwa [ctxI_add2] at this
+
+theorem EqTm0.cof_ins {Ψ : Nat} {Φ φ : I} {Γ : Ctx} {t t' T : Tm}
+    (h : EqTm0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift t t' T) (hw : Wf0 S Ψ Φ Γ) {X : I}
+    (hXs : X.Scoped (Ψ + 1 + 1)) (hXΦ : I.Entails X Φ.shift.shift) (hXφ : I.Entails X (φ.subst (sk (.var 0) 2))) :
+    EqTm0 S (Ψ + 1 + 1) X Γ.dshift.dshift (t.subst Tm.var (sk (.var 0) 2)) (t'.subst Tm.var (sk (.var 0) 2))
+      (T.subst Tm.var (sk (.var 0) 2)) := by
+  have := EqTm0.cof_sk hS h hw (k := 2) (r := .var 0) (show 0 < Ψ + 2 by omega) hXs (by rw [I_add2]; exact hXΦ) hXφ
+  rwa [ctxI_add2] at this
+
+omit hS in
+/-- Restricting a judgment under `φ` to a restriction that entails `φ`. -/
+theorem HasTy0.cof_restrict {Ψ : Nat} {Φ φ : I} {Γ : Ctx} {t T : Tm}
+    (h : HasTy0 S (Ψ + 1) (cof Φ.shift φ) Γ.dshift t T) {X : I}
+    (hXs : X.Scoped (Ψ + 1)) (hXΦ : I.Entails X Φ.shift) (hXφ : I.Entails X φ) :
+    HasTy0 S (Ψ + 1) X Γ.dshift t T :=
+  HasTy0.restrict hXs (ent_and_intro hXΦ hXφ) h
+
+end
+
 end KubusCore.Meta
