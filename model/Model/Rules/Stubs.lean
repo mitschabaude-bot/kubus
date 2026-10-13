@@ -1,4 +1,4 @@
-import Model.Rules.Basic
+import Model.Rules.PathLemmas
 
 /-!
 # Semantic validity of the rules
@@ -126,17 +126,17 @@ theorem sem_HasTy_sigmaCod {S : Sig} {Ψ Φ Γ A B l}
 theorem sem_HasTy_pathLine {S : Sig} {Ψ Φ Γ A a b l}
     (h0 : SemTy S Ψ Φ Γ (path A a b) (univ l)) :
     SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l) := by
-  sorry
+  exact h0.pathLine
 
 theorem sem_HasTy_pathLeft {S : Sig} {Ψ Φ Γ A a b l}
     (h0 : SemTy S Ψ Φ Γ (path A a b) (univ l)) :
     SemTy S Ψ Φ Γ a (A.dinst .zero) := by
-  sorry
+  exact h0.pathEnd.1
 
 theorem sem_HasTy_pathRight {S : Sig} {Ψ Φ Γ A a b l}
     (h0 : SemTy S Ψ Φ Γ (path A a b) (univ l)) :
     SemTy S Ψ Φ Γ b (A.dinst .one) := by
-  sorry
+  exact h0.pathEnd.2
 
 theorem sem_HasTy_glueFib {S : Sig} {Ψ Φ Γ A φ T e l}
     (h0 : SemTy S Ψ Φ Γ (glue A φ T e) (univ l)) :
@@ -340,17 +340,70 @@ theorem sem_HasTy_snd {S : Sig} {Ψ Φ Γ A B p}
 theorem sem_HasTy_path {S : Sig} {Ψ Φ Γ A a b l}
     (h0 : SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) (h1 : SemTy S Ψ Φ Γ a (A.dinst .zero)) (h2 : SemTy S Ψ Φ Γ b (A.dinst .one)) :
     SemTy S Ψ Φ Γ (path A a b) (univ l) := by
-  sorry
+  have hwf : SemWf S Ψ Φ Γ := h1.1
+  have hat : ∀ m (ρ : IEnv m) γ, IsPoint S Φ Γ m ρ γ →
+      Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) ∧ IsKV (m + 1) (lineV S A m ρ γ) ∧
+      IsKV m (sem S a m ρ γ) ∧ IsKV m (sem S b m ρ γ) ∧ l ≤ maxLevel ∧
+      lineV S A m ρ γ ∈ Vt l ∧ WF l (m + 1) (lineV S A m ρ γ) ∧
+      sem S a m ρ γ ∈ El (lineV S A m ρ γ) (Hom.endpt m (DM.zero m)) ∧
+      sem S b m ρ γ ∈ El (lineV S A m ρ γ) (Hom.endpt m (DM.one m)) := by
+    intro m ρ γ hp
+    obtain ⟨hLmem, hN, hUty, -⟩ := h0.2.2.2 _ _ _ (hp.dext hwf)
+    rw [sem_univ, mem_El_univ_iff] at hLmem
+    obtain ⟨hamem, -, haty, -⟩ := h1.2.2.2 m ρ γ hp
+    obtain ⟨hbmem, -, hbty, -⟩ := h2.2.2.2 m ρ γ hp
+    have hl : l ≤ maxLevel := by unfold TyOK at hUty; rw [sem_univ] at hUty; exact hUty.univ_le
+    have e0 : sem S (A.dinst .zero) m ρ γ = res (Hom.endpt m (DM.zero m)) (lineV S A m ρ γ) := by
+      rw [sem_dinst, ival_zero, line_endpt hp.kv hN]
+    have e1 : sem S (A.dinst .one) m ρ γ = res (Hom.endpt m (DM.one m)) (lineV S A m ρ γ) := by
+      rw [sem_dinst, ival_one, line_endpt hp.kv hN]
+    refine ⟨hN, hLmem.2.fib.kv, haty.fib.elKV _ _ _ hamem, hbty.fib.elKV _ _ _ hbmem, hl, hLmem.1,
+      hLmem.2, ?_, ?_⟩
+    · rw [e0, El_res, Hom.comp_id] at hamem; exact hamem
+    · rw [e1, El_res, Hom.comp_id] at hbmem; exact hbmem
+  refine ⟨hwf, ⟨h0.2.1, h1.2.1, h2.2.1⟩, trivial, fun m ρ γ hp => ?_⟩
+  obtain ⟨hN, hL, ha, hb, hl, hV, hW, ha0, ha1⟩ := hat m ρ γ hp
+  refine ⟨?_, fun k f => ?_, by unfold TyOK; rw [sem_univ]; exact ⟨l, hl, Or.inr rfl⟩,
+    fun k f => by simp [res_univC]⟩
+  · rw [sem_path hN hL ha hb, sem_univ, mem_El_univ_iff]
+    exact ⟨pathC_mem_Vt hV hL ha0 ha1, by unfold WF; exact WFI.path hW ha0 ha1⟩
+  · obtain ⟨hN', hL', ha', hb', -⟩ := hat k _ _ (hp.restr hwf f)
+    rw [sem_path hN' hL' ha' hb', sem_path hN hL ha hb, res_pathC, line_restr hN f,
+      (h1.2.2.2 m ρ γ hp).2.1 k f, (h2.2.2.2 m ρ γ hp).2.1 k f]
 
 theorem sem_HasTy_plam {S : Sig} {Ψ Φ Γ A a b t l}
     (h0 : SemTy S Ψ Φ Γ (path A a b) (univ l)) (h1 : SemTy S (Ψ + 1) Φ.shift Γ.dshift t A) (h2 : SemEq S Ψ Φ Γ (t.dinst .zero) a (A.dinst .zero)) (h3 : SemEq S Ψ Φ Γ (t.dinst .one) b (A.dinst .one)) :
     SemTy S Ψ Φ Γ (plam t) (path A a b) := by
-  sorry
+  refine ⟨h0.1, h1.2.1, h0.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hpmem, hpnat, hUty, -⟩ := h0.2.2.2 m ρ γ hp
+  have hpTy : TyOK S (path A a b) m ρ γ := TyCode.of_mem_univ hUty hpmem
+  obtain ⟨hN, hL, ha, hb, hsem, -⟩ := hpTy.path_at
+  obtain ⟨hTmem, hTN, -, -⟩ := h1.2.2.2 _ _ _ (hp.dext h0.1)
+  refine ⟨?_, fun k f => ?_, hpTy, hpnat⟩
+  · rw [sem_plam hTN, hsem, mem_El_pathC hL ha hb]
+    refine ⟨_, hTmem, rfl, ?_, ?_⟩
+    · rw [← line_endpt hp.kv hTN, ← ival_zero ρ, ← sem_dinst]; exact h2.2.2 m ρ γ hp
+    · rw [← line_endpt hp.kv hTN, ← ival_one ρ, ← sem_dinst]; exact h3.2.2 m ρ γ hp
+  · rw [sem_plam (line_restr_nat hTN f), sem_plam hTN, line_restr hTN f, res_pathOfLine]
 
 theorem sem_HasTy_papp {S : Sig} {Ψ Φ Γ A a b p r}
     (h0 : SemTy S Ψ Φ Γ p (path A a b)) (h1 : r.Scoped Ψ) :
     SemTy S Ψ Φ Γ (papp p r) (A.dinst r) := by
-  sorry
+  refine ⟨h0.1, h0.2.1, h0.2.2.1.1.dinst _, fun m ρ γ hp => ?_⟩
+  obtain ⟨hpmem, hpnat, hpTy, -⟩ := h0.2.2.2 m ρ γ hp
+  obtain ⟨hN, hL, ha, hb, hsem, l, hl, hV, hW, -⟩ := hpTy.path_at
+  rw [hsem, mem_El_pathC hL ha hb] at hpmem
+  obtain ⟨P, hP, hPeq, -⟩ := hpmem
+  have e : sem S (A.dinst r) m ρ γ = res (Hom.endpt m (ival ρ r)) (lineV S A m ρ γ) := by
+    rw [sem_dinst, line_endpt hp.kv hN]
+  have ev : sem S (papp p r) m ρ γ = res (Hom.endpt m (ival ρ r)) P := by
+    rw [sem_papp, hPeq, pappV_pathOfLine]
+  refine ⟨?_, fun k f => ?_, ?_, Natural.dinst (line_endpt_nat hp.kv hN _)⟩
+  · rw [ev, e, El_res, Hom.comp_id]
+    have := hW.fib.elRes _ _ _ hP m (Hom.endpt m (ival ρ r)); rwa [Hom.id_comp] at this
+  · rw [sem_papp, sem_papp, hpnat k f, ival.restr, hPeq]
+    exact (res_pappV_pathOfLine _ _ _).symm
+  · unfold TyOK; rw [e]; exact ⟨l, hl, Or.inl ⟨hW.res _, res_mem_Vt hV _⟩⟩
 
 theorem sem_HasTy_ipi {S : Sig} {Ψ Φ Γ A l}
     (h0 : SemTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) :
