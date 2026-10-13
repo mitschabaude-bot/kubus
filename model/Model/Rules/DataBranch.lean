@@ -261,6 +261,80 @@ theorem sem_con_vars {d : ℕ} {D : DataDecl} (hS : SigOK S) (hd : S[d]? = some 
   refine ⟨h0, fun k f => ?_⟩
   rw [hval k f, h0, res_conV]
 
+theorem IEnv.consL_ge (ρ : IEnv m) : ∀ (rs : List (DM m)) (x : ℕ), rs.length ≤ x → IEnv.consL ρ rs x = ρ (x - rs.length)
+  | [], x, _ => by simp [IEnv.consL]
+  | r :: rs, x, hx => by
+    simp only [IEnv.consL, List.foldl_cons]
+    rw [show List.foldl IEnv.cons (IEnv.cons ρ r) rs = IEnv.consL (IEnv.cons ρ r) rs from rfl,
+      IEnv.consL_ge _ rs x (by simp at hx; omega)]
+    simp at hx
+    rw [show x - rs.length = (x - (rs.length + 1)) + 1 by omega]
+    rfl
+
+theorem IEnv.consL_lt (ρ : IEnv m) : ∀ (rs : List (DM m)) (x : ℕ) (hx : x < rs.length),
+    IEnv.consL ρ rs x = rs.reverse[x]'(by simpa using hx)
+  | r :: rs, x, hx => by
+    simp only [IEnv.consL, List.foldl_cons]
+    by_cases h : x < rs.length
+    · rw [show List.foldl IEnv.cons (IEnv.cons ρ r) rs = IEnv.consL (IEnv.cons ρ r) rs from rfl,
+        IEnv.consL_lt _ rs x h]
+      rw [List.getElem_of_eq (List.reverse_cons (a := r) (as := rs)), List.getElem_append_left (by simpa using h)]
+    · have hx' : x = rs.length := by simp at hx; omega
+      subst hx'
+      rw [show List.foldl IEnv.cons (IEnv.cons ρ r) rs = IEnv.consL (IEnv.cons ρ r) rs from rfl,
+        IEnv.consL_ge _ rs _ le_rfl]
+      simp [List.reverse_cons]
+      rfl
+
+theorem sem_branchBody {d : ℕ} {D : DataDecl} (hS : SigOK S) (hd : S[d]? = some (.data D)) {c : ℕ} {C : Ctor}
+    (hC : D.ctors[c]? = some C) (ps : Tm) (P : Tm) (ρ' : IEnv n) (γ' : ℕ → V) (hγ : ∀ x, IsKV n (γ' x))
+    (args ihs : List V) (rs : List (DM n)) (hl : args.length = C.args.length) (hil : ihs.length = C.recPos.length)
+    (hrs : rs.length = C.dims) (hkv : ∀ a ∈ args ++ ihs, IsKV n a)
+    (hpok : ParamsOK (sigUpTo S d) D n (psRV S ps n ρ' γ'))
+    (hat : (dataSD (sigUpTo S d) D d n (psRV S ps n ρ' γ')).ArgsTyped c C n (Hom.id n) args) :
+    sem S (DataDecl.branchBody d c C ps P) n (IEnv.consL ρ' rs) (TEnv.consL γ' (args ++ ihs)) =
+      sem S P n ρ' (TEnv.cons γ' (conV D.ctors n c args rs)) := by
+  have hγB : ∀ x, IsKV n ((TEnv.consL γ' (args ++ ihs)) x) := TEnv.consL_kv hγ hkv
+  set xs : List Tm := (List.range C.args.length).map fun k => Tm.var (C.recPos.length + C.args.length - 1 - k)
+  set is : List I := (List.range C.dims).map fun l => I.var (C.dims - 1 - l)
+  have hPS : psRV S (ps.wkN (C.args.length + C.recPos.length) C.dims) n (IEnv.consL ρ' rs) (TEnv.consL γ' (args ++ ihs)) = psRV S ps n ρ' γ' := by
+    funext k f
+    simp only [psRV, Tm.wkN, sem_ren]
+    congr 1
+    · funext i; simp only [IEnv.restr]; rw [IEnv.consL_ge _ _ _ (by omega)]; simp [hrs]
+    · funext x; simp only [TEnv.restr]; rw [TEnv.consL_ge _ _ _ (by simp; omega)]; simp [hl, hil]
+  have hxs : xs.map (fun t => sem S t n (IEnv.consL ρ' rs) (TEnv.consL γ' (args ++ ihs))) = args := by
+    apply List.ext_getElem (by simp [xs, hl])
+    intro i h1 h2
+    simp only [xs, List.getElem_map, List.getElem_range, sem_var]
+    rw [TEnv.consL_lt _ _ _ (by simp; omega), List.getElem_reverse]
+    simp only [List.length_append, hl, hil]
+    rw [List.getElem_append_left (by omega)]
+    congr 1; omega
+  have his : is.map (ival (IEnv.consL ρ' rs)) = rs := by
+    apply List.ext_getElem (by simp [is, hrs])
+    intro i h1 h2
+    simp only [is, List.getElem_map, List.getElem_range, ival.var]
+    rw [IEnv.consL_lt _ _ _ (by omega), List.getElem_reverse]
+    congr 1; omega
+  obtain ⟨hcv, hcn⟩ := sem_con_vars hS hd hC _ xs is hγB _ hPS hpok args hxs
+    (fun t ht => by obtain ⟨k, -, rfl⟩ := List.mem_map.1 ht; exact ⟨_, rfl⟩) rs his hl hrs hat
+  unfold DataDecl.branchBody
+  rw [sem_subst S P n (IEnv.consL ρ' rs) (TEnv.consL γ' (args ++ ihs)) _ _ (fun x => by cases x with
+    | zero => exact hcn
+    | succ j => intro k f; rfl)]
+  congr 1
+  · funext i; simp only [ival.var]; rw [IEnv.consL_ge _ _ _ (by omega)]; simp [hrs]
+  · funext x
+    cases x with
+    | zero => exact hcv
+    | succ j =>
+      simp only [sem_var]
+      rw [TEnv.consL_ge _ _ _ (by simp; omega)]
+      simp only [List.length_append, hl, hil]
+      rw [show j + C.args.length + C.recPos.length - (C.args.length + C.recPos.length) = j by omega]
+      rfl
+
 /-- `n` interval-Π-types around `inner`. -/
 def ipiN (k : ℕ) (inner : Tm) : Tm := (List.range k).foldl (fun acc _ => Tm.ipi acc) inner
 
