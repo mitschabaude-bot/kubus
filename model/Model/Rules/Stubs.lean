@@ -1,7 +1,7 @@
 import Model.Rules.GlueComp
 import Model.Rules.TranspGlue
 import Model.Rules.HcompU
-import Model.Rules.Data
+import Model.Rules.DataTransp
 
 /-!
 # Semantic validity of the rules

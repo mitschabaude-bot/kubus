@@ -178,6 +178,19 @@ theorem Ctx.lookup_eq : ∀ (Γ : Ctx) (x : ℕ), Γ.lookup x = Γ[x]?.map (fun 
     have e1 : (fun x_1 => (x_1 + (x + 1)).succ) = (fun y => y + (x + 1 + 1)) := by funext y; omega
     rw [e1]; rfl
 
+theorem ptValid_argPreValid {σ : SigV} {D : DataDecl} {d m : ℕ} {ps : RV m} {c n : ℕ} {g : Hom n m}
+    {pre : List V} (hp : (dataSD σ D d m ps).PtValid c n g pre) {j : ℕ} (hj : j ≤ pre.length) :
+    argPreValid σ D d c j n (ps n g) pre := by
+  refine ⟨hj, fun i hi hip hr => ?_⟩
+  have := hp i hip hr
+  simp only [dataSD, argTySem_eq] at this
+  split at this
+  · rename_i hc
+    have e : argTyRaw σ D d c i n (ps n g) (pre.take i) = argTyRaw σ D d c i n (ps n g) pre := by
+      simp [argTyRaw, List.take_take]
+    rw [← e]; exact this
+  · simp at this
+
 end
 
 end Model

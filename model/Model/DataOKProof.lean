@@ -414,19 +414,6 @@ theorem argTyRaw_recIrr {σ : SigV} {D : DataDecl} {d : ℕ} (hsyn : DataSyn d D
     simp [Nat.min_eq_left hj, Nat.min_eq_left hj']
 
 /-- At valid earlier arguments the argument types are the raw ones. -/
-theorem ptValid_argPreValid {σ : SigV} {D : DataDecl} {d m : ℕ} {ps : RV m} {c n : ℕ} {g : Hom n m}
-    {pre : List V} (hp : (dataSD σ D d m ps).PtValid c n g pre) {j : ℕ} (hj : j ≤ pre.length) :
-    argPreValid σ D d c j n (ps n g) pre := by
-  refine ⟨hj, fun i hi hip hr => ?_⟩
-  have := hp i hip hr
-  simp only [dataSD, argTySem_eq] at this
-  split at this
-  · rename_i hc
-    have e : argTyRaw σ D d c i n (ps n g) (pre.take i) = argTyRaw σ D d c i n (ps n g) pre := by
-      simp [argTyRaw, List.take_take]
-    rw [← e]; exact this
-  · simp at this
-
 theorem ctor_of_lt {D : DataDecl} {c j : ℕ} (h : j < (D.ctors.getD c default).args.length)
     (hr : (D.ctors.getD c default).isRec j = false) :
     ∃ C A, D.ctors[c]? = some C ∧ C.args[j]? = some (.point A) ∧ D.ctors.getD c default = C := by

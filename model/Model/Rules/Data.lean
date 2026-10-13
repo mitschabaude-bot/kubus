@@ -842,16 +842,6 @@ theorem sem_EqTm_transpData0 {Ψ Φ Γ d D ps φ a T} (hS : SigOK S) (h0 : S[d]?
     exact ((transpAt_dataC_eq hgood ha).1 (by simp [dataSD, h1])).symm
   exact ⟨h2, h2.of_eq h2.2.1.2 he, fun m ρ γ hp => (he m ρ γ hp).symm⟩
 
-theorem sem_EqTm_transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} (hS : SigOK S) (h0 : S[d]? = some (.data D))
-    (h1 : D.params ≠ []) (h2 : D.ctors[c]? = some C)
-    (hpl : ps = Tm.ofList ps.toList) (hal : args = Tm.ofList args.toList)
-    (hat : SemTele S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse)
-    (h3 : SemTy S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T) :
-    SemEq S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs))
-      (con d c (ps.dinst .one)
-        (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T := by
-  sorry
-
 theorem sem_dsubst_σ2 (A : Tm) (ρ : IEnv m) {n : ℕ} (h : Hom n m) (r : DM n) {k' : ℕ} (g' : Hom k' (n + 1))
     (γ'' : ℕ → V) :
     sem S (A.dsubst fun | 0 => .var 0 | j + 1 => .var (j + 2)) k' (((ρ.restr h).cons r).ext.restr g') γ'' =
