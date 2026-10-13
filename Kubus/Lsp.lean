@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Kubus.Top
 import Kubus.Parser
+import Kubus.Bridge
 
 /-! # A minimal language server (`kubus --lsp`)
 
@@ -9,6 +10,11 @@ is checked and diagnostics are published (errors with their source range, `#eval
 results and the goals of `?` holes as information); hover shows the type of the smallest
 elaborated subterm under the cursor. Imports are resolved from the document's directory and
 `KUBUS_PATH`, and cached until a file is saved.
+
+Every definition and data type of the document is also certified by the kernel (imported
+declarations as they are used): rejections are errors, skips warnings, and the hover of a
+certified declaration says so. Kernel results are cached per declaration and reused while the
+document's declarations up to it are unchanged.
 -/
 
 namespace Kubus.Lsp
@@ -103,6 +109,31 @@ partial def loadFile (path : System.FilePath) (st : St) (loaded : List System.Fi
 /-- The state after loading imports, cached by the list of imported files. -/
 initialize importCache : IO.Ref (Option (List System.FilePath × St)) ← IO.mkRef none
 
+def lineOf (text : String) (l : Nat) : String := ((text.splitOn "\n")[l - 1]?).getD ""
+
+/-- A declaration's kernel result: its source text (the cache key), the bridge state after it,
+and the kernel's messages. -/
+structure KEntry where
+  key : String
+  ks : Bridge.State
+  msgs : List String
+
+/-- Kernel results of the last check, for the imports they were computed with. -/
+initialize kernelCache : IO.Ref (List System.FilePath × Array KEntry) ← IO.mkRef ([], #[])
+
+def declPos : Decl → Pos
+  | .defn _ _ _ _ p | .defSplit _ _ _ _ p | .data _ _ _ _ p | .eval _ p | .check _ p | .importFile _ p => p
+
+/-- The source lines of each declaration (up to the next one). -/
+def declTexts (text : String) (decls : List Decl) : Array String := Id.run do
+  let ls := (text.splitOn "\n").toArray
+  let starts := decls.map fun d => (declPos d).line
+  let mut out := #[]
+  for (l, i) in starts.zipIdx do
+    let e := (starts[i + 1]?).getD (ls.size + 1)
+    out := out.push ("\n".intercalate ((ls.extract (l - 1) (e - 1)).toList))
+  return out
+
 def checkText (path : System.FilePath) (text : String) : IO Result := do
   let mut res : Result := {}
   let decls ← match parseFile text with
@@ -132,24 +163,59 @@ def checkText (path : System.FilePath) (text : String) : IO Result := do
         res := { res with diags := res.diags.push ⟨pos, 1, s!"error in an imported file: {e}"⟩ }
     importCache.set (some (files.toList, st))
   st := { st with lsp := true }
-  for d in decls do
+  let texts := declTexts text decls
+  let (kFiles, kOld) ← kernelCache.get
+  let kOld := if kFiles == files.toList then kOld else #[]
+  let mut kNew : Array KEntry := #[]
+  let mut ks : Bridge.State := {}
+  -- whether all kernel results so far were reused (the document is unchanged up to here)
+  let mut valid := true
+  for (d, di) in decls.zipIdx do
     if let .importFile .. := d then continue
     match (checkDecl d).run st with
     | .ok (out, st') =>
-      let pos := match d with
-        | .defn _ _ _ _ p | .defSplit _ _ _ _ p | .data _ _ _ _ p | .eval _ p | .check _ p | .importFile _ p => p
+      let pos := declPos d
+      -- the kernel, reusing the results of an unchanged prefix of the document
+      let name? := match d with
+        | .defn n .. | .defSplit n .. | .data n .. => some n
+        | _ => none
+      if let some n := name? then
+        let key := (texts[di]?).getD ""
+        let hole := st'.metas.any (·.hole)
+        let old := if valid then (kOld[kNew.size]?).filter (·.key == key) else none
+        let e ← if let some e := old then pure e else do
+          valid := false
+          let run := match d with
+            | .data .. => Bridge.addData st'.globals n 0
+            | _ => Bridge.addGlobal st'.globals n 0
+          let (msgs, ks') := run.run ks
+          pure ({ key, ks := ks', msgs } : KEntry)
+        kNew := kNew.push e
+        ks := e.ks
+        for m in e.msgs do
+          if m.startsWith "kernel: certified" then
+            if m == s!"kernel: certified {n}" || m == s!"kernel: certified data {n}" then
+              -- on the declaration's first line, where no subterm is more specific
+              let lineEnd := (lineOf text pos.line).length + 1
+              let hp : Pos := { pos with eline := pos.line, ecol := lineEnd }
+              res := { res with hovers := res.hovers.push (hp, "certified by the kernel") }
+          else if m.startsWith "kernel: REJECTED" then
+            res := { res with diags := res.diags.push ⟨pos, 1, m⟩ }
+          else if !(hole && m.endsWith "no body") then
+            res := { res with diags := res.diags.push ⟨pos, 2, m⟩ }
       if let some o := out then res := { res with diags := res.diags.push ⟨pos, 3, o⟩ }
       for (p, g) in st'.goals do res := { res with diags := res.diags.push ⟨p, 3, g⟩ }
       res := { res with hovers := res.hovers ++ st'.hovers }
       st := { st' with goals := #[], hovers := #[] }
     | .error e =>
+      valid := false
       let (p, msg) := parseError e
       res := { res with diags := res.diags.push ⟨p, 1, msg⟩ }
+  kernelCache.set (files.toList, kNew)
   return res
 
 /-! ## Positions -/
 
-def lineOf (text : String) (l : Nat) : String := ((text.splitOn "\n")[l - 1]?).getD ""
 
 /-- The end of a range: as recorded, or the end of the word at its start. -/
 def rangeEnd (text : String) (p : Pos) : Nat × Nat :=
