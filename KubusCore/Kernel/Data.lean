@@ -176,6 +176,88 @@ def forallElems {α : Type} (xs : List α) (P : Nat → α → Prop)
   let ⟨h⟩ ← forallPairs0 xs xs (fun k x _ => P k x) (fun k x _ hx _ => f k x hx)
   pure ⟨fun k x hx => h k x x hx hx⟩
 
+/-! ## Typing applications of branches
+
+Branches are λ- and path abstractions, whose inferred types (with `(i : I) → A` for path
+abstractions) need not be their branch types. Applications of branches are therefore typed
+from the known branch types. -/
+
+def _root_.KubusCore.Tm.unpapps : Tm → Tm × List I
+  | .papp t r => let p := Tm.unpapps t; (p.1, p.2 ++ [r])
+  | t => (t, [])
+
+def _root_.KubusCore.Tm.unapps : Tm → Tm × List Tm
+  | .app t a => let p := Tm.unapps t; (p.1, p.2 ++ [a])
+  | t => (t, [])
+
+theorem papps_unpapps (t : Tm) : t.unpapps.1.papps t.unpapps.2 = t := by
+  induction t <;> simp_all [Tm.unpapps, Tm.papps, List.foldl_append]
+
+theorem apps_unapps (t : Tm) : t.unapps.1.apps t.unapps.2 = t := by
+  induction t <;> simp_all [Tm.unapps, Tm.apps, List.foldl_append]
+
+/-- A typing of an argument at any expected type. -/
+abbrev ArgPf (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (a : Tm) :=
+  (A : Tm) → (l : Nat) → HasTy S Ψ Φ Γ A (.univ l) → K (PLift (HasTy S Ψ Φ Γ a A))
+
+/-- Type `f @ r₁ … rₘ` from a typing of `f`. -/
+def pappsTyped (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
+    (f F : Tm) → (l : Nat) → HasTy S Ψ Φ Γ F (.univ l) → HasTy S Ψ Φ Γ f F →
+    (rs : List I) → K (Inf S Ψ Φ Γ (f.papps rs))
+  | f, F, l, hF, hf, r :: rs => do
+    let ⟨hr⟩ ← ensureScoped r Ψ
+    match ← whnfTy R E F l hF with
+    | ⟨.path A _ _, e⟩ =>
+      have hP := HasTy.eqR e
+      pappsTyped R E (.papp f r) (A.dinst r) l (HasTy.dsubst (HasTy.pathLine hP) hr)
+        (HasTy.papp (HasTy.conv hf e) hr) rs
+    | ⟨.ipi A, e⟩ =>
+      have hP := HasTy.eqR e
+      pappsTyped R E (.papp f r) (A.dinst r) l (HasTy.dsubst (HasTy.ipiLine hP) hr)
+        (HasTy.iapp (HasTy.conv hf e) hr) rs
+    | ⟨T, _⟩ => fail s!"kernel: path application at type {short T}"
+  | _, F, l, hF, hf, [] => pure ⟨F, l, hF, hf⟩
+
+/-- Type `f a₁ … aₙ @ r₁ … rₘ` from a typing of `f`. -/
+def appsTyped (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
+    (f F : Tm) → (l : Nat) → HasTy S Ψ Φ Γ F (.univ l) → HasTy S Ψ Φ Γ f F →
+    (args : List ((a : Tm) × ArgPf S Ψ Φ Γ a)) → (rs : List I) →
+    K (Inf S Ψ Φ Γ ((f.apps (args.map (·.1))).papps rs))
+  | f, F, l, hF, hf, ⟨a, pa⟩ :: args, rs => do
+    match ← whnfTy R E F l hF with
+    | ⟨.pi A B, e⟩ =>
+      have hP := HasTy.eqR e
+      let ⟨ha⟩ ← pa A l (HasTy.piDom hP)
+      appsTyped R E (.app f a) (B.inst a) l (HasTy.subst (HasTy.piCod hP) ha)
+        (HasTy.app (HasTy.conv hf e) ha) args rs
+    | ⟨T, _⟩ => fail s!"kernel: applying a term of type {short T}"
+  | f, F, l, hF, hf, [], rs => pappsTyped R E f F l hF hf rs
+
+/-- Type a term whose spine head is one of the `heads` (with their types); other terms are
+inferred. -/
+def typeSpine (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (heads : List (Tm × Tm)) :
+    Nat → (t : Tm) → K (Inf S Ψ Φ Γ t)
+  | 0, t => R.infer E t
+  | n + 1, t =>
+    let h1 := t.unpapps
+    let h0 := h1.1.unapps
+    match heads.find? (·.1 == h0.1) with
+    | some (_, H) => do
+      let ⟨l, ⟨hH⟩⟩ ← inferType R E H
+      let ⟨hh⟩ ← R.check E h0.1 H l hH
+      let args : List ((a : Tm) × ArgPf S Ψ Φ Γ a) := h0.2.map fun a =>
+        ⟨a, fun A _ hA => do
+          let i ← typeSpine R E heads n a
+          bridgeHas R E i.hty hA i.htm⟩
+      let i ← appsTyped R E h0.1 H l hH hh args h1.2
+      have hargs : args.map (·.1) = h0.2 := by
+        simp only [args, List.map_map]
+        exact List.map_id' h0.2
+      have ht : (h0.1.apps (args.map (·.1))).papps h1.2 = t := by
+        rw [hargs, apps_unapps, papps_unpapps]
+      pure (ht ▸ i)
+    | none => R.infer E t
+
 /-! ## The eliminator -/
 
 /-- The premises of `elim d ps (x. P) bs _` other than the target. -/
@@ -205,8 +287,15 @@ def checkBranchBnd (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) (
       (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P))) := do
   let E' ← branchCtxK R E D d C ps P ψ
   let ⟨l, ⟨hT⟩⟩ ← inferType R E' (DataDecl.branchBody d c C ps P)
-  let ⟨h1⟩ ← R.check E' (DataDecl.branchApp C b) _ l hT
-  let ⟨h2⟩ ← R.check E' (D.bndElim C ps bs e) _ l hT
+  let T := C.args.length + C.recPos.length
+  let heads := (List.range D.ctors.length).filterMap fun c' =>
+    match D.ctors[c']?, bs.toList[c']? with
+    | some C', some b' => some (b'.wkN T C.dims, (D.branchTy d c' C' ps P).wkN T C.dims)
+    | _, _ => none
+  let i1 ← typeSpine R E' heads 1000 (DataDecl.branchApp C b)
+  let ⟨h1⟩ ← bridgeHas R E' i1.hty hT i1.htm
+  let i2 ← typeSpine R E' heads 1000 (D.bndElim C ps bs e)
+  let ⟨h2⟩ ← bridgeHas R E' i2.hty hT i2.htm
   R.conv E' _ l hT _ _ h1 h2
 
 def inferElimInfo (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs : Tm) :
