@@ -314,7 +314,11 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
     have e := EqTm.glueEl (HasTy.eqR (EqTm.glueEta ht)) (HasTy.eqR (EqTm.glueEta hu))
       (I.entails_refl φ) (I.entails_refl φ) (EqTm.refl he) e2 e1
     pure ⟨EqTm.trans (EqTm.glueEta ht) (EqTm.trans e (EqTm.symm (EqTm.glueEta hu)))⟩
-  | .univ m, _, ht, hu => convTypes R E m t u ht hu
+  | .univ m, hA, ht, hu => do
+    -- types with the same head constant: compare the spines before unfolding
+    if sameConstHead t u then
+      if let some (some e) ← tryOpt (lazyDelta R E (.univ m) l hA 20 t u ht hu) then return e
+    convTypes R E m t u ht hu
   | A, hA, ht, hu => do
     -- lazy δ: unfold the head constant defined later first
     if let some (some e) ← tryOpt (lazyDelta R E A l hA 20 t u ht hu) then return e
@@ -426,7 +430,8 @@ def convNeElim (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t
         | .inr ⟨hC⟩ => pure ⟨fun C' hC' => by rw [hC] at hC'; cases hC'⟩
     let ⟨ht'⟩ ← R.check E t' (.data d ps) info.D.level info.hD
     let ⟨et⟩ ← R.conv E _ info.D.level info.hD t t' ht ht'
-    return ⟨⟨_, info.m, hT, h1⟩, ⟨EqTm.elim info.hS h1 h2 eps eP hlen
+    let ⟨hbs'⟩ ← ensureList bs'
+    return ⟨⟨_, info.m, hT, h1⟩, ⟨EqTm.elim info.hS h1 h2 eps eP info.hbs hbs' hlen
       (fun c C b b' hC hb hb' => hbr c b b' hb hb' C hC) et⟩⟩
   else fail "kernel: different numbers of branches"
 

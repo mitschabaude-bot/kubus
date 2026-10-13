@@ -76,6 +76,13 @@ def canonConvNe (R : Rec S) (E : KCtx S Ψ Φ Γ) (t u : Tm) :
     pure ⟨⟨i.ty, i.lvl, HasTy.restrict E.hsc q.h2 i.hty, HasTy.restrict E.hsc q.h2 i.htm⟩,
       ⟨EqTm.restrict E.hsc q.h2 e⟩⟩
 
+/-- Add a line to the trail of an error (keeping the 6 innermost and the 12 outermost). -/
+def trail {α : Type} (line : Unit → String) (x : K S α) : K S α :=
+  tryCatch x fun e =>
+    let ls := e.splitOn "\n  while "
+    let ls := if ls.length > 18 then ls.take 7 ++ ls.drop 8 else ls
+    throw ("\n  while ".intercalate (ls ++ [line ()]))
+
 /-! Memoized versions: a hit transports the cached derivation along the equality of the
 keys (checked structurally, with a pointer-equality shortcut). -/
 
@@ -90,7 +97,7 @@ def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ 
 def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (PLift (HasTy S Ψ Φ Γ t A)) := do
   if let some v := (← get).chk.find? Ψ Φ Γ [t, A] E.fs.get E.hfs E.hsc ChkF.restr then return v
-  let v ← canonCheckRaw R E t A l hA
+  let v ← trail (fun _ => s!"checking {short t} : {short A}") (canonCheckRaw R E t A l hA)
   modify fun c => { c with chk := c.chk.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
   return v
 
@@ -114,7 +121,7 @@ def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
   if h : tmEq t u = true then return ⟨tmEq_sound h ▸ EqTm.refl ht⟩
   if let some v := (← get).conv.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc ConvF.restr then return v
-  let v ← canonConvRaw R E A l hA t u ht hu
+  let v ← trail (fun _ => s!"comparing {short t} and {short u} at {short A}") (canonConvRaw R E A l hA t u ht hu)
   modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }
   return v
 
@@ -312,52 +319,71 @@ def bndCtxK (E : KCtx S 0 .one Γ) (m : Nat) (ψ : I) : K S (KCtx S m ψ Γ) := 
     pure (E3.restrict ψ hψ (I.entails_one ψ))
   else fail "kernel: boundary context mismatch"
 
+/-- The context of the parameters and the point arguments of `C` before `n`. -/
+def pointCtxK (R : Rec S) (E0 : KCtx S 0 .one []) (D : DataDecl) (d : Nat) (C : Ctor) (n : Nat) :
+    K S (KCtx S 0 .one (D.pointCtx d C n)) := do
+  let E1 ← extTypes R E0 D.params
+  let As := ((List.range n).filter fun k => !C.isRec k).map fun k =>
+    (C.argTy d D.params.length k).ren (C.pointRen k) id
+  let E2 ← extTypes R E1 As
+  if h : As.reverse ++ (D.params.reverse ++ []) = D.pointCtx d C n then pure (castCtx E2 rfl h)
+  else fail "kernel: point argument context mismatch"
+
 /-! ### Typing of boundary arguments -/
 
 mutual
-def checkBndTyped (R : Rec S) {m ψ Γ} (E : KCtx S m ψ Γ) (lvl : Nat) (ctors : List Ctor) (d np : Nat) :
-    (t : Tm) → K S (PLift (Ctor.bndTyped S m ψ Γ lvl ctors d np t))
+def checkBndTyped (R : Rec S) {m ψ Γp} (Ep : KCtx S m ψ Γp) (Γ : Ctx) (C : Ctor) (lvl : Nat)
+    (ctors : List Ctor) (d np : Nat) :
+    (t : Tm) → K S (PLift (Ctor.bndTyped S m ψ Γ C Γp lvl ctors d np t))
   | .con d' c' ps as rs =>
     match getIdx' ctors c' with
     | .inl ⟨C', ⟨h⟩⟩ => do
-      let ⟨p⟩ ← checkBndTypedArgs R E lvl ctors d np C' ps 0 [] as
+      let ⟨p⟩ ← checkBndTypedArgs R Ep Γ C lvl ctors d np C' ps 0 [] as
       pure ⟨by simp only [Ctor.bndTyped, h]; exact p⟩
     | .inr ⟨h⟩ => pure ⟨by simp only [Ctor.bndTyped, h]⟩
   | .var .. | .const .. | .univ .. | .pi .. | .lam .. | .app .. | .sigma .. | .pair .. | .fst ..
   | .snd .. | .path .. | .plam .. | .papp .. | .ipi .. | .split .. | .abort | .transp .. | .hcomp ..
   | .glue .. | .glueEl .. | .unglue .. | .tnil | .tcons .. | .data .. | .elim .. =>
     pure ⟨by simp [Ctor.bndTyped]⟩
-def checkBndTypedArgs (R : Rec S) {m ψ Γ} (E : KCtx S m ψ Γ) (lvl : Nat) (ctors : List Ctor) (d np : Nat)
-    (C' : Ctor) (ps : Tm) (k : Nat) (prev : List Tm) :
-    (t : Tm) → K S (PLift (Ctor.bndTypedArgs S m ψ Γ lvl ctors d np C' ps k prev t))
+def checkBndTypedArgs (R : Rec S) {m ψ Γp} (Ep : KCtx S m ψ Γp) (Γ : Ctx) (C : Ctor) (lvl : Nat)
+    (ctors : List Ctor) (d np : Nat) (C' : Ctor) (ps : Tm) (k : Nat) (prev : List Tm) :
+    (t : Tm) → K S (PLift (Ctor.bndTypedArgs S m ψ Γ C Γp lvl ctors d np C' ps k prev t))
   | .tcons a as => do
-    let ⟨h1⟩ ← checkBndVar R E lvl d np C' ps k prev a
+    let ⟨h1⟩ ← checkBndVar R Ep Γ C lvl d np C' ps k prev a
     let ⟨h2⟩ ← if hr : C'.isRec k = true then do
-        let ⟨h⟩ ← checkBndTyped R E lvl ctors d np a
+        let ⟨h⟩ ← checkBndTyped R Ep Γ C lvl ctors d np a
         pure (PLift.up (fun _ => h))
       else pure (PLift.up (fun h => absurd h hr))
-    let ⟨h3⟩ ← checkBndTypedArgs R E lvl ctors d np C' ps (k + 1) (a :: prev) as
+    let ⟨h3⟩ ← checkBndTypedArgs R Ep Γ C lvl ctors d np C' ps (k + 1) (a :: prev) as
     pure ⟨by simp only [Ctor.bndTypedArgs]; exact ⟨h1, h2, h3⟩⟩
   | .var .. | .const .. | .univ .. | .pi .. | .lam .. | .app .. | .sigma .. | .pair .. | .fst ..
   | .snd .. | .path .. | .plam .. | .papp .. | .ipi .. | .split .. | .abort | .transp .. | .hcomp ..
   | .glue .. | .glueEl .. | .unglue .. | .tnil | .con .. | .data .. | .elim .. =>
     pure ⟨by simp [Ctor.bndTypedArgs]⟩
-/-- A point argument variable of a nested constructor has the argument type. -/
-def checkBndVar (R : Rec S) {m ψ Γ} (E : KCtx S m ψ Γ) (lvl d np : Nat) (C' : Ctor) (ps : Tm)
-    (k : Nat) (prev : List Tm) (a : Tm) :
+/-- A point argument variable of a nested constructor has the argument type (in the context
+without the recursive arguments). -/
+def checkBndVar (R : Rec S) {m ψ Γp} (Ep : KCtx S m ψ Γp) (Γ : Ctx) (C : Ctor) (lvl d np : Nat)
+    (C' : Ctor) (ps : Tm) (k : Nat) (prev : List Tm) (a : Tm) :
     K S (PLift (∀ (j : Nat) (T : Tm), a = .var j → C'.isRec k = false → Γ.lookup j = some T →
-      EqTm S m ψ Γ T ((C'.argTy d np k).substList (prev ++ ps.toList.reverse)) (.univ lvl))) :=
+      C.mentionsRec C.args.length T = false ∧
+      C.mentionsRec C.args.length ((C'.argTy d np k).substList (prev ++ ps.toList.reverse)) = false ∧
+      EqTm S m ψ Γp (T.ren (C.pointRen C.args.length) id)
+        (((C'.argTy d np k).substList (prev ++ ps.toList.reverse)).ren (C.pointRen C.args.length) id)
+        (.univ lvl))) :=
   match a with
   | .var j =>
     if hr : C'.isRec k = false then
       match hT : Γ.lookup j with
       | some T => do
+        let n := C.args.length
         let A' := (C'.argTy d np k).substList (prev ++ ps.toList.reverse)
-        let ⟨h1⟩ ← checkType R E T lvl
-        let ⟨h2⟩ ← checkType R E A' lvl
-        let ⟨hU⟩ ← univTyK E lvl
-        let ⟨e⟩ ← R.conv E (.univ lvl) (lvl + 1) hU T A' h1 h2
-        pure ⟨fun j' T' hj _ hT' => by cases hj; rw [hT] at hT'; cases hT'; exact e⟩
+        if hm : C.mentionsRec n T = false ∧ C.mentionsRec n A' = false then
+          let ⟨h1⟩ ← checkType R Ep (T.ren (C.pointRen n) id) lvl
+          let ⟨h2⟩ ← checkType R Ep (A'.ren (C.pointRen n) id) lvl
+          let ⟨hU⟩ ← univTyK Ep lvl
+          let ⟨e⟩ ← R.conv Ep (.univ lvl) (lvl + 1) hU _ _ h1 h2
+          pure ⟨fun j' T' hj _ hT' => by cases hj; rw [hT] at hT'; cases hT'; exact ⟨hm.1, hm.2, e⟩⟩
+        else fail "kernel: a boundary argument type mentions a recursive argument"
       | none => pure ⟨fun j' T' hj _ hT' => by cases hj; rw [hT] at hT'; cases hT'⟩
     else pure ⟨fun _ _ _ h => absurd h hr⟩
   | .const .. | .univ .. | .pi .. | .lam .. | .app .. | .sigma .. | .pair .. | .fst ..
@@ -365,6 +391,19 @@ def checkBndVar (R : Rec S) {m ψ Γ} (E : KCtx S m ψ Γ) (lvl d np : Nat) (C' 
   | .glue .. | .glueEl .. | .unglue .. | .tnil | .tcons .. | .con .. | .data .. | .elim .. =>
     pure ⟨fun _ _ h => by cases h⟩
 end
+
+/-- The type equations of the boundaries of constructor `C`, in the signature before the
+declaration. -/
+def checkCtorBndTyped (R : Rec S) (E0 : KCtx S 0 .one []) (d : Nat) (D : DataDecl) (C : Ctor) :
+    K S (PLift (∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) →
+      Ctor.bndTyped S C.dims ψ (D.argCtx d C C.args.length) C (D.pointCtx d C C.args.length)
+        D.level D.ctors d D.params.length b)) := do
+  let Ep ← pointCtxK R E0 D d C C.args.length
+  let ⟨h⟩ ← forallElems C.bnd (fun _ pb => Ctor.bndTyped S C.dims pb.1 (D.argCtx d C C.args.length) C
+      (D.pointCtx d C C.args.length) D.level D.ctors d D.params.length pb.2) fun _ pb _ => do
+    let Eb ← bndCtxK Ep C.dims pb.1
+    checkBndTyped R Eb (D.argCtx d C C.args.length) C D.level D.ctors d D.params.length pb.2
+  pure ⟨fun k ψ b hk => h k (ψ, b) hk⟩
 
 /-- Check the point argument types of constructor `C` in `S0` (the declaration without
 constructors). -/
@@ -393,8 +432,7 @@ def checkCtorBnd (Sc : Sig) (d : Nat) (D : DataDecl) (c : Nat) (C : Ctor) :
     K Sc (PLift ((∀ (k : Nat) (ψ : I) (b : Tm), C.bnd[k]? = some (ψ, b) → ψ.Scoped C.dims ∧
         b.closedB (D.params.length + C.args.length) C.dims = true ∧
         Ctor.simpleB D.ctors d D.params.length c C.args.length C b = true ∧
-        HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b (.data d (Ctor.paramVars D.params.length C.args.length)) ∧
-        Ctor.bndTyped Sc C.dims ψ (D.argCtx d C C.args.length) D.level D.ctors d D.params.length b) ∧
+        HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b (.data d (Ctor.paramVars D.params.length C.args.length))) ∧
       (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
         EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
           (.data d (Ctor.paramVars D.params.length C.args.length))))) := do
@@ -405,16 +443,14 @@ def checkCtorBnd (Sc : Sig) (d : Nat) (D : DataDecl) (c : Nat) (C : Ctor) :
   let ⟨hb⟩ ← forallElems C.bnd (fun _ pb => pb.1.Scoped C.dims ∧
       pb.2.closedB (np + C.args.length) C.dims = true ∧
       Ctor.simpleB D.ctors d np c C.args.length C pb.2 = true ∧
-      HasTy Sc C.dims pb.1 (D.argCtx d C C.args.length) pb.2 T ∧
-      Ctor.bndTyped Sc C.dims pb.1 (D.argCtx d C C.args.length) D.level D.ctors d np pb.2)
+      HasTy Sc C.dims pb.1 (D.argCtx d C C.args.length) pb.2 T)
       fun _ pb _ => do
     let Eb ← bndCtxK En C.dims pb.1
     let ⟨hψ⟩ ← ensureScoped pb.1 C.dims
     let ⟨l, ⟨hT⟩⟩ ← inferType R Eb T
     let ⟨h⟩ ← R.check Eb pb.2 T l hT
-    let ⟨hty⟩ ← checkBndTyped R Eb D.level D.ctors d np pb.2
     if hc : pb.2.closedB (np + C.args.length) C.dims = true ∧
-        Ctor.simpleB D.ctors d np c C.args.length C pb.2 = true then pure ⟨hψ, hc.1, hc.2, h, hty⟩
+        Ctor.simpleB D.ctors d np c C.args.length C pb.2 = true then pure ⟨hψ, hc.1, hc.2, h⟩
     else fail "kernel: boundary not closed or not simple"
   let ⟨hagree⟩ ← forallElems C.bnd (fun k pb => ∀ (k' : Nat) (ψ' : I) (b' : Tm), C.bnd[k']? = some (ψ', b') →
       EqTm Sc C.dims (.and pb.1 ψ') (D.argCtx d C C.args.length) pb.2 b' T) fun k pb hk => do
@@ -450,13 +486,16 @@ def checkData (S : Sig) (d : Nat) (D : DataDecl) : K S (PLift (D.Wf S d)) := do
         b.closedB (np + C.args.length) C.dims = true ∧
         Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
         HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b (.data d (Ctor.paramVars np C.args.length)) ∧
-        Ctor.bndTyped Sc C.dims ψ (D.argCtx d C C.args.length) D.level D.ctors d np b) ∧
+        Ctor.bndTyped S C.dims ψ (D.argCtx d C C.args.length) C (D.pointCtx d C C.args.length)
+          D.level D.ctors d np b) ∧
       (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
         EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
           (.data d (Ctor.paramVars np C.args.length)))) fun c C _ => do
       let ⟨ha⟩ ← liftM' (runK (checkCtorArgs (S ++ [.data (D.truncate 0)]) d D C))
       let ⟨hb⟩ ← liftM' (runK (checkCtorBnd (S ++ [.data (D.truncate c)]) d D c C))
-      pure ⟨ha, hb.1, hb.2⟩
+      let ⟨hty⟩ ← checkCtorBndTyped R E0 d D C
+      pure ⟨ha, fun k ψ b hk => ⟨(hb.1 k ψ b hk).1, (hb.1 k ψ b hk).2.1, (hb.1 k ψ b hk).2.2.1,
+        (hb.1 k ψ b hk).2.2.2, hty k ψ b hk⟩, hb.2⟩
   pure ⟨hl, hps, fun c C hC => hcs c C hC⟩
 
 end

@@ -66,7 +66,9 @@ partial def runDecls (path : String) (dir : System.FilePath) (decls : List Decl)
         modify fun dr => { dr with st := { st' with violations := #[], skips := #[] },
                                    violations := dr.violations + st'.violations.size }
         if let some s := out then IO.println s
-        if let some ks := (← get).kernel then
+        -- imported declarations are certified when the main files use them
+        let kernel? := if top then dr.kernel else none
+        if let some ks := kernel? then
           let name? := match d with
             | .defn n .. | .defSplit n .. => some n
             | _ => none
@@ -144,7 +146,8 @@ def main (args : List String) : IO UInt32 := do
     match rest with
     | "--selfcheck" :: r => drv := { drv with selfcheck := true }; rest := r
     | "--selfcheck-main" :: r => drv := { drv with selfcheck := true, selfcheckImports := false }; rest := r
-    | "--verbose" :: r => drv := { drv with verbose := true }; rest := r
+    | "--verbose" :: r =>
+      drv := { drv with verbose := true, kernel := drv.kernel.map ({ · with verbose := true }) }; rest := r
     | "--no-kernel" :: r => drv := { drv with kernel := none }; rest := r
     | "--interactive" :: r => interactive := true; rest := r
     | "--budget" :: n :: r =>
