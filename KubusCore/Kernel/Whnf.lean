@@ -45,7 +45,7 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
     -- the base and the equivalence of the Glue line, which the rule takes as premises
     let ⟨l, ⟨hA⟩⟩ ← inferType R E.dext A
     let ⟨he⟩ ← checkEquiv R E.dext A ψ T' e l
-    pure (some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht hA he⟩)
+    pure (some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht hA he (I.entails_refl _) (I.entails_refl _)⟩)
   | .ipi A, ht => pure (some ⟨Tm.transpIPi A φ a, EqTm.transpIPi ht⟩)
   | .data d ps, ht => do
     let ⟨D, ⟨hS⟩⟩ ← lookupData S d
@@ -470,7 +470,7 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
     if gr.tm = g then return ⟨inf, ⟨_, EqTm.refl inf.htm⟩⟩
     have eg := EqTm.conv gr.eq eG
     have e1 : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e gr.tm) A1 :=
-      EqTm.unglue inf.htm (HasTy.unglue hG hA1 he (HasTy.eqR eg)) (I.entails_refl φ) (I.entails_refl φ) eg
+      EqTm.unglue inf.htm (HasTy.unglue hG hA1 he (HasTy.eqR eg)) (I.entails_refl φ) (I.entails_refl φ) (EqTm.refl he) eg
     match h : gr.tm with
     | .glueEl φ' e' t1 a1 =>
       if hφ' : φ' = φ ∧ e' = e then
