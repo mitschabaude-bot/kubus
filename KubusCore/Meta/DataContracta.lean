@@ -149,6 +149,61 @@ theorem transpCon_of (hS : SigClosed S) {Ψ Φ Γ d D c C ps φ qs args rs l0 X 
       (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T := by
   sorry
 
+theorem skip1I_dinst0_dshift (A : Tm) : ((A.dsubst skip1I).dinst .zero).dshift = (A.dinst .zero).dshift.dshift := by
+  ssub
+
+theorem dshift_skip1I (A : Tm) : A.dshift.subst Tm.var skip1I = A.dshift.dshift := by ssub
+
+theorem skip1I_dinst0 (A : Tm) : (A.dsubst skip1I).dinst .zero = (A.dinst .zero).dshift := by ssub
+
+theorem skip1I_dinst1 (A : Tm) : (A.dsubst skip1I).dinst .one = (A.dinst .one).dshift := by ssub
+
+theorem I_shift_skip1I (Φ : I) : Φ.shift.subst skip1I = Φ.shift.shift := by
+  simp only [I.shift, I.ren, I_subst_subst]; rfl
+
+theorem ctxI_skip1I (Γ : Ctx) : ctxI skip1I Γ.dshift = Γ.dshift.dshift := by
+  rw [ctxI_dshift_gen]; exact ctxI_add2 Γ
+
+theorem skip1I_scoped (Ψ : Nat) : ∀ i < Ψ + 1, (skip1I i).Scoped (Ψ + 1 + 1) := by
+  intro i hi; cases i with
+  | zero => show 0 < Ψ + 1 + 1; omega
+  | succ i => show i + 2 < Ψ + 1 + 1; omega
+
+theorem transp_skip_dinst0 (A : Tm) (φ : I) (u : Tm) :
+    (transp (A.dsubst skip1I) φ.shift u).dinst .zero = transp A φ (u.dinst .zero) := by
+  show transp ((A.subst Tm.var skip1I).subst (fun n => (Tm.var n).dshift) (I.up (I.inst0 .zero)))
+    (φ.shift.subst (I.inst0 .zero)) (u.dinst .zero) = _
+  congr 1
+  · rw [subst_subst]
+    apply subst_id_of
+    · intro n; rfl
+    · intro i; cases i with
+      | zero => rfl
+      | succ i => rfl
+  · simp only [I.shift, I.ren, I_subst_subst]; exact I_subst_var φ
+
+/-- A transport, renamed past a new interval variable 1 (the tube variable of an `hcomp`). -/
+theorem transp_skip (hS : SigClosed S) {Ψ : Nat} {Φ : I} {Γ : Ctx} {A : Tm} {φ ψ : I} {u : Tm} {l : Nat}
+    (hL : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (univ l)) (hφ : φ.Scoped Ψ)
+    (hc : EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (univ l))
+    (hu : HasTy0 S (Ψ + 1) (cof Φ ψ).shift Γ.dshift u (A.dinst .zero).dshift) :
+    HasTy0 S (Ψ + 1) (cof Φ ψ).shift Γ.dshift (transp (A.dsubst skip1I) φ.shift u) (A.dinst .one).dshift := by
+  have hw2 := Wf0.dwk hS (wf_of_ty hu)
+  have hs2 := scoped_of_wf hw2
+  have hL' := HasTy0.isub hS (Φ' := (cof Φ ψ).shift.shift) hL (skip1I_scoped Ψ)
+    (by rw [I_shift_skip1I]; exact ent_shift (ent_shift (ent_and_left _ _))) (by rw [ctxI_skip1I]; exact hw2)
+  rw [ctxI_skip1I] at hL'
+  have hφ1 : φ.shift.Scoped (Ψ + 1) := scoped_shift hφ
+  have hs0 : (cof Φ ψ).Scoped Ψ := scoped_of_wf (wf_unshift hS (wf_of_ty hu))
+  have hX : (cof (cof Φ ψ).shift φ.shift).shift.Scoped (Ψ + 1 + 1) := scoped_shift ⟨scoped_shift hs0, hφ1⟩
+  have hc' := EqTm0.isub hS (Φ' := (cof (cof Φ ψ).shift φ.shift).shift) hc (skip1I_scoped Ψ)
+    (by rw [I_shift_skip1I]; exact ent_shift (ent_shift (ent_and_mono (ent_and_left _ _) (ent_refl _))))
+    (by rw [ctxI_skip1I]; exact hw2.restrict hX (ent_shift (ent_and_left _ _)))
+  rw [ctxI_skip1I, dshift_skip1I, ← skip1I_dinst0_dshift] at hc'
+  rw [← dsubst_eq_subst] at hL' hc'
+  have := HasTy0.transp hL' hφ1 hc' (by rw [skip1I_dinst0]; exact hu)
+  rwa [skip1I_dinst1] at this
+
 theorem transpHcomp_of (hS : SigClosed S) {Ψ Φ Γ d D ps φ qs ψ u a l0 X l T}
     (hD : S[d]? = some (.data D)) (hne : D.params ≠ [])
     (hh : HasTy0 S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero)))
@@ -159,6 +214,23 @@ theorem transpHcomp_of (hS : SigClosed S) {Ψ Φ Γ d D ps φ qs ψ u a l0 X l T
     (ch : TyChainC S Ψ Φ Γ ((data d ps).dinst .one) T) :
     HasTy0 S Ψ Φ Γ (hcomp (data d (ps.dinst .one)) ψ
       (transp ((data d ps).dsubst skip1I) φ.shift u) (transp (data d ps) φ a)) T := by
-  sorry
+  obtain ⟨_, ⟨_, hψ, hu, ha, hside⟩, _⟩ := gen_hcomp hh rfl
+  have hs := scoped_of_wf (wf_of_ty ha)
+  have hXs : (cof Φ ψ).Scoped Ψ := ⟨hs, hψ⟩
+  have hent : I.Entails (cof Φ ψ) Φ := ent_and_left Φ ψ
+  have htu := transp_skip hS hL hφ hc hu
+  have hA1 := HasTy0.dsubst hS hL (r := .one) trivial
+  have hta := HasTy0.transp hL hφ hc ha
+  have hu0 : HasTy0 S Ψ (cof Φ ψ) Γ (u.dinst .zero) ((data d ps).dinst .zero) := by
+    have := HasTy0.dsubst hS hu (r := .zero) trivial
+    rwa [dshift_dinst] at this
+  have hLc := HasTy0.restrict (scoped_shift hXs) (ent_shift hent) hL
+  have hcc := EqTm0.restrict (scoped_shift (show (cof (cof Φ ψ) φ).Scoped Ψ from ⟨hXs, hφ⟩))
+    (ent_shift (ent_and_mono hent (ent_refl _))) hc
+  have h1 := HasTy0.transp hLc hφ hcc hu0
+  have h2 := HasTy0.restrict hXs hent hta
+  have side := EqTm0.transp h1 h2 (EqTm0.refl hLc) (ent_refl _) (ent_refl _) hside
+  rw [← transp_skip_dinst0] at side
+  exact ch.transport (HasTy0.hcomp hA1 hψ htu hta side)
 
 end KubusCore.Meta
