@@ -933,6 +933,190 @@ theorem projQ_con (hS : SigClosed S) (hW : WfSig S) (H : PD S Ψ Φ d D ps) (hcC
 
 end
 
+
+section
+variable {Ψ : ℕ} {Φ : I} {d : ℕ} {D : DataDecl} {ps : Tm} {c : ℕ} {C : Ctor} {j : ℕ}
+
+theorem projQ_subst0 (hS : SigClosed S) (hW : WfSig S) (H : PD S Ψ Φ d D ps) (hcC : D.ctors[c]? = some C)
+    (hj : j < C.args.length) (σ : ℕ → Tm) :
+    (projQ d D ps c C j).subst σ I.var =
+      .elim d ps (.univ D.level) (branchesOf D d ps (.univ D.level) (projQBody d D.params.length C ps c j)) (σ 0) := by
+  have hpsc : ps.closedB 0 Ψ = true := by simpa [Tm.closedB] using H.hdc
+  unfold projQ
+  simp only [Tm.subst]
+  rw [subst_closed0 hpsc, subst_closed0 (projQ_bs_closed hS hW H hcC hj)]
+
+theorem projQ_typedΓ (hS : SigClosed S) (hW : WfSig S) (H : PD S Ψ Φ d D ps) (hcC : D.ctors[c]? = some C)
+    (hj : j < C.args.length) {Γ0 : Ctx} (hw0 : Wf0 S Ψ Φ Γ0) :
+    HasTy0 S Ψ Φ (Tm.data d ps :: Γ0) (projQ d D ps c C j) (.univ D.level) :=
+  (wf_bottom hS hw0 [Tm.data d ps] H.wf1).2 (projQ_typed hS hW H hcC hj)
+
+theorem branchBody_projQ (hS : SigClosed S) (hW : WfSig S) (H : PD S Ψ Φ d D ps) (hcC : D.ctors[c]? = some C)
+    (hj : j < C.args.length) {c' : ℕ} {C' : Ctor} (hc' : D.ctors[c']? = some C') :
+    DataDecl.branchBody d c' C' ps (projQ d D ps c C j) =
+      .elim d ps (.univ D.level) (branchesOf D d ps (.univ D.level) (projQBody d D.params.length C ps c j))
+        (.con d c' ps (Tm.ofList (argVarsE C'.recPos.length C'.args.length)) []) := by
+  have hpsc : ps.closedB 0 Ψ = true := by simpa [Tm.closedB] using H.hdc
+  unfold DataDecl.branchBody
+  simp only [H.hdims c' C' hc', List.range_zero, List.map_nil, wkN_closed hpsc]
+  rw [show (fun i => I.var (i + 0)) = I.var from rfl, projQ_subst0 hS hW H hcC hj]
+  rfl
+
+theorem conVars_substList (H : PD S Ψ Φ d D ps) {c' : ℕ} {n r : ℕ} {args ihs : List Tm} (hal : args.length = n)
+    (hil : ihs.length = r) :
+    (Tm.con d c' ps (Tm.ofList (argVarsE r n)) []).substList (args ++ ihs).reverse = .con d c' ps (Tm.ofList args) [] := by
+  have hpsc : ps.closedB 0 Ψ = true := by simpa [Tm.closedB] using H.hdc
+  rw [substList_eq]
+  simp only [Tm.subst, ofList_subst, List.map_nil]
+  rw [subst_closed0 hpsc]
+  congr 2
+  apply List.ext_getElem (by simp [argVarsE, hal])
+  intro i h1 h2
+  simp only [argVarsE, List.getElem_map, List.getElem_range, Tm.subst]
+  simp at h1
+  have hlen : (args ++ ihs).reverse.length = n + r := by simp [hal, hil]; omega
+  rw [show r + n - 1 - i = n + r - 1 - i by omega]
+  rw [slS_lt (by rw [hlen]; omega), List.getElem_reverse, List.getElem_append_left (by simp [hal]; omega)]
+  congr 1; simp [hal, hil]; omega
+
+theorem projBody_typed (hS : SigClosed S) (hW : WfSig S) (H : PD S Ψ Φ d D ps) (hcC : D.ctors[c]? = some C)
+    (hj : j < C.args.length) {c' : ℕ} {C' : Ctor} (hc' : D.ctors[c']? = some C') :
+    HasTy0 S Ψ Φ (ihCtx C' (projQ d D ps c C j) C'.recPos.length ++ BCtx d D.params.length C' ps C'.args.length)
+      (projBody d C ps c j c' C') (DataDecl.branchBody d c' C' ps (projQ d D ps c C j)) := by
+  have hPQ := projQ_typed hS hW H hcC hj
+  have hw := ih_wf hS hW H.hD hc' H.hpsL H.hpc H.hpl H.hpt H.hdata H.hw hPQ C'.recPos.length (Nat.le_refl _)
+  have hcon := con_vars_typed hS hW H.hD hc' H.hpsL H.hpc H.hpl H.hpt H.hdata (H.hdims c' C' hc') hw
+  have hpsc : ps.closedB 0 Ψ = true := by simpa [Tm.closedB] using H.hdc
+  have hbb : DataDecl.branchBody d c' C' ps (projQ d D ps c C j) =
+      .elim d ps (.univ D.level) (branchesOf D d ps (.univ D.level) (projQBody d D.params.length C ps c j))
+        (.con d c' ps (Tm.ofList (argVarsE (ihCtx C' (projQ d D ps c C j) C'.recPos.length).length C'.args.length)) []) := by
+    unfold DataDecl.branchBody
+    simp only [H.hdims c' C' hc', List.range_zero, List.map_nil, wkN_closed hpsc]
+    rw [show (fun i => I.var (i + 0)) = I.var from rfl, projQ_subst0 hS hW H hcC hj, ihCtx_length]
+    rfl
+  -- the arguments as a telescope in the branch context
+  have hat : HasTele0 S Ψ Φ _ (Tm.ofList (argVarsE (ihCtx C' (projQ d D ps c C j) C'.recPos.length).length C'.args.length))
+      (C'.argTys d D.params.length) ps.toList.reverse :=
+    HasTele0.ofList_of hw _ _ _ (by simp [argVarsE, argTys_length]) (fun k a A ha hA => by
+      have hk : k < C'.args.length := by
+        have := (List.getElem?_eq_some_iff.1 ha).1; simpa [argVarsE] using this
+      obtain ⟨-, rfl⟩ := List.getElem?_eq_some_iff.1 ha
+      have hA' : A = C'.argTy d D.params.length k := by
+        simp only [Ctor.argTys, List.getElem?_map, List.getElem?_range hk, Option.map_some, Option.some.injEq] at hA
+        exact hA.symm
+      subst hA'
+      exact args_vars_typed hS H hc' hw k (by simp [argVarsE]; omega) hk)
+  have e := projQ_con hS hW H hcC hj hw hc' hat
+  rw [projQ_inst hS hW H hcC hj] at e
+  rw [hbb]
+  unfold projBody
+  split
+  · rename_i hcc; subst hcc
+    rw [hcC] at hc'; cases hc'
+    rw [if_pos rfl] at e
+    have hv := args_vars_typed hS H hcC hw j (by simp [argVarsE]; omega) hj
+    rw [argVarsE_get, ihCtx_length] at hv
+    rw [ihCtx_length] at e ⊢
+    have e' : C.recPos.length + C.args.length - 1 - j = C.recPos.length + (C.args.length - 1 - j) := by omega
+    rw [e'] at hv
+    exact HasTy0.conv hv e.symm
+  · rename_i hcc
+    rw [if_neg hcc] at e
+    have hd := HasTy0.of_closed hS H.hdata rfl hw
+    have hpi : HasTy0 S Ψ Φ _ (.pi (.data d ps) (.data d ps)) (.univ D.level) :=
+      HasTy0.pi hd (HasTy0.of_closed hS H.hdata rfl (Wf0.cons hd))
+    have hlam : HasTy0 S Ψ Φ _ (.lam (.data d ps) (.var 0)) (.pi (.data d ps) (.data d ps)) :=
+      HasTy0.lam hpi (HasTy0.var (Wf0.cons hd) (by simp [Ctx.lookup, shift_closed H.hdc]))
+    exact HasTy0.conv hlam e.symm
+
+theorem proj_branch_typed (hS : SigClosed S) (hW : WfSig S) (H : PD S Ψ Φ d D ps) (hcC : D.ctors[c]? = some C)
+    (hj : j < C.args.length) {c' : ℕ} {C' : Ctor} (hc' : D.ctors[c']? = some C') :
+    HasTy0 S Ψ Φ [] (lams ((List.range C'.args.length).map (DataDecl.branchArgTy d D.params.length C' ps) ++
+      (List.range C'.recPos.length).map (DataDecl.branchIhTy C' (projQ d D ps c C j)))
+      (projBody d C ps c j c' C')) (D.branchTy d c' C' ps (projQ d D ps c C j)) := by
+  have hl := H.lvl hW
+  exact branch_typed hS hW H.hD hc' H.hpsL H.hpc H.hpl H.hpt H.hdata H.hw (H.hdims c' C' hc') (by omega)
+    (projQ_typed hS hW H hcC hj) (projBody_typed hS hW H hcC hj hc')
+
+/-- `proj_j t` is typed (at the motive). -/
+theorem proj_typed (hS : SigClosed S) (hW : WfSig S) (H : PD S Ψ Φ d D ps) (hcC : D.ctors[c]? = some C)
+    (hj : j < C.args.length) {Γ0 : Ctx} (hw0 : Wf0 S Ψ Φ Γ0) {t : Tm} (ht : HasTy0 S Ψ Φ Γ0 t (.data d ps)) :
+    HasTy0 S Ψ Φ Γ0 (proj d D ps c C j t) ((projQ d D ps c C j).inst t) := by
+  have hdata0 := HasTy0.of_closed hS H.hdata rfl hw0
+  exact HasTy0.elim (m := D.level) H.hD H.hpsL hdata0 (HasTele0.of_closed hW hw0 H.hpt)
+    (projQ_typedΓ hS hW H hcC hj hw0) (branchesOf_isList _ _ _ _ _) (branchesOf_length _ _ _ _ _)
+    (fun c' C' b hc' hb => by
+      rw [branchesOf_get hc', Option.some.injEq] at hb; subst hb
+      have h0 := proj_branch_typed hS hW H hcC hj hc'
+      exact HasTy0.of_closed hS h0 (closed_type hW h0) hw0)
+    (branchesOf_hcoh H) ht
+
+/-- `proj_j (con c ps args) ≡ args_j`. -/
+theorem proj_con (hS : SigClosed S) (hW : WfSig S) (H : PD S Ψ Φ d D ps) (hcC : D.ctors[c]? = some C)
+    (hj : j < C.args.length) {Γ0 : Ctx} (hw0 : Wf0 S Ψ Φ Γ0) {args : List Tm}
+    (hat : HasTele0 S Ψ Φ Γ0 (Tm.ofList args) (C.argTys d D.params.length) ps.toList.reverse) :
+    EqTm0 S Ψ Φ Γ0 (proj d D ps c C j (.con d c ps (Tm.ofList args) [])) (args.getD j .abort)
+      ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ ps.toList.reverse)) := by
+  have hl := H.lvl hW
+  have hal : args.length = C.args.length := by
+    have := tele_length hat; rwa [toList_ofList, argTys_length] at this
+  have hdata0 := HasTy0.of_closed hS H.hdata rfl hw0
+  have hcon : HasTy0 S Ψ Φ Γ0 (.con d c ps (Tm.ofList args) []) (.data d ps) :=
+    HasTy0.con H.hD hcC H.hpsL hdata0 (HasTele0.of_closed hW hw0 H.hpt) hat (by simp [H.hdims c C hcC]) (by simp)
+  have e1 := EqTm0.elimCon H.hD hcC (branchesOf_get hcC) H.hpsL (by rw [toList_ofList]) (branchesOf_isList _ _ _ _ _)
+    hat (proj_typed hS hW H hcC hj hw0 hcon)
+  rw [toList_ofList] at e1
+  simp only [Tm.papps, List.foldl_nil] at e1
+  have hPQ := projQ_typed hS hW H hcC hj
+  have hpi0 := branchPis_typed hS hW H.hD hcC H.hpsL H.hpc H.hpl H.hpt H.hdata H.hw (H.hdims c C hcC) (by omega) hPQ
+  have hpi := HasTy0.of_closed hS hpi0 rfl hw0
+  have hbody := projBody_typed hS hW H hcC hj hcC
+  have hwF := ih_wf hS hW H.hD hcC H.hpsL H.hpc H.hpl H.hpt H.hdata H.hw hPQ C.recPos.length (Nat.le_refl _)
+  have hb := (wf_bottom hS hw0 _ hwF).2 hbody
+  have hrev : (((List.range C.args.length).map (DataDecl.branchArgTy d D.params.length C ps) ++
+      (List.range C.recPos.length).map (DataDecl.branchIhTy C (projQ d D ps c C j)))).reverse ++ Γ0 =
+      ihCtx C (projQ d D ps c C j) C.recPos.length ++ BCtx d D.params.length C ps C.args.length ++ Γ0 := by
+    simp [ihCtx, BCtx, List.map_reverse]
+  have htele := branch_tele hS H hw0 hcC hat (P := projQ d D ps c C j)
+    (bs := branchesOf D d ps (projQ d D ps c C j) (projBody d C ps c j))
+    (fun t ht => proj_typed hS hW H hcC hj hw0 ht)
+  have e2 := apps_lams hS hpi (show HasTy0 S Ψ Φ _ _ (DataDecl.branchBody d c C ps (projQ d D ps c C j)) by
+    rw [hrev]; exact hb) htele
+  have hil : (C.recPos.map fun k => Tm.elim d ps (projQ d D ps c C j)
+      (branchesOf D d ps (projQ d D ps c C j) (projBody d C ps c j)) (args.getD k .abort)).length = C.recPos.length := by
+    simp
+  have hbs : (branchesOf D d ps (.univ D.level) (projQBody d D.params.length C ps c j)).closedB 0 Ψ = true :=
+    projQ_bs_closed hS hW H hcC hj
+  have hpsc : ps.closedB 0 Ψ = true := by simpa [Tm.closedB] using H.hdc
+  have eT : (DataDecl.branchBody d c C ps (projQ d D ps c C j)).substList
+      (args ++ C.recPos.map fun k => Tm.elim d ps (projQ d D ps c C j)
+        (branchesOf D d ps (projQ d D ps c C j) (projBody d C ps c j)) (args.getD k .abort)).reverse =
+      (projQ d D ps c C j).inst (.con d c ps (Tm.ofList args) []) := by
+    rw [branchBody_projQ hS hW H hcC hj hcC, projQ_inst hS hW H hcC hj]
+    rw [show ∀ V : List Tm, (Tm.elim d ps (.univ D.level) (branchesOf D d ps (.univ D.level)
+        (projQBody d D.params.length C ps c j)) (.con d c ps (Tm.ofList (argVarsE C.recPos.length C.args.length)) [])).substList V =
+        .elim d (ps.substList V) (.univ D.level) ((branchesOf D d ps (.univ D.level)
+          (projQBody d D.params.length C ps c j)).substList V)
+          ((Tm.con d c ps (Tm.ofList (argVarsE C.recPos.length C.args.length)) []).substList V) from fun V => rfl]
+    rw [substList_closed0 hpsc, substList_closed0 hbs, conVars_substList H hal hil]
+  rw [eT] at e2
+  have e12 := e1.trans e2
+  have eQ := projQ_con hS hW H hcC hj hw0 hcC hat
+  rw [if_pos rfl] at eQ
+  refine EqTm0.conv ?_ eQ
+  convert e12 using 1
+  unfold projBody
+  rw [if_pos rfl, substList_eq]
+  show _ = slS _ _
+  have hlen : (args ++ C.recPos.map fun k => Tm.elim d ps (projQ d D ps c C j)
+      (branchesOf D d ps (projQ d D ps c C j) (projBody d C ps c j)) (args.getD k .abort)).reverse.length =
+      C.args.length + C.recPos.length := by simp [hal]; omega
+  rw [slS_lt (by simp [hal]; omega), List.getElem_reverse, List.getElem_append_left (by simp [hal]; omega)]
+  rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega), Option.getD_some]
+  congr 1; simp [hal]; omega
+
+end
+
 end
 
 end Model.Canon
