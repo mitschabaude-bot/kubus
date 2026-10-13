@@ -1,0 +1,4 @@
+λ i → hcomp k (Trunc Bool) [i = 1 -> inc false] (inc false)
+  : (i : I) → Trunc Bool
+λ i → hcomp k (Trunc Bool) [i = 1 -> hcomp k1 (Trunc Bool) [k = 0 -> inc false] (inc false)] (inc false)
+  : (i : I) → Trunc Bool

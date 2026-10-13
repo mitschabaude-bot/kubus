@@ -1,0 +1,7 @@
+import hits
+-- composition in a parameterised HIT whose sides mention the composition variable:
+-- system elements must be restricted to their faces, or atoms leak (found by the fuzzer)
+#eval \(x : I) -> comp k (Trunc (notPath k)) [x = 1 -> inc (fill m (notPath m) [] true k)] (inc true)
+#eval \(x : I) -> comp k (Trunc (notPath k)) [x = 1 -> fill m (Trunc (notPath m)) [] (inc true) k] (inc true)
+def sq (x : I) : Trunc Bool := comp k (Trunc (notPath k)) [x = 1 -> fill m (Trunc (notPath m)) [] (inc true) k] (inc true)
+def sqPath : Path (Trunc Bool) (sq 1) (sq 1) := \i -> sq 1

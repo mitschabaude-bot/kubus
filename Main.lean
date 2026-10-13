@@ -7,8 +7,11 @@ structure Driver where
   loaded : List System.FilePath := []
   violations : Nat := 0
   verbose : Bool := false
+  selfcheck : Bool := false
+  /-- self-check imported files too -/
+  selfcheckImports : Bool := true
 
-partial def runFile (path : System.FilePath) : StateT Driver (ExceptT String IO) Unit := do
+partial def runFile (path : System.FilePath) (top : Bool := true) : StateT Driver (ExceptT String IO) Unit := do
   let path ← IO.FS.realPath path
   if (← get).loaded.contains path then return
   modify fun d => { d with loaded := path :: d.loaded }
@@ -26,10 +29,12 @@ partial def runFile (path : System.FilePath) : StateT Driver (ExceptT String IO)
       for d in searchPath do
         if found.isNone && (← (d / (name ++ ".ktt")).pathExists) then found := some (d / (name ++ ".ktt"))
       match found with
-      | some f => runFile f
+      | some f => runFile f false
       | none => throw s!"{path}: cannot find module {name} (searched {searchPath})"
     | _ =>
-      match (checkDecl d).run (← get).st with
+      let dr ← get
+      let st := { dr.st with selfcheck := dr.selfcheck && (top || dr.selfcheckImports) }
+      match (checkDecl d).run st with
       | .ok (out, st') =>
         for v in st'.violations do IO.eprintln s!"{path}:{v}"
         if (← get).verbose then
@@ -40,8 +45,9 @@ partial def runFile (path : System.FilePath) : StateT Driver (ExceptT String IO)
       | .error e => throw s!"{path}:{e}"
 
 def usage : String :=
-  "usage: kubus [--selfcheck] [--budget N] [--verbose] FILE.ktt...\n" ++
+  "usage: kubus [--selfcheck | --selfcheck-main] [--budget N] [--verbose] FILE.ktt...\n" ++
   "  --selfcheck  check evaluator/checker invariants on every definition and #eval\n" ++
+  "  --selfcheck-main  the same, but only for the given files, not their imports\n" ++
   "  --budget N   evaluation steps per self-check before it is skipped (default 1000000)\n" ++
   "  --verbose    list the self-checks that were skipped"
 
@@ -51,7 +57,8 @@ def main (args : List String) : IO UInt32 := do
   let mut rest := args
   while !rest.isEmpty do
     match rest with
-    | "--selfcheck" :: r => drv := { drv with st.selfcheck := true }; rest := r
+    | "--selfcheck" :: r => drv := { drv with selfcheck := true }; rest := r
+    | "--selfcheck-main" :: r => drv := { drv with selfcheck := true, selfcheckImports := false }; rest := r
     | "--verbose" :: r => drv := { drv with verbose := true }; rest := r
     | "--budget" :: n :: r =>
       match n.toNat? with
@@ -68,7 +75,7 @@ def main (args : List String) : IO UInt32 := do
     | .error e =>
       IO.eprintln e
       return 1
-  if drv.st.selfcheck then
+  if drv.selfcheck then
     let st := drv.st
     IO.eprintln s!"selfcheck: {st.nChecks} checks, {st.nSkipped} skipped (budget), {st.nGaps} re-checks skipped (no surface syntax), {drv.violations} violations"
     if drv.violations > 0 then return 1

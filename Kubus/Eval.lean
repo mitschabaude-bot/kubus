@@ -467,9 +467,10 @@ partial def hitPush (j : Atom) (a v : Val) (face : Option Face) : M (Option Val)
           | [] => (Tm.univ 0, [])
         rest := later
         let A ← eval env ty
-        let sysK : System Val := match face with
-          | some f => [(f, arg)]
-          | none => []
+        -- system elements must be restricted to their faces (`actSys` relies on it)
+        let sysK : System Val ← match face with
+          | some f => do pure [(f, ← faceV arg f)]
+          | none => pure []
         let r ← match A with
           | .data d' _ _ => if d' == d then hitPush j A arg face else some <$> comp j A arg sysK
           | _ => some <$> comp j A arg sysK
@@ -490,7 +491,8 @@ partial def hitPush (j : Atom) (a v : Val) (face : Option Face) : M (Option Val)
       let mut sys' : System Val := []
       for (α, l) in sys do
         let k ← freshAtom
-        let some w ← hitPush j (← faceV a α) (← papp l (atomF k)) face | return none
+        let faceα := face.bind fun f => if f.compatible α then some (f.minus α) else none
+        let some w ← hitPush j (← faceV a α) (← papp l (atomF k)) faceα | return none
         sys' := System.insert α (.plam k w) sys'
       some <$> mkHCompF (← act j Formula.one a) u0' sys'
     | _ => pure none
