@@ -14,22 +14,24 @@ namespace KubusCore.Kernel
 variable {S : Sig}
 
 /-- An interval variable of `r` that the restriction `Φ` fixes to an endpoint. -/
-def fixedVar (Ψ : Nat) (Φ : I) :
+def fixedVar {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
     List Nat → Option ((i : Nat) × (d : Bool) × PLift (i < Ψ ∧ I.Entails Φ (I.lit i d)))
   | [] => none
   | i :: is =>
     if hi : i < Ψ then
-      if h1 : I.Entails Φ (I.lit i true) then some ⟨i, true, ⟨hi, h1⟩⟩
-      else if h0 : I.Entails Φ (I.lit i false) then some ⟨i, false, ⟨hi, h0⟩⟩
-      else fixedVar Ψ Φ is
-    else fixedVar Ψ Φ is
+      if h1 : E.Ent (I.lit i true) then some ⟨i, true, ⟨hi, h1⟩⟩
+      else if h0 : E.Ent (I.lit i false) then some ⟨i, false, ⟨hi, h0⟩⟩
+      else fixedVar E is
+    else fixedVar E is
 
 def transpConK {Ψ Φ Γ} (D : DataDecl) {d : Nat} (hS : S[d]? = some (.data D)) (hp : D.params ≠ [])
     (c : Nat) {ps : Tm} {φ : I} {qs args : Tm} {rs : List I} {T : Tm}
     (ht : HasTy S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T) :
     K (Option (Red S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T)) := do
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
-  return some ⟨_, EqTm.transpCon hS hp hC ht⟩
+  let ⟨h1⟩ ← ensureList ps
+  let ⟨h2⟩ ← ensureList args
+  return some ⟨_, EqTm.transpCon hS hp hC h1 h2 ht⟩
 
 /-- Computation rule of `transp` for a line in weak-head normal form. -/
 def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a T : Tm)
@@ -91,7 +93,7 @@ def transpArgStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I)
 def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ (.transp L φ a) A) :
     K (Option (Red S Ψ Φ Γ (.transp L φ a) A × Bool)) := do
-  if h : I.Entails Φ φ then return some (⟨a, EqTm.transpFace h ht⟩, false)
+  if h : E.Ent φ then return some (⟨a, EqTm.transpFace h ht⟩, false)
   let ⟨l1, ⟨hL⟩⟩ ← inferType R E.dext L
   let r ← whnfTy R E.dext L l1 hL
   if r.tm = L then
@@ -123,7 +125,7 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
 def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u a A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ (.hcomp B φ u a) A) :
     K (Option (Red S Ψ Φ Γ (.hcomp B φ u a) A × Bool)) := do
-  if h : I.Entails Φ φ then return some (⟨u.dinst .one, EqTm.hcompFace h ht⟩, false)
+  if h : E.Ent φ then return some (⟨u.dinst .one, EqTm.hcompFace h ht⟩, false)
   let ⟨l1, ⟨hB⟩⟩ ← inferType R E B
   let r ← whnfTy R E B l1 hB
   if r.tm = B then
@@ -161,16 +163,18 @@ def firstSome {α : Type} (f : Nat → K (Option α)) : Nat → Nat → K (Optio
     | none => firstSome f n (k + 1)
 
 /-- A constructor equals its boundary on the faces of the boundary. -/
-def conBndStep {Ψ Φ Γ} (d c : Nat) (ps args : Tm) (rs : List I) (A : Tm)
+def conBndStep {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps args : Tm) (rs : List I) (A : Tm)
     (ht : HasTy S Ψ Φ Γ (.con d c ps args rs) A) :
     K (Option (Red S Ψ Φ Γ (.con d c ps args rs) A × Bool)) := do
   let ⟨D, ⟨hS⟩⟩ ← lookupData S d
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
+  let ⟨h1⟩ ← ensureList ps
+  let ⟨h2⟩ ← ensureList args
   firstSome (fun k =>
     match getIdx? C.bnd k with
     | some ⟨(ψ, _), ⟨hk⟩⟩ =>
-      if hent : I.Entails Φ (Ctor.cofAt ψ rs) then
-        pure (some (⟨_, EqTm.conBnd hS hC hk hent ht⟩, false))
+      if hent : E.Ent (Ctor.cofAt ψ rs) then
+        pure (some (⟨_, EqTm.conBnd hS hC hk hent h1 h2 ht⟩, false))
       else pure none
     | none => pure none) C.bnd.length 0
 
@@ -179,8 +183,10 @@ def elimConK {Ψ Φ Γ} (d c : Nat) (ps P bs qs args : Tm) (rs : List I) (T : Tm
     K (Option (Red S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) T × Bool)) := do
   let ⟨D, ⟨hS⟩⟩ ← lookupData S d
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
+  let ⟨h1⟩ ← ensureList args
+  let ⟨h2⟩ ← ensureList bs
   match getIdx? bs.toList c with
-  | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb ht⟩, false))
+  | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb h1 h2 ht⟩, false))
   | none => fail "kernel: missing branch"
 
 def elimHcompK {Ψ Φ Γ} (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
@@ -192,9 +198,9 @@ def elimHcompK {Ψ Φ Γ} (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
 /-- Reduce the target of an eliminator. -/
 def elimTargetStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (Option (Red S Ψ Φ Γ (.elim d ps P bs t) A × Bool)) := do
-  let info ← inferElimInfo R E d ps P bs
   let ⟨ti, tr⟩ ← R.whnfI E t
   if tr.tm = t then return none
+  let info ← inferElimInfo R E d ps P bs
   let ⟨et⟩ ← bridge R E ti.hty info.hD tr.eq
   have h1 := info.typing (HasTy.eqL et)
   have eP := EqTm.subst (EqTm.refl info.hP) (EqTm.symm et)
@@ -233,17 +239,17 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .snd (.pair _ b), ht => pure (some (⟨b, EqTm.sndBeta ht⟩, false))
   | .papp (.plam b) r, ht => pure (some (⟨b.dinst r, EqTm.pathBeta ht⟩, false))
   | .split φ t1 ψ u1, ht =>
-    if h : I.Entails Φ φ then pure (some (⟨t1, EqTm.splitL h ht⟩, false))
-    else if h : I.Entails Φ ψ then pure (some (⟨u1, EqTm.splitR h ht⟩, false))
+    if h : E.Ent φ then pure (some (⟨t1, EqTm.splitL h ht⟩, false))
+    else if h : E.Ent ψ then pure (some (⟨u1, EqTm.splitR h ht⟩, false))
     else pure none
   | .glue _ φ T _, ht =>
-    if h : I.Entails Φ φ then pure (some (⟨T, EqTm.glueFace h ht⟩, false)) else pure none
+    if h : E.Ent φ then pure (some (⟨T, EqTm.glueFace h ht⟩, false)) else pure none
   | .unglue φ e (.glueEl φ' e' t1 a1), ht =>
     if h : φ' = φ ∧ e' = e then
       pure (some (⟨a1, by obtain ⟨h1, h2⟩ := h; subst h1; subst h2; exact EqTm.glueBeta ht⟩, false))
     else elimStep R E (.unglue φ e (.glueEl φ' e' t1 a1)) A l hA
   | .glueEl φ _ t1 _, ht =>
-    if h : I.Entails Φ φ then pure (some (⟨t1, EqTm.glueElFace h ht⟩, false)) else pure none
+    if h : E.Ent φ then pure (some (⟨t1, EqTm.glueElFace h ht⟩, false)) else pure none
   | .const k, _ =>
     match h : S[k]?, hl : E.sig.lv[k]? with
     | some (.defn b Ak), some lk => do
@@ -251,7 +257,7 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
       pure (some (⟨b, e⟩, false))
     | _, _ => fail s!"kernel: unknown constant c{k}"
   | .transp L φ a, ht => transpStep R E L φ a A l hA ht
-  | .con d c ps args rs, ht => conBndStep d c ps args rs A ht
+  | .con d c ps args rs, ht => conBndStep E d c ps args rs A ht
   | .elim d ps P bs t, ht => dataElimStep R E d ps P bs t A l hA ht
   | .hcomp B φ u a, ht => hcompStep R E B φ u a A l hA ht
   | .app f a, _ => elimStep R E (.app f a) A l hA
@@ -281,6 +287,44 @@ def whnfIDefault (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
   let i ← (R.infer E t).mapError (· ++ s!"\n  inferring {short t}")
   let r ← R.whnf E t i.ty i.lvl i.hty i.htm
   pure ⟨i, r⟩
+
+/-- The number of λs before the body of a constant defined by an eliminator on its last
+argument, `λ x₁ … xₙ. elim d ps P bs xₙ`. -/
+def splitArity (S : Sig) (k : Nat) : Option Nat :=
+  match S[k]? with
+  | some (.defn b _) =>
+    let rec go : Nat → Tm → Option Nat
+      | n, .lam _ t => go (n + 1) t
+      | n, .elim _ _ _ _ (.var 0) => if n > 0 then some n else none
+      | _, _ => none
+    go 0 b
+  | _ => none
+
+/-- An application `c a₁ … aₙ` of such a constant to all its arguments. -/
+def isSplitApp (S : Sig) (t : Tm) : Bool :=
+  let (h, args) := t.unapps
+  match h with
+  | .const k => splitArity S k == some args.length
+  | _ => false
+
+/-- For such an application, reduce the scrutinee (the last argument) first, keeping the
+constant folded: then the eliminator meets a constructor after unfolding. -/
+def scrutineeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (f a : Tm) :
+    K (Option ((i : Inf S Ψ Φ Γ (.app f a)) × Red S Ψ Φ Γ (.app f a) i.ty)) := do
+  let fi ← R.infer E f
+  match ← whnfTy R E fi.ty fi.lvl fi.hty with
+  | ⟨.pi A1 B1, eF⟩ =>
+    have hP := HasTy.eqR eF
+    have hf := HasTy.conv fi.htm eF
+    let ⟨ha⟩ ← R.check E a A1 fi.lvl (HasTy.piDom hP)
+    let ra ← R.whnf E a A1 fi.lvl (HasTy.piDom hP) ha
+    if ra.tm = a then return none
+    let inf : Inf S Ψ Φ Γ (.app f a) :=
+      ⟨B1.inst a, fi.lvl, HasTy.subst (HasTy.piCod hP) ha, HasTy.app hf ha⟩
+    have e1 : EqTm S Ψ Φ Γ (.app f a) (.app f ra.tm) (B1.inst a) := EqTm.app (EqTm.refl hf) ra.eq
+    let r2 ← R.whnf E _ _ fi.lvl inf.hty (HasTy.eqR e1)
+    return some ⟨inf, ⟨r2.tm, EqTm.trans e1 r2.eq⟩⟩
+  | _ => return none
 
 def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
     K ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) :=
@@ -348,7 +392,7 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
     | .plam b => whnfIDefault R E (.papp (.plam b) r)
     | p => do
       let ⟨hr⟩ ← ensureScoped r Ψ
-      match fixedVar Ψ Φ r.vars with
+      match fixedVar E r.vars with
       | some ⟨i, d, ⟨hi, hent⟩⟩ =>
         -- the restriction fixes a variable of `r`: substitute it
         let it ← R.infer E (.papp p r)
@@ -420,8 +464,8 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
     have hg := HasTy.conv gi.htm eG
     let ⟨he⟩ ← checkEquiv R E A1 φ T e gi.lvl
     let inf : Inf S Ψ Φ Γ (.unglue φ e g) := ⟨A1, gi.lvl, hA1, HasTy.unglue hG hA1 he hg⟩
-    if hφ : I.Entails Φ φ then
-      let ⟨hc⟩ ← ensureEnt Φ (cof Φ φ)
+    if hφ : E.Ent φ then
+      let ⟨hc⟩ ← ensureEntE E (cof Φ φ)
       have e1 := EqTm.unglueFace hφ hg hA1 (HasTy.restrict E.hsc hc he)
       let r2 ← R.whnf E _ A1 gi.lvl inf.hty (HasTy.eqR e1)
       return ⟨inf, ⟨r2.tm, EqTm.trans e1 r2.eq⟩⟩

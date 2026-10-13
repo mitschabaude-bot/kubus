@@ -118,11 +118,12 @@ inductive HasTy (S : Sig) : Nat → I → Ctx → Tm → Tm → Prop
   | data {Ψ Φ Γ d D ps} : S[d]? = some (.data D) → D.level + 1 ≤ maxLevel →
       HasTele S Ψ Φ Γ ps D.params [] → HasTy S Ψ Φ Γ (data d ps) (univ D.level)
   | con {Ψ Φ Γ d D c C ps args rs} : S[d]? = some (.data D) → D.ctors[c]? = some C →
-      HasTy S Ψ Φ Γ (data d ps) (univ D.level) →
+      ps = Tm.ofList ps.toList → HasTy S Ψ Φ Γ (data d ps) (univ D.level) →
       HasTele S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
       rs.length = C.dims → (∀ r ∈ rs, r.Scoped Ψ) →
       HasTy S Ψ Φ Γ (con d c ps args rs) (data d ps)
   | elim {Ψ Φ Γ d D ps P bs t m} : S[d]? = some (.data D) →
+      ps = Tm.ofList ps.toList →
       HasTy S Ψ Φ Γ (data d ps) (univ D.level) → HasTy S Ψ Φ (data d ps :: Γ) P (univ m) →
       bs = Tm.ofList bs.toList → bs.toList.length = D.ctors.length →
       (∀ (c : Nat) (C : Ctor) (b : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
@@ -319,11 +320,13 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   /- inductive types: boundaries of path constructors -/
   | conBnd {Ψ Φ Γ d D c C ps args rs} {k : Nat} {ψ b T} : S[d]? = some (.data D) → D.ctors[c]? = some C →
       C.bnd[k]? = some (ψ, b) → I.Entails Φ (Ctor.cofAt ψ rs) →
+      ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
       HasTy S Ψ Φ Γ (con d c ps args rs) T →
       EqTm S Ψ Φ Γ (con d c ps args rs) (Ctor.bndAt b ps.toList args.toList rs) T
   /- inductive types: elimination -/
   | elimCon {Ψ Φ Γ d D c C ps P bs b qs args rs T} : S[d]? = some (.data D) →
       D.ctors[c]? = some C → bs.toList[c]? = some b →
+      args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
       HasTy S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T →
       EqTm S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
         (Tm.papps (Tm.apps b (args.toList ++
@@ -337,7 +340,8 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | transpData0 {Ψ Φ Γ d D ps φ a T} : S[d]? = some (.data D) → D.params = [] →
       HasTy S Ψ Φ Γ (transp (data d ps) φ a) T → EqTm S Ψ Φ Γ (transp (data d ps) φ a) a T
   | transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} : S[d]? = some (.data D) → D.params ≠ [] →
-      D.ctors[c]? = some C → HasTy S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T →
+      D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
+      HasTy S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T →
       EqTm S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs))
         (con d c (ps.dinst .one)
           (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T

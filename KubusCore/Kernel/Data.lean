@@ -34,6 +34,10 @@ def getIdx' {α : Type} (l : List α) (k : Nat) :
   | some x, h => .inl ⟨x, ⟨h.symm⟩⟩
   | none, h => .inr ⟨h.symm⟩
 
+/-- `t` is a literal list. -/
+def ensureList (t : Tm) : K (PLift (t = Tm.ofList t.toList)) :=
+  if h : t = Tm.ofList t.toList then pure ⟨h⟩ else fail "kernel: expected a list"
+
 /-- Check a list term against a telescope. -/
 def checkTele (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
     (as : Tm) → (Δ prev : List Tm) → K (PLift (HasTele S Ψ Φ Γ as Δ prev))
@@ -77,11 +81,12 @@ def inferCon (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps args :
       HasTy S Ψ Φ Γ (.data d ps) (.univ D.level) ∧ HasTy S Ψ Φ Γ (.con d c ps args rs) (.data d ps))) := do
   let ⟨D, ⟨hS, hD⟩⟩ ← inferData R E d ps
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
+  let ⟨hl⟩ ← ensureList ps
   let ⟨hargs⟩ ← checkTele R E args (C.argTys d D.params.length) ps.toList.reverse
   if hlen : rs.length = C.dims then
     if hsc : rs.all (·.scopedB Ψ) = true then
       have hsc' : ∀ r ∈ rs, r.Scoped Ψ := fun r hr => (I.scopedB_iff _ _).mp (List.all_eq_true.mp hsc r hr)
-      pure ⟨D, ⟨hS, hD, HasTy.con hS hC hD hargs hlen hsc'⟩⟩
+      pure ⟨D, ⟨hS, hD, HasTy.con hS hC hl hD hargs hlen hsc'⟩⟩
     else fail "kernel: interval argument out of scope"
   else fail "kernel: wrong number of interval arguments"
 
@@ -265,6 +270,7 @@ structure ElimInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (d : Nat) (ps P bs :
   D : DataDecl
   hS : S[d]? = some (.data D)
   m : Nat
+  hps : ps = Tm.ofList ps.toList
   hD : HasTy S Ψ Φ Γ (.data d ps) (.univ D.level)
   hP : HasTy S Ψ Φ (.data d ps :: Γ) P (.univ m)
   hbs : bs = Tm.ofList bs.toList
@@ -278,7 +284,7 @@ structure ElimInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (d : Nat) (ps P bs :
 
 def ElimInfo.typing {Ψ Φ Γ d ps P bs t} (i : ElimInfo S Ψ Φ Γ d ps P bs)
     (ht : HasTy S Ψ Φ Γ t (.data d ps)) : HasTy S Ψ Φ Γ (.elim d ps P bs t) (P.inst t) :=
-  HasTy.elim i.hS i.hD i.hP i.hbs i.hlen i.hbr i.hbnd ht
+  HasTy.elim i.hS i.hps i.hD i.hP i.hbs i.hlen i.hbr i.hbnd ht
 
 /-- Check the boundary condition of one branch on one face. -/
 def checkBranchBnd (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) (d c : Nat) (C : Ctor)
@@ -302,6 +308,7 @@ def inferElimInfo (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P b
     K (ElimInfo S Ψ Φ Γ d ps P bs) := do
   let ⟨D, ⟨hS, hD⟩⟩ ← inferData R E d ps
   let ⟨m, ⟨hP⟩⟩ ← inferType R (E.ext (.data d ps) D.level hD) P
+  let ⟨hps⟩ ← ensureList ps
   if hbs : bs = Tm.ofList bs.toList then
     if hlen : bs.toList.length = D.ctors.length then
       let ⟨hbr⟩ ← forallPairs0 D.ctors bs.toList
@@ -318,7 +325,7 @@ def inferElimInfo (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P b
               (DataDecl.branchBody d c C ps P))
             fun _ pe _ => checkBranchBnd R E D d c C ps P bs b pe.1 pe.2
           pure ⟨fun k ψ e hk => h k (ψ, e) hk⟩
-      pure ⟨D, hS, m, hD, hP, hbs, hlen, hbr,
+      pure ⟨D, hS, m, hps, hD, hP, hbs, hlen, hbr,
         fun c C b k ψ e hC hb hk => hbnd c C b hC hb k ψ e hk⟩
     else fail "kernel: wrong number of branches"
   else fail "kernel: branches must be a list"
