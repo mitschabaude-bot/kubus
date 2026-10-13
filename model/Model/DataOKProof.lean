@@ -463,12 +463,6 @@ theorem argTyRaw_recIrr {σ : SigV} {D : DataDecl} {d : ℕ} (hsyn : DataSyn d D
   · rw [List.getElem_append_right (by simp; omega), List.getElem_append_right (by simp; omega)]
     simp [Nat.min_eq_left hj, Nat.min_eq_left hj']
 
-/-- The condition under which `argTySem` is the raw type. -/
-theorem argTySem_eq {σ : SigV} {D : DataDecl} {d c j n : ℕ} {psv : V} {pre : List V} :
-    argTySem σ D d c j n psv pre = if j < (D.ctors.getD c default).args.length ∧
-      (D.ctors.getD c default).isRec j = false ∧ argPreValid σ D d c j n psv pre
-    then argTyRaw σ D d c j n psv pre else emptyC n := rfl
-
 /-- At valid earlier arguments the argument types are the raw ones. -/
 theorem ptValid_argPreValid {σ : SigV} {D : DataDecl} {d m : ℕ} {ps : RV m} {c n : ℕ} {g : Hom n m}
     {pre : List V} (hp : (dataSD σ D d m ps).PtValid c n g pre) {j : ℕ} (hj : j ≤ pre.length) :
@@ -651,10 +645,6 @@ theorem argTySem_congr {σ : SigV} {E D : DataDecl} {d c : ℕ} (hp : E.params =
 theorem nestPre_cons (pre : List V) (a : Tm) (prev : List Tm) :
     nestPre pre (a :: prev) = nestPre pre prev ++ [nestVal pre a] := by
   simp [nestPre]
-
-theorem argTyRaw_take_eq {σ : SigV} {D : DataDecl} {d c j n : ℕ} {psv : V} {pre pre' : List V}
-    (h : pre.take j = pre'.take j) : argTyRaw σ D d c j n psv pre = argTyRaw σ D d c j n psv pre' := by
-  simp only [argTyRaw, h]
 
 
 section tyeq
