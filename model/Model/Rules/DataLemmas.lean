@@ -24,6 +24,72 @@ theorem argEnv_eq_of_lt' {ps pre : List V} {x : ℕ} (hx : x < pre.length + ps.l
     argEnv ps pre x = (pre.reverse ++ ps.reverse)[x]'(by simp; omega) := by
   simp [argEnv, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by simp; omega : x < (pre.reverse ++ ps.reverse).length)]
 
+/-- Substitution only depends on the free variables. -/
+theorem Tm.subst_congr_free : ∀ (t : Tm) (σ σ' : ℕ → Tm) (τ : ℕ → I),
+    (∀ x, t.freeIn x = true → σ x = σ' x) → t.subst σ τ = t.subst σ' τ := by
+  intro t
+  induction t with
+  | var x => intro σ σ' τ h; exact h x (by simp [Tm.freeIn])
+  | pi A B iA iB | sigma A B iA iB | lam A B iA iB =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [iA σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx]),
+      iB (Tm.up σ) (Tm.up σ') τ fun x hx => by
+        cases x with
+        | zero => rfl
+        | succ y => simp only [Tm.up]; rw [h y (by simp [Tm.freeIn, hx])]]
+  | elim d ps P bs t ip iP ib it =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [ip σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx]),
+      iP (Tm.up σ) (Tm.up σ') τ (fun x hx => by
+        cases x with
+        | zero => rfl
+        | succ y => simp only [Tm.up]; rw [h y (by simp [Tm.freeIn, hx])]),
+      ib σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx]), it σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx])]
+  | path A a b iA ia ib =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [iA _ (fun n => (σ' n).dshift) _ fun x hx => by rw [h x (by simp [Tm.freeIn, hx])],
+      ia σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx]), ib σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx])]
+  | plam A iA | ipi A iA =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [iA _ (fun n => (σ' n).dshift) _ fun x hx => by rw [h x (by simp [Tm.freeIn, hx])]]
+  | transp A φ a iA ia =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [iA _ (fun n => (σ' n).dshift) _ fun x hx => by rw [h x (by simp [Tm.freeIn, hx])],
+      ia σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx])]
+  | hcomp A φ u a iA iu ia =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [iA σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx]),
+      iu _ (fun n => (σ' n).dshift) _ fun x hx => by rw [h x (by simp [Tm.freeIn, hx])],
+      ia σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx])]
+  | app A B iA iB | pair A B iA iB | tcons A B iA iB =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [iA σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx]), iB σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx])]
+  | fst A iA | snd A iA | papp A _ iA | data _ A iA =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [iA σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx])]
+  | split _ A _ B iA iB | unglue _ A B iA iB =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [iA σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx]), iB σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx])]
+  | con _ _ A B _ iA iB =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [iA σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx]), iB σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx])]
+  | glue A _ B E iA iB iE | glueEl _ A B E iA iB iE =>
+    intro σ σ' τ h
+    simp only [Tm.subst]
+    rw [iA σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx]), iB σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx]),
+      iE σ σ' τ fun x hx => h x (by simp [Tm.freeIn, hx])]
+  | const _ | univ _ | abort | tnil => intros; rfl
+
 theorem Tm.subst_ofList (σ : ℕ → Tm) (τ : ℕ → I) : ∀ L : List Tm,
     (Tm.ofList L).subst σ τ = Tm.ofList (L.map (·.subst σ τ))
   | [] => rfl

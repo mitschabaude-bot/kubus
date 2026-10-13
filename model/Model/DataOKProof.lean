@@ -417,31 +417,6 @@ where SimpleShapeL (ctors : List Ctor) (d : ℕ) : Tm → Prop
   | .tcons a as => SimpleShape ctors d a ∧ SimpleShapeL ctors d as
   | _ => True
 
-theorem natural_simple {S : Sig} {d : ℕ} {E : DataDecl} (hd : S[d]? = some (.data E)) {ρ : IEnv m} {γ : ℕ → V}
-    (hkv : ∀ x, IsKV m (γ x)) : ∀ t, (SimpleShape E.ctors d t → Natural S t m ρ γ) ∧
-      (SimpleShape.SimpleShapeL E.ctors d t → ∀ a ∈ t.toList, Natural S a m ρ γ) := by
-  intro t
-  induction t with
-  | var x => exact ⟨fun _ k f => rfl, fun _ a ha => by simp [Tm.toList] at ha⟩
-  | con d' c' ps as rs' _ ihas =>
-    refine ⟨fun hs => ?_, fun _ a ha => by simp [Tm.toList] at ha⟩
-    obtain ⟨rfl, hlen, hsl⟩ := hs
-    have hall := ihas.2 hsl
-    intro k f
-    rw [sem_con hd, sem_con hd, res_conV, IEnv.restr_id, IEnv.restr_id, TEnv.restr_id_of_kv hkv,
-      TEnv.restr_restr, Hom.comp_id, plist_sem _ _ _ hlen, plist_sem _ _ _ hlen, List.map_map,
-      List.map_map]
-    congr 1
-    exact List.map_congr_left fun a ha => hall a ha k f
-  | tcons a as iha ihas =>
-    refine ⟨fun hs => by simp [SimpleShape] at hs, fun hs b hb => ?_⟩
-    obtain ⟨h1, h2⟩ := hs
-    simp only [Tm.toList, List.mem_cons] at hb
-    rcases hb with rfl | hb
-    · exact iha.1 h1
-    · exact ihas.2 h2 b hb
-  | _ => exact ⟨fun hs => by simp [SimpleShape] at hs, fun _ a ha => by simp [Tm.toList] at ha⟩
-
 /-! ### The argument types of the semantic data -/
 
 theorem argTyRaw_recIrr {σ : SigV} {D : DataDecl} {d : ℕ} (hsyn : DataSyn d D) {c : ℕ} {C : Ctor}
@@ -667,7 +642,6 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
     {prev : List Tm} (hpl : prev.length = k)
     (Hprev : ∀ q (hq : q < k), C'.isRec q = false → ∃ y, prev.reverse[q]'(by simp; omega) = .var y ∧
       y < C.args.length ∧ C.isRec (C.args.length - 1 - y) = false)
-    (hprevS : ∀ t ∈ prev, SimpleShape (D.truncate c).ctors S0.length t)
     {x : ℕ} (hx : x < C.args.length) (hxr : C.isRec (C.args.length - 1 - x) = false) {T : Tm}
     (hT : (D.argCtx S0.length C C.args.length).lookup x = some T)
     (heq : EqTm (S0 ++ [.data (D.truncate c)]) C.dims ψ (D.argCtx S0.length C C.args.length) T
@@ -699,28 +673,35 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
     rw [Ctor.paramVars, toList_ofList]
   have hLl : L.length = k + np := by simp [L, hpl, hPV]
   have hkv2 : ∀ y, IsKV n2 (γ2 y) := hp.kv
-  have hnat : ∀ y, Natural Sc ((fun j => L.getD j (.var (j - L.length))) y) n2 ρ2 γ2 := by
-    intro y
-    by_cases hy : y < L.length
-    · simp only [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hy, Option.getD_some]
-      by_cases hyk : y < prev.length
-      · rw [List.getElem_append_left hyk]
-        exact (natural_simple (entry_ext S0 _) hkv2 _).1 (hprevS _ (List.getElem_mem _))
-      · rw [List.getElem_append_right (by omega)]
-        simp only [hPV, List.getElem_reverse, List.getElem_map]
-        intro k' f; rfl
-    · have e : L.getD y (.var (y - L.length)) = .var (y - L.length) := by
-        simp [List.getD_eq_getElem?_getD, List.getElem?_eq_none (Nat.le_of_not_lt hy)]
-      show Natural Sc (L.getD y _) n2 ρ2 γ2
-      rw [e]; intro k' f; rfl
-  rw [harg, Tm.substList, sem_subst Sc A' n2 ρ2 γ2 _ _ hnat,
+  set σ : ℕ → Tm := fun j => L.getD j (.var (j - L.length)) with hσdef
+  set σ' : ℕ → Tm := fun j => match σ j with | .var y => .var y | _ => .var 0 with hσ'def
+  have hσvar : ∀ y, A'.freeIn y = true → ∃ z, σ y = .var z := by
+    intro y hy
+    have hyl := freeIn_lt_of_closedB A' _ 0 y hcl hy
+    simp only [hσdef, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega : y < L.length),
+      Option.getD_some]
+    by_cases hyk : y < k
+    · obtain ⟨y', hy'e, -⟩ := Hprev (k - 1 - y) (by omega) (noRecDeps_point hnr hyk hy)
+      refine ⟨y', ?_⟩
+      rw [List.getElem_append_left (by omega), ← hy'e, List.getElem_reverse]; congr 1; omega
+    · rw [List.getElem_append_right (by omega)]
+      simp only [hPV, List.getElem_reverse, List.getElem_map]
+      exact ⟨_, rfl⟩
+  have hσ' : ∀ y, A'.freeIn y = true → σ y = σ' y := by
+    intro y hy
+    obtain ⟨z, hz⟩ := hσvar y hy
+    simp only [hσ'def, hz]
+  have hnat : ∀ y, Natural Sc (σ' y) n2 ρ2 γ2 := by
+    intro y; simp only [hσ'def]; split <;> (intro k' f; rfl)
+  rw [harg, Tm.substList, ← hσdef, Tm.subst_congr_free A' σ σ' I.var hσ', sem_subst Sc A' n2 ρ2 γ2 _ _ hnat,
     sem_rho_irrel _ hcl _ (fun _ => DM.zero n2), sem_ext' S0 _ hcs hmd]
   have harg' : (D.ctors.getD c' default).argTy S0.length np k = A' := by rw [getD_ctors hC']; exact harg
   rw [argTyRaw, harg']
   refine interp_congr_free _ _ _ A' n2 _ _ _ fun y hy => ?_
   have hyl := freeIn_lt_of_closedB A' _ 0 y hcl hy
   have hnl : (nestPre pre prev).length = k := by rw [nestPre_length, hpl]
-  simp only [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega : y < L.length), Option.getD_some]
+  rw [← hσ' y hy]
+  simp only [hσdef, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega : y < L.length), Option.getD_some]
   simp only [argEnv, List.getD_eq_getElem?_getD, List.take_of_length_le (by rw [hnl] : (nestPre pre prev).length ≤ k)]
   by_cases hyk : y < k
   · have hq := noRecDeps_point hnr hyk hy
@@ -861,7 +842,7 @@ theorem bty_of_wf (hok0 : SigOK (S0 ++ [.data (D.truncate 0)]))
         rw [Ctx.lookup_eq, argCtx_lt D _ C _ x hx]; exact ⟨_, rfl⟩
       have heq := hb1 x T rfl hr hT
       have hcore := fun n2 (g : Hom n2 m) pre hpre htp => tyEq_core S0 D hsyn hC hps hokc hc hrs0 hC' hA' hpl
-        (fun q hq hrq => by obtain ⟨y, h1, h2, h3, -⟩ := Hprev q hq hrq; exact ⟨y, h1, h2, h3⟩) hprevS hx hxr hT heq
+        (fun q hq hrq => by obtain ⟨y, h1, h2, h3, -⟩ := Hprev q hq hrq; exact ⟨y, h1, h2, h3⟩) hx hxr hT heq
         g pre hpre htp
       have hgC' := getD_ctors hC'
       have hrec := ihas.2 C' c' (k + 1) (.var x :: prev) hc' hC' (by simp [Tm.toList] at hkl; omega)
