@@ -82,3 +82,5 @@ Strict positivity, the absence of nesting, and the eliminator form (no general r
 - **Boundaries:** constructors with interval arguments are glued to their boundary (simple boundaries only use earlier constructors and recursive arguments).
 - **Transport:** for simple boundaries, componentwise transport preserves the boundary, so it is well-defined on path constructors; for parameterless types transport is the identity.
 - **Eliminator:** defined by well-founded recursion on the construction of the least fixed point; the boundary premises make it well-defined on path constructors, and the `hcomp` clause is CHM's.
+
+- P5: argument lists of nested constructors in a simple boundary must end in the literal `tnil`. Otherwise a tail like a `split` of list literals passed the syntactic check but could denote a list of a different length in the model.

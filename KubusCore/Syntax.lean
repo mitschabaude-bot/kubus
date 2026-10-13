@@ -627,7 +627,8 @@ def simpleArgs (ctors : List Ctor) (d np c n : Nat) (C C' : Ctor) (k : Nat) : Tm
        | .var j => decide (j < n) && !C.isRec (n - 1 - j)
        | _ => false) &&
     simpleArgs ctors d np c n C C' (k + 1) as
-  | _ => true
+  | .tnil => true
+  | _ => false
 end
 
 end Ctor
