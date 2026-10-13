@@ -575,7 +575,66 @@ theorem sem_HasTy_glue {S : Sig} {Ψ Φ Γ A φ T e l}
 theorem sem_HasTy_glueEl {S : Sig} {Ψ Φ Γ A φ T e t a l}
     (h0 : SemTy S Ψ Φ Γ (glue A φ T e) (univ l)) (h1 : SemTy S Ψ (cof Φ φ) Γ t T) (h2 : SemTy S Ψ Φ Γ a A) (h3 : SemEq S Ψ (cof Φ φ) Γ (app (fst e) t) a A) :
     SemTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e) := by
-  sorry
+  refine ⟨h0.1, ⟨h0.2.1.2.2, h1.2.1, h2.2.1⟩, h0.2.1, fun m ρ γ hp => ?_⟩
+  obtain ⟨hGmem, hGnat, hUty, -⟩ := h0.2.2.2 m ρ γ hp
+  have hGty : TyOK S (glue A φ T e) m ρ γ := TyCode.of_mem_univ hUty hGmem
+  obtain ⟨hT, he⟩ := cond_of_sem_glue (hUty.ne_empty hGmem)
+  obtain ⟨hamem, hanat, haty, -⟩ := h2.2.2.2 m ρ γ hp
+  have hakv := haty.fib.elKV _ _ _ hamem
+  have hfp : ∀ k (f : Hom k m), (Cof.restr (ival ρ φ).face f).holds →
+      IsPoint S (cof Φ φ) Γ k (ρ.restr f) (TEnv.restr γ f) := fun k f hf =>
+    isPoint_cof_iff.2 ⟨hp.restr h0.1 f, (holds_face_restr_iff f).1 hf⟩
+  have ht : FaceNat S t φ m ρ γ := fun k f hf => (h1.2.2.2 k _ _ (hfp k f hf)).2.1
+  -- the equation `e.1 t = a` at the face points
+  have heq : ∀ k (f : Hom k m), (Cof.restr (ival ρ φ).face f).holds →
+      eqFun k (sem S e k (ρ.restr f) (TEnv.restr γ f)) (sem S t k (ρ.restr f) (TEnv.restr γ f)) =
+        res f (sem S a m ρ γ) := by
+    intro k f hf
+    have := h3.2.2 k _ _ (hfp k f hf)
+    rw [sem_app_of_nat (h1.2.2.2 k _ _ (hfp k f hf)).2.1, sem_fst] at this
+    rw [← hanat k f]; exact this
+  have hval : ∀ k (g : Hom k m), sem S (glueEl φ e t a) k (ρ.restr g) (TEnv.restr γ g) =
+      if (Cof.restr (ival ρ φ).face g).holds then sem S t k (ρ.restr g) (TEnv.restr γ g)
+      else glueV k (Cof.restr (ival ρ φ).face g)
+        (partialKV k (Cof.restr (ival ρ φ).face g) (faceVals S t (ρ.restr g) (TEnv.restr γ g)))
+        (res g (sem S a m ρ γ)) := by
+    intro k g
+    split
+    · rename_i hg
+      exact sem_glueEl_holds ((holds_face_restr_iff g).1 hg) (by rw [heq k g hg, hanat k g])
+    · rename_i hg
+      rw [sem_glueEl_not (fun h => hg ((holds_face_restr_iff g).2 h)) (by rw [hanat k g]; exact isKV_res _ _),
+        face_ival_restr, hanat k g]
+  have hval0 := hval m (Hom.id m)
+  rw [IEnv.restr_id, TEnv.restr_id_of_kv hp.kv, (isCof_ival_face ρ φ).restr_id, res_id hakv] at hval0
+  refine ⟨?_, fun k g => ?_, hGty, hGnat⟩
+  · rw [hval0]
+    split
+    · rename_i hh
+      have hh' := (holds_iff_face ρ φ).2 hh
+      rw [sem_glue_holds hp.kv hh' hT he (hT.kv_of_holds hp.kv hh')]
+      exact (h1.2.2.2 m ρ γ (isPoint_cof_iff.2 ⟨hp, hh'⟩)).1
+    · rename_i hh
+      have hh' : ¬ (ival ρ φ).holds := fun h => hh ((holds_iff_face ρ φ).1 h)
+      rw [sem_glue hT he,
+        El_glueC_id hh (isCof_ival_face ρ φ) haty.fib.kv (isKV_partialKV _ _) (isKV_partialKV _ _),
+        mem_glueElSet]
+      refine ⟨_, _, rfl, hamem, partialKV_self _ _, fun n f hf => ?_, ht.coh, fun n f hf => ?_⟩
+      · rw [dat_partialKV, if_pos hf, dat_partialKV, if_pos hf]
+        exact (h1.2.2.2 n _ _ (hfp n f hf)).1
+      · rw [dat_partialKV, if_pos hf, dat_partialKV, if_pos hf]; exact heq n f hf
+  · rw [hval k g, hval0]
+    by_cases hh : Cof.holds (ival ρ φ).face
+    · have hg : (Cof.restr (ival ρ φ).face g).holds := (isCof_ival_face ρ φ).holds_restr hh g
+      rw [if_pos hh, if_pos hg]
+      exact (ht.natural_of_holds hp.kv ((holds_iff_face ρ φ).2 hh)) k g
+    · rw [if_neg hh]
+      by_cases hg : (Cof.restr (ival ρ φ).face g).holds
+      · rw [if_pos hg, res_glueV_holds (isCof_ival_face ρ φ) hg (ht.coh k g hg) (ht.kv k g hg),
+          dat_partialKV, if_pos hg]; rfl
+      · rw [if_neg hg, res_glueV, res_partialKV]
+        congr 2
+        funext n h; exact faceVals_restr (S := S) t ρ γ g n h
 
 theorem sem_HasTy_unglue {S : Sig} {Ψ Φ Γ A φ T e g l}
     (h0 : SemTy S Ψ Φ Γ (glue A φ T e) (univ l)) (h1 : SemTy S Ψ Φ Γ A (univ l)) (h2 : SemTy S Ψ (cof Φ φ) Γ e (equiv T A)) (h3 : SemTy S Ψ Φ Γ g (glue A φ T e)) :
