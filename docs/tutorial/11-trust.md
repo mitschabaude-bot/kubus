@@ -36,6 +36,6 @@ A kernel proven sound for an inconsistent specification certifies nothing, which
 
 ## What is not verified (yet)
 
-- **Normalization and canonicity** are design goals that the theory is built for (stratified universes, strict positivity, structural recursion), but they are not proven. A proof of canonicity (every closed term of an inductive type computes to a constructor) is in progress; its current form is conditional on a compatibility hypothesis about Glue types. Consistency does not depend on it.
+- **Canonicity** is proven, conditional on one hypothesis. Every closed term of a parameterless inductive type is judgmentally equal to a canonical form: for `Nat`, a numeral. The theorem `Model.Canon.canonicity_of_glueCompat` assumes `GlueCompat`: two judgmentally equal Glue types have equal components wherever their face does not hold. It holds in the model and for every rule that equates Glue types directly. Proving it in general needs a normalization argument for types, which is open. Full **normalization** is a design goal (stratified universes, strict positivity, structural recursion) but is not proven. Consistency depends on neither.
 - **The elaborator's evaluator** is tested, not verified: `kubus --selfcheck` checks invariants on every definition, and a fuzzer generates random well-typed programs and ill-typed mutants. When the elaborator and the kernel disagree, the kernel wins.
 - **The specification** has to be read: no proof can show that it says what you mean. This is why its textbook form is kept small.

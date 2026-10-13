@@ -33,7 +33,7 @@ The library (`lib/`) proves among other things that the loop space of the circle
 
 Building the model turned up seventeen bugs in earlier versions of the specification. Three of them made it inconsistent. All are recorded in `model/README.md`.
 
-The theory is also designed to normalize: universes are stratified, data types are strictly positive and not nested, recursion is structural, and closed terms of ordinary inductive types compute to constructors. Canonicity is being formalized (`model/CANONICITY.md`).
+The theory is also designed to normalize: universes are stratified, data types are strictly positive and not nested, recursion is structural, and closed terms of ordinary inductive types compute to constructors. Canonicity is proven in Lean, conditional on one stated hypothesis about Glue types (`Model.Canon.canonicity_of_glueCompat`, `model/CANONICITY.md`). Every closed element of a parameterless inductive type is judgmentally equal to a canonical form: a numeral for `Nat`, or a constructor or formal composition for higher inductive types. The hypothesis, `GlueCompat`, says that judgmentally equal Glue types have equal components where their face doesn't hold. It is believed admissible, but not yet proven.
 
 ## Getting started
 
