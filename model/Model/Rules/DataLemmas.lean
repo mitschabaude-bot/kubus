@@ -168,6 +168,16 @@ theorem sem_argTy_subst {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) (
       (pre ++ ps.reverse).map fun t => sem S t m ρ γ := by simp [List.map_append, List.map_reverse]
   rw [List.getElem_of_eq e, List.getElem_map]
 
+theorem Ctx.lookup_eq : ∀ (Γ : Ctx) (x : ℕ), Γ.lookup x = Γ[x]?.map (fun A => A.ren (· + (x + 1)) id)
+  | [], _ => rfl
+  | A :: Γ, 0 => by simp [Ctx.lookup, Tm.shift]
+  | A :: Γ, x + 1 => by
+    simp only [Ctx.lookup, Ctx.lookup_eq Γ x, Option.map_map, List.getElem?_cons_succ]
+    congr 1; funext B
+    simp only [Function.comp, Tm.shift, Tm.ren_ren]
+    have e1 : (fun x_1 => (x_1 + (x + 1)).succ) = (fun y => y + (x + 1 + 1)) := by funext y; omega
+    rw [e1]; rfl
+
 end
 
 end Model

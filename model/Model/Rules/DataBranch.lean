@@ -443,6 +443,64 @@ theorem branchTy_eq (D : DataDecl) (d c : ℕ) (C : Ctor) (ps P : Tm) :
       (ipiN C.dims (DataDecl.branchBody d c C ps P)) := by
   simp [DataDecl.branchTy, List.foldr_append, List.foldr_map, ipiN]
 
+/-- The arguments and hypotheses of a branch have the types of the branch type's domains. -/
+theorem branch_args_mem {d : ℕ} {D : DataDecl} (hS : SigOK S) (hd : S[d]? = some (.data D)) {c : ℕ} {C : Ctor}
+    (hC : D.ctors[c]? = some C) (ps : Tm) (hpl : ps = Tm.ofList ps.toList)
+    (P : Tm) (ρ' : IEnv n) (γ' : ℕ → V) (hγ : ∀ x, IsKV n (γ' x))
+    (hpok : ParamsOK (sigUpTo S d) D n (psRV S ps n ρ' γ'))
+    (args ihs : List V)
+    (hat : (dataSD (sigUpTo S d) D d n (psRV S ps n ρ' γ')).ArgsTyped c C n (Hom.id n) args)
+    (hil : ihs.length = C.recPos.length)
+    (hih : ∀ s (hs : s < C.recPos.length), ihs[s]'(by omega) ∈
+      El (sem S P n ρ' (TEnv.cons γ' (args[C.recPos.getD s 0]'(by have := recPos_lt hs; have := hat.1; omega))))
+        (Hom.id n)) :
+    ∀ i (hi : i < (args ++ ihs).length), (args ++ ihs)[i] ∈ El (sem S
+      ((((List.range C.args.length).map (DataDecl.branchArgTy d D.params.length C ps)) ++
+        ((List.range C.recPos.length).map (DataDecl.branchIhTy C P)))[i]'(by simp [hat.1, hil] at hi ⊢; omega))
+      n ρ' (TEnv.consL γ' ((args ++ ihs).take i))) (Hom.id n) := by
+  have hok := hS.2 d D hd
+  have hl : args.length = C.args.length := hat.1
+  have hPS : psRV S ps n ρ' γ' n (Hom.id n) = sem S ps n ρ' γ' := by
+    simp only [psRV, IEnv.restr_id, TEnv.restr_id_of_kv hγ]
+  have hpsl : ps.toList.length = D.params.length := by
+    have h1 := (hpok n (Hom.id n)).1
+    rw [hPS, hpl] at h1
+    exact listLen_unique (listLen_sem_ofList _ _ _) h1
+  have hpsnat := psnat_of_paramsOK hpl hpsl hγ hpok
+  intro i hi
+  by_cases hin : i < C.args.length
+  · simp only [List.getElem_append_left (by simp; omega : i < (List.map _ (List.range C.args.length)).length),
+      List.getElem_map, List.getElem_range]
+    rw [List.getElem_append_left (by omega), List.take_append_of_le_length (by omega)]
+    cases hr : C.isRec i
+    · obtain ⟨A, hA⟩ : ∃ A, C.args[i]? = some (.point A) := by
+        cases h' : C.args[i]'hin with
+        | point A => exact ⟨A, by rw [List.getElem?_eq_getElem hin, h']⟩
+        | recur => simp [Ctor.isRec, List.getElem?_eq_getElem hin, h'] at hr
+      rw [sem_branchArgTy_point hd hok.1 hC hA ps hpl hpsl ρ' γ' _ (by simp; omega) hpsnat]
+      have := hat.2.2 i _ (List.getElem?_eq_getElem (by omega)) hr
+      show _ ∈ El (argTyRaw (sigUpTo S d) D d c i n (sem S ps n ρ' γ') (args.take i)) _
+      change _ ∈ El (argTySem (sigUpTo S d) D d c i n (psRV S ps n ρ' γ' n (Hom.id n)) (args.take i)) _ at this
+      rw [hPS, argTySem_eq] at this
+      split at this
+      · exact this
+      · simp at this
+    · have harg : C.argTy d D.params.length i = .data d (Ctor.paramVars D.params.length i) := by
+        cases h' : C.args[i]'hin with
+        | point A => simp [Ctor.isRec, List.getElem?_eq_getElem hin, h'] at hr
+        | recur => simp [Ctor.argTy, List.getElem?_eq_getElem hin, h']
+      rw [sem_branchArgTy_rec harg ps hpl hpsl ρ' γ' _ (by simp; omega), sem_data_of hd hpok, mem_El_dataC]
+      exact hat.2.1 i _ (List.getElem?_eq_getElem (by omega)) hr
+  · have hs : i - C.args.length < C.recPos.length := by simp at hi; omega
+    simp only [List.getElem_append_right (by simp; omega : (List.map _ (List.range C.args.length)).length ≤ i),
+      List.getElem_map, List.getElem_range, List.length_map, List.length_range]
+    rw [List.getElem_append_right (by omega)]
+    rw [show (args ++ ihs).take i = args ++ ihs.take (i - C.args.length) by
+      rw [List.take_append]; simp [hl, List.take_of_length_le (by omega : args.length ≤ i)]]
+    rw [sem_branchIhTy C P hs ρ' γ' args _ hl (by simp; omega)]
+    simp only [hl]
+    exact hih _ hs
+
 /-- **Branch application**: a branch applied to typed arguments, hypotheses and interval
 arguments is an element of the motive at the constructor value. -/
 theorem branch_app_mem {d : ℕ} {D : DataDecl} (hS : SigOK S) (hd : S[d]? = some (.data D)) {c : ℕ} {C : Ctor}
@@ -480,43 +538,7 @@ theorem branch_app_mem {d : ℕ} {D : DataDecl} (hS : SigOK S) (hd : S[d]? = som
       exact hgood.pt_kv hPV hj (by rw [hct, getD_ctors hC]; exact hr)
     · exact (hat.2.1 j _ (List.getElem?_eq_getElem hj) hr).kv
   rw [branchTy_eq] at hty hbv
-  have hidx : ∀ i (hi : i < (args ++ ihs).length), (args ++ ihs)[i] ∈ El (sem S
-      ((((List.range C.args.length).map (DataDecl.branchArgTy d D.params.length C ps)) ++
-        ((List.range C.recPos.length).map (DataDecl.branchIhTy C P)))[i]'(by simp at hi ⊢; omega))
-      n ρ' (TEnv.consL γ' ((args ++ ihs).take i))) (Hom.id n) := by
-    intro i hi
-    by_cases hin : i < C.args.length
-    · simp only [List.getElem_append_left (by simp; omega : i < (List.map _ (List.range C.args.length)).length),
-        List.getElem_map, List.getElem_range]
-      rw [List.getElem_append_left (by omega), List.take_append_of_le_length (by omega)]
-      cases hr : C.isRec i
-      · obtain ⟨A, hA⟩ : ∃ A, C.args[i]? = some (.point A) := by
-          cases h' : C.args[i]'hin with
-          | point A => exact ⟨A, by rw [List.getElem?_eq_getElem hin, h']⟩
-          | recur => simp [Ctor.isRec, List.getElem?_eq_getElem hin, h'] at hr
-        rw [sem_branchArgTy_point hd hok.1 hC hA ps hpl hpsl ρ' γ' _ (by simp; omega) hpsnat]
-        have := hat.2.2 i _ (List.getElem?_eq_getElem (by omega)) hr
-        show _ ∈ El (argTyRaw (sigUpTo S d) D d c i n (sem S ps n ρ' γ') (args.take i)) _
-        change _ ∈ El (argTySem (sigUpTo S d) D d c i n (psRV S ps n ρ' γ' n (Hom.id n)) (args.take i)) _ at this
-        rw [hPS, argTySem_eq] at this
-        split at this
-        · exact this
-        · simp at this
-      · have harg : C.argTy d D.params.length i = .data d (Ctor.paramVars D.params.length i) := by
-          cases h' : C.args[i]'hin with
-          | point A => simp [Ctor.isRec, List.getElem?_eq_getElem hin, h'] at hr
-          | recur => simp [Ctor.argTy, List.getElem?_eq_getElem hin, h']
-        rw [sem_branchArgTy_rec harg ps hpl hpsl ρ' γ' _ (by simp; omega), sem_data_of hd hpok, mem_El_dataC]
-        exact hat.2.1 i _ (List.getElem?_eq_getElem (by omega)) hr
-    · have hs : i - C.args.length < C.recPos.length := by simp at hi; omega
-      simp only [List.getElem_append_right (by simp; omega : (List.map _ (List.range C.args.length)).length ≤ i),
-        List.getElem_map, List.getElem_range, List.length_map, List.length_range]
-      rw [List.getElem_append_right (by omega)]
-      rw [show (args ++ ihs).take i = args ++ ihs.take (i - C.args.length) by
-        rw [List.take_append]; simp [hl, List.take_of_length_le (by omega : args.length ≤ i)]]
-      rw [sem_branchIhTy C P hs ρ' γ' args _ hl (by simp; omega)]
-      simp only [hl]
-      exact hih _ hs
+  have hidx := branch_args_mem hS hd hC ps hpl P ρ' γ' hγ hpok args ihs hat hil hih
   obtain ⟨hty2, hmem2⟩ := apps_foldr_pi _ _ γ' bv (args ++ ihs) hγ hty hbv (by simp [hl, hil]) hidx
   have hkvB : ∀ x, IsKV n (TEnv.consL γ' (args ++ ihs) x) := TEnv.consL_kv hγ (fun a ha => by
     rcases List.mem_append.1 ha with h | h

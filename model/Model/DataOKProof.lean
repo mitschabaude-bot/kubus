@@ -42,16 +42,6 @@ theorem freeIn_lt_of_closedB : ∀ (t : Tm) (n d x : ℕ), t.closedB n d = true 
     · exact it n d x h1.2 h2
   | _ => intros; simp_all [Tm.closedB, Tm.freeIn] <;> aesop
 
-theorem Ctx.lookup_eq : ∀ (Γ : Ctx) (x : ℕ), Γ.lookup x = Γ[x]?.map (fun A => A.ren (· + (x + 1)) id)
-  | [], _ => rfl
-  | A :: Γ, 0 => by simp [Ctx.lookup, Tm.shift]
-  | A :: Γ, x + 1 => by
-    simp only [Ctx.lookup, Ctx.lookup_eq Γ x, Option.map_map, List.getElem?_cons_succ]
-    congr 1; funext B
-    simp only [Function.comp, Tm.shift, Tm.ren_ren]
-    have e1 : (fun x_1 => (x_1 + (x + 1)).succ) = (fun y => y + (x + 1 + 1)) := by funext y; omega
-    rw [e1]; rfl
-
 /-! ### Signatures extended by one declaration -/
 
 section ext

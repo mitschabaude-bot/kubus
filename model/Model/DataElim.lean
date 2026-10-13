@@ -133,6 +133,37 @@ def BranchesOK (Θ : SData m) (P : (n : ℕ) → Hom n m → V → V) (bs : (k :
     Θ.ArgsTyped c C n g args → rs.length = C.dims → (ival (renv rs) ψ).holds →
     elimBranch Θ P bs n g c args rs = elimD Θ P bs n g (evalBnd (conBefore Θ.ctors c n) args rs b)
 
+
+/-- The eliminator depends on the inductive type only through its constructors: restricting
+the type, motive and branches is precomposition. -/
+theorem elimD_restr (Θ : SData m) (P : (n : ℕ) → Hom n m → V → V) (bs : (k : ℕ) → Hom k m → V) (f : Hom k m)
+    (v : V) {n : ℕ} (g : Hom n k) :
+    elimD (Θ.restr f) (fun n' g' => P n' (f.comp g')) (fun n' g' => bs n' (f.comp g')) n g v =
+      elimD Θ P bs n (f.comp g) v := by
+  rw [elimD, elimD]
+  by_cases h : RepCon Θ n v
+  · rw [dif_pos (show RepCon (Θ.restr f) n v from h), dif_pos h]
+    congr 3
+    apply List.map_congr_left
+    intro j _
+    split
+    · rw [dif_pos ‹_›]; exact elimD_restr Θ P bs f _ g
+    · rw [dif_neg ‹_›]
+  · rw [dif_neg (show ¬ RepCon (Θ.restr f) n v from h), dif_neg h]
+    by_cases h' : RepHc n v
+    · rw [dif_pos h', dif_pos h']
+      congr 1
+      · funext n' g' r
+        split
+        · exact elimD_restr Θ P bs f _ (g.comp g')
+        · rfl
+      · split
+        · exact elimD_restr Θ P bs f _ g
+        · rfl
+    · rw [dif_neg h', dif_neg h']
+termination_by ZFSet.rank v
+decreasing_by all_goals assumption
+
 end
 
 end Model
