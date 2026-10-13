@@ -345,15 +345,20 @@ theorem TGD.closed {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ
   simp only [Tm.closedB, Bool.and_eq_true] at hc
   exact ⟨hc.1.1.1, hc.1.2, hc.2⟩
 
+theorem TGD.hu0T {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) (hδ : (ival (idEnv k) δ).holds) :
+    RE S k (T.dinst .zero) u0 := by
+  obtain ⟨l, H⟩ := D.tg hW
+  have hent : I.Entails .one (cof .one δ) := ent_cof_one hW (entails_of_holds D.hδs hδ)
+  exact D.hu0.conv_ty hW (.inr ⟨l, EqTm.restrict (Φ' := .one) trivial hent
+    (minimal_to_spec_eq (H.hGTr (r := .zero) trivial))⟩)
+
 theorem L_t1' {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) (hδ : (ival (idEnv k) δ).holds) :
     RE S k (T.dinst .one) (tgT1 T ψ u0) := by
   obtain ⟨l, H⟩ := D.tg hW
   have hent : I.Entails .one (cof .one δ) := ent_cof_one hW (entails_of_holds D.hδs hδ)
   have KT := D.gl.kTT k (ISub.id (k + 1)) (D.face_line hW hδ _)
   rw [isub_id_of_closed (D.closed hW).2.1] at KT
-  refine KT ψ u0 (HasTy.restrict (Φ' := .one) trivial hent (minimal_to_spec H.ht1)) ?_
-  exact D.hu0.conv_ty hW (.inr ⟨l, EqTm.restrict (Φ' := .one) trivial hent
-    (minimal_to_spec_eq (H.hGTr (r := .zero) trivial))⟩)
+  exact KT ψ u0 (HasTy.restrict (Φ' := .one) trivial hent (minimal_to_spec H.ht1)) (D.hu0T hW hδ)
 
 /-- The filler of a heterogeneous composition along a Kan line is computable. -/
 theorem RE_fill {C u u0 : Tm} {ψ : I} {l : ℕ} (hC : KanAll S (k + 1) C) (hCt : HasTy S (k + 1) .one [] C (.univ l))
@@ -417,6 +422,121 @@ theorem RE_fill {C u u0 : Tm} {ψ : I} {l : ℕ} (hC : KanAll S (k + 1) C) (hCt 
     have e2' := EqTm.restrict (Φ' := .one) trivial (ent_and_intro (by rw [I_shift_cons]; exact hent) hn) e2
     rw [eT, dshift_isub_cons, dshift_isub_tail] at e2'
     exact (hu0.isub hW σ.tail).conv hW (.inr ⟨l, e2'.symm⟩) e1.symm
+
+theorem RE_app_fst {X Y e x : Tm} (he : RE S k (Tm.equiv X Y) e) (hx : RE S k X x) :
+    RE S k Y (.app (.fst e) x) := by
+  unfold Tm.equiv at he
+  have h := RE_pi_elim hW (RE_sigma_elim hW he).1 hx
+  rwa [shift_inst] at h
+
+theorem TGD.eqvAt {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) (hδ : (ival (idEnv k) δ).holds)
+    (ρ : ISub k' (k + 1)) : RE S k' (Tm.equiv (T.isub ρ) (A.isub ρ)) (e.isub ρ) :=
+  D.gl.eqv k' ρ (D.face_line hW hδ ρ)
+
+include hGC in
+theorem L_fillA {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) :
+    RE S (k + 1) A (Tm.fill A ψ (tgTube φ e u0) (tgA0 φ e u0)) := by
+  obtain ⟨l, H⟩ := D.tg hW
+  refine RE_fill hW D.gl.kA (minimal_to_spec H.hA) H.hψ (minimal_to_spec H.htube) (minimal_to_spec H.ha0)
+    (minimal_to_spec_eq H.htube_side) (fun k' σ r hr hh => ?_) (L_a0 hW hGC D)
+  rw [tgTube_isub]
+  exact L_tube0 hW hGC (D.isub hW σ) r hr hh
+
+theorem L_tfT {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) (hδ : (ival (idEnv k) δ).holds) :
+    RE S (k + 1) T (Tm.transpFill T ψ u0) := by
+  obtain ⟨l, H⟩ := D.tg hW
+  have hent : I.Entails .one (cof .one δ) := ent_cof_one hW (entails_of_holds D.hδs hδ)
+  exact RE_transpFill hW (fun k' ρ => D.gl.kTT k' ρ (D.face_line hW hδ ρ))
+    (HasTy.restrict (Φ' := .one) trivial hent (minimal_to_spec H.ht1)) (D.hu0T hW hδ)
+
+omit hW in
+theorem sk2_isub (X : Tm) (σ : ISub k' k) {s r : I} (hs : s.Scoped k') (hr : r.Scoped k') :
+    (X.dsubst (sk (.var 0) 2)).isub (ISub.cons s hs (ISub.cons r hr σ)) = X.isub (ISub.cons s hs σ) := by
+  simp only [Tm.isub, Tm.dsubst, subst_subst]; congr 1; funext i; rcases i with _ | i <;> rfl
+
+omit hW in
+theorem tgSys_isub (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (r : I) (σ : ISub k' k) {s : I}
+    (hs : s.Scoped k') (hr : (r.subst σ.τ).Scoped k') :
+    (((tgSys A φ T e ψ u0).subst Tm.var (I.up (I.inst0 r))).isub σ.up).dinst s =
+      (tgSys A φ T e ψ u0).isub (ISub.cons s hs (ISub.cons (r.subst σ.τ) hr σ)) := by
+  simp only [Tm.isub, Tm.dinst, Tm.dsubst, subst_subst]
+  congr 1; funext i; rcases i with _ | _ | i
+  · rfl
+  · show ((r.shift).subst (I.up σ.τ)).subst (I.inst0 s) = r.subst σ.τ
+    rw [I_shift_subst_up, I_shift_inst0]
+  · show (((σ.τ i).shift).subst (I.inst0 s)) = σ.τ i
+    rw [I_shift_inst0]
+
+omit hW in
+theorem tgSys'_isub (e : Tm) (ψ : I) (u0 F G : Tm) (σ : ISub k' k) {s r : I} (hs : s.Scoped k') (hr : r.Scoped k') :
+    (tgSys' e ψ u0 F G).isub (ISub.cons s hs (ISub.cons r hr σ)) =
+      .split (ψ.subst σ.τ) (.app (.fst (e.isub (ISub.cons s hs σ))) (u0.isub σ)) (.or (.neg r) r)
+        (.split (.neg r) (.app (.fst (e.isub (ISub.cons s hs σ))) (F.isub (ISub.cons s hs σ))) r
+          (G.isub (ISub.cons s hs σ))) := by
+  show Tm.split (ψ.shift.shift.subst _) (.app (.fst ((e.dsubst (sk (.var 0) 2)).isub _))
+      (u0.dshift.dshift.isub (ISub.cons s hs (ISub.cons r hr σ)))) _
+    (.split _ (.app (.fst ((e.dsubst (sk (.var 0) 2)).isub _)) ((F.dsubst (sk (.var 0) 2)).isub _)) _
+      ((G.dsubst (sk (.var 0) 2)).isub _)) = _
+  rw [I_shift_cons, I_shift_cons, sk2_isub, sk2_isub, sk2_isub, dshift_isub_cons, dshift_isub_cons]
+  rfl
+
+include hGC in
+/-- The body of `ω`, at a point of the path. -/
+theorem L_body {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) (hδ : (ival (idEnv k) δ).holds)
+    (r : I) (hr : r.Scoped k) :
+    RE S k (A.dinst .one) (Tm.comp A (.or ψ (.or (.neg r) r)) ((tgSys A φ T e ψ u0).subst Tm.var (I.up (I.inst0 r)))
+      (.app (.fst (e.dinst .zero)) u0)) := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l, H⟩ := D.tg hW
+  obtain ⟨hAc, hTc, hec⟩ := D.closed hW
+  have hentδ : I.Entails .one (cof .one δ) := ent_cof_one hW (entails_of_holds D.hδs hδ)
+  have hb := HasTy0.dsubst hS (Ψ := k) (Φ := cof .one δ) (Γ := []) H.hbody (r := r) hr
+  rw [tgBody_dinst, Meta.dshift_dinst] at hb
+  have hty := HasTy.restrict (Φ' := .one) trivial hentδ (minimal_to_spec hb)
+  refine RE_comp hW D.gl.kA hty (fun k' σ s hs hh => ?_) ?_
+  swap
+  · have he0 := D.eqvAt hW hδ (ISub.cons .zero trivial (ISub.id k))
+    rw [isub_cons_id_dinst hW hTc, isub_cons_id_dinst hW hAc, isub_cons_id_dinst hW hec] at he0
+    exact RE_app_fst hW he0 (D.hu0T hW hδ)
+  have hr' : (r.subst σ.τ).Scoped k' := I.scoped_subst hr σ.sc
+  rw [tgSys_isub A φ T e ψ u0 r σ hs hr', isub_up_dinst _ _ _ hs]
+  have hsys := HasTy.isubF hW (show ((cof (cof .one δ).shift (tgChi ψ)).shift).Scoped (k + 1 + 1) from
+    I.scoped_shift ⟨I.scoped_shift ⟨trivial, D.hδs⟩, I.scoped_shift H.hψ, show 0 < k + 1 by omega,
+      show 0 < k + 1 by omega⟩) (minimal_to_spec H.hsys) (ISub.cons s hs (ISub.cons (r.subst σ.τ) hr' σ))
+  have hchi : (tgChi ψ).subst (ISub.cons (r.subst σ.τ) hr' σ).τ = (I.or ψ (.or (.neg r) r)).subst σ.τ := by
+    show I.or (ψ.shift.subst _) _ = _; rw [I_shift_cons]; rfl
+  have hctx : I.Entails .one (((cof (cof .one δ).shift (tgChi ψ)).shift).subst
+      (ISub.cons s hs (ISub.cons (r.subst σ.τ) hr' σ)).τ) := by
+    rw [I_shift_cons]
+    show I.Entails .one (I.and (((cof .one δ).shift).subst _) ((tgChi ψ).subst _))
+    rw [I_shift_cons, hchi]
+    exact ent_and_intro (ent_subst hentδ σ.τ)
+      (entails_of_holds (I.scoped_subst (show (I.or ψ (.or (.neg r) r)).Scoped k from ⟨H.hψ, hr, hr⟩) σ.sc) hh)
+  have hsys' := HasTy.restrict (Φ' := .one) trivial hctx hsys
+  rw [sk2_isub] at hsys'
+  unfold tgSys at hsys' ⊢
+  rw [tgSys'_isub] at hsys' ⊢
+  rcases holds_or hh with h1 | h23
+  · have e1 := EqTm.splitL (entails_of_holds (I.scoped_subst H.hψ σ.sc) h1) hsys'
+    have hu0σ := (D.hu0T hW hδ).isub hW σ
+    rw [dinst_isub T .zero σ trivial] at hu0σ
+    have ec := EqTm.isubF hW (show ((cof (cof .one δ) ψ).shift).Scoped (k + 1) from
+      I.scoped_shift ⟨⟨trivial, D.hδs⟩, H.hψ⟩) (minimal_to_spec_eq H.hconstT) (ISub.cons s hs σ)
+    rw [I_shift_cons] at ec
+    have ec' := EqTm.restrict (Φ' := .one) trivial
+      (ent_and_intro (ent_subst hentδ σ.τ) (entails_of_holds (I.scoped_subst H.hψ σ.sc) h1)) ec
+    rw [dshift_isub_cons, dinst_isub T .zero σ trivial] at ec'
+    have hu0s := hu0σ.conv_ty hW (.inr ⟨l, ec'.symm⟩)
+    exact (RE_app_fst hW (D.eqvAt hW hδ (ISub.cons s hs σ)) hu0s).conv hW (TyEq.refl _) e1.symm
+  · have hs23 : (I.or (.neg (r.subst σ.τ)) (r.subst σ.τ)).Scoped k' := ⟨hr', hr'⟩
+    have e1 := EqTm.splitR (entails_of_holds hs23 h23) hsys'
+    have hin := HasTy.eqR e1
+    rcases holds_or h23 with h2 | h3
+    · have e2 := EqTm.splitL (entails_of_holds (show (I.neg (r.subst σ.τ)).Scoped k' from hr') h2) hin
+      exact (RE_app_fst hW (D.eqvAt hW hδ (ISub.cons s hs σ)) ((L_tfT hW D hδ).isub hW _)).conv hW (TyEq.refl _)
+        (e1.trans e2).symm
+    · have e2 := EqTm.splitR (entails_of_holds hr' h3) hin
+      exact ((L_fillA hW hGC D).isub hW _).conv hW (TyEq.refl _) (e1.trans e2).symm
 
 end
 
