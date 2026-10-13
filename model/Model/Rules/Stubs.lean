@@ -51,7 +51,7 @@ theorem sem_HasTy_restrict {S : Sig} {Ψ Φ Φ' Γ t A}
 theorem sem_HasTy_const {S : Sig} {Ψ Φ Γ k t A}
     (hS : SigOK S) (h0 : SemWf S Ψ Φ Γ) (h1 : S[k]? = some (t, A)) :
     SemTy S Ψ Φ Γ (const k) A := by
-  sorry
+  exact hS.const_sem h1 h0 _ (fun m ρ γ => (hS.const h1).2.2.2.2 m ρ γ |>.1) (hS.const h1).1
 
 theorem sem_HasTy_wk {S : Sig} {Ψ Φ Γ t A B l}
     (h0 : SemTy S Ψ Φ Γ B (univ l)) (h1 : SemTy S Ψ Φ Γ t A) :
@@ -496,7 +496,9 @@ theorem sem_EqTm_dsubst {S : Sig} {Ψ Φ Γ t t' A r}
 theorem sem_EqTm_delta {S : Sig} {Ψ Φ Γ k t A}
     (hS : SigOK S) (h0 : SemTy S Ψ Φ Γ (const k) A) (h1 : S[k]? = some (t, A)) :
     SemEq S Ψ Φ Γ (const k) t A := by
-  sorry
+  obtain ⟨-, ht, -, -, hsem⟩ := hS.const h1
+  refine ⟨h0, hS.const_sem h1 h0.1 _ (fun m ρ γ => (hsem m ρ γ).2.1) (ht.mono (hS.const h1).1.le),
+    fun m ρ γ _ => by rw [(hsem m ρ γ).1, (hsem m ρ γ).2.1]⟩
 
 theorem sem_EqTm_absurd {S : Sig} {Ψ Φ Γ t u A}
     (h0 : I.Entails Φ .zero) (h1 : SemTy S Ψ Φ Γ t A) (h2 : SemTy S Ψ Φ Γ u A) :

@@ -927,3 +927,243 @@ theorem sndV_empty : sndV m (∅ : V) = ∅ := by simp only [sndV, here, dat_emp
 end
 
 end Model
+
+/-! ### Constants: closedness and signature weakening -/
+
+namespace Model
+
+open KubusCore
+
+noncomputable section
+
+attribute [local instance] Classical.propDecidable
+
+variable {S : Sig} {k m n : ℕ}
+
+theorem ival_congr_scoped {r : I} {d : ℕ} (hr : r.Scoped d) {ρ ρ' : IEnv m} (h : ∀ i < d, ρ i = ρ' i) :
+    ival ρ r = ival ρ' r := by
+  ext p; simp only [ival.fn]
+  exact Cof.eval_congr hr fun i hi => by rw [h i hi]
+
+/-- The denotation of a term only depends on the variables in scope. -/
+theorem interp_congr_closed (cst uc : ℕ → ℕ → V) (good : ℕ → V → Prop) :
+    ∀ (t : Tm) (n d : ℕ), t.closedB n d = true → ∀ (m : ℕ) (ρ ρ' : IEnv m) (γ γ' : ℕ → V),
+      (∀ i < d, ρ i = ρ' i) → (∀ x < n, γ x = γ' x) →
+      interp cst uc good t m ρ γ = interp cst uc good t m ρ' γ' := by
+  have hR : ∀ {m k d} {ρ ρ' : IEnv m} (f : Hom k m), (∀ i < d, ρ i = ρ' i) →
+      ∀ i < d, ρ.restr f i = ρ'.restr f i := fun f h i hi => by simp [IEnv.restr, h i hi]
+  have hE : ∀ {m d} {ρ ρ' : IEnv m}, (∀ i < d, ρ i = ρ' i) → ∀ i < d + 1, ρ.ext i = ρ'.ext i := by
+    intro m d ρ ρ' h i hi; cases i with
+    | zero => rfl
+    | succ i => simp [IEnv.ext, h i (by omega)]
+  have hC : ∀ {m d} {ρ ρ' : IEnv m} (r : DM m), (∀ i < d, ρ i = ρ' i) →
+      ∀ i < d + 1, ρ.cons r i = ρ'.cons r i := by
+    intro m d ρ ρ' r h i hi; cases i with
+    | zero => rfl
+    | succ i => simp [IEnv.cons, h i (by omega)]
+  have gR : ∀ {m k n} {γ γ' : ℕ → V} (f : Hom k m), (∀ x < n, γ x = γ' x) →
+      ∀ x < n, TEnv.restr γ f x = TEnv.restr γ' f x := fun f h x hx => by simp [TEnv.restr, h x hx]
+  have gC : ∀ {n} {γ γ' : ℕ → V} (a : V), (∀ x < n, γ x = γ' x) →
+      ∀ x < n + 1, TEnv.cons γ a x = TEnv.cons γ' a x := by
+    intro n γ γ' a h x hx; cases x with
+    | zero => rfl
+    | succ x => simp [TEnv.cons, h x (by omega)]
+  have iv : ∀ {m d} {ρ ρ' : IEnv m} {r : I}, r.scopedB d = true → (∀ i < d, ρ i = ρ' i) →
+      ival ρ r = ival ρ' r := fun hr h => ival_congr_scoped ((I.scopedB_iff _ _).1 hr) h
+  intro t
+  induction t with
+  | var x =>
+    intro n d hc m ρ ρ' γ γ' _ hg
+    simp only [Tm.closedB, decide_eq_true_eq] at hc; exact hg x hc
+  | const _ | univ _ | abort => intros; rfl
+  | pi A B iA iB | sigma A B iA iB =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    have eA := iA n d hc.1 m ρ ρ' γ γ' hρ hg
+    have eB : ∀ k (f : Hom k m) a, interp cst uc good B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a) =
+        interp cst uc good B k (ρ'.restr f) (TEnv.cons (TEnv.restr γ' f) a) := fun k f a =>
+      iB (n + 1) d hc.2 k _ _ _ _ (hR f hρ) (gC a (gR f hg))
+    simp only [interp, eA, eB]
+  | lam A B iA iB =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    have eA := iA n d hc.1 m ρ ρ' γ γ' hρ hg
+    have eB : ∀ k (f : Hom k m) a, interp cst uc good B k (ρ.restr f) (TEnv.cons (TEnv.restr γ f) a) =
+        interp cst uc good B k (ρ'.restr f) (TEnv.cons (TEnv.restr γ' f) a) := fun k f a =>
+      iB (n + 1) d hc.2 k _ _ _ _ (hR f hρ) (gC a (gR f hg))
+    simp only [interp, eA, eB]
+  | app A B iA iB =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    have eA := iA n d hc.1 m ρ ρ' γ γ' hρ hg
+    have eB : ∀ k (f : Hom k m), interp cst uc good B k (ρ.restr f) (TEnv.restr γ f) =
+        interp cst uc good B k (ρ'.restr f) (TEnv.restr γ' f) := fun k f =>
+      iB n d hc.2 k _ _ _ _ (hR f hρ) (gR f hg)
+    have eB' := iB n d hc.2 m ρ ρ' γ γ' hρ hg
+    simp only [interp, eA, eB, eB']
+  | pair A B iA iB =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    simp only [interp, iA n d hc.1 m ρ ρ' γ γ' hρ hg, iB n d hc.2 m ρ ρ' γ γ' hρ hg]
+  | fst p ip | snd p ip =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB] at hc
+    simp only [interp, ip n d hc m ρ ρ' γ γ' hρ hg]
+  | path A a b iA ia ib =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    simp only [interp, iA n (d + 1) hc.1.1 (m + 1) _ _ _ _ (hE hρ) (gR (Hom.wk m) hg),
+      ia n d hc.1.2 m ρ ρ' γ γ' hρ hg, ib n d hc.2 m ρ ρ' γ γ' hρ hg]
+  | ipi A iA =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB] at hc
+    simp only [interp, iA n (d + 1) hc (m + 1) _ _ _ _ (hE hρ) (gR (Hom.wk m) hg)]
+  | plam A iA =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB] at hc
+    have e : ∀ k (g : Hom k (m + 1)), interp cst uc good A k (ρ.ext.restr g) (TEnv.restr (TEnv.restr γ (Hom.wk m)) g) =
+        interp cst uc good A k (ρ'.ext.restr g) (TEnv.restr (TEnv.restr γ' (Hom.wk m)) g) := fun k g =>
+      iA n (d + 1) hc k _ _ _ _ (hR g (hE hρ)) (gR g (gR (Hom.wk m) hg))
+    simp only [interp, e, iA n (d + 1) hc (m + 1) _ _ _ _ (hE hρ) (gR (Hom.wk m) hg)]
+  | papp p r ip =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    simp only [interp, ip n d hc.1 m ρ ρ' γ γ' hρ hg, iv hc.2 hρ]
+  | split φ t ψ u it iu =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    simp only [interp, it n d hc.1.1.2 m ρ ρ' γ γ' hρ hg, iu n d hc.2 m ρ ρ' γ γ' hρ hg,
+      iv hc.1.1.1 hρ, iv hc.1.2 hρ]
+  | transp A φ a iA ia =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    simp only [interp, iA n (d + 1) hc.1.1 (m + 1) _ _ _ _ (hE hρ) (gR (Hom.wk m) hg),
+      ia n d hc.2 m ρ ρ' γ γ' hρ hg, iv hc.1.2 hρ]
+  | hcomp A φ u a iA iu ia =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    have e : ∀ k (h : Hom k m) r, interp cst uc good u k ((ρ.restr h).cons r) (TEnv.restr γ h) =
+        interp cst uc good u k ((ρ'.restr h).cons r) (TEnv.restr γ' h) := fun k h r =>
+      iu n (d + 1) hc.1.2 k _ _ _ _ (hC r (hR h hρ)) (gR h hg)
+    simp only [interp, e, iA n d hc.1.1.1 m ρ ρ' γ γ' hρ hg, ia n d hc.2 m ρ ρ' γ γ' hρ hg,
+      iv hc.1.1.2 hρ]
+  | glue A φ T e iA iT ie =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    have eT : ∀ k (f : Hom k m), interp cst uc good T k (ρ.restr f) (TEnv.restr γ f) =
+        interp cst uc good T k (ρ'.restr f) (TEnv.restr γ' f) := fun k f =>
+      iT n d hc.1.2 k _ _ _ _ (hR f hρ) (gR f hg)
+    have ee : ∀ k (f : Hom k m), interp cst uc good e k (ρ.restr f) (TEnv.restr γ f) =
+        interp cst uc good e k (ρ'.restr f) (TEnv.restr γ' f) := fun k f =>
+      ie n d hc.2 k _ _ _ _ (hR f hρ) (gR f hg)
+    simp only [interp, eT, ee, iA n d hc.1.1.1 m ρ ρ' γ γ' hρ hg, iv hc.1.1.2 hρ]
+  | glueEl φ e t a ie it ia =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    have et : ∀ k (f : Hom k m), interp cst uc good t k (ρ.restr f) (TEnv.restr γ f) =
+        interp cst uc good t k (ρ'.restr f) (TEnv.restr γ' f) := fun k f =>
+      it n d hc.1.2 k _ _ _ _ (hR f hρ) (gR f hg)
+    simp only [interp, et, ie n d hc.1.1.2 m ρ ρ' γ γ' hρ hg, it n d hc.1.2 m ρ ρ' γ γ' hρ hg,
+      ia n d hc.2 m ρ ρ' γ γ' hρ hg, iv hc.1.1.1 hρ]
+  | unglue φ e g ie ig =>
+    intro n d hc m ρ ρ' γ γ' hρ hg
+    simp only [Tm.closedB, Bool.and_eq_true] at hc
+    simp only [interp, ie n d hc.1.2 m ρ ρ' γ γ' hρ hg, ig n d hc.2 m ρ ρ' γ γ' hρ hg, iv hc.1.1 hρ]
+
+
+theorem _root_.KubusCore.Tm.ConstsLt.mono {k n : ℕ} (hkn : k ≤ n) :
+    ∀ {t : Tm}, t.ConstsLt k → t.ConstsLt n := by
+  intro t; induction t <;> simp_all [Tm.ConstsLt] <;> omega
+
+/-- The denotation of a term only depends on the constants it mentions. -/
+theorem interp_congr_cst {cst cst' : ℕ → ℕ → V} (uc : ℕ → ℕ → V) (good : ℕ → V → Prop) {n : ℕ}
+    (hc : ∀ m j, j < n → cst m j = cst' m j) :
+    ∀ (t : Tm), t.ConstsLt n → interp cst uc good t = interp cst' uc good t := by
+  intro t
+  induction t with
+  | const j => intro h; funext m ρ γ; exact hc m j h
+  | var _ | univ _ | abort => intro _; rfl
+  | pi _ _ iA iB | sigma _ _ iA iB | lam _ _ iA iB | app _ _ iA iB | pair _ _ iA iB =>
+    intro h; funext m ρ γ; simp only [interp]; rw [iA h.1, iB h.2]
+  | fst _ ip | snd _ ip | plam _ ip | ipi _ ip | papp _ _ ip =>
+    intro h; funext m ρ γ; simp only [interp]; rw [ip h]
+  | unglue _ _ _ ie ig => intro h; funext m ρ γ; simp only [interp]; rw [ie h.1, ig h.2]
+  | path _ _ _ iA ia ib | hcomp _ _ _ _ iA ia ib | glue _ _ _ _ iA ia ib | glueEl _ _ _ _ iA ia ib =>
+    intro h; funext m ρ γ; simp only [interp]; rw [iA h.1, ia h.2.1, ib h.2.2]
+  | split _ _ _ _ it iu | transp _ _ _ it iu =>
+    intro h; funext m ρ γ; simp only [interp]; rw [it h.1, iu h.2]
+
+theorem cstFn_take {S : Sig} {k : ℕ} (hk : k ≤ S.length) :
+    ∀ j, j < k → ∀ m, cstFn (S.take k) m j = cstFn S m j := by
+  intro j
+  induction j using Nat.strong_induction_on with
+  | _ j ih =>
+    intro hj m
+    have hjS : j < S.length := by omega
+    have hjT : j < (S.take k).length := by simp; omega
+    rw [cstFn, cstFn, dif_pos hjT, dif_pos hjS]
+    have hfun : (fun m' j' => if j' < j then cstFn (S.take k) m' j' else ∅) =
+        (fun m' j' => if j' < j then cstFn S m' j' else ∅) := by
+      funext m' j'; split_ifs with h
+      · exact ih j' h (by omega) m'
+      · rfl
+    rw [hfun, List.getElem_take]
+
+theorem cstFn_eq {S : Sig} {k : ℕ} {t A : Tm} (h : S[k]? = some (t, A)) (ht : t.ConstsLt k) (m : ℕ) :
+    cstFn S m k = sem S t m (fun _ => DM.zero m) (fun _ => emptyC m) := by
+  obtain ⟨hk, hS⟩ := List.getElem?_eq_some_iff.1 h
+  rw [cstFn, dif_pos hk, hS]
+  exact congrFun (congrFun (congrFun (interp_congr_cst _ _ (fun m j hj => if_pos hj) t ht) m) _) _
+
+theorem sem_take {S : Sig} {k : ℕ} (hk : k ≤ S.length) {t : Tm} (ht : t.ConstsLt k) :
+    sem (S.take k) t = sem S t := by
+  have : (S.take k).length = k := by simp; omega
+  exact interp_congr_cst _ _ (fun m j hj => cstFn_take hk j hj m) t ht
+
+theorem sem_closed {S : Sig} {t : Tm} (ht : t.closedB 0 0 = true) {m : ℕ} (ρ ρ' : IEnv m) (γ γ' : ℕ → V) :
+    sem S t m ρ γ = sem S t m ρ' γ' :=
+  interp_congr_closed _ _ _ t 0 0 ht m ρ ρ' γ γ' (by simp) (by simp)
+
+
+/-- The base point of the empty context. -/
+theorem isPoint_base (S : Sig) (m : ℕ) : IsPoint S .one [] m (fun _ => DM.zero m) (fun _ => emptyC m) :=
+  ⟨by simp [DM.holds, ival.fn, I.eval], fun x A h => by simp [Ctx.lookup] at h, fun _ => isKV_mkKV _⟩
+
+/-- What a valid signature says about a constant: its body and type are interpreted in the
+prefix signature at the base point. -/
+theorem SigOK.const {S : Sig} (hS : SigOK S) {k : ℕ} {t A : Tm} (h : S[k]? = some (t, A)) :
+    k < S.length ∧ t.ConstsLt k ∧ A.ConstsLt k ∧ SemTy (S.take k) 0 .one [] t A ∧
+    ∀ m (ρ : IEnv m) γ,
+      sem S (.const k) m ρ γ = sem (S.take k) t m (fun _ => DM.zero m) (fun _ => emptyC m) ∧
+      sem S t m ρ γ = sem (S.take k) t m (fun _ => DM.zero m) (fun _ => emptyC m) ∧
+      sem S A m ρ γ = sem (S.take k) A m (fun _ => DM.zero m) (fun _ => emptyC m) := by
+  obtain ⟨hk, -⟩ := List.getElem?_eq_some_iff.1 h
+  obtain ⟨hct, hcA, hT⟩ := hS k t A h
+  have hlen : (S.take k).length = k := by simp; omega
+  have ht : t.ConstsLt k := hlen ▸ hT.2.1
+  have hA : A.ConstsLt k := hlen ▸ hT.2.2.1
+  refine ⟨hk, ht, hA, hT, fun m ρ γ => ?_⟩
+  rw [sem_take hk.le ht, sem_take hk.le hA]
+  refine ⟨?_, sem_closed hct _ _ _ _, sem_closed hcA _ _ _ _⟩
+  show cstFn S m k = _
+  exact cstFn_eq h ht m
+
+theorem SigOK.const_sem {S : Sig} (hS : SigOK S) {k : ℕ} {t A : Tm} (h : S[k]? = some (t, A))
+    {Ψ : ℕ} {Φ : I} {Γ : Ctx} (hw : SemWf S Ψ Φ Γ) (e : Tm)
+    (he : ∀ m (ρ : IEnv m) γ,
+      sem S e m ρ γ = sem (S.take k) t m (fun _ => DM.zero m) (fun _ => emptyC m)) (hc : e.ConstsLt S.length) :
+    SemTy S Ψ Φ Γ e A := by
+  obtain ⟨hk, -, hA, hT, hsem⟩ := hS.const h
+  refine ⟨hw, hc, hA.mono hk.le, fun m ρ γ _ => ?_⟩
+  obtain ⟨hmem, hnat, hty, hnatA⟩ := hT.2.2.2 m _ _ (isPoint_base _ m)
+  have hcl := hS k t A h
+  refine ⟨?_, fun k' f => ?_, ?_, fun k' f => ?_⟩
+  · rw [he, (hsem m ρ γ).2.2]; exact hmem
+  · rw [he, he, ← hnat k' f]
+    exact sem_closed hcl.1 _ _ _ _
+  · unfold TyOK; rw [(hsem m ρ γ).2.2]; exact hty
+  · rw [(hsem k' _ _).2.2, (hsem m ρ γ).2.2, ← hnatA k' f]
+    exact sem_closed hcl.2.1 _ _ _ _
+end
+
+end Model

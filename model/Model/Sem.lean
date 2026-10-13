@@ -36,7 +36,7 @@ constants before `k`. -/
 def cstFn (S : Sig) (m : ℕ) (k : ℕ) : V :=
   if h : k < S.length then
     interp (fun m' j => if j < k then cstFn S m' j else ∅) univC TyCode (S[k]'h).1 m (fun _ => DM.zero m)
-      (fun _ => ∅)
+      (fun _ => emptyC m)
   else ∅
 termination_by k
 decreasing_by assumption
@@ -49,7 +49,8 @@ def _root_.KubusCore.Tm.ConstsLt (n : ℕ) : Tm → Prop
   | .var _ | .univ _ | .abort => True
   | .const k => k < n
   | .pi A B | .sigma A B | .lam A B | .app A B | .pair A B => A.ConstsLt n ∧ B.ConstsLt n
-  | .fst p | .snd p | .plam p | .ipi p | .papp p _ | .unglue _ _ p => p.ConstsLt n
+  | .fst p | .snd p | .plam p | .ipi p | .papp p _ => p.ConstsLt n
+  | .unglue _ e g => e.ConstsLt n ∧ g.ConstsLt n
   | .path A a b => A.ConstsLt n ∧ a.ConstsLt n ∧ b.ConstsLt n
   | .split _ t _ u => t.ConstsLt n ∧ u.ConstsLt n
   | .transp A _ a => A.ConstsLt n ∧ a.ConstsLt n
