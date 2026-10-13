@@ -212,7 +212,98 @@ partial def forceHead? (v : Val) : M (Option Val) := do
   | .unglue u b sys => match ← forceHead? u with
     | some u' => some <$> unglueV u' b sys
     | none => pure none
+  -- a composition stuck on a metavariable in its type: recompute it
+  | .comp .. => refresh? v
   | _ => pure none
+
+/-- Plug in solved metavariables everywhere in a value (`none` if there are none). Values
+computed while a metavariable was unsolved can be stuck on it; this recomputes them. -/
+partial def refresh? (v : Val) : M (Option Val) := do
+  let r := refresh?
+  let rs (sys : System Val) : M (Option (System Val)) := do
+    let parts ← sys.mapM fun (α, u) => return (α, u, ← r u)
+    if parts.all (·.2.2.isNone) then return none
+    return some (parts.map fun (α, u, u') => (α, u'.getD u))
+  let re (env : Env) : M (Option Env) := do
+    let parts ← env.mapM fun e => match e with
+      | .v u => return (e, (← r u).map EnvE.v)
+      | .d _ => return (e, none)
+    if parts.all (·.2.isNone) then return none
+    return some (parts.map fun (e, e') => e'.getD e)
+  let rl (vs : List Val) : M (Option (List Val)) := do
+    let parts ← vs.mapM fun u => return (u, ← r u)
+    if parts.all (·.2.isNone) then return none
+    return some (parts.map fun (u, u') => u'.getD u)
+  match v with
+  | .univ _ | .var .. => pure none
+  | .gvar n _ =>
+    match metaId? n with
+    | some m => match (← get).metas[m]?.bind (·.solV) with
+      | some s => return some ((← r s).getD s)
+      | none => pure none
+    | none => pure none
+  | .pi x a env b => do
+    let a' ← r a; let env' ← re env
+    if a'.isNone && env'.isNone then return none
+    return some (.pi x (a'.getD a) (env'.getD env) b)
+  | .sigma x a env b => do
+    let a' ← r a; let env' ← re env
+    if a'.isNone && env'.isNone then return none
+    return some (.sigma x (a'.getD a) (env'.getD env) b)
+  | .lam x env b => return (← re env).map (.lam x · b)
+  | .split f k env => return (← re env).map (.split f k ·)
+  | .pair a b => do
+    let a' ← r a; let b' ← r b
+    if a'.isNone && b'.isNone then return none
+    return some (.pair (a'.getD a) (b'.getD b))
+  | .piI l => return (← r l).map .piI
+  | .pathP l a b => do
+    let l' ← r l; let a' ← r a; let b' ← r b
+    if l'.isNone && a'.isNone && b'.isNone then return none
+    return some (.pathP (l'.getD l) (a'.getD a) (b'.getD b))
+  | .plam i b => return (← r b).map (.plam i ·)
+  | .data d k ps => return (← rl ps).map (.data d k ·)
+  | .con c as => return (← rl as).map (.con c ·)
+  | .pcon c as ds => return (← rl as).map (.pcon c · ds)
+  | .hcompF ty u sys => do
+    let ty' ← r ty; let u' ← r u; let sys' ← rs sys
+    if ty'.isNone && u'.isNone && sys'.isNone then return none
+    return some (← mkHCompF (ty'.getD ty) (u'.getD u) (sys'.getD sys))
+  | .glueTy b sys => do
+    let b' ← r b; let sys' ← rs sys
+    if b'.isNone && sys'.isNone then return none
+    return some (← mkGlueTy (b'.getD b) (sys'.getD sys))
+  | .glue a sys => do
+    let a' ← r a; let sys' ← rs sys
+    if a'.isNone && sys'.isNone then return none
+    return some (← mkGlue (a'.getD a) (sys'.getD sys))
+  | .compU b sys => do
+    let b' ← r b; let sys' ← rs sys
+    if b'.isNone && sys'.isNone then return none
+    return some (← mkCompU (b'.getD b) (sys'.getD sys))
+  | .app f a => do
+    let f' ← r f; let a' ← r a
+    if f'.isNone && a'.isNone then return none
+    return some (← app (f'.getD f) (a'.getD a))
+  | .fst p => do return (← (← r p).mapM fstV)
+  | .snd p => do return (← (← r p).mapM sndV)
+  | .papp p s => do return (← (← r p).mapM (papp · s))
+  | .splitApp f k env a => do
+    let env' ← re env; let a' ← r a
+    if env'.isNone && a'.isNone then return none
+    return some (← splitApp f k (env'.getD env) (a'.getD a))
+  | .comp l u sys => do
+    let l' ← r l; let u' ← r u; let sys' ← rs sys
+    if l'.isNone && u'.isNone && sys'.isNone then return none
+    return some (← compLine (l'.getD l) (u'.getD u) (sys'.getD sys))
+  | .unglue u b sys => do
+    let u' ← r u; let b' ← r b; let sys' ← rs sys
+    if u'.isNone && b'.isNone && sys'.isNone then return none
+    return some (← unglueV (u'.getD u) (b'.getD b) (sys'.getD sys))
+  | .unglueU u b sys => do
+    let u' ← r u; let b' ← r b; let sys' ← rs sys
+    if u'.isNone && b'.isNone && sys'.isNone then return none
+    return some (← unglueUV (u'.getD u) (b'.getD b) (sys'.getD sys))
 
 /-- Plug in solved metavariables at the head of a value. -/
 partial def force (v : Val) : M Val := do
@@ -223,6 +314,11 @@ partial def force (v : Val) : M Val := do
 
 /-- Type of a neutral value, if it can be determined. -/
 partial def inferNe (v : Val) : M (Option Val) := do
+  match ← inferNe' v with
+  | some ty => return some (← force ty)
+  | none => return none
+
+partial def inferNe' (v : Val) : M (Option Val) := do
   match v with
   | .var _ ty | .gvar _ ty => pure (some ty)
   | .app f a =>

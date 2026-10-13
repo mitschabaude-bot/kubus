@@ -214,6 +214,16 @@ partial def convTy (l : Nat) (a b : Val) : M Bool := do
 
 /-- Compare neutral values; returns their type if equal. -/
 partial def convNe (l : Nat) (u v : Val) : M (Option Val) := do
+  match ← convNe' l u v with
+  | some ty => return some (← force ty)
+  | none => return none
+
+partial def convNe' (l : Nat) (u v : Val) : M (Option Val) := do
+  -- a flexible head of an application spine (first-order approximation: `?f a =? g b` tries
+  -- `?f =? g` and `a =? b`)
+  if let some true ← flexSolve l u v then
+    if let some ty ← inferNe v then return some ty
+    return ← inferNe u
   match u, v with
   | .var x ty, .var y _ => pure (if x == y then some ty else none)
   | .gvar x ty, .gvar y _ => pure (if x == y then some ty else none)

@@ -1,0 +1,2 @@
+-- expect: implicit lambda, but the expected type is the explicit function type
+def f : (A : U) -> U := \{A} -> A

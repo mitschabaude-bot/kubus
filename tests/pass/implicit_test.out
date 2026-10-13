@@ -1,0 +1,13 @@
+{A : U} → (a : A) → Path A a a
+{A : U} → (a : A) → Path A a a
+Path S1 base base
+λ i → pos (suc zero)
+  : Path Int (pos (suc zero)) (pos (suc zero))
+λ i → base
+  : Path S1 base base
+λ i → loop ~i
+  : Path S1 base base
+pos zero
+  : Int
+pos (suc (suc zero))
+  : Int

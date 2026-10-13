@@ -8,8 +8,8 @@ def helix : S1 -> U
   | base => Int
   | loop i => sucPathInt i
 
-def winding (p : Path S1 base base) : Int := transport Int Int (\i -> helix (p i)) (pos zero)
+def winding (p : Path S1 base base) : Int := transport (\i -> helix (p i)) (pos zero)
 
-def compS1 (p q : Path S1 base base) : Path S1 base base := trans S1 base base base p q
+def compS1 (p q : Path S1 base base) : Path S1 base base := trans p q
 
-def invLoop : Path S1 base base := sym S1 base base loopP
+def invLoop : Path S1 base base := sym loopP

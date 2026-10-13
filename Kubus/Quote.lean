@@ -167,8 +167,8 @@ partial def pp (names : List String) (p : Nat) (t : Tm) (im : PPI := {}) : Strin
   | .app .. | .papp .. =>
     let (h, args) := t.sargs
     match h with
-    | .glob n _ => if (metaId? n).isSome then n else ppApp names p h args
-    | _ => ppApp names p h args
+    | .glob n _ => if (metaId? n).isSome then n else ppApp names p h args im
+    | _ => ppApp names p h args im
   | .pair a b => s!"({pp names 0 a}, {pp names 0 b})"
   | .fst t => s!"{pp names 3 t}.1"
   | .snd t => s!"{pp names 3 t}.2"

@@ -44,4 +44,4 @@ def predSuc : (z : Int) -> Path Int (predInt (sucInt z)) z
   | pos n => \i -> pos n
   | negsuc n => predSucNegsuc n
 
-def sucPathInt : Path U Int Int := isoToPath Int Int sucInt predInt sucPred predSuc
+def sucPathInt : Path U Int Int := isoToPath sucInt predInt sucPred predSuc

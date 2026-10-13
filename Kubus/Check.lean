@@ -371,7 +371,7 @@ partial def inferLet (ctx : Ctx) (tyR : Option Raw) (t : Raw) : M (Tm × Val) :=
 
 partial def inferType (ctx : Ctx) (t : Raw) : M (Tm × Nat) := do
   let (tm, ty) ← infer ctx t
-  match ty with
+  match ← force ty with
   | .univ l => pure (tm, l)
   | _ => err ctx s!"expected a type, but this has type {← ppVal ctx ty}"
 
@@ -559,7 +559,7 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
       return (.pathP (.plam i tb) tu tv, .univ l)
     | _ =>
       let (tp, tyP) ← infer ctx p
-      match tyP with
+      match ← force tyP with
       | .pathP lineU _ _ =>
         let k ← freshAtom
         match ← papp lineU (atomF k) with
@@ -608,7 +608,7 @@ partial def infer (ctx : Ctx) (t : Raw) : M (Tm × Val) := do
     let (tu, ty) ← match stripLoc u with
       | .ann t a => inferAnnGlue ctx t a
       | _ => infer ctx u
-    match ty with
+    match ← force ty with
     | .glueTy b sys =>
       let q := ctx.qctx
       return (.unglue tu (← quote q b) (← quoteSys q sys), b)
