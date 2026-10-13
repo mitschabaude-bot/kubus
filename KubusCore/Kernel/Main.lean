@@ -45,20 +45,26 @@ def canonShape : I → Bool
   | .or f r => faceShape 0 f && canonShape r
   | _ => false
 
-def canonical (Ψ : Nat) (Φ : I) : Option ((Φ' : I) × Equiv' Ψ Φ Φ') :=
+/-- The canonical form of the restriction of `E`, from its cached faces. -/
+def canonical {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : Option ((Φ' : I) × Equiv' Ψ Φ Φ') :=
   if canonShape Φ then none else
-  let Φ' := canonPhi Φ
+  let Φ' := I.ofFaces ((maxFaces E.fs.get).map normFace)
   if Φ' = Φ then none else
   if hs : Φ'.Scoped Ψ then
-    if h1 : I.Entails Φ' Φ then
-      if h2 : I.Entails Φ Φ' then some ⟨Φ', hs, h1, h2⟩ else none
+    -- `Φ' ⊨ Φ`, against the cached faces of `Φ`
+    if h1 : (Φ'.faces.all fun c => E.fs.get.any fun d => d.all (c.contains ·)) = true then
+      if h2 : E.Ent Φ' then
+        some ⟨Φ', hs, by
+          show I.entails Φ' Φ = true
+          simp only [I.entails, ← E.hfs]; exact h1, h2⟩
+      else none
     else none
   else none
 
 variable {Ψ : Nat} {Φ : I} {Γ : Ctx}
 
 def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K (Inf S Ψ Φ Γ t) :=
-  match (if E.canon then none else canonical Ψ Φ) with
+  match (if E.canon then none else canonical E) with
   | none => inferStep R { E with canon := true } t
   | some ⟨Φ', q⟩ => do
     let i ← inferStep R ({ E.restrict Φ' q.hs q.h1 with canon := true }) t
@@ -66,7 +72,7 @@ def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K (Inf S Ψ Φ Γ t)
 
 def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (PLift (HasTy S Ψ Φ Γ t A)) :=
-  match (if E.canon then none else canonical Ψ Φ) with
+  match (if E.canon then none else canonical E) with
   | none => checkStep R { E with canon := true } t A l hA
   | some ⟨Φ', q⟩ => do
     let ⟨h⟩ ← checkStep R ({ E.restrict Φ' q.hs q.h1 with canon := true }) t A l (HasTy.restrict q.hs q.h1 hA)
@@ -74,7 +80,7 @@ def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
 
 def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K (Red S Ψ Φ Γ t A) :=
-  match (if E.canon then none else canonical Ψ Φ) with
+  match (if E.canon then none else canonical E) with
   | none => whnfMain R { E with canon := true } t A l hA ht
   | some ⟨Φ', q⟩ => do
     let r ← whnfMain R ({ E.restrict Φ' q.hs q.h1 with canon := true }) t A l (HasTy.restrict q.hs q.h1 hA)
@@ -83,7 +89,7 @@ def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
 
 def canonWhnfI (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
     K ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) :=
-  match (if E.canon then none else canonical Ψ Φ) with
+  match (if E.canon then none else canonical E) with
   | none => whnfIStep R { E with canon := true } t
   | some ⟨Φ', q⟩ => do
     let ⟨i, r⟩ ← whnfIStep R ({ E.restrict Φ' q.hs q.h1 with canon := true }) t
@@ -94,7 +100,7 @@ def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm) (ht : HasTy S Ψ Φ Γ t A)
     (hu : HasTy S Ψ Φ Γ u A) : K (PLift (EqTm S Ψ Φ Γ t u A)) :=
   if h : t = u then pure ⟨h ▸ EqTm.refl ht⟩ else
-  match (if E.canon then none else canonical Ψ Φ) with
+  match (if E.canon then none else canonical E) with
   | none => convStep R { E with canon := true } A l hA t u ht hu
   | some ⟨Φ', q⟩ => do
     let ⟨e⟩ ← convStep R ({ E.restrict Φ' q.hs q.h1 with canon := true }) A l (HasTy.restrict q.hs q.h1 hA) t u
@@ -103,7 +109,7 @@ def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
 
 def canonConvNe (R : Rec S) (E : KCtx S Ψ Φ Γ) (t u : Tm) :
     K ((i : Inf S Ψ Φ Γ t) × PLift (EqTm S Ψ Φ Γ t u i.ty)) :=
-  match (if E.canon then none else canonical Ψ Φ) with
+  match (if E.canon then none else canonical E) with
   | none => convNeStep R { E with canon := true } t u
   | some ⟨Φ', q⟩ => do
     let ⟨i, ⟨e⟩⟩ ← convNeStep R ({ E.restrict Φ' q.hs q.h1 with canon := true }) t u

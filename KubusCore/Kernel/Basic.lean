@@ -114,6 +114,10 @@ def ensureEnt (φ ψ : I) : K (PLift (I.Entails φ ψ)) :=
   if h : I.Entails φ ψ then pure ⟨h⟩
   else fail s!"kernel: cofibration {I.pp φ} does not entail {I.pp ψ}"
 
+def ensureEntE {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (ψ : I) : K (PLift (I.Entails Φ ψ)) :=
+  if h : E.Ent ψ then pure ⟨h⟩
+  else fail s!"kernel: cofibration {I.pp Φ} does not entail {I.pp ψ}"
+
 def ensureScoped (r : I) (n : Nat) : K (PLift (r.Scoped n)) :=
   if h : r.Scoped n then pure ⟨h⟩ else fail s!"kernel: interval term {I.pp r} out of scope"
 
