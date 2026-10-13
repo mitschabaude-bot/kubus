@@ -538,6 +538,41 @@ theorem L_body {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) (h
     · have e2 := EqTm.splitR (entails_of_holds hr' h3) hin
       exact ((L_fillA hW hGC D).isub hW _).conv hW (TyEq.refl _) (e1.trans e2).symm
 
+omit hW in
+theorem tgOmega_isub (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (σ : ISub k' k) :
+    (tgOmega A φ T e ψ u0).isub σ =
+      tgOmega (A.isub σ.up) (φ.subst σ.up.τ) (T.isub σ.up) (e.isub σ.up) (ψ.subst σ.τ) (u0.isub σ) := by
+  have h := (tg_subst_low A φ T e ψ u0 Tm.var σ.τ).2.1
+  rw [dupS_var] at h
+  show Tm.plam ((tgBody A φ T e ψ u0).subst (dupS Tm.var) (I.up σ.τ)) = _
+  rw [dupS_var, h]; rfl
+
+theorem holds_isub {δ : I} (hδs : δ.Scoped k) (hδ : (ival (idEnv k) δ).holds) (σ : ISub k' k) :
+    (ival (idEnv k') (δ.subst σ.τ)).holds := by
+  rw [holds_iff_entails (I.scoped_subst hδs σ.sc)]
+  exact ent_subst (entails_of_holds hδs hδ) σ.τ
+
+include hGC in
+/-- `ω : Path A(1) (e(1).1 t1') a1'` is computable (on `δ`). -/
+theorem L_omega {A T e u0 : Tm} {φ ψ δ : I} (D : TGD S k A φ T e ψ u0 δ) (hδ : (ival (idEnv k) δ).holds) :
+    RE S k (Tm.pathC (A.dinst .one) (.app (.fst (e.dinst .one)) (tgT1 T ψ u0)) (tgA1' A φ e ψ u0))
+      (tgOmega A φ T e ψ u0) := by
+  obtain ⟨l, H⟩ := D.tg hW
+  have hentδ : I.Entails .one (cof .one δ) := ent_cof_one hW (entails_of_holds D.hδs hδ)
+  have hω := HasTy.restrict (Φ' := .one) trivial hentδ (minimal_to_spec H.hω)
+  obtain ⟨lp, hpT⟩ := ty_of_tyEq hW (isTyK_of_ty hW hω) (TyEq.refl _) (fun l h => by cases h)
+  unfold Tm.pathC at hω hpT ⊢
+  refine RE_path_intro hW hpT hω (fun k' σ r hr => ?_)
+  have hωσ := HasTy.isubS hW hω σ
+  rw [isub_path, tgOmega_isub] at hωσ
+  rw [tgOmega_isub]
+  have eβ := EqTm.pathBeta (HasTy.papp hωσ hr)
+  have hb := L_body hW hGC (D.isub hW σ) (holds_isub hW D.hδs hδ σ) r hr
+  rw [isub_up_dinst _ _ _ hr, dshift_isub_cons, dinst_isub_end _ (.inr rfl)]
+  unfold tgOmega at eβ
+  rw [tgBody_dinst, isub_up_dinst _ _ _ hr, dshift_isub_cons, dinst_isub_end _ (.inr rfl)] at eβ
+  exact hb.conv hW (TyEq.refl _) eβ.symm
+
 end
 
 end Model.Canon
