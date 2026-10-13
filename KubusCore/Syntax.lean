@@ -425,14 +425,15 @@ def hcompGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u u0 : Tm) : Tm :=
       (unglue φ e u0))
 
 /-- Transport in Glue types (CHM). The line `Glue A [φ ↦ (T, e)]` has all components in
-the interval variable 0. -/
-def transpGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm :=
+the interval variable 0.
+`δ` is `∀i. φ` up to equivalence of cofibrations (`transpGlue` takes `φ.forall0`): the syntactic
+`forall0` commutes with interval substitution only up to equivalence. -/
+def transpGlueWith (δ : I) (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm :=
   let φ0 := φ.subst (I.inst0 .zero)
   let φ1 := φ.subst (I.inst0 .one)
   let A1 := A.dinst .one
   let T1 := T.dinst .one
   let e1 := e.dinst .one
-  let δ := φ.forall0
   -- the base, composed along the unglued tube: on ψ the Glue line is constant, so
   -- `i ↦ unglue φ(i) e(i) u0` is a tube in the line `A`
   let a0 := unglue φ0 (e.dinst .zero) u0
@@ -457,6 +458,10 @@ def transpGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm :=
   let a1 := hcomp A1 (.or φ1 ψ)
     (split φ1.shift (papp (snd ext).dshift (.neg (.var 0))) ψ.shift a1'.dshift) a1'
   glueEl φ1 e1 (fst ext) a1
+
+/-- `transpGlueWith` at `δ = ∀i. φ`. -/
+def transpGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm :=
+  transpGlueWith φ.forall0 A φ T e ψ u0
 
 /-- `f_i = λ x. transp (j. B(i ∧ j)) (i = 0) x : B(0) → B(i)`, for a line `B` in the interval
 variable 0 (`i`). At `i = 0` it is the identity (`transp` on a true face). -/
@@ -596,6 +601,18 @@ def noRecDeps (C : Ctor) (k : Nat) (A : Tm) : Bool :=
   (List.range k).all fun j => !C.isRec j || !A.freeIn (k - 1 - j)
 
 def argTys (C : Ctor) (d np : Nat) : List Tm := (List.range C.args.length).map (C.argTy d np)
+
+/-- In the context of the parameters and the arguments before position `n`, the index of
+variable `j` in the context of the parameters and the point arguments before `n` (recursive
+arguments are dropped; their variables are mapped to junk, see `mentionsRec`). -/
+def pointRen (C : Ctor) (n j : Nat) : Nat :=
+  if j < n then ((List.range j).filter fun x => !C.isRec (n - 1 - x)).length
+  else j - ((List.range n).filter C.isRec).length
+
+/-- `t`, in the context of the parameters and the arguments before position `n`, mentions a
+recursive argument. -/
+def mentionsRec (C : Ctor) (n : Nat) (t : Tm) : Bool :=
+  (List.range n).any fun x => C.isRec (n - 1 - x) && t.freeIn x
 
 /-- The boundary element `b` at parameters `ps`, arguments `args` and interval arguments `rs`. -/
 def bndAt (b : Tm) (ps args : List Tm) (rs : List I) : Tm :=

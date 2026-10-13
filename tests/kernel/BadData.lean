@@ -28,3 +28,12 @@ def S1 : DataDecl := { level := 0, params := [], ctors := [
 #guard !accepts [.data Bad]
 #guard accepts [.data Nat']
 #guard accepts [.data S1]
+
+/-- `data E (X : U₀) := c0 (x : X) | c1 (r : E X) (x : X) (i : I) [i = 0 ↦ c0 x]`: the type
+equation for the nested argument `x` is checked without the recursive argument `r` (P8). -/
+def E : DataDecl := { level := 0, params := [.univ 0], ctors := [
+  { args := [.point (.var 0)], dims := 0, bnd := [] },
+  { args := [.recur, .point (.var 1)], dims := 1,
+    bnd := [(.neg (.var 0), .con 0 0 (Ctor.paramVars 1 2) (ofList [.var 0]) [])] }] }
+
+#guard accepts [.data E]

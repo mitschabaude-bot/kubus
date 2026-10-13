@@ -214,14 +214,15 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       I.Entails φ φ' → I.Entails φ' φ →
       EqTm S Ψ (cof Φ φ) Γ T T' (univ l) → EqTm S Ψ (cof Φ φ) Γ e e' (equiv T A) →
       EqTm S Ψ Φ Γ (glue A φ T e) (glue A' φ' T' e') (univ l)
-  | glueEl {Ψ Φ Γ φ φ' t t' a a' A T e} : HasTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e) →
-      HasTy S Ψ Φ Γ (glueEl φ' e t' a') (glue A φ T e) →
-      I.Entails φ φ' → I.Entails φ' φ →
+  | glueEl {Ψ Φ Γ φ φ' t t' a a' A T e e'} : HasTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e) →
+      HasTy S Ψ Φ Γ (glueEl φ' e' t' a') (glue A φ T e) →
+      I.Entails φ φ' → I.Entails φ' φ → EqTm S Ψ (cof Φ φ) Γ e e' (equiv T A) →
       EqTm S Ψ (cof Φ φ) Γ t t' T → EqTm S Ψ Φ Γ a a' A →
-      EqTm S Ψ Φ Γ (glueEl φ e t a) (glueEl φ' e t' a') (glue A φ T e)
-  | unglue {Ψ Φ Γ A φ φ' T e g g'} : HasTy S Ψ Φ Γ (unglue φ e g) A → HasTy S Ψ Φ Γ (unglue φ' e g') A →
-      I.Entails φ φ' → I.Entails φ' φ →
-      EqTm S Ψ Φ Γ g g' (glue A φ T e) → EqTm S Ψ Φ Γ (unglue φ e g) (unglue φ' e g') A
+      EqTm S Ψ Φ Γ (glueEl φ e t a) (glueEl φ' e' t' a') (glue A φ T e)
+  | unglue {Ψ Φ Γ A φ φ' T e e' g g'} : HasTy S Ψ Φ Γ (unglue φ e g) A →
+      HasTy S Ψ Φ Γ (unglue φ' e' g') A →
+      I.Entails φ φ' → I.Entails φ' φ → EqTm S Ψ (cof Φ φ) Γ e e' (equiv T A) →
+      EqTm S Ψ Φ Γ g g' (glue A φ T e) → EqTm S Ψ Φ Γ (unglue φ e g) (unglue φ' e' g') A
   | ipi {Ψ Φ Γ A A' l} : EqTm S (Ψ + 1) Φ.shift Γ.dshift A A' (univ l) →
       EqTm S Ψ Φ Γ (ipi A) (ipi A') (univ l)
   | ilam {Ψ Φ Γ A t t' l} : HasTy S Ψ Φ Γ (ipi A) (univ l) →
@@ -266,10 +267,11 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       EqTm S Ψ Φ Γ (transp (sigma A B) φ u0) (transpSigma A B φ u0) T
   | transpPath {Ψ Φ Γ A a b φ p0 T} : HasTy S Ψ Φ Γ (transp (path A a b) φ p0) T →
       EqTm S Ψ Φ Γ (transp (path A a b) φ p0) (transpPath A a b φ p0) T
-  | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T l} : HasTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
+  | transpGlue {Ψ Φ Γ A φ T' e ψ u0 T l δ} : HasTy S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) T →
       HasTy S (Ψ + 1) Φ.shift Γ.dshift A (univ l) →
       HasTy S (Ψ + 1) (cof Φ.shift φ) Γ.dshift e (equiv T' A) →
-      EqTm S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlue A φ T' e ψ u0) T
+      I.Entails δ φ.forall0 → I.Entails φ.forall0 δ →
+      EqTm S Ψ Φ Γ (transp (glue A φ T' e) ψ u0) (transpGlueWith δ A φ T' e ψ u0) T
   | transpIPi {Ψ Φ Γ A φ u0 T} : HasTy S Ψ Φ Γ (transp (ipi A) φ u0) T →
       EqTm S Ψ Φ Γ (transp (ipi A) φ u0) (transpIPi A φ u0) T
   | hcompIPi {Ψ Φ Γ A φ u u0 T} : HasTy S Ψ Φ Γ (hcomp (ipi A) φ u u0) T →
@@ -311,6 +313,7 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | elim {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m} : S[d]? = some (.data D) →
       HasTy S Ψ Φ Γ (elim d ps P bs t) (P.inst t) → HasTy S Ψ Φ Γ (elim d ps' P' bs' t') (P.inst t) →
       EqTele S Ψ Φ Γ ps ps' D.params [] → EqTm S Ψ Φ (data d ps :: Γ) P P' (univ m) →
+      bs = Tm.ofList bs.toList → bs' = Tm.ofList bs'.toList →
       bs.toList.length = bs'.toList.length →
       (∀ (c : Nat) (C : Ctor) (b b' : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
         bs'.toList[c]? = some b' →
@@ -327,11 +330,13 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   | elimCon {Ψ Φ Γ d D c C ps P bs b qs args rs T} : S[d]? = some (.data D) →
       D.ctors[c]? = some C → bs.toList[c]? = some b →
       args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
+      HasTele S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
       HasTy S Ψ Φ Γ (elim d ps P bs (con d c qs args rs)) T →
       EqTm S Ψ Φ Γ (elim d ps P bs (con d c qs args rs))
         (Tm.papps (Tm.apps b (args.toList ++
           C.recPos.map fun k => elim d ps P bs (args.toList.getD k .abort))) rs) T
   | elimHcomp {Ψ Φ Γ d D ps P bs qs φ u a T} : S[d]? = some (.data D) →
+      HasTy S Ψ Φ Γ (hcomp (data d ps) φ u a) (data d ps) →
       HasTy S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a)) T →
       EqTm S Ψ Φ Γ (elim d ps P bs (hcomp (data d qs) φ u a))
         (comp (P.subst (fun | 0 => hfill (data d ps) φ u a | j + 1 => var j) (fun i => .var (i + 1))) φ
@@ -341,11 +346,13 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       HasTy S Ψ Φ Γ (transp (data d ps) φ a) T → EqTm S Ψ Φ Γ (transp (data d ps) φ a) a T
   | transpCon {Ψ Φ Γ d D c C ps φ qs args rs T} : S[d]? = some (.data D) → D.params ≠ [] →
       D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
+      HasTele S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →
       HasTy S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs)) T →
       EqTm S Ψ Φ Γ (transp (data d ps) φ (con d c qs args rs))
         (con d c (ps.dinst .one)
           (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
   | transpHcomp {Ψ Φ Γ d D ps φ qs ψ u a T} : S[d]? = some (.data D) → D.params ≠ [] →
+      HasTy S Ψ Φ Γ (hcomp (data d (ps.dinst .zero)) ψ u a) (data d (ps.dinst .zero)) →
       HasTy S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a)) T →
       EqTm S Ψ Φ Γ (transp (data d ps) φ (hcomp (data d qs) ψ u a))
         (hcomp (data d (ps.dinst .one)) ψ
@@ -357,26 +364,33 @@ end
 namespace Ctor
 
 mutual
-/-- The point arguments of the nested constructors of a boundary element have, judgmentally,
-the argument types of those constructors (instantiated as in the `con` rule), not merely
-types the arguments also belong to: transport of a constructor is computed from its argument
-types (`transpCon`), so the boundary and the constructor must agree on them. -/
-def bndTyped (S : Sig) (m : Nat) (ψ : I) (Γ : Ctx) (lvl : Nat) (ctors : List Ctor) (d np : Nat) :
-    Tm → Prop
+/-- The point arguments of the nested constructors of a boundary element of constructor `C`
+have, judgmentally, the argument types of those constructors (instantiated as in the `con`
+rule), not merely types the arguments also belong to: transport of a constructor is computed
+from its argument types (`transpCon`), so the boundary and the constructor must agree on them.
+The boundary lives in `Γ` (parameters and all arguments of `C`); the equations are stated in
+`Γp` (parameters and point arguments of `C`), after dropping the recursive arguments, which
+neither side may mention. -/
+def bndTyped (S : Sig) (m : Nat) (ψ : I) (Γ : Ctx) (C : Ctor) (Γp : Ctx) (lvl : Nat)
+    (ctors : List Ctor) (d np : Nat) : Tm → Prop
   | .con _ c' ps as _ =>
     match ctors[c']? with
-    | some C' => bndTypedArgs S m ψ Γ lvl ctors d np C' ps 0 [] as
+    | some C' => bndTypedArgs S m ψ Γ C Γp lvl ctors d np C' ps 0 [] as
     | none => True
   | _ => True
 /-- The same for the arguments of a nested constructor `C'`, from position `k` on, with the
 earlier arguments `prev` (most recent first). -/
-def bndTypedArgs (S : Sig) (m : Nat) (ψ : I) (Γ : Ctx) (lvl : Nat) (ctors : List Ctor) (d np : Nat)
-    (C' : Ctor) (ps : Tm) (k : Nat) (prev : List Tm) : Tm → Prop
+def bndTypedArgs (S : Sig) (m : Nat) (ψ : I) (Γ : Ctx) (C : Ctor) (Γp : Ctx) (lvl : Nat)
+    (ctors : List Ctor) (d np : Nat) (C' : Ctor) (ps : Tm) (k : Nat) (prev : List Tm) : Tm → Prop
   | .tcons a as =>
     (∀ (j : Nat) (T : Tm), a = .var j → C'.isRec k = false → Γ.lookup j = some T →
-      EqTm S m ψ Γ T ((C'.argTy d np k).substList (prev ++ ps.toList.reverse)) (.univ lvl)) ∧
-    (C'.isRec k = true → bndTyped S m ψ Γ lvl ctors d np a) ∧
-    bndTypedArgs S m ψ Γ lvl ctors d np C' ps (k + 1) (a :: prev) as
+      C.mentionsRec C.args.length T = false ∧
+      C.mentionsRec C.args.length ((C'.argTy d np k).substList (prev ++ ps.toList.reverse)) = false ∧
+      EqTm S m ψ Γp (T.ren (C.pointRen C.args.length) id)
+        (((C'.argTy d np k).substList (prev ++ ps.toList.reverse)).ren (C.pointRen C.args.length) id)
+        (.univ lvl)) ∧
+    (C'.isRec k = true → bndTyped S m ψ Γ C Γp lvl ctors d np a) ∧
+    bndTypedArgs S m ψ Γ C Γp lvl ctors d np C' ps (k + 1) (a :: prev) as
   | _ => True
 end
 
@@ -390,6 +404,12 @@ def paramCtx (D : DataDecl) (j : Nat) : Ctx := (D.params.take j).reverse
 /-- The context of the parameters and the arguments of `C` before argument `k`. -/
 def argCtx (D : DataDecl) (d : Nat) (C : Ctor) (k : Nat) : Ctx :=
   (List.range k).reverse.map (C.argTy d D.params.length) ++ D.paramCtx D.params.length
+
+/-- The context of the parameters and the point arguments of `C` before argument `n`: `argCtx`
+without the recursive arguments (point argument types do not mention them, `Ctor.noRecDeps`). -/
+def pointCtx (D : DataDecl) (d : Nat) (C : Ctor) (n : Nat) : Ctx :=
+  (((List.range n).filter fun k => !C.isRec k).map fun k =>
+    (C.argTy d D.params.length k).ren (C.pointRen k) id).reverse ++ D.paramCtx D.params.length
 
 /-- The declaration with only the constructors before `c`, and an extra nullary constructor
 (at index `c`, which no boundary of constructor `c` can refer to) so that the type is inhabited:
@@ -421,7 +441,8 @@ def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
       Ctor.simpleB D.ctors d np c C.args.length C b = true ∧
       HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b
         (.data d (Ctor.paramVars np C.args.length)) ∧
-      Ctor.bndTyped Sc C.dims ψ (D.argCtx d C C.args.length) D.level D.ctors d np b) ∧
+      Ctor.bndTyped S C.dims ψ (D.argCtx d C C.args.length) C (D.pointCtx d C C.args.length)
+        D.level D.ctors d np b) ∧
     (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
       EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
         (.data d (Ctor.paramVars np C.args.length)))

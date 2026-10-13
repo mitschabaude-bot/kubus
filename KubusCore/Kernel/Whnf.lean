@@ -24,14 +24,17 @@ def fixedVar {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) :
       else fixedVar E is
     else fixedVar E is
 
-def transpConK {Ψ Φ Γ} (D : DataDecl) {d : Nat} (hS : S[d]? = some (.data D)) (hp : D.params ≠ [])
+def transpConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) {d : Nat}
+    (hS : S[d]? = some (.data D)) (hp : D.params ≠ [])
     (c : Nat) {ps : Tm} {φ : I} {qs args : Tm} {rs : List I} {T : Tm}
     (ht : HasTy S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T) :
     K S (Option (Red S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T)) := do
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
   let ⟨h1⟩ ← ensureList ps
   let ⟨h2⟩ ← ensureList args
-  return some ⟨_, EqTm.transpCon hS hp hC h1 h2 ht⟩
+  -- the arguments at the parameters of the line's start
+  let ⟨hc⟩ ← checkTele R E args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse
+  return some ⟨_, EqTm.transpCon hS hp hC h1 h2 hc ht⟩
 
 /-- Computation rule of `transp` for a line in weak-head normal form. -/
 def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a T : Tm)
@@ -45,7 +48,7 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
     -- the base and the equivalence of the Glue line, which the rule takes as premises
     let ⟨l, ⟨hA⟩⟩ ← inferType R E.dext A
     let ⟨he⟩ ← checkEquiv R E.dext A ψ T' e l
-    pure (some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht hA he⟩)
+    pure (some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht hA he (I.entails_refl _) (I.entails_refl _)⟩)
   | .ipi A, ht => pure (some ⟨Tm.transpIPi A φ a, EqTm.transpIPi ht⟩)
   | .data d ps, ht => do
     let ⟨D, ⟨hS⟩⟩ ← lookupData S d
@@ -53,9 +56,15 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
     else
       match a, ht with
       | .con d' c qs args rs, ht =>
-        if hd : d' = d then (by subst hd; exact transpConK D hS hp c ht) else pure none
+        if hd : d' = d then (by subst hd; exact transpConK R E D hS hp c ht) else pure none
       | .hcomp (.data d' qs) ψ u a0, ht =>
-        if hd : d' = d then (by subst hd; exact pure (some ⟨_, EqTm.transpHcomp hS hp ht⟩))
+        if hd : d' = d then (by
+          subst hd
+          exact do
+            -- the composition at the parameters of the line's start
+            let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d' (ps.dinst .zero))
+            let ⟨hh⟩ ← R.check E (.hcomp (.data d' (ps.dinst .zero)) ψ u a0) _ l hD
+            pure (some ⟨_, EqTm.transpHcomp hS hp hh ht⟩))
         else pure none
       | _, _ => return none
   | _, _ => pure none
@@ -178,22 +187,27 @@ def conBndStep {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps args : Tm) (rs :
       else pure none
     | none => pure none) C.bnd.length 0
 
-def elimConK {Ψ Φ Γ} (d c : Nat) (ps P bs qs args : Tm) (rs : List I) (T : Tm)
+def elimConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps P bs qs args : Tm) (rs : List I) (T : Tm)
     (ht : HasTy S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) T) :
     K S (Option (Red S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) T × Bool)) := do
   let ⟨D, ⟨hS⟩⟩ ← lookupData S d
   let ⟨C, ⟨hC⟩⟩ ← lookupCtor D c
   let ⟨h1⟩ ← ensureList args
   let ⟨h2⟩ ← ensureList bs
+  -- the arguments at the eliminator's parameters
+  let ⟨hc⟩ ← checkTele R E args (C.argTys d D.params.length) ps.toList.reverse
   match getIdx? bs.toList c with
-  | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb h1 h2 ht⟩, false))
+  | some ⟨_, ⟨hb⟩⟩ => pure (some (⟨_, EqTm.elimCon hS hC hb h1 h2 hc ht⟩, false))
   | none => fail "kernel: missing branch"
 
-def elimHcompK {Ψ Φ Γ} (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
+def elimHcompK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs qs : Tm) (φ : I) (u a T : Tm)
     (ht : HasTy S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T) :
     K S (Option (Red S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T × Bool)) := do
   let ⟨_, ⟨hS⟩⟩ ← lookupData S d
-  pure (some (⟨_, EqTm.elimHcomp hS ht⟩, false))
+  -- the composition at the eliminator's parameters
+  let ⟨l, ⟨hD⟩⟩ ← inferType R E (.data d ps)
+  let ⟨hh⟩ ← R.check E (.hcomp (.data d ps) φ u a) _ l hD
+  pure (some (⟨_, EqTm.elimHcomp hS hh ht⟩, false))
 
 /-- Reduce the target of an eliminator. -/
 def elimTargetStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs t A : Tm) (l : Nat)
@@ -206,7 +220,7 @@ def elimTargetStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P 
   have eP := EqTm.subst (EqTm.refl info.hP) (EqTm.symm et)
   have h2 := HasTy.conv (info.typing (HasTy.eqR et)) eP
   let ⟨hps⟩ ← checkTele R E ps info.D.params []
-  have e := EqTm.elim info.hS h1 h2 (HasTele.eqRefl hps) (EqTm.refl info.hP) rfl
+  have e := EqTm.elim info.hS h1 h2 (HasTele.eqRefl hps) (EqTm.refl info.hP) info.hbs info.hbs rfl
     (fun c C b b' hC hb hb' => by
       rw [hb] at hb'; cases hb'; exact EqTm.refl (info.hbr c C b hC hb)) et
   let ⟨e⟩ ← bridge R E (HasTy.subst info.hP (HasTy.eqL et)) hA e
@@ -221,10 +235,10 @@ def dataElimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps P bs
     K S (Option (Red S Ψ Φ Γ (.elim d ps P bs t) A × Bool)) :=
   match t, ht with
   | .con d' c qs args rs, ht =>
-    if hd : d' = d then (by subst hd; exact elimConK d' c ps P bs qs args rs A ht)
+    if hd : d' = d then (by subst hd; exact elimConK R E d' c ps P bs qs args rs A ht)
     else pure none
   | .hcomp (.data d' qs) φ u a, ht =>
-    if hd : d' = d then (by subst hd; exact elimHcompK d' ps P bs qs φ u a A ht)
+    if hd : d' = d then (by subst hd; exact elimHcompK R E d' ps P bs qs φ u a A ht)
     else pure none
   | t, _ => elimTargetStep R E d ps P bs t A l hA
 
@@ -470,7 +484,7 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
     if gr.tm = g then return ⟨inf, ⟨_, EqTm.refl inf.htm⟩⟩
     have eg := EqTm.conv gr.eq eG
     have e1 : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e gr.tm) A1 :=
-      EqTm.unglue inf.htm (HasTy.unglue hG hA1 he (HasTy.eqR eg)) (I.entails_refl φ) (I.entails_refl φ) eg
+      EqTm.unglue inf.htm (HasTy.unglue hG hA1 he (HasTy.eqR eg)) (I.entails_refl φ) (I.entails_refl φ) (EqTm.refl he) eg
     match h : gr.tm with
     | .glueEl φ' e' t1 a1 =>
       if hφ' : φ' = φ ∧ e' = e then
