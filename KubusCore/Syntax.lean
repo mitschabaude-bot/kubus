@@ -183,8 +183,8 @@ inductive Tm where
   | hcomp (A : Tm) (φ : I) (u a : Tm)
   /-- `Glue A [φ ↦ (T, e)]` -/
   | glue (A : Tm) (φ : I) (T e : Tm)
-  /-- `glue [φ ↦ t] a` -/
-  | glueEl (φ : I) (t a : Tm)
+  /-- `glue [φ ↦ t] a`, carrying the equivalence `e` of its Glue type -/
+  | glueEl (φ : I) (e t a : Tm)
   /-- `unglue` carries the equivalence `e` of the Glue type -/
   | unglue (φ : I) (e g : Tm)
   deriving DecidableEq, Repr, Inhabited
@@ -216,7 +216,7 @@ def ren (ρ δ : Nat → Nat) : Tm → Tm
   | transp A φ a => transp (A.ren ρ (upRen δ)) (φ.ren δ) (a.ren ρ δ)
   | hcomp A φ u a => hcomp (A.ren ρ δ) (φ.ren δ) (u.ren ρ (upRen δ)) (a.ren ρ δ)
   | glue A φ T e => glue (A.ren ρ δ) (φ.ren δ) (T.ren ρ δ) (e.ren ρ δ)
-  | glueEl φ t a => glueEl (φ.ren δ) (t.ren ρ δ) (a.ren ρ δ)
+  | glueEl φ e t a => glueEl (φ.ren δ) (e.ren ρ δ) (t.ren ρ δ) (a.ren ρ δ)
   | unglue φ e g => unglue (φ.ren δ) (e.ren ρ δ) (g.ren ρ δ)
 
 /-- Weaken by a term variable. -/
@@ -251,7 +251,7 @@ def subst (σ : Nat → Tm) (τ : Nat → I) : Tm → Tm
   | hcomp A φ u a =>
     hcomp (A.subst σ τ) (φ.subst τ) (u.subst (fun n => (σ n).dshift) (I.up τ)) (a.subst σ τ)
   | glue A φ T e => glue (A.subst σ τ) (φ.subst τ) (T.subst σ τ) (e.subst σ τ)
-  | glueEl φ t a => glueEl (φ.subst τ) (t.subst σ τ) (a.subst σ τ)
+  | glueEl φ e t a => glueEl (φ.subst τ) (e.subst σ τ) (t.subst σ τ) (a.subst σ τ)
   | unglue φ e g => unglue (φ.subst τ) (e.subst σ τ) (g.subst σ τ)
 
 /-- Substitute interval variables only. -/
@@ -305,6 +305,13 @@ def comp (C : Tm) (ψ : I) (u u0 : Tm) : Tm :=
 def hfill (A : Tm) (φ : I) (u u0 : Tm) : Tm :=
   hcomp A.dshift (.or φ.shift (.neg (.var 0)))
     (split φ.shift.shift (u.dsubst (bind2 (.and (.var 1) (.var 0)))) (.neg (.var 1)) u0.dshift.dshift)
+    u0.dshift
+
+/-- The filler of heterogeneous composition at the interval variable 0:
+`fill (i. C) [ψ ↦ u] u0 = comp (j. C(i ∧ j)) [ψ ↦ j. u(i ∧ j), i = 0 ↦ u0] u0`. -/
+def fill (C : Tm) (ψ : I) (u u0 : Tm) : Tm :=
+  comp (C.dsubst (bind2 (.and (.var 1) (.var 0)))) (.or ψ.shift (.neg (.var 0)))
+    (split ψ.shift.shift (u.dsubst (bind2 (.and (.var 1) (.var 0)))) (.neg (.var 1)) u0.dshift.dshift)
     u0.dshift
 
 /-- The transport filler at the interval variable 0: `transp (j. A(i ∧ j)) (φ ∨ i = 0) a`. -/
@@ -367,7 +374,7 @@ def hcompPath (A a b : Tm) (φ : I) (u p0 : Tm) : Tm :=
   glue [φ ↦ hcomp T [ψ ↦ u] u0] (hcomp A [ψ ↦ unglue u, φ ↦ e.1 (hfill T [ψ ↦ u] u0)] (unglue u0))` -/
 def hcompGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u u0 : Tm) : Tm :=
   let _ := T
-  glueEl φ (hcomp T ψ u u0)
+  glueEl φ e (hcomp T ψ u u0)
     (hcomp A (.or ψ φ)
       (split ψ.shift (unglue φ.shift e.dshift u) φ.shift (app (fst e.dshift) (hfill T ψ u u0)))
       (unglue φ e u0))
@@ -381,16 +388,18 @@ def transpGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm :=
   let T1 := T.dinst .one
   let e1 := e.dinst .one
   let δ := φ.forall0
-  -- naive transport of the base
+  -- the base, composed along the unglued tube: on ψ the Glue line is constant, so
+  -- `i ↦ unglue φ(i) e(i) u0` is a tube in the line `A`
   let a0 := unglue φ0 (e.dinst .zero) u0
-  let a1' := transp A ψ a0
+  let tube := unglue φ e u0.dshift
+  let a1' := comp A ψ tube a0
   -- on δ: transport in T, and a path from e(1).1 t1' to a1'
   let t1' := transp T ψ u0
   let ins1 : Nat → I := fun | 0 => .var 0 | n + 1 => .var (n + 2)
   let e' := e.dsubst ins1
   let sysω := split ψ.shift.shift (app (fst e') u0.dshift.dshift) (.or (.neg (.var 1)) (.var 1))
     (split (.neg (.var 1)) (app (fst e') ((transpFill T ψ u0).dsubst ins1))
-      (.var 1) ((transpFill A ψ a0).dsubst ins1))
+      (.var 1) ((fill A ψ tube a0).dsubst ins1))
   let ω := plam (comp (A.dsubst ins1) (.or ψ.shift (.or (.neg (.var 0)) (.var 0))) sysω
     (app (fst (e.dinst .zero).dshift) u0.dshift))
   -- extend the partial fibre over a1' to a total one, by contractibility
@@ -402,7 +411,7 @@ def transpGlue (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) : Tm :=
     (fst c)
   let a1 := hcomp A1 (.or φ1 ψ)
     (split φ1.shift (papp (snd ext).dshift (.neg (.var 0))) ψ.shift a1'.dshift) a1'
-  glueEl φ1 (fst ext) a1
+  glueEl φ1 e1 (fst ext) a1
 
 end Tm
 

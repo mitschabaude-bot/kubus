@@ -109,7 +109,7 @@ inductive HasTy (S : Sig) : Nat → I → Ctx → Tm → Tm → Prop
       HasTy S Ψ Φ Γ (glue A φ T e) (univ l)
   | glueEl {Ψ Φ Γ A φ T e t a l} : HasTy S Ψ Φ Γ (glue A φ T e) (univ l) →
       HasTy S Ψ (cof Φ φ) Γ t T → HasTy S Ψ Φ Γ a A → EqTm S Ψ (cof Φ φ) Γ (app (fst e) t) a A →
-      HasTy S Ψ Φ Γ (glueEl φ t a) (glue A φ T e)
+      HasTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e)
   | unglue {Ψ Φ Γ A φ T e g l} : HasTy S Ψ Φ Γ (glue A φ T e) (univ l) →
       HasTy S Ψ Φ Γ g (glue A φ T e) → HasTy S Ψ Φ Γ (unglue φ e g) A
 
@@ -181,11 +181,11 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       I.Entails φ φ' → I.Entails φ' φ →
       EqTm S Ψ (cof Φ φ) Γ T T' (univ l) → EqTm S Ψ (cof Φ φ) Γ e e' (equiv T A) →
       EqTm S Ψ Φ Γ (glue A φ T e) (glue A' φ' T' e') (univ l)
-  | glueEl {Ψ Φ Γ φ φ' t t' a a' A T e} : HasTy S Ψ Φ Γ (glueEl φ t a) (glue A φ T e) →
-      HasTy S Ψ Φ Γ (glueEl φ' t' a') (glue A φ T e) →
+  | glueEl {Ψ Φ Γ φ φ' t t' a a' A T e} : HasTy S Ψ Φ Γ (glueEl φ e t a) (glue A φ T e) →
+      HasTy S Ψ Φ Γ (glueEl φ' e t' a') (glue A φ T e) →
       I.Entails φ φ' → I.Entails φ' φ →
       EqTm S Ψ (cof Φ φ) Γ t t' T → EqTm S Ψ Φ Γ a a' A →
-      EqTm S Ψ Φ Γ (glueEl φ t a) (glueEl φ' t' a') (glue A φ T e)
+      EqTm S Ψ Φ Γ (glueEl φ e t a) (glueEl φ' e t' a') (glue A φ T e)
   | unglue {Ψ Φ Γ A φ φ' T e g g'} : HasTy S Ψ Φ Γ (unglue φ e g) A → HasTy S Ψ Φ Γ (unglue φ' e g') A →
       I.Entails φ φ' → I.Entails φ' φ →
       EqTm S Ψ Φ Γ g g' (glue A φ T e) → EqTm S Ψ Φ Γ (unglue φ e g) (unglue φ' e g') A
@@ -250,14 +250,14 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
   /- Glue -/
   | glueFace {Ψ Φ Γ A φ T e G} : I.Entails Φ φ → HasTy S Ψ Φ Γ (glue A φ T e) G →
       EqTm S Ψ Φ Γ (glue A φ T e) T G
-  | glueElFace {Ψ Φ Γ φ t a G} : I.Entails Φ φ → HasTy S Ψ Φ Γ (glueEl φ t a) G →
-      EqTm S Ψ Φ Γ (glueEl φ t a) t G
+  | glueElFace {Ψ Φ Γ φ e t a G} : I.Entails Φ φ → HasTy S Ψ Φ Γ (glueEl φ e t a) G →
+      EqTm S Ψ Φ Γ (glueEl φ e t a) t G
   | unglueFace {Ψ Φ Γ A φ T e g} : I.Entails Φ φ → HasTy S Ψ Φ Γ g (glue A φ T e) →
       EqTm S Ψ Φ Γ (unglue φ e g) (app (fst e) g) A
-  | glueBeta {Ψ Φ Γ φ e t a G} : HasTy S Ψ Φ Γ (unglue φ e (glueEl φ t a)) G →
-      EqTm S Ψ Φ Γ (unglue φ e (glueEl φ t a)) a G
+  | glueBeta {Ψ Φ Γ φ e t a G} : HasTy S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) G →
+      EqTm S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
   | glueEta {Ψ Φ Γ A φ T e g} : HasTy S Ψ Φ Γ g (glue A φ T e) →
-      EqTm S Ψ Φ Γ g (glueEl φ g (unglue φ e g)) (glue A φ T e)
+      EqTm S Ψ Φ Γ g (glueEl φ e g (unglue φ e g)) (glue A φ T e)
 
 end
 
