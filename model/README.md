@@ -4,7 +4,13 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 ## Phase 2 spec issues (read first)
 
-Status: P4 fixed in `288a259`. P2 fixed in `dc30dbb` (`Ctor.bndTyped`), P3 in `2e8fc06`. P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
+Status: P5 open. P4 fixed in `288a259`. P2 fixed in `dc30dbb` (`Ctor.bndTyped`), P3 in `2e8fc06`. P1 is fixed on `phase2` in `5534868`/`8017fc7` (constructor `c` is checked against the declaration truncated to the constructors before `c`; parameters against the signature before the declaration; point arguments against the declaration without constructors). Kept as a record; new issues are added at the top of this section.
+
+### P5. Not modelable as stated: nested constructor argument lists in simple boundaries may have a non-literal tail
+
+Modelability gap, small. `Ctor.simpleArgs` walks the nested argument list `as` of a boundary constructor `con d c' ps as rs'` through its `tcons` cells and accepts *any* tail (`| _ => true`), while `simpleB` compares `as.toList.length` (which ignores the tail) with the arity. So `con d c' ps (tcons x (split φ (tcons a tnil) ψ (tcons b tnil))) rs'` is simple. Syntactically such a boundary is never well-typed (its `HasTy` check needs `HasTele`, which forces a literal), but the model cannot see that, and the denotation of a constructor term must then tell well-formed from ill-formed argument lists by their values: the model guards constructor terms (they denote junk unless the arguments are a list of the right length, typed, with valid parameters — this is what lets `conBnd`/`elimCon` read off typed arguments from the typing of the left-hand side), and a tail that denotes a list (as `split` of literals does) fails the length guard, so the boundary term would not denote its value.
+
+Suggested fix: require nested argument lists to be literals, e.g. in `simpleArgs` replace the catch-all `| _ => true` by `| t => t == .tnil`. (Wf boundaries produced by the elaborator are literals already.)
 
 ### P4. Not modelable as stated: rules read parameter/argument lists syntactically (`ps.toList`) without a premise that they are list literals
 
