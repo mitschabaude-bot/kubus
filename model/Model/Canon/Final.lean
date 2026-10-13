@@ -1,4 +1,4 @@
-import Model.Canon.Fund
+import Model.Canon.KanAll
 import Model.Canon.Statement
 
 /-!
@@ -117,7 +117,7 @@ theorem hyp_all (hGC : GlueCompat S) : ∀ n, n ≤ S.length → Hyp S n
       obtain ⟨htc, hAc, -, hty⟩ := hW.1 i t A hiS
       have ht0 := htr_of hW i hty
       have hcl := constsLt_of_take hW (by omega) hty
-      have := fund_ty hW hH hGC ht0 hcl k' (CSub.nil S k')
+      have := fund_ty hW id hH hGC ht0 (KOK.of_constsLt (kanOracle hW hGC) hcl) k' (CSub.nil S k')
       rwa [closed_subst_id hAc (fun x hx => absurd hx (Nat.not_lt_zero _)) (fun i hi => absurd hi (Nat.not_lt_zero _)),
         closed_subst_id htc (fun x hx => absurd hx (Nat.not_lt_zero _)) (fun i hi => absurd hi (Nat.not_lt_zero _))] at this
     · by_cases hdn : d < n
@@ -127,7 +127,7 @@ theorem hyp_all (hGC : GlueCompat S) : ∀ n, n ≤ S.length → Hyp S n
       obtain ⟨c', hγ, -⟩ := csub_points hW hD hC hpl hps hlt.le hargs args.length (Nat.le_refl _)
       have hP := pt_typed hW (htr_of hW d) hD hC hA0
       have hPc := constsLt_of_take hW (by omega) (((hW.2 d D hD).2.2 c C hC).1 _ A0 hA0).2.2.2.2
-      have := fund_ty hW hH hGC hP hPc k' c'
+      have := fund_ty hW id hH hGC hP (KOK.of_constsLt (kanOracle hW hGC) hPc) k' c'
       rw [hγ, pt_inst hW hD hC hA0 (Nat.le_refl _) (by simp [hpl]) 0 c'.σ.τ, List.take_length] at this
       have hAk : C.argTy d D.params.length args.length = A0 := by simp [Ctor.argTy, hA0]
       rw [hAk]

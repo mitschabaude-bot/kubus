@@ -68,12 +68,74 @@ theorem CSub.upγ_restr_subst (hW : WfSig S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} (c :
     | succ x => exact (isub_shift (c.γ x) σ).symm
   · intro i; rfl
 
-variable (hW : WfSig S) {n : ℕ} (hH : Hyp S n) (hGC : GlueCompat S)
-include hW hH hGC
+/-- Composition in all instances of `A` is computable (for types that need not be covered by the
+Kan oracle). -/
+def NKH (S : Sig) (A : Tm) : Prop :=
+  ∀ k (γ : ℕ → Tm) (τ : ℕ → I) (l : ℕ), HasTy S k .one [] (A.subst γ τ) (.univ l) →
+    RT S k (A.subst γ τ) ∧ KanH S k (A.subst γ τ)
+
+/-- Transport along all instances of the line `A` is computable. -/
+def NKT (S : Sig) (A : Tm) : Prop :=
+  ∀ k (γ : ℕ → Tm) (τ : ℕ → I) (l : ℕ), HasTy S (k + 1) .one [] (A.subst γ (I.up τ)) (.univ l) →
+    RT S (k + 1) (A.subst γ (I.up τ)) ∧ KanT S k (A.subst γ (I.up τ))
+
+/-- The terms the fundamental lemma applies to: constants below `n`, and Kan operations either
+covered by the oracle `O` or at types whose Kan property is given (`NKH`, `NKT`). The domain of a
+`λ` is not visited. -/
+def KOK (S : Sig) (n : ℕ) (O : Prop) : Tm → Prop
+  | .var _ | .univ _ | .abort => True
+  | .const k => k < n
+  | .pi A B | .sigma A B | .app A B | .pair A B => KOK S n O A ∧ KOK S n O B
+  | .lam _ B => True ∧ KOK S n O B
+  | .fst p | .snd p | .plam p | .ipi p | .papp p _ => KOK S n O p
+  | .unglue _ e g => KOK S n O e ∧ KOK S n O g
+  | .path A a b => KOK S n O A ∧ KOK S n O a ∧ KOK S n O b
+  | .split _ t _ u => KOK S n O t ∧ KOK S n O u
+  | .transp A _ a => (KOK S n O A ∧ O ∨ NKT S A) ∧ KOK S n O a
+  | .hcomp A _ u a => (KOK S n O A ∧ O ∨ NKH S A) ∧ KOK S n O u ∧ KOK S n O a
+  | .glue A _ T e => KOK S n O A ∧ KOK S n O T ∧ KOK S n O e
+  | .glueEl _ e t a => KOK S n O e ∧ KOK S n O t ∧ KOK S n O a
+  | .tnil => True
+  | .tcons t ts => KOK S n O t ∧ KOK S n O ts
+  | .data d ps => d < n ∧ KOK S n O ps
+  | .con d _ ps args _ => d < n ∧ KOK S n O ps ∧ KOK S n O args
+  | .elim d ps P bs t => (d < n ∧ KOK S n O ps ∧ KOK S n O P ∧ KOK S n O bs ∧ KOK S n O t) ∧ O
+
+theorem KOK.toList_mem {n : ℕ} {O : Prop} : ∀ {t : Tm}, KOK S n O t → ∀ x ∈ t.toList, KOK S n O x := by
+  intro t
+  induction t with
+  | tcons a as _ ihas =>
+    intro h x hx
+    simp only [Tm.toList, List.mem_cons] at hx
+    rcases hx with rfl | hx
+    · exact h.1
+    · exact ihas h.2 x hx
+  | _ => intro _ x hx; simp [Tm.toList] at hx
+
+theorem KOK.of_constsLt {n : ℕ} {O : Prop} (hO : O) : ∀ {t : Tm}, t.ConstsLt n → KOK S n O t := by
+  intro t
+  induction t with
+  | var | univ | abort | tnil => intro _; trivial
+  | const => exact id
+  | pi _ _ h1 h2 | sigma _ _ h1 h2 | app _ _ h1 h2 | pair _ _ h1 h2 | tcons _ _ h1 h2 =>
+    exact fun h => ⟨h1 h.1, h2 h.2⟩
+  | lam _ _ _ h2 => exact fun h => ⟨trivial, h2 h.2⟩
+  | fst _ h | snd _ h | plam _ h | ipi _ h | papp _ _ h => exact h
+  | unglue _ _ _ h1 h2 | split _ _ _ _ h1 h2 => exact fun h => ⟨h1 h.1, h2 h.2⟩
+  | path _ _ _ h1 h2 h3 | glue _ _ _ _ h1 h2 h3 | glueEl _ _ _ _ h1 h2 h3 =>
+    exact fun h => ⟨h1 h.1, h2 h.2.1, h3 h.2.2⟩
+  | transp _ _ _ h1 h2 => exact fun h => ⟨.inl ⟨h1 h.1, hO⟩, h2 h.2⟩
+  | hcomp _ _ _ _ h1 h2 h3 => exact fun h => ⟨.inl ⟨h1 h.1, hO⟩, h2 h.2.1, h3 h.2.2⟩
+  | data _ _ h => exact fun h' => ⟨h'.1, h h'.2⟩
+  | con _ _ _ _ _ h1 h2 => exact fun h => ⟨h.1, h1 h.2.1, h2 h.2.2⟩
+  | elim _ _ _ _ _ h1 h2 h3 h4 => exact fun h => ⟨⟨h.1, h1 h.2.1, h2 h.2.2.1, h3 h.2.2.2.1, h4 h.2.2.2.2⟩, hO⟩
+
+variable (hW : WfSig S) {n : ℕ} {O : Prop} (hOK : O → KanOracle S) (hH : Hyp S n) (hGC : GlueCompat S)
+include hW hOK hH hGC
 
 mutual
 
-theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ k (c : CSub S Ψ Φ Γ k),
+theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → KOK S n O t → ∀ k (c : CSub S Ψ Φ Γ k),
     RE S k (A.subst c.γ c.σ.τ) (t.subst c.γ c.σ.τ)
   | @HasTy0.var _ Ψ Φ Γ x A h0 h1 => fun _ k c => c.look x A h1
   | @HasTy0.conv _ Ψ Φ Γ t A B l h0 h1 => fun hc k c => by
@@ -248,15 +310,23 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
     have hty : HasTy S k .one [] (.transp (A.subst (dupS c.γ) (I.up c.σ.τ)) (φ.subst c.σ.τ) (a.subst c.γ c.σ.τ))
         ((A.subst (dupS c.γ) (I.up c.σ.τ)).dinst .one) := by
       have := c.ty hW (HasTy0.transp h0 h1 h2 h3); rwa [dinst_subst] at this
-    have hA := (RE_univ_iff hW).1 (fund_ty h0 hc.1 (k + 1) (c.up hW))
+    have hRK : RT S (k + 1) (A.subst (dupS c.γ) (I.up c.σ.τ)) ∧ KanT S k (A.subst (dupS c.γ) (I.up c.σ.τ)) := by
+      rcases hc.1 with ⟨hA, hO⟩ | hN
+      · have hA := (RE_univ_iff hW).1 (fund_ty h0 hA (k + 1) (c.up hW))
+        exact ⟨hA.2.2, fun φ a hty ha => kan_transp hW (hOK hO) (l := l) hA.2.2 hty ha⟩
+      · exact hN k (dupS c.γ) c.σ.τ l ((c.up hW).ty hW h0)
     have ha := fund_ty h3 hc.2 k c
     rw [dinst_subst] at ha ⊢
-    exact kan_transp hW (l := l) hA.2.2 hty ha
+    exact hRK.2 _ _ hty ha
   | @HasTy0.hcomp _ Ψ Φ Γ A φ u a l h0 h1 h2 h3 h4 => fun hc k c => by
     have hty : HasTy S k .one [] (.hcomp (A.subst c.γ c.σ.τ) (φ.subst c.σ.τ) (u.subst (dupS c.γ) (I.up c.σ.τ))
         (a.subst c.γ c.σ.τ)) (A.subst c.γ c.σ.τ) := c.ty hW (HasTy0.hcomp h0 h1 h2 h3 h4)
-    have hA := (RE_univ_iff hW).1 (fund_ty h0 hc.1 k c)
-    refine kan_hcomp hW hA.2.2 hty (fun k' σ r hr hh => ?_) (fund_ty h3 hc.2.2 k c)
+    have hRK : RT S k (A.subst c.γ c.σ.τ) ∧ KanH S k (A.subst c.γ c.σ.τ) := by
+      rcases hc.1 with ⟨hA, hO⟩ | hN
+      · have hA := (RE_univ_iff hW).1 (fund_ty h0 hA k c)
+        exact ⟨hA.2.2, fun φ u a hty hu ha => kan_hcomp hW (hOK hO) hA.2.2 hty hu ha⟩
+      · exact hN k c.γ c.σ.τ l (c.ty hW h0)
+    refine hRK.2 _ _ _ hty (fun k' σ r hr hh => ?_) (fund_ty h3 hc.2.2 k c)
     have hface : I.Entails .one (φ.subst (c.restr hW σ).σ.τ) := by
       rw [show φ.subst (c.restr hW σ).σ.τ = (φ.subst c.σ.τ).subst σ.τ from (I_subst_subst _ _ _).symm]
       exact entails_of_holds (I.scoped_subst (I.scoped_subst h1 c.σ.sc) σ.sc) hh
@@ -415,6 +485,7 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
       rwa [Meta.paramVars_substList (isList_subst h2 _ _) (by rw [toList_subst h2]; simp [hpsl])
         (by rw [List.length_reverse, List.length_take, List.length_map]; exact Nat.min_eq_left hjl.le)] at this
   | @HasTy0.elim _ Ψ Φ Γ d D ps P bs t m h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => fun hc k c => by
+    obtain ⟨hc, hO⟩ := hc
     have hS := sigClosed_of_wfSig hW
     have iht := fund_ty h9 hc.2.2.2.2 k c
     have hpsT : HasTy S k .one [] (.data d (ps.subst c.γ c.σ.τ)) (.univ D.level) := c.ty hW h2
@@ -430,7 +501,7 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
       have : (Tm.elim d (ps.subst c.γ c.σ.τ) (P.subst (Tm.up c.γ) c.σ.τ) (bs.subst c.γ c.σ.τ)
           (t.subst c.γ c.σ.τ)).closedB 0 k = true := closed_of_ty hW hel
       simp only [Tm.closedB, Bool.and_eq_true] at this; exact this.1.2
-    have key := RE_elim_DR hW h0 (k0 := k) (ps := ps.subst c.γ c.σ.τ) (P := P.subst (Tm.up c.γ) c.σ.τ)
+    have key := RE_elim_DR hW (hOK hO) h0 (k0 := k) (ps := ps.subst c.γ c.σ.τ) (P := P.subst (Tm.up c.γ) c.σ.τ)
       (bs := bs.subst c.γ c.σ.τ) ?_ ?_ ?_ ?_ hdr (ISub.id k) (ISub.hom_id k).symm
       (by rw [isub_id_of_closed hpc]; exact TyEq.refl _)
     · rwa [isub_id_of_closed hpc, isub_id_of_closed hPc, isub_id_of_closed hbc] at key
@@ -457,13 +528,13 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.ConstsLt n → ∀ 
         rw [← CSub.restr_subst, toList_subst h5]
       rw [hbl, List.getElem?_map] at hb
       obtain ⟨b0, hb0, rfl⟩ := Option.map_eq_some_iff.1 hb
-      have hb0c : b0.ConstsLt n := Model.Tm.ConstsLt.toList_mem hc.2.2.2.1 b0 (List.mem_of_getElem? hb0)
+      have hb0c : KOK S n O b0 := KOK.toList_mem hc.2.2.2.1 b0 (List.mem_of_getElem? hb0)
       have := fund_ty (h7 c' C b0 hC hb0) hb0c k' (c.restr hW σ)
       rw [branchTy_subst _ _ hS h0 hC h1 (by simpa using tele_length h3) P, CSub.restr_subst,
         CSub.upγ_restr_subst] at this
       exact this
 
-theorem fund_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → ts.ConstsLt n → ∀ k (c : CSub S Ψ Φ Γ k),
+theorem fund_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → KOK S n O ts → ∀ k (c : CSub S Ψ Φ Γ k),
     TeleCompS S k c.γ c.σ.τ ts Δ prev
   | @HasTele0.nil _ Ψ Φ Γ prev h0 => fun _ k c => trivial
   | @HasTele0.cons _ Ψ Φ Γ a as A Δ prev h0 h1 => fun hc k c =>

@@ -79,7 +79,7 @@ theorem RE_of_DR_K {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : 
   exact (RE_data_iff hW hd hpsT).2 ⟨hr2.typed, hr2⟩
 
 /-- The eliminator is computable on computable elements (by induction on the relation). -/
-theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : ℕ} {ps P bs : Tm}
+theorem RE_elim_DR (hO : KanOracle S) {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : ℕ} {ps P bs : Tm}
     (hE : ∀ k (σ : ISub k k0), ∃ m, ElimPrem S k .one [] d D (ps.isub σ) (P.isub σ) (bs.isub σ) m)
     (hPc : ∀ k (σ : ISub k k0) t, RE S k (.data d (ps.isub σ)) t → RT S k ((P.isub σ).inst t))
     (hRT : ∀ k (σ : ISub k k0), RT S k (.data d (ps.isub σ)))
@@ -256,7 +256,7 @@ theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : 
       have hR := hRT k' (σ.comp ρ)
       rw [show Tm.data d (ps.isub (σ.comp ρ)) = (Tm.data d (ps.isub σ)).isub ρ by
         show _ = Tm.data d ((ps.isub σ).isub ρ); rw [Tm.isub_isub]] at hR
-      exact kan_hcomp hW hR hty'' hu'' ha''
+      exact kan_hcomp hW hO hR hty'' hu'' ha''
     have hRH := RE_hfill hW hKH hhp hu' ha'
     -- the line of the composition: the motive along the filler
     have hPσ : ∀ k' (ρ : ISub k' (k + 1)), ((P.isub σ).dshift.inst (Tm.hfill (.data d (ps.isub σ)) φ u a)).isub ρ =
@@ -272,7 +272,7 @@ theorem RE_elim_DR {d : ℕ} {D : DataDecl} (hd : S[d]? = some (.data D)) {k0 : 
         show _ = Tm.data d ((ps.isub σ).isub ρ.tail); rw [Tm.isub_isub]]
       exact this
     have hKC : KanAll S (k + 1) ((P.isub σ).dshift.inst (Tm.hfill (.data d (ps.isub σ)) φ u a)) :=
-      kanAll_of_RT hW fun k' ρ => by
+      kanAll_of_RT hW hO fun k' ρ => by
         rw [hPσ]; exact hPc k' (σ.comp ρ.tail) _ (hHρ k' ρ)
     have e2' : EqTm S k .one [] (.elim d (ps.isub σ) (P.isub σ) (bs.isub σ) (.hcomp (.data d qs) φ u a))
         (Tm.comp ((P.isub σ).dshift.inst (Tm.hfill (.data d (ps.isub σ)) φ u a)) φ

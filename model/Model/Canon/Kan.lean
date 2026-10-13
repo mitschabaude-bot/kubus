@@ -199,27 +199,13 @@ theorem kanP_empty (m : ℕ) : KanP S m (emptyC m) := by
     have h0 := ty_dinst hW (kr_emptyC hW) hT .zero trivial
     unfold RE at ha; rw [← Comp_eq_semK h0, Comp_emptyC] at ha; exact ha.elim
 
-theorem kanP_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KanP S m X := by
-  refine (tyCode_ind (fun m X => KR S m X ∧ KanP S m X) ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ m X hX).2
-  · exact fun m => ⟨kr_emptyC hW, kanP_empty hW m⟩
-  · intro l m A B hA hB hBf hBw hBn ihA ihB
-    exact ⟨kr_piC hW (WF.fib (show WF l m (piC m A B) from WFI.pi hA hB hBf hBw hBn)) (IsKV.ne_empty hA.fib.kv),
-      kanP_pi hW l m A B hA ihA.2 fun k f a ha => (ihB k f a ha).2⟩
-  · intro l m A B hA hB hBf hBw hBn ihA ihB
-    exact ⟨kr_sigmaC hW (WF.fib (show WF l m (sigmaC m A B) from WFI.sigma hA hB hBf hBw hBn))
-      (IsKV.ne_empty hA.fib.kv), kanP_sigma hW l m A B hA ihA ihB⟩
-  · intro l m L a0 a1 hL h0 h1 ihL
-    exact ⟨kr_pathC hW (WF.fib (show WF l m (pathC m L a0 a1) from WFI.path hL h0 h1)) (IsKV.ne_empty hL.fib.kv),
-      kanP_path hW m L a0 a1 (IsKV.ne_empty hL.fib.kv) ihL.1 ihL.2⟩
-  · intro l m L hL ihL
-    exact ⟨kr_ipiC hW (WF.fib (show WF l m (ipiC m L) from WFI.ipi hL)) (IsKV.ne_empty hL.fib.kv),
-      kanP_ipi hW m L (IsKV.ne_empty hL.fib.kv) ihL.1 ihL.2⟩
-  · sorry
-  · sorry
-  · intro l m Θ hc hw ih
-    have hΘ : Θ.Good := { hc with fib := fun c j n g pre hp => (hw c j n g pre hp).fib }
-    have hKR := kr_dataC hW hΘ (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw)) (fun c j n g pre hp => (ih c j n g pre hp).1)
-    exact ⟨hKR, kanP_data hW hΘ ih hKR⟩
+omit hW in
+/-- All codes are Kan. Proved in `KanAll.lean`, after the fundamental lemma (which the universe
+and Glue cases use on Kan-free terms); until then a hypothesis. -/
+def KanOracle (S : Sig) : Prop := ∀ m X, TyCode m X → KanP S m X
+
+variable (hO : KanOracle S)
+include hO
 
 /-- Composition in a computable type of a computable tube and base is computable. -/
 theorem kan_hcomp {A u a : Tm} {φ : I} (hA : RT S k A)
@@ -227,22 +213,22 @@ theorem kan_hcomp {A u a : Tm} {φ : I} (hA : RT S k A)
     (hu : ∀ k' (σ : ISub k' k) (r : I), r.Scoped k' → (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE S k' (A.isub σ) ((u.isub σ.up).dinst r))
     (ha : RE S k A a) : RE S k A (.hcomp A φ u a) :=
-  (kanP_tyCode hW (tyCode_of_ty hW (Comp_el_typed ha).1)).1 k (Hom.id k) A hA φ u a hty hu ha
+  (hO _ _ (tyCode_of_ty hW (Comp_el_typed ha).1)).1 k (Hom.id k) A hA φ u a hty hu ha
 
 /-- Transport along a computable line of a computable element is computable. -/
 theorem kan_transp {A a : Tm} {φ : I} {l : ℕ} (hA : RT S (k + 1) A)
     (hty : HasTy S k .one [] (.transp A φ a) (A.dinst .one))
     (ha : RE S k (A.dinst .zero) a) : RE S k (A.dinst .one) (.transp A φ a) := by
   obtain ⟨-, ⟨l, hA' | rfl⟩, -⟩ := Comp_ty_base hA
-  · exact (kanP_tyCode hW (tyCode_of_univ hW hA')).2 k (Hom.id (k + 1)) A hA φ a hty ha
+  · exact (hO _ _ (tyCode_of_univ hW hA')).2 k (Hom.id (k + 1)) A hA φ a hty ha
   · obtain ⟨l0, ⟨hU, -⟩, -⟩ := gen_transpF (Φ := .one) (Γ := []) (spec_to_minimal hW hty) rfl
     have hl := gen_univ hU rfl
-    exact (kanP_tyCode hW ⟨l, by omega, .inr rfl⟩).2 k (Hom.id (k + 1)) _ hA φ a hty ha
+    exact (hO _ _ ⟨l, by omega, .inr rfl⟩).2 k (Hom.id (k + 1)) _ hA φ a hty ha
 
 /-- Types computable at all restrictions are Kan. -/
 theorem kanAll_of_RT {n : ℕ} {A : Tm} (h : ∀ k' (ρ : ISub k' n), RT S k' (A.isub ρ)) : KanAll S n A :=
-  ⟨fun k' ρ _ _ _ hty hu ha => kan_hcomp hW (h k' ρ) hty hu ha,
-    fun k' ρ _ _ hty ha => kan_transp hW (l := 0) (h (k' + 1) ρ) hty ha⟩
+  ⟨fun k' ρ _ _ _ hty hu ha => kan_hcomp hW hO (h k' ρ) hty hu ha,
+    fun k' ρ _ _ hty ha => kan_transp hW hO (l := 0) (h (k' + 1) ρ) hty ha⟩
 
 end
 
