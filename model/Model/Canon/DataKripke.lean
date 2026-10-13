@@ -209,7 +209,59 @@ theorem DR.isub (ihT : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → KR 
       · show ((u.isub σ.up).isub σ'.up).dinst r = _
         rw [Tm.isub_isub, ← ISub.up_comp]
 
+omit hW in
+theorem DR.rebase {d : ℕ} {D : DataDecl} {k : ℕ} {f' : Hom k k0} {A t : Tm}
+    (hr : DR S d D (dataMem S Θ f) (dataP S Θ f) k f' A t) :
+    ∀ {k1 : ℕ} (h : Hom k1 k0) (g : Hom k k1), f' = h.comp g →
+      DR S d D (dataMem S Θ (f.comp h)) (dataP S Θ (f.comp h)) k g A t := by
+  induction hr with
+  | con hm hC hrs hsc hpl hAeq he hlen hrec hpt ihrec =>
+    intro k1 h g e; subst e
+    refine DR.con ?_ hC hrs hsc hpl hAeq he hlen (fun j hj hr => ihrec j hj hr h g rfl) (fun j hj hr => ?_)
+    · unfold dataMem at hm ⊢; rwa [Hom.comp_assoc]
+    · have := hpt j hj hr; unfold dataP at this ⊢; rwa [Hom.comp_assoc]
+  | hcomp hm hH hsc hn hpl hAeq he ha hu iha ihu =>
+    intro k1 h g e; subst e
+    refine DR.hcomp ?_ hH hsc hn hpl hAeq he (iha h g rfl) (fun k' σ r hr hh => ihu k' σ r hr hh h _ ?_)
+    · unfold dataMem at hm ⊢; rwa [Hom.comp_assoc]
+    · rw [Hom.comp_assoc]
+
+omit hW in
+theorem DR.unbase {d : ℕ} {D : DataDecl} {k k1 : ℕ} {h : Hom k1 k0} {g : Hom k k1} {A t : Tm}
+    (hr : DR S d D (dataMem S Θ (f.comp h)) (dataP S Θ (f.comp h)) k g A t) :
+    DR S d D (dataMem S Θ f) (dataP S Θ f) k (h.comp g) A t := by
+  induction hr with
+  | con hm hC hrs hsc hpl hAeq he hlen hrec hpt ihrec =>
+    refine DR.con ?_ hC hrs hsc hpl hAeq he hlen (fun j hj hr => ihrec j hj hr) (fun j hj hr => ?_)
+    · unfold dataMem at hm ⊢; rwa [← Hom.comp_assoc]
+    · have := hpt j hj hr; unfold dataP at this ⊢; rwa [← Hom.comp_assoc]
+  | hcomp hm hH hsc hn hpl hAeq he ha hu iha ihu =>
+    refine DR.hcomp ?_ hH hsc hn hpl hAeq he iha (fun k' σ r hr hh => ?_)
+    · unfold dataMem at hm ⊢; rwa [← Hom.comp_assoc]
+    · have := ihu k' σ r hr hh; rw [Hom.comp_assoc]; exact this
+
 end dr
+
+theorem kr_dataC (hW : WfSig S) {Θ : SData m} (hΘ : Θ.Good) (hX : Fib (dataC Θ) m)
+    (ihT : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → KR S n (Θ.ty c j n g pre)) : KR S m (dataC Θ) := by
+  intro k f k' σ T t
+  rw [Comp_dataC, Comp_dataC]
+  constructor
+  · rintro ⟨⟨hT, hsem⟩, ps, hE, hpl, hall⟩
+    refine ⟨⟨hT.isub hW σ, ?_⟩, ps.isub σ, hE.isub hW σ, isList_subst hpl _ _,
+      fun k'' σ' c C args hC hlt hr hrec hpt => ?_⟩
+    · rw [semK_isubTy hW hT σ, hsem, res_res]
+    have := hall k'' (σ.comp σ') c C args hC hlt hr (fun j hj hr => ?_) (fun j hj hr => ?_)
+    · rw [ISub.comp_hom, Tm.isub_isub]; exact this
+    · have := DR.unbase f (hrec j hj hr)
+      rw [ISub.hom_comp, ← Tm.isub_isub]; exact this
+    · have := hpt j hj hr
+      unfold dataP at this ⊢
+      rw [ISub.hom_comp, ← Hom.comp_assoc, ← Tm.isub_isub]; exact this
+  · rintro ⟨ht, hmem, -, hdr⟩
+    refine ⟨HasTy.isubS hW ht σ, mem_isub hW hX ht hmem σ, HasTy.isubS hW ht σ, ?_⟩
+    have := DR.isub hW hΘ f ihT hdr k' σ
+    exact DR.rebase f this σ.hom (Hom.id k') (by rw [Hom.id_comp, Hom.comp_id])
 
 end
 
