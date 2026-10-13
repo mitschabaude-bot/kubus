@@ -4,6 +4,8 @@ This Lake project builds the cubical-sets model of Kubus Core (`../KubusCore`) t
 
 ## Spec issues (read first)
 
+Status: issues 1–4 below were fixed in the spec in commit `91505c9` (`unglue φ e g`, annotated `lam A t`, `glueBase`/`glueEquiv` removed, `maxLevel = 4`). They are kept here as a record. New issues will be added at the top of this section.
+
 ### 1. The spec is inconsistent: `unglue φ g` does not carry the equivalence
 
 `unglueFace` says `unglue φ g ≡ e.1 g : A` whenever `Φ ⊨ φ` and `g : Glue A [φ ↦ (T, e)]`. Under `Φ ⊨ φ` the type `Glue A [φ ↦ (T, e)]` is judgmentally `T` (by `glueFace`), so the same `g : T` inhabits `Glue A [φ ↦ (T, e)]` for *every* equivalence `e : Equiv T A`. Since the term `unglue φ g` does not mention `e`, the rule identifies `e.1 g ≡ e'.1 g` for any two equivalences. Derivation of a closed term of `(X : U₀) → X`, with `Ψ = 0`, `Φ = 1`, signature `[]`:
@@ -32,8 +34,8 @@ In a set-valued model a function is its graph, so `λx. x : A → A` and `λx. x
 
 A model in which `U_l` collects all small fibrant types, for every `l : ℕ` simultaneously, needs a sequence of Grothendieck universes `V₀ ∈ V₁ ∈ …` inside one Lean universe, i.e. ω inaccessibles below it. Lean proves the existence of finitely many (`Type 0 ∈ Type 1 ∈ …`, or `PSet.embed`), but cannot quantify over universe levels, so a single theorem covering derivations with arbitrary `l` cannot be proven from a set-valued model; the cardinality argument is that any `U_l` closed under Π with arbitrary families and containing an infinite type has inaccessible cardinality. Options:
 
-- state consistency relative to an assumed ω-tower of Grothendieck universes (the plan here: the model is parametric in a tower `V : ℕ → ZFSet`, and the final theorem takes it as a hypothesis);
-- bound the universe levels in the spec (a fixed maximum `N`), in which case a finite tower is constructible in Lean and the theorem is unconditional;
+- state consistency relative to an assumed ω-tower of Grothendieck universes;
+- bound the universe levels in the spec (a fixed maximum `N`), in which case a finite tower is constructible in Lean and the theorem is unconditional (chosen: `maxLevel = 4`; the model's values live in `ZFSet.{5}`, and `V_l` will be the embedded copy of `ZFSet.{l}`);
 - a realizability model (handles all levels in `Type 0`), at much higher cost.
 
 Note also that the core fragment has no base types, so the model must put an empty type into `U₀` itself to refute `(X : U₀) → X`; that is fine.
@@ -58,7 +60,7 @@ Design decisions:
 - **Kripke representation**: storing the restrictions inside each value makes restriction type-independent and definitionally functorial, avoids recursion, and makes Glue types/elements reduce on their face for free.
 - **Codes store their Kan operations as data**, computed non-recursively by the constructors from the components. Derived codes (the fiber types in `transpGlue`, the isEquiv types needed for `hcomp` in `U`) can then be built freely, with no well-founded recursion on codes.
 - **Faces** are represented canonically by their Kleene reading (a set of `K3`-points), so Kan operations depend only on the face, as `EqTm.transp`/`hcomp` congruence (mutual entailment) requires.
-- **Universes**: `U_l` will be `{c ∈ V_l | c is a well-formed level-l code}` for an assumed tower `V_l` of Grothendieck universes (see spec issue 4). Well-formedness is an inductive predicate on intensional codes, which validates `piDom`/`piCod`/… by inversion.
+- **Universes**: `U_l` will be `{c ∈ V_l | c is a well-formed level-l code}` where `V_l ⊆ ZFSet.{5}` is the embedded copy of `ZFSet.{l}` (a Grothendieck universe), `l ≤ maxLevel = 4`. Well-formedness is an inductive predicate on intensional codes, which validates `piDom`/`piCod`/… by inversion.
 
 ## Status
 

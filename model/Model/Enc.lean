@@ -21,7 +21,7 @@ set_option autoImplicit false
 namespace Model
 
 /-- The universe of values. -/
-abbrev V := ZFSet.{0}
+abbrev V := ZFSet.{5}
 
 open ZFSet
 
