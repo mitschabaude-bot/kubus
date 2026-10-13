@@ -661,6 +661,37 @@ theorem hpsys : HasTy0 S (Ψ + 1) (cof (cof Φ (φ.subst (I.inst0 .one))) (.or �
   rw [dshift_dinst] at ho
   exact HasTy0.split hδ1 hψ1 hΞχ (HasTy0.restrict hΞs hΞW (HasTy0.dwk H.hS H.hfib)) hb1 hb2 ho
 
+theorem hext : HasTy0 S Ψ (cof Φ (φ.subst (I.inst0 .one))) Γ (tgExt A φ T e ψ u0 δ) (tgFib A φ T e ψ u0) := by
+  have hΞs : (cof (cof Φ (φ.subst (I.inst0 .one))) (.or δ ψ)).Scoped Ψ := ⟨H.hWs, ⟨H.hδ, H.hψ⟩⟩
+  have hs0 := HasTy0.dsubst H.hS H.hpsys (r := .zero) trivial
+  rw [dshift_dinst, psys_dinst] at hs0
+  have hside : EqTm0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) (.or δ ψ)) Γ
+      ((split δ.shift (papp (tgPd A φ T e ψ u0).dshift (.var 0)) ψ.shift
+        (papp (tgPpsi A φ e ψ u0).dshift (.var 0))).dinst .zero) (fst (tgC A φ e ψ u0)) (tgFib A φ T e ψ u0) := by
+    rw [psys_dinst]
+    refine EqTm0.local (φ := δ) (ψ := ψ) H.hδ H.hψ (ent_and_right _ _) hs0
+      (HasTy0.restrict hΞs (ent_and_left _ _) H.hfc) ?_ ?_
+    · have hX : (cof (cof (cof Φ (φ.subst (I.inst0 .one))) (.or δ ψ)) δ).Scoped Ψ := ⟨hΞs, H.hδ⟩
+      exact EqTm0.trans (EqTm0.splitL (ent_and_right _ _) (HasTy0.restrict hX (ent_and_left _ _) hs0))
+        (pathC_zero (HasTy0.restrict hX (ent_and_mono (ent_and_left _ _) (ent_refl _)) H.hPd))
+    · have hX : (cof (cof (cof Φ (φ.subst (I.inst0 .one))) (.or δ ψ)) ψ).Scoped Ψ := ⟨hΞs, H.hψ⟩
+      exact EqTm0.trans (EqTm0.splitR (ent_and_right _ _) (HasTy0.restrict hX (ent_and_left _ _) hs0))
+        (pathC_zero (HasTy0.restrict hX (ent_and_mono (ent_and_left _ _) (ent_refl _)) H.hPψ))
+  rw [tgExt_eq]
+  exact HasTy0.hcomp H.hfib ⟨H.hδ, H.hψ⟩ H.hpsys H.hfc hside
+
+/-- On `ψ` the extension is `(u0, ⟨_⟩ a1')`. -/
+theorem hextψ : EqTm0 S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) Γ (tgExt A φ T e ψ u0 δ)
+    (pair u0 (plam (tgA1' A φ e ψ u0).dshift)) (tgFib A φ T e ψ u0) := by
+  have hX := HasTy0.restrict H.hWψs (ent_and_left _ _) H.hext
+  rw [tgExt_eq] at hX ⊢
+  have e1 := EqTm0.hcompFace (ent_trans (ent_and_right _ _) (ent_or_right _ _)) hX
+  have hs1 := HasTy0.dsubst H.hS H.hpsys (r := .one) trivial
+  rw [dshift_dinst] at hs1
+  have hs1' := HasTy0.restrict H.hWψs (ent_and_intro (ent_and_left _ _) (ent_trans (ent_and_right _ _) (ent_or_right _ _))) hs1
+  rw [psys_dinst] at e1 hs1'
+  exact EqTm0.trans e1 (EqTm0.trans (EqTm0.splitR (ent_and_right _ _) hs1') (pathC_one H.hPψ))
+
 end TG
 
 end KubusCore.Meta
