@@ -229,6 +229,77 @@ theorem sem_eta_body {p : Tm} {ρ : IEnv m} {γ : ℕ → V} {P : V} (hnat : Nat
   show res (Hom.snoc ((Hom.wk m).comp g) ((lastVar m).restr g)) P = _
   rw [snoc_wk_lastVar]
 
+/-! ### Interval function types -/
+
+theorem sem_ipi {A : Tm} {ρ : IEnv m} {γ : ℕ → V}
+    (hN : Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m))) (hL : IsKV (m + 1) (lineV S A m ρ γ)) :
+    sem S (.ipi A) m ρ γ = ipiC m (lineV S A m ρ γ) := by
+  simp only [sem, interp]; exact if_pos ⟨hN, hL⟩
+
+theorem kv_of_sem_ipi {A : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : sem S (.ipi A) m ρ γ ≠ ∅) :
+    Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) ∧ IsKV (m + 1) (lineV S A m ρ γ) := by
+  simp only [sem, interp] at h; split at h
+  · assumption
+  · exact absurd rfl h
+
+theorem below_ipiC_line (L : V) (hL : IsKV (m + 1) L) : Below L (ipiC m L) := by
+  have h2 : Below (res (Hom.lift (Hom.id m)) L) (ipiC m L) := by
+    unfold ipiC
+    refine Below.trans ?_ (below_dat_mkKV _ (Hom.id m))
+    simp only [ipiDatum, quad, tagZ]
+    exact ((below_pair_left _ _).trans (below_pair_right _ _)).trans (below_pair_left _ _)
+  rwa [Hom.lift_id, res_id hL] at h2
+
+/-- Codes of interval function types of small lines are small. TODO (closure plumbing for `Vt`). -/
+theorem ipiC_mem_Vt {l : ℕ} {L : V} (hL : L ∈ Vt l) (hLkv : IsKV (m + 1) L) : ipiC m L ∈ Vt l := by
+  sorry
+
+theorem WF.ipi_inv {l : ℕ} {L : V} (hL : IsKV (m + 1) L) (h : WF l m (ipiC m L)) : WF l (m + 1) L := by
+  generalize hc : ipiC m L = c at h
+  have htag : codeTag m c = natZ tIPi := by rw [← hc]; simp [codeTag, ipiC, ipiDatum, tagZ]
+  unfold WF at h
+  cases h with
+  | empty => simp [tEmpty, tIPi] at htag
+  | pi => simp [tPi, tIPi] at htag
+  | sigma => simp [tSigma, tIPi] at htag
+  | path => simp [codeTag, pathC, pathDatum, tagZ, tPath, tIPi] at htag
+  | @ipi _ L' hL' =>
+    obtain rfl := ipiC_inj hL (wf_props l _ L' hL').1.kv hc
+    exact hL'
+  | univ => rw [Ucodes_lt _ ‹_›, codeTag_univC] at htag; simp [tUniv, tIPi] at htag
+  | glue _ hφ hn => rw [codeTag_glueC hn hφ] at htag; simp [tGlue, tIPi] at htag
+
+theorem mem_El_ipiC {L v : V} (hL : IsKV (m + 1) L) :
+    v ∈ El (ipiC m L) (Hom.id m) ↔ ∃ p ∈ El L (Hom.id (m + 1)), v = pathOfLine m p := by
+  rw [El_ipiC, Hom.lift_id, res_id hL]; exact mem_ipiEl
+
+/-- What a good interval function type gives at a point. -/
+theorem TyOK.ipi_at {A : Tm} {ρ : IEnv m} {γ : ℕ → V} (h : TyOK S (.ipi A) m ρ γ) :
+    Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) ∧ IsKV (m + 1) (lineV S A m ρ γ) ∧
+      sem S (.ipi A) m ρ γ = ipiC m (lineV S A m ρ γ) ∧
+      ∃ l ≤ maxLevel, lineV S A m ρ γ ∈ Vt l ∧ WF l (m + 1) (lineV S A m ρ γ) := by
+  have hne : sem S (.ipi A) m ρ γ ≠ ∅ := by
+    intro he; unfold TyOK at h; rw [he] at h; exact not_isKV_empty h.fib.kv
+  obtain ⟨hN, hL⟩ := kv_of_sem_ipi hne
+  have hsem := sem_ipi hN hL
+  unfold TyOK at h; rw [hsem] at h
+  obtain ⟨l, hl, h | h⟩ := h
+  · exact ⟨hN, hL, hsem, l, hl, Vt_below (below_ipiC_line _ hL) h.2, WF.ipi_inv hL h.1⟩
+  · have h1 : codeTag m (ipiC m (lineV S A m ρ γ)) = natZ tIPi := by
+      simp [codeTag, ipiC, ipiDatum, tagZ]
+    rw [h, codeTag_univC] at h1; simp [tUniv, tIPi] at h1
+
+theorem SemTy.ipi_at {Ψ : ℕ} {Φ : I} {Γ : Ctx} {A : Tm} {l : ℕ}
+    (h : SemTy S Ψ Φ Γ (.ipi A) (.univ l)) {ρ : IEnv m} {γ : ℕ → V} (hp : IsPoint S Φ Γ m ρ γ) :
+    Natural S A (m + 1) ρ.ext (TEnv.restr γ (Hom.wk m)) ∧ IsKV (m + 1) (lineV S A m ρ γ) ∧
+      sem S (.ipi A) m ρ γ = ipiC m (lineV S A m ρ γ) ∧ l ≤ maxLevel ∧
+      lineV S A m ρ γ ∈ Vt l ∧ WF l (m + 1) (lineV S A m ρ γ) := by
+  obtain ⟨hmem, -, hUty, -⟩ := h.2.2.2 m ρ γ hp
+  obtain ⟨hN, hL⟩ := kv_of_sem_ipi (hUty.ne_empty hmem)
+  rw [sem_ipi hN hL, sem_univ, mem_El_univ_iff] at hmem
+  have hl : l ≤ maxLevel := by unfold TyOK at hUty; rw [sem_univ] at hUty; exact hUty.univ_le
+  exact ⟨hN, hL, sem_ipi hN hL, hl, Vt_below (below_ipiC_line _ hL) hmem.1, WF.ipi_inv hL hmem.2⟩
+
 end
 
 end Model
