@@ -25,27 +25,34 @@ def fixedVar (Ψ : Nat) (Φ : I) :
     else fixedVar Ψ Φ is
 
 /-- Computation rule of `transp` for a line in weak-head normal form. -/
-def transpRule {Ψ Φ Γ} (L : Tm) (φ : I) (a T : Tm) (ht : HasTy S Ψ Φ Γ (.transp L φ a) T) :
-    Option (Red S Ψ Φ Γ (.transp L φ a) T) :=
+def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a T : Tm)
+    (ht : HasTy S Ψ Φ Γ (.transp L φ a) T) : K (Option (Red S Ψ Φ Γ (.transp L φ a) T)) :=
   match L, ht with
-  | .univ _, ht => some ⟨a, EqTm.transpU ht⟩
-  | .pi A B, ht => some ⟨Tm.transpPi A B φ a, EqTm.transpPi ht⟩
-  | .sigma A B, ht => some ⟨Tm.transpSigma A B φ a, EqTm.transpSigma ht⟩
-  | .path A b0 b1, ht => some ⟨Tm.transpPath A b0 b1 φ a, EqTm.transpPath ht⟩
-  | .glue A ψ T' e, ht => some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht⟩
-  | .ipi A, ht => some ⟨Tm.transpIPi A φ a, EqTm.transpIPi ht⟩
-  | _, _ => none
+  | .univ _, ht => pure (some ⟨a, EqTm.transpU ht⟩)
+  | .pi A B, ht => pure (some ⟨Tm.transpPi A B φ a, EqTm.transpPi ht⟩)
+  | .sigma A B, ht => pure (some ⟨Tm.transpSigma A B φ a, EqTm.transpSigma ht⟩)
+  | .path A b0 b1, ht => pure (some ⟨Tm.transpPath A b0 b1 φ a, EqTm.transpPath ht⟩)
+  | .glue A ψ T' e, ht => do
+    -- the base and the equivalence of the Glue line, which the rule takes as premises
+    let ⟨l, ⟨hA⟩⟩ ← inferType R E.dext A
+    let ⟨he⟩ ← checkEquiv R E.dext A ψ T' e l
+    pure (some ⟨Tm.transpGlue A ψ T' e φ a, EqTm.transpGlue ht hA he⟩)
+  | .ipi A, ht => pure (some ⟨Tm.transpIPi A φ a, EqTm.transpIPi ht⟩)
+  | _, _ => pure none
 
 /-- Computation rule of `hcomp` for a type in weak-head normal form. -/
-def hcompRule {Ψ Φ Γ} (A : Tm) (φ : I) (u a T : Tm) (ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) T) :
-    Option (Red S Ψ Φ Γ (.hcomp A φ u a) T) :=
+def hcompRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u a T : Tm)
+    (ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) T) : K (Option (Red S Ψ Φ Γ (.hcomp A φ u a) T)) :=
   match A, ht with
-  | .pi A B, ht => some ⟨Tm.hcompPi A B φ u a, EqTm.hcompPi ht⟩
-  | .sigma A B, ht => some ⟨Tm.hcompSigma A B φ u a, EqTm.hcompSigma ht⟩
-  | .path A b0 b1, ht => some ⟨Tm.hcompPath A b0 b1 φ u a, EqTm.hcompPath ht⟩
-  | .glue A ψ T' e, ht => some ⟨Tm.hcompGlue A ψ T' e φ u a, EqTm.hcompGlue ht⟩
-  | .ipi A, ht => some ⟨Tm.hcompIPi A φ u a, EqTm.hcompIPi ht⟩
-  | _, _ => none
+  | .pi A B, ht => pure (some ⟨Tm.hcompPi A B φ u a, EqTm.hcompPi ht⟩)
+  | .sigma A B, ht => pure (some ⟨Tm.hcompSigma A B φ u a, EqTm.hcompSigma ht⟩)
+  | .path A b0 b1, ht => pure (some ⟨Tm.hcompPath A b0 b1 φ u a, EqTm.hcompPath ht⟩)
+  | .glue A ψ T' e, ht => do
+    let ⟨l, ⟨hA⟩⟩ ← inferType R E A
+    let ⟨he⟩ ← checkEquiv R E A ψ T' e l
+    pure (some ⟨Tm.hcompGlue A ψ T' e φ u a, EqTm.hcompGlue ht hA he⟩)
+  | .ipi A, ht => pure (some ⟨Tm.hcompIPi A φ u a, EqTm.hcompIPi ht⟩)
+  | _, _ => pure none
 
 /-- `transp`: face rule, reduction of the line, computation rule. -/
 def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a A : Tm) (l : Nat)
@@ -55,7 +62,7 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
   let ⟨l1, ⟨hL⟩⟩ ← inferType R E.dext L
   let r ← whnfTy R E.dext L l1 hL
   if r.tm = L then
-    return (transpRule L φ a A ht).map (·, false)
+    return (← transpRule R E L φ a A ht).map (·, false)
   let i ← inferTransp R E L φ a
   let m := max l1 i.l
   let ⟨hm⟩ ← ensureLvl m
@@ -70,7 +77,7 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
   have e := EqTm.transp i.ht (HasTy.conv ht' (EqTm.symm e1)) eL (I.entails_refl φ)
     (I.entails_refl φ) (EqTm.refl i.ha)
   let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e
-  match transpRule r.tm φ a A (HasTy.eqR e) with
+  match ← transpRule R E r.tm φ a A (HasTy.eqR e) with
   | some r2 => return some (⟨r2.tm, EqTm.trans e r2.eq⟩, false)
   | none => return some (⟨.transp r.tm φ a, e⟩, true)
 
@@ -82,7 +89,7 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
   let ⟨l1, ⟨hB⟩⟩ ← inferType R E B
   let r ← whnfTy R E B l1 hB
   if r.tm = B then
-    return (hcompRule B φ u a A ht).map (·, false)
+    return (← hcompRule R E B φ u a A ht).map (·, false)
   let i ← inferHcomp R E B φ u a
   let m := max l1 i.l
   let ⟨hm⟩ ← ensureLvl m
@@ -94,7 +101,7 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
   have e := EqTm.hcomp i.ht (HasTy.conv ht' (EqTm.symm eB)) eB (I.entails_refl φ)
     (I.entails_refl φ) (EqTm.refl i.hu) (EqTm.refl i.ha)
   let ⟨e⟩ ← bridge R E i.hA hA e
-  match hcompRule r.tm φ u a A (HasTy.eqR e) with
+  match ← hcompRule R E r.tm φ u a A (HasTy.eqR e) with
   | some r2 => return some (⟨r2.tm, EqTm.trans e r2.eq⟩, false)
   | none => return some (⟨.hcomp r.tm φ u a, e⟩, true)
 
@@ -298,18 +305,20 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
       | .error _ => do
         let gi ← inferUnglueArg R E φ e g
         pure ⟨gi, ← R.whnf E g gi.ty gi.lvl gi.hty gi.htm⟩
-    let ⟨A1, _, ⟨hA1, eG⟩⟩ ← toGlueE R E gi.ty gi.lvl gi.hty φ e
+    let ⟨A1, T, ⟨hA1, eG⟩⟩ ← toGlueE R E gi.ty gi.lvl gi.hty φ e
     have hG := HasTy.eqR eG
     have hg := HasTy.conv gi.htm eG
-    let inf : Inf S Ψ Φ Γ (.unglue φ e g) := ⟨A1, gi.lvl, hA1, HasTy.unglue hG hg⟩
+    let ⟨he⟩ ← checkEquiv R E A1 φ T e gi.lvl
+    let inf : Inf S Ψ Φ Γ (.unglue φ e g) := ⟨A1, gi.lvl, hA1, HasTy.unglue hG hA1 he hg⟩
     if hφ : I.Entails Φ φ then
-      have e1 := EqTm.unglueFace hφ hg
+      let ⟨hc⟩ ← ensureEnt Φ (cof Φ φ)
+      have e1 := EqTm.unglueFace hφ hg hA1 (HasTy.restrict E.hsc hc he)
       let r2 ← R.whnf E _ A1 gi.lvl inf.hty (HasTy.eqR e1)
       return ⟨inf, ⟨r2.tm, EqTm.trans e1 r2.eq⟩⟩
     if gr.tm = g then return ⟨inf, ⟨_, EqTm.refl inf.htm⟩⟩
     have eg := EqTm.conv gr.eq eG
     have e1 : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e gr.tm) A1 :=
-      EqTm.unglue inf.htm (HasTy.unglue hG (HasTy.eqR eg)) (I.entails_refl φ) (I.entails_refl φ) eg
+      EqTm.unglue inf.htm (HasTy.unglue hG hA1 he (HasTy.eqR eg)) (I.entails_refl φ) (I.entails_refl φ) eg
     match h : gr.tm with
     | .glueEl φ' e' t1 a1 =>
       if hφ' : φ' = φ ∧ e' = e then

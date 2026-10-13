@@ -34,6 +34,14 @@ def reglue (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ' : I) (T e' : Tm) (φ 
   let ⟨ee⟩ ← R.conv E1' (Tm.equiv T A) l hq' e' e he' (HasTy.restrict E1'.hsc hc' he)
   return ⟨EqTm.glue hG' hG2 (EqTm.refl hA) h2 h1 (EqTm.refl (HasTy.glueFib hG')) ee⟩
 
+/-- `e : Equiv T A` under `φ`, checked (Glue types do not imply it, since they reduce on `φ`). -/
+def checkEquiv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (T e : Tm) (l : Nat) :
+    K (PLift (HasTy S Ψ (cof Φ φ) Γ e (Tm.equiv T A))) := do
+  let ⟨hφ⟩ ← ensureScoped φ Ψ
+  let E1 := E.cof φ hφ
+  let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A) l
+  R.check E1 e (Tm.equiv T A) l hq
+
 /-- Bring a type `G` to the form `Glue A [φ ↦ (T, e)]` with the given `φ`, with a derivation
 that the base `A` is a type. -/
 def toGlue (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ Φ Γ G (.univ l))
@@ -259,8 +267,9 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K (Inf
     pure ⟨.glue ia.ty φ T e, l, hG, HasTy.glueEl hG ht ia.htm ee⟩
   | .unglue φ e g => do
     let i ← inferUnglueArg R E φ e g
-    let ⟨A, _, ⟨hA, eG⟩⟩ ← toGlueE R E i.ty i.lvl i.hty φ e
-    pure ⟨A, i.lvl, hA, HasTy.unglue (HasTy.eqR eG) (HasTy.conv i.htm eG)⟩
+    let ⟨A, T, ⟨hA, eG⟩⟩ ← toGlueE R E i.ty i.lvl i.hty φ e
+    let ⟨he⟩ ← checkEquiv R E A φ T e i.lvl
+    pure ⟨A, i.lvl, hA, HasTy.unglue (HasTy.eqR eG) hA he (HasTy.conv i.htm eG)⟩
 
 def checkByInfer (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K (PLift (HasTy S Ψ Φ Γ t A)) := do

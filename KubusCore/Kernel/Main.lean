@@ -152,14 +152,18 @@ def setup (S : Sig) (fuel : Nat := defaultFuel) : K (Rec S × KCtx S 0 .one []) 
 
 /-- Check one definition `(t, A)` against the signature `S`. -/
 def checkEntry (S : Sig) (t A : Tm) (fuel : Nat := defaultFuel) :
-    K (PLift ((∃ l, HasTy S 0 .one [] A (.univ l)) ∧ HasTy S 0 .one [] t A)) := do
+    K (PLift (t.closedB 0 0 = true ∧ A.closedB 0 0 = true ∧
+      (∃ l, HasTy S 0 .one [] A (.univ l)) ∧ HasTy S 0 .one [] t A)) := do
   let (R, E) ← setup S fuel
   let ⟨l, ⟨hA⟩⟩ ← inferType R E A
   let ⟨ht⟩ ← R.check E t A l hA
-  pure ⟨⟨l, hA⟩, ht⟩
+  if hc : t.closedB 0 0 = true ∧ A.closedB 0 0 = true then
+    pure ⟨hc.1, hc.2, ⟨l, hA⟩, ht⟩
+  else fail "kernel: the definition is not closed"
 
 theorem wfSig_append {S : Sig} {t A : Tm} (hS : WfSig S)
-    (h : (∃ l, HasTy S 0 .one [] A (.univ l)) ∧ HasTy S 0 .one [] t A) :
+    (h : t.closedB 0 0 = true ∧ A.closedB 0 0 = true ∧
+      (∃ l, HasTy S 0 .one [] A (.univ l)) ∧ HasTy S 0 .one [] t A) :
     WfSig (S ++ [(t, A)]) := by
   intro k t' A' hk
   by_cases hlt : k < S.length

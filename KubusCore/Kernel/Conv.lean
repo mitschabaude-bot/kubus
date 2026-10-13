@@ -198,7 +198,8 @@ def convAt (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm)
   | .glue A1 φ T e, hP, ht, hu => do
     let ⟨hφ⟩ ← ensureScoped φ Ψ
     let ⟨hA1⟩ ← checkType R E A1 l
-    let ⟨e1⟩ ← R.conv E A1 l hA1 _ _ (HasTy.unglue hP ht) (HasTy.unglue hP hu)
+    let ⟨he⟩ ← checkEquiv R E A1 φ T e l
+    let ⟨e1⟩ ← R.conv E A1 l hA1 _ _ (HasTy.unglue hP hA1 he ht) (HasTy.unglue hP hA1 he hu)
     have eGT : EqTm S Ψ (cof Φ φ) Γ (.glue A1 φ T e) T (.univ l) :=
       EqTm.glueFace (I.entails_and_right Φ φ) (HasTy.rs E hφ hP)
     let ⟨e2⟩ ← R.conv (E.cof φ hφ) T l (HasTy.glueFib hP) t u (HasTy.conv (HasTy.rs E hφ ht) eGT)
@@ -268,10 +269,12 @@ def convNeUnglue (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : Tm
   have eg2 := EqTm.conv eg eG
   let ⟨h1⟩ ← ensureEnt φ φ'
   let ⟨h2⟩ ← ensureEnt φ' φ
+  let ⟨he⟩ ← checkEquiv R E A1 φ T e gi.lvl
+  let ⟨he'⟩ ← checkEquiv R E A1 φ' T e gi.lvl
   let ⟨eG'⟩ ← reglue R E A1 φ T e φ' e gi.lvl hG hA1
-  have hu := HasTy.unglue (HasTy.eqR eG') (HasTy.conv (HasTy.eqR eg2) eG')
-  return ⟨⟨A1, gi.lvl, hA1, HasTy.unglue hG (HasTy.conv gi.htm eG)⟩,
-    ⟨EqTm.unglue (HasTy.unglue hG (HasTy.conv gi.htm eG)) hu h1 h2 eg2⟩⟩
+  have hu := HasTy.unglue (HasTy.eqR eG') hA1 he' (HasTy.conv (HasTy.eqR eg2) eG')
+  return ⟨⟨A1, gi.lvl, hA1, HasTy.unglue hG hA1 he (HasTy.conv gi.htm eG)⟩,
+    ⟨EqTm.unglue (HasTy.unglue hG hA1 he (HasTy.conv gi.htm eG)) hu h1 h2 eg2⟩⟩
 
 /-- Comparison of neutral terms in weak-head normal form; returns the type of the first. -/
 def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
