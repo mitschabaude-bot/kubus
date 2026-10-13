@@ -202,6 +202,11 @@ theorem El_glueC_id' {A : V} {φ : Cof m} {Tp ep : V} (hn : ¬ φ.holds) (hφ : 
     dat (partialKV m φ F) k f = if (φ.restr f).holds then F k f else ∅ := by
   simp [partialKV]
 
+theorem res_partialKV_self {φ : Cof m} {X : V} (hX : X = partialKV m φ (fun k f => dat X k f))
+    (h : Hom k m) : res h X = partialKV k (φ.restr h) (fun n g => dat (res h X) n g) := by
+  conv_lhs => rw [hX]
+  simp only [partialKV, res_mkKV, dat_res, Cof.restr_restr]
+
 end
 
 end Model

@@ -109,11 +109,6 @@ theorem famOK_of {l : ℕ} {A B : V} (hBkv : IsKV m B)
       res h (apZ (dat B k f) a) = apZ (dat B n (f.comp h)) (res h a)) : FamOK A B m :=
   ⟨hBkv, hgraph, hfib, hcoh⟩
 
-theorem res_partialKV_self {φ : Cof m} {X : V} (hX : X = partialKV m φ (fun k f => dat X k f))
-    (h : Hom k m) : res h X = partialKV k (φ.restr h) (fun n g => dat (res h X) n g) := by
-  conv_lhs => rw [hX]
-  simp only [partialKV, res_mkKV, dat_res, Cof.restr_restr]
-
 /-- Well-formed codes are fibrant, and well-formedness is stable under restriction. -/
 theorem wf_props : ∀ l, ∀ m c, WF l m c → Fib c m ∧ ∀ k (h : Hom k m), WF l k (res h c) := by
   intro l
