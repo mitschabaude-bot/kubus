@@ -51,23 +51,6 @@ theorem I_eq_normI {r : I} (hr : r.Scoped 0) : I.Eq r (normI r) := by
 
 /-! ### Replacing the recursive arguments of a constructor -/
 
-theorem EqTele0.ofList_of' {Ψ : ℕ} {Φ : I} {Γ : Ctx} (hw : Wf0 S Ψ Φ Γ) :
-    ∀ (as as' Δ prev : List Tm), as.length = Δ.length → as'.length = Δ.length →
-    (∀ (k : ℕ) (a a' A : Tm), as[k]? = some a → as'[k]? = some a' → Δ[k]? = some A →
-      EqTm0 S Ψ Φ Γ a a' (A.substList ((as.take k).reverse ++ prev))) →
-    EqTele0 S Ψ Φ Γ (Tm.ofList as) (Tm.ofList as') Δ prev
-  | [], [], [], _, _, _, _ => .nil hw
-  | a :: as, a' :: as', A :: Δ, prev, hl, hl', h => by
-    refine .cons (by simpa using h 0 a a' A rfl rfl rfl)
-      (EqTele0.ofList_of' hw as as' Δ (a :: prev) (by simpa using hl) (by simpa using hl') ?_)
-    intro k b b' B hb hb' hB
-    have := h (k + 1) b b' B (by simpa using hb) (by simpa using hb') (by simpa using hB)
-    simpa using this
-  | [], _ :: _, _, _, hl, hl', _ => by simp at hl hl'; omega
-  | _ :: _, [], _, _, hl, hl', _ => by simp at hl hl'; omega
-  | [], [], _ :: _, _, hl, _, _ => by simp at hl
-  | _ :: _, _ :: _, [], _, hl, _, _ => by simp at hl
-
 theorem simpleArgs_isList {ctors : List Ctor} {d np c n : ℕ} {C C' : Ctor} :
     ∀ {k : ℕ} {as : Tm}, Ctor.simpleArgs ctors d np c n C C' k as = true → as = Tm.ofList as.toList
   | _, .tcons a as, h => by

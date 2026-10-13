@@ -1,4 +1,4 @@
-import Model.Canon.KanData
+import Model.Canon.KanDataH
 
 /-!
 # Canonicity: transport of constructors (`transpCon`)
@@ -94,19 +94,6 @@ theorem transpCon_pt_types {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} (hD : S
   have e1 := (sub_ty hS hP).2.2 T11 TO E1
   rw [hpost, hLeq, pt_inst hW hD hC hA0 (by simp; omega) (by simp [hpl1]) 0 I.var] at e1
   exact ⟨minimal_to_spec_eq e0, minimal_to_spec_eq e1⟩
-
-/-- The computability clause of an inductive type's line for its argument types. -/
-def ArgClause (S : Sig) {m : ℕ} (Θ : SData m) {n : ℕ} (f : Hom n m) (ps : Tm) : Prop :=
-  ∀ k' (σ : ISub k' n) (c : ℕ) (C : Ctor) (args : List Tm), (dataD S Θ.idx).ctors[c]? = some C →
-    args.length < C.args.length → C.isRec args.length = false →
-    (∀ j (hj : j < args.length), C.isRec j = true →
-      DR S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP S Θ f) k' σ.hom ((Tm.data Θ.idx ps).isub σ) args[j]) →
-    (∀ j (hj : j < args.length), C.isRec j = false →
-      dataP S Θ f k' σ.hom c j ((args.take j).map (semK S k'))
-        ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ (ps.isub σ).toList.reverse))
-        args[j]) →
-    (Comp S (tyLook (shapeV (Θ.restr (f.comp σ.hom))) c args.length (args.map (semK S k'))) k' k' (Hom.id k')).ty
-      ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList (args.reverse ++ (ps.isub σ).toList.reverse))
 
 /-- Transport of a constructor along a line of inductive types. -/
 theorem transpCon_RE {Θ : SData m} (hΘ : Θ.Good)
@@ -299,8 +286,9 @@ theorem transpCon_RE {Θ : SData m} (hΘ : Θ.Good)
 the transported element (at all its restrictions). -/
 theorem transp_data_DR {Θ : SData m} (hΘ : Θ.Good)
     (ihT : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → KR S n (Θ.ty c j n g pre))
-    (hcodeT : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre →
-      ∀ k3 (h3 : Hom (k3 + 1) n) (A : Tm), (Comp S (Θ.ty c j n g pre) n (k3 + 1) h3).ty A → KanT S k3 A)
+    (hcodeK : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre →
+      (∀ k3 (h3 : Hom k3 n) (A : Tm), (Comp S (Θ.ty c j n g pre) n k3 h3).ty A → KanH S k3 A) ∧
+      (∀ k3 (h3 : Hom (k3 + 1) n) (A : Tm), (Comp S (Θ.ty c j n g pre) n (k3 + 1) h3).ty A → KanT S k3 A))
     (hKR : KR S m (dataC Θ)) {k0 : ℕ} {f : Hom (k0 + 1) m} {P : Tm}
     (hT : (Comp S (dataC Θ) m (k0 + 1) f).ty (.data Θ.idx P)) (hall : ArgClause S Θ f P) :
     ∀ {k' : ℕ} {g : Hom k' (k0 + 1)} {A t : Tm},
@@ -371,7 +359,7 @@ theorem transp_data_DR {Θ : SData m} (hΘ : Θ.Good)
     have hargi : ∀ i (hi : i < (args.map (·.isub σ')).length),
         (args.map (·.isub σ'))[i] = (args[i]'(by simpa using hi)).isub σ' := by
       intro i hi; simp
-    refine (transpCon_RE hW hΘ ihT hcodeT hKR hT hall ρ hC hp htyT2 hqL (fun i hi hri => ?_) (fun i hi hri => ?_)
+    refine (transpCon_RE hW hΘ ihT (fun c j n g pre hp => (hcodeK c j n g pre hp).2) hKR hT hall ρ hC hp htyT2 hqL (fun i hi hri => ?_) (fun i hi hri => ?_)
       (fun i hi hri => ?_)).conv hW (TyEq.refl _) (EqTm.symm eb)
     · have hi' : i < args.length := by simpa using hi
       rw [hargi i hi]
@@ -604,7 +592,7 @@ theorem transp_data_DR {Θ : SData m} (hΘ : Θ.Good)
     have eb := EqTm.transp htyT htyT2 (EqTm.refl (minimal_to_spec hLt)) (ent_refl _) (ent_refl _) (he'.tyConv hA)
     rw [hdD] at hH
     have eT := EqTm.transpHcomp hD hp hH hh0 htyT2
-    have KH := kanH_data hW hKR hT1
+    have KH := kanH_data hW hΘ ihT hcodeK hKR hT1
     have hbase := iha k'' σ' ρ hg hqL ψ
       (HasTy.transp (minimal_to_spec hLt) hψ (minimal_to_spec_eq hc) ((HasTy.isubS hW ha.typed σ').tyConv hqL))
     refine (KH _ _ _ (HasTy.eqR eT) (fun k3 σ3 r hr hh3 => ?_) hbase).conv hW (TyEq.refl _)

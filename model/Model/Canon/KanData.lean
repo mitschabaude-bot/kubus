@@ -27,40 +27,6 @@ theorem dataMem_of_ty {Θ : SData m} {f : Hom k m} {T t : Tm} (hsem : semK S k T
   unfold dataMem
   rw [Hom.comp_id, delemSet_restr, Hom.comp_id]; exact this
 
-theorem kanH_data {Θ : SData m} (hKR : KR S m (dataC Θ)) {f : Hom k m} {T : Tm}
-    (hT : (Comp S (dataC Θ) m k f).ty T) : KanH S k T := by
-  intro φ u a hty hu ha
-  obtain ⟨-, ⟨-, hφ, -, -, -⟩, -⟩ := gen_hcomp (Φ := .one) (Γ := []) (spec_to_minimal hW hty) rfl
-  by_cases hh : (ival (idEnv k) φ).holds
-  · exact RE_hcomp_face hW hty hu hh
-  have hT' := hT
-  rw [Comp_dataC] at hT'
-  obtain ⟨⟨hTy, hsem⟩, ps, hE, hpl, -⟩ := hT'
-  unfold RE at ha ⊢
-  rw [← Comp_eq_semK hT] at ha ⊢
-  rw [Comp_dataC] at ha ⊢
-  obtain ⟨hat, -, -, hadr⟩ := ha
-  have hMem : ∀ k1 (f1 : Hom k1 k) t t' A, EqTm S k1 .one [] t t' A → dataMem S Θ f k1 f1 t → dataMem S Θ f k1 f1 t' :=
-    fun k1 f1 t t' A e hm => by unfold dataMem at hm ⊢; rwa [← semK_eq hW e]
-  have hmem : semK S k (.hcomp T φ u a) ∈ El (res f (dataC Θ)) (Hom.id k) := by
-    rw [← hsem]; exact mem_of_ty hW hty
-  cases hH : (dataD S Θ.idx).isHIT
-  · sorry
-  · refine ⟨hty, hmem, hty, DR.hcomp (u := u) (a := a) (dataMem_of_ty hW hsem hty) hH hφ hh hpl hE ?_
-      (DR.conv hW hMem hadr hE (EqTm.refl (hat.tyConv hE))) (fun k' σ r hr hh' => ?_)⟩
-    · rcases hE with rfl | ⟨l, e⟩
-      · exact EqTm.refl hty
-      · exact (hcomp_retype hW hty e).2
-    · have h1 := hu k' σ r hr hh'
-      have hTσ := (hKR k f k' σ T T).1 hT
-      unfold RE at h1
-      rw [← Comp_eq_semK hTσ, Comp_dataC] at h1
-      obtain ⟨h1t, -, -, h1dr⟩ := h1
-      have h2 := DR.unbase f h1dr
-      rw [Hom.comp_id] at h2
-      rw [Hom.id_comp]
-      exact DR.conv hW hMem h2 (hE.isub hW σ) (EqTm.refl (h1t.tyConv (hE.isub hW σ)))
-
 /-- A computable element of an inductive type, from its relation. -/
 theorem RE_of_DR {Θ : SData m} {k0 : ℕ} {f : Hom k0 m} {k' : ℕ} {g : Hom k' k0} {A t : Tm}
     (hty : (Comp S (dataC Θ) m k' (f.comp g)).ty A)

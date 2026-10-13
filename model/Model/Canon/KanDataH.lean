@@ -392,7 +392,7 @@ theorem hcompCon_pt_types {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} (hD : S[
   have e0 := (sub_ty hS hP).2.2 T10 TA E0
   rw [hpost, hLeq, pt_inst hW hD hC hA0 (by omega) (by simp [hpl]) 0 I.var] at e0
   have e1 := (sub_ty hS hP).2.2 T11 TO E1
-  rw [hpost, hLeq, pt_inst hW hD hC hA0 (by simp [osAll]; omega) (by simp [hpl]) 0 I.var] at e1
+  rw [hpost, hLeq, pt_inst hW hD hC hA0 (by simp; omega) (by simp [hpl]) 0 I.var] at e1
   have eφ := (sub_ty hS hP).2.2 (T1.restrict hΦs (ent_shift (ent_one _))) TU Eφ
   rw [hLeq, pt_inst hW hD hC hA0 (by omega) (by simp [hpl1]) 0 I.var] at eφ
   have hL := (sub_ty hS hP).2.1 T1
@@ -677,6 +677,120 @@ theorem hcompCon_RE {Θ : SData m} (hΘ : Θ.Good)
     exact this htyj (tubeRec j hjC hr)
   · rw [hog j hj]
     exact (pointFacts j (by omega) hr (hVj j (by omega))).2
+
+/-- Composition in a restriction of an inductive type without path constructors, by induction on
+the relation of the base (at all its restrictions). -/
+theorem hcomp_data_DR {Θ : SData m} (hΘ : Θ.Good)
+    (ihT : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → KR S n (Θ.ty c j n g pre))
+    (hcodeK : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre →
+      (∀ k3 (h3 : Hom k3 n) (A : Tm), (Comp S (Θ.ty c j n g pre) n k3 h3).ty A → KanH S k3 A) ∧
+      (∀ k3 (h3 : Hom (k3 + 1) n) (A : Tm), (Comp S (Θ.ty c j n g pre) n (k3 + 1) h3).ty A → KanT S k3 A))
+    (hKR : KR S m (dataC Θ)) {D : DataDecl} (hD : S[Θ.idx]? = some (.data D)) (hH : D.isHIT = false)
+    {k0 : ℕ} {f : Hom k0 m} {P : Tm} (hT : (Comp S (dataC Θ) m k0 f).ty (.data Θ.idx P))
+    (hall : ArgClause S Θ f P) :
+    ∀ {k' : ℕ} {g : Hom k' k0} {A t : Tm},
+      DR S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP S Θ f) k' g A t →
+      ∀ K (σ' : ISub K k') (ρ : ISub K k0), g.comp σ'.hom = ρ.hom →
+      TyEq S K (A.isub σ') (.data Θ.idx (P.isub ρ)) → ∀ (φ : I) (u : Tm),
+      HasTy S K .one [] (.hcomp (.data Θ.idx (P.isub ρ)) φ u (t.isub σ')) (.data Θ.idx (P.isub ρ)) →
+      TubeC S K (.data Θ.idx (P.isub ρ)) φ u →
+      RE S K (.data Θ.idx (P.isub ρ)) (.hcomp (.data Θ.idx (P.isub ρ)) φ u (t.isub σ')) := by
+  have hdD := dataD_eq hW hD
+  intro k' g A t h
+  induction h with
+  | @con k' g A t qs c C args rs hm hC hrs hsc hqs hAeq he hlen hrec hpt ihrec =>
+    intro K σ' ρ hg hA φ u hty hu
+    by_cases hh : (ival (idEnv K) φ).holds
+    · exact RE_hcomp_face hW hty hu hh
+    rw [hdD] at hC hrec hpt
+    obtain ⟨l0, ⟨hdT, hφ, hut, -, hside⟩, -⟩ := gen_hcomp (Φ := .one) (Γ := []) (spec_to_minimal hW hty) rfl
+    obtain ⟨D', hD', hPt⟩ := gen_data_tele hdT rfl
+    rw [hD] at hD'; cases hD'
+    have hpT : HasTy S K .one [] (.data Θ.idx (P.isub ρ)) (.univ D.level) :=
+      minimal_to_spec (HasTy0.data hD (hW.2 _ D hD).1 hPt)
+    obtain ⟨hX, eb, hrecR, hptR⟩ := con_restrict hW hΘ ihT hD hH hall hC hrs hqs hAeq he hlen hrec hpt σ' ρ hg hpT hA
+    -- the base, as a constructor at the parameters of the type
+    have hside' : EqTm S K (cof .one φ) [] (u.dinst .zero)
+        (.con Θ.idx c (P.isub ρ) (Tm.ofList (args.map (·.isub σ'))) []) (.data Θ.idx (P.isub ρ)) :=
+      (minimal_to_spec_eq hside).trans (EqTm.restrict (show (cof .one φ).Scoped K from ⟨trivial, hφ⟩)
+        (ent_and_left _ _) eb)
+    have hty2 := HasTy.hcomp (minimal_to_spec hdT) hφ (minimal_to_spec hut) (HasTy.eqR eb) hside'
+    have ehc := EqTm.hcomp hty hty2 (EqTm.refl (minimal_to_spec hdT)) (ent_refl _) (ent_refl _)
+      (EqTm.refl (minimal_to_spec hut)) eb
+    have hqL : TyEq S K (.data Θ.idx (qs.isub σ')) (.data Θ.idx (P.isub ρ)) := (hAeq.isub hW σ').symm.trans hW hA
+    refine (hcompCon_RE hW hΘ ihT hcodeK hKR hD hH hT hall ρ hpT hC hX hty2 hu (fun i hi hri K' σ φ' u' h1 h2 => ?_)
+      (fun i hi hri => ?_) (fun i hi hri => ?_)).conv hW (TyEq.refl _) (EqTm.symm ehc)
+    · have hi' : i < args.length := by simpa using hi
+      have e1 : ((args.map (fun x : Tm => x.isub σ'))[i]'hi).isub σ = (args[i]).isub (σ'.comp σ) := by
+        simp [Tm.isub_isub]
+      rw [e1] at h1 ⊢
+      refine ihrec i hi' hri K' (σ'.comp σ) (ρ.comp σ) ?_ ?_ φ' u' h1 h2
+      · rw [ISub.hom_comp, ← Hom.comp_assoc, hg, ← ISub.hom_comp]
+      · have := hqL.isub hW σ
+        rwa [show (Tm.data Θ.idx (qs.isub σ')).isub σ = (Tm.data Θ.idx qs).isub (σ'.comp σ) from Tm.isub_isub (.data Θ.idx qs) _ _,
+          show (Tm.data Θ.idx (P.isub ρ)).isub σ = .data Θ.idx (P.isub (ρ.comp σ)) from Tm.isub_isub (.data Θ.idx P) _ _]
+          at this
+    · have hi' : i < args.length := by simpa using hi
+      have := hrecR i hi' hri
+      simpa using this
+    · have hi' : i < args.length := by simpa using hi
+      have := hptR i hi' hri
+      simpa using this
+  | hcomp _ hH' => rw [hdD, hH] at hH'; cases hH'
+
+/-- Composition in inductive types preserves computability. -/
+theorem kanH_data {Θ : SData m} (hΘ : Θ.Good)
+    (ihT : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → KR S n (Θ.ty c j n g pre))
+    (hcodeK : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre →
+      (∀ k3 (h3 : Hom k3 n) (A : Tm), (Comp S (Θ.ty c j n g pre) n k3 h3).ty A → KanH S k3 A) ∧
+      (∀ k3 (h3 : Hom (k3 + 1) n) (A : Tm), (Comp S (Θ.ty c j n g pre) n (k3 + 1) h3).ty A → KanT S k3 A))
+    (hKR : KR S m (dataC Θ)) {f : Hom k m} {T : Tm}
+    (hT : (Comp S (dataC Θ) m k f).ty T) : KanH S k T := by
+  cases hH : (dataD S Θ.idx).isHIT
+  · have hT' := hT
+    rw [Comp_dataC] at hT'
+    obtain ⟨⟨hTy, -⟩, ps, hE, -, hall⟩ := hT'
+    obtain ⟨l1, hdT⟩ := ty_of_tyEq hW hTy hE (fun l h => by cases h)
+    obtain ⟨D, hD, -⟩ := gen_data_tele (spec_to_minimal hW hdT) rfl
+    rw [dataD_eq hW hD] at hH
+    have hTp : (Comp S (dataC Θ) m k f).ty (.data Θ.idx ps) := ((cv_dataC hW Θ) k f T _ T T).1 hT hE
+    have hpc : ps.closedB 0 k = true := by simpa [Tm.closedB] using closed_of_ty hW hdT
+    refine kanH_retype hW hE fun φ u a hty hu ha => ?_
+    have hdr := DR_of_RE hW (g := Hom.id k) (by rw [Hom.comp_id]; exact hTp) ha
+    have hac := closed_of_ty hW (Comp_el_typed ha).1
+    have key := hcomp_data_DR hW hΘ ihT hcodeK hKR hD hH hTp hall hdr k (ISub.id k) (ISub.id k)
+      (by rw [ISub.hom_id, Hom.comp_id]) (by rw [isub_id_of_closed (closed_of_ty hW hdT), isub_id_of_closed hpc]; exact .inl rfl)
+      φ u (by rw [isub_id_of_closed hpc, isub_id_of_closed hac]; exact hty) (by rw [isub_id_of_closed hpc]; exact hu)
+    rwa [isub_id_of_closed hpc, isub_id_of_closed hac] at key
+  intro φ u a hty hu ha
+  obtain ⟨-, ⟨-, hφ, -, -, -⟩, -⟩ := gen_hcomp (Φ := .one) (Γ := []) (spec_to_minimal hW hty) rfl
+  by_cases hh : (ival (idEnv k) φ).holds
+  · exact RE_hcomp_face hW hty hu hh
+  have hT' := hT
+  rw [Comp_dataC] at hT'
+  obtain ⟨⟨hTy, hsem⟩, ps, hE, hpl, -⟩ := hT'
+  unfold RE at ha ⊢
+  rw [← Comp_eq_semK hT] at ha ⊢
+  rw [Comp_dataC] at ha ⊢
+  obtain ⟨hat, -, -, hadr⟩ := ha
+  have hMem : ∀ k1 (f1 : Hom k1 k) t t' A, EqTm S k1 .one [] t t' A → dataMem S Θ f k1 f1 t → dataMem S Θ f k1 f1 t' :=
+    fun k1 f1 t t' A e hm => by unfold dataMem at hm ⊢; rwa [← semK_eq hW e]
+  have hmem : semK S k (.hcomp T φ u a) ∈ El (res f (dataC Θ)) (Hom.id k) := by
+    rw [← hsem]; exact mem_of_ty hW hty
+  · refine ⟨hty, hmem, hty, DR.hcomp (u := u) (a := a) (dataMem_of_ty hW hsem hty) hH hφ hh hpl hE ?_
+      (DR.conv hW hMem hadr hE (EqTm.refl (hat.tyConv hE))) (fun k' σ r hr hh' => ?_)⟩
+    · rcases hE with rfl | ⟨l, e⟩
+      · exact EqTm.refl hty
+      · exact (hcomp_retype hW hty e).2
+    · have h1 := hu k' σ r hr hh'
+      have hTσ := (hKR k f k' σ T T).1 hT
+      unfold RE at h1
+      rw [← Comp_eq_semK hTσ, Comp_dataC] at h1
+      obtain ⟨h1t, -, -, h1dr⟩ := h1
+      have h2 := DR.unbase f h1dr
+      rw [Hom.comp_id] at h2
+      rw [Hom.id_comp]
+      exact DR.conv hW hMem h2 (hE.isub hW σ) (EqTm.refl (h1t.tyConv (hE.isub hW σ)))
 
 end
 

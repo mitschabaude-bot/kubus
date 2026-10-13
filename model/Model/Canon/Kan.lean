@@ -164,7 +164,8 @@ theorem kanP_data {Θ : SData m} (hΘ : Θ.Good)
     KanP S m (dataC Θ) := by
   constructor
   · intro k f T hT
-    exact kanH_data hW hKR hT
+    exact kanH_data hW hΘ (fun c j n g pre hp => (ih c j n g pre hp).1)
+      (fun c j n g pre hp => (ih c j n g pre hp).2) hKR hT
   · intro k f T hT
     have hT' := hT
     rw [Comp_dataC] at hT'
@@ -177,7 +178,7 @@ theorem kanP_data {Θ : SData m} (hΘ : Θ.Good)
     have hT0 := ty_dinst hW hKR hTp .zero trivial
     have hdr := DR_of_RE hW hT0 ha
     have key := transp_data_DR hW hΘ (fun c j n g pre hp => (ih c j n g pre hp).1)
-      (fun c j n g pre hp => (ih c j n g pre hp).2.2) hKR hTp hall hdr k (ISub.id k) (ISub.id (k + 1))
+      (fun c j n g pre hp => (ih c j n g pre hp).2) hKR hTp hall hdr k (ISub.id k) (ISub.id (k + 1))
       (by rw [ISub.hom_id, Hom.comp_id, ISub.id_comp]) ?_ φ ?_
     · have hpc : ps.closedB 0 (k + 1) = true := by simpa [Tm.closedB] using hcl
       rw [isub_id_of_closed hpc, isub_id_of_closed (closed_of_ty hW (Comp_el_typed ha).1)] at key

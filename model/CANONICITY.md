@@ -56,3 +56,35 @@ A computability predicate on closed syntax, indexed by the model's semantics (Co
 - For `hcompCon` the proof must show that the tube of a composition in a non-HIT is the base's constructor *syntactically*: build `uargs` from the tube's reducts per face of `φ` (nested splits), with "same constructor" from the logical relation.
 - Every computation rule must be stable under interval substitution *syntactically up to `EqTm`* (the model only needed semantic stability). The metatheory branch found M4/M5 for this reason; more may show up where a computability witness has to match a contractum after restriction.
 - Rules stated "at any type `T`" (contracta) need the presupposition/inversion results of the metatheory branch to relate `T` to the canonical type.
+
+## Status
+
+`Model.Canon.canonicity_of_glueCompat` (`Model/Canon/CanonForm.lean`) is proven without `sorry` (axioms: `propext`, `Classical.choice`, `Quot.sound`): for every `S` with `WfSig S` and `GlueCompat S`, the statement `Canonicity` of `Model/Canon/Statement.lean` holds at `S`. The only hypothesis beyond the statement is `GlueCompat` (below).
+
+## Proof structure
+
+- `Comp.lean`, `Unfold.lean`: the logical relation `Comp S X m k f` (`.ty`/`.el`), by well-founded recursion on the rank of the code `X`; `RT`/`RE` are its instances at `semK A`. Inductive types use the relation `DR` (constructors with computable arguments; formal `hcomp` only for HITs).
+- `Conv`, `Kripke*`, `CSub`, `Closed`, `Sub`, `Syn`: closure under `≡` and restriction, closing substitutions.
+- `Formers*`, `ArgConv`, `GlueEquiv`, `GlueRT`, `Elim`: the introduction and elimination clauses per type former. `RE_glue_elim` is the one use of `GlueCompat`.
+- `Kan*`: the Kan lemma, by induction on codes. The universe case (`KanUniv`, `KanGlue`, `KanGlueT`: `hcompU`, `transpU`, `transpGlue`) needs the fundamental lemma for the generic terms of the contracta, so the fundamental lemma is parametrized by a Kan oracle (`KOK`, `KanOracle`), which is discharged in `KanAll.lean` after the fact.
+- Composition in an inductive type without path constructors (`KanDataH.lean`, decision C1): a computable base is a constructor, and so is the tube at each of its faces (`tube_canon`). The tube's arguments are given uniformly by projections `proj_j` (eliminators into the argument types, `Proj.lean`, `ProjFace.lean`), which reduce to the arguments on every face (`hcompCon_premises`, `ProjHcomp.lean`), so `hcompCon` applies. The composites are then computable: recursive arguments by induction on the relation of the base, point arguments by `comp`/`fill` along their type lines, which are computable at valid earlier fillers (`hcomp_data_DR`, `hcompCon_RE`).
+- `Fund.lean`: the fundamental lemma, by induction on `HasTy0` derivations; `Final.lean`, `CanonForm.lean`: computability at a parameterless inductive type at stage 0 gives `Canon`.
+
+## The hypothesis `GlueCompat`
+
+```lean
+def GlueCompat (S : Sig) : Prop :=
+  ∀ (k : Nat) (A A' T T' e e' : Tm) (φ φ' : I) (l : Nat),
+    EqTm S k .one [] (.glue A φ T e) (.glue A' φ' T' e') (.univ l) → ¬ I.Entails .one φ →
+    EqTm S k .one [] A A' (.univ l) ∧ I.Entails φ φ' ∧ I.Entails φ' φ ∧
+      EqTm S k (cof .one φ) [] e e' (Tm.equiv T A)
+```
+
+Injectivity of `glue` away from its face, for closed types (stage `k`, no term variables). The relation of a Glue type records one decomposition `glue A1 φ1 T1 e1` of it; to use the components of an element against another decomposition `glue A φ T e` of the same type (`unglue φ e g` versus `unglue φ1 e1 g`), `RE_glue_elim` needs the two decompositions to agree. This is the Glue analogue of the spec's `dataInj`/`ipiInj`. It cannot be a rule: where the face holds, `glue A φ T e ≡ T` leaves `A` and `e` unconstrained, so the premise `¬ φ` is not stable under interval substitution, and a rule with it would break the substitution lemma of the metatheory.
+
+Why it is believed true:
+
+- It holds semantically. The set model's Glue code (`glueC`, `Model/Glue.lean`) is, where the face does not hold, a datum recording the base family, the face and the equivalence. So two Glue types with equal semantics and a face that does not hold at the identity have equal bases, equivalent faces, and equal equivalences under the face.
+- It holds syntactically for every way the spec equates two Glue types directly. Congruence gives the components. `glueFace` needs the face to hold, which is excluded. The universe contracta that produce Glue types (`hcompU`, `transpU`, `transpGlue`) are functions of their redex, so equal redexes give equal components.
+
+What discharging it involves: the remaining gap is equalities that go through types that are not Glue types (β-redexes, eliminators into the universe, `hcomp`/`transp` in `U`), joined by transitivity. Semantic equality is not enough, because there is no completeness, so the model cannot return `EqTm A A'`. The admissibility proof is an injectivity theorem for type formers up to `≡`, like Π-injectivity in MLTT. The usual routes are (a) a confluent, type-preserving reduction whose conversion is `≡`, with Glue types in head normal form keeping their components (the Church–Rosser route), or (b) a normalization/NbE argument that produces normal forms of closed types (synthetic Tait computability, as in Sterling–Angiuli's normalization for cubical type theory). Either is a development on the scale of the canonicity proof. A cheaper option changes the statement rather than the spec. The logical relation could quantify over all Glue decompositions of a type instead of recording one. Then `RE_glue_elim` needs no comparison, but the formation case of the fundamental lemma must show that the components of an arbitrary other decomposition are computable. That is again an injectivity property, now stated for computable types.
