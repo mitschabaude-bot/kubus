@@ -584,6 +584,93 @@ theorem nestPre_cons (pre : List V) (a : Tm) (prev : List Tm) :
   simp [nestPre]
 
 
+/-! ### Point contexts (parameters and point arguments) -/
+
+/-- The point arguments among the first `j` arguments (oldest first). -/
+def pointsOf (C : Ctor) (pre : List V) (j : ℕ) : List V :=
+  ((List.range j).filter fun k => !C.isRec k).map fun k => pre.getD k ∅
+
+theorem pointsOf_succ (C : Ctor) (pre : List V) (j : ℕ) :
+    pointsOf C pre (j + 1) = pointsOf C pre j ++ (if C.isRec j then [] else [pre.getD j ∅]) := by
+  unfold pointsOf
+  rw [List.range_succ, List.filter_append, List.map_append]
+  congr 1
+  by_cases h : C.isRec j <;> simp [h]
+
+theorem pointRen_zero (C : Ctor) (j : ℕ) : C.pointRen (j + 1) 0 = 0 := by
+  simp [Ctor.pointRen]
+
+theorem pointRen_succ (C : Ctor) (j y : ℕ) :
+    C.pointRen (j + 1) (y + 1) = (if C.isRec j then 0 else 1) + C.pointRen j y := by
+  unfold Ctor.pointRen
+  by_cases hy : y < j
+  · rw [if_pos (by omega), if_pos hy, List.range_succ_eq_map, List.filter_cons, List.filter_map]
+    have e : List.filter ((fun x => !C.isRec (j + 1 - 1 - x)) ∘ Nat.succ) (List.range y) =
+        List.filter (fun x => !C.isRec (j - 1 - x)) (List.range y) :=
+      List.filter_congr fun x _ => by simp only [Function.comp]; congr 2; omega
+    rw [e]
+    by_cases h : C.isRec j <;> simp [h, show j + 1 - 1 - 0 = j by omega] <;> omega
+  · rw [if_neg (by omega), if_neg hy, List.range_succ, List.filter_append]
+    have hle : ((List.range j).filter C.isRec).length ≤ j := by
+      have := List.length_filter_le C.isRec (List.range j); simpa using this
+    by_cases h : C.isRec j <;> simp [h] <;> omega
+
+theorem argEnvKV_snoc (ps L : List V) (a : V) : argEnvKV n ps (L ++ [a]) = TEnv.cons (argEnvKV n ps L) a := by
+  funext x
+  cases x with
+  | zero => simp [argEnvKV, TEnv.cons]
+  | succ x => simp [argEnvKV, TEnv.cons, List.getD_eq_getElem?_getD]
+
+/-- The point environment, renamed back to the argument context, agrees with the argument
+environment at the parameters and the point arguments. -/
+theorem pointsOf_env (C : Ctor) (ps pre : List V) :
+    ∀ j, j ≤ pre.length → ∀ y, (y < j → C.isRec (j - 1 - y) = false) →
+      argEnvKV n ps (pointsOf C pre j) (C.pointRen j y) = argEnvKV n ps (pre.take j) y := by
+  intro j
+  induction j with
+  | zero => intro _ y _; simp [pointsOf, Ctor.pointRen]
+  | succ j ih =>
+    intro hj y hy
+    rw [pointsOf_succ]
+    have htk : pre.take (j + 1) = pre.take j ++ [pre.getD j ∅] := by
+      rw [List.take_succ, List.getElem?_eq_getElem (by omega), List.getD_eq_getElem?_getD,
+        List.getElem?_eq_getElem (by omega)]; rfl
+    cases y with
+    | zero =>
+      have hr : C.isRec j = false := by simpa using hy (by omega)
+      rw [pointRen_zero, if_neg (by simp [hr]), argEnvKV_snoc, htk, argEnvKV_snoc]; rfl
+    | succ y =>
+      rw [pointRen_succ, htk, argEnvKV_snoc]
+      have ih' := ih (by omega) y (fun h => by have := hy (by omega); rwa [show j + 1 - 1 - (y + 1) = j - 1 - y by omega] at this)
+      by_cases hr : C.isRec j = true
+      · rw [if_pos hr, if_pos hr, List.append_nil, Nat.zero_add, ih']; rfl
+      · rw [if_neg hr, if_neg hr, argEnvKV_snoc, Nat.add_comm]; exact ih'
+
+
+theorem mentionsData_ren (d : ℕ) : ∀ (t : Tm) (ρ δ : ℕ → ℕ), (t.ren ρ δ).mentionsData d = t.mentionsData d := by
+  intro t
+  induction t <;> intros <;> simp_all [Tm.ren, Tm.mentionsData]
+
+theorem pointCtx_succ (D : DataDecl) (d : ℕ) (C : Ctor) (j : ℕ) :
+    D.pointCtx d C (j + 1) = if C.isRec j then D.pointCtx d C j else
+      ((C.argTy d D.params.length j).ren (C.pointRen j) id) :: D.pointCtx d C j := by
+  unfold DataDecl.pointCtx
+  rw [List.range_succ, List.filter_append]
+  by_cases h : C.isRec j <;> simp [h]
+
+theorem argEnvKV_genPre (C : Ctor) (gf : ℕ → V) (ps L : List V) (y : ℕ)
+    (hy : y < L.length → C.isRec (L.length - 1 - y) = false) :
+    argEnvKV n ps (genPre C gf L) y = argEnvKV n ps L y := by
+  simp only [argEnvKV, List.getD_eq_getElem?_getD]
+  by_cases hyl : y < L.length
+  · rw [List.getElem?_append_left (by simp [genPre_length]; omega), List.getElem?_append_left (by simp; omega),
+      List.getElem?_reverse (by simp [genPre_length]; omega), List.getElem?_reverse (by omega)]
+    simp only [genPre_length]
+    rw [List.getElem?_eq_getElem (by simp [genPre_length]; omega), List.getElem?_eq_getElem (by omega), genPre_getElem,
+      if_neg (by simp [hy hyl])]
+  · rw [List.getElem?_append_right (by simp [genPre_length]; omega), List.getElem?_append_right (by simp; omega)]
+    simp [genPre_length]
+
 section tyeq
 
 variable (S0 : Sig) (D : DataDecl) (hsyn : DataSyn S0.length D)
@@ -595,6 +682,61 @@ theorem toList_ofList : ∀ L : List Tm, (Tm.ofList L).toList = L
 
 theorem nestPre_length (pre : List V) (prev : List Tm) : (nestPre pre prev).length = prev.length := by
   simp [nestPre]
+
+include hsyn hC hps in
+theorem isPoint_pointCtx {Φ : I} {n2 : ℕ} (g : Hom n2 m) (ρ : IEnv n2) (hρ : (ival ρ Φ).holds) {pre : List V} :
+    ∀ j (hjp : j ≤ pre.length), j ≤ C.args.length →
+    (∀ i (hi : i < j), C.isRec i = false →
+      pre[i]'(by omega) ∈ El (argTyRaw (sigV S0) D S0.length c i n2 (ps n2 g) pre) (Hom.id n2) ∧
+        IsKV n2 (pre[i]'(by omega))) →
+    IsPoint S0 Φ (D.pointCtx S0.length C j) n2 ρ (argEnvKV n2 (plist (ps n2 g) D.params.length) (pointsOf C pre j))
+  | 0, _, _, _ => by
+    have hb := isPoint_argCtx S0 D hsyn hC hps 0 g ρ hρ (fun _ => genV 0 n2 (D.truncate 0).ctors)
+      (fun _ _ => genV_mem (Nat.zero_le _)) (j := 0) (pre := pre) (Nat.zero_le _) (Nat.zero_le _)
+      (fun i hi => absurd hi (Nat.not_lt_zero i))
+    have e1 : D.argCtx S0.length C 0 = D.pointCtx S0.length C 0 := by simp [DataDecl.argCtx, DataDecl.pointCtx]
+    have e2 : genPre C (fun _ => genV 0 n2 (D.truncate 0).ctors) (pre.take 0) = pointsOf C pre 0 := by
+      simp [genPre, pointsOf]
+    rw [e1, e2] at hb
+    refine ⟨hb.cof, fun x B hB => ?_, hb.kv⟩
+    have hm := hb.typ x B hB
+    rw [Ctx.lookup_eq] at hB
+    obtain ⟨T, hT, rfl⟩ := Option.map_eq_some_iff.1 hB
+    have hTm : T ∈ D.paramCtx D.params.length := by
+      have := List.mem_of_getElem? hT; simpa [DataDecl.pointCtx] using this
+    simp only [DataDecl.paramCtx, List.take_length, List.mem_reverse] at hTm
+    obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hTm
+    have hc := (hsyn.2.1 i _ (List.getElem?_eq_getElem hi)).2
+    rw [sem_ext S0 _ (hc.ren _ _)] at hm
+    exact hm
+  | j + 1, hj, hjC, hpt => by
+    have ih := isPoint_pointCtx g ρ hρ j (by omega) (by omega) (fun i hi hr => hpt i (by omega) hr)
+    rw [pointCtx_succ, pointsOf_succ]
+    by_cases hr : C.isRec j = true
+    · simp only [hr, if_true, List.append_nil]; exact ih
+    · have hr' : C.isRec j = false := by simpa using hr
+      simp only [hr', Bool.false_eq_true, if_false]
+      rw [argEnvKV_snoc]
+      have hgj : pre.getD j ∅ = pre[j]'(by omega) := by
+        rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega)]; rfl
+      obtain ⟨hmem, hkv⟩ := hpt j (by omega) hr'
+      refine ih.cons ?_ (by rw [hgj]; exact hkv)
+      obtain ⟨A, hA⟩ : ∃ A, C.args[j]? = some (.point A) := by
+        cases h' : C.args[j]'(by omega) with
+        | point A => exact ⟨A, by rw [List.getElem?_eq_getElem (by omega), h']⟩
+        | recur => simp [Ctor.isRec, List.getElem?_eq_getElem (show j < C.args.length by omega), h'] at hr'
+      obtain ⟨hcl, hcs, hmd, hnr⟩ := hsyn.2.2.1 c C hC j A hA
+      have harg : C.argTy S0.length D.params.length j = A := by simp [Ctor.argTy, hA]
+      have harg' : (D.ctors.getD c default).argTy S0.length D.params.length j = A := by
+        rw [getD_ctors hC]; exact harg
+      rw [hgj, harg, sem_ren]
+      rw [argTyRaw, harg'] at hmem
+      convert hmem using 2
+      rw [sem_rho_irrel _ hcl _ (fun _ => DM.zero n2)]
+      refine interp_congr_free _ _ _ A n2 _ _ _ fun y hy => ?_
+      have hyl := freeIn_lt_of_closedB A _ 0 y hcl hy
+      rw [pointsOf_env C _ pre j (by omega) y (fun h => noRecDeps_point hnr h hy)]
+      rw [argEnvKV_eq_of_lt (by simp [plist]; omega), argEnv_eq_of_lt (by simp [plist]; omega)]
 
 include hsyn hC hps in
 /-- The type equality of a boundary point argument, from its judgmental version. -/
@@ -628,10 +770,45 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
   set γ2 := argEnvKV n2 (plist (ps n2 g) np) (genPre C gv (pre.take n))
   have hp := isPoint_argCtx S0 D hsyn hC hps c g ρ2 hρ2 gv (fun _ _ => genV_mem hc) (j := n) (by omega) le_rfl
     (fun i hi hr => hpt i hi hr)
-  have hE : sem Sc T n2 ρ2 γ2 = sem Sc ((C'.argTy S0.length np k).substList
+  have hE : sem S0 T n2 ρ2 γ2 = sem S0 ((C'.argTy S0.length np k).substList
       (prev ++ (Ctor.paramVars np n).toList.reverse)) n2 ρ2 γ2 := by
-    sorry
-  rw [sem_lookup_point S0 D hsyn hC _ hx le_rfl hxr hT ρ2 (ps n2 g) gv (by omega)] at hE
+    have hpP := isPoint_pointCtx S0 D hsyn hC hps g ρ2 hρ2 (pre := pre) n (by omega) le_rfl
+      (fun i hi hr => hpt i hi hr)
+    have hEq := (sound_eq hS0 heq).2.2 n2 ρ2 _ hpP
+    rw [sem_ren, sem_ren] at hEq
+    have htr : ∀ t : Tm, C.mentionsRec n t = false →
+        sem S0 t n2 (fun i => ρ2 (id i)) (fun y => argEnvKV n2 (plist (ps n2 g) np) (pointsOf C pre n)
+          (C.pointRen n y)) = sem S0 t n2 ρ2 γ2 := by
+      intro t ht
+      refine interp_congr_free _ _ _ t n2 _ _ _ fun y hy => ?_
+      have hnr : y < n → C.isRec (n - 1 - y) = false := by
+        intro hyn
+        unfold Ctor.mentionsRec at ht
+        have := List.any_eq_false.1 ht y (List.mem_range.2 hyn)
+        simp only [Bool.and_eq_true, not_and] at this
+        cases h : C.isRec (n - 1 - y)
+        · rfl
+        · exact absurd hy (by simpa using this h)
+      rw [pointsOf_env C _ pre n (by omega) y hnr]
+      have hcond : y < (pre.take n).length → C.isRec ((pre.take n).length - 1 - y) = false := by
+        rw [List.length_take, Nat.min_eq_left (by omega)]; exact hnr
+      simp only [γ2]
+      rw [argEnvKV_genPre C gv _ _ y hcond]
+    rw [htr T hm1, htr _ hm2] at hEq
+    exact hEq
+  obtain ⟨Ax, hAx⟩ : ∃ A, C.args[n - 1 - x]? = some (.point A) := by
+    cases h' : C.args[n - 1 - x]'(by omega) with
+    | point A => exact ⟨A, by rw [List.getElem?_eq_getElem (by omega), h']⟩
+    | recur => simp [Ctor.isRec, List.getElem?_eq_getElem (show n - 1 - x < C.args.length by omega), h'] at hxr
+  have hTe : T = Ax.ren (· + (x + 1)) id := by
+    have hT' := hT
+    rw [Ctx.lookup_eq, argCtx_lt D _ C _ x hx] at hT'
+    simp only [Option.map_some, Option.some.injEq] at hT'
+    rw [← hT']; simp [Ctor.argTy, hAx]
+  obtain ⟨-, hcsx, hmdx, -⟩ := hsyn.2.2.1 c C hC _ Ax hAx
+  have hTS : sem S0 T n2 ρ2 γ2 = sem Sc T n2 ρ2 γ2 := by
+    rw [sem_ext' S0 _ (by rw [hTe]; exact hcsx.ren _ _) (by rw [hTe, mentionsData_ren]; exact hmdx)]
+  rw [hTS, sem_lookup_point S0 D hsyn hC _ hx le_rfl hxr hT ρ2 (ps n2 g) gv (by omega)] at hE
   rw [hE]
   -- the right-hand side
   have harg : C'.argTy S0.length np k = A' := by simp [Ctor.argTy, hA']
@@ -659,10 +836,10 @@ theorem tyEq_core (hokc : SigOK (S0 ++ [.data (D.truncate c)])) (hc : c ≤ D.ct
     intro y hy
     obtain ⟨z, hz⟩ := hσvar y hy
     simp only [hσ'def, hz]
-  have hnat : ∀ y, Natural Sc (σ' y) n2 ρ2 γ2 := by
+  have hnat : ∀ y, Natural S0 (σ' y) n2 ρ2 γ2 := by
     intro y; simp only [hσ'def]; split <;> (intro k' f; rfl)
-  rw [harg, Tm.substList, ← hσdef, Tm.subst_congr_free A' σ σ' I.var hσ', sem_subst Sc A' n2 ρ2 γ2 _ _ hnat,
-    sem_rho_irrel _ hcl _ (fun _ => DM.zero n2), sem_ext' S0 _ hcs hmd]
+  rw [harg, Tm.substList, ← hσdef, Tm.subst_congr_free A' σ σ' I.var hσ', sem_subst S0 A' n2 ρ2 γ2 _ _ hnat,
+    sem_rho_irrel _ hcl _ (fun _ => DM.zero n2)]
   have harg' : (D.ctors.getD c' default).argTy S0.length np k = A' := by rw [getD_ctors hC']; exact harg
   rw [argTyRaw, harg']
   refine interp_congr_free _ _ _ A' n2 _ _ _ fun y hy => ?_
