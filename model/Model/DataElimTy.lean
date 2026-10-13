@@ -61,92 +61,109 @@ variable {Θ : SData m} (hΘ : Θ.Good) (P : (n : ℕ) → Hom n m → V → V) 
     pappsV n (appsV n (vnth (bs n g) c) (args ++ ihs)) rs ∈ El (P n g (conV Θ.ctors n c args rs)) (Hom.id n) ∧
     ∀ n' (h : Hom n' n), res h (pappsV n (appsV n (vnth (bs n g) c) (args ++ ihs)) rs) =
       pappsV n' (appsV n' (vnth (bs n' (g.comp h)) c) ((args ++ ihs).map (res h))) (rs.map (·.restr h)))
-  (hG : ∀ n (g : Hom n m) c C, Θ.ctors[c]? = some C → ∀ args, Θ.ArgsTyped c C n g args →
-    ∀ rs : List (DM n), rs.length = C.dims →
+include hΘ hP hPn hB
+
+/-- The constructor equation of the eliminator for constructor `c` (at arguments on which the
+eliminator is typed). -/
+def ElimConEq (Θ : SData m) (P : (n : ℕ) → Hom n m → V → V) (bs : (k : ℕ) → Hom k m → V) (c : ℕ) (C : Ctor) : Prop :=
+  ∀ n (g : Hom n m) args, Θ.ArgsTyped c C n g args → ∀ rs : List (DM n), rs.length = C.dims →
     (∀ j a, args[j]? = some a → C.isRec j = true → elimD Θ P bs n g a ∈ El (P n g a) (Hom.id n) ∧
       ∀ n' (h : Hom n' n), res h (elimD Θ P bs n g a) = elimD Θ P bs n' (g.comp h) (res h a)) →
-    elimD Θ P bs n g (conV Θ.ctors n c args rs) = elimBranch Θ P bs n g c args rs)
-include hΘ hP hPn hB hG
+    elimD Θ P bs n g (conV Θ.ctors n c args rs) = elimBranch Θ P bs n g c args rs
 
+omit hΘ hP hPn hB in
 theorem elimBranch_eq {n : ℕ} {g : Hom n m} {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) {args : List V}
     (hlen : args.length = C.args.length) (rs : List (DM n)) :
     elimBranch Θ P bs n g c args rs = pappsV n (appsV n (vnth (bs n g) c)
       (args ++ C.recPos.map fun j => elimD Θ P bs n g (args.getD j ∅))) rs := by
   unfold elimBranch; rw [getD_ctors hC, hlen]; rfl
 
+/-- The eliminator on a constructor value is typed and natural, given its constructor equation and
+typed natural recursive arguments. -/
+theorem elimD_conV_props {c : ℕ} {C : Ctor} (hC : Θ.ctors[c]? = some C) (hGc : ElimConEq Θ P bs c C)
+    {n : ℕ} {g : Hom n m} {args : List V} {rs : List (DM n)} (hlen : args.length = C.args.length)
+    (hrs : rs.length = C.dims) (hrec : ∀ j a, args[j]? = some a → C.isRec j = true → DElem Θ n g a)
+    (hpt : ∀ j a, args[j]? = some a → C.isRec j = false → a ∈ El (Θ.ty c j n g (args.take j)) (Hom.id n))
+    (ih : ∀ j a, args[j]? = some a → C.isRec j = true → elimD Θ P bs n g a ∈ El (P n g a) (Hom.id n) ∧
+      ∀ n' (h : Hom n' n), res h (elimD Θ P bs n g a) = elimD Θ P bs n' (g.comp h) (res h a)) :
+    elimD Θ P bs n g (conV Θ.ctors n c args rs) ∈ El (P n g (conV Θ.ctors n c args rs)) (Hom.id n) ∧
+      ∀ n' (h : Hom n' n), res h (elimD Θ P bs n g (conV Θ.ctors n c args rs)) =
+        elimD Θ P bs n' (g.comp h) (res h (conV Θ.ctors n c args rs)) := by
+  have hat : Θ.ArgsTyped c C n g args := ⟨hlen, hrec, hpt⟩
+  rw [hGc n g args hat rs hrs ih, elimBranch_eq (Θ := Θ) P bs hC hlen]
+  have hrp : ∀ s (hs : s < C.recPos.length), ∃ a, args[C.recPos.getD s 0]? = some a ∧ C.isRec (C.recPos.getD s 0) = true := by
+    intro s hs
+    have hm : C.recPos.getD s 0 ∈ C.recPos := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; exact List.getElem_mem _
+    simp only [Ctor.recPos, List.mem_filter, List.mem_range] at hm
+    exact ⟨_, List.getElem?_eq_getElem (by rw [hlen]; exact hm.1), hm.2⟩
+  have hgetD : ∀ s (hs : s < C.recPos.length), args.getD (C.recPos.getD s 0) ∅ =
+      (args[C.recPos.getD s 0]?).getD ∅ := fun s hs => by rw [List.getD_eq_getElem?_getD]
+  have hih : ∀ s (hs : s < C.recPos.length), elimD Θ P bs n g (args.getD (C.recPos.getD s 0) ∅) ∈
+      El (P n g (args.getD (C.recPos.getD s 0) ∅)) (Hom.id n) ∧
+      ∀ n' (h : Hom n' n), res h (elimD Θ P bs n g (args.getD (C.recPos.getD s 0) ∅)) =
+        elimD Θ P bs n' (g.comp h) (res h (args.getD (C.recPos.getD s 0) ∅)) := by
+    intro s hs
+    obtain ⟨a, ha, hr⟩ := hrp s hs
+    rw [hgetD s hs, ha]
+    exact ih _ a ha hr
+  have hihs := hB n g c C hC args hat (C.recPos.map fun j => elimD Θ P bs n g (args.getD j ∅)) (by simp)
+    (fun s hs => by
+      have hs' : s < C.recPos.length := by simpa using hs
+      have := (hih s hs').1
+      rw [show C.recPos.getD s 0 = C.recPos[s] by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs']; rfl]
+        at this
+      simp only [List.getElem_map]
+      rw [show C.recPos.getD s 0 = C.recPos[s] by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs']; rfl]
+      exact this)
+    (fun a ha => by
+      obtain ⟨j, hj, rfl⟩ := List.mem_map.1 ha
+      obtain ⟨s, hs, rfl⟩ := List.getElem_of_mem hj
+      have := (hih s hs).1
+      have hd : DElem Θ n g (args.getD (C.recPos.getD s 0) ∅) := by
+        obtain ⟨a, ha, hr⟩ := hrp s hs
+        rw [hgetD s hs, ha]; exact hrec _ a ha hr
+      rw [show C.recPos.getD s 0 = C.recPos[s] by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; rfl]
+        at this hd
+      exact (hP n g _ hd).elKV _ _ _ this) rs hrs
+  refine ⟨hihs.1, fun n' h => ?_⟩
+  rw [hihs.2 n' h, res_conV, List.map_append, List.map_map]
+  have hat' := hΘ.argsTyped_res hC hat n' h
+  rw [hGc n' (g.comp h) _ hat' _ (by simp [hrs]) (fun j a ha hr => by
+      rw [List.getElem?_map] at ha
+      obtain ⟨a0, ha0, rfl⟩ := Option.map_eq_some_iff.1 ha
+      obtain ⟨h1, h2⟩ := ih j a0 ha0 hr
+      have hd : DElem Θ n g a0 := hrec j a0 ha0 hr
+      refine ⟨?_, fun n'' h' => ?_⟩
+      · rw [← h2 n' h]
+        have := (hP n g a0 hd).elRes n (Hom.id n) _ h1 n' h
+        rwa [El_eq_res_id, Hom.id_comp, hPn n g a0 hd n' h] at this
+      · rw [← h2 n' h, res_res, h2 n'' (h.comp h'), res_res]; rfl),
+    elimBranch_eq (Θ := Θ) P bs hC (by simp [hlen])]
+  congr 3
+  apply List.map_congr_left
+  intro j hj
+  obtain ⟨s, hs, rfl⟩ := List.getElem_of_mem hj
+  have e := (hih s hs).2 n' h
+  rw [show C.recPos.getD s 0 = C.recPos[s] by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; rfl]
+    at e
+  simp only [Function.comp]
+  rw [e]
+  congr 1
+  have hjl : C.recPos[s] < args.length := by
+    have hm : C.recPos[s] ∈ (List.range C.args.length).filter C.isRec := List.getElem_mem hs
+    rw [List.mem_filter, List.mem_range] at hm
+    omega
+  simp [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_eq_getElem hjl]
+
 /-- **The eliminator is typed and natural** on elements. -/
-theorem elimD_typed : ∀ {n : ℕ} {g : Hom n m} {v : V}, DElem Θ n g v →
+theorem elimD_typed (hG : ∀ c C, Θ.ctors[c]? = some C → ElimConEq Θ P bs c C) : ∀ {n : ℕ} {g : Hom n m} {v : V}, DElem Θ n g v →
     elimD Θ P bs n g v ∈ El (P n g v) (Hom.id n) ∧
       ∀ n' (h : Hom n' n), res h (elimD Θ P bs n g v) = elimD Θ P bs n' (g.comp h) (res h v) := by
   intro n g v hv
   induction hv with
   | @con n g c C args rs hC hlen hrs hrec hpt ih =>
-    have hat : Θ.ArgsTyped c C n g args := ⟨hlen, hrec, hpt⟩
-    rw [hG n g c C hC args hat rs hrs ih, elimBranch_eq hΘ P bs hP hPn hB hG hC hlen]
-    have hrp : ∀ s (hs : s < C.recPos.length), ∃ a, args[C.recPos.getD s 0]? = some a ∧ C.isRec (C.recPos.getD s 0) = true := by
-      intro s hs
-      have hm : C.recPos.getD s 0 ∈ C.recPos := by
-        rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; exact List.getElem_mem _
-      simp only [Ctor.recPos, List.mem_filter, List.mem_range] at hm
-      exact ⟨_, List.getElem?_eq_getElem (by rw [hlen]; exact hm.1), hm.2⟩
-    have hgetD : ∀ s (hs : s < C.recPos.length), args.getD (C.recPos.getD s 0) ∅ =
-        (args[C.recPos.getD s 0]?).getD ∅ := fun s hs => by rw [List.getD_eq_getElem?_getD]
-    have hih : ∀ s (hs : s < C.recPos.length), elimD Θ P bs n g (args.getD (C.recPos.getD s 0) ∅) ∈
-        El (P n g (args.getD (C.recPos.getD s 0) ∅)) (Hom.id n) ∧
-        ∀ n' (h : Hom n' n), res h (elimD Θ P bs n g (args.getD (C.recPos.getD s 0) ∅)) =
-          elimD Θ P bs n' (g.comp h) (res h (args.getD (C.recPos.getD s 0) ∅)) := by
-      intro s hs
-      obtain ⟨a, ha, hr⟩ := hrp s hs
-      rw [hgetD s hs, ha]
-      exact ih _ a ha hr
-    have hihs := hB n g c C hC args hat (C.recPos.map fun j => elimD Θ P bs n g (args.getD j ∅)) (by simp)
-      (fun s hs => by
-        have hs' : s < C.recPos.length := by simpa using hs
-        have := (hih s hs').1
-        rw [show C.recPos.getD s 0 = C.recPos[s] by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs']; rfl]
-          at this
-        simp only [List.getElem_map]
-        rw [show C.recPos.getD s 0 = C.recPos[s] by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs']; rfl]
-        exact this)
-      (fun a ha => by
-        obtain ⟨j, hj, rfl⟩ := List.mem_map.1 ha
-        obtain ⟨s, hs, rfl⟩ := List.getElem_of_mem hj
-        have := (hih s hs).1
-        have hd : DElem Θ n g (args.getD (C.recPos.getD s 0) ∅) := by
-          obtain ⟨a, ha, hr⟩ := hrp s hs
-          rw [hgetD s hs, ha]; exact hrec _ a ha hr
-        rw [show C.recPos.getD s 0 = C.recPos[s] by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; rfl]
-          at this hd
-        exact (hP n g _ hd).elKV _ _ _ this) rs hrs
-    refine ⟨hihs.1, fun n' h => ?_⟩
-    rw [hihs.2 n' h, res_conV, List.map_append, List.map_map]
-    have hat' := hΘ.argsTyped_res hC hat n' h
-    rw [hG n' (g.comp h) c C hC _ hat' _ (by simp [hrs]) (fun j a ha hr => by
-        rw [List.getElem?_map] at ha
-        obtain ⟨a0, ha0, rfl⟩ := Option.map_eq_some_iff.1 ha
-        obtain ⟨h1, h2⟩ := ih j a0 ha0 hr
-        have hd : DElem Θ n g a0 := hrec j a0 ha0 hr
-        refine ⟨?_, fun n'' h' => ?_⟩
-        · rw [← h2 n' h]
-          have := (hP n g a0 hd).elRes n (Hom.id n) _ h1 n' h
-          rwa [El_eq_res_id, Hom.id_comp, hPn n g a0 hd n' h] at this
-        · rw [← h2 n' h, res_res, h2 n'' (h.comp h'), res_res]; rfl),
-      elimBranch_eq hΘ P bs hP hPn hB hG hC (by simp [hlen])]
-    congr 3
-    apply List.map_congr_left
-    intro j hj
-    obtain ⟨s, hs, rfl⟩ := List.getElem_of_mem hj
-    have e := (hih s hs).2 n' h
-    rw [show C.recPos.getD s 0 = C.recPos[s] by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; rfl]
-      at e
-    simp only [Function.comp]
-    rw [e]
-    congr 1
-    have hjl : C.recPos[s] < args.length := by
-      have hm : C.recPos[s] ∈ (List.range C.args.length).filter C.isRec := List.getElem_mem hs
-      rw [List.mem_filter, List.mem_range] at hm
-      omega
-    simp [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_eq_getElem hjl]
+    exact elimD_conV_props hΘ P bs hP hPn hB hC (hG c C hC) hlen hrs hrec hpt ih
   | @hcomp n g φ u a hφ ha hu hcoh hbase iha ihu =>
     have hfib := fib_dataC hΘ
     have hu0 : a ∈ El (dataC Θ) g := mem_El_dataC.2 ha
