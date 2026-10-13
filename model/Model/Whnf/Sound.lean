@@ -171,8 +171,112 @@ theorem step_sound (hS : SigClosed S) (hW : WfSig S) (hHC : HCSound S) (hUG : UG
       · cases hs; exact EqTm0.splitR (ent_of_one (by assumption)) (.split h0 h1 h2 h3 h4 h5 h6)
       · cases hs
   | .abort _ _ => by simp [step] at hs
-  | .transp h0 h1 h2 h3 => by sorry
-  | .hcomp h0 h1 h2 h3 h4 => by sorry
+  | .transp h0 h1 h2 h3 => by
+    have ihA := fun A' (h : step S _ = some A') => step_sound hS hW hHC hUG h0 (by subst hΓ; rfl) h
+    have iha := fun a' (h : step S _ = some a') => step_sound hS hW hHC hUG h3 hΓ h
+    have H := HasTy0.transp h0 h1 h2 h3
+    simp only [step] at hs
+    split at hs
+    · cases hs; exact EqTm0.transpFace (ent_of_one (by assumption)) H
+    split at hs
+    · rename_i A' hA'
+      cases hs
+      have e := ihA _ hA'
+      exact EqTm0.transp H (transp_retype0 hW h1 h2 h3 e) e (ent_refl _) (ent_refl _) (EqTm0.refl h3)
+    split at hs
+    · cases hs; exact EqTm0.transpU H
+    · cases hs; exact EqTm0.transpPi H
+    · cases hs; exact EqTm0.transpSigma H
+    · cases hs; exact EqTm0.transpPath H
+    · cases hs; exact EqTm0.transpIPi H
+    · cases hs
+      obtain ⟨l', ⟨hA0, hψ, -, he⟩, -⟩ := gen_glue hS h0 rfl
+      exact EqTm0.transpGlue H hA0 he (forall0_scoped hψ) (ent_refl _) (ent_refl _)
+    · rename_i d ps _
+      split at hs
+      · rename_i D hD
+        split at hs
+        · cases hs; exact EqTm0.transpData0 hD (by assumption) H
+        rename_i hp
+        split at hs
+        · rename_i a' ha'
+          cases hs
+          have e := iha _ ha'
+          exact EqTm0.transp H (HasTy0.transp h0 h1 h2 (presup hW e).2) (EqTm0.refl h0) (ent_refl _) (ent_refl _) e
+        split at hs
+        · rename_i d' c qs args rs _
+          split at hs
+          · cases hs
+          rename_i hd'
+          simp only [ne_eq, Decidable.not_not] at hd'
+          subst hd'
+          split at hs
+          · rename_i C hC
+            cases hs
+            obtain ⟨D', hD', hPt⟩ := gen_data_tele h0 rfl
+            rw [hD] at hD'; cases hD'
+            have hd0 : HasTy0 S Ψ Φ Γ (.data _ (ps.dinst .zero)) (.univ D.level) :=
+              HasTy0.dsubst hS (HasTy0.data hD (hW.2 _ D hD).1 hPt) (r := .zero) trivial
+            obtain ⟨D1, C1, hD1, hC1, -, hargs, htele, -⟩ := con_args hW h3 hd0
+            rw [hD] at hD1; cases hD1; rw [hC] at hC1; cases hC1
+            exact EqTm0.transpCon hD hp hC (tele_isList hPt) hargs htele H
+          · cases hs
+        · rename_i d' qs ψ u a' _
+          split at hs
+          · rename_i hc
+            obtain ⟨rfl, hHIT⟩ := hc
+            cases hs
+            obtain ⟨D', hD', hPt⟩ := gen_data_tele h0 rfl
+            rw [hD] at hD'; cases hD'
+            have hd0 : HasTy0 S Ψ Φ Γ (.data _ (ps.dinst .zero)) (.univ D.level) :=
+              HasTy0.dsubst hS (HasTy0.data hD (hW.2 _ D hD).1 hPt) (r := .zero) trivial
+            obtain ⟨l1, ⟨hq, hψ, hu, ha1, hside⟩, ch⟩ := gen_hcomp h3 rfl
+            obtain ⟨m, e⟩ := chain_eq hW ch hq rfl hd0 (fun k h => by cases h)
+            exact EqTm0.transpHcomp hD hp hHIT
+              (HasTy0.conv (hcomp_retype0 hW hψ hu ha1 hside e) e) H
+          · cases hs
+        · cases hs
+      · cases hs
+    · cases hs
+  | .hcomp h0 h1 h2 h3 h4 => by
+    have ihA := fun A' (h : step S _ = some A') => step_sound hS hW hHC hUG h0 hΓ h
+    have iha := fun a' (h : step S _ = some a') => step_sound hS hW hHC hUG h3 hΓ h
+    have H := HasTy0.hcomp h0 h1 h2 h3 h4
+    have hs0 := hs
+    simp only [step] at hs
+    split at hs
+    · cases hs; exact EqTm0.hcompFace (ent_of_one (by assumption)) H
+    rename_i hφ
+    split at hs
+    · rename_i A' hA'
+      cases hs
+      have e := ihA _ hA'
+      exact EqTm0.hcomp H (hcomp_retype0 hW h1 h2 h3 h4 e) e (ent_refl _) (ent_refl _) (EqTm0.refl h2) (EqTm0.refl h3)
+    split at hs
+    · cases hs; exact EqTm0.hcompU H
+    · cases hs; exact EqTm0.hcompPi H
+    · cases hs; exact EqTm0.hcompSigma H
+    · cases hs; exact EqTm0.hcompPath H
+    · cases hs; exact EqTm0.hcompIPi H
+    · cases hs
+      obtain ⟨l', ⟨hA0, -, -, he⟩, -⟩ := gen_glue hS h0 rfl
+      exact EqTm0.hcompGlue H hA0 he
+    · split at hs
+      · split at hs
+        · cases hs
+        split at hs
+        · rename_i a' ha'
+          cases hs
+          have e := iha _ ha'
+          have hΦ : Φ.Scoped Ψ := scoped_of_wf (wf_of_ty h3)
+          have hside := EqTm0.trans h4 (EqTm0.restrict (show (cof Φ _).Scoped Ψ from ⟨hΦ, h1⟩) (ent_and_left _ _) e)
+          exact EqTm0.hcomp H (HasTy0.hcomp h0 h1 h2 (presup hW e).2 hside) (EqTm0.refl h0) (ent_refl _)
+            (ent_refl _) (EqTm0.refl h2) e
+        · rename_i ha'
+          subst hΓ
+          exact hHC H (by simpa using hφ) ha' hs0
+      · cases hs
+    · cases hs
   | .glue h0 h1 h2 h3 => by
     simp only [step] at hs
     split at hs
@@ -206,6 +310,64 @@ theorem step_sound (hS : SigClosed S) (hW : WfSig S) (hHC : HCSound S) (hUG : UG
     obtain ⟨b, hb, rfl⟩ := Option.map_eq_some_iff.1 hs
     obtain ⟨k, ψ, hk, hψ⟩ := firstBnd_spec hb
     exact EqTm0.conBnd h0 h1 hk (ent_of_one hψ) h2 (tele_isList h5) (.con h0 h1 h2 h3 h4 h5 h6 h7)
-  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => by sorry
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => by
+    have iht := fun t' (h : step S _ = some t') => step_sound hS hW hHC hUG h9 hΓ h
+    have H := HasTy0.elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9
+    simp only [step] at hs
+    split at hs
+    · rename_i t' ht'
+      cases hs
+      have e := iht _ ht'
+      have ht1 := (presup hW e).2
+      have H' := HasTy0.conv (HasTy0.elim h0 h1 h2 h3 h4 h5 h6 h7 h8 ht1)
+        (EqTm0.symm (HasTy0.inst_congr hS h4 h9 ht1 e))
+      exact EqTm0.elim h0 H H' (EqTele0.refl h3) (EqTm0.refl h4) h5 h5 rfl
+        (fun c C b b' _ hb hb' => by rw [hb] at hb'; cases hb'; exact EqTm0.refl (h7 c C b ‹_› hb)) e
+    split at hs
+    · rename_i d' c qs args rs _
+      split at hs
+      · cases hs
+      rename_i hd'
+      simp only [ne_eq, Decidable.not_not] at hd'
+      subst hd'
+      split at hs
+      · rename_i D' b hD' hb
+        rw [h0] at hD'; cases hD'
+        split at hs
+        · rename_i C hC
+          cases hs
+          obtain ⟨D1, C1, hD1, hC1, -, hargs, htele, -⟩ := con_args hW h9 h2
+          rw [h0] at hD1; cases hD1; rw [hC] at hC1; cases hC1
+          exact EqTm0.elimCon h0 hC hb h1 hargs h5 htele H
+        · cases hs
+      · cases hs
+    · rename_i d' qs φ u a _
+      split at hs
+      · rename_i D' hD'
+        rw [h0] at hD'; cases hD'
+        split at hs
+        · rename_i hc
+          obtain ⟨rfl, hHIT⟩ := hc
+          cases hs
+          obtain ⟨l1, ⟨hq, hψ, hu, ha1, hside⟩, ch⟩ := gen_hcomp h9 rfl
+          obtain ⟨m, e⟩ := chain_eq hW ch hq rfl h2 (fun k h => by cases h)
+          exact EqTm0.elimHcomp h0 hHIT (HasTy0.conv (hcomp_retype0 hW hψ hu ha1 hside e) e) H
+        · cases hs
+      · cases hs
+    · cases hs
+
+/-- Reduction is sound for closed terms. -/
+theorem red_sound (hW : WfSig S) (hHC : HCSound S) (hUG : UGSound S) {Ψ Φ t t' A}
+    (hr : Red S t t') (h : HasTy0 S Ψ Φ [] t A) : EqTm0 S Ψ Φ [] t t' A := by
+  induction hr with
+  | refl => exact EqTm0.refl h
+  | step hs _ ih =>
+    have e := step_sound (sigClosed_of_wfSig hW) hW hHC hUG h rfl hs
+    exact e.trans (ih (presup hW e).2)
+
+/-- Reduction is sound for closed terms (spec judgments). -/
+theorem red_sound_spec (hW : WfSig S) (hHC : HCSound S) (hUG : UGSound S) {Ψ t t' A}
+    (hr : Red S t t') (h : HasTy S Ψ .one [] t A) : EqTm S Ψ .one [] t t' A :=
+  minimal_to_spec_eq (red_sound hW hHC hUG hr (spec_to_minimal hW h))
 
 end Model.Whnf

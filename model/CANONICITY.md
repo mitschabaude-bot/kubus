@@ -105,3 +105,19 @@ The route is Huber's canonicity for cubical type theory with an equality relatio
 - **(d) Corollaries.** `GlueCompat` as the PER at `glue A φ T e ≡ glue A' φ' T' e'`, giving `canonicity` without hypotheses. If cheap: canonicity with equality (equal closed elements of a data type have equal canonical forms) and injectivity of the type formers as stated theorems.
 
 Reduction is not stable under interval substitution, so (c) has to commute reduction with restriction up to `≡`, as in Huber. The existing development is reused for the semantic indexing (ranks), the Kan lemma's syntactic contracta, and the projections. This is also a step toward normalization.
+
+### Milestone (a): done
+
+`Model/Whnf/Step.lean` defines `step : Sig → Tm → Option Tm`, one step of weak-head reduction, structurally recursive, so deterministic by construction. `Red` is its reflexive-transitive closure, `IsWhnf S t := step S t = none`, and `RedW.unique` says normal forms are unique. Notes on the definition:
+
+- Faces are decided by `I.entails .one`. A step taken at `.one` is valid in every context, since `Φ ⊨ .one`.
+- `transp`/`hcomp` reduce their line to a whnf, then compute by its head. At an inductive type they first reduce the base, and they fire only on a constructor or formal `hcomp` of the same inductive type.
+- `transpGlue` uses `δ := φ.forall0`.
+- `hcompCon` takes the tube's arguments to be the projections `proj_j u`.
+- `unglue φ e (glueEl φ' e' t a) ⇒ a` regardless of annotations.
+- `con` reduces by its first boundary that holds.
+
+`Model/Whnf/Sound.lean`, `step_sound`: a typed term's step is a judgmental equality at its type (minimal judgments, any `Ψ`, `Φ`, and `Γ = []`); `red_sound`/`red_sound_spec` extend this to `Red`. Two steps need side conditions that typing alone does not give, stated as hypotheses about closed terms and discharged in milestone (c):
+
+- `HCSound`: the `hcompCon` step, where the tube must be a constructor on its face (cf. `tube_canon`).
+- `UGSound`: `unglue φ e (glueEl φ' e' t a) ≡ a` with different annotations, which needs the annotations to agree up to `≡` under the face. This is `GlueCompat` again, at the element level.
