@@ -76,6 +76,10 @@ def canonConvNe (R : Rec S) (E : KCtx S Ψ Φ Γ) (t u : Tm) :
     pure ⟨⟨i.ty, i.lvl, HasTy.restrict E.hsc q.h2 i.hty, HasTy.restrict E.hsc q.h2 i.htm⟩,
       ⟨EqTm.restrict E.hsc q.h2 e⟩⟩
 
+/-- Add a line to the trail of an error (at most 12 lines). -/
+def trail {α : Type} (line : Unit → String) (x : K S α) : K S α :=
+  tryCatch x fun e => throw (if (e.splitOn "\n  while ").length ≤ 12 then e ++ "\n  while " ++ line () else e)
+
 /-! Memoized versions: a hit transports the cached derivation along the equality of the
 keys (checked structurally, with a pointer-equality shortcut). -/
 
@@ -90,7 +94,7 @@ def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ 
 def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (PLift (HasTy S Ψ Φ Γ t A)) := do
   if let some v := (← get).chk.find? Ψ Φ Γ [t, A] E.fs.get E.hfs E.hsc ChkF.restr then return v
-  let v ← canonCheckRaw R E t A l hA
+  let v ← trail (fun _ => s!"checking {short t} : {short A}") (canonCheckRaw R E t A l hA)
   modify fun c => { c with chk := c.chk.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
   return v
 
@@ -114,7 +118,7 @@ def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
   if h : tmEq t u = true then return ⟨tmEq_sound h ▸ EqTm.refl ht⟩
   if let some v := (← get).conv.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc ConvF.restr then return v
-  let v ← canonConvRaw R E A l hA t u ht hu
+  let v ← trail (fun _ => s!"comparing {short t} and {short u} at {short A}") (canonConvRaw R E A l hA t u ht hu)
   modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }
   return v
 

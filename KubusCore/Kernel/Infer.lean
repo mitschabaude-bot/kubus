@@ -227,8 +227,13 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K S (I
     let ⟨hb⟩ ← R.check E b (A.dinst .one) l (HasTy.dsubst hA trivial)
     pure ⟨.univ l, l + 1, hU, HasTy.path hA ha hb⟩
   | .plam t => do
+    -- a path type with the endpoints of `t`: more informative than `(i : I) → A`
     let it ← R.infer E.dext t
-    pure ⟨.ipi it.ty, it.lvl, HasTy.ipi it.hty, HasTy.ilam (HasTy.ipi it.hty) it.htm⟩
+    have h0 := HasTy.dsubst (r := .zero) it.htm trivial
+    have h1 := HasTy.dsubst (r := .one) it.htm trivial
+    have hP := HasTy.path it.hty h0 h1
+    pure ⟨.path it.ty (t.dinst .zero) (t.dinst .one), it.lvl, hP,
+      HasTy.plam hP it.htm (EqTm.refl h0) (EqTm.refl h1)⟩
   | .papp p r => do
     let ⟨hr⟩ ← ensureScoped r Ψ
     match ← inferW R E p with
@@ -471,12 +476,14 @@ def checkStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
       have := HasTy.app (HasTy.lam hP hb) ha
       pure ⟨by rw [Tm.shift_inst] at this; exact this⟩
   | .papp (.plam b) r => do
-    tryCatch (do let i ← R.infer E (.papp (.plam b) r); bridgeHas R E i.hty hA i.htm) fun _ => do
-      let ⟨hr⟩ ← ensureScoped r Ψ
-      have hA' : HasTy S (Ψ + 1) Φ.shift Γ.dshift A.dshift (.univ l) := HasTy.dwk hA
-      let ⟨hb⟩ ← R.check E.dext b A.dshift l hA'
-      have := HasTy.iapp (HasTy.ilam (HasTy.ipi hA') hb) hr
-      pure ⟨by rw [Tm.dshift_dinst] at this; exact this⟩
+    tryCatch (do let i ← R.infer E (.papp (.plam b) r); bridgeHas R E i.hty hA i.htm) fun e1 => do
+      -- a constant line (when the body is not inferable); report the first error otherwise
+      tryCatch (do
+        let ⟨hr⟩ ← ensureScoped r Ψ
+        have hA' : HasTy S (Ψ + 1) Φ.shift Γ.dshift A.dshift (.univ l) := HasTy.dwk hA
+        let ⟨hb⟩ ← R.check E.dext b A.dshift l hA'
+        have := HasTy.iapp (HasTy.ilam (HasTy.ipi hA') hb) hr
+        pure ⟨by rw [Tm.dshift_dinst] at this; exact this⟩) fun _ => throw e1
   | t => checkByInfer R E t A l hA
 
 end KubusCore.Kernel

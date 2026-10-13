@@ -581,6 +581,8 @@ structure State where
   skipped : Std.HashMap (String × Nat) String := {}
   certified : Nat := 0
   rejected : Nat := 0
+  /-- add the translated term and type to rejections -/
+  verbose : Bool := false
 
 def showName (n : String) (k : Nat) : String := if k == 0 then n else s!"{n}^{k}"
 
@@ -664,13 +666,16 @@ def translate (env : Env) (R : Rec S) (E : KCtx S 0 .one []) (ty body : Kubus.Tm
 
 /-- Translate a definition and check it, sharing the kernel's cache. The inner error is a
 failed translation; the outer one a rejection by the kernel. -/
-def translateCheck (env : Env) (C : CheckedSig) (ty body : Kubus.Tm) :
+def translateCheck (env : Env) (C : CheckedSig) (ty body : Kubus.Tm) (verbose : Bool := false) :
     Except String (Except String (KTm × KTm × CheckedSig)) := runK do
   let (R, E) ← setup C.sig
   match ← tryCatch (Except.ok <$> translate env R E ty body) (fun e => pure (.error e)) with
   | .error e => return .error e
   | .ok (kty, kbody) =>
-    let ⟨h⟩ ← checkEntryK C.sig R E kbody kty
+    let ⟨h⟩ ← if verbose then
+        mapErr (· ++ s!"\n  translated term: {Tm.pp kbody}\n  translated type: {Tm.pp kty}")
+          (checkEntryK C.sig R E kbody kty)
+      else checkEntryK C.sig R E kbody kty
     return .ok (kty, kbody, ⟨C.sig ++ [.defn kbody kty], wfSig_append C.wf h⟩)
 
 mutual
@@ -724,7 +729,7 @@ partial def addGlobal (g : Globals) (n : String) (k : Nat) : StateM State (List 
       if m != n then out := out ++ (← addGlobal g m j)
     for (m, j) in datasOf g t do out := out ++ (← addData g m j)
   let s ← get
-  match translateCheck { s.env with globals := g } s.sig ty body with
+  match translateCheck { s.env with globals := g } s.sig ty body s.verbose with
   | .ok (.error e) => return out ++ (← skip e)
   | .ok (.ok (_, _, sig')) =>
       set { s with sig := sig', env.consts := s.env.consts.insert (n, k) s.sig.sig.length,
