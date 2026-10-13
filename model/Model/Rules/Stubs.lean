@@ -1,4 +1,4 @@
-import Model.Sem
+import Model.InterpLemmas
 
 /-!
 # Semantic validity of the rules
