@@ -178,7 +178,7 @@ structure DataHyp2 (S S' : Sig) : Prop where
     Valid2 S Ψ Φ Γ (.hcomp (.data d ps) φ u (.con d c qs args []))
       (.con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (.data d ps) ps.dshift.toList φ 0 []
         uargs.toList args.toList)) []) T
-  transpCon : ∀ {Ψ Φ Γ d D c C ps φ qs args rs T}, S'[d]? = some (.data D) → D.params ≠ [] →
+  transpCon : ∀ {Ψ Φ Γ d D c C ps φ qs args rs T}, S'[d]? = some (.data D) → D.isHIT = true → D.params ≠ [] →
     D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
     HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →
     HasTy0 S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T →

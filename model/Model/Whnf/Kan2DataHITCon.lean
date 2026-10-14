@@ -179,9 +179,10 @@ theorem con_inv {P1 q : Tm} {c : ℕ} {C : Ctor} {X : List Tm} {rs : List I} (hC
     HasTele0 S k .one [] P1 D.params [] ∧ IsList P1 ∧
     rs.length = C.dims ∧ (∀ r ∈ rs, r.Scoped k) ∧ X.length = C.args.length ∧
     HasTy S k .one [] (.con d c P1 (Tm.ofList X) rs) (.data d P1) ∧
-    EqTm S k .one [] (.con d c q (Tm.ofList X) rs) (.con d c P1 (Tm.ofList X) rs) (.data d P1) := by
+    EqTm S k .one [] (.con d c q (Tm.ofList X) rs) (.con d c P1 (Tm.ofList X) rs) (.data d P1) ∧
+    q = Tm.ofList q.toList ∧ q.toList.length = D.params.length := by
   have hcon := spec_to_minimal hW h
-  obtain ⟨⟨-, D0, C0, hD0, hC0, -, -, -, -, -, hsc⟩, -⟩ := gen_conF hcon rfl
+  obtain ⟨⟨-, D0, C0, hD0, hC0, hqL, -, hqt0, -, -, hsc⟩, -⟩ := gen_conF hcon rfl
   rw [hD] at hD0; cases hD0; rw [hC] at hC0; cases hC0
   obtain ⟨D', C', hD', hC', hpL, -, htele, hrs, m, eq0⟩ := con_args hW hcon (spec_to_minimal hW hP1)
   rw [hD] at hD'; cases hD'; rw [hC] at hC'; cases hC'
@@ -198,7 +199,8 @@ theorem con_inv {P1 q : Tm} {c : ℕ} {C : Ctor} {X : List Tm} {rs : List I} (hC
     HasTy0.con hD hC (tele_isList hpt) (spec_to_minimal hW hP1) hpt htele hrs hsc
   have ec := EqTm0.con hD hC hc0 hcon eps (EqTele0.refl htele) rfl (fun i r r' h1 h2 => by
     rw [h1] at h2; cases h2; exact I_eq_refl _)
-  exact ⟨htele, hpt, hpL, hrs, hsc, hXl, minimal_to_spec hc0, minimal_to_spec_eq (EqTm0.symm ec)⟩
+  exact ⟨htele, hpt, hpL, hrs, hsc, hXl, minimal_to_spec hc0, minimal_to_spec_eq (EqTm0.symm ec), hqL,
+    by simpa using Meta.tele_length hqt0⟩
 
 /-- Constructors with judgmentally equal arguments and `I.Eq`-equal interval arguments are judgmentally
 equal. -/
@@ -210,8 +212,8 @@ theorem con_eqTm {P1 q q' : Tm} {c : ℕ} {C : Ctor} {X X' : List Tm} {rs rs' : 
     (hargs : ∀ i (hi : i < C.args.length), EqTm S k .one [] (X.getD i .abort) (X'.getD i .abort)
       ((C.argTy d D.params.length i).substList ((X.take i).reverse ++ P1.toList.reverse))) :
     EqTm S k .one [] (.con d c q (Tm.ofList X) rs) (.con d c q' (Tm.ofList X') rs') (.data d P1) := by
-  obtain ⟨htele, hpt, -, -, -, hXl, hc1, e1⟩ := con_inv hW hD hC h hP1
-  obtain ⟨-, -, -, -, -, hX'l, hc1', e1'⟩ := con_inv hW hD hC h' hP1
+  obtain ⟨htele, hpt, -, -, -, hXl, hc1, e1, -⟩ := con_inv hW hD hC h hP1
+  obtain ⟨-, -, -, -, -, hX'l, hc1', e1', -⟩ := con_inv hW hD hC h' hP1
   have hw := wf_of_ty (spec_to_minimal hW hP1)
   have eX : EqTele0 S k .one [] (Tm.ofList X) (Tm.ofList X') (C.argTys d D.params.length) P1.toList.reverse := by
     refine EqTele0.ofList_of' hw X X' _ _ (by simp [argTys_length, hXl]) (by simp [argTys_length, hX'l])
