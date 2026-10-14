@@ -68,17 +68,17 @@ theorem per2_piC {A B : V} (hA : A ≠ ∅) (ihA : PER2 S m A)
           (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ↔
       piT (S := S) D C T T' := by
     intro T T'; simp only [piT, D, C, ISub.hom_id]
-  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, (eT T' T).2 (pi_symTy D C hD hC hCa ((eT T T').1 hT.2))⟩,
+  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, (eT T' T).2 (pi_symTy D C hD hC hCa ((eT T T').1 hT.2.1)), hT.2.2.2, hT.2.2.1⟩,
     fun {T T' T''} hT hT' => ⟨base_trans hW hT.1 hT'.1,
-      (eT T T'').2 (pi_transTy D C hD hC hCa ((eT T T').1 hT.2) ((eT T' T'').1 hT'.2))⟩,
+      (eT T T'').2 (pi_transTy D C hD hC hCa ((eT T T').1 hT.2.1) ((eT T' T'').1 hT'.2.1)), hT.2.2.1, hT'.2.2.2⟩,
     fun {T T' t t'} hT ht => ?_, fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
   · obtain ⟨he, hmem, hpi⟩ := ht
-    exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, pi_symEl D C hD hC hCa ((eT T T').1 hT.2) hpi⟩
+    exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, pi_symEl D C hD hC hCa ((eT T T').1 hT.2.1) hpi⟩
   · obtain ⟨he, hmem, hpi⟩ := ht
     obtain ⟨he', -, hpi'⟩ := ht'
-    exact ⟨he.trans he', hmem, pi_transEl D C hD hC hCa ((eT T T').1 hT.2) hpi hpi'⟩
+    exact ⟨he.trans he', hmem, pi_transEl D C hD hC hCa ((eT T T').1 hT.2.1) hpi hpi'⟩
   · obtain ⟨he, hmem, hpi⟩ := ht
-    exact ⟨he.conv hT.1.2.2.2.2, hmem, pi_conv D C hD hC ((eT T T').1 hT.2) hT.1.2.2.2.2 hpi⟩
+    exact ⟨he.conv hT.1.2.2.2.2, hmem, pi_conv D C hD hC ((eT T T').1 hT.2.1) hT.1.2.2.2.2 hpi⟩
 
 /-- The PER properties at a `Σ` code. -/
 theorem per2_sigmaC {A B : V} (hA : A ≠ ∅) (ihA : PER2 S m A)
@@ -100,17 +100,17 @@ theorem per2_sigmaC {A B : V} (hA : A ≠ ∅) (ihA : PER2 S m A)
           (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ↔
       sigT (S := S) D C T T' := by
     intro T T'; simp only [sigT, D, C, ISub.hom_id]
-  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, (eT T' T).2 (sig_symTy D C hD hC hCa ((eT T T').1 hT.2))⟩,
+  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, (eT T' T).2 (sig_symTy D C hD hC hCa ((eT T T').1 hT.2.1)), hT.2.2.2, hT.2.2.1⟩,
     fun {T T' T''} hT hT' => ⟨base_trans hW hT.1 hT'.1,
-      (eT T T'').2 (sig_transTy D C hD hC hCa ((eT T T').1 hT.2) ((eT T' T'').1 hT'.2))⟩,
+      (eT T T'').2 (sig_transTy D C hD hC hCa ((eT T T').1 hT.2.1) ((eT T' T'').1 hT'.2.1)), hT.2.2.1, hT'.2.2.2⟩,
     fun {T T' t t'} hT ht => ?_, fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
   · obtain ⟨he, hmem, hpi⟩ := ht
-    exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, sig_symEl D C hD hC hCa ((eT T T').1 hT.2) hpi⟩
+    exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, sig_symEl D C hD hC hCa ((eT T T').1 hT.2.1) hpi⟩
   · obtain ⟨he, hmem, hpi⟩ := ht
     obtain ⟨he', -, hpi'⟩ := ht'
-    exact ⟨he.trans he', hmem, sig_transEl D C hD hC hCa ((eT T T').1 hT.2) hpi hpi'⟩
+    exact ⟨he.trans he', hmem, sig_transEl D C hD hC hCa ((eT T T').1 hT.2.1) hpi hpi'⟩
   · obtain ⟨he, hmem, hpi⟩ := ht
-    exact ⟨he.conv hT.1.2.2.2.2, hmem, sig_conv D C hD hC ((eT T T').1 hT.2) hT.1.2.2.2.2 hpi⟩
+    exact ⟨he.conv hT.1.2.2.2.2, hmem, sig_conv D C hD hC ((eT T T').1 hT.2.1) hT.1.2.2.2.2 hpi⟩
 
 /-- A related pair of type lines, at a point. -/
 theorem line_ty {L : V} (hL : KR2 S (m + 1) L) {f : Hom k m} (σ : ISub k' k) {L1 L1' : Tm}
@@ -131,16 +131,16 @@ theorem per2_pathC {L a0 a1 : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL 
   have hLp : ∀ k' (σ : ISub k' (k + 1)), PERP (Lp k' σ) := fun k' σ => ihL k' _
   have hLt : ∀ k' (σ : ISub k' k) (L1 L1' : Tm), (Lp (k' + 1) σ.up).ty L1 L1' → ∀ (r : I) (hr : r.Scoped k'),
       (Lp k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r) := fun k' σ _ _ h r hr => line_ty hW hL σ h r hr
-  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, path_symTy Lp hLp hLt hT.2⟩,
-    fun {T T' T''} hT hT' => ⟨base_trans hW hT.1 hT'.1, path_transTy Lp hLp hLt hT.2 hT'.2⟩,
+  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, path_symTy Lp hLp hLt hT.2.1, hT.2.2.2, hT.2.2.1⟩,
+    fun {T T' T''} hT hT' => ⟨base_trans hW hT.1 hT'.1, path_transTy Lp hLp hLt hT.2.1 hT'.2.1, hT.2.2.1, hT'.2.2.2⟩,
     fun {T T' t t'} hT ht => ?_, fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
   · obtain ⟨he, hmem, hp⟩ := ht
-    exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, path_symEl Lp hLp hLt hT.2 hp⟩
+    exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, path_symEl Lp hLp hLt hT.2.1 hp⟩
   · obtain ⟨he, hmem, hp⟩ := ht
     obtain ⟨he', -, hp'⟩ := ht'
-    exact ⟨he.trans he', hmem, path_transEl Lp hLp hLt hT.2 hp hp'⟩
+    exact ⟨he.trans he', hmem, path_transEl Lp hLp hLt hT.2.1 hp hp'⟩
   · obtain ⟨he, hmem, hp⟩ := ht
-    exact ⟨he.conv hT.1.2.2.2.2, hmem, path_conv Lp hLp hLt hT.2 hT.1.2.2.2.2 hp⟩
+    exact ⟨he.conv hT.1.2.2.2.2, hmem, path_conv Lp hLp hLt hT.2.1 hT.1.2.2.2.2 hp⟩
 
 /-- The PER properties at a code `(i : I) → L`. -/
 theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 S (m + 1) L) :
@@ -149,13 +149,13 @@ theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 
   rw [Comp2_ipiC L hLne]
   refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
     fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
-  · obtain ⟨hb, hall⟩ := hT
-    refine ⟨base_symm hb, fun k' σ => ?_⟩
+  · obtain ⟨hb, hall, hc, hc'⟩ := hT
+    refine ⟨base_symm hb, fun k' σ => ?_, hc', hc⟩
     obtain ⟨L1, L1', h1, h2, h3⟩ := hall k' σ
     exact ⟨L1', L1, h2, h1, (ihL _ _).symTy h3⟩
-  · obtain ⟨hb, hall⟩ := hT
-    obtain ⟨hb', hall'⟩ := hT'
-    refine ⟨base_trans hW hb hb', fun k' σ => ?_⟩
+  · obtain ⟨hb, hall, hc, -⟩ := hT
+    obtain ⟨hb', hall', -, hc''⟩ := hT'
+    refine ⟨base_trans hW hb hb', fun k' σ => ?_, hc, hc''⟩
     obtain ⟨L1, L1', h1, h2, h3⟩ := hall k' σ
     obtain ⟨L2, L2', h1', h2', h3'⟩ := hall' k' σ
     obtain rfl : L1' = L2 := by have := RedW.unique h2.1 h1'.1; injection this
@@ -163,7 +163,7 @@ theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 
   · obtain ⟨he, hmem, -, hall⟩ := ht
     refine ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm, fun k'' σ' => ?_⟩
     obtain ⟨L1, hr, hel⟩ := hall k'' σ'
-    obtain ⟨L1x, L1', hrx, -, h3⟩ := hT.2 k'' σ'
+    obtain ⟨L1x, L1', hrx, -, h3⟩ := hT.2.1 k'' σ'
     obtain rfl : L1x = L1 := by have := RedW.unique hrx.1 hr.1; injection this
     refine ⟨L1x, hr, fun r hr' => ?_⟩
     have := hel r hr'
@@ -175,7 +175,7 @@ theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 
     obtain ⟨L1, hr, hel⟩ := hall k'' σ'
     obtain ⟨L1x, hrx, hel'⟩ := hall' k'' σ'
     obtain rfl : L1x = L1 := by have := RedW.unique hrx.1 hr.1; injection this
-    obtain ⟨L1y, L1', hry, -, h3⟩ := hT.2 k'' σ'
+    obtain ⟨L1y, L1', hry, -, h3⟩ := hT.2.1 k'' σ'
     obtain rfl : L1y = L1x := by have := RedW.unique hry.1 hr.1; injection this
     refine ⟨L1y, hr, fun r hr' => ?_⟩
     have x := hel r hr'
@@ -186,7 +186,7 @@ theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 
     have hTT := hT.1.2.2.2.2
     refine ⟨he.conv hTT, hmem, he.conv hTT, fun k'' σ' => ?_⟩
     obtain ⟨L1, hr, hel⟩ := hall k'' σ'
-    obtain ⟨L1x, L1', hrx, hr2, h3⟩ := hT.2 k'' σ'
+    obtain ⟨L1x, L1', hrx, hr2, h3⟩ := hT.2.1 k'' σ'
     obtain rfl : L1x = L1 := by have := RedW.unique hrx.1 hr.1; injection this
     refine ⟨L1', hr2, fun r hr' => ?_⟩
     have x := hel r hr'

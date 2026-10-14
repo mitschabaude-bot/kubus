@@ -222,25 +222,40 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     let cod : (k' : ℕ) → ISub k' k → Tm → ElR2 k' := fun k' σ a k'' σ' =>
       (rec (appV k' (res σ.hom B) (semK S k' a)) ((rank_appV_res_le _ _ _).trans_lt h22) k' k'' σ'.hom).el
     let isPi := π1 sh = natZ tPi
-    { ty := fun A A' => ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
+    -- the normal forms at a restriction and at a further restriction are related
+    let coh : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') A1 B1 A2 B2,
+      RedT S k' (A.isub σ) (if isPi then .pi A1 B1 else .sigma A1 B1) →
+      RedT S k'' (A.isub (σ.comp σ')) (if isPi then .pi A2 B2 else .sigma A2 B2) →
+      (RY k'' (σ.comp σ')).ty (A1.isub σ') A2 ∧
+      ∀ a a', (RY k'' (σ.comp σ')).el (A1.isub σ') a a' →
+        (RB k'' (σ.comp σ') a).ty ((B1.isub σ').inst a) (B2.inst a')
+    { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
           RedT S k' (A.isub σ) (if isPi then .pi A1 B1 else .sigma A1 B1) ∧
           RedT S k' (A'.isub σ) (if isPi then .pi A1' B1' else .sigma A1' B1') ∧
-          (RY k' σ).ty A1 A1' ∧ ∀ a a', (RY k' σ).el A1 a a' → (RB k' σ a).ty (B1.inst a) (B1'.inst a')
+          (RY k' σ).ty A1 A1' ∧ ∀ a a', (RY k' σ).el A1 a a' → (RB k' σ a).ty (B1.inst a) (B1'.inst a')) ∧
+          coh A ∧ coh A'
       el := if isPi then piE2 S (fun k' σ => (RY k' σ).el) cod k (ISub.id k)
         else sigmaE2 S (fun k' σ => (RY k' σ).el) cod k (ISub.id k) }
   else if π1 sh = natZ tPath ∨ π1 sh = natZ tIPi then
     let L := π1 (π2 sh)
     let RL : (k' : ℕ) → ISub k' (k + 1) → Pack2 := fun k' σ => rec L h12 (k + 1) k' σ.hom
     if π1 sh = natZ tPath then
-      { ty := fun A A' => ∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
+      let coh : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') L1 b0 b1 L2 c0 c1,
+        RedT S k' (A.isub σ) (.path L1 b0 b1) → RedT S k'' (A.isub (σ.comp σ')) (.path L2 c0 c1) →
+        (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2
+      { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
             RedT S k' (A.isub σ) (.path L1 b0 b1) ∧ RedT S k' (A'.isub σ) (.path L1' b0' b1') ∧
             (RL (k' + 1) σ.up).ty L1 L1' ∧
             (RL k' (ISub.cons .zero trivial σ)).el (L1.dinst .zero) b0 b0' ∧
-            (RL k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1'
+            (RL k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1') ∧ coh A ∧ coh A'
         el := pathE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
     else
-      { ty := fun A A' => ∀ k' (σ : ISub k' k), ∃ L1 L1',
-            RedT S k' (A.isub σ) (.ipi L1) ∧ RedT S k' (A'.isub σ) (.ipi L1') ∧ (RL (k' + 1) σ.up).ty L1 L1'
+      let coh : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') L1 L2,
+        RedT S k' (A.isub σ) (.ipi L1) → RedT S k'' (A.isub (σ.comp σ')) (.ipi L2) →
+        (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2
+      { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ L1 L1',
+            RedT S k' (A.isub σ) (.ipi L1) ∧ RedT S k' (A'.isub σ) (.ipi L1') ∧ (RL (k' + 1) σ.up).ty L1 L1') ∧
+            coh A ∧ coh A'
         el := ipiE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
   else if π1 sh = natZ tUniv then
     { ty := fun A A' => ∀ k' (σ : ISub k' k),

@@ -37,12 +37,44 @@ theorem base_isub {X : V} {A A' : Tm}
   exact ⟨h1.isub hW σ, h2.isub hW σ, by rw [semK_isubTy hW h1 σ, h3], by rw [semK_isubTy hW h2 σ, h4],
     h5.isub hW σ⟩
 
+omit hW in
+theorem cohPi_isub {A B : V} {f : Hom k m} {T : Tm} (h : cohPi S A B f T) (σ0 : ISub k' k) :
+    cohPi S A B (f.comp σ0.hom) (T.isub σ0) := by
+  intro k1 σ k2 σ' A1 B1 A2 B2 h1 h2
+  rw [Tm.isub_isub] at h1 h2
+  have := h k1 (σ0.comp σ) k2 σ' A1 B1 A2 B2 h1 (by rwa [ISub.comp_assoc])
+  rw [ISub.comp_assoc] at this; rwa [ISub.comp_hom]
+
+omit hW in
+theorem cohSigma_isub {A B : V} {f : Hom k m} {T : Tm} (h : cohSigma S A B f T) (σ0 : ISub k' k) :
+    cohSigma S A B (f.comp σ0.hom) (T.isub σ0) := by
+  intro k1 σ k2 σ' A1 B1 A2 B2 h1 h2
+  rw [Tm.isub_isub] at h1 h2
+  have := h k1 (σ0.comp σ) k2 σ' A1 B1 A2 B2 h1 (by rwa [ISub.comp_assoc])
+  rw [ISub.comp_assoc] at this; rwa [ISub.comp_hom]
+
+omit hW in
+theorem cohPath_isub {L : V} {f : Hom k m} {T : Tm} (h : cohPath S L f T) (σ0 : ISub k' k) :
+    cohPath S L (f.comp σ0.hom) (T.isub σ0) := by
+  intro k1 σ k2 σ' L1 b0 b1 L2 c0 c1 h1 h2
+  rw [Tm.isub_isub] at h1 h2
+  have := h k1 (σ0.comp σ) k2 σ' L1 b0 b1 L2 c0 c1 h1 (by rwa [ISub.comp_assoc])
+  rw [ISub.comp_assoc] at this; rwa [lift_hom_comp]
+
+omit hW in
+theorem cohIPi_isub {L : V} {f : Hom k m} {T : Tm} (h : cohIPi S L f T) (σ0 : ISub k' k) :
+    cohIPi S L (f.comp σ0.hom) (T.isub σ0) := by
+  intro k1 σ k2 σ' L1 L2 h1 h2
+  rw [Tm.isub_isub] at h1 h2
+  have := h k1 (σ0.comp σ) k2 σ' L1 L2 h1 (by rwa [ISub.comp_assoc])
+  rw [ISub.comp_assoc] at this; rwa [lift_hom_comp]
+
 theorem kr2_piC {A B : V} (hX : Fib (piC m A B) m) (hA : A ≠ ∅) : KR2 S m (piC m A B) := by
   intro k f k' σ T T' t t'
   rw [Comp2_piC A B hA, Comp2_piC A B hA]
   constructor
-  · rintro ⟨hb, hall⟩
-    refine ⟨?_, fun k'' σ' => ?_⟩
+  · rintro ⟨hb, hall, hc, hc'⟩
+    refine ⟨?_, fun k'' σ' => ?_, cohPi_isub hc σ, cohPi_isub hc' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
     · obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k'' (σ.comp σ')
       refine ⟨A1, B1, A1', B1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_, ?_⟩
@@ -60,8 +92,8 @@ theorem kr2_sigmaC {A B : V} (hX : Fib (sigmaC m A B) m) (hA : A ≠ ∅) : KR2 
   intro k f k' σ T T' t t'
   rw [Comp2_sigmaC A B hA, Comp2_sigmaC A B hA]
   constructor
-  · rintro ⟨hb, hall⟩
-    refine ⟨?_, fun k'' σ' => ?_⟩
+  · rintro ⟨hb, hall, hc, hc'⟩
+    refine ⟨?_, fun k'' σ' => ?_, cohSigma_isub hc σ, cohSigma_isub hc' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
     · obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k'' (σ.comp σ')
       refine ⟨A1, B1, A1', B1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_, ?_⟩
@@ -78,8 +110,8 @@ theorem kr2_pathC {L a0 a1 : V} (hX : Fib (pathC m L a0 a1) m) (hL : L ≠ ∅) 
   intro k f k' σ T T' t t'
   rw [Comp2_pathC L a0 a1 hL, Comp2_pathC L a0 a1 hL]
   constructor
-  · rintro ⟨hb, hall⟩
-    refine ⟨?_, fun k'' σ' => ?_⟩
+  · rintro ⟨hb, hall, hc, hc'⟩
+    refine ⟨?_, fun k'' σ' => ?_, cohPath_isub hc σ, cohPath_isub hc' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
     · obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := hall k'' (σ.comp σ')
       refine ⟨L1, b0, b1, L1', b0', b1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_, ?_, ?_⟩
@@ -98,8 +130,8 @@ theorem kr2_ipiC {L : V} (hX : Fib (ipiC m L) m) (hL : L ≠ ∅) : KR2 S m (ipi
   intro k f k' σ T T' t t'
   rw [Comp2_ipiC L hL, Comp2_ipiC L hL]
   constructor
-  · rintro ⟨hb, hall⟩
-    refine ⟨?_, fun k'' σ' => ?_⟩
+  · rintro ⟨hb, hall, hc, hc'⟩
+    refine ⟨?_, fun k'' σ' => ?_, cohIPi_isub hc σ, cohIPi_isub hc' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
     · obtain ⟨L1, L1', h1, h2, h3⟩ := hall k'' (σ.comp σ')
       refine ⟨L1, L1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_⟩

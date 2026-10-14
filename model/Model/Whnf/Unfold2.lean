@@ -52,65 +52,98 @@ theorem Comp2_el {X : V} {f : Hom k m} {A t t' : Tm} (h : (Comp2 S X m k f).el A
   · subst hX; rw [Comp2_eq] at h; unfold compF2 at h; rw [dif_neg (by simp)] at h; exact h.elim
   · rw [Comp2_unfold hX] at h; exact ⟨h.1, h.2.1⟩
 
+/-- Coherence of the normal forms of a `Π` type at a restriction and a further restriction. -/
+def cohPi (S : Sig) (A B : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') A1 B1 A2 B2,
+    RedT S k' (T.isub σ) (.pi A1 B1) → RedT S k'' (T.isub (σ.comp σ')) (.pi A2 B2) →
+    (Comp2 S A m k'' (f.comp (σ.comp σ').hom)).ty (A1.isub σ') A2 ∧
+    ∀ a a', (Comp2 S A m k'' (f.comp (σ.comp σ').hom)).el (A1.isub σ') a a' →
+      (Comp2 S (apZ (dat B k'' (f.comp (σ.comp σ').hom)) (semK S k'' a)) k'' k'' (Hom.id k'')).ty
+        ((B1.isub σ').inst a) (B2.inst a')
+
+/-- Coherence of the normal forms of a `Σ` type. -/
+def cohSigma (S : Sig) (A B : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') A1 B1 A2 B2,
+    RedT S k' (T.isub σ) (.sigma A1 B1) → RedT S k'' (T.isub (σ.comp σ')) (.sigma A2 B2) →
+    (Comp2 S A m k'' (f.comp (σ.comp σ').hom)).ty (A1.isub σ') A2 ∧
+    ∀ a a', (Comp2 S A m k'' (f.comp (σ.comp σ').hom)).el (A1.isub σ') a a' →
+      (Comp2 S (apZ (dat B k'' (f.comp (σ.comp σ').hom)) (semK S k'' a)) k'' k'' (Hom.id k'')).ty
+        ((B1.isub σ').inst a) (B2.inst a')
+
+/-- Coherence of the normal forms of a path type. -/
+def cohPath (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') L1 b0 b1 L2 c0 c1,
+    RedT S k' (T.isub σ) (.path L1 b0 b1) → RedT S k'' (T.isub (σ.comp σ')) (.path L2 c0 c1) →
+    (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift f).comp (σ.comp σ').up.hom)).ty (L1.isub σ'.up) L2
+
+/-- Coherence of the normal forms of a type `(i : I) → L`. -/
+def cohIPi (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') L1 L2,
+    RedT S k' (T.isub σ) (.ipi L1) → RedT S k'' (T.isub (σ.comp σ')) (.ipi L2) →
+    (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift f).comp (σ.comp σ').up.hom)).ty (L1.isub σ'.up) L2
+
 theorem Comp2_piC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
     Comp2 S (piC m A B) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (piC m A B) ∧
-          semK S k T' = res f (piC m A B) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
+          semK S k T' = res f (piC m A B) ∧ TyEq S k T T') ∧ (∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
           RedT S k' (T.isub σ) (.pi A1 B1) ∧ RedT S k' (T'.isub σ) (.pi A1' B1') ∧
           (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
             ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
-              (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a'),
+              (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ∧
+          cohPi S A B f T ∧ cohPi S A B f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (piC m A B)) (Hom.id k) ∧
           piE2 S (fun k' σ => (Comp2 S A m k' (f.comp σ.hom)).el)
             (fun k' σ a k'' σ' => (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k'' σ'.hom).el)
             k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show piC m A B ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, piC, dat_mkKV, piDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, true_or,
-    if_true, natZ_inj, Comp2_res hA, appV_res_res]
+    if_true, natZ_inj, Comp2_res hA, appV_res_res, cohPi]
 
 theorem Comp2_sigmaC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
     Comp2 S (sigmaC m A B) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (sigmaC m A B) ∧
-          semK S k T' = res f (sigmaC m A B) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
+          semK S k T' = res f (sigmaC m A B) ∧ TyEq S k T T') ∧ (∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
           RedT S k' (T.isub σ) (.sigma A1 B1) ∧ RedT S k' (T'.isub σ) (.sigma A1' B1') ∧
           (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
             ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
-              (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a'),
+              (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ∧
+          cohSigma S A B f T ∧ cohSigma S A B f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (sigmaC m A B)) (Hom.id k) ∧
           sigmaE2 S (fun k' σ => (Comp2 S A m k' (f.comp σ.hom)).el)
             (fun k' σ a k'' σ' => (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k'' σ'.hom).el)
             k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show sigmaC m A B ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, sigmaC, dat_mkKV, sigmaDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, or_true,
-    if_true, natZ_inj, Comp2_res hA, appV_res_res, tPi, tSigma, if_false, show ¬ (3 = 2) by decide]
+    if_true, natZ_inj, Comp2_res hA, appV_res_res, tPi, tSigma, if_false, show ¬ (3 = 2) by decide, cohSigma]
 
 theorem Comp2_pathC (L a0 a1 : V) (hL : L ≠ ∅) (f : Hom k m) :
     Comp2 S (pathC m L a0 a1) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (pathC m L a0 a1) ∧
-          semK S k T' = res f (pathC m L a0 a1) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
+          semK S k T' = res f (pathC m L a0 a1) ∧ TyEq S k T T') ∧ (∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
           RedT S k' (T.isub σ) (.path L1 b0 b1) ∧ RedT S k' (T'.isub σ) (.path L1' b0' b1') ∧
           (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1' ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .zero trivial σ).hom)).el (L1.dinst .zero) b0 b0' ∧
-          (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .one trivial σ).hom)).el (L1.dinst .one) b1 b1',
+          (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .one trivial σ).hom)).el (L1.dinst .one) b1 b1') ∧
+          cohPath S L f T ∧ cohPath S L f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (pathC m L a0 a1)) (Hom.id k) ∧
           pathE2 S (fun k' σ => (Comp2 S L (m + 1) k' ((Hom.lift f).comp σ.hom)).el) k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show pathC m L a0 a1 ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, pathC, dat_mkKV, pathDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, true_or,
     if_true, natZ_inj, Comp2_res hL, tPi, tSigma, tPath, if_false, show ¬ (4 = 2) by decide,
-    show ¬ (4 = 3) by decide, or_self]
+    show ¬ (4 = 3) by decide, or_self, cohPath]
 
 theorem Comp2_ipiC (L : V) (hL : L ≠ ∅) (f : Hom k m) :
     Comp2 S (ipiC m L) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (ipiC m L) ∧
-          semK S k T' = res f (ipiC m L) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ L1 L1',
+          semK S k T' = res f (ipiC m L) ∧ TyEq S k T T') ∧ (∀ k' (σ : ISub k' k), ∃ L1 L1',
           RedT S k' (T.isub σ) (.ipi L1) ∧ RedT S k' (T'.isub σ) (.ipi L1') ∧
-          (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1',
+          (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1') ∧ cohIPi S L f T ∧ cohIPi S L f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (ipiC m L)) (Hom.id k) ∧
           ipiE2 S (fun k' σ => (Comp2 S L (m + 1) k' ((Hom.lift f).comp σ.hom)).el) k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show ipiC m L ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, ipiC, dat_mkKV, ipiDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, or_true,
     if_true, natZ_inj, Comp2_res hL, tPi, tSigma, tPath, tIPi, if_false, show ¬ (5 = 2) by decide,
-    show ¬ (5 = 3) by decide, show ¬ (5 = 4) by decide, or_self]
+    show ¬ (5 = 3) by decide, show ¬ (5 = 4) by decide, or_self, cohIPi]
 
 theorem Comp2_univC (l : ℕ) (f : Hom k m) :
     Comp2 S (univC m l) m k f =
