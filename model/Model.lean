@@ -31,4 +31,4 @@ import Model.EndToEnd
 import Model.Minimal
 import Model.Canon.CanonForm
 import Model.Whnf.Sound
-import Model.Whnf.PerAll
+import Model.Whnf.Formers2
