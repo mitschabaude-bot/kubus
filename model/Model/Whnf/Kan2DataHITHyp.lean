@@ -7,11 +7,12 @@ Transport of a constructor of a higher inductive type commutes with its boundari
 relation of the argument types of the boundaries' nested constructors to those of the constructor:
 `Ctor.bndTyped` (checked by `DataDecl.Wf`) states them as judgmental equalities in the signature
 before the type, and their validity (the fundamental lemma at that prefix of the signature) is the
-closed statement `bndRel`. Besides, the relation of constructors with interval arguments (at their
-boundaries) is the validity of the rules `conEq` and `conBnd`.
+closed statement `bndRel`. Besides, a constructor at a boundary that holds is related to the boundary
+element (the validity of the rule `conBnd`). From these, constructors with related arguments are related
+(`con_rel`, `Kan2DataHITConRel.lean`).
 
 `HITHyp2 S` collects these closed instances (stage `k`, context `.one`, `[]`); they are the instances
-at closed contexts of `DataHyp2.conEq`, `DataHyp2.conBnd` (`Fund2Hyp.lean`), and of `Valid2` of the
+at closed contexts of `DataHyp2.conBnd` (`Fund2Hyp.lean`), and of `Valid2` of the
 equations of `Ctor.bndTyped` (by `Fund2` for the prefix of the signature declaring the type).
 -/
 
@@ -53,18 +54,6 @@ end
 /-- The hypotheses for transport at higher inductive types (closed instances of the validity of the
 rules of higher inductive types and of the equations `Ctor.bndTyped`). -/
 structure HITHyp2 (S : Sig) : Prop where
-  /-- Constructors with related arguments and `I.Eq`-equal interval arguments are related
-  (`DataHyp2.conEq`). -/
-  conRel : ∀ {k d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {P1 Q1 : Tm} {Y Y' : List Tm} {rs rs' : List I},
-    S[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C →
-    HasTy S k .one [] (.data d P1) (.univ D.level) → RT2 S k (.data d P1) (.data d Q1) →
-    Y.length = C.args.length → Y'.length = C.args.length →
-    HasTy S k .one [] (.con d c P1 (Tm.ofList Y) rs) (.data d P1) →
-    EqTm S k .one [] (.con d c P1 (Tm.ofList Y) rs) (.con d c Q1 (Tm.ofList Y') rs') (.data d P1) →
-    (∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
-      ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y'.getD i .abort)) →
-    rs.length = rs'.length → (∀ (i : ℕ) (r r' : I), rs[i]? = some r → rs'[i]? = some r' → I.Eq r r') →
-    RE2 S k (.data d P1) (.con d c P1 (Tm.ofList Y) rs) (.con d c Q1 (Tm.ofList Y') rs')
   /-- A constructor at a boundary that holds is related to the boundary element (`DataHyp2.conBnd`). -/
   conBnd : ∀ {k d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {P1 : Tm} {Y : List Tm} {rs : List I} {kb : ℕ}
     {ψ : I} {b : Tm},
