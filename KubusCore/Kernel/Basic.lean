@@ -267,6 +267,10 @@ def tmEq (a b : Tm) : Bool := @decide (a = b) (withPtrEqDecEq a b (fun _ => tmDe
 theorem tmEq_sound {a b : Tm} (h : tmEq a b = true) : a = b :=
   @of_decide_eq_true _ (withPtrEqDecEq a b (fun _ => tmDec a b)) h
 
+/-- Within the kernel, equality of terms is decided with the pointer-equality shortcuts (the
+derived instance traverses shared subterms in full). -/
+instance (priority := high) tmDecEq : DecidableEq Tm := fun a b => withPtrEqDecEq a b (fun _ => tmDec a b)
+
 def ctxEqAux : Ctx → Ctx → Bool
   | [], [] => true
   | A :: Γ, B :: Δ => tmEq A B && withPtrEq Γ Δ (fun _ => decide (Γ = Δ)) (by intro h; simp [h])
@@ -338,7 +342,10 @@ def Tm.hashTop : Nat → Tm → UInt64
     | .elim d ps P bs t => mixHash 26 (mixHash (hash d) (mixHash (h P) (mixHash (h bs) (h t))))
 
 def keyOf (Ψ : Nat) (Γ : Ctx) (ts : List Tm) : UInt64 :=
-  ts.foldl (fun acc t => mixHash acc (Tm.hashTop 4 t)) (mixHash (hash Ψ) (hash Γ.length))
+  let hΓ := match Γ with
+    | A :: _ => mixHash (hash Γ.length) (Tm.hashTop 3 A)
+    | [] => 0
+  ts.foldl (fun acc t => mixHash acc (Tm.hashTop 7 t)) (mixHash (hash Ψ) hΓ)
 
 /-- A cached result under the restriction `Φ` (with its faces). -/
 structure CVar (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) (Ψ : Nat) (Γ : Ctx)
@@ -503,7 +510,7 @@ structure Cache (S : Sig) where
   elim : Table S ElimF := {}
   /-- comparisons that failed (no proof needed), so that alternatives tried after a failure
   do not repeat it -/
-  convFail : Table S (fun _ _ _ _ _ => PUnit) := {}
+  convFail : Table S (fun _ _ _ _ _ => String) := {}
   /-- judgments for which strengthening did not work (keys tagged by the judgment) -/
   strFail : Table S (fun _ _ _ _ _ => PUnit) := {}
   /-- kernel contexts with an interval variable removed (strengthening) -/

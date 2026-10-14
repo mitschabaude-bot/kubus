@@ -113,7 +113,11 @@ def strengthen? (R : Rec S) (E : KCtx S Ψ Φ Γ) : K S (Option (Strength S Ψ �
   | none => pure none
   | some ⟨k, Φ', Γ', hΨ, hΓ, hent, hs'⟩ =>
     let fs' := Φ'.faces
-    let E' ← match (← get).ctxs.find? k Φ' Γ' [] fs' rfl hs' (fun _ _ _ => none) with
+    -- a cached context is reused only with the same signature information (the cache lives
+    -- across the definitions of a signature, which extend it)
+    let cached := ((← get).ctxs.find? k Φ' Γ' [] fs' rfl hs' (fun _ _ _ => none)).filter
+      fun E' => E'.sig.lv.length == E.sig.lv.length
+    let E' ← match cached with
       | some E' => pure E'
       | none =>
         let E1 := (KCtx.root E.sig).dextN k
@@ -256,11 +260,11 @@ def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
                   ⟨EqTm.unstrength' st E.hsc e (tmEq_sound h.1) (tmEq_sound h.2.1) (tmEq_sound h.2.2)⟩
                 modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }
                 return v
-  if ((← get).convFail.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc (fun _ _ _ => none)).isSome then
-    throw s!"kernel: {short t} and {short u} are not convertible (as before)"
+  if let some msg := (← get).convFail.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc (fun _ _ _ => none) then
+    throw msg
   let v ← tryCatch (trail (fun _ => s!"comparing {short t} and {short u} at {short A}")
       (canonConvRaw R E A l hA t u ht hu)) fun e => do
-    modify fun c => { c with convFail := c.convFail.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs ⟨⟩ }
+    modify fun c => { c with convFail := c.convFail.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs e }
     throw e
   modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }
   return v

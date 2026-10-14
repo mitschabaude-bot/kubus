@@ -36,6 +36,52 @@ def transpConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) {d : 
   let ⟨hc⟩ ← checkTele R E args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse
   return some ⟨_, EqTm.transpCon hS hp hC h1 h2 hc ht⟩
 
+/-! ## Typed reduction
+
+The contracta of the Kan operations eliminate the redex's components (`app u0 w`, `fst u0`, …).
+When such a component is an introduction form (λ, pair, path abstraction), its type cannot be
+re-inferred in the contractum: inference only yields a weak, non-dependent type. So before
+contracting, the kernel annotates the component with its type, which the redex's typing
+provides: the annotation `transp (_. X) 1 a` equals `a` (`transpFace`) and has the inferable
+type `X`, and it travels with the component through later substitutions. -/
+
+/-- Whether inference of `t` loses information (the type of `t` comes from its context). -/
+def weakInf : Tm → Bool
+  | .lam .. | .pair .. | .plam _ => true
+  | _ => false
+
+/-- The annotation `transp (_. X) 1 a` of `a : X`: equal to `a`, with the type `X` inferable. -/
+def annot (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) {X a : Tm} {l : Nat}
+    (hX : HasTy S Ψ Φ Γ X (.univ l)) (ha : HasTy S Ψ Φ Γ a X) :
+    K S (PLift (EqTm S Ψ Φ Γ a (.transp X.dshift .one a) X)) := do
+  let _ := R
+  let ⟨h1⟩ ← ensureScoped .one Ψ
+  have hX1 := HasTy.dwk hX
+  have hc : EqTm S (Ψ + 1) (cof Φ .one).shift Γ.dshift X.dshift (X.dshift.dinst .zero).dshift (.univ l) := by
+    rw [Tm.dshift_dinst]; exact EqTm.refl (HasTy.dwkCof E h1 hX)
+  have ha' : HasTy S Ψ Φ Γ a (X.dshift.dinst .zero) := by rw [Tm.dshift_dinst]; exact ha
+  have ht : HasTy S Ψ Φ Γ (.transp X.dshift .one a) X := by
+    have := HasTy.transp hX1 h1 hc ha'; rw [Tm.dshift_dinst] at this; exact this
+  pure ⟨EqTm.symm (EqTm.transpFace (I.entails_one Φ) ht)⟩
+
+/-- Whether `transp` along a line of this head computes by a CHM rule that eliminates the base. -/
+def chmLine : Tm → Bool
+  | .pi .. | .sigma .. | .path .. | .glue .. | .ipi _ => true
+  | _ => false
+
+/-- Typed reduction for `transp`: the contractum eliminates the base `a` (applies, projects,
+ungules it), and when `a` is an introduction form its type cannot be re-inferred there. So the
+base is first annotated with its type `L(0)`, known from the redex's typing. -/
+def annotTransp (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) :
+    K S ((a' : Tm) × PLift (EqTm S Ψ Φ Γ (.transp L φ a) (.transp L φ a') A)) := do
+  let i ← inferTransp R E L φ a
+  let ⟨ea⟩ ← annot R E (HasTy.dsubst (r := .zero) i.hA trivial) i.ha
+  have ht' := HasTy.transp i.hA i.hφ i.heq (HasTy.eqR ea)
+  have e := EqTm.transp i.ht ht' (EqTm.refl i.hA) (I.entails_refl φ) (I.entails_refl φ) ea
+  let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e
+  return ⟨_, ⟨e⟩⟩
+
 /-- Computation rule of `transp` for a line in weak-head normal form. -/
 def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a T : Tm)
     (ht : HasTy S Ψ Φ Γ (.transp L φ a) T) : K S (Option (Red S Ψ Φ Γ (.transp L φ a) T)) :=
@@ -157,6 +203,11 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
   let ⟨l1, ⟨hL⟩⟩ ← inferType R E.dext L
   let r ← whnfTy R E.dext L l1 hL
   if r.tm = L then
+    if chmLine L && weakInf a then
+      let ⟨a', ⟨e⟩⟩ ← annotTransp R E L φ a A l hA
+      match ← transpRule R E L φ a' A (HasTy.eqR e) with
+      | some r2 => return some (⟨r2.tm, EqTm.trans e r2.eq⟩, false)
+      | none => pure ()
     match ← transpRule R E L φ a A ht with
     | some r2 => return some (r2, false)
     | none =>
@@ -177,6 +228,11 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
   have e := EqTm.transp i.ht (HasTy.conv ht' (EqTm.symm e1)) eL (I.entails_refl φ)
     (I.entails_refl φ) (EqTm.refl i.ha)
   let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e
+  if chmLine r.tm && weakInf a then
+    let ⟨a', ⟨e2⟩⟩ ← annotTransp R E r.tm φ a A l hA
+    match ← transpRule R E r.tm φ a' A (HasTy.eqR e2) with
+    | some r2 => return some (⟨r2.tm, EqTm.trans e (EqTm.trans e2 r2.eq)⟩, false)
+    | none => pure ()
   match ← transpRule R E r.tm φ a A (HasTy.eqR e) with
   | some r2 => return some (⟨r2.tm, EqTm.trans e r2.eq⟩, false)
   | none => return some (⟨.transp r.tm φ a, e⟩, false)
@@ -553,7 +609,33 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
         have e2 := EqTm.glueBeta (HasTy.eqR e1') ha
         let r3 ← R.whnf E a1 A1 gi.lvl inf.hty (HasTy.eqR e2)
         return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩
-      else return ⟨inf, ⟨_, h ▸ e1⟩⟩
+      else tryCatch (do
+        -- the element's face or equivalence differs syntactically from `unglue`'s: align it
+        -- by the congruence of glue elements, then contract
+        let ⟨hφ⟩ ← ensureScoped φ Ψ
+        let ⟨h1⟩ ← ensureEnt φ φ'
+        let ⟨h2⟩ ← ensureEnt φ' φ
+        let E1 := E.cof φ hφ
+        have hT : HasTy S Ψ (cof Φ φ) Γ T (.univ gi.lvl) := HasTy.glueFib hG
+        let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A1) gi.lvl
+        let ⟨he'⟩ ← R.check E1 e' _ gi.lvl hq
+        let ⟨ht1⟩ ← R.check E1 t1 T gi.lvl hT
+        let ⟨ha⟩ ← R.check E a1 A1 gi.lvl inf.hty
+        have hA1' := HasTy.rs E hφ inf.hty
+        let ⟨hf⟩ ← R.check E1 (.app (.fst e) t1) A1 gi.lvl hA1'
+        let ⟨ef⟩ ← R.conv E1 A1 gi.lvl hA1' _ _ hf (HasTy.rs E hφ ha)
+        let ⟨ee⟩ ← R.conv E1 _ gi.lvl hq e e' he he'
+        have eg' : EqTm S Ψ Φ Γ g (.glueEl φ' e' t1 a1) (.glue A1 φ T e) := h ▸ eg
+        have hgl := HasTy.glueEl hG ht1 ha ef
+        have ea := EqTm.glueEl hgl (HasTy.eqR eg') h1 h2 ee (EqTm.refl ht1) (EqTm.refl ha)
+        have eg2 := EqTm.trans eg' (EqTm.symm ea)
+        have e1' : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e (.glueEl φ e t1 a1)) A1 :=
+          EqTm.unglue inf.htm (HasTy.unglue hG hA1 he hgl) (I.entails_refl φ) (I.entails_refl φ)
+            (EqTm.refl he) eg2
+        have e2 := EqTm.glueBeta (HasTy.eqR e1') ha
+        let r3 ← R.whnf E a1 A1 gi.lvl inf.hty (HasTy.eqR e2)
+        return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩) fun _ =>
+        return ⟨inf, ⟨_, h ▸ e1⟩⟩
     | g' => return ⟨inf, ⟨.unglue φ e g', h ▸ e1⟩⟩
   | t => whnfIDefault R E t
 
