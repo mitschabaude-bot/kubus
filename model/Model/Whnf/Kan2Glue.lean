@@ -192,11 +192,63 @@ theorem RT2_glueW_face {X X' A T e A' T' e' : Tm} {φ φ' : I} {l l' : ℕ}
   exact ⟨ent_of_face_eq hφs hφs' (f1.trans f2.symm), ent_of_face_eq hφs' hφs (f2.trans f1.symm)⟩
 
 
+/-- The data of a composition at a pair of related types, as taken by `KanH2`. -/
+structure KD (S : Sig) (k : ℕ) (X X' : Tm) (ψ ψ' : I) (u u' a0 a0' : Tm) : Prop where
+  hty : HasTy S k .one [] (.hcomp X ψ u a0) X
+  hty' : HasTy S k .one [] (.hcomp X' ψ' u' a0') X
+  heq : EqTm S k .one [] (.hcomp X ψ u a0) (.hcomp X' ψ' u' a0') X
+  hteq : EqTm S (k + 1) (cof .one ψ).shift [] u u' X.dshift
+  p12 : I.Entails ψ ψ'
+  p21 : I.Entails ψ' ψ
+  tube : Tube2 S k X ψ u u'
+  ha0 : RE2 S k X a0 a0'
+  bd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (ψ.subst σ.τ)).holds →
+    RE2 S k' (X.isub σ) ((u.isub σ.up).dinst .zero) (a0'.isub σ)
+  bd' : ∀ k' (σ : ISub k' k), (ival (idEnv k') (ψ.subst σ.τ)).holds →
+    RE2 S k' (X.isub σ) (a0.isub σ) ((u'.isub σ.up).dinst .zero)
+
+omit hW in
+theorem KD.kan {X X' : Tm} {ψ ψ' : I} {u u' a0 a0' : Tm} (D : KD S k X X' ψ ψ' u u' a0 a0')
+    (hK : KanH2 S k X X') : RE2 S k X (.hcomp X ψ u a0) (.hcomp X' ψ' u' a0') :=
+  hK ψ ψ' u u' a0 a0' D.hty D.hty' D.heq D.hteq D.p12 D.p21 D.tube D.ha0 D.bd D.bd'
+
+/-- Fillers of related compositions, at `I.Eq`-equal points. -/
+theorem KD.fillPt {X X' : Tm} {ψ ψ' : I} {u u' a0 a0' : Tm} (D : KD S k X X' ψ ψ' u u' a0 a0')
+    (hK : ∀ k3 (τ : ISub k3 k), KanH2 S k3 (X.isub τ) (X'.isub τ)) (hXX : RT2 S k X X') {r r' : I}
+    (hr : r.Scoped k) (hr' : r'.Scoped k) (hE : I.Eq r r') :
+    RE2 S k X ((Tm.hfill X ψ u a0).dinst r) ((Tm.hfill X' ψ' u' a0').dinst r') := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l1, ⟨hX0, hψs, hu, ha, hside⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty) rfl
+  obtain ⟨l2, ⟨hX0', hψs', hu', ha', hside'⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty') rfl
+  have hTA : TyEq S k X X' := (Comp2_ty_base hXX).2.2.2.2.2
+  have hXc : TyCode k (semK S k X) := RE2.tyCode hW D.ha0
+  have hAA0 : X = X' ∨ ∃ l, EqTm0 S k .one [] X X' (.univ l) := by
+    rcases hTA with e | ⟨l, e⟩
+    · exact .inl e
+    · exact .inr ⟨l, spec_to_minimal_eq hW e⟩
+  have F := hfill_typed hS hX0 hψs hu ha hside
+  have F' := hfill_typed hS hX0' hψs' hu' ha' hside'
+  have hF : HasTy S (k + 1) .one [] (Tm.hfill X ψ u a0) X.dshift := minimal_to_spec F.1
+  have hF'0 : HasTy S (k + 1) .one [] (Tm.hfill X' ψ' u' a0') X'.dshift := minimal_to_spec F'.1
+  have eXd : TyEq S (k + 1) X'.dshift X.dshift := by
+    rcases hTA with e | ⟨l, e⟩
+    · exact .inl (by rw [e])
+    · exact .inr ⟨l, EqTm.dwk e.symm⟩
+  have hF' := hF'0.tyConv eXd
+  have heqF := minimal_to_spec_eq (hfill_cong hW (spec_to_minimal hW hF) (spec_to_minimal hW hF') hAA0
+    (spec_to_minimal_eq hW D.hteq) (spec_to_minimal_eq hW (RE2.typed D.ha0).2.2) D.p12 D.p21)
+  have h := hfill_rel hW hψs hK (RT2.refl hW hXc hXX) hTA D.hteq hF hF' heqF D.p12 D.p21 D.tube D.ha0 D.bd D.bd'
+    (ISub.cons r hr (ISub.id k)) (ISub.cons r' hr' (ISub.id k)) (by rw [ISub.tail_cons, ISub.tail_cons]) hE
+  rw [dshift_isub_tail, ISub.tail_cons, isub_id_of_closed (closed_of_isTyK hW (isTyK_of_ty hW D.hty)),
+    isub_cons_id_dinst hW (closed_of_ty hW hF) r hr, isub_cons_id_dinst hW (closed_of_ty hW hF') r' hr'] at h
+  exact h
+
 /-- The data of a composition at a pair of Glue types (as left and right instances): related bases, fibers
 and equivalences, Kan bases and fibers, and related composition data at the left Glue type. -/
 structure GHD (S : Sig) (k : ℕ) (A T e A' T' e' : Tm) (φ φ' ψ ψ' : I) (u u' a0 a0' : Tm) : Prop where
   hG : ∃ l, HasTy S k .one [] (.glue A φ T e) (.univ l)
   hG' : ∃ l, HasTy S k .one [] (.glue A' φ' T' e') (.univ l)
+  gG : TyEq S k (.glue A φ T e) (.glue A' φ' T' e')
   hA : RT2 S k A A'
   hT : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → RT2 S k' (T.isub σ) (T'.isub σ)
   hE : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
@@ -230,7 +282,7 @@ theorem GHD.isub {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
   have hXA : TyCode k (semK S k A) := tyCode_of_univ hW hA0
   have hc : ∀ {k''} (σ : ISub k'' k'), (ival (idEnv k'') ((φ.subst ρ.τ).subst σ.τ)).holds →
       (ival (idEnv k'') (φ.subst (ρ.comp σ).τ)).holds := fun σ h => by rwa [I_subst_comp]
-  refine ⟨⟨l, HasTy.isubS hW hG ρ⟩, ⟨l', HasTy.isubS hW hG' ρ⟩, RT2.isub hW hXA D.hA ρ, fun k'' σ hh => ?_,
+  refine ⟨⟨l, HasTy.isubS hW hG ρ⟩, ⟨l', HasTy.isubS hW hG' ρ⟩, TyEq.isub hW ρ D.gG, RT2.isub hW hXA D.hA ρ, fun k'' σ hh => ?_,
     fun k'' σ hh => ?_, ent_subst D.f12 ρ.τ, ent_subst D.f21 ρ.τ, ?_, fun k'' σ => ?_, fun k'' σ hh => ?_,
     HasTy.isubS hW D.hty ρ, HasTy.isubS hW D.hty' ρ, EqTm.isubS hW D.heq ρ, ?_, ent_subst D.p12 ρ.τ,
     ent_subst D.p21 ρ.τ, D.tube.isub ρ, RE2.isub hW D.ha0 ρ, bdry_isub D.bd ρ, bdry_isub' D.bd' ρ⟩
@@ -244,10 +296,10 @@ theorem GHD.isub {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
     rwa [isub_dshift] at this
 
 
-/-- The fiber of `hcompGlue`, where the face of the Glue type holds. -/
-theorem GHD.fib {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+/-- The composition data at the fibers, where the face of the Glue type holds. -/
+theorem GHD.fibKD {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
     (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (hφe : I.Entails .one φ) :
-    RE2 S k T (.hcomp T ψ u a0) (.hcomp T' ψ' u' a0') := by
+    KD S k T T' ψ ψ' u u' a0 a0' := by
   have hS := sigClosed_of_wfSig hW
   obtain ⟨l, hG⟩ := D.hG
   obtain ⟨l', hG'⟩ := D.hG'
@@ -297,10 +349,39 @@ theorem GHD.fib {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
     exact RE2_glue_fib hW hGσ (ent_one_subst hφe σ.τ) (RT2.refl hW hX (D.hT k' σ (hh σ))) h
   have hXT : TyCode k (semK S k T) := RT2.tyCode_l hW hT0 (by
     rw [RT2.semK_eq hW hT0]; exact tyCode_of_ty hW hcT)
-  exact hK0 ψ ψ' u u' a0 a0' hcT (hcT'.tyConv (TyEq.symm hTT')) heqT (EqTm.cofConv hψs D.hteq hGT) D.p12 D.p21
-    (fun k' σ r r' hr hr' hE hhψ => toT k' σ _ _ (D.tube k' σ r r' hr hr' hE hhψ))
-    (RE2_glue_fib hW hG hφe (RT2.refl hW hXT hT0) D.ha0)
-    (fun k' σ hhψ => toT k' σ _ _ (D.bd k' σ hhψ)) (fun k' σ hhψ => toT k' σ _ _ (D.bd' k' σ hhψ))
+  exact ⟨hcT, hcT'.tyConv (TyEq.symm hTT'), heqT, EqTm.cofConv hψs D.hteq hGT, D.p12, D.p21,
+    (fun k' σ r r' hr hr' hE hhψ => toT k' σ _ _ (D.tube k' σ r r' hr hr' hE hhψ)),
+    (RE2_glue_fib hW hG hφe (RT2.refl hW hXT hT0) D.ha0),
+    (fun k' σ hhψ => toT k' σ _ _ (D.bd k' σ hhψ)), (fun k' σ hhψ => toT k' σ _ _ (D.bd' k' σ hhψ))⟩
+
+/-- The relations at the fibers, where the face of the Glue type holds. -/
+theorem GHD.fibRel {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (hφe : I.Entails .one φ) :
+    RT2 S k T T' ∧ ∀ k3 (τ : ISub k3 k), KanH2 S k3 (T.isub τ) (T'.isub τ) := by
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  have hφs := (glue_data hW hG).1
+  have hc := closed_of_ty hW hG
+  have hc' := closed_of_ty hW hG'
+  simp only [Tm.closedB, Bool.and_eq_true] at hc hc'
+  have hh : ∀ {k'} (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds := fun σ =>
+    (holds_iff_entails (I.scoped_subst hφs σ.sc)).2 (ent_one_subst hφe σ.τ)
+  have hT0 := D.hT k (ISub.id k) (hh _)
+  rw [isub_id_of_closed hc.1.2, isub_id_of_closed hc'.1.2] at hT0
+  exact ⟨hT0, fun k3 τ => D.kT k3 τ (hh τ)⟩
+
+/-- The fiber of `hcompGlue`, where the face of the Glue type holds. -/
+theorem GHD.fib {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (hφe : I.Entails .one φ) :
+    RE2 S k T (.hcomp T ψ u a0) (.hcomp T' ψ' u' a0') := by
+  have h := (D.fibRel hW hφe).2 k (ISub.id k)
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  have hc := closed_of_ty hW hG
+  have hc' := closed_of_ty hW hG'
+  simp only [Tm.closedB, Bool.and_eq_true] at hc hc'
+  rw [isub_id_of_closed hc.1.2, isub_id_of_closed hc'.1.2] at h
+  exact (D.fibKD hW hφe).kan h
 
 end
 
