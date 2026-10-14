@@ -25,6 +25,7 @@ variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (
   {K : ℕ} {P : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level)) (hPP : RT2 S K (.data d P) (.data d P))
 include hW hD hH hP hPP
 
+omit hW hD hH hP hPP in
 theorem getD_eq_get' {Y : List Tm} {i : ℕ} (hi : i < Y.length) : Y.getD i .abort = Y[i] := by
   rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi]; rfl
 
@@ -48,7 +49,7 @@ theorem argTy_rt2_args {k3 : ℕ} (ρ' : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D
   have hPl := (dataLit_rel hW hD hP hPP ρ').2.2.2.2.2.1
   have hplen : (P.isub ρ').toList.length = D.params.length := by
     have := data_len_of hW hTP; rwa [hdD] at this
-  refine argTy_rt2 hW hD hH hP hPP hPP hPP ρ' hC hj (by simp; omega) (by simp; omega) fun i hi => ⟨fun hri => ?_, fun hri => ?_⟩
+  refine argTy_rt2 hW hD hP hPP hPP hPP ρ' hC hj (by simp; omega) (by simp; omega) fun i hi => ⟨fun hri => ?_, fun hri => ?_⟩
   · have := hargs i (by omega)
     rw [argTy_rec_inst hri hPl hplen (by simp; omega)] at this
     rwa [getD_take_lt hi, getD_take_lt hi]
@@ -72,11 +73,11 @@ theorem DR2At_con_args {k3 : ℕ} (ρ' : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D
   refine DR2At_con_of hW hD hH hP hPP ρ' hC hYl hY'l hcT
     ⟨redW_self (step_con_nonHIT hD hH hC _ _ _), EqTm.refl (HasTy.eqR he)⟩ he fun i hi hi' => ⟨fun hri => ?_, fun hri _ => ?_⟩
   · have := hargs i (by omega)
-    rw [argTy_rec_inst hri hPl hplen (by simp; omega), getD_eq_get' hW hD hH hP hPP hi,
-      getD_eq_get' hW hD hH hP hPP hi'] at this
+    rw [argTy_rec_inst hri hPl hplen (by simp; omega), getD_eq_get' hi,
+      getD_eq_get' hi'] at this
     exact this
   · have := hargs i (by omega)
-    rwa [getD_eq_get' hW hD hH hP hPP hi, getD_eq_get' hW hD hH hP hPP hi'] at this
+    rwa [getD_eq_get' hi, getD_eq_get' hi'] at this
 
 /-- Constructors with related arguments are related. -/
 theorem RE2_con_args {k3 : ℕ} (ρ' : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {q q' : Tm}
@@ -141,8 +142,8 @@ theorem RE2_con_args {k3 : ℕ} (ρ' : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D.c
 end lit
 
 section wrap
-variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
-include hW hD hH
+variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
+include hW hD
 
 theorem data_closed {k3 : ℕ} {P1 : Tm} {l : ℕ} (hP1 : HasTy S k3 .one [] (.data d P1) (.univ l)) :
     P1.closedB 0 k3 = true := by
@@ -158,14 +159,14 @@ theorem argTy_rt2' {k3 : ℕ} {P1 Q2 : Tm} (hP1 : HasTy S k3 .one [] (.data d P1
     RT2 S k3 ((C.argTy d D.params.length j).substList (A.reverse ++ P1.toList.reverse))
       ((C.argTy d D.params.length j).substList (B.reverse ++ Q2.toList.reverse)) := by
   have hdD := dataD_eq hW hD
-  have hP1c := data_closed hW hD hH hP1
+  have hP1c := data_closed hW hD hP1
   have hQ2c : Q2.closedB 0 k3 = true := by
     have := closed_of_isTyK hW (Comp2_ty_base hQ2).2.2.1; simpa [Tm.closedB] using this
   have hPl : IsList P1 := by
     have := (dataLit_rel hW hD hP1 hP1P1 (ISub.id k3)).2.2.2.2.2.1; rwa [isub_id_of_closed hP1c] at this
   have hplen : P1.toList.length = D.params.length := by
     have := data_len_of hW (⟨_, .inl hP1⟩ : IsTyK S k3 (.data d P1)); rwa [hdD] at this
-  have := argTy_rt2 hW hD hH hP1 hP1P1 hP1P1 hQ2 (ISub.id k3) hC hj hAl hBl (fun i hi => by
+  have := argTy_rt2 hW hD hP1 hP1P1 hP1P1 hQ2 (ISub.id k3) hC hj hAl hBl (fun i hi => by
     rw [isub_id_of_closed hP1c]
     refine ⟨fun hri => ?_, fun hri => hrel i hi⟩
     have h := hrel i hi
@@ -184,7 +185,7 @@ theorem argLine_kanT {n' : ℕ} {P1 Q2 : Tm} (hP1 : HasTy S (n' + 1) .one [] (.d
     KanT2 S n' ((C.argTy d D.params.length A.length).substList (A.reverse ++ P1.toList.reverse))
       ((C.argTy d D.params.length A.length).substList (B.reverse ++ Q2.toList.reverse)) := by
   have hdD := dataD_eq hW hD
-  have hP1c := data_closed hW hD hH hP1
+  have hP1c := data_closed hW hD hP1
   have hQ2c : Q2.closedB 0 (n' + 1) = true := by
     have := closed_of_isTyK hW (Comp2_ty_base hQ2).2.2.1; simpa [Tm.closedB] using this
   have hPl : IsList P1 := by
@@ -195,14 +196,14 @@ theorem argLine_kanT {n' : ℕ} {P1 Q2 : Tm} (hP1 : HasTy S (n' + 1) .one [] (.d
   rw [isub_id_of_closed hP1c, isub_id_of_closed hQ2c] at hRR'
   have hRsem := semK_dataQ hW hD hP1 hP1P1 (ISub.id (n' + 1))
   rw [isub_id_of_closed hP1c] at hRsem
-  have hA := argTy_code_rel hW hD hH hP1 (ISub.id (n' + 1)) hRR' hRsem hP1c hQ2c hC hBl
+  have hA := argTy_code_rel hW hD hP1 (ISub.id (n' + 1)) hRR' hRsem hP1c hQ2c hC hBl
     (fun i hi hi' hri => by
       have h := hrel i hi
-      rwa [argTy_rec_inst hri hPl hplen (by simp; omega), getD_eq_get' hW hD hH hP1 hP1P1 hi,
-        getD_eq_get' hW hD hH hP1 hP1P1 hi'] at h)
+      rwa [argTy_rec_inst hri hPl hplen (by simp; omega), getD_eq_get' hi,
+        getD_eq_get' hi'] at h)
     (fun i hi hi' hri => by
       have h := hrel i hi
-      rwa [getD_eq_get' hW hD hH hP1 hP1P1 hi, getD_eq_get' hW hD hH hP1 hP1P1 hi'] at h)
+      rwa [getD_eq_get' hi, getD_eq_get' hi'] at h)
     hAl hrr
   exact (kan_tyLook hW hD hArgK _ c A.length _ hA).2 rfl
 

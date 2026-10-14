@@ -466,7 +466,7 @@ theorem prjb' {k3 : ℕ} (σ : ISub k3 k1) (hh : (ival (idEnv k3) (φ.subst σ.�
   have hplen : (P.isub (ρ.comp σ)).toList.length = D.params.length := by
     have := data_len_of H.hW (⟨_, .inl (HasTy.isubS H.hW H.hP (ρ.comp σ))⟩ : IsTyK S k3 (.data d (P.isub (ρ.comp σ))))
     rwa [dataD_eq H.hW H.hD] at this
-  have TX := argTy_rt2 H.hW H.hD H.hH H.hP H.hPP H.hPP H.hPP (ρ.comp σ) H.hC hj (A := (X.map (·.isub σ)).take j)
+  have TX := argTy_rt2 H.hW H.hD H.hP H.hPP H.hPP H.hPP (ρ.comp σ) H.hC hj (A := (X.map (·.isub σ)).take j)
     (B := Z1.take j) (by simp [H.hXl]; omega) (by simp [hZ1l]; omega) (fun i hi => by
       have h := hZZ i (by omega)
       rw [getD_take_lt hi, getD_take_lt hi, List.take_take, Nat.min_eq_left hi.le]

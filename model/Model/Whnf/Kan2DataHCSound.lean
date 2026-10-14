@@ -439,7 +439,7 @@ theorem tubeCanonΦ_of (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = som
   intro k' σ r hr hhΦ hh
   have hdσ : HasTy S k' .one [] (.data d (ps.isub σ)) (.univ D.level) :=
     HasTy.restrict (Φ' := .one) trivial (entails_of_holds (I.scoped_subst hΦs σ.sc) hhΦ) (HasTy.isubF hW hΦs hd σ)
-  have hc : (ps.isub σ).closedB 0 k' = true := data_closed hW hD hH hdσ
+  have hc : (ps.isub σ).closedB 0 k' = true := data_closed hW hD hdσ
   have h := hrel k' σ r hr hhΦ hh
   rw [← isub_id_of_closed hc] at h
   obtain ⟨c, C, qs, Z, -, -, hC, -, -, hr1, -, -, -⟩ := dataLit_args hW hD hH hdσ (hpp k' σ hhΦ) (ISub.id k') h

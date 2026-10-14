@@ -134,7 +134,7 @@ theorem toRel {j : ℕ} (hj : j < C.args.length) {k3 : ℕ} (τ : ISub k3 k1) (r
   have hFl := fills_len (d := d) (D := D) (c := c) (C := C) (Q.isub ρ) φ u X
   unfold argTyAt at h hrec ⊢
   generalize conFills d D c C (Q.isub ρ) φ u X = F at h hrec hFl ⊢
-  refine argTy_rt2 H.hW H.hD H.hH H.hP H.hPP H.hQ hQ2 (ρ.comp τ) H.hC hj
+  refine argTy_rt2 H.hW H.hD H.hP H.hPP H.hQ hQ2 (ρ.comp τ) H.hC hj
     (A := (F.map (·.isub (ISub.cons r hr τ))).take j)
     (B := B) (by simp [hFl]; omega) hBl (fun i hi => ⟨fun hri => ?_, fun hri => ?_⟩)
   · have h1 := h i hi

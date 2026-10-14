@@ -56,6 +56,7 @@ theorem semK_dataQ {Q : Tm} (hQ : RT2 S K (.data d P) (.data d Q)) (σ : ISub k'
 
 include hH
 
+omit hH in
 /-- The argument types at related prefixes of arguments and related parameters are related at the
 code of the inductive type. -/
 theorem argTy_code_rel {k3 : ℕ} (ρ3 : ISub k3 K) {R R' : Tm}
@@ -207,7 +208,7 @@ theorem projs_rel {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q)) (hQ' : RT2 
       ((C.argTy d D.params.length j).substList ((Z'.take j).reverse ++ (P.isub ρ3).toList.reverse)) := by
     intro j hj
     cases hrj : C.isRec j
-    · have := argTy_code_rel hW hD hH hP ρ3 pc hsemP hpc hpc hC (A := Z0.take j) (A' := Z'.take j)
+    · have := argTy_code_rel hW hD hP ρ3 pc hsemP hpc hpc hC (A := Z0.take j) (A' := Z'.take j)
         (by simp; omega) (fun i h1 h2 hri => by
           have hij : i < j := by simp at h1; omega
           have := ZZ' i (by omega)
@@ -236,7 +237,7 @@ theorem projs_rel {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q)) (hQ' : RT2 
       ((C.argTy d D.params.length j).substList ((pr.take j).reverse ++ (Q.isub ρ3).toList.reverse)) := by
     intro j hj
     cases hrj : C.isRec j
-    · have := argTy_code_rel hW hD hH hP ρ3 rPQ hsemP hpc hqc hC (A := Z0.take j) (A' := pr.take j)
+    · have := argTy_code_rel hW hD hP ρ3 rPQ hsemP hpc hqc hC (A := Z0.take j) (A' := pr.take j)
         (by simp; omega) (fun i h1 h2 hri => by
           have hij : i < j := by simp at h1; omega
           have := (PZ (i := i) (by omega))
@@ -265,7 +266,8 @@ theorem projs_rel {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q)) (hQ' : RT2 
   rw [show proj d D (Q'.isub ρ3) c C j x' = proj d D (Q'.isub ρ3) c C j x' from rfl] at a3
   exact ⟨RE2.conv hW (TT j hj) (RE2.trans hW hZZ a1 (RE2.trans hW hZZ a2 a3)), RE2.conv hW (TT j hj) a1, TT j hj⟩
 
-include hH hPP in
+omit hH in
+include hPP in
 /-- The argument types at componentwise related prefixes and parameters related to those of a
 literal inductive type are related. -/
 theorem argTy_rt2 {Q1 Q2 : Tm} (hQ1 : RT2 S K (.data d P) (.data d Q1)) (hQ2 : RT2 S K (.data d P) (.data d Q2))
@@ -289,7 +291,7 @@ theorem argTy_rt2 {Q1 Q2 : Tm} (hQ1 : RT2 S K (.data d P) (.data d Q1)) (hQ2 : R
       have := closed_of_isTyK hW hQ1T; simpa [Tm.closedB] using this
     have hc2 : (Q2.isub ρ3).closedB 0 k3 = true := by
       have := closed_of_isTyK hW hQ2T; simpa [Tm.closedB] using this
-    have := argTy_code_rel hW hD hH hP ρ3 (argRelH_QQ hW hD hP hQ1 hQ2 ρ3) (semK_dataQ hW hD hP hQ1 ρ3) hc1 hc2 hC
+    have := argTy_code_rel hW hD hP ρ3 (argRelH_QQ hW hD hP hQ1 hQ2 ρ3) (semK_dataQ hW hD hP hQ1 ρ3) hc1 hc2 hC
       (A := A) (A' := B) (by omega)
       (fun i hi hi' hri => by rw [← hgetA i hi, ← hgetB i hi']; exact (hrel i (by omega)).1 hri)
       (fun i hi hi' hri => by rw [← hgetA i hi, ← hgetB i hi']; exact (hrel i (by omega)).2 hri)

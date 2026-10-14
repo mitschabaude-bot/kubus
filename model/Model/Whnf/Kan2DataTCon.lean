@@ -184,7 +184,7 @@ theorem tcon_face {PL q : Tm} {ψ : I} {c : ℕ} {C : Ctor} {X : List Tm} (hC : 
     RE2 S k (.data d (PL.dinst .one)) (tCon d D c C PL ψ X) (.con d c q (Tm.ofList X) []) := by
   have hdD := dataD_eq hW hD
   obtain ⟨eT, htele, hXl⟩ := transpCon_eq hW hD hp hH hC hty
-  have hPc : PL.closedB 0 (k + 1) = true := data_closed hW hD hH hPL
+  have hPc : PL.closedB 0 (k + 1) = true := data_closed hW hD hPL
   have hP0 : PL.isub (ISub.cons .zero trivial (ISub.id k)) = PL.dinst .zero := isub_cons_id_of_closed hPc .zero trivial
   have hP1 : PL.isub (ISub.cons .one trivial (ISub.id k)) = PL.dinst .one := isub_cons_id_of_closed hPc .one trivial
   have hd0 : HasTy S k .one [] (.data d (PL.dinst .zero)) (.univ D.level) := by
@@ -209,7 +209,7 @@ theorem tcon_face {PL q : Tm} {ψ : I} {c : ℕ} {C : Ctor} {X : List Tm} (hC : 
   -- the arguments of the constructor
   have hargsX : ∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
       ((X.take i).reverse ++ (PL.dinst .zero).toList.reverse)) (X.getD i .abort) (X.getD i .abort) := by
-    have hc0 : (PL.dinst .zero).closedB 0 k = true := data_closed hW hD hH hd0
+    have hc0 : (PL.dinst .zero).closedB 0 k = true := data_closed hW hD hd0
     have hb := hbase
     rw [← isub_id_of_closed hc0] at hb
     obtain ⟨c', C', qs, Z, qs', Z', hC', hZl, -, hr1, hr2, hZ⟩ := dataLit_argsU hW hD hH hd0 s0 (ISub.id k) hb
@@ -240,7 +240,7 @@ theorem tcon_face {PL q : Tm} {ψ : I} {c : ℕ} {C : Ctor} {X : List Tm} (hC : 
       have T : RT2 S k ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ (PL.dinst .zero).toList.reverse))
           ((C.argTy d D.params.length j).substList (((tOuts d D C PL ψ X).take j).reverse ++
             (PL.dinst .one).toList.reverse)) :=
-        argTy_rt2' hW hD hH hd0 s0 h01 hC hj (by simp; omega) (by simp [tOuts_length]; omega) (fun i hi => by
+        argTy_rt2' hW hD hd0 s0 h01 hC hj (by simp; omega) (by simp [tOuts_length]; omega) (fun i hi => by
           rw [List.take_take, Nat.min_eq_left hi.le, getD_take_lt hi, getD_take_lt hi]
           exact (ihj i hi (by omega)).2)
       obtain ⟨-, -, -, -, -, htyO⟩ := tcon_typing hW hD hp hH hC hty hj
@@ -254,7 +254,7 @@ theorem tcon_face {PL q : Tm} {ψ : I} {c : ℕ} {C : Ctor} {X : List Tm} (hC : 
       exact ⟨T, RE2.expandR hW hAA (RE2.typed (hargsX j hj)).1 htyO' hst (hargsX j hj)⟩
   have hcT := HasTy.eqR eT
   have he := eT.symm.trans (EqTm.transpFace hψ hty)
-  have hc1 : (PL.dinst .one).closedB 0 k = true := data_closed hW hD hH hd1
+  have hc1 : (PL.dinst .one).closedB 0 k = true := data_closed hW hD hd1
   have := RE2_con_args hW hD hH hd1 s1 (ISub.id k) hC (Y := tOuts d D C PL ψ X) (Y' := X) (q := PL.dinst .one) (q' := q)
     (tOuts_length _ _ _ _ _ _) hXl (by rw [isub_id_of_closed hc1]; exact hcT) (by rw [isub_id_of_closed hc1]; exact he)
     (fun i hi => by
@@ -347,7 +347,7 @@ theorem line_rt2 {j : ℕ} (hj : j < C.args.length) {k3 : ℕ} (σ : ISub k3 (k 
   obtain ⟨-, -, -, -, -, -, hPl, -⟩ := H.basic
   have hlF := tF_length d D C PL φ X
   rw [tl_isub H.hW H.hD H.hC hPl φ X hj.le]
-  refine argTy_rt2' H.hW H.hD H.hH (HasTy.isubS H.hW H.hPL σ) hσσ hQ2 H.hC hj (by simp; omega) hBl fun i hi => ?_
+  refine argTy_rt2' H.hW H.hD (HasTy.isubS H.hW H.hPL σ) hσσ hQ2 H.hC hj (by simp; omega) hBl fun i hi => ?_
   have h := hrel i hi
   rw [tl_isub H.hW H.hD H.hC hPl φ X (by omega), ← getD_map_isub' (by omega)] at h
   rw [List.take_take, Nat.min_eq_left hi.le, getD_take_lt hi]
@@ -364,7 +364,7 @@ theorem line_kanT {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false) {
   have hlF := tF_length d D C PL φ X
   have hlF' := tF_length d D C QL φ' X'
   have hAlen : (((tF d D C PL φ X).map (·.isub θ)).take j).length = j := by simp; omega
-  have K := argLine_kanT H.hW H.hD H.hH (HasTy.isubS H.hW H.hPL θ) hθθ hθθ' (argK_restr H.hArgK θ) H.hC
+  have K := argLine_kanT H.hW H.hD (HasTy.isubS H.hW H.hPL θ) hθθ hθθ' (argK_restr H.hArgK θ) H.hC
     (A := ((tF d D C PL φ X).map (·.isub θ)).take j) (B := ((tF d D C QL φ' X').map (·.isub θ')).take j)
     (by rw [hAlen]; simp; omega) (by rw [hAlen]; exact hj) (by rw [hAlen]; exact hrj)
     (fun i hi => by
@@ -624,7 +624,7 @@ theorem rel : RE2 S k (.data d (PL.dinst .one)) (tCon d D c C PL φ X) (tCon d D
       (ISub.cons .one trivial (ISub.id k)) = .data d (PL.isub (ISub.cons .one trivial (ISub.id k))) from rfl, hP1] at this
   have s1 := H.hRLσ (ISub.cons .one trivial (ISub.id k))
   rw [hP1] at s1
-  have hc1 : (PL.dinst .one).closedB 0 k = true := data_closed hW H.hD H.hH hd1
+  have hc1 : (PL.dinst .one).closedB 0 k = true := data_closed hW H.hD hd1
   have he := eT.symm.trans (H.heq.trans eT')
   have hcT := HasTy.eqR eT
   have key := RE2_con_args hW H.hD H.hH hd1 s1 (ISub.id k) H.hC (Y := tOuts d D C PL φ X) (Y' := tOuts d D C QL φ' X')
