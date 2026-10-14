@@ -979,12 +979,17 @@ theorem cohGT_of_rel {f : Hom k m} {k' : ℕ} (σ : ISub k' k) (hn : ¬ (φ.rest
 /-- The coherence of related elements of a Glue type at a restriction where the face does not hold. -/
 theorem cohGE_of_rel {f : Hom k m} {k' : ℕ} (σ : ISub k' k) (hn : ¬ (φ.restr (f.comp σ.hom)).holds) {X y z : Tm}
     (h : (Comp2 S (glueC m A φ Tp ep) m k' (f.comp σ.hom)).el X y z) {w : Tm} (hw : RedW S y w)
-    {k'' : ℕ} (ρ : ISub k'' k') : glueLocE S A Tp φ f k'' (σ.comp ρ) (X.isub ρ) (w.isub ρ) (y.isub ρ) := by
+    {k'' : ℕ} (ρ : ISub k'' k') :
+    ((φ.restr (f.comp (σ.comp ρ).hom)).holds → ∀ ψ e0 t0 a0, w = .glueEl ψ e0 t0 a0 →
+      (Comp2 S (dat Tp k'' (f.comp (σ.comp ρ).hom)) k'' k'' (Hom.id k'')).el (X.isub ρ) (t0.isub ρ) (y.isub ρ)) ∧
+    (¬ (φ.restr (f.comp (σ.comp ρ).hom)).holds →
+      glueLocE S A Tp φ f k'' (σ.comp ρ) (X.isub ρ) (w.isub ρ) (y.isub ρ)) := by
   rw [Comp2_glueC_f hA hφ hTp hTkv _ hn] at h
   obtain ⟨hE, -, -, -, hc, -⟩ := h
   have hy := closed_of_ty hW hE.1
   have := hc k' (ISub.id k') (by rwa [ISub.hom_id, Hom.comp_id]) w (by rwa [isub_id_of_closed hy]) k'' ρ
-  rwa [glueLocE_comp, ISub.id_comp] at this
+  simp only [ISub.id_comp, glueLocE_comp, ISub.comp_hom] at this ⊢
+  exact this
 
 theorem he2_glueC (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → HE2 S k (dat Tp k f))
     (perA : PER2 S m A) (krA : KR2 S m A)
@@ -1082,12 +1087,20 @@ theorem he2_glueC (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → HE2 S k (da
     have b := (krX k' (f.comp σ.hom) k'' ρ (T.isub σ) (T.isub σ) u (t'.isub σ)).2 hu
     rw [rel_σ, Tm.isub_isub, Tm.isub_isub] at b
     rw [Tm.isub_isub] at a
-    have b' := glueLocE_of_rel hW hA hφ hTp hTkv (σ.comp ρ) b
     have c := main k'' (σ.comp ρ)
     have hTτ := hTT'.2.1 k'' (σ.comp ρ)
-    exact glueLocE_trans hW perA krA perT krT f (σ.comp ρ) hTτ a
-      (glueLocE_trans hW perA krA perT krT f (σ.comp ρ) hTτ b'
-        (glueLocE_symm hW perA krA perT krT f (σ.comp ρ) hTτ c))
+    refine ⟨fun hh ψ e0 t0 a0 hwe => ?_, fun hh => ?_⟩
+    · -- where the face holds: the fiber of the normal form, through `T`'s relation
+      have a1 := a.1 hh ψ e0 t0 a0 hwe
+      rw [Comp2_glueC_at hφ hTp hTkv, if_pos hh] at b
+      unfold glueLocE at c; rw [if_pos hh] at c
+      unfold glueLocT at hTτ; rw [if_pos hh] at hTτ
+      have P := perT k'' _ hh k'' (Hom.id k'')
+      exact P.transEl hTτ a1 (P.transEl hTτ b (P.symEl hTτ c))
+    · have b' := glueLocE_of_rel hW hA hφ hTp hTkv (σ.comp ρ) b
+      exact glueLocE_trans hW perA krA perT krT f (σ.comp ρ) hTτ (a.2 hh)
+        (glueLocE_trans hW perA krA perT krT f (σ.comp ρ) hTτ b'
+          (glueLocE_symm hW perA krA perT krT f (σ.comp ρ) hTτ c))
 
 end glue
 
