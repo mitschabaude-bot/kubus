@@ -692,6 +692,59 @@ theorem TGD2.sysAt2 (σ : ISub k' k) (hh : (ival (idEnv k') ((I.or δ ψ).subst 
   · exact D.PpsiPt hW hφ1 (σ.comp σ2) (hp σ2 h) (I.scoped_subst hr σ2.sc) (I.scoped_subst hr' σ2.sc)
       (I_eq_subst he σ2.τ)
 
+
+/-- The left system of the compositions in the fibres at the start is the centre of contraction. -/
+theorem TGD2.sys0 (σ : ISub k' k) (hh : (ival (idEnv k') ((I.or δ ψ).subst σ.τ)).holds) :
+    RE2 S k' ((tgFib A φ T e ψ u0).isub σ)
+      (((Tm.split δ.shift (.papp (tgPd A φ T e ψ u0).dshift (.var 0)) ψ.shift
+        (.papp (tgPpsi A φ e ψ u0).dshift (.var 0))).isub σ.up).dinst .zero)
+      ((Tm.fst (tgC A φ e ψ u0)).isub σ) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  rw [psys_isub]
+  have hfib := D.hfib hW hφ1
+  have hX := tyCode_of_univ hW hfib
+  have hAA := RT2.isub hW hX (RT2.refl hW hX (D.rFib hW hφ1)) σ
+  have ha0 := RE2.isub hW (RE2_sigma_elim hW (show RE2 S k (.sigma _ _) _ _ from D.c hW hφ1)).1 σ
+  have hd : ∀ {k2} (σ2 : ISub k2 k'), I.Entails .one ((δ.subst σ.τ).subst σ2.τ) →
+      (ival (idEnv k2) (δ.subst (σ.comp σ2).τ)).holds := fun σ2 h =>
+    (holds_iff_entails (I.scoped_subst D.hδs (σ.comp σ2).sc)).2 (by rw [I_subst_comp]; exact h)
+  have hp : ∀ {k2} (σ2 : ISub k2 k'), I.Entails .one ((ψ.subst σ.τ).subst σ2.τ) →
+      (ival (idEnv k2) (ψ.subst (σ.comp σ2).τ)).holds := fun σ2 h =>
+    (holds_iff_entails (I.scoped_subst H.hψ (σ.comp σ2).sc)).2 (by rw [I_subst_comp]; exact h)
+  refine RE2_split_l hW (I.scoped_subst D.hδs σ.sc) (I.scoped_subst H.hψ σ.sc)
+    (entails_of_holds (I.scoped_subst (show (I.or δ ψ).Scoped k from ⟨D.hδs, H.hψ⟩) σ.sc) hh) hAA
+    (psysTy hW H hφ1 σ hh trivial) (RE2.typed ha0).1 (fun k2 σ2 h => ?_) (fun k2 σ2 h => ?_) <;>
+  simp only [isub_papp, Tm.isub_isub, I.subst]
+  · exact D.Pd0Pt hW hφ1 (σ.comp σ2) (hd σ2 h)
+  · exact D.Ppsi0Pt hW hφ1 (σ.comp σ2) (hp σ2 h)
+
+/-- The extensions to the fibres. -/
+theorem TGD2.ext : RE2 S k (tgFib A φ T e ψ u0) (tgExt A φ T e ψ u0 δ) (tgExt A' φ' T' e' ψ' u0' δ') := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hφs : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have hφs' : (φ'.subst (I.inst0 .one)).Scoped k := H'.hφr (r := .one) trivial
+  have hext := HasTy.restrict (Φ' := .one) trivial (ent_cof_one hW (entails_of_holds hφs hφ1)) (minimal_to_spec H.hext)
+  have hext' := D.fibConv hW hφ1 (HasTy.restrict (Φ' := .one) trivial
+    (ent_cof_one hW (entails_of_holds hφs' (D.φ1R hW hφ1))) (minimal_to_spec H'.hext))
+  have hfib := D.hfib hW hφ1
+  have hX := tyCode_of_univ hW hfib
+  have hFF := RT2.refl hW hX (D.rFib hW hφ1)
+  have ha0 := (RE2_sigma_elim hW (show RE2 S k (.sigma _ _) _ _ from D.c hW hφ1)).1
+  have hδδ := D.δδ hW
+  rw [tgExt_eq] at hext hext' ⊢
+  rw [tgExt_eq]
+  refine KD.kan (KD.of_rel hW hext hext' (Comp2_ty_base (D.rFib hW hφ1)).2.2.2.2.2
+    (ent_or_elim (ent_trans hδδ.1 (ent_or_left _ _)) (ent_trans D.p12 (ent_or_right _ _)))
+    (ent_or_elim (ent_trans hδδ.2 (ent_or_left _ _)) (ent_trans D.p21 (ent_or_right _ _)))
+    (fun k' σ r r' hr hr' he hh => D.sysAt2 hW hφ1 σ hh hr hr' he) ha0 (fun k' σ hh => ?_) (fun k' σ hh => ?_))
+    (D.fibK hW hφ1)
+  · have hAA := RT2.isub hW hX hFF σ
+    exact RE2.trans hW hAA (D.sys0 hW hφ1 σ hh) (RE2.isub hW ha0 σ)
+  · have hAA := RT2.isub hW hX hFF σ
+    exact RE2.trans hW hAA (RE2.symm hW hAA (D.sys0 hW hφ1 σ hh))
+      (D.sysAt2 hW hφ1 σ hh (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _))
+
 end
 
 end
