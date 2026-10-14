@@ -192,6 +192,37 @@ theorem RT2_glueW_face {X X' A T e A' T' e' : Tm} {φ φ' : I} {l l' : ℕ}
   exact ⟨ent_of_face_eq hφs hφs' (f1.trans f2.symm), ent_of_face_eq hφs' hφs (f2.trans f1.symm)⟩
 
 
+/-- The equivalences of related Glue types agree under the face. -/
+theorem glue_ee {A T e A' T' e' : Tm} {φ φ' : I} {l l' : ℕ}
+    (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) (hG' : HasTy S k .one [] (.glue A' φ' T' e') (.univ l'))
+    (f12 : I.Entails φ φ') (hA : RT2 S k A A')
+    (hT : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → RT2 S k' (T.isub σ) (T'.isub σ))
+    (hE : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e'.isub σ)) :
+    EqTm S k (cof .one φ) [] e' e (Tm.equiv T A) := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l1, ⟨hA1, hφs, hT1, he1⟩, -⟩ := gen_glue hS (spec_to_minimal hW hG) rfl
+  obtain ⟨l2, ⟨hA2, hφs', hT2, he2⟩, -⟩ := gen_glue hS (spec_to_minimal hW hG') rfl
+  have hΦ : (cof .one φ).Scoped k := ⟨trivial, hφs⟩
+  have c12 : I.Entails (cof .one φ) (cof .one φ') := ent_and_intro (ent_and_left _ _) (ent_trans (ent_and_right _ _) f12)
+  have hE1 := equiv_ty_cof hW hφs (minimal_to_spec hA1) (minimal_to_spec hT1)
+  have hE2 := HasTy.restrict hΦ c12 (equiv_ty_cof hW hφs' (minimal_to_spec hA2) (minimal_to_spec hT2))
+  have eqv : EqTm S k (cof .one φ) [] (Tm.equiv T A) (Tm.equiv T' A') (.univ maxLevel) := by
+    refine eq_of_restr hW hφs (.inr rfl) hE1 hE2 fun k'' σ hh => ?_
+    rw [isub_equiv, isub_equiv, isub_univ]
+    have hTσ := face_ty hW hφs (minimal_to_spec hT1) σ hh
+    rw [isub_univ] at hTσ
+    have eT := eqTop hW (Comp2_ty_base (hT k'' σ hh)).2.2.2.2.2 hTσ
+    have eA := eqTop hW (Comp2_ty_base (RT2.isub hW (tyCode_of_univ hW (minimal_to_spec hA1)) hA σ)).2.2.2.2.2
+      (HasTy.isubS hW (minimal_to_spec hA1) σ)
+    exact equiv_congrS hW eT eA
+  have key : EqTm S k (cof .one φ) [] e e' (Tm.equiv T A) := by
+    refine eq_of_restr hW hφs (.inl hE1) (minimal_to_spec he1)
+      (HasTy.conv (HasTy.restrict hΦ c12 (minimal_to_spec he2)) (EqTm.symm eqv)) fun k'' σ hh => ?_
+    rw [isub_equiv]
+    exact (RE2.typed (hE k'' σ hh)).2.2
+  exact key.symm
+
 /-- The data of a composition at a pair of related types, as taken by `KanH2`. -/
 structure KD (S : Sig) (k : ℕ) (X X' : Tm) (ψ ψ' : I) (u u' a0 a0' : Tm) : Prop where
   hty : HasTy S k .one [] (.hcomp X ψ u a0) X
