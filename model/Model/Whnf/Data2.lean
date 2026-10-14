@@ -119,12 +119,23 @@ theorem parRel2_base {Θ : SData m} {k k'' : ℕ} (f : Hom k m) {k' : ℕ} (σ :
   simp only [parEntry_base f σ σ']
   exact h
 
+omit hW in
+/-- The coherence of an inductive type's normal forms, at a restriction. -/
+theorem cohData_isub {Θ : SData m} {k : ℕ} (f : Hom k m) {T : Tm} (h : cohData S Θ f T) {k' : ℕ} (σ0 : ISub k' k) :
+    cohData S Θ (f.comp σ0.hom) (T.isub σ0) := by
+  intro k1 σ k2 σ' ps1 ps2 h1 h2
+  rw [Tm.isub_isub] at h1 h2
+  rw [← ISub.comp_assoc] at h2
+  obtain ⟨a, b, c⟩ := h k1 (σ0.comp σ) k2 σ' ps1 ps2 h1 h2
+  rw [ISub.comp_assoc] at a b c
+  exact ⟨argRel2_base f σ0 a, argRel2_base f σ0 b, parRel2_base f σ0 c⟩
+
 theorem kr2_dataC {Θ : SData m} (hX : Fib (dataC Θ) m) : KR2 S m (dataC Θ) := by
   intro k f k' σ T T' t t'
   rw [Comp2_dataC, Comp2_dataC]
   constructor
-  · rintro ⟨hb, hall⟩
-    refine ⟨?_, fun k'' σ' => ?_⟩
+  · rintro ⟨hb, hall, hc, hc'⟩
+    refine ⟨?_, fun k'' σ' => ?_, cohData_isub f hc σ, cohData_isub f hc' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
     · obtain ⟨ps, ps', h1, h2, hpl, hpl', hcl, hcl', hcd, hcd', hpr⟩ := hall k'' (σ.comp σ')
       exact ⟨ps, ps', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, hpl, hpl',
