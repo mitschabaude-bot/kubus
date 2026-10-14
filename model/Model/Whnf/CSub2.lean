@@ -241,6 +241,32 @@ def diagR (c : CSub2 S Ψ Φ Γ k) : CSub2 S Ψ Φ Γ k where
     ((perK hW (c.tyCode_look hW h)).reflEl' (c.lookT x A h) (c.look x A h))
   lookT x A h := RT2.refl' hW (c.tyCode_look hW h) (c.lookT x A h)
 
+theorem up_restr_L (c : CSub2 S Ψ Φ Γ k) (ρ : ISub k' k) (t : Tm) :
+    ((c.restr hW ρ).up hW).L t = ((c.up hW).L t).isub ρ.up := by
+  simp only [L, up, restr, Tm.isub, subst_subst, ISub.up, ISub.comp]
+  apply subst_congr
+  · intro x; exact (isub_dshift (c.γ x) ρ).symm
+  · intro i; exact (I_up_comp _ _ i).symm
+
+theorem up_restr_R (c : CSub2 S Ψ Φ Γ k) (ρ : ISub k' k) (t : Tm) :
+    ((c.restr hW ρ).up hW).R t = ((c.up hW).R t).isub ρ.up := by
+  simp only [R, up, restr, Tm.isub, subst_subst, ISub.up, ISub.comp]
+  apply subst_congr
+  · intro x; exact (isub_dshift (c.γ' x) ρ).symm
+  · intro i; exact (I_up_comp _ _ i).symm
+
+theorem cons_restr_L (c : CSub2 S Ψ Φ Γ k) (ρ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k')
+    (he : I.Eq r r') (t : Tm) :
+    ((c.restr hW ρ).cons r r' hr hr' he).L t = (((c.up hW).L t).isub ρ.up).dinst r := by
+  rw [← up_restr_L]
+  exact (dup_dinst t _ _ r).symm
+
+theorem cons_restr_R (c : CSub2 S Ψ Φ Γ k) (ρ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k')
+    (he : I.Eq r r') (t : Tm) :
+    ((c.restr hW ρ).cons r r' hr hr' he).R t = (((c.up hW).R t).isub ρ.up).dinst r' := by
+  rw [← up_restr_R]
+  exact (dup_dinst t _ _ r').symm
+
 end CSub2
 
 end

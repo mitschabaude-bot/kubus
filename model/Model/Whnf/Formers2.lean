@@ -562,6 +562,56 @@ theorem RT2_sigma_inv {A B A' B' : Tm} (h : RT2 S k (.sigma A B) (.sigma A' B'))
   rw [hfam] at this
   exact this
 
+
+/-! ### Inversion of related path types and `(i : I) → L` types -/
+
+theorem RT2_path_inv {L a b L' a' b' : Tm} (h : RT2 S k (.path L a b) (.path L' a' b')) :
+    RT2 S (k + 1) L L' ∧
+    (∀ r r', r.Scoped k → r'.Scoped k → I.Eq r r' → RT2 S k (L.dinst r) (L'.dinst r')) ∧
+    RE2 S k (L.dinst .zero) a a' ∧ RE2 S k (L.dinst .one) b b' := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hpath⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hL := HasTy.pathLine hpath
+  have hLc : L.isub (ISub.id k).up = L := isub_up_id_of_closed (closed_of_ty hW hL)
+  unfold RT2 at h
+  rw [semK_pathT hW hpath, Comp2_pathC _ _ _ (semK_ne hW hL)] at h
+  obtain ⟨-, hall, -⟩ := h
+  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5, h6⟩ := hall k (ISub.id k)
+  rw [isub_id_of_closed (closed_of_ty hW hpath)] at h1
+  rw [isub_id_of_closed (closed_of_isTyK hW hb.2.2.1)] at h2
+  obtain ⟨rfl, rfl, rfl⟩ : L = L1 ∧ a = b0 ∧ b = b1 := by
+    have := RedW.unique (redW_self rfl) h1.1; injection this
+    exact ⟨by assumption, by assumption, by assumption⟩
+  obtain ⟨rfl, rfl, rfl⟩ : L' = L1' ∧ a' = b0' ∧ b' = b1' := by
+    have := RedW.unique (redW_self rfl) h2.1; injection this
+    exact ⟨by assumption, by assumption, by assumption⟩
+  rw [Comp2_res_up hW hL, hLc] at h3
+  rw [Comp2_res_line hW hL, hLc] at h5 h6
+  refine ⟨h3, fun r r' hr hr' hE => ?_, h5, h6⟩
+  have := h4 r r' hr hr' hE
+  rw [Comp2_res_line hW hL, hLc] at this
+  exact this
+
+theorem RT2_ipi_inv {L L' : Tm} (h : RT2 S k (.ipi L) (.ipi L')) :
+    RT2 S (k + 1) L L' ∧ ∀ r r', r.Scoped k → r'.Scoped k → I.Eq r r' → RT2 S k (L.dinst r) (L'.dinst r') := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hipi⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hL := ipi_line hW hipi
+  have hLc : L.isub (ISub.id k).up = L := isub_up_id_of_closed (closed_of_ty hW hL)
+  unfold RT2 at h
+  rw [semK_ipiT hW hipi, Comp2_ipiC _ (semK_ne hW hL)] at h
+  obtain ⟨-, hall, -⟩ := h
+  obtain ⟨L1, L1', h1, h2, h3, h4⟩ := hall k (ISub.id k)
+  rw [isub_id_of_closed (closed_of_ty hW hipi)] at h1
+  rw [isub_id_of_closed (closed_of_isTyK hW hb.2.2.1)] at h2
+  obtain rfl : L = L1 := by have := RedW.unique (redW_self rfl) h1.1; injection this
+  obtain rfl : L' = L1' := by have := RedW.unique (redW_self rfl) h2.1; injection this
+  rw [Comp2_res_up hW hL, hLc] at h3
+  refine ⟨h3, fun r r' hr hr' hE => ?_⟩
+  have := h4 r r' hr hr' hE
+  rw [Comp2_res_line hW hL, hLc] at this
+  exact this
+
 end
 
 end Model.Whnf
