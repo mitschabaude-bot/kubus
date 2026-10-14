@@ -1,5 +1,6 @@
 import Model.Whnf.Valid2CompSigma
 import Model.Whnf.Valid2CompPi
+import Model.Whnf.Valid2CompPath
 
 /-!
 # The binary fundamental lemma
@@ -461,7 +462,8 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
   | .hcompPi h0 => valid_hcompPi_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .hcompSigma h0 =>
     valid_hcompSigma_rule hW hK.hcomp hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
-  | .hcompPath h0 => valid_hcompPath_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompPath h0)).2
+  | .hcompPath h0 =>
+    valid_hcompPath_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .hcompGlue h0 h1 h2 => valid_hcompGlue_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompGlue h0 h1 h2)).2
   | .hcompU h0 => valid_hcompU_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompU h0)).2
   | .glueFace h0 h1 => valid_glueFace hW h0 (fund2_ty h1) (sigwk_ty hpre h1) (pre2 hW hpre (.glueFace h0 h1)).2

@@ -284,13 +284,6 @@ theorem valid_transpPath_of {A a b p0 T : Tm} {φ : I}
   refine valid_redex hW h hu fun k c => ?_
   simp only [CSub2.R]; rw [transpPath_subst]; exact hK.transpPath k _ _ _ _ _ _
 
-theorem valid_hcompPath_of {A a b u p0 T : Tm} {φ : I}
-    (h : Valid2 S Ψ Φ Γ (.hcomp (.path A a b) φ u p0) (.hcomp (.path A a b) φ u p0) T)
-    (hu : HasTy0 S Ψ Φ Γ (Tm.hcompPath A a b φ u p0) T) :
-    Valid2 S Ψ Φ Γ (.hcomp (.path A a b) φ u p0) (Tm.hcompPath A a b φ u p0) T := by
-  refine valid_redex hW h hu fun k c => ?_
-  simp only [CSub2.R]; rw [hcompPath_subst]; exact hK.hcompPath k _ _ _ _ _ _ _
-
 theorem valid_hcompGlue_of {A T' e u u0 T : Tm} {φ ψ : I}
     (h : Valid2 S Ψ Φ Γ (.hcomp (.glue A φ T' e) ψ u u0) (.hcomp (.glue A φ T' e) ψ u u0) T)
     (hu : HasTy0 S Ψ Φ Γ (Tm.hcompGlue A φ T' e ψ u u0) T) :

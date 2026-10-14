@@ -63,3 +63,4 @@ import Model.Whnf.Valid2Pair
 import Model.Whnf.Valid2Fill
 import Model.Whnf.Valid2CompSigma
 import Model.Whnf.Valid2CompPi
+import Model.Whnf.Valid2CompPath

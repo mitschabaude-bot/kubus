@@ -92,6 +92,18 @@ theorem VTy.tubeSkip {Φs : I} {u X : Tm} (hΦs : Φs.Scoped Ψ) (hu : VTy S (Ψ
 /-! ### `hcomp` in path types -/
 
 omit hW in
+theorem sys1_eq (φ : I) (u a b : Tm) :
+    (Tm.split φ.shift.shift (.papp (u.dsubst insI) (.var 1)) (.or (.neg (.var 1)) (.var 1))
+        (.split (.neg (.var 1)) a.dshift.dshift (.var 1) b.dshift.dshift)).dinst .one =
+      .split φ.shift (.papp (u.dinst .one).dshift (.var 0)) (.or (.neg (.var 0)) (.var 0))
+        (.split (.neg (.var 0)) a.dshift (.var 0) b.dshift) := by
+  simp only [Tm.dinst, Tm.dsubst, Tm.subst]
+  congr 1
+  · simp only [I.shift, I.ren, I_subst_subst]; rfl
+  · congr 1; ssub
+  · congr 1 <;> ssub
+
+omit hW in
 theorem papp_endS (u : Tm) (d : Bool) :
     (Tm.papp (u.dsubst insI) (.var 1)).subst Tm.var (endS d) = .papp (u.dinst .one) (I.ofDir d) := by
   have h := sysEnd_eq .zero u (.var 0) (.var 0) d
@@ -103,6 +115,10 @@ theorem VTy.hcompPath' (hKH : KHAll S) {A a b u p0 : Tm} {φ : I} {l : ℕ}
     (hPp : VTy S Ψ Φ Γ (.path A a b) (.univ l)) (hφ : φ.Scoped Ψ)
     (hup : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (Tm.path A a b).dshift)
     (hp0p : VTy S Ψ Φ Γ p0 (.path A a b)) (hsidep : VEq S Ψ (cof Φ φ) Γ (u.dinst .zero) p0 (.path A a b)) :
+    VTy S (Ψ + 1) Φ.shift Γ.dshift (.hcomp A (.or φ.shift (.or (.neg (.var 0)) (.var 0)))
+      (.split φ.shift.shift (.papp (u.dsubst insI) (.var 1)) (.or (.neg (.var 1)) (.var 1))
+        (.split (.neg (.var 1)) a.dshift.dshift (.var 1) b.dshift.dshift))
+      (.papp p0.dshift (.var 0))) A ∧
     VTy S Ψ Φ Γ (Tm.hcompPath A a b φ u p0) (.path A a b) := by
   have hS := sigClosed_of_wfSig hW
   have hs := scoped_of_ty hPp.ty
@@ -376,7 +392,49 @@ theorem VTy.hcompPath' (hKH : KHAll S) {A a b u p0 : Tm} {φ : I} {l : ℕ}
             (VTy.restrict' hW hz1s hz1e (VTy.dsubst' hW .one trivial hA)).ty)).ty
         (VTy.restrict' hW (Φ' := cof (cof Φ (.neg .one)) .one) ⟨⟨hs, trivial⟩, trivial⟩
           (ent_trans (ent_and_left _ _) (ent_and_left _ _)) hb).ty))
-  exact VTy.plam' hW hPp hbody e0 e1
+  exact ⟨hbody, VTy.plam' hW hPp hbody e0 e1⟩
+
+theorem valid_hcompPath_rule (hKH : KHAll S) {A a b u p0 T : Tm} {φ : I}
+    (h : HasTy0 S Ψ Φ Γ (.hcomp (.path A a b) φ u p0) T)
+    (hv : Valid2 S Ψ Φ Γ (.hcomp (.path A a b) φ u p0) (.hcomp (.path A a b) φ u p0) T)
+    (hinv : HcompInv S Ψ Φ Γ (.path A a b) φ u p0 T) :
+    Valid2 S Ψ Φ Γ (.hcomp (.path A a b) φ u p0) (Tm.hcompPath A a b φ u p0) T := by
+  obtain ⟨l, hφ, hPV, huV, hu0V, hsV, htr, hP, hu, hu0, hside⟩ := hinv
+  have hS := sigClosed_of_wfSig hW
+  have hs := scoped_of_ty hP
+  have hX : (cof Φ φ).Scoped Ψ := ⟨hs, hφ⟩
+  have hPp : VTy S Ψ Φ Γ (.path A a b) (.univ l) := ⟨hP, hPV⟩
+  have hup : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (Tm.path A a b).dshift := ⟨hu, huV⟩
+  have hu0p : VTy S Ψ Φ Γ p0 (.path A a b) := ⟨hu0, hu0V⟩
+  have hsidep : VEq S Ψ (cof Φ φ) Γ (u.dinst .zero) p0 (.path A a b) := ⟨hside, hsV⟩
+  obtain ⟨hbody, hy⟩ := VTy.hcompPath' hW hKH hPp hφ hup hu0p hsidep
+  have hT : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L T) (c.R T) := fun k c => (hv k c).1
+  have hyT := valid_conv_tr hy.v htr hT
+  -- where the face holds: η for the tube's end, and the face of the body
+  have hX0Φ : I.Entails (cof Φ φ) Φ := ent_and_left _ _
+  have hu1 : VTy S Ψ (cof Φ φ) Γ (u.dinst .one) (.path A a b) := by
+    refine ⟨?_, valid_tube_end hW hφ .one trivial huV hu hP⟩
+    have := HasTy0.dsubst hS (Φ := cof Φ φ) hu (r := .one) trivial
+    rwa [dshift_dinst] at this
+  have hη := VEq.pathEta' hW hu1
+  have hpl : VTy S Ψ (cof Φ φ) Γ (.plam (.papp (u.dinst .one).dshift (.var 0))) (.path A a b) :=
+    ⟨(presup hW hη.eq).2, valid_trans hW (valid_symm hW hη.v) hη.v⟩
+  have hXs : (cof Φ φ).shift.Scoped (Ψ + 1) := KubusCore.I.scoped_shift hX
+  have hbX := VTy.restrict' hW hXs (ent_shift hX0Φ) hbody
+  have e1 := VEq.hcompFace' hW (ent_trans (ent_shift (ent_and_right Φ φ)) (ent_or_left _ _)) hbX
+  rw [sys1_eq] at e1
+  have hsysX : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift _ A := ⟨(presup hW e1.eq).2, valid_trans hW (valid_symm hW e1.v) e1.v⟩
+  have e2 := VEq.splitL' hW (ent_shift (ent_and_right Φ φ)) hsysX
+  have hbe := VEq.plam' hW (VTy.restrict' hW hX hX0Φ hPp) hpl (VTy.restrict' hW hX hX0Φ hy).ty
+    (VEq.symm' hW (VEq.trans' hW e1 e2))
+  have hb := valid_conv_tr (VEq.trans' hW hη hbe).v (htr.restrict hX0Φ) fun k c => hT k (c.restrictTo hX0Φ)
+  refine valid_comp_rule hW hv hyT hb fun k c => ⟨fun hn => ?_, fun hf => ?_⟩
+  · have e4 : c.L (Tm.hcompPath A a b φ u p0) = Tm.hcompPath (A.subst (dupS c.γ) (I.up c.σ.τ)) (c.L a) (c.L b)
+        (φ.subst c.σ.τ) (u.subst (dupS c.γ) (I.up c.σ.τ)) (c.L p0) := hcompPath_subst _ _ A a b φ u p0
+    rw [e4]
+    exact ⟨.step (step_hcomp_path hn) (.refl _), EqTm.hcompPath (c.ty hW h)⟩
+  · rw [CSub2.L_dinst hW]
+    exact ⟨.step (step_hcomp_face hf) (.refl _), EqTm.hcompFace hf (c.ty hW h)⟩
 
 end
 

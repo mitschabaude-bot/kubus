@@ -52,8 +52,6 @@ structure KanOracle2 (S : Sig) : Prop where
   transpGlue : ∀ k (X A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (δ : I), δ.Scoped k →
     I.Entails δ φ.forall0 → I.Entails φ.forall0 δ →
     RedexOK S k X (.transp (.glue A φ T e) ψ u0) (Tm.transpGlueWith δ A φ T e ψ u0)
-  hcompPath : ∀ k (X A a b : Tm) (φ : I) (u p0 : Tm),
-    RedexOK S k X (.hcomp (.path A a b) φ u p0) (Tm.hcompPath A a b φ u p0)
   hcompGlue : ∀ k (X A : Tm) (φ : I) (T e : Tm) (ψ : I) (u u0 : Tm),
     RedexOK S k X (.hcomp (.glue A φ T e) ψ u u0) (Tm.hcompGlue A φ T e ψ u u0)
   hcompU : ∀ k (X : Tm) (l : ℕ) (φ : I) (u u0 : Tm), RedexOK S k X (.hcomp (.univ l) φ u u0) (Tm.hcompU φ u u0)
