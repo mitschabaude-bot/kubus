@@ -144,6 +144,21 @@ theorem transp_rebase (hW : WfSig S) {L a a' T : Tm} {ψ : I} (hty : HasTy S k .
   have h0 := HasTy.transp (minimal_to_spec hL) hψ (minimal_to_spec_eq hc) (minimal_to_spec ha)
   exact ⟨h1, EqTm.transp h0 h1 (EqTm.refl (minimal_to_spec hL)) (ent_refl _) (ent_refl _) e⟩
 
+/-- A restriction of a line, as a line. -/
+theorem line_isub_up {K k3 k4 : ℕ} (L : Tm) (y : I) (hy : y.Scoped (k3 + 1)) (τ0 : ISub k3 K) (κ : ISub k4 k3) :
+    (L.isub (ISub.cons y hy τ0.up.tail)).isub κ.up =
+      L.isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) (τ0.comp κ).up.tail) := by
+  rw [Tm.isub_isub, ISub.cons_comp, ISub.up_tail_comp_up]
+
+/-- The start of a restricted line. -/
+theorem ieq_zero_up {k3 k4 : ℕ} {y : I} (h0 : I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero)
+    (κ : ISub k4 k3) : I.Eq ((y.subst κ.up.τ).subst (ISub.cons .zero trivial (ISub.id k4)).τ) .zero := by
+  rw [← I_subst_comp, ISub.up_comp_cons_id]
+  have e : ISub.cons .zero trivial κ = (ISub.cons .zero trivial (ISub.id k3)).comp κ := by
+    rw [ISub.cons_comp, ISub.id_comp]; rfl
+  rw [e, I_subst_comp]
+  exact I_eq_subst h0 _
+
 section ind
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
   (hp : D.params ≠ []) {K : ℕ} {P : Tm} (hP : HasTy S (K + 1) .one [] (.data d P) (.univ D.level))
@@ -285,6 +300,259 @@ theorem tm2_con {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' : Tm} {c : ℕ} {C :
         rw [Tm.isub_isub, Tm.isub_isub, line_comp, line_comp, ISub.comp_up_tail]
         exact h }
   exact H.rel
+
+/-- The relation of the start of a line, the end of a restricted line. -/
+theorem lineP_dinst {k3 : ℕ} (τ0 : ISub k3 K) (y : I) (hy : y.Scoped (k3 + 1)) (r : I) (hr : r.Scoped k3) :
+    ((Tm.data d P).isub (ISub.cons y hy τ0.up.tail)).dinst r =
+      .data d (P.isub (ISub.cons (y.subst (ISub.cons r hr (ISub.id k3)).τ)
+        (I.scoped_subst hy (ISub.cons r hr (ISub.id k3)).sc) τ0)) := by
+  show Tm.data d ((P.isub _).dinst r) = _
+  rw [line_dinst hW hD hH hp hP hArgK hRL τ0 y hy r hr]
+
+theorem PP1 : RT2 S (K + 1) (.data d P) (.data d P) := by
+  have hPc := data_closed hW hD hH hP
+  have := hRL (K + 1) (ISub.id K).up.tail (.var 0) (.var 0) (show 0 < K + 1 by omega) (show 0 < K + 1 by omega)
+    (I_eq_refl _)
+  rwa [ISub.cons_var0_up_tail, isub_up_id_of_closed hPc] at this
+
+/-- The intro case: transport of related elements, from the contracta of their normal forms at all
+restrictions. -/
+theorem tm1_intro {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm}
+    (ih : ∀ k' (σ : ISub k' k1), TM2 S d D K P k' (g.comp σ.hom) (A.isub σ) (x.isub σ) (x'.isub σ))
+    (ihc : ∀ k' (σ : ISub k' k1) w, RedW S (x.isub σ) w → ∀ k'' (ρ' : ISub k'' k'),
+      TM2 S d D K P k'' (g.comp (σ.comp ρ').hom) (A.isub (σ.comp ρ')) (w.isub ρ') (x.isub (σ.comp ρ'))) :
+    TM1 S d K P k1 g A x x' := by
+  intro ρ hg hAe Q hQ k3 σ y y' hy hy' hE h0 LR ψ ψ' LC hty hty' heq h12 h21 hbase
+  subst hg hAe
+  have hdD := dataD_eq hW hD
+  have hPc := data_closed hW hD hH hP
+  have hPP1 := PP1 hW hD hH hp hP hArgK hRL
+  have tyB : ∀ {k4 : ℕ} {X Z : Tm}, RT2 S k4 X Z → TyEq S k4 X Z := fun h => (Comp2_ty_base h).2.2.2.2.2
+  obtain ⟨-, ⟨-, hψs, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty) rfl
+  have hψs' : ψ'.Scoped k3 := (gen_transpF (spec_to_minimal hW hty') rfl).choose_spec.1.2.1
+  -- the line, its restrictions and their ends
+  -- the restrictions of the line
+  have eL : ∀ {k4 : ℕ} (κ : ISub k4 k3) (r : I),
+      (((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)).dinst r).isub κ =
+        ((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail)).dinst
+          (r.subst κ.τ) := by
+    intro k4 κ r; rw [isub_dinst, line_isub_up]
+  have eL' : ∀ {k4 : ℕ} (κ : ISub k4 k3) (r : I),
+      (((Tm.data d Q).isub (ISub.cons y' hy' (ρ.comp σ).up.tail)).dinst r).isub κ =
+        ((Tm.data d Q).isub (ISub.cons (y'.subst κ.up.τ) (I.scoped_subst hy' κ.up.sc) ((ρ.comp σ).comp κ).up.tail)).dinst
+          (r.subst κ.τ) := by
+    intro k4 κ r; rw [isub_dinst, line_isub_up]
+  -- the bases at a restriction, at the start of the restricted line
+  have hb : ∀ {k4 : ℕ} (κ : ISub k4 k3), RE2 S k4 (.data d (P.isub (ISub.cons
+      ((y.subst κ.up.τ).subst (ISub.cons .zero trivial (ISub.id k4)).τ)
+      (I.scoped_subst (I.scoped_subst hy κ.up.sc) (ISub.cons .zero trivial (ISub.id k4)).sc) ((ρ.comp σ).comp κ))))
+      (x.isub (σ.comp κ)) (x'.isub (σ.comp κ)) := by
+    intro k4 κ
+    have h := RE2.isub hW hbase κ
+    rw [eL, Tm.isub_isub, Tm.isub_isub, show I.subst κ.τ I.zero = I.zero from rfl,
+      lineP_dinst hW hD hH hp hP hArgK hRL _ _ _ .zero trivial] at h
+    exact h
+  -- the normal forms of the bases
+  have hw := fun k4 (κ : ISub k4 k3) => dataLit_args hW hD hH hP hPP1 _ (hb κ)
+  choose c C qs Z qs' Z' hC hZl hZ'l hr hr' hrecZ hptZ using hw
+  -- the ends of the restricted lines
+  have hPend : ∀ {k4 : ℕ} (κ : ISub k4 k3) (r : I) (hr0 : r.Scoped k4),
+      ((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail)).dinst r =
+        .data d (P.isub (ISub.cons ((y.subst κ.up.τ).subst (ISub.cons r hr0 (ISub.id k4)).τ)
+          (I.scoped_subst (I.scoped_subst hy κ.up.sc) (ISub.cons r hr0 (ISub.id k4)).sc) ((ρ.comp σ).comp κ))) :=
+    fun κ r hr0 => lineP_dinst hW hD hH hp hP hArgK hRL _ _ _ r hr0
+  have hQc : ∀ {k4 : ℕ} (θ : ISub k4 (K + 1)), (Tm.data d (Q.isub θ)).closedB 0 k4 = true := by
+    intro k4 θ
+    have := closed_of_isTyK hW (Comp2_ty_base (hQ k4 θ.tail (θ.τ 0) (θ.τ 0) (θ.sc 0 (by omega)) (θ.sc 0 (by omega))
+      (I_eq_refl _))).2.2.1
+    rwa [ISub.cons_tail] at this
+  have hQend : ∀ {k4 : ℕ} (κ : ISub k4 k3) (r : I) (hr0 : r.Scoped k4),
+      ((Tm.data d Q).isub (ISub.cons (y'.subst κ.up.τ) (I.scoped_subst hy' κ.up.sc) ((ρ.comp σ).comp κ).up.tail)).dinst r =
+        .data d (Q.isub (ISub.cons ((y'.subst κ.up.τ).subst (ISub.cons r hr0 (ISub.id k4)).τ)
+          (I.scoped_subst (I.scoped_subst hy' κ.up.sc) (ISub.cons r hr0 (ISub.id k4)).sc) ((ρ.comp σ).comp κ))) := by
+    intro k4 κ r hr0
+    show (Tm.data d (Q.isub _)).dinst r = _
+    rw [← isub_cons_id_of_closed (hQc _) r hr0]
+    show Tm.data d ((Q.isub _).isub _) = _
+    rw [Tm.isub_isub, line_comp, ISub.comp_id]
+  -- the ends of the right line are those of the left line
+  have hLR : ∀ {k4 : ℕ} (κ : ISub k4 k3) (r : I) (hr0 : r.Scoped k4),
+      RT2 S k4 (((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail)).dinst r)
+        (((Tm.data d Q).isub (ISub.cons (y'.subst κ.up.τ) (I.scoped_subst hy' κ.up.sc) ((ρ.comp σ).comp κ).up.tail)).dinst r) := by
+    intro k4 κ r hr0
+    rw [hPend κ r hr0, hQend κ r hr0]
+    exact hQ k4 _ _ _ _ _ (I_eq_subst (I_eq_subst hE _) _)
+  -- the typings at a restriction
+  have htyκ : ∀ {k4 : ℕ} (κ : ISub k4 k3), HasTy S k4 .one []
+      (.transp ((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+        (ψ.subst κ.τ) (x.isub (σ.comp κ)))
+      (((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail)).dinst .one) := by
+    intro k4 κ
+    have h := HasTy.isubS hW hty κ
+    have e : (Tm.transp ((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)) ψ (x.isub σ)).isub κ =
+        .transp ((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+          (ψ.subst κ.τ) (x.isub (σ.comp κ)) := by
+      show Tm.transp (((Tm.data d P).isub _).isub κ.up) _ ((x.isub σ).isub κ) = _
+      rw [line_isub_up, Tm.isub_isub]
+    rw [e, eL κ .one] at h
+    exact h
+  have htyκ' : ∀ {k4 : ℕ} (κ : ISub k4 k3), HasTy S k4 .one []
+      (.transp ((Tm.data d Q).isub (ISub.cons (y'.subst κ.up.τ) (I.scoped_subst hy' κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+        (ψ'.subst κ.τ) (x'.isub (σ.comp κ)))
+      (((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail)).dinst .one) := by
+    intro k4 κ
+    have h := HasTy.isubS hW hty' κ
+    have e : (Tm.transp ((Tm.data d Q).isub (ISub.cons y' hy' (ρ.comp σ).up.tail)) ψ' (x'.isub σ)).isub κ =
+        .transp ((Tm.data d Q).isub (ISub.cons (y'.subst κ.up.τ) (I.scoped_subst hy' κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+          (ψ'.subst κ.τ) (x'.isub (σ.comp κ)) := by
+      show Tm.transp (((Tm.data d Q).isub _).isub κ.up) _ ((x'.isub σ).isub κ) = _
+      rw [line_isub_up, Tm.isub_isub]
+    rw [e, eL κ .one] at h
+    exact h
+  -- the end of the line is related to itself
+  have hcL : ((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)).closedB 0 (k3 + 1) = true :=
+    closed_of_ty hW (HasTy.isubS hW hP _)
+  have hX : TyCode k3 (semK S k3 (((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)).dinst .one)) :=
+    tyCode_of_ty hW hty
+  have hAA : RT2 S k3 (((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)).dinst .one)
+      (((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)).dinst .one) := by
+    have h := LR k3 (ISub.id k3) .one .one trivial trivial (I_eq_refl _)
+    rw [isub_cons_id_of_closed hcL] at h
+    exact RT2.refl hW hX h
+  -- the reducts at the restrictions
+  refine RE2.expandBoth hW hX hAA hty hty'
+    (fun k4 κ => if I.Entails .one (ψ.subst κ.τ) then x.isub (σ.comp κ) else
+      tCon d D (c k4 κ) (C k4 κ) (P.isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+        (ψ.subst κ.τ) (Z k4 κ))
+    (fun k4 κ => if I.Entails .one (ψ'.subst κ.τ) then x'.isub (σ.comp κ) else
+      tCon d D (c k4 κ) (C k4 κ) (Q.isub (ISub.cons (y'.subst κ.up.τ) (I.scoped_subst hy' κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+        (ψ'.subst κ.τ) (Z' k4 κ))
+    (fun k4 κ => ?_) (fun k4 κ => ?_) (fun k4 κ k5 κ' => ?_)
+  · -- the left reducts
+    have e : (Tm.transp ((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)) ψ (x.isub σ)).isub κ =
+        .transp ((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+          (ψ.subst κ.τ) (x.isub (σ.comp κ)) := by
+      show Tm.transp (((Tm.data d P).isub _).isub κ.up) _ ((x.isub σ).isub κ) = _
+      rw [line_isub_up, Tm.isub_isub]
+    rw [e, eL κ .one]
+    dsimp only
+    split_ifs with hf
+    · exact ⟨.step (step_transp_face hf) (.refl _), EqTm.transpFace hf (htyκ κ)⟩
+    · have eb := (hr k4 κ).2
+      rw [← hPend κ .zero trivial] at eb
+      have rb := transp_rebase hW (htyκ κ) eb
+      have eT := (transpCon_eq hW hD hp hH (hC k4 κ) rb.1).1
+      exact ⟨(red_transp_base hD hp hf (hr k4 κ).1.1).trans (.step (step_transp_con hD hp hH (hC k4 κ) hf (hZl k4 κ))
+        (.refl _)), rb.2.trans eT⟩
+  · -- the right reducts
+    have e : (Tm.transp ((Tm.data d Q).isub (ISub.cons y' hy' (ρ.comp σ).up.tail)) ψ' (x'.isub σ)).isub κ =
+        .transp ((Tm.data d Q).isub (ISub.cons (y'.subst κ.up.τ) (I.scoped_subst hy' κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+          (ψ'.subst κ.τ) (x'.isub (σ.comp κ)) := by
+      show Tm.transp (((Tm.data d Q).isub _).isub κ.up) _ ((x'.isub σ).isub κ) = _
+      rw [line_isub_up, Tm.isub_isub]
+    rw [e, eL κ .one]
+    dsimp only
+    split_ifs with hf
+    · exact ⟨.step (step_transp_face hf) (.refl _), EqTm.transpFace hf (htyκ' κ)⟩
+    · have r0 := hLR κ .zero trivial
+      have r1 := hLR κ .one trivial
+      have eb := (hr' k4 κ).2
+      rw [← hPend κ .zero trivial] at eb
+      have eb' := eb.tyConv (tyB r0)
+      have hty1 := (htyκ' κ).tyConv (tyB r1)
+      have rb := transp_rebase hW hty1 eb'
+      have eT := (transpCon_eq hW hD hp hH (hC k4 κ) rb.1).1
+      exact ⟨(red_transp_base hD hp hf (hr' k4 κ).1.1).trans (.step (step_transp_con hD hp hH (hC k4 κ) hf (hZ'l k4 κ))
+        (.refl _)), (rb.2.trans eT).tyConv (TyEq.symm (tyB r1))⟩
+  · -- the reducts across restrictions
+    have hPl : IsList P := tele_isList (gen_data_tele (spec_to_minimal hW hP) rfl).choose_spec.2
+    have hPlen : P.toList.length = D.params.length := by
+      have := data_len_of hW (⟨_, .inl hP⟩ : IsTyK S (K + 1) (.data d P)); rwa [hdD] at this
+    have eY : (y.subst κ.up.τ).subst κ'.up.τ = y.subst (κ.comp κ').up.τ := by rw [← I_subst_comp, ISub.up_comp]
+    have eψ : (ψ.subst κ.τ).subst κ'.τ = ψ.subst (κ.comp κ').τ := (I_subst_comp ψ κ κ').symm
+    have eT : ((ρ.comp σ).comp κ).comp κ' = (ρ.comp σ).comp (κ.comp κ') := ISub.comp_assoc _ _ _
+    have ex : (x.isub (σ.comp κ)).isub κ' = x.isub (σ.comp (κ.comp κ')) := by rw [Tm.isub_isub, ISub.comp_assoc]
+    have eLine : (P.isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail)).isub κ'.up =
+        P.isub (ISub.cons (y.subst (κ.comp κ').up.τ) (I.scoped_subst hy (κ.comp κ').up.sc)
+          ((ρ.comp σ).comp (κ.comp κ')).up.tail) := by
+      rw [line_isub_up]; congr 2 <;> simp only [eY, eT]
+    -- the line at the points of a restriction
+    have hLpt : ∀ {k6 : ℕ} (κ3 : ISub k6 k3) (r : I) (hr0 : r.Scoped k6),
+        ((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)).isub (ISub.cons r hr0 κ3) =
+          ((Tm.data d P).isub (ISub.cons (y.subst κ3.up.τ) (I.scoped_subst hy κ3.up.sc) ((ρ.comp σ).comp κ3).up.tail)).dinst r := by
+      intro k6 κ3 r hr0
+      rw [← isub_up_dinst _ κ3 r hr0, line_isub_up]
+    have hXL : ∀ {k6 : ℕ} (θ : ISub k6 (K + 1)), TyCode k6 (semK S k6 (.data d (P.isub θ))) := fun θ =>
+      tyCode_of_univ hW (HasTy.isubS hW hP θ)
+    -- the start and the end of the line where the face holds
+    have hconst : ∀ {k6 : ℕ} (κ3 : ISub k6 k3), I.Entails .one (ψ.subst κ3.τ) →
+        RT2 S k6 (((Tm.data d P).isub (ISub.cons (y.subst κ3.up.τ) (I.scoped_subst hy κ3.up.sc) ((ρ.comp σ).comp κ3).up.tail)).dinst .zero)
+          (((Tm.data d P).isub (ISub.cons (y.subst κ3.up.τ) (I.scoped_subst hy κ3.up.sc) ((ρ.comp σ).comp κ3).up.tail)).dinst .one) := by
+      intro k6 κ3 hf3
+      have c1 := LC k6 κ3 .one trivial ((holds_iff_entails (I.scoped_subst hψs κ3.sc)).2 hf3)
+      rw [hLpt, hLpt, hPend κ3 .one trivial, hPend κ3 .zero trivial] at c1
+      rw [hPend κ3 .zero trivial, hPend κ3 .one trivial]
+      exact RT2.symm hW (hXL _) c1
+    rw [eL (κ.comp κ') .one]
+    dsimp only
+    by_cases hf : I.Entails .one (ψ.subst κ.τ)
+    · -- the face holds: the bases
+      have hf2 : I.Entails .one (ψ.subst (κ.comp κ').τ) := by rw [← eψ]; exact ent_one_subst hf _
+      have hf2' : I.Entails .one (ψ'.subst (κ.comp κ').τ) := ent_trans hf2 (ent_subst h12 _)
+      rw [if_pos hf, if_pos hf2', ex]
+      have h := hb (κ.comp κ')
+      rw [← hPend (κ.comp κ') .zero trivial] at h
+      exact RE2.conv hW (hconst _ hf2) h
+    -- the face does not hold: the left reduct, restricted
+    have hPLl : ∀ {k6 : ℕ} (θ : ISub k6 (K + 1)), IsList (P.isub θ) := fun θ => isList_subst hPl _ _
+    have hPLlen : ∀ {k6 : ℕ} (θ : ISub k6 (K + 1)), (P.isub θ).toList.length = D.params.length := fun θ => by
+      show (P.subst Tm.var θ.τ).toList.length = _
+      rw [toList_subst hPl]; simp [hPlen]
+    rw [if_neg hf, tCon_isub hW hD (hC k4 κ) (hPLl _) (hPLlen _) (hZl k4 κ) κ', eLine, eψ]
+    have hPθ2 := HasTy.isubS hW hP (ISub.cons (y.subst (κ.comp κ').up.τ) (I.scoped_subst hy (κ.comp κ').up.sc)
+      ((ρ.comp σ).comp (κ.comp κ')).up.tail)
+    -- the restricted normal form of the left base, against the left base at the restriction
+    have R0 : RE2 S k5 (((Tm.data d P).isub (ISub.cons (y.subst (κ.comp κ').up.τ) (I.scoped_subst hy (κ.comp κ').up.sc)
+        ((ρ.comp σ).comp (κ.comp κ')).up.tail)).dinst .zero)
+        (.con d (c k4 κ) ((qs k4 κ).isub κ') (Tm.ofList ((Z k4 κ).map (·.isub κ'))) []) (x.isub (σ.comp (κ.comp κ'))) := by
+      have r0 := RE2.isub hW (RE2_whnf_con hW hD hH hP hPP1 _ (hb κ) (hC k4 κ) (hr k4 κ)) κ'
+      rw [show (Tm.con d (c k4 κ) (qs k4 κ) (Tm.ofList (Z k4 κ)) []).isub κ' =
+          .con d (c k4 κ) ((qs k4 κ).isub κ') (Tm.ofList ((Z k4 κ).map (·.isub κ'))) [] by
+        show Tm.con d _ ((qs k4 κ).isub κ') ((Tm.ofList (Z k4 κ)).isub κ') [] = _; rw [ofList_isub], ex] at r0
+      rw [show (Tm.data d (P.isub (ISub.cons ((y.subst κ.up.τ).subst (ISub.cons .zero trivial (ISub.id k4)).τ)
+          (I.scoped_subst (I.scoped_subst hy κ.up.sc) (ISub.cons .zero trivial (ISub.id k4)).sc) ((ρ.comp σ).comp κ)))).isub κ' =
+          .data d (P.isub (ISub.cons (((y.subst κ.up.τ).subst (ISub.cons .zero trivial (ISub.id k4)).τ).subst κ'.τ)
+            (I.scoped_subst (I.scoped_subst (I.scoped_subst hy κ.up.sc) (ISub.cons .zero trivial (ISub.id k4)).sc) κ'.sc)
+            ((ρ.comp σ).comp (κ.comp κ')))) by
+        show Tm.data d ((P.isub _).isub _) = _; rw [Tm.isub_isub, ISub.cons_comp, eT]] at r0
+      rw [hPend (κ.comp κ') .zero trivial]
+      refine RE2.conv hW (hRL k5 _ _ _ _ _ ?_) r0
+      exact I_eq_trans (I_eq_subst (ieq_zero_up h0 κ) κ'.τ) (I_eq_symm (ieq_zero_up h0 (κ.comp κ')))
+    have hA0 : RT2 S k5 (((Tm.data d P).isub (ISub.cons (y.subst (κ.comp κ').up.τ) (I.scoped_subst hy (κ.comp κ').up.sc)
+        ((ρ.comp σ).comp (κ.comp κ')).up.tail)).dinst .zero)
+        (((Tm.data d P).isub (ISub.cons (y.subst (κ.comp κ').up.τ) (I.scoped_subst hy (κ.comp κ').up.sc)
+        ((ρ.comp σ).comp (κ.comp κ')).up.tail)).dinst .zero) := by
+      rw [hPend (κ.comp κ') .zero trivial]; exact hRL k5 _ _ _ _ _ (I_eq_refl _)
+    have LC2 : LineConst S k5 (.data d (P.isub (ISub.cons (y.subst (κ.comp κ').up.τ) (I.scoped_subst hy (κ.comp κ').up.sc)
+        ((ρ.comp σ).comp (κ.comp κ')).up.tail))) (ψ.subst (κ.comp κ').τ) := by
+      have := LineConst.isub LC (κ.comp κ'); rwa [line_isub_up] at this
+    have e0 := (RE2.typed R0).2.2.symm
+    have rb := transp_rebase hW (htyκ (κ.comp κ')) e0
+    by_cases hf2' : I.Entails .one (ψ'.subst (κ.comp κ').τ)
+    · -- the face holds at the further restriction: the contractum, against the base
+      have hf2 : I.Entails .one (ψ.subst (κ.comp κ').τ) := ent_trans hf2' (ent_subst h21 _)
+      rw [if_pos hf2']
+      have R00 := RE2.trans hW hA0 R0 (RE2.symm hW hA0 R0)
+      have TF := tcon_face hW hD hp hH (hC k4 κ) hPθ2 (Rob.line hRL _ _ _ _ _ (I_eq_refl _)) LC2
+        (I.scoped_subst hψs (κ.comp κ').sc) hf2 rb.1 R00
+      have hc := hconst (κ.comp κ') hf2
+      have R0' := RE2.conv hW hc R0
+      have hb2 := hb (κ.comp κ')
+      rw [← hPend (κ.comp κ') .zero trivial] at hb2
+      have hb2' := RE2.conv hW hc hb2
+      have hA1 := RT2.refl' hW (RE2.tyCode hW R0) hc
+      exact RE2.trans hW hA1 TF (RE2.trans hW hA1 R0' hb2')
+    sorry
 
 end ind
 
