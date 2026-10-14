@@ -24,10 +24,9 @@ variable {S : Sig} {k k' k'' : ℕ}
 
 /-- The data of a transport of related constructors along related literal lines of an inductive type. -/
 structure TC (S : Sig) (k d : ℕ) (D : DataDecl) (PL QL : Tm) (φ φ' : I) (c : ℕ) (C : Ctor) (q q' : Tm)
-    (X X' : List Tm) : Prop where
+    (X X' : List Tm) (rs rs' : List I) : Prop where
   hW : WfSig S
   hD : S[d]? = some (.data D)
-  hH : D.isHIT = false
   hp : D.params ≠ []
   hC : D.ctors[c]? = some C
   hPL : HasTy S (k + 1) .one [] (.data d PL) (.univ D.level)
@@ -40,10 +39,10 @@ structure TC (S : Sig) (k d : ℕ) (D : DataDecl) (PL QL : Tm) (φ φ' : I) (c :
   h12 : I.Entails φ φ'
   h21 : I.Entails φ' φ
   hLC : LineConst S k (.data d PL) φ
-  hty : HasTy S k .one [] (.transp (.data d PL) φ (.con d c q (Tm.ofList X) [])) (.data d (PL.dinst .one))
-  hty' : HasTy S k .one [] (.transp (.data d QL) φ' (.con d c q' (Tm.ofList X') [])) (.data d (PL.dinst .one))
-  heq : EqTm S k .one [] (.transp (.data d PL) φ (.con d c q (Tm.ofList X) []))
-    (.transp (.data d QL) φ' (.con d c q' (Tm.ofList X') [])) (.data d (PL.dinst .one))
+  hty : HasTy S k .one [] (.transp (.data d PL) φ (.con d c q (Tm.ofList X) rs)) (.data d (PL.dinst .one))
+  hty' : HasTy S k .one [] (.transp (.data d QL) φ' (.con d c q' (Tm.ofList X') rs')) (.data d (PL.dinst .one))
+  heq : EqTm S k .one [] (.transp (.data d PL) φ (.con d c q (Tm.ofList X) rs))
+    (.transp (.data d QL) φ' (.con d c q' (Tm.ofList X') rs')) (.data d (PL.dinst .one))
   hargs0 : ∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
     ((X.take i).reverse ++ (PL.dinst .zero).toList.reverse)) (X.getD i .abort) (X'.getD i .abort)
   hrecT : ∀ i (hi : i < C.args.length), C.isRec i = true → ∀ k3 (τ : ISub k3 k) (y y' : I)
@@ -51,6 +50,15 @@ structure TC (S : Sig) (k d : ℕ) (D : DataDecl) (PL QL : Tm) (φ φ' : I) (c :
     I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero →
     KanT2At S k3 ((Tm.data d PL).isub (ISub.cons y hy τ.up.tail)) ((Tm.data d QL).isub (ISub.cons y' hy' τ.up.tail))
       ((X.getD i .abort).isub τ) ((X'.getD i .abort).isub τ)
+  /-- Constructors (with the interval arguments) with related arguments at the end of the line are related. -/
+  conR : ∀ (Y Y' : List Tm), Y.length = C.args.length → Y'.length = C.args.length →
+    HasTy S k .one [] (.con d c (PL.dinst .one) (Tm.ofList Y) rs) (.data d (PL.dinst .one)) →
+    EqTm S k .one [] (.con d c (PL.dinst .one) (Tm.ofList Y) rs) (.con d c (QL.dinst .one) (Tm.ofList Y') rs')
+      (.data d (PL.dinst .one)) →
+    (∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
+      ((Y.take i).reverse ++ (PL.dinst .one).toList.reverse)) (Y.getD i .abort) (Y'.getD i .abort)) →
+    RE2 S k (.data d (PL.dinst .one)) (.con d c (PL.dinst .one) (Tm.ofList Y) rs)
+      (.con d c (QL.dinst .one) (Tm.ofList Y') rs')
 
 /-- The argument line of a transported constructor. -/
 abbrev tl (d : ℕ) (D : DataDecl) (C : Ctor) (ps : Tm) (φ : I) (X : List Tm) (j : ℕ) : Tm :=
@@ -85,12 +93,11 @@ theorem tOuts_length (d : ℕ) (D : DataDecl) (C : Ctor) (ps : Tm) (φ : I) (X :
 
 section typing
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hp : D.params ≠ [])
-  (hH : D.isHIT = false)
-include hW hD hp hH
+include hW hD hp
 
 /-- The typings of the argument lines, transports and fillers of a transported constructor. -/
-theorem tcon_typing {ps qs T : Tm} {φ : I} {c : ℕ} {C : Ctor} {X : List Tm} (hC : D.ctors[c]? = some C)
-    (hty : HasTy S k .one [] (.transp (.data d ps) φ (.con d c qs (Tm.ofList X) [])) T) {j : ℕ}
+theorem tcon_typing {ps qs T : Tm} {φ : I} {c : ℕ} {C : Ctor} {X : List Tm} {rs : List I} (hC : D.ctors[c]? = some C)
+    (hty : HasTy S k .one [] (.transp (.data d ps) φ (.con d c qs (Tm.ofList X) rs)) T) {j : ℕ}
     (hj : j < C.args.length) :
     ∃ l, HasTy S (k + 1) .one [] (tl d D C ps φ X j) (.univ l) ∧
       HasTy S k .one [] (.transp (tl d D C ps φ X j) φ (X.getD j .abort)) ((tl d D C ps φ X j).dinst .one) ∧
@@ -100,7 +107,7 @@ theorem tcon_typing {ps qs T : Tm} {φ : I} {c : ℕ} {C : Ctor} {X : List Tm} (
         ((C.argTy d D.params.length j).substList (((tOuts d D C ps φ X).take j).reverse ++
           (ps.dinst .one).toList.reverse)) := by
   have hS := sigClosed_of_wfSig hW
-  obtain ⟨-, htp, hXl⟩ := transpCon_eq hW hD hp hH hC hty
+  obtain ⟨-, htp, hXl, -⟩ := transpCon_eqR hW hD hp hC hty
   obtain ⟨l0, ⟨hLt, hφ, hc, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty) rfl
   obtain ⟨D', hD', hPt⟩ := gen_data_tele hLt rfl
   rw [hD] at hD'; cases hD'
@@ -243,7 +250,7 @@ theorem tcon_face {PL q : Tm} {ψ : I} {c : ℕ} {C : Ctor} {X : List Tm} (hC : 
         argTy_rt2' hW hD hd0 s0 h01 hC hj (by simp; omega) (by simp [tOuts_length]; omega) (fun i hi => by
           rw [List.take_take, Nat.min_eq_left hi.le, getD_take_lt hi, getD_take_lt hi]
           exact (ihj i hi (by omega)).2)
-      obtain ⟨-, -, -, -, -, htyO⟩ := tcon_typing hW hD hp hH hC hty hj
+      obtain ⟨-, -, -, -, -, htyO⟩ := tcon_typing hW hD hp hC hty hj
       rw [← tOuts_getD d D C PL ψ X hj] at htyO
       have hX : TyCode k (semK S k ((C.argTy d D.params.length j).substList ((X.take j).reverse ++
           (PL.dinst .zero).toList.reverse))) := RE2.tyCode hW (hargsX j hj)
@@ -268,22 +275,22 @@ end face
 namespace TC
 
 variable {d : ℕ} {D : DataDecl} {PL QL : Tm} {φ φ' : I} {c : ℕ} {C : Ctor} {q q' : Tm} {X X' : List Tm}
-  (H : TC S k d D PL QL φ φ' c C q q' X X')
+  {rs rs' : List I} (H : TC S k d D PL QL φ φ' c C q q' X X' rs rs')
 include H
 
 /-- The basic facts: the `transpCon` equations, the arguments' telescopes, the parameters. -/
 theorem basic :
-    EqTm S k .one [] (.transp (.data d PL) φ (.con d c q (Tm.ofList X) [])) (tCon d D c C PL φ X)
+    EqTm S k .one [] (.transp (.data d PL) φ (.con d c q (Tm.ofList X) rs)) (tConR d D c C PL φ X rs)
       (.data d (PL.dinst .one)) ∧
-    EqTm S k .one [] (.transp (.data d QL) φ' (.con d c q' (Tm.ofList X') [])) (tCon d D c C QL φ' X')
+    EqTm S k .one [] (.transp (.data d QL) φ' (.con d c q' (Tm.ofList X') rs')) (tConR d D c C QL φ' X' rs')
       (.data d (PL.dinst .one)) ∧
     HasTele0 S k .one [] (Tm.ofList X) (C.argTys d D.params.length) (PL.dinst .zero).toList.reverse ∧
     HasTele0 S k .one [] (Tm.ofList X') (C.argTys d D.params.length) (QL.dinst .zero).toList.reverse ∧
     X.length = C.args.length ∧ X'.length = C.args.length ∧
     IsList PL ∧ IsList QL ∧ PL.toList.length = D.params.length ∧ QL.toList.length = D.params.length ∧
     PL.closedB 0 (k + 1) = true ∧ QL.closedB 0 (k + 1) = true := by
-  obtain ⟨e, ht, hl⟩ := transpCon_eq H.hW H.hD H.hp H.hH H.hC H.hty
-  obtain ⟨e', ht', hl'⟩ := transpCon_eq H.hW H.hD H.hp H.hH H.hC H.hty'
+  obtain ⟨e, ht, hl, -⟩ := transpCon_eqR H.hW H.hD H.hp H.hC H.hty
+  obtain ⟨e', ht', hl', -⟩ := transpCon_eqR H.hW H.hD H.hp H.hC H.hty'
   have hdD := dataD_eq H.hW H.hD
   obtain ⟨l0, ⟨hLt, -, -, -⟩, -⟩ := gen_transpF (spec_to_minimal H.hW H.hty') rfl
   obtain ⟨D', hD', hQt⟩ := gen_data_tele hLt rfl
@@ -417,8 +424,8 @@ theorem tyO' {i : ℕ} (hi : i < C.args.length)
     HasTy S k .one [] (.transp (tl d D C QL φ' X' i) φ' (X'.getD i .abort)) ((tl d D C PL φ X i).dinst .one) ∧
     TyEq S (k + 1) (tl d D C PL φ X i) (tl d D C QL φ' X' i) := by
   have hW := H.hW
-  obtain ⟨lj, hLj, -, -, -, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty hi
-  obtain ⟨lj', hLj', htyO', -, -, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty' hi
+  obtain ⟨lj, hLj, -, -, -, -⟩ := tcon_typing hW H.hD H.hp H.hC H.hty hi
+  obtain ⟨lj', hLj', htyO', -, -, -⟩ := tcon_typing hW H.hD H.hp H.hC H.hty' hi
   have hcj : (tl d D C PL φ X i).closedB 0 (k + 1) = true := closed_ty (spec_to_minimal hW hLj)
   have hcj' : (tl d D C QL φ' X' i).closedB 0 (k + 1) = true := closed_ty (spec_to_minimal hW hLj')
   have r1 := G2 k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
@@ -435,8 +442,8 @@ theorem good_pt {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
   obtain ⟨-, -, -, -, hXl, hX'l, hPl, hQl, -, -, hPc, -⟩ := H.basic
   have hlF := tF_length d D C PL φ X
   have hlF' := tF_length d D C QL φ' X'
-  obtain ⟨lj, hLj, htyO, htyF, -, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty hj
-  obtain ⟨lj', hLj', htyO', htyF', -, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty' hj
+  obtain ⟨lj, hLj, htyO, htyF, -, -⟩ := tcon_typing hW H.hD H.hp H.hC H.hty hj
+  obtain ⟨lj', hLj', htyO', htyF', -, -⟩ := tcon_typing hW H.hD H.hp H.hC H.hty' hj
   have hcj : (tl d D C PL φ X j).closedB 0 (k + 1) = true := closed_ty (spec_to_minimal hW hLj)
   have hcj' : (tl d D C QL φ' X' j).closedB 0 (k + 1) = true := closed_ty (spec_to_minimal hW hLj')
   have hXL : ∀ {k4 : ℕ} (θ : ISub k4 (k + 1)), TyCode k4 (semK S k4 ((tl d D C PL φ X j).isub θ)) := fun θ =>
@@ -467,7 +474,7 @@ theorem good_pt {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
         rw [hBget _ hlF i hi, gF i hi]; exact H.fill_self (ih i hi) τ y y' hy hy' hE)
     rwa [← tl_isub hW H.hD H.hC hPl φ X hj.le] at h
   -- the earlier arguments' typings
-  have tyi := fun i (hi : i < j) => tcon_typing hW H.hD H.hp H.hH H.hC H.hty (j := i) (by omega)
+  have tyi := fun i (hi : i < j) => tcon_typing hW H.hD H.hp H.hC H.hty (j := i) (by omega)
   -- (G4) constancy of the line on the face
   have G4 : LineConst S k (tl d D C PL φ X j) φ := by
     intro k3 τ r hr hh
@@ -524,8 +531,8 @@ theorem good_pt {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
       (.transp (tl d D C QL φ' X' j) φ' (X'.getD j .abort)) := by
     have K0 := G8 k (ISub.id k) (.var 0) (.var 0) (show 0 < k + 1 by omega) (show 0 < k + 1 by omega) (I_eq_refl _)
       (I_eq_refl _)
-    obtain ⟨-, -, -, -, htyXj, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty hj
-    obtain ⟨-, -, -, -, htyXj', -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty' hj
+    obtain ⟨-, -, -, -, htyXj, -⟩ := tcon_typing hW H.hD H.hp H.hC H.hty hj
+    obtain ⟨-, -, -, -, htyXj', -⟩ := tcon_typing hW H.hD H.hp H.hC H.hty' hj
     rw [ISub.cons_var0_up_tail, isub_up_id_of_closed hcj, isub_up_id_of_closed hcj',
       isub_id_of_closed (closed_of_ty hW htyXj), isub_id_of_closed (closed_of_ty hW htyXj')] at K0
     exact K0 G2 φ φ' G4 htyO htyO'' (eqTm_transp_of hW htyO htyO'' eL H.h12 H.h21 (RE2.typed B).2.2) H.h12 H.h21 B
@@ -551,8 +558,8 @@ theorem good_rec {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true)
     (ih : ∀ i, i < j → Good S k d D PL QL φ φ' C X X' i) : Good S k d D PL QL φ φ' C X X' j := by
   have hW := H.hW
   obtain ⟨-, -, -, -, hXl, hX'l, hPl, hQl, hPlen, hQlen, hPc, hQc⟩ := H.basic
-  obtain ⟨lj, hLj, htyO, htyF, htyXj, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty hj
-  obtain ⟨lj', hLj', htyO', htyF', htyXj', -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty' hj
+  obtain ⟨lj, hLj, htyO, htyF, htyXj, -⟩ := tcon_typing hW H.hD H.hp H.hC H.hty hj
+  obtain ⟨lj', hLj', htyO', htyF', htyXj', -⟩ := tcon_typing hW H.hD H.hp H.hC H.hty' hj
   have eL := tl_rec (d := d) hPl hPlen φ X hj.le hrj
   have eL' := tl_rec (d := d) hQl hQlen φ' X' hj.le hrj
   rw [eL] at hLj htyO htyF htyXj
@@ -615,7 +622,7 @@ theorem good_all : ∀ j, j < C.args.length → Good S k d D PL QL φ φ' C X X'
     · exact H.good_rec hj hrj ih
 
 /-- Transport of related constructors along related literal lines: the contracta are related. -/
-theorem rel : RE2 S k (.data d (PL.dinst .one)) (tCon d D c C PL φ X) (tCon d D c C QL φ' X') := by
+theorem rel : RE2 S k (.data d (PL.dinst .one)) (tConR d D c C PL φ X rs) (tConR d D c C QL φ' X' rs') := by
   have hW := H.hW
   obtain ⟨eT, eT', -, -, hXl, hX'l, hPl, hQl, hPlen, hQlen, hPc, hQc⟩ := H.basic
   have hP1 : PL.isub (ISub.cons .one trivial (ISub.id k)) = PL.dinst .one := isub_cons_id_of_closed hPc .one trivial
@@ -627,13 +634,10 @@ theorem rel : RE2 S k (.data d (PL.dinst .one)) (tCon d D c C PL φ X) (tCon d D
   have hc1 : (PL.dinst .one).closedB 0 k = true := data_closed hW H.hD hd1
   have he := eT.symm.trans (H.heq.trans eT')
   have hcT := HasTy.eqR eT
-  have key := RE2_con_args hW H.hD H.hH hd1 s1 (ISub.id k) H.hC (Y := tOuts d D C PL φ X) (Y' := tOuts d D C QL φ' X')
-    (q := PL.dinst .one) (q' := QL.dinst .one) (tOuts_length _ _ _ _ _ _) (tOuts_length _ _ _ _ _ _)
-    (by rw [isub_id_of_closed hc1]; exact hcT) (by rw [isub_id_of_closed hc1]; exact he) (fun i hi => by
-      rw [isub_id_of_closed hc1, tOuts_getD d D C PL φ X hi, tOuts_getD d D C QL φ' X' hi]
+  exact H.conR _ _ (tOuts_length _ _ _ _ _ _) (tOuts_length _ _ _ _ _ _) hcT he (fun i hi => by
+      rw [tOuts_getD d D C PL φ X hi, tOuts_getD d D C QL φ' X' hi]
       have G := H.good_all i hi
       exact RE2.conv hW G.2.2.2.2.2.2.1 G.2.2.2.2.2.1)
-  rwa [isub_id_of_closed hc1] at key
 
 end TC
 

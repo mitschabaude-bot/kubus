@@ -209,6 +209,23 @@ theorem argLine_kanT {n' : ℕ} {P1 Q2 : Tm} (hP1 : HasTy S (n' + 1) .one [] (.d
 
 end wrap
 
+/-- Constructors with related arguments are related, at a literal type. -/
+theorem RE2_con_args_id (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
+    {k3 : ℕ} {P1 : Tm} (hP1 : HasTy S k3 .one [] (.data d P1) (.univ D.level)) (hPP : RT2 S k3 (.data d P1) (.data d P1))
+    {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {Q1 : Tm} (Y Y' : List Tm)
+    (hYl : Y.length = C.args.length) (hY'l : Y'.length = C.args.length)
+    (hcT : HasTy S k3 .one [] (.con d c P1 (Tm.ofList Y) []) (.data d P1))
+    (he : EqTm S k3 .one [] (.con d c P1 (Tm.ofList Y) []) (.con d c Q1 (Tm.ofList Y') []) (.data d P1))
+    (hargs : ∀ i (hi : i < C.args.length), RE2 S k3 ((C.argTy d D.params.length i).substList
+      ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y'.getD i .abort)) :
+    RE2 S k3 (.data d P1) (.con d c P1 (Tm.ofList Y) []) (.con d c Q1 (Tm.ofList Y') []) := by
+  have hc1 : P1.closedB 0 k3 = true := data_closed hW hD hP1
+  have := RE2_con_args hW hD hH hP1 hPP (ISub.id k3) hC (q := P1) (q' := Q1) hYl hY'l
+    (by rw [isub_id_of_closed hc1]; exact hcT) (by rw [isub_id_of_closed hc1]; exact he)
+    (fun i hi => by rw [isub_id_of_closed hc1]; exact hargs i hi)
+  rwa [isub_id_of_closed hc1] at this
+
+
 end
 
 end Model.Whnf

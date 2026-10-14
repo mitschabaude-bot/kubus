@@ -283,9 +283,19 @@ theorem tm2_con {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' : Tm} {c : ℕ} {C :
     show TyEq S k1 (Tm.data d ((Q.isub _).isub _)) (Tm.data d ((P.isub _).isub _))
     rw [Tm.isub_isub, Tm.isub_isub, line_comp, line_comp, ISub.comp_id]
     exact TyEq.symm (tyB (hQ k1 ρ _ _ _ _ (I_eq_subst hE _)))
+  -- the end of the line
+  have hPθc : (P.isub (ISub.cons y hy ρ.up.tail)).closedB 0 (k1 + 1) = true :=
+    data_closed hW hD (HasTy.isubS hW hP (ISub.cons y hy ρ.up.tail))
+  have s1 : RT2 S k1 (.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .one))
+      (.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .one)) := by
+    have := Rob.line hRL ρ y y hy hy (I_eq_refl _) k1 (ISub.id k1) .one .one trivial trivial (I_eq_refl _)
+    rwa [isub_cons_id_of_closed hPθc] at this
+  have hd1 : HasTy S k1 .one [] (.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .one)) (.univ D.level) :=
+    data_whnf_ty hW hD (Comp2_ty_base s1).2.1 ⟨redW_self (step_data d _), TyEq.refl _⟩
   have H : TC S k1 d D (P.isub (ISub.cons y hy ρ.up.tail)) (Q.isub (ISub.cons y' hy' ρ.up.tail)) ψ ψ' _ C _ _
-      args args' :=
-    { hW := hW, hD := hD, hH := hH, hp := hp, hC := hC', hPL := HasTy.isubS hW hP _,
+      args args' [] [] :=
+    { hW := hW, hD := hD, hp := hp, hC := hC', hPL := HasTy.isubS hW hP _,
+      conR := fun Y Y' hYl hY'l hcT he hargs => RE2_con_args_id hW hD hH hd1 s1 hC' Y Y' hYl hY'l hcT he hargs,
       hR := Rob.line hQ ρ y y' hy hy' hE, hRL := Rob.line hRL ρ y y hy hy (I_eq_refl _),
       hArgK := argK_restr hArgK _, hφs := hψs, h12 := h12, h21 := h21, hLC := LC, hty := rb.1,
       hty' := rb'.1.tyConv e1', heq := rb.2.symm.trans (heq.trans (rb'.2.tyConv e1')), hargs0 := hargs0,
