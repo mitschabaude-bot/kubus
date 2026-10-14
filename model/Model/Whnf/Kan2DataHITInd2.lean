@@ -262,13 +262,13 @@ theorem tc_node (hyp : HITHyp2 S) {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Sc
     (hZ : ∀ i (hi : i < C.args.length), RE2 S k1 ((C.argTy d D.params.length i).substList
       ((Z.take i).reverse ++ ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .zero).toList.reverse))
       (Z.getD i .abort) (Z.getD i .abort))
-    (hrec : ∀ j (hj : j < Z.length), C.isRec j = true → TM1 S d K P k1 ρ.hom (.data d ((P.dinst .zero).isub ρ)) Z[j] Z[j]) :
+    (hrec : ∀ j (hj : j < Z.length), C.isRec j = true → TM1s S d K P k1 ρ.hom (.data d ((P.dinst .zero).isub ρ)) Z[j]) :
     TC S k1 d D (P.isub (ISub.cons y hy ρ.up.tail)) (P.isub (ISub.cons y hy ρ.up.tail)) ψ ψ c C q q Z Z rs rs := by
   have hRL' := Rob.line hRL ρ y y hy hy (I_eq_refl _)
   refine ⟨hW, hD, hp, hC, HasTy.isubS hW hP _, hRL', hRL', argK_restr hArgK _, hψs, ent_refl _, ent_refl _, LC, hty,
     hty, EqTm.refl hty, hZ, fun i hi hri k3 τ z z' hz hz' hEz hz0 => ?_,
     conR_hit hW hD hH hyp hC (HasTy.isubS hW hP _) hRL' (forall2_ieq_refl _)⟩
-  · have h := hrec i (by omega) hri ρ rfl rfl P hRL k3 τ _ _
+  · have h := hrec i (by omega) hri ρ rfl rfl k3 τ _ _
       (I.scoped_subst hy (ISub.cons z hz τ.up.tail).sc) (I.scoped_subst hy (ISub.cons z' hz' τ.up.tail).sc)
       (ieq_subst_cons (I_eq_refl y) hEz hz hz' τ.up.tail) (ieq_zero_comp hy h0 hz hz0 τ)
     rw [getD_eq_get' (show i < Z.length by omega)]

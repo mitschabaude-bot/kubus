@@ -37,9 +37,17 @@ def TR (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom
       (.transp ((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)) ψ (x.isub σ))
       (tRedF d D (P.isub (ISub.cons y hy (ρ.comp σ).up.tail)) ψ w)
 
+/-- The transports of the left element along the lines at `I.Eq`-equal points are related. -/
+def TM1s (S : Sig) (d K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom k1 K) (A x : Tm) : Prop :=
+  ∀ (ρ : ISub k1 K), g = ρ.hom → A = .data d ((P.dinst .zero).isub ρ) →
+  ∀ k3 (σ : ISub k3 k1) (y y' : I) (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1)), I.Eq y y' →
+    I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero →
+    KanT2At S k3 ((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail))
+      ((Tm.data d P).isub (ISub.cons y' hy' (ρ.comp σ).up.tail)) (x.isub σ) (x.isub σ)
+
 /-- The motive at the relation of the start of a line. -/
 def TM1H (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom k1 K) (A x x' : Tm) : Prop :=
-  TM1 S d K P k1 g A x x' ∧ TM1 S d K P k1 g A x x ∧ TR S d D K P k1 g A x
+  TM1 S d K P k1 g A x x' ∧ TM1s S d K P k1 g A x ∧ TR S d D K P k1 g A x
 
 /-- The contracta of the transports of related normal forms are related. -/
 def TMc (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom k1 K) (A v v' : Tm) : Prop :=
