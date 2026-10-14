@@ -101,12 +101,10 @@ theorem RE2_univ_ty {l : ℕ} {T T' : Tm} (h : RE2 S k (.univ l) T T') : RT2 S k
   ((RE2_univ_iff hW).1 h).2.2
 
 /-- The type relation of a universe: both sides reduce to it at every restriction. -/
-theorem RT2_univ {l : ℕ} (hl : l + 1 ≤ maxLevel) : RT2 S k (.univ l) (.univ l) := by
+theorem RT2_univ {l : ℕ} : RT2 S k (.univ l) (.univ l) := by
   unfold RT2
   rw [show semK S k (.univ l) = univC k l from rfl, Comp2_univC]
-  have hty : HasTy S k .one [] (.univ l) (.univ (l + 1)) :=
-    HasTy.univ hl (Wf.nil trivial)
-  refine ⟨⟨⟨l + 1, .inl hty⟩, ⟨l + 1, .inl hty⟩, ?_, ?_, TyEq.refl _⟩, fun k' σ => ?_⟩
+  refine ⟨⟨⟨l, .inr rfl⟩, ⟨l, .inr rfl⟩, ?_, ?_, TyEq.refl _⟩, fun k' σ => ?_⟩
   · rw [res_id (isKV_univC _)]; rfl
   · rw [res_id (isKV_univC _)]; rfl
   · exact ⟨⟨redW_self rfl, TyEq.refl _⟩, ⟨redW_self rfl, TyEq.refl _⟩⟩
@@ -518,6 +516,101 @@ theorem RE2_ipi_elim {L p p' : Tm} (hp : RE2 S k (.ipi L) p p') :
   intro r r' hr hr' hE'
   have := h1 r r' hr hr' hE'
   rw [Comp2_res_line hW hL, hLc] at this; exact this
+
+
+/-! ### Inversion of related `Π` and `Σ` types -/
+
+theorem RT2_pi_inv {A B A' B' : Tm} (h : RT2 S k (.pi A B) (.pi A' B')) :
+    RT2 S k A A' ∧ ∀ a a', RE2 S k A a a' → RT2 S k (B.inst a) (B'.inst a') := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hpi⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hA := HasTy.piDom hpi
+  have hcl := closed_of_ty hW hpi
+  simp only [Tm.closedB, Bool.and_eq_true] at hcl
+  unfold RT2 at h
+  rw [semK_piT hW hpi] at h
+  obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := piC_at (IsKV.ne_empty (kv_semK_of_univ hW hA)) hW h
+  obtain ⟨rfl, rfl⟩ : A = A1 ∧ B = B1 := by
+    have := RedW.unique (redW_self rfl) h1.1; injection this; constructor <;> assumption
+  obtain ⟨rfl, rfl⟩ : A' = A1' ∧ B' = B1' := by
+    have := RedW.unique (redW_self rfl) h2.1; injection this; constructor <;> assumption
+  refine ⟨h3, fun a a' ha => ?_⟩
+  have := h4 a a' ha
+  have hfam := fam_code_eq2 (B := B) hW hA (ISub.id k) (by rw [isub_id_of_closed hcl.1]; exact (RE2.typed ha).1)
+  rw [ISub.hom_id, isub_id_of_closed hcl.2] at hfam
+  rw [hfam] at this
+  exact this
+
+theorem RT2_sigma_inv {A B A' B' : Tm} (h : RT2 S k (.sigma A B) (.sigma A' B')) :
+    RT2 S k A A' ∧ ∀ a a', RE2 S k A a a' → RT2 S k (B.inst a) (B'.inst a') := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hs⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hA := HasTy.sigmaDom hs
+  have hcl := closed_of_ty hW hs
+  simp only [Tm.closedB, Bool.and_eq_true] at hcl
+  unfold RT2 at h
+  rw [semK_sigmaT hW hs] at h
+  obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := sigmaC_at (IsKV.ne_empty (kv_semK_of_univ hW hA)) hW h
+  obtain ⟨rfl, rfl⟩ : A = A1 ∧ B = B1 := by
+    have := RedW.unique (redW_self rfl) h1.1; injection this; constructor <;> assumption
+  obtain ⟨rfl, rfl⟩ : A' = A1' ∧ B' = B1' := by
+    have := RedW.unique (redW_self rfl) h2.1; injection this; constructor <;> assumption
+  refine ⟨h3, fun a a' ha => ?_⟩
+  have := h4 a a' ha
+  have hfam := fam_code_eq2 (B := B) hW hA (ISub.id k) (by rw [isub_id_of_closed hcl.1]; exact (RE2.typed ha).1)
+  rw [ISub.hom_id, isub_id_of_closed hcl.2] at hfam
+  rw [hfam] at this
+  exact this
+
+
+/-! ### Inversion of related path types and `(i : I) → L` types -/
+
+theorem RT2_path_inv {L a b L' a' b' : Tm} (h : RT2 S k (.path L a b) (.path L' a' b')) :
+    RT2 S (k + 1) L L' ∧
+    (∀ r r', r.Scoped k → r'.Scoped k → I.Eq r r' → RT2 S k (L.dinst r) (L'.dinst r')) ∧
+    RE2 S k (L.dinst .zero) a a' ∧ RE2 S k (L.dinst .one) b b' := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hpath⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hL := HasTy.pathLine hpath
+  have hLc : L.isub (ISub.id k).up = L := isub_up_id_of_closed (closed_of_ty hW hL)
+  unfold RT2 at h
+  rw [semK_pathT hW hpath, Comp2_pathC _ _ _ (semK_ne hW hL)] at h
+  obtain ⟨-, hall, -⟩ := h
+  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5, h6⟩ := hall k (ISub.id k)
+  rw [isub_id_of_closed (closed_of_ty hW hpath)] at h1
+  rw [isub_id_of_closed (closed_of_isTyK hW hb.2.2.1)] at h2
+  obtain ⟨rfl, rfl, rfl⟩ : L = L1 ∧ a = b0 ∧ b = b1 := by
+    have := RedW.unique (redW_self rfl) h1.1; injection this
+    exact ⟨by assumption, by assumption, by assumption⟩
+  obtain ⟨rfl, rfl, rfl⟩ : L' = L1' ∧ a' = b0' ∧ b' = b1' := by
+    have := RedW.unique (redW_self rfl) h2.1; injection this
+    exact ⟨by assumption, by assumption, by assumption⟩
+  rw [Comp2_res_up hW hL, hLc] at h3
+  rw [Comp2_res_line hW hL, hLc] at h5 h6
+  refine ⟨h3, fun r r' hr hr' hE => ?_, h5, h6⟩
+  have := h4 r r' hr hr' hE
+  rw [Comp2_res_line hW hL, hLc] at this
+  exact this
+
+theorem RT2_ipi_inv {L L' : Tm} (h : RT2 S k (.ipi L) (.ipi L')) :
+    RT2 S (k + 1) L L' ∧ ∀ r r', r.Scoped k → r'.Scoped k → I.Eq r r' → RT2 S k (L.dinst r) (L'.dinst r') := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hipi⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hL := ipi_line hW hipi
+  have hLc : L.isub (ISub.id k).up = L := isub_up_id_of_closed (closed_of_ty hW hL)
+  unfold RT2 at h
+  rw [semK_ipiT hW hipi, Comp2_ipiC _ (semK_ne hW hL)] at h
+  obtain ⟨-, hall, -⟩ := h
+  obtain ⟨L1, L1', h1, h2, h3, h4⟩ := hall k (ISub.id k)
+  rw [isub_id_of_closed (closed_of_ty hW hipi)] at h1
+  rw [isub_id_of_closed (closed_of_isTyK hW hb.2.2.1)] at h2
+  obtain rfl : L = L1 := by have := RedW.unique (redW_self rfl) h1.1; injection this
+  obtain rfl : L' = L1' := by have := RedW.unique (redW_self rfl) h2.1; injection this
+  rw [Comp2_res_up hW hL, hLc] at h3
+  refine ⟨h3, fun r r' hr hr' hE => ?_⟩
+  have := h4 r r' hr hr' hE
+  rw [Comp2_res_line hW hL, hLc] at this
+  exact this
 
 end
 

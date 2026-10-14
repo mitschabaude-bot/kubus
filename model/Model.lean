@@ -31,4 +31,5 @@ import Model.EndToEnd
 import Model.Minimal
 import Model.Canon.CanonForm
 import Model.Whnf.Sound
-import Model.Whnf.Bridge
+import Model.Whnf.CSub2
+import Model.Whnf.Valid2

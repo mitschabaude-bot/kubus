@@ -240,6 +240,26 @@ theorem per2_univC {l : ℕ} (ih : ∀ m' X, WF l m' X → PER2 S m' X) : PER2 S
   · obtain ⟨he, hmem, hm, hty⟩ := ht
     exact ⟨he.conv hT.1.2.2.2.2, hmem, hm, hty⟩
 
+/-- Related equivalences, applied to related elements of the domain. -/
+theorem equivF_app {n : ℕ} {TP AP : (k' : ℕ) → ISub k' n → Pack2} {T A e e' x x' : Tm}
+    (hcT : T.closedB 0 n = true) (hcA : A.closedB 0 n = true)
+    (h : (equivF S TP AP n (ISub.id n)).el (Tm.equiv T A) e e') (hx : (TP n (ISub.id n)).el T x x') :
+    (AP n (ISub.id n)).el A (.app (.fst e) x) (.app (.fst e') x') := by
+  obtain ⟨hE, hall⟩ := h
+  have hcE := closed_of_isTyK hW (isTyK_of_ty hW hE.1)
+  have hce := closed_of_ty hW hE.1
+  have hce' := closed_of_ty hW hE.2.1
+  obtain ⟨A1, B1, h0, hfst, -⟩ := hall n (ISub.id n)
+  rw [isub_id_of_closed hcE] at h0
+  have e0 := RedW.unique (redW_self (by simp [Tm.equiv, step])) h0.1
+  simp only [Tm.equiv, Tm.sigma.injEq] at e0
+  obtain ⟨rfl, rfl⟩ := e0
+  simp only [ISub.id_comp] at hfst
+  rw [isub_id_of_closed hce, isub_id_of_closed hce'] at hfst
+  have := app_rel hfst (ISub.id n) (by rwa [isub_id_of_closed hcT])
+  rwa [isub_id_of_closed (show (Tm.fst e).closedB 0 n = true from hce),
+    isub_id_of_closed (show (Tm.fst e').closedB 0 n = true from hce'), isub_id_of_closed hcA] at this
+
 section glueLoc
 variable {A Tp : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
   (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
@@ -313,13 +333,14 @@ theorem glueLocE_symm {k' : ℕ} (σ : ISub k' k) {X X' g g' : Tm}
   unfold glueLocE at h ⊢
   split_ifs at h hT ⊢ with hh
   · exact (ihT k' _ hh k' (Hom.id k')).symEl hT h
-  obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', h1, h2, h3, h4, he0, he0', ha⟩ := h
-  obtain ⟨A2, φ2, T2, e2, A2', φ2', T2', e2', r2, -, -, -, -, -, hAA, -⟩ := hT
+  obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', h1, h2, h3, h4, he0, he0', ha, hfib⟩ := h
+  obtain ⟨A2, φ2, T2, e2, A2', φ2', T2', e2', r2, -, -, -, -, -, hAA, hrest⟩ := hT
   have e := RedW.unique r2.1 r1.1
   simp only [Tm.glue.injEq] at e
   obtain ⟨rfl, rfl, rfl, rfl⟩ := e
   exact ⟨_, _, _, _, ψ', e0', t0', a0', ψ, e0, t0, a0, r1, rg', rg, h3, h4, h1, h2, he0', he0,
-    (ihA k' _).symEl hAA ha⟩
+    (ihA k' _).symEl hAA ha, fun k'' σ' hh => ⟨(ihT k'' _ hh k'' (Hom.id k'')).symEl (hrest k'' σ' hh).1
+      (hfib k'' σ' hh).1, (hfib k'' σ' hh).2.2, (hfib k'' σ' hh).2.1⟩⟩
 
 theorem glueLocE_trans {k' : ℕ} (σ : ISub k' k) {X X' g g' g'' : Tm}
     (hT : glueLocT S A Tp φ f k' σ X X') (h : glueLocE S A Tp φ f k' σ X g g')
@@ -328,20 +349,21 @@ theorem glueLocE_trans {k' : ℕ} (σ : ISub k' k) {X X' g g' g'' : Tm}
   unfold glueLocE at h h' ⊢
   split_ifs at h h' hT ⊢ with hh
   · exact (ihT k' _ hh k' (Hom.id k')).transEl hT h h'
-  obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', h1, h2, h3, h4, he0, he0', ha⟩ := h
-  obtain ⟨A3, φ3, T3, e3, χ, f0, s0, b0, χ', f0', s0', b0', r3, rh, rh', -, -, h7, h8, -, hf0', hb⟩ := h'
+  obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', h1, h2, h3, h4, he0, he0', ha, hfib⟩ := h
+  obtain ⟨A3, φ3, T3, e3, χ, f0, s0, b0, χ', f0', s0', b0', r3, rh, rh', -, -, h7, h8, -, hf0', hb, hfib'⟩ := h'
   have e := RedW.unique r3.1 r1.1
   simp only [Tm.glue.injEq] at e
   obtain ⟨rfl, rfl, rfl, rfl⟩ := e
   have e' := RedW.unique rh.1 rg'.1
   simp only [Tm.glueEl.injEq] at e'
   obtain ⟨rfl, rfl, rfl, rfl⟩ := e'
-  obtain ⟨A2, φ2, T2, e2, A2', φ2', T2', e2', r2, -, -, -, -, -, hAA, -⟩ := hT
+  obtain ⟨A2, φ2, T2, e2, A2', φ2', T2', e2', r2, -, -, -, -, -, hAA, hrest⟩ := hT
   have e'' := RedW.unique r2.1 r3.1
   simp only [Tm.glue.injEq] at e''
   obtain ⟨rfl, rfl, rfl, rfl⟩ := e''
   exact ⟨_, _, _, _, ψ, e0, t0, a0, χ', f0', s0', b0', r3, rg, rh', h1, h2, h7, h8, he0, hf0',
-    (ihA k' _).transEl hAA ha hb⟩
+    (ihA k' _).transEl hAA ha hb, fun k'' σ' hh => ⟨(ihT k'' _ hh k'' (Hom.id k'')).transEl (hrest k'' σ' hh).1
+      (hfib k'' σ' hh).1 (hfib' k'' σ' hh).1, (hfib k'' σ' hh).2.1, (hfib' k'' σ' hh).2.2⟩⟩
 
 theorem glueLocE_conv {k' : ℕ} (σ : ISub k' k) {X X' g g' : Tm} (hX : IsTyK S k' X) (hX' : IsTyK S k' X')
     (hTσ : TyEq S k' X X') (hT : glueLocT S A Tp φ f k' σ X X') (h : glueLocE S A Tp φ f k' σ X g g') :
@@ -350,7 +372,7 @@ theorem glueLocE_conv {k' : ℕ} (σ : ISub k' k) {X X' g g' : Tm} (hX : IsTyK S
   unfold glueLocE at h ⊢
   split_ifs at h hT ⊢ with hh
   · exact (ihT k' _ hh k' (Hom.id k')).conv hT h
-  obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', h1, h2, h3, h4, he0, he0', ha⟩ := h
+  obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', h1, h2, h3, h4, he0, he0', ha, hfib⟩ := h
   obtain ⟨A2, φ2, T2, e2, A2', φ2', T2', e2', r2, r2', s2, s2', f2, f2', hAA, hrest⟩ := hT
   have e := RedW.unique r2.1 r1.1
   simp only [Tm.glue.injEq] at e
@@ -389,9 +411,29 @@ theorem glueLocE_conv {k' : ℕ} (σ : ISub k' k) {X X' g g' : Tm} (hX : IsTyK S
     EqTm.restrict hΦ' c21 eqv
   refine ⟨A2', φ2', T2', e2', ψ, e0, t0, a0, ψ', e0', t0', a0', r2', ⟨rg.1, rg.2.tyConv hTσ⟩,
     ⟨rg'.1, rg'.2.tyConv hTσ⟩, ent_trans h1 q12, ent_trans q21 h2, ent_trans h3 q12, ent_trans q21 h4,
-    ?_, ?_, (ihA k' _).conv hAA ha⟩
+    ?_, ?_, (ihA k' _).conv hAA ha, fun k'' σ' hh => ?_⟩
   · exact EqTm.conv (EqTm.restrict hΦ' c21 (he0.trans key)) eT'
   · exact EqTm.conv (EqTm.restrict hΦ' c21 (he0'.trans key)) eT'
+  · obtain ⟨hTT2, hee⟩ := hrest k'' σ' hh
+    obtain ⟨hf1, hb1, hb2⟩ := hfib k'' σ' hh
+    have PT := ihT k'' _ hh k'' (Hom.id k'')
+    have PA := ihA k'' (f.comp (σ.comp σ').hom)
+    have hAAσ := (krA k' (f.comp σ.hom) k'' σ' A2 A2' A2 A2).1 hAA
+    rw [ISub.comp_hom] at hAAσ
+    -- the bases, converted along the bases and the equivalences of the types
+    have cA2 := closed_of_ty hW (HasTy.isubS hW hA1 σ')
+    have hT1σ := face_ty hW s2 hT1 σ' (holds_of_face f2 σ' (by rwa [Cof.restr_restr, ISub.comp_hom]))
+    have cT2 := closed_of_ty hW hT1σ
+    have hrefl : ∀ {x x' : Tm}, (Comp2 S (dat Tp k'' (f.comp (σ.comp σ').hom)) k'' k'' (Hom.id k'')).el
+        (T2.isub σ') x x' → (Comp2 S A m k'' (f.comp (σ.comp σ').hom)).el (A2.isub σ')
+          (.app (.fst (e2.isub σ')) x) (.app (.fst (e2'.isub σ')) x) := fun {x x'} hx => by
+      have hx' := PT.reflEl hTT2 hx
+      have := equivF_app hW cT2 cA2 hee (TP := fun k3 σ3 => Comp2 S (dat Tp k'' (f.comp (σ.comp σ').hom)) k'' k3 σ3.hom)
+        (AP := fun k3 σ3 => Comp2 S A m k3 (f.comp ((σ.comp σ').comp σ3).hom))
+        (by simp only [ISub.hom_id]; exact hx')
+      simpa only [ISub.comp_id] using this
+    refine ⟨PT.conv hTT2 hf1, PA.conv hAAσ (PA.transEl hAAσ hb1 (hrefl hf1)),
+      PA.conv hAAσ (PA.transEl hAAσ hb2 (hrefl (PT.reflEl' hTT2 hf1)))⟩
 
 end glueLoc
 
@@ -428,9 +470,17 @@ theorem per2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
         glueLocE S A Tp φ f k' σ (T'.isub σ) g g' := fun k' σ g g' h =>
       glueLocE_conv hW ihA krA ihT krT f σ (hT.1.1.isub hW σ) (hT.1.2.1.isub hW σ) (hTT.isub hW σ)
         (hT.2.1 k' σ) h
+    have cvh : ∀ k' (σ : ISub k' k) (hh : (φ.restr (f.comp σ.hom)).holds) {g g' : Tm},
+        (Comp2 S (dat Tp k' (f.comp σ.hom)) k' k' (Hom.id k')).el (T.isub σ) g g' →
+        (Comp2 S (dat Tp k' (f.comp σ.hom)) k' k' (Hom.id k')).el (T'.isub σ) g g' := fun k' σ hh g g' h => by
+      have hTσ := hT.2.1 k' σ
+      unfold glueLocT at hTσ; rw [if_pos hh] at hTσ
+      exact (ihT k' _ hh k' (Hom.id k')).conv hTσ h
     exact ⟨he.conv hTT, hmem, he.conv hTT, fun k' σ => cv k' σ (hall k' σ),
-      fun k' σ hn w hw k'' ρ => cv k'' (σ.comp ρ) (hc k' σ hn w hw k'' ρ),
-      fun k' σ hn w hw k'' ρ => cv k'' (σ.comp ρ) (hc' k' σ hn w hw k'' ρ)⟩
+      fun k' σ hn w hw k'' ρ => ⟨fun hh ψ e0 t0 a0 hwe => cvh k'' (σ.comp ρ) hh ((hc k' σ hn w hw k'' ρ).1 hh ψ e0 t0 a0 hwe),
+        fun hh => cv k'' (σ.comp ρ) ((hc k' σ hn w hw k'' ρ).2 hh)⟩,
+      fun k' σ hn w hw k'' ρ => ⟨fun hh ψ e0 t0 a0 hwe => cvh k'' (σ.comp ρ) hh ((hc' k' σ hn w hw k'' ρ).1 hh ψ e0 t0 a0 hwe),
+        fun hh => cv k'' (σ.comp ρ) ((hc' k' σ hn w hw k'' ρ).2 hh)⟩⟩
 
 end
 

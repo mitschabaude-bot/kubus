@@ -309,14 +309,22 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
         RedE S k' X g (.glueEl ψ e0 t0 a0) ∧ RedE S k' X g' (.glueEl ψ' e0' t0' a0') ∧
         I.Entails ψ φ1 ∧ I.Entails φ1 ψ ∧ I.Entails ψ' φ1 ∧ I.Entails φ1 ψ' ∧
         EqTm S k' (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) ∧ EqTm S k' (cof .one φ1) [] e0' e1 (Tm.equiv T1 A1) ∧
-        (RA k' σ).el A1 a0 a0'
+        (RA k' σ).el A1 a0 a0' ∧
+        -- where the face holds, the fibers are related, and the bases agree with the fibers through `e1`
+        ∀ k'' (σ' : ISub k'' k'), (φ.restr (σ.comp σ').hom).holds →
+          (RT k'' (σ.comp σ')).el (T1.isub σ') (t0.isub σ') (t0'.isub σ') ∧
+          (RA k'' (σ.comp σ')).el (A1.isub σ') (a0.isub σ') (.app (.fst (e1.isub σ')) (t0.isub σ')) ∧
+          (RA k'' (σ.comp σ')).el (A1.isub σ') (a0'.isub σ') (.app (.fst (e1.isub σ')) (t0'.isub σ'))
     -- coherence: where the face does not hold, the normal form at a restriction, restricted further, is
     -- related to the further restriction
     let cohT : Tm → Prop := fun A => ∀ k' (σ : ISub k' k), ¬ (φ.restr σ.hom).holds → ∀ W, RedW S (A.isub σ) W →
       ∀ k'' (ρ : ISub k'' k'), locT k'' (σ.comp ρ) (W.isub ρ) (A.isub (σ.comp ρ))
     let cohE : Tm → Tm → Prop := fun A g => ∀ k' (σ : ISub k' k), ¬ (φ.restr σ.hom).holds → ∀ w,
       RedW S (g.isub σ) w → ∀ k'' (ρ : ISub k'' k'),
-        locE k'' (σ.comp ρ) (A.isub (σ.comp ρ)) (w.isub ρ) (g.isub (σ.comp ρ))
+        ((φ.restr (σ.comp ρ).hom).holds → ∀ ψ e0 t0 a0, w = .glueEl ψ e0 t0 a0 →
+          (RT k'' (σ.comp ρ)).el (A.isub (σ.comp ρ)) (t0.isub ρ) (g.isub (σ.comp ρ))) ∧
+        (¬ (φ.restr (σ.comp ρ).hom).holds →
+          locE k'' (σ.comp ρ) (A.isub (σ.comp ρ)) (w.isub ρ) (g.isub (σ.comp ρ)))
     { ty := fun A A' => (∀ k' (σ : ISub k' k), locT k' σ (A.isub σ) (A'.isub σ)) ∧ cohT A ∧ cohT A'
       el := fun A g g' => EB S k A g g' ∧ (∀ k' (σ : ISub k' k), locE k' σ (A.isub σ) (g.isub σ) (g'.isub σ)) ∧
         cohE A g ∧ cohE A g' }
