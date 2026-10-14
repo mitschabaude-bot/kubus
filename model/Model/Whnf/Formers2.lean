@@ -101,12 +101,10 @@ theorem RE2_univ_ty {l : ℕ} {T T' : Tm} (h : RE2 S k (.univ l) T T') : RT2 S k
   ((RE2_univ_iff hW).1 h).2.2
 
 /-- The type relation of a universe: both sides reduce to it at every restriction. -/
-theorem RT2_univ {l : ℕ} (hl : l + 1 ≤ maxLevel) : RT2 S k (.univ l) (.univ l) := by
+theorem RT2_univ {l : ℕ} : RT2 S k (.univ l) (.univ l) := by
   unfold RT2
   rw [show semK S k (.univ l) = univC k l from rfl, Comp2_univC]
-  have hty : HasTy S k .one [] (.univ l) (.univ (l + 1)) :=
-    HasTy.univ hl (Wf.nil trivial)
-  refine ⟨⟨⟨l + 1, .inl hty⟩, ⟨l + 1, .inl hty⟩, ?_, ?_, TyEq.refl _⟩, fun k' σ => ?_⟩
+  refine ⟨⟨⟨l, .inr rfl⟩, ⟨l, .inr rfl⟩, ?_, ?_, TyEq.refl _⟩, fun k' σ => ?_⟩
   · rw [res_id (isKV_univC _)]; rfl
   · rw [res_id (isKV_univC _)]; rfl
   · exact ⟨⟨redW_self rfl, TyEq.refl _⟩, ⟨redW_self rfl, TyEq.refl _⟩⟩

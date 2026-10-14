@@ -18,14 +18,6 @@ noncomputable section
 
 variable {S : Sig} {k k' : ℕ}
 
-/-- Every restriction of `t` reduces to the corresponding restriction of `u`, judgmentally equal at `A`. -/
-def StableE (S : Sig) (k : ℕ) (A t u : Tm) : Prop :=
-  ∀ k' (σ : ISub k' k), Red S (t.isub σ) (u.isub σ) ∧ EqTm S k' .one [] (t.isub σ) (u.isub σ) (A.isub σ)
-
-/-- Every restriction of the type `A` reduces to the corresponding restriction of `B`. -/
-def StableT (S : Sig) (k : ℕ) (A B : Tm) : Prop :=
-  ∀ k' (σ : ISub k' k), Red S (A.isub σ) (B.isub σ) ∧ TyEq S k' (A.isub σ) (B.isub σ)
-
 variable (hW : WfSig S)
 include hW
 
