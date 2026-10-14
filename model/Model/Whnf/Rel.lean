@@ -162,7 +162,7 @@ mutual
 inductive DR2 {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m → Tm → Prop)
     (P : (k : ℕ) → Hom k m → ℕ → ℕ → List V → Tm → Tm → Tm → Prop) :
     (k : ℕ) → Hom k m → Tm → Tm → Tm → Prop
-  | intro {k : ℕ} {f : Hom k m} {A t t' : Tm} :
+  | intro {k : ℕ} {f : Hom k m} {A t t' : Tm} : EqTm S k .one [] t t' A →
       (∀ k' (σ : ISub k' k), DR2At d D Mem P k' (f.comp σ.hom) (A.isub σ) (t.isub σ) (t'.isub σ)) →
       DR2 d D Mem P k f A t t'
 

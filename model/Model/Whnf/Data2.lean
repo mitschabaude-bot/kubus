@@ -17,12 +17,12 @@ variable {S : Sig} {k k' k'' m : ℕ}
 section
 variable {k0 : ℕ} {Θ : SData m} (f : Hom k0 m) {d : ℕ} {D : DataDecl}
 
-theorem DR2.isub {k : ℕ} {g : Hom k k0} {A t t' : Tm}
+theorem DR2.isub (hW : WfSig S) {k : ℕ} {g : Hom k k0} {A t t' : Tm}
     (h : DR2 S d D (dataMem S Θ f) (dataP2 S Θ f) k g A t t') (σ : ISub k' k) :
     DR2 S d D (dataMem S Θ f) (dataP2 S Θ f) k' (g.comp σ.hom) (A.isub σ) (t.isub σ) (t'.isub σ) := by
   cases h with
-  | intro hh =>
-    refine .intro fun k'' σ' => ?_
+  | intro he hh =>
+    refine .intro (EqTm.isubS hW he σ) fun k'' σ' => ?_
     have := hh k'' (σ.comp σ')
     rwa [← ISub.comp_hom, ← Tm.isub_isub, ← Tm.isub_isub, ← Tm.isub_isub] at this
 
@@ -34,8 +34,8 @@ theorem DR2.rebase {k : ℕ} {f' : Hom k k0} {A t t' : Tm}
       DR2 S d D (dataMem S Θ (f.comp h)) (dataP2 S Θ (f.comp h)) k g A t t')
     (motive_2 := fun k f' A t t' _ => ∀ {k1 : ℕ} (h : Hom k1 k0) (g : Hom k k1), f' = h.comp g →
       DR2At S d D (dataMem S Θ (f.comp h)) (dataP2 S Θ (f.comp h)) k g A t t') ?_ ?_ ?_ hr
-  · intro k f' A t t' _ ih k1 h g e
-    exact .intro fun k' σ => ih k' σ h (g.comp σ.hom) (by rw [e, Hom.comp_assoc])
+  · intro k f' A t t' he _ ih k1 h g e
+    exact .intro he fun k' σ => ih k' σ h (g.comp σ.hom) (by rw [e, Hom.comp_assoc])
   · intro k f' A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
       hrec hpt ihrec k1 h g e
     subst e
@@ -56,8 +56,8 @@ theorem DR2.unbase {k k1 : ℕ} {h : Hom k1 k0} {g : Hom k k1} {A t t' : Tm}
     DR2 S d D (dataMem S Θ f) (dataP2 S Θ f) k (h.comp g) A t t' := by
   refine DR2.rec (motive_1 := fun k g A t t' _ => DR2 S d D (dataMem S Θ f) (dataP2 S Θ f) k (h.comp g) A t t')
     (motive_2 := fun k g A t t' _ => DR2At S d D (dataMem S Θ f) (dataP2 S Θ f) k (h.comp g) A t t') ?_ ?_ ?_ hr
-  · intro k g A t t' _ ih
-    exact .intro fun k' σ => by have := ih k' σ; simp only at this; rwa [Hom.comp_assoc]
+  · intro k g A t t' he _ ih
+    exact .intro he fun k' σ => by have := ih k' σ; simp only at this; rwa [Hom.comp_assoc]
   · intro k g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
       hrec hpt ihrec
     refine .con ?_ ?_ heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' ihrec (fun j hj hj' hr => ?_)
@@ -106,7 +106,7 @@ theorem kr2_dataC {Θ : SData m} (hX : Fib (dataC Θ) m) : KR2 S m (dataC Θ) :=
         argRel2_base f σ hcl, argRel2_base f σ hcl'⟩
   · rintro ⟨he, hmem, -, hdr⟩
     refine ⟨he.isub hW σ, mem_isub hW hX he.1 hmem σ, he.isub hW σ, ?_⟩
-    have := DR2.rebase f (DR2.isub f hdr σ) σ.hom (Hom.id k') (by rw [Hom.id_comp, Hom.comp_id])
+    have := DR2.rebase f (DR2.isub f hW hdr σ) σ.hom (Hom.id k') (by rw [Hom.id_comp, Hom.comp_id])
     exact this
 
 /-- The binary relations are Kripke, for every well-formed code. -/
