@@ -411,6 +411,108 @@ theorem ptFill {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
     minimal_to_spec hc'L, minimal_to_spec_eq eC, minimal_to_spec_eq huu⟩
 
 
+theorem eQσ {k3 : ℕ} (σ : ISub k3 k1) : (Tm.data d (Q.isub ρ)).isub σ = .data d (Q.isub (ρ.comp σ)) := by
+  show Tm.data d ((Q.isub ρ).isub σ) = _; rw [Tm.isub_isub]
+
+theorem eQ'σ {k3 : ℕ} (σ : ISub k3 k1) : (Tm.data d (Q'.isub ρ)).isub σ = .data d (Q'.isub (ρ.comp σ)) := by
+  show Tm.data d ((Q'.isub ρ).isub σ) = _; rw [Tm.isub_isub]
+
+theorem PQσ {k3 : ℕ} (σ : ISub k3 k1) : RT2 S k3 (.data d (P.isub (ρ.comp σ))) (.data d (Q.isub (ρ.comp σ))) :=
+  RT2.isub H.hW (tyCode_of_univ H.hW H.hP) H.hQ (ρ.comp σ)
+
+theorem PQ'σ {k3 : ℕ} (σ : ISub k3 k1) : RT2 S k3 (.data d (P.isub (ρ.comp σ))) (.data d (Q'.isub (ρ.comp σ))) :=
+  RT2.isub H.hW (tyCode_of_univ H.hW H.hP) H.hQ' (ρ.comp σ)
+
+theorem XPσ {k3 : ℕ} (σ : ISub k3 k1) : TyCode k3 (semK S k3 (.data d (P.isub (ρ.comp σ)))) :=
+  tyCode_of_univ H.hW (HasTy.isubS H.hW H.hP (ρ.comp σ))
+
+/-- From the type at `P` to the type at `Q`. -/
+theorem toQ {k3 : ℕ} (σ : ISub k3 k1) {x y : Tm} (h : RE2 S k3 (.data d (P.isub (ρ.comp σ))) x y) :
+    RE2 S k3 (.data d (Q.isub (ρ.comp σ))) x y := RE2.conv H.hW (H.PQσ σ) h
+
+/-- The projections of the tubes of a recursive argument are related on the face. -/
+theorem recTube {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) :
+    Tube2 S k1 (.data d (Q.isub ρ)) φ ((tubeArgs d D c C (Q.isub ρ) u).getD j .abort)
+      ((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort) := by
+  intro k3 σ r r' hr hr' hE hh
+  rw [isub_up_dinst _ σ r hr, isub_up_dinst _ σ r' hr', H.eQσ]
+  have := H.prj σ r r' hr hr' hE hh j hj
+  rwa [argTy_rec_inst hrj (H.hQρl σ) (H.hQρlen σ) (by simp [tubeArgs]; omega)] at this
+
+theorem recTubes {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) :
+    Tube2 S k1 (.data d (Q.isub ρ)) φ ((tubeArgs d D c C (Q.isub ρ) u).getD j .abort)
+      ((tubeArgs d D c C (Q.isub ρ) u).getD j .abort) := by
+  intro k3 σ r r' hr hr' hE hh
+  rw [isub_up_dinst _ σ r hr, isub_up_dinst _ σ r' hr', H.eQσ]
+  have := H.prjs σ r r' hr hr' hE hh j hj
+  rwa [argTy_rec_inst hrj (H.hQρl σ) (H.hQρlen σ) (by simp [tubeArgs]; omega)] at this
+
+theorem recBd {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) {k3 : ℕ} (σ : ISub k3 k1)
+    (hh : (ival (idEnv k3) (φ.subst σ.τ)).holds) :
+    RE2 S k3 ((Tm.data d (Q.isub ρ)).isub σ) ((((tubeArgs d D c C (Q.isub ρ) u).getD j .abort).isub σ.up).dinst .zero)
+      ((X'.getD j .abort).isub σ) := by
+  rw [isub_up_dinst _ σ .zero trivial, H.eQσ]
+  have := H.prjb σ hh j hj
+  rwa [argTy_rec_inst hrj (H.hQρl σ) (H.hQρlen σ) (by simp [tubeArgs]; omega)] at this
+
+theorem hPρl {k3 : ℕ} (σ : ISub k3 k1) : P.isub (ρ.comp σ) = Tm.ofList (P.isub (ρ.comp σ)).toList :=
+  (dataLit_rel H.hW H.hD H.hP H.hPP (ρ.comp σ)).2.2.2.2.2.1
+
+theorem hPρlen {k3 : ℕ} (σ : ISub k3 k1) : (P.isub (ρ.comp σ)).toList.length = D.params.length := by
+  have := data_len_of H.hW (⟨_, .inl (HasTy.isubS H.hW H.hP (ρ.comp σ))⟩ : IsTyK S k3 (.data d (P.isub (ρ.comp σ))))
+  rwa [dataD_eq H.hW H.hD] at this
+
+theorem recBd' {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) {k3 : ℕ} (σ : ISub k3 k1)
+    (hh : (ival (idEnv k3) (φ.subst σ.τ)).holds) :
+    RE2 S k3 ((Tm.data d (Q.isub ρ)).isub σ) ((X.getD j .abort).isub σ)
+      ((((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort).isub σ.up).dinst .zero) := by
+  rw [isub_up_dinst _ σ .zero trivial, H.eQσ]
+  have := H.prjb' σ hh j hj
+  rw [argTy_rec_inst hrj (H.hPρl σ) (H.hPρlen σ) (by simp [H.hXl]; omega)] at this
+  exact H.toQ σ this
+
+theorem recU0 {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) {k3 : ℕ} (σ : ISub k3 k1) :
+    RE2 S k3 ((Tm.data d (Q.isub ρ)).isub σ) ((X.getD j .abort).isub σ) ((X'.getD j .abort).isub σ) := by
+  have := RE2.isub H.hW (H.hrecR j hj hrj) σ
+  rw [H.ePσ] at this
+  rw [H.eQσ]
+  exact H.toQ σ this
+
+theorem recBds {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) {k3 : ℕ} (σ : ISub k3 k1)
+    (hh : (ival (idEnv k3) (φ.subst σ.τ)).holds) :
+    RE2 S k3 ((Tm.data d (Q.isub ρ)).isub σ) ((((tubeArgs d D c C (Q.isub ρ) u).getD j .abort).isub σ.up).dinst .zero)
+      ((X.getD j .abort).isub σ) := by
+  have h1 := H.recBd hj hrj σ hh
+  have h2 := H.recU0 hj hrj σ
+  rw [H.eQσ] at h1 h2 ⊢
+  have hQQ := RT2.refl' H.hW (H.XPσ σ) (H.PQσ σ)
+  exact RE2.trans H.hW hQQ h1 (RE2.symm H.hW hQQ h2)
+
+/-- Composition over the base of a recursive argument. -/
+theorem recK {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) {k3 : ℕ} (τ : ISub k3 k1) :
+    KanH2At S k3 ((Tm.data d (Q.isub ρ)).isub τ) ((Tm.data d (Q'.isub ρ)).isub τ)
+      ((X.getD j .abort).isub τ) ((X'.getD j .abort).isub τ) := by
+  rw [H.eQσ, H.eQ'σ]
+  exact HC2.conv H.hW (H.PQσ τ) (H.XPσ τ) (H.hrecH j hj hrj Q Q' H.hQ H.hQ' k3 τ)
+
+/-- Composition over the base of a recursive argument, against itself. -/
+theorem recKs {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) {k3 : ℕ} (τ : ISub k3 k1) :
+    KanH2At S k3 ((Tm.data d (Q.isub ρ)).isub τ) ((Tm.data d (Q.isub ρ)).isub τ)
+      ((X.getD j .abort).isub τ) ((X.getD j .abort).isub τ) := by
+  have h := H.recK hj hrj τ
+  have hQT : HasTy S k3 .one [] ((Tm.data d (Q.isub ρ)).isub τ) (.univ D.level) := HasTy.isubS H.hW H.basic.hqT τ
+  have hXQ := RT2.tyCode_r H.hW (H.PQσ τ) (H.XPσ τ)
+  rw [← H.eQσ] at hXQ
+  have hQQ := RT2.refl' H.hW (H.XPσ τ) (H.PQσ τ)
+  rw [← H.eQσ] at hQQ
+  have eQ'Q : TyEq S k3 ((Tm.data d (Q'.isub ρ)).isub τ) ((Tm.data d (Q.isub ρ)).isub τ) := by
+    rw [H.eQσ, H.eQ'σ]
+    exact (Comp2_ty_base (RT2.trans H.hW (RT2.tyCode_r H.hW (H.PQ'σ τ) (H.XPσ τ))
+      (RT2.symm H.hW (H.XPσ τ) (H.PQ'σ τ)) (H.PQσ τ))).2.2.2.2.2
+  obtain ⟨l', e'⟩ := tyEq_eq H.hW eQ'Q ⟨_, hQT⟩
+  exact HC2.self H.hW hQQ (EqTm.refl hQT) e' (H.recU0 hj hrj τ) h
+
+
 end HCC
 
 end
