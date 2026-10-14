@@ -396,6 +396,85 @@ theorem TGD2.tfE (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) {
     · exact ent_trans (show I.Entails .one (I.neg .zero) by decide) (ent_or_right _ _)
   exact tfill_face hW hT (D.rTLL hW hδ) (D.cT hW hδ) hF (RE2.reflL hW hTT0 ha) τ r hr hor hh
 
+
+/-- On `δ`, the systems of the bodies of `ω`, at a point of the body and a near point of the line. -/
+theorem TGD2.sysAt (hδ : (ival (idEnv k) δ).holds) {k3 : ℕ} (σ0 : ISub k3 k) {y : I} (hy : y.Scoped k3)
+    {x x' : I} (hx : x.Scoped k3) (hx' : x'.Scoped k3) (he : I.Eq x x')
+    (hh : (ival (idEnv k3) ((tgChi ψ).subst (ISub.cons y hy σ0).τ)).holds) :
+    RE2 S k3 (A.isub (ISub.cons x hx σ0)) ((tgSys A φ T e ψ u0).isub (ISub.cons x hx (ISub.cons y hy σ0)))
+      ((tgSys A' φ' T' e' ψ' u0').isub (ISub.cons x' hx' (ISub.cons y hy σ0))) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hAA := D.rAA k3 σ0 x x hx hx (I_eq_refl _)
+  have hδe := entails_of_holds D.hδs hδ
+  have hδe' := entails_of_holds D.hδs' (D.hδ' hδ)
+  have hψσ := I.scoped_subst H.hψ σ0.sc
+  have hψσ' := I.scoped_subst H'.hψ σ0.sc
+  have hχ : I.Entails .one (I.or (ψ.subst σ0.τ) (.or (.neg y) y)) := by
+    have := entails_of_holds (I.scoped_subst (show (tgChi ψ).Scoped (k + 1) from
+      ⟨KubusCore.I.scoped_shift H.hψ, show 0 < k + 1 by omega, show 0 < k + 1 by omega⟩) (ISub.cons y hy σ0).sc) hh
+    simpa only [tgChi, I.subst, I_shift_cons] using this
+  -- typings of the systems
+  have sysTy : ∀ {A T e u0 : Tm} {φ ψ δ : I} {l : ℕ}, TG S k .one [] A φ T e ψ u0 δ l → I.Entails .one δ →
+      I.Entails .one (I.or (ψ.subst σ0.τ) (.or (.neg y) y)) → ∀ {x : I} (hx : x.Scoped k3),
+      HasTy S k3 .one [] ((tgSys A φ T e ψ u0).isub (ISub.cons x hx (ISub.cons y hy σ0))) (A.isub (ISub.cons x hx σ0)) := by
+    intro A T e u0 φ ψ δ l H hδ hχ x hx
+    have hRs : (cof (cof .one δ).shift (tgChi ψ)).shift.Scoped (k + 1 + 1) :=
+      KubusCore.I.scoped_shift ⟨KubusCore.I.scoped_shift ⟨trivial, H.hδ⟩, KubusCore.I.scoped_shift H.hψ,
+        show 0 < k + 1 by omega, show 0 < k + 1 by omega⟩
+    have h1 := HasTy.isubF hW hRs (minimal_to_spec H.hsys) (ISub.cons x hx (ISub.cons y hy σ0))
+    rw [sk2_isub] at h1
+    refine HasTy.restrict (Φ' := .one) trivial ?_ h1
+    rw [I_shift_cons]
+    show I.Entails .one (I.and (((cof .one δ).shift).subst _) ((tgChi ψ).subst _))
+    rw [I_shift_cons]
+    exact ent_and_intro (ent_subst (show I.Entails .one (cof .one δ) from ent_cof_one hW hδ) σ0.τ)
+      (by simpa only [tgChi, I.subst, I_shift_cons] using hχ)
+  have hsp := sysTy H hδe hχ hx
+  have hsp' := (sysTy H' hδe' (ent_trans hχ (ent_or_elim (ent_trans (ent_subst D.p12 _) (ent_or_left _ _))
+    (ent_or_right _ _))) hx').tyConv (Comp2_ty_base (D.rA k3 σ0 x x' hx hx' he)).2.2.2.2.2.symm
+  unfold tgSys at hsp hsp' ⊢
+  rw [tgSys'_isub] at hsp hsp'
+  rw [tgSys'_isub, tgSys'_isub]
+  -- the restrictions of the components
+  have rs : ∀ {k4 : ℕ} (σ2 : ISub k4 k3) (X : Tm) (z : I) (hz : z.Scoped k3),
+      (X.isub (ISub.cons z hz σ0)).isub σ2 = X.isub (ISub.cons (z.subst σ2.τ) (I.scoped_subst hz σ2.sc) (σ0.comp σ2)) :=
+    fun σ2 X z hz => by rw [Tm.isub_isub, ISub.cons_comp]
+  have ψc : ∀ {k4 : ℕ} (σ2 : ISub k4 k3), I.Entails .one ((ψ.subst σ0.τ).subst σ2.τ) →
+      (ival (idEnv k4) (ψ.subst (σ0.comp σ2).τ)).holds := fun σ2 h => by
+    rw [holds_iff_entails (I.scoped_subst H.hψ (σ0.comp σ2).sc), I_subst_comp]; exact h
+  have hxσ : ∀ {k4 : ℕ} (σ2 : ISub k4 k3), I.Eq (x.subst σ2.τ) (x'.subst σ2.τ) := fun σ2 => I_eq_subst he _
+  refine RE2_pathSys hW hψσ hψσ' hy hy (I_eq_refl _) (ent_subst D.p12 _) (ent_subst D.p21 _) hχ hAA hsp hsp'
+    (fun k4 σ2 h => ?_) (fun k4 σ2 h _ => ?_) (fun k4 σ2 h _ => ?_) (fun k4 σ2 h _ => ?_) (fun k4 σ2 h _ => ?_)
+    (fun k4 σ2 _ => ?_) (fun k4 σ2 _ => ?_) <;>
+    simp only [isub_app, isub_fst, rs, Tm.isub_isub] <;>
+    have hAA2 := D.rAA k4 (σ0.comp σ2) _ _ (I.scoped_subst hx σ2.sc) (I.scoped_subst hx σ2.sc) (I_eq_refl _)
+  · exact D.eu0 hW hδ (σ0.comp σ2) _ _ (hxσ σ2) (.inl (ψc σ2 h))
+  · -- `e.1 u0` against `e'.1 tf'`
+    have t1 := D.tfE hW hδ (σ0.comp σ2) (I.scoped_subst hx σ2.sc) (.inl (ψc σ2 h))
+    have hTT := D.rTT k4 _ (D.faceL hW hδ (ISub.cons _ (I.scoped_subst hx σ2.sc) (σ0.comp σ2)))
+    have t2 := D.tfAt hW hδ (ISub.cons _ (I.scoped_subst hx σ2.sc) (σ0.comp σ2))
+      (ISub.cons _ (I.scoped_subst hx' σ2.sc) (σ0.comp σ2)) rfl (hxσ σ2)
+    exact D.eApp hW (σ0.comp σ2) _ _ (hxσ σ2) (D.faceL hW hδ _) (RE2.trans hW hTT (RE2.symm hW hTT t1) t2)
+  · -- `e.1 tf` against `e'.1 u0'`
+    have t1 := D.tfE hW hδ (σ0.comp σ2) (I.scoped_subst hx σ2.sc) (.inl (ψc σ2 h))
+    have hTT := D.rTT k4 _ (D.faceL hW hδ (ISub.cons _ (I.scoped_subst hx σ2.sc) (σ0.comp σ2)))
+    have t2 := D.u0At hW hδ (σ0.comp σ2) _ (I.scoped_subst hx σ2.sc) (.inl (ψc σ2 h))
+    exact D.eApp hW (σ0.comp σ2) _ _ (hxσ σ2) (D.faceL hW hδ _) (RE2.trans hW hTT t1 t2)
+  · -- `e.1 u0` against the filler
+    have f1 := D.fillE hW hδ (σ0.comp σ2) (I.scoped_subst hx σ2.sc) (ψc σ2 h)
+    have f2 := D.fillAt hW (ISub.cons _ (I.scoped_subst hx σ2.sc) (σ0.comp σ2))
+      (ISub.cons _ (I.scoped_subst hx' σ2.sc) (σ0.comp σ2)) rfl (hxσ σ2)
+    exact RE2.trans hW hAA2 (RE2.symm hW hAA2 f1) f2
+  · -- the filler against `e'.1 u0'`
+    have f1 := D.fillE hW hδ (σ0.comp σ2) (I.scoped_subst hx σ2.sc) (ψc σ2 h)
+    exact RE2.trans hW hAA2 f1 (D.eu0 hW hδ (σ0.comp σ2) _ _ (hxσ σ2) (.inl (ψc σ2 h)))
+  · exact D.eApp hW (σ0.comp σ2) _ _ (hxσ σ2) (D.faceL hW hδ _)
+      (D.tfAt hW hδ (ISub.cons _ (I.scoped_subst hx σ2.sc) (σ0.comp σ2))
+        (ISub.cons _ (I.scoped_subst hx' σ2.sc) (σ0.comp σ2)) rfl (hxσ σ2))
+  · exact D.fillAt hW (ISub.cons _ (I.scoped_subst hx σ2.sc) (σ0.comp σ2))
+      (ISub.cons _ (I.scoped_subst hx' σ2.sc) (σ0.comp σ2)) rfl (hxσ σ2)
+
 end
 
 end
