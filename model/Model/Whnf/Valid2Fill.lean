@@ -240,12 +240,20 @@ theorem VTy.hfill' (hKH : KHAll S) {A u u0 : Tm} {φ : I} {l : ℕ} (hA : VTy S 
 
 /-! ### Heterogeneous composition -/
 
-/-- `comp_typed`, with validity. -/
-theorem VTy.comp' (hKH : KHAll S) (hKT : KTAll S) {C ψ u u0} {l : ℕ}
+/-- The parts of `comp`: the end type, the tube of transports, the transported base and the side condition. -/
+theorem VTy.compParts' (hKT : KTAll S) {C ψ u u0} {l : ℕ}
     (hC : VTy S (Ψ + 1) Φ.shift Γ.dshift C (.univ l)) (hψ : ψ.Scoped Ψ)
     (hu : VTy S (Ψ + 1) (cof Φ ψ).shift Γ.dshift u C) (hu0 : VTy S Ψ Φ Γ u0 (C.dinst .zero))
     (hside : VEq S Ψ (cof Φ ψ) Γ (u.dinst .zero) u0 (C.dinst .zero)) :
-    VTy S Ψ Φ Γ (Tm.comp C ψ u u0) (C.dinst .one) := by
+    VTy S Ψ Φ Γ (C.dinst .one) (.univ l) ∧
+    VTy S (Ψ + 1) (cof Φ ψ).shift Γ.dshift
+      (.transp (C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))) (.var 0) u) (C.dinst .one).dshift ∧
+    VEq S (Ψ + 1 + 1) (cof (cof Φ ψ).shift (.var 0)).shift Γ.dshift.dshift
+      (C.dsubst (Tm.bind2 (.or (.var 1) (.var 0))))
+      ((C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))).dinst .zero).dshift (.univ l) ∧
+    VTy S Ψ Φ Γ (.transp C .zero u0) (C.dinst .one) ∧
+    VEq S Ψ (cof Φ ψ) Γ ((Tm.transp (C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))) (.var 0) u).dinst .zero)
+      (.transp C .zero u0) (C.dinst .one) := by
   have hS := sigClosed_of_wfSig hW
   have hw0 := wf_unshift hS (wf_of_ty hC.ty)
   have hs := scoped_of_wf hw0
@@ -344,6 +352,15 @@ theorem VTy.comp' (hKH : KHAll S) (hKT : KTAll S) {C ψ u u0} {l : ℕ}
       (valid_absurd (A := .univ l) (ent_shift (ent_and_right (cof Φ ψ) .zero))) h5
     rw [sk1_d1z] at e
     exact VEq.conv' hW e eA1
+  exact ⟨hC1, htube, hconst, hb, hside'⟩
+
+/-- `comp_typed`, with validity. -/
+theorem VTy.comp' (hKH : KHAll S) (hKT : KTAll S) {C ψ u u0} {l : ℕ}
+    (hC : VTy S (Ψ + 1) Φ.shift Γ.dshift C (.univ l)) (hψ : ψ.Scoped Ψ)
+    (hu : VTy S (Ψ + 1) (cof Φ ψ).shift Γ.dshift u C) (hu0 : VTy S Ψ Φ Γ u0 (C.dinst .zero))
+    (hside : VEq S Ψ (cof Φ ψ) Γ (u.dinst .zero) u0 (C.dinst .zero)) :
+    VTy S Ψ Φ Γ (Tm.comp C ψ u u0) (C.dinst .one) := by
+  obtain ⟨hC1, htube, -, hb, hside'⟩ := VTy.compParts' hW hKT hC hψ hu hu0 hside
   exact VTy.hcompG hW hKH hC1 hψ htube hb hside'
 
 end
