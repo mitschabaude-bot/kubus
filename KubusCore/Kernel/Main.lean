@@ -86,10 +86,98 @@ def trail {α : Type} (line : Unit → String) (x : K S α) : K S α :=
 /-! Memoized versions: a hit transports the cached derivation along the equality of the
 keys (checked structurally, with a pointer-equality shortcut). -/
 
+/-! ### Strengthening by an unused interval variable
+
+A judgment about terms that do not mention the interval variable 0 (in a context that does
+not either) is derived once with one interval variable less (and the restriction weakened to
+its literals on the others), then moved back by `dwk` and `restrict`. The recursive calls
+strengthen further, and the cache keyed by the smaller context shares the result between all
+the interval contexts nested around it. -/
+
+/-- The context with interval variable 0 removed. -/
+structure Strength (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) where
+  Ψ' : Nat
+  Φ' : I
+  Γ' : Ctx
+  E' : KCtx S Ψ' Φ' Γ'
+  hΨ : Ψ = Ψ' + 1
+  hΓ : Γ'.dshift = Γ
+  hent : I.Entails Φ Φ'.shift
+
+def ctxOf : Sig → Nat → I → Ctx → List Tm → Type
+  | S, Ψ, Φ, Γ, _ => KCtx S Ψ Φ Γ
+
+/-- The strengthened context, if `Γ` does not mention interval variable 0. -/
+def strengthen? (R : Rec S) (E : KCtx S Ψ Φ Γ) : K S (Option (Strength S Ψ Φ Γ)) := do
+  match E.sd.get with
+  | none => pure none
+  | some ⟨k, Φ', Γ', hΨ, hΓ, hent, hs'⟩ =>
+    let fs' := Φ'.faces
+    let E' ← match (← get).ctxs.find? k Φ' Γ' [] fs' rfl hs' (fun _ _ _ => none) with
+      | some E' => pure E'
+      | none =>
+        let E1 := (KCtx.root E.sig).dextN k
+        let E0 ← if h : shiftIN k .one = .one ∧ dshiftN k [] = [] then
+            let E2 : KCtx S (0 + k) .one [] := castCtx E1 h.1 h.2
+            let E3 : KCtx S k .one [] := Nat.zero_add k ▸ E2
+            pure (E3.restrict Φ' hs' (I.entails_one Φ'))
+          else fail "kernel: strengthening"
+        let E1 ← extTypes R E0 Γ'.reverse
+        if h : Γ'.reverse.reverse ++ [] = Γ' then
+          let E' := castCtx E1 rfl h
+          modify fun c => { c with ctxs := c.ctxs.insert k Φ' Γ' [] fs' rfl E' }
+          pure E'
+        else fail "kernel: strengthening"
+    return some ⟨k, Φ', Γ', E', hΨ, hΓ, hent⟩
+
+theorem HasTy.unstrength {Ψ Φ Γ t' A'} (st : Strength S Ψ Φ Γ) (hs : Φ.Scoped Ψ)
+    (h : HasTy S st.Ψ' st.Φ' st.Γ' t' A') : HasTy S Ψ Φ Γ t'.dshift A'.dshift := by
+  have := HasTy.dwk h
+  rw [st.hΓ, ← st.hΨ] at this
+  exact HasTy.restrict hs st.hent this
+
+theorem HasTy.unstrength' {Ψ Φ Γ t' A' t A} (st : Strength S Ψ Φ Γ) (hs : Φ.Scoped Ψ)
+    (h : HasTy S st.Ψ' st.Φ' st.Γ' t' A') (et : t'.dshift = t) (eA : A'.dshift = A) :
+    HasTy S Ψ Φ Γ t A := by
+  subst et; subst eA; exact HasTy.unstrength st hs h
+
+theorem EqTm.unstrength {Ψ Φ Γ t' u' A'} (st : Strength S Ψ Φ Γ) (hs : Φ.Scoped Ψ)
+    (h : EqTm S st.Ψ' st.Φ' st.Γ' t' u' A') : EqTm S Ψ Φ Γ t'.dshift u'.dshift A'.dshift := by
+  have := EqTm.dwk h
+  rw [st.hΓ, ← st.hΨ] at this
+  exact EqTm.restrict hs st.hent this
+
+theorem EqTm.unstrength' {Ψ Φ Γ t' u' A' t u A} (st : Strength S Ψ Φ Γ) (hs : Φ.Scoped Ψ)
+    (h : EqTm S st.Ψ' st.Φ' st.Γ' t' u' A') (et : t'.dshift = t) (eu : u'.dshift = u)
+    (eA : A'.dshift = A) : EqTm S Ψ Φ Γ t u A := by
+  subst et; subst eu; subst eA; exact EqTm.unstrength st hs h
+
+/-- Whether strengthening is worth trying: some interval variables, none of the terms mention
+variable 0. -/
+def tryStrength (Ψ : Nat) (ts : List Tm) : Bool := Ψ > 0 && !(ts.any (·.mentionsI 0))
+
+/-- Strengthening is worth trying and did not fail before for this judgment. -/
+def tryStrengthK (E : KCtx S Ψ Φ Γ) (ts : List Tm) : K S Bool := do
+  if !tryStrength Ψ ts then return false
+  return ((← get).strFail.find? Ψ Φ Γ ts E.fs.get E.hfs E.hsc (fun _ _ _ => none)).isNone
+
+def strengthFailed (E : KCtx S Ψ Φ Γ) (ts : List Tm) : K S Unit :=
+  modify fun c => { c with strFail := c.strFail.insert Ψ Φ Γ ts E.fs.get E.hfs ⟨⟩ }
+
 def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ t) := do
   -- cheap cases, not worth a lookup
   if (match t with | .var _ | .const _ => true | _ => false) then return ← inferStep R E t
   if let some v := (← get).inf.find? Ψ Φ Γ [t] E.fs.get E.hfs E.hsc InfF.restr then return v
+  if ← tryStrengthK E [t] then
+    if let some st ← strengthen? R E then
+      if h : tmEq (lowerI t).dshift t = true then
+        if let some i ← tryOpt (R.infer st.E' (lowerI t)) then
+          have e := tmEq_sound h
+          let v : Inf S Ψ Φ Γ t := ⟨i.ty.dshift, i.lvl, HasTy.unstrength st E.hsc i.hty,
+            HasTy.unstrength' st E.hsc i.htm e rfl⟩
+          modify fun c => { c with inf := c.inf.insert Ψ Φ Γ [t] E.fs.get E.hfs v }
+          return v
+  if tryStrength Ψ [t] then strengthFailed E [t]
   let v ← canonInferRaw R E t
   modify fun c => { c with inf := c.inf.insert Ψ Φ Γ [t] E.fs.get E.hfs v }
   return v
@@ -97,6 +185,15 @@ def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ 
 def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (PLift (HasTy S Ψ Φ Γ t A)) := do
   if let some v := (← get).chk.find? Ψ Φ Γ [t, A] E.fs.get E.hfs E.hsc ChkF.restr then return v
+  if false then
+    if let some st ← strengthen? R E then
+      if h : tmEq (lowerI t).dshift t = true ∧ tmEq (lowerI A).dshift A = true then
+        if let some ⟨lA, ⟨hA'⟩⟩ ← tryOpt (inferType R st.E' (lowerI A)) then
+          if let some ⟨hc⟩ ← tryOpt (R.check st.E' (lowerI t) (lowerI A) lA hA') then
+            let v : PLift (HasTy S Ψ Φ Γ t A) :=
+              ⟨HasTy.unstrength' st E.hsc hc (tmEq_sound h.1) (tmEq_sound h.2)⟩
+            modify fun c => { c with chk := c.chk.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
+            return v
   let v ← trail (fun _ => s!"checking {short t} : {short A}") (canonCheckRaw R E t A l hA)
   modify fun c => { c with chk := c.chk.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
   return v
@@ -105,6 +202,18 @@ def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K S (Red S Ψ Φ Γ t A) := do
   if t.rigid then return ⟨t, EqTm.refl ht⟩
   if let some v := (← get).wh.find? Ψ Φ Γ [t, A] E.fs.get E.hfs E.hsc WhF.restr then return v
+  if false then
+    if let some st ← strengthen? R E then
+      if h : tmEq (lowerI t).dshift t = true ∧ tmEq (lowerI A).dshift A = true then
+        if let some ⟨lA, ⟨hA'⟩⟩ ← tryOpt (inferType R st.E' (lowerI A)) then
+          if let some ⟨ht'⟩ ← tryOpt (R.check st.E' (lowerI t) (lowerI A) lA hA') then
+            if let some r ← tryOpt (R.whnf st.E' (lowerI t) (lowerI A) lA hA' ht') then
+              -- only a canonical form stays normal under the stronger restriction
+              if r.tm.rigid then
+                let v : Red S Ψ Φ Γ t A :=
+                  ⟨r.tm.dshift, EqTm.unstrength' st E.hsc r.eq (tmEq_sound h.1) rfl (tmEq_sound h.2)⟩
+                modify fun c => { c with wh := c.wh.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
+                return v
   let v ← canonWhnfRaw R E t A l hA ht
   modify fun c => { c with wh := c.wh.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
   return v
@@ -112,6 +221,20 @@ def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
 def canonWhnfI (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
     K S ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) := do
   if let some v := (← get).whi.find? Ψ Φ Γ [t] E.fs.get E.hfs E.hsc WhiF.restr then return v
+  if false then
+    if let some st ← strengthen? R E then
+      if h : tmEq (lowerI t).dshift t = true then
+        if let some ⟨i, r⟩ ← tryOpt (R.whnfI st.E' (lowerI t)) then
+          -- only a canonical form stays normal under the stronger restriction
+          if r.tm.rigid then
+            let e := tmEq_sound h
+            let i' : Inf S Ψ Φ Γ t := ⟨i.ty.dshift, i.lvl, HasTy.unstrength st E.hsc i.hty,
+              HasTy.unstrength' st E.hsc i.htm e rfl⟩
+            let v : (i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty :=
+              ⟨i', ⟨r.tm.dshift, EqTm.unstrength' st E.hsc r.eq e rfl rfl⟩⟩
+            modify fun c => { c with whi := c.whi.insert Ψ Φ Γ [t] E.fs.get E.hfs v }
+            return v
+  if tryStrength Ψ [t, .univ 3] then strengthFailed E [t, .univ 3]
   let v ← canonWhnfIRaw R E t
   modify fun c => { c with whi := c.whi.insert Ψ Φ Γ [t] E.fs.get E.hfs v }
   return v
@@ -121,6 +244,18 @@ def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
   if h : tmEq t u = true then return ⟨tmEq_sound h ▸ EqTm.refl ht⟩
   if let some v := (← get).conv.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc ConvF.restr then return v
+  if false then
+    if let some st ← strengthen? R E then
+      if h : tmEq (lowerI t).dshift t = true ∧ tmEq (lowerI u).dshift u = true ∧
+          tmEq (lowerI A).dshift A = true then
+        if let some ⟨lA, ⟨hA'⟩⟩ ← tryOpt (inferType R st.E' (lowerI A)) then
+          if let some ⟨ht'⟩ ← tryOpt (R.check st.E' (lowerI t) (lowerI A) lA hA') then
+            if let some ⟨hu'⟩ ← tryOpt (R.check st.E' (lowerI u) (lowerI A) lA hA') then
+              if let some ⟨e⟩ ← tryOpt (R.conv st.E' (lowerI A) lA hA' _ _ ht' hu') then
+                let v : PLift (EqTm S Ψ Φ Γ t u A) :=
+                  ⟨EqTm.unstrength' st E.hsc e (tmEq_sound h.1) (tmEq_sound h.2.1) (tmEq_sound h.2.2)⟩
+                modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }
+                return v
   if ((← get).convFail.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc (fun _ _ _ => none)).isSome then
     throw s!"kernel: {short t} and {short u} are not convertible (as before)"
   let v ← tryCatch (trail (fun _ => s!"comparing {short t} and {short u} at {short A}")

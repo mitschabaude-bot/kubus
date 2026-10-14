@@ -504,6 +504,10 @@ structure Cache (S : Sig) where
   /-- comparisons that failed (no proof needed), so that alternatives tried after a failure
   do not repeat it -/
   convFail : Table S (fun _ _ _ _ _ => PUnit) := {}
+  /-- judgments for which strengthening did not work (keys tagged by the judgment) -/
+  strFail : Table S (fun _ _ _ _ _ => PUnit) := {}
+  /-- kernel contexts with an interval variable removed (strengthening) -/
+  ctxs : Table S (fun S Ψ Φ Γ _ => KCtx S Ψ Φ Γ) := {}
   /-- inside an attempt to compare without splitting the restriction into faces -/
   noSplit : Bool := false
   /-- inside an attempt to compare by congruence before reducing -/
