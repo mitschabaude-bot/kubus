@@ -21,22 +21,6 @@ attribute [local instance] Classical.propDecidable
 
 variable {S : Sig} {k k' k'' : ℕ}
 
-/-- A nested constructor of a simple boundary. -/
-theorem simpleB_con_inv {ctors : List Ctor} {d np c n : ℕ} {C : Ctor} {d' c' : ℕ} {ps0 as0 : Tm} {rs0 : List I}
-    (h : Ctor.simpleB ctors d np c n C (.con d' c' ps0 as0 rs0) = true) :
-    d' = d ∧ c' < c ∧ ps0 = Ctor.paramVars np n ∧ ∃ C', ctors[c']? = some C' ∧ as0.toList.length = C'.args.length ∧
-      rs0.length = C'.dims ∧ Ctor.simpleArgs ctors d np c n C C' 0 as0 = true ∧ as0 = Tm.ofList as0.toList := by
-  simp only [Ctor.simpleB, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
-  obtain ⟨⟨⟨hdd, hcc⟩, hps⟩, hm⟩ := h
-  refine ⟨hdd, hcc, hps, ?_⟩
-  cases hC' : ctors[c']? with
-  | none => rw [hC'] at hm; cases hm
-  | some C' =>
-    rw [hC'] at hm
-    simp only [Bool.and_eq_true, beq_iff_eq] at hm
-    obtain ⟨⟨hal, hrl⟩, hsa⟩ := hm
-    exact ⟨C', rfl, hal, hrl, hsa, simpleArgs_isList as0 0 hsa⟩
-
 /-- The instances of a subterm `a` of a boundary of constructor `c` (at interval arguments `rs`). -/
 def BI (S : Sig) (d : ℕ) (D : DataDecl) (c : ℕ) (C : Ctor) (rs : List I) (a : Tm) : Prop :=
   ∀ {k3 : ℕ} (P1 : Tm) (Y : List Tm) (τ : ℕ → I), HasTy S k3 .one [] (.data d P1) (.univ D.level) →
