@@ -491,4 +491,94 @@ theorem ihTy_congr (hS : SigClosed S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ct
   rw [hkk]
   exact e
 
+/-! ## Branch types: the body -/
+
+/-- The interval arguments of the branch context. -/
+def ivars (m : Nat) : List I := (List.range m).map fun l => I.var (m - 1 - l)
+
+theorem branchBody_eq (d c : Nat) (C : Ctor) (ps P : Tm) (E : Ctx)
+    (hE : E.length = C.recPos.length + C.args.length) :
+    DataDecl.branchBody d c C ps P = P.subst
+      (consT (con d c (ps.wkN (C.args.length + C.recPos.length) C.dims) (Tm.ofList (argVars C.recPos.length C.args.length))
+        (ivars C.dims)) (fun j => .var (j + E.length))) (wkIv C.dims) := by
+  unfold DataDecl.branchBody
+  apply subst_congr
+  · intro x; cases x with
+    | zero => rfl
+    | succ x => simp only [consT, hE]; congr 1; omega
+  · intro i; rfl
+
+theorem body_congr (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+    (hpres : ∀ {Ψ Φ Γ t u A}, EqTm0 S Ψ Φ Γ t u A → HasTy0 S Ψ Φ Γ u A)
+    {Ψ Φ Γ} {ps ps' P P' : Tm} {l mP : Nat}
+    (ht : HasTele0 S Ψ Φ Γ ps D.params []) (es : EqTeleS S Ψ Φ Γ ps ps' D.params [])
+    (edata : EqTm0 S Ψ Φ Γ (data d ps) (data d ps') (univ l))
+    (eP : EqTm0 S Ψ Φ (data d ps :: Γ) P P' (univ mP)) {X : I}
+    (hw : Wf0 S (Ψ + C.dims) X (ctxWkI C.dims (ihCtxB C P C.recPos.length ++
+      argCtxB d D.params.length C ps C.args.length ++ Γ)))
+    (he : I.Entails X (Φ.subst (wkIv C.dims))) :
+    EqTm0 S (Ψ + C.dims) X (ctxWkI C.dims (ihCtxB C P C.recPos.length ++
+        argCtxB d D.params.length C ps C.args.length ++ Γ))
+      (DataDecl.branchBody d c C ps P) (DataDecl.branchBody d c C ps' P') (univ mP) := by
+  have hpsL := tele_isList ht
+  have hpl : ps.toList.length = D.params.length := by simpa using tele_length ht
+  let E := ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length
+  have hEl : E.length = C.recPos.length + C.args.length := by simp [E, ihCtxB_length, argCtxB_length]
+  have hnr : ∀ q : Tm, q.wkN E.length C.dims = q.wkN (C.args.length + C.recPos.length) C.dims := by
+    intro q; rw [hEl, Nat.add_comm]
+  obtain ⟨tw, esw, edw⟩ := params_wk hS hD ht es edata E C.dims hw he
+  simp only [hnr] at tw esw edw
+  have hl := (hW.2 d D hD).1
+  have hdw := HasTy0.data hD hl tw
+  have hxs := argvars_tele hS hD hC hpsL hpl (ihCtxB C P C.recPos.length) C.dims hw
+  rw [ihCtxB_length, show C.recPos.length + C.args.length = C.args.length + C.recPos.length by omega] at hxs
+  have hivs : (ivars C.dims).length = C.dims := by simp [ivars]
+  have hivsc : ∀ r ∈ ivars C.dims, r.Scoped (Ψ + C.dims) := by
+    intro r hr; simp only [ivars, List.mem_map, List.mem_range] at hr
+    obtain ⟨j, hj, rfl⟩ := hr; show C.dims - 1 - j < Ψ + C.dims; omega
+  have hcon := HasTy0.con hD hC (isList_wkN hpsL _ _) hdw tw hxs hivs hivsc
+  -- the primed constructor
+  have hxs' : HasTele0 S (Ψ + C.dims) X (ctxWkI C.dims (E ++ Γ)) (Tm.ofList (argVars C.recPos.length C.args.length))
+      (C.argTys d D.params.length) (ps'.wkN (C.args.length + C.recPos.length) C.dims).toList.reverse := by
+    have hty : ∀ i, i < C.args.length → HasTy0 S (Ψ + C.dims) X (ctxWkI C.dims (E ++ Γ)) ((argVars C.recPos.length C.args.length).getD i .abort)
+        ((C.argTy d D.params.length i).substList (((argVars C.recPos.length C.args.length).take i).reverse ++
+          (ps.wkN (C.args.length + C.recPos.length) C.dims).toList.reverse)) := by
+      intro i hi
+      have := argvars_hty hS hD hC hpsL hpl (ihCtxB C P C.recPos.length) C.dims C.args.length hw hi
+      rw [ihCtxB_length, show C.recPos.length + C.args.length = C.args.length + C.recPos.length by omega] at this
+      exact this
+    obtain ⟨-, -, -, Tel⟩ := pts_near hS hW hD hC hpres tw esw edw C.args.length (Nat.le_refl _)
+      (by simp [argVars_length]) (by simp [argVars_length]) hty (fun i hi => EqTm0.refl (hty i hi))
+      C.args.length (Nat.le_refl _)
+    apply HasTele0.ofList_of (wf_of_ty hcon) _ _ _ (by simp [argVars_length, argTys_length])
+    intro k a A ha hA
+    have hk : k < C.args.length := by
+      have := (List.getElem?_eq_some_iff.1 hA).1; rwa [argTys_length] at this
+    rw [argTys_get hk] at hA; cases hA
+    have := Tel k hk
+    rw [List.getD_eq_getElem?_getD, ha] at this
+    exact this
+  have hpsw' := params_tele hS hW hD hpres tw esw
+  have hcon' := HasTy0.con hD hC (isList_wkN es.isList' _ _) (HasTy0.data hD hl hpsw') hpsw' hxs' hivs hivsc
+  have hcon'c := HasTy0.conv hcon' (EqTm0.symm edw)
+  -- the substitutions
+  have T0 := tySub_wkE (S := S) (Γ := Γ) (Φ := Φ) E C.dims hw he
+  have hdsub : (data d ps).subst (fun j => .var (j + E.length)) (wkIv C.dims) =
+      data d (ps.wkN (C.args.length + C.recPos.length) C.dims) := by
+    simp only [Tm.subst]; rw [← hnr, wkN_eq]; rfl
+  have T := T0.cons (A := data d ps) (by rw [hdsub]; exact hcon)
+  have T' := T0.cons (A := data d ps) (by rw [hdsub]; exact hcon'c)
+  have E0 : EqSub S Ψ Γ (Ψ + C.dims) X (ctxWkI C.dims (E ++ Γ)) (fun j => .var (j + E.length)) (wkIv C.dims)
+      (fun j => .var (j + E.length)) (wkIv C.dims) :=
+    ⟨fun x A hx => EqTm0.refl (T0.look x A hx), fun i _ => I_eq_refl _⟩
+  have Ec := E0.cons (A := data d ps) (by
+    rw [hdsub]
+    exact EqTm0.con hD hC hcon hcon'c esw.toEqTele0 (EqTele0.refl hxs) rfl
+      (fun k r r' h1 h2 => by rw [h1] at h2; cases h2; exact I_eq_refl _))
+  have e1 := (sub_eq hS eP).2 T
+  have e2 := (sub_ty hS (hpres eP)).2.2 T T' Ec
+  rw [branchBody_eq d c C ps P E hEl, branchBody_eq d c C ps' P' E hEl]
+  exact EqTm0.trans e1 e2
+
 end KubusCore.Meta
