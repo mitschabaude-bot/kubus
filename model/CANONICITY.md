@@ -135,3 +135,42 @@ Restriction does not commute with `step`. For `σ : ISub k' k` and `step S t = s
 In every case both results are `≡` to `t.isub σ`, by soundness and substitution.
 
 The PER of (c) does not need a commutation lemma. Like the current relation, it is Kripke by definition: each clause quantifies over all restrictions `σ` and reduces `t.isub σ` at stage `k'` from scratch. Closure under restriction is then composition of restrictions. The fundamental lemma handles each redex at each restriction separately: if the face holds after `σ`, the face rule applies and its reduct is related by the induction hypothesis; otherwise the computation rule applies. This is how `RE_hcomp_face`/`RE_transp_face` already split the Kan lemma. Weak-head normal forms with a type-former head (`univ`, `pi`, `sigma`, `path`, `ipi`, `data`) never step, so they stay normal under restriction. The heads that can start to step after restriction are `glue`, `glueEl`, `split`, `con` with boundaries, and stuck eliminations. These are exactly the cases above.
+
+### Milestone (c): design
+
+`Model/Whnf/Rel.lean` (sub-step c1, done) defines `Comp2 S X m k f : Pack2` by the same rank recursion as `Comp`. It has a type relation `ty A A'` and an element relation `el A t t'`; `RT2`/`RE2` are its instances at `semK A`.
+
+- Every element relation includes `EB`: both sides typed and judgmentally equal.
+- Every type relation includes typing, the code, and `TyEq A A'`.
+- Types of every former, and elements of inductive types, are observed through their weak-head normal forms at every restriction (`∀ σ, RedW S (A.isub σ) (head …)`). Normal forms are unique, so the relations are transitive without injectivity of type formers or constructors.
+- Elements of Π, Σ, path, `(i : I) → A` and Glue types are observed through their eliminations.
+- The Glue type clause relates the two whnfs' bases, faces (both equal to the code's face), fibres and equivalences. So `RT2 U (glue A φ T e) (glue A' φ' T' e')`, where both sides are their own whnfs, gives `A ≡ A'` and, from the equivalences at the restrictions where `φ` holds and `eq_local_faces`, `e ≡ e'` under `φ`.
+
+Remaining sub-steps:
+
+- (c2) Unfolding lemmas per code. Kripke restriction (re-indexing the `∀ σ` clauses). Symmetry and transitivity (rank induction, using uniqueness of whnfs). Transfer of elements along related types. Semantics and typing of related terms.
+- (c3) Head expansion along substitution-stable steps (`∀ σ, step (t.isub σ) = some (t1.isub σ)`). Faces that come to hold under restriction are handled per stage where the redex is known.
+- (c4) Introduction and elimination clauses per former, and the Kan lemma for related lines and data, including the binary `hcompCon` via projections, which also discharges `HCSound`.
+- (c5) The fundamental lemma for `HasTy0` and `EqTm0`, with related closing substitutions. `UGSound` and `GlueCompat` are corollaries.
+
+Two design points came out of (c2):
+
+- Elements of Glue types are observed through their whnf `glueEl ψ e0 t0 a0` at every restriction where the face does not hold. The relation requires `ψ ⟺ φ1` and `e0 ≡ e1` under the face, where `(φ1, e1)` come from the type's whnf at the same stage, and relates the bases `a0`. Observing through `unglue φ1 e1 g` instead would mix the annotations of different stages, and those are related only by `GlueCompat`. The annotation agreement is also what makes the step `unglue φ e (glueEl φ' e' t a) ⇒ a` sound (`UGSound`). It holds for `glueEl` introductions and for the `hcompGlue`/`transpGlue` contracta, and it transfers along related Glue types, whose relation gives `e1 ≡ e1'` under the face.
+- Steps do not commute with restriction, so head expansion is local. If, for every restriction `σ`, `t.isub σ` takes a single-stage step to some `t1_σ` that is ≡ to it and related at that stage, then `t` is related. Each clause is Kripke by definition and only uses its own stage's normal forms, so this holds by code induction. The fundamental lemma uses it per restriction, splitting on whether the face of the redex holds there.
+
+### Milestone (c), sub-steps c1 and c2: done
+
+The relation `Comp2` (`Model/Whnf/Rel.lean`) is Kripke (`kr2_wf`, `Kripke2.lean`, `Data2.lean`) and a partial equivalence with transfer along related types (`per2_wf`, `PerAll.lean`) at every code. Design changes made while proving these:
+
+- Normal forms are recorded with their judgmental equality: `RedT` for types and `RedE` for elements. Reduction is only known sound under the side conditions of (a), so the relation carries the equalities itself.
+- `DR2` (inductive types) is Kripke by definition and records the equality of its two sides.
+- The argument clause of an inductive type relates the argument types at related arguments in four directions: `ps → ps'`, `ps' → ps`, `ps → ps` and `ps' → ps'`, at all restrictions of the normal form's parameters. With only one direction, symmetry and transitivity of the clause would need the conversion of recursive arguments, which itself needs the clause.
+- The equivalence of a Glue type is related by `equivF` (`Rel.lean`), a pack built from generic `Π`/`Σ`/path families (`Pack2.lean`). Its type relation for `equiv T A` (`equivF_ty`, `Equiv2.lean`) follows from those of `T` and `A`.
+- Equalities under a face come from all restrictions where the face holds (`eq_of_restr`, `Local.lean`). For Glue elements this turns related equivalences at the face restrictions into agreeing annotations.
+
+### Milestone (c), sub-step c3: done
+
+Local head expansion holds at every code (`he2_wf`, `he2_tyCode`, `PerAll.lean`; the cases are in `Expand.lean`). `HE2 S m X` says: if `A` and `A'` are types and every restriction `A.isub σ` reduces (`Red`) to some `B_σ`, judgmentally equal to it, with `B_σ` related to `A'.isub σ` at that stage, then `A` is related to `A'`. The same holds for elements `t`, `t'` of a type related to itself. The reducts are chosen per restriction, so faces that come to hold under restriction are handled by choosing a different reduct there.
+
+- The type relations of `Π`, `Σ`, path and `(i : I) → A` now include a coherence clause (`cohPi`, `cohSigma`, `cohPath`, `cohIPi`, `Unfold2.lean`): the normal form at a restriction `σ`, restricted further by `σ'`, is related to the normal form at `σ ∘ σ'`. Steps do not commute with restriction, so these two normal forms are syntactically unrelated in general. Head expansion proves the clause for the expanded type through the reducts at `σ` and `σ ∘ σ'` and the PER of the components. Head expansion of eliminations (`app`, `fst`, `snd`, `papp`) uses it to compare the codomain at a restriction with the codomain at the restricted normal form.
+- KR2, PER2 and HE2 are proved by one code induction (`kr2_per2_he2_wf`), since head expansion at `Π`/`Σ`/path types uses the Kripke and PER properties of the components.

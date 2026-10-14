@@ -108,18 +108,6 @@ theorem kanP_sigma (l m : ℕ) (A B : V) (hA : WF l m A) (ihA : KR S m A ∧ Kan
     obtain ⟨hwel, hmem⟩ := mem (hall (k' + 1) ρ).1 hw
     exact (ihB (k' + 1) _ _ hmem).2.2 k' (Hom.id (k' + 1)) _ ((hall (k' + 1) ρ).2 w hwel)
 
-omit hW in
-theorem ISub.up_comp_cons_id (σ : ISub k' k) (r : I) (hr : r.Scoped k') :
-    σ.up.comp (ISub.cons r hr (ISub.id k')) = ISub.cons r hr σ := by
-  ext i
-  rcases i with _ | i
-  · rfl
-  · show ((σ.τ i).shift).subst (ISub.cons r hr (ISub.id k')).τ = σ.τ i
-    rw [I_shift_cons]
-    by_cases h : i < k
-    · exact ISub.I.subst_scoped_id (σ.sc i h) fun j hj => by simp [ISub.id, hj]
-    · rw [σ.hi i (by omega)]; rfl
-
 /-- An endpoint of a path type's line, at a restriction, is computable. -/
 theorem path_end_RE {L : V} (hL : KR S (m + 1) L) {f : Hom k m} {L1 b : Tm} (σ : ISub k' k) (r : I)
     (hr : r.Scoped k') (h0 : (Comp S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty (L1.isub σ.up))
