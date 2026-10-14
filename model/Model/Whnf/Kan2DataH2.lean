@@ -287,6 +287,45 @@ theorem mot1_intro {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm} (he : EqTm S k1 .one 
     simp only [ISub.comp_assoc] at h1 ⊢
     exact h1
 
+/-- Composition over related elements of a literal inductive type without path constructors, by
+induction on their relation. -/
+theorem hcomp_DR2 : ∀ {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm},
+    DR2 S d (dataD S d) (dataMem S (ΘK S D d K P) (Hom.id K)) (dataP2 S (ΘK S D d K P) (Hom.id K)) k1 g A x x' →
+    DM1 S d P k1 g A x x' := by
+  have hdD := dataD_eq hW hD
+  intro k1 g A x x' h
+  refine DR2.rec (motive_1 := fun k1 g A x x' _ => DM1 S d P k1 g A x x')
+    (motive_2 := fun k1 g A y y' _ => DM2 S d D P k1 g A y y') ?_ ?_ ?_ h
+  · intro k1 g A x x' he _ _ _ ih ihc ihc'
+    exact mot1_intro hW hD hH hP hPP hArgK he ih ihc ihc'
+  · intro k1 g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
+      hrec hpt ihrec ρ hg hAe Q Q' hQ hQ'
+    subst hg hAe
+    obtain rfl := redT_data_eq (Θ := ΘK S D d K P) hA
+    have hC' : D.ctors[c]? = some C := hdD ▸ hC
+    have hrs0 := List.eq_nil_of_length_eq_zero (hrs.trans (nonHIT_ctor hH hC').1)
+    have hrs0' := List.eq_nil_of_length_eq_zero (hrs'.trans (nonHIT_ctor hH hC').1)
+    subst hrs0 hrs0'
+    exact mot2_con hW hD hH hP hPP hArgK ρ hQ hQ' hC' ht ht' (by rw [hl]) (by rw [hl']) hrec hpt
+      (fun i hi hi' hri Q1 Q1' h1 h2 K2 σ => by
+        have := ihrec i hi hi' hri ρ rfl rfl Q1 Q1' h1 h2 K2 σ
+        exact this)
+  · intro k1 g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH' _
+    have : D.isHIT = true := hdD ▸ hH'
+    rw [hH] at this; cases this
+
+/-- Composition at restrictions of a literal inductive type without path constructors. -/
+theorem kanH2_lit {k1 : ℕ} (ρ : ISub k1 K) {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q))
+    (hQ' : RT2 S K (.data d P) (.data d Q')) (a a' : Tm) :
+    HC2 S k1 (.data d (P.isub ρ)) (.data d (Q.isub ρ)) (.data d (Q'.isub ρ)) a a' := by
+  intro φ φ' u u' hty hty' heq hteq h12 h21 htube haa hbd hbd'
+  obtain ⟨-, hdr⟩ := (RE2_dataLit_iff hW hD hP ρ).1 haa
+  have h := hcomp_DR2 hW hD hH hP hPP hArgK hdr ρ rfl rfl Q Q' hQ hQ' k1 (ISub.id k1)
+  have hac := closed_of_ty hW (RE2.typed haa).1
+  have hac' := closed_of_ty hW (RE2.typed haa).2.1
+  rw [ISub.comp_id, isub_id_of_closed hac, isub_id_of_closed hac'] at h
+  exact h φ φ' u u' hty hty' heq hteq h12 h21 htube haa hbd hbd'
+
 end side
 
 end
