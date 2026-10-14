@@ -23,7 +23,17 @@ def canonical {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : Option ((Φ' : I) × Equiv' Ψ 
 
 variable {Ψ : Nat} {Φ : I} {Γ : Ctx}
 
-def canonInferRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ t) :=
+/-- Under an inconsistent restriction, an elimination spine on `[]` (which reduction can produce
+from the empty systems that stand for partial elements there) is given the type `U₀`. -/
+def abortSpineInf? (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Option (Inf S Ψ Φ Γ t)) := do
+  if h0 : E.Ent .zero ∧ (spineHead t matches .abort) ∧ !(t matches .abort) then
+    let ⟨hU⟩ ← univTyK E 0
+    let ⟨ht⟩ ← checkAbortSpine R E h0.1 t (.univ 0) 1 hU
+    return some ⟨.univ 0, 1, hU, ht⟩
+  return none
+
+def canonInferRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ t) := do
+  if let some i ← abortSpineInf? R E t then return i
   match (if E.canon then none else canonical E) with
   | none => inferStep R { E with canon := true } t
   | some ⟨Φ', q⟩ => do
@@ -48,7 +58,8 @@ def canonWhnfRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     pure ⟨r.tm, EqTm.restrict E.hsc q.h2 r.eq⟩
 
 def canonWhnfIRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
-    K S ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) :=
+    K S ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) := do
+  if let some i ← abortSpineInf? R E t then return ⟨i, ⟨t, EqTm.refl i.htm⟩⟩
   match (if E.canon then none else canonical E) with
   | none => whnfIStep R { E with canon := true } t
   | some ⟨Φ', q⟩ => do
