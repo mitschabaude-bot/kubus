@@ -546,6 +546,224 @@ theorem GHD.tubePt {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
     exact RE2_equiv_app hW (D.hE k' σ (hhold σ hφs hφσ))
       ((D.isub hW σ).fillPt hW hφσ (hrσ σ) (hrσ' σ) (I_eq_subst hE σ.τ))
 
+
+/-- A filler at `0` is the base. -/
+theorem KD.zeroPt {X X' : Tm} {ψ ψ' : I} {u u' a0 a0' : Tm} (D : KD S k X X' ψ ψ' u u' a0 a0')
+    (hXX : RT2 S k X X') : RE2 S k X ((Tm.hfill X ψ u a0).dinst .zero) a0 := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l1, ⟨hX0, hψs, hu, ha, hside⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty) rfl
+  have hXc : TyCode k (semK S k X) := RE2.tyCode hW D.ha0
+  have F := hfill_typed hS hX0 hψs hu ha hside
+  have hF : HasTy S (k + 1) .one [] (Tm.hfill X ψ u a0) X.dshift := minimal_to_spec F.1
+  have hv0 : RE2 S k X a0 a0 := RE2.trans hW hXX D.ha0 (RE2.symm hW hXX D.ha0)
+  have h := hfill_zero_pt hW hψs hXc (RT2.refl hW hXc hXX) hF (D.tubeL hW hXX) hv0 (fun k' σ hh => by
+    have hXσ := RT2.isub hW hXc hXX σ
+    exact RE2.trans hW hXσ (D.bd k' σ hh) (RE2.symm hW hXσ (RE2.isub hW D.ha0 σ))) (ISub.id k)
+  rw [isub_id_of_closed (closed_of_isTyK hW (isTyK_of_ty hW D.hty)), isub_cons_id_dinst hW (closed_of_ty hW hF) .zero trivial,
+    isub_id_of_closed (closed_of_ty hW (RE2.typed D.ha0).1)] at h
+  exact h
+
+
+/-- The boundary of the base composition of `hcompGlue`, against the right base. -/
+theorem GHD.bdL {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (hor : I.Entails .one (.or ψ φ)) :
+    RE2 S k A (.split ψ (.unglue φ e (u.dinst .zero)) φ (.app (.fst e) ((Tm.hfill T ψ u a0).dinst .zero)))
+      (.unglue φ' e' a0') := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
+  have hφs' := (glue_data hW hG').1
+  obtain ⟨-, ⟨-, hψs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty) rfl
+  have hXA : TyCode k (semK S k A) := tyCode_of_univ hW hA0
+  have hAA : RT2 S k A A := RT2.refl hW hXA D.hA
+  have parts := hcompGlue_parts hS (spec_to_minimal hW D.hty) (spec_to_minimal hW hG)
+  have hsp := hcomp_tube_typed' hW (minimal_to_spec parts.2.1) .zero trivial
+    ((holds_iff_entails (show (I.or ψ φ).Scoped k from ⟨hψs, hφs⟩)).2 hor)
+  rw [glueTube_d] at hsp
+  have hhold : ∀ {k'} {x : I} (σ : ISub k' k), x.Scoped k → I.Entails .one (x.subst σ.τ) →
+      (ival (idEnv k') (x.subst σ.τ)).holds := fun σ hx h => (holds_iff_entails (I.scoped_subst hx σ.sc)).2 h
+  refine RE2_split_l hW hψs hφs hor hAA hsp (RE2.typed (D.ug0 hW D.ha0)).2.1 (fun k' σ hψσ => ?_)
+    (fun k' σ hφσ => ?_)
+  · have := D.ug hW σ (D.bd k' σ (hhold σ hψs hψσ))
+    simp only [isub_unglue, isub_dinst]
+    exact this
+  · have Dσ := D.isub hW σ
+    have hGσ : HasTy S k' .one [] (.glue (A.isub σ) (φ.subst σ.τ) (T.isub σ) (e.isub σ)) (.univ l) :=
+      HasTy.isubS hW hG σ
+    have hAσ := RT2.isub hW hXA hAA σ
+    have hTσ := (Dσ.fibRel hW hφσ).1
+    have hTTσ := RT2.refl hW (RE2.tyCode hW ((Dσ.fibKD hW hφσ).ha0)) hTσ
+    have z := (Dσ.fibKD hW hφσ).zeroPt hW hTσ
+    have f := RE2_glue_fib hW hGσ hφσ hTTσ (RE2.isub hW D.ha0 σ)
+    have happ := RE2_equiv_app hW (D.hE k' σ (hhold σ hφs hφσ)) (RE2.trans hW hTTσ z f)
+    have hφσ' : I.Entails .one (φ'.subst σ.τ) := ent_trans hφσ (ent_subst D.f12 σ.τ)
+    obtain ⟨l2, hG2, eG2⟩ := glue_annot_eq hW hGσ (I.scoped_subst hφs' σ.sc) (ent_subst D.f12 σ.τ)
+      (ent_subst D.f21 σ.τ) Dσ.ee
+    have he'σ : HasTy S k' .one [] (e'.isub σ) (Tm.equiv (T.isub σ) (A.isub σ)) := by
+      have := face_ty hW hφs (HasTy.eqL D.ee) σ (hhold σ hφs hφσ); rwa [isub_equiv] at this
+    have hug := RE2.isub hW (D.ug0 hW D.ha0) σ
+    have hst := stable_unglueFace hW hφσ' (RE2.typed hug).2.1 ((RE2.typed (RE2.isub hW D.ha0 σ)).2.1.conv eG2)
+      (HasTy.isubS hW hA0 σ) he'σ (TyEq.refl _)
+    simp only [isub_app, isub_fst, isub_dinst, isub_hfill]
+    exact RE2.expandR hW hAσ (RE2.typed happ).1 (RE2.typed hug).2.1 hst happ
+
+/-- The left base, against the boundary of the right base composition of `hcompGlue`. -/
+theorem GHD.bdR {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (hor : I.Entails .one (.or ψ φ)) :
+    RE2 S k A (.unglue φ e a0)
+      (.split ψ' (.unglue φ' e' (u'.dinst .zero)) φ' (.app (.fst e') ((Tm.hfill T' ψ' u' a0').dinst .zero))) := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
+  have hφs' := (glue_data hW hG').1
+  obtain ⟨l1', ⟨hG'0, hψs', hu', ha0', hside'⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty') rfl
+  have hXA : TyCode k (semK S k A) := tyCode_of_univ hW hA0
+  have hAA : RT2 S k A A := RT2.refl hW hXA D.hA
+  have hAA' : TyEq S k A A' := (Comp2_ty_base D.hA).2.2.2.2.2
+  have parts' := hcompGlue_parts hS (HasTy0.hcomp hG'0 hψs' hu' ha0' hside') (spec_to_minimal hW hG')
+  have hor' : I.Entails .one (.or ψ' φ') :=
+    ent_trans hor (ent_or_elim (ent_trans D.p12 (ent_or_left _ _)) (ent_trans D.f12 (ent_or_right _ _)))
+  have hsp' := hcomp_tube_typed' hW ((minimal_to_spec parts'.2.1).tyConv (TyEq.symm hAA')) .zero trivial
+    ((holds_iff_entails (show (I.or ψ' φ').Scoped k from ⟨hψs', hφs'⟩)).2 hor')
+  rw [glueTube_d] at hsp'
+  have hhold : ∀ {k'} {x : I} (σ : ISub k' k), x.Scoped k → I.Entails .one (x.subst σ.τ) →
+      (ival (idEnv k') (x.subst σ.τ)).holds := fun σ hx h => (holds_iff_entails (I.scoped_subst hx σ.sc)).2 h
+  have hψs : ψ.Scoped k := (gen_hcomp (spec_to_minimal hW D.hty) rfl).choose_spec.1.2.1
+  refine RE2_split_r hW hψs' hφs' hor' hAA hsp' (RE2.typed (D.ug0 hW D.ha0)).1 (fun k' σ hψσ' => ?_)
+    (fun k' σ hφσ' => ?_)
+  · have := D.ug hW σ (D.bd' k' σ (hhold σ hψs (ent_trans hψσ' (ent_subst D.p21 σ.τ))))
+    simp only [isub_unglue, isub_dinst]
+    exact this
+  · have hφσ : I.Entails .one (φ.subst σ.τ) := ent_trans hφσ' (ent_subst D.f21 σ.τ)
+    have Dσ := D.isub hW σ
+    have hAσ := RT2.isub hW hXA hAA σ
+    have hTσ := (Dσ.fibRel hW hφσ).1
+    have hTTσ := RT2.refl hW (RE2.tyCode hW ((Dσ.fibKD hW hφσ).ha0)) hTσ
+    have z := (Dσ.fibKD hW hφσ).zeroPt hW hTσ
+    have fp := Dσ.fillPt hW hφσ (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _)
+    have happ := RE2_equiv_app hW (D.hE k' σ (hhold σ hφs hφσ)) (RE2.trans hW hTTσ (RE2.symm hW hTTσ z) fp)
+    have heσ : HasTy S k' .one [] (e.isub σ) (Tm.equiv (T.isub σ) (A.isub σ)) := by
+      have := face_ty hW hφs he0 σ (hhold σ hφs hφσ); rwa [isub_equiv] at this
+    have hug := RE2.isub hW (D.ug0 hW D.ha0) σ
+    have hst := stable_unglueFace hW hφσ (RE2.typed hug).1 (RE2.typed (RE2.isub hW D.ha0 σ)).1
+      (HasTy.isubS hW hA0 σ) heσ (TyEq.refl _)
+    simp only [isub_app, isub_fst, isub_dinst, isub_hfill]
+    exact RE2.expandL hW hAσ (RE2.typed hug).1 (RE2.typed happ).2.1 hst happ
+
+/-- The composition data of the base of `hcompGlue`. -/
+theorem GHD.baseKD {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') :
+    KD S k A A' (.or ψ φ) (.or ψ' φ') (KubusCore.Meta.glueTube φ T e ψ u a0)
+      (KubusCore.Meta.glueTube φ' T' e' ψ' u' a0') (.unglue φ e a0) (.unglue φ' e' a0') := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
+  obtain ⟨hφs', lA', hA0', he0'⟩ := glue_data hW hG'
+  obtain ⟨-, ⟨hG00, hψs, hu, ha0t, hside⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty) rfl
+  obtain ⟨l1', ⟨hG'0, hψs', hu', ha0', hside'⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty') rfl
+  have hty'G' : HasTy0 S k .one [] (.hcomp (.glue A' φ' T' e') ψ' u' a0') (.glue A' φ' T' e') :=
+    HasTy0.hcomp hG'0 hψs' hu' ha0' hside'
+  have parts := hcompGlue_parts hS (spec_to_minimal hW D.hty) (spec_to_minimal hW hG)
+  have parts' := hcompGlue_parts hS hty'G' (spec_to_minimal hW hG')
+  have hGK : IsTyK S k (.glue A φ T e) := ⟨l, .inl hG⟩
+  have hG'K : IsTyK S k (.glue A' φ' T' e') := ⟨l', .inl hG'⟩
+  have hXA : TyCode k (semK S k A) := tyCode_of_univ hW hA0
+  have hAA : RT2 S k A A := RT2.refl hW hXA D.hA
+  have hAA' : TyEq S k A A' := (Comp2_ty_base D.hA).2.2.2.2.2
+  -- the judgmental equality of the bases, through `unglue` of the compositions
+  have eG := EqTm.hcompGlue D.hty hA0 he0
+  have eG' := EqTm.hcompGlue (minimal_to_spec hty'G') hA0' he0'
+  rw [KubusCore.Meta.hcompGlue_eq] at eG eG'
+  have v1 := EqTm.glueBeta (unglue_ty hW hGK ⟨lA, hA0, he0⟩ (HasTy.eqR eG)) (minimal_to_spec parts.2.1)
+  have v2 := EqTm.unglue (unglue_ty hW hGK ⟨lA, hA0, he0⟩ D.hty) (unglue_ty hW hGK ⟨lA, hA0, he0⟩ (HasTy.eqR eG))
+    (ent_refl _) (ent_refl _) (EqTm.refl he0) eG
+  have v3 := EqTm.unglue (unglue_ty hW hGK ⟨lA, hA0, he0⟩ D.hty)
+    ((unglue_ty hW hG'K ⟨lA', hA0', he0'⟩ (minimal_to_spec hty'G')).tyConv (TyEq.symm hAA')) D.f12 D.f21 D.ee.symm
+    D.heq
+  have v4 := EqTm.unglue (unglue_ty hW hG'K ⟨lA', hA0', he0'⟩ (minimal_to_spec hty'G'))
+    (unglue_ty hW hG'K ⟨lA', hA0', he0'⟩ (HasTy.eqR eG')) (ent_refl _) (ent_refl _) (EqTm.refl he0') eG'
+  have v5 := EqTm.glueBeta (unglue_ty hW hG'K ⟨lA', hA0', he0'⟩ (HasTy.eqR eG')) (minimal_to_spec parts'.2.1)
+  have heqb := v1.symm.trans (v2.symm.trans (v3.trans ((v4.trans v5).tyConv (TyEq.symm hAA'))))
+  -- the judgmental equality of the base tubes
+  obtain ⟨l0, ⟨-, -, hT0, -⟩, -⟩ := gen_glue hS (spec_to_minimal hW hG) rfl
+  obtain ⟨l0', ⟨-, -, hT0', -⟩, -⟩ := gen_glue hS (spec_to_minimal hW hG') rfl
+  have hφc : (cof .one φ).Scoped k := ⟨trivial, hφs⟩
+  have hφψc : (cof (cof .one φ) ψ).Scoped k := ⟨hφc, hψs⟩
+  have hTT0 : T = T' ∨ ∃ l, EqTm0 S k (cof .one φ) [] T T' (.univ l) := by
+    rcases D.gG with e1 | ⟨l2, e2⟩
+    · left; simp only [Tm.glue.injEq] at e1; exact e1.2.2.1
+    · right; refine ⟨l2, spec_to_minimal_eq hW ?_⟩
+      have r1 := EqTm.restrict hφc (ent_and_left _ _) e2
+      have g1 := EqTm.glueFace (ent_and_right _ _) (HasTy.eqL r1)
+      have g2 := EqTm.glueFace (ent_trans (ent_and_right _ _) D.f12) (HasTy.eqR r1)
+      exact g1.symm.trans (r1.trans g2)
+  have hGT0 : EqTm0 S k (cof .one φ) [] (.glue A φ T e) T (.univ l) :=
+    spec_to_minimal_eq hW (EqTm.glueFace (ent_and_right _ _) (HasTy.restrict hφc (ent_and_left _ _) hG))
+  have eψ : I.Entails (cof (cof .one φ) ψ) (cof .one ψ) :=
+    ent_and_intro (ent_trans (ent_and_left _ _) (ent_and_left _ _)) (ent_and_right _ _)
+  have hsideφ : EqTm0 S k (cof (cof .one φ) ψ) [] (u.dinst .zero) a0 T :=
+    EqTm0.conv (EqTm0.restrict hφψc eψ hside) (EqTm0.restrict hφψc (ent_and_left _ _) hGT0)
+  have F := hfill_typed hS hT0 hψs parts.2.2.2.1 parts.2.2.2.2 hsideφ
+  -- the right filler, in the context of the left face
+  have hφc' : (cof .one φ').Scoped k := ⟨trivial, hφs'⟩
+  have hφψc' : (cof (cof .one φ') ψ').Scoped k := ⟨hφc', hψs'⟩
+  have hG'T0 : EqTm0 S k (cof .one φ') [] (.glue A' φ' T' e') T' (.univ l') :=
+    spec_to_minimal_eq hW (EqTm.glueFace (ent_and_right _ _) (HasTy.restrict hφc' (ent_and_left _ _) hG'))
+  have eψ' : I.Entails (cof (cof .one φ') ψ') (cof .one ψ') :=
+    ent_and_intro (ent_trans (ent_and_left _ _) (ent_and_left _ _)) (ent_and_right _ _)
+  have hsideφ' : EqTm0 S k (cof (cof .one φ') ψ') [] (u'.dinst .zero) a0' T' :=
+    EqTm0.conv (EqTm0.restrict hφψc' eψ' hside') (EqTm0.restrict hφψc' (ent_and_left _ _) hG'T0)
+  have F' := hfill_typed hS hT0' hψs' parts'.2.2.2.1 parts'.2.2.2.2 hsideφ'
+  have hsh : (cof .one φ).shift.Scoped (k + 1) := KubusCore.I.scoped_shift hφc
+  have hF' : HasTy0 S (k + 1) (cof .one φ).shift [] (Tm.hfill T' ψ' u' a0') T.dshift := by
+    have h1 := HasTy0.restrict hsh (ent_shift (ent_and_mono (ent_refl _) D.f12)) F'.1
+    rcases hTT0 with rfl | ⟨l2, e2⟩
+    · exact h1
+    · exact HasTy0.conv h1 (EqTm0.symm (EqTm0.dwk hS e2))
+  have huuT : EqTm0 S (k + 1) (cof (cof .one φ) ψ).shift [] u u' T.dshift :=
+    EqTm0.conv (EqTm0.restrict (KubusCore.I.scoped_shift hφψc) (ent_shift eψ) (spec_to_minimal_eq hW D.hteq))
+      (EqTm0.restrict (KubusCore.I.scoped_shift hφψc) (ent_shift (ent_and_left _ _)) (EqTm0.dwk hS hGT0))
+  have hv0T : EqTm0 S k (cof .one φ) [] a0 a0' T :=
+    EqTm0.conv (EqTm0.restrict hφc (ent_and_left _ _) (spec_to_minimal_eq hW (RE2.typed D.ha0).2.2)) hGT0
+  have hFF0 := hfill_congΦ hW F.1 hF' hTT0 huuT hv0T D.p12 D.p21
+  have hAA0 : A = A' ∨ ∃ l, EqTm0 S k .one [] A A' (.univ l) := by
+    rcases hAA' with e1 | ⟨l2, e2⟩
+    · exact .inl e1
+    · exact .inr ⟨l2, spec_to_minimal_eq hW e2⟩
+  have hteqb := minimal_to_spec_eq (glueTube_eq hW parts.2.2.1 parts'.2.2.1 hAA0 (spec_to_minimal_eq hW D.hteq)
+    (spec_to_minimal_eq hW D.ee.symm) hFF0 D.p12 D.f12 D.f21)
+  have hor_s : (I.or ψ φ).Scoped k := ⟨hψs, hφs⟩
+  have hent : ∀ {k'} (σ : ISub k' k), (ival (idEnv k') ((I.or ψ φ).subst σ.τ)).holds →
+      I.Entails .one (I.or (ψ.subst σ.τ) (φ.subst σ.τ)) := fun σ hh =>
+    (holds_iff_entails (I.scoped_subst hor_s σ.sc)).1 hh
+  refine ⟨minimal_to_spec parts.2.1, (minimal_to_spec parts'.2.1).tyConv (TyEq.symm hAA'), heqb, hteqb,
+    ent_or_elim (ent_trans D.p12 (ent_or_left _ _)) (ent_trans D.f12 (ent_or_right _ _)),
+    ent_or_elim (ent_trans D.p21 (ent_or_left _ _)) (ent_trans D.f21 (ent_or_right _ _)),
+    fun k' σ r r' hr hr' hE hh => ?_, D.ug0 hW D.ha0, fun k' σ hh => ?_, fun k' σ hh => ?_⟩
+  · rw [glueTube_isub, glueTube_isub, glueTube_d, glueTube_d]
+    exact (D.isub hW σ).tubePt hW (hent σ hh) hr hr' hE
+  · rw [glueTube_isub, glueTube_d]
+    exact (D.isub hW σ).bdL hW (hent σ hh)
+  · rw [glueTube_isub, glueTube_d]
+    exact (D.isub hW σ).bdR hW (hent σ hh)
+
+/-- The base of `hcompGlue`. -/
+theorem GHD.base {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') :
+    RE2 S k A (.hcomp A (.or ψ φ) (KubusCore.Meta.glueTube φ T e ψ u a0) (.unglue φ e a0))
+      (.hcomp A' (.or ψ' φ') (KubusCore.Meta.glueTube φ' T' e' ψ' u' a0') (.unglue φ' e' a0')) := by
+  have h := D.kA k (ISub.id k)
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  have hc := closed_of_ty hW hG
+  have hc' := closed_of_ty hW hG'
+  simp only [Tm.closedB, Bool.and_eq_true] at hc hc'
+  rw [isub_id_of_closed hc.1.1.1, isub_id_of_closed hc'.1.1.1] at h
+  exact (D.baseKD hW).kan h
+
 end
 
 end Model.Whnf
