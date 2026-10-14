@@ -57,10 +57,6 @@ theorem sk2_closed {X : Tm} (hX : X.closedB 0 (k + 1) = true) :
   · rfl
   · show I.var (i + 2) = (ISub.wk (k + 1)).τ (i + 1); simp [ISub.wk, show i < k by omega]
 
-theorem dshift_isub_tail (t : Tm) {k4 : ℕ} (τ : ISub k4 (k + 1)) : t.dshift.isub τ = t.isub τ.tail := by
-  conv_lhs => rw [← ISub.cons_tail τ]
-  rw [dshift_isub_cons]
-
 theorem subst_up_inst0_dinst {X : Tm} {n : ℕ} (hX : X.closedB n (k + 2) = true) {r s : I} (hr : r.Scoped k)
     (hs : s.Scoped k) :
     (X.subst Tm.var (I.up (I.inst0 r))).dinst s = X.isub (ISub.cons s hs (ISub.cons r hr (ISub.id k))) := by
@@ -268,9 +264,10 @@ theorem TGD2.t1' (hδ : (ival (idEnv k) δ).holds) : RE2 S k (T.dinst .one) (tgT
     (eqTm_transp_of hW ht ht'' (Comp2_ty_base hTT).2.2.2.2.2 D.p12 D.p21 (RE2.typed h0).2.2) D.p12 D.p21 h0
 
 
-/-- On `δ`, the starts in the fibers, where `ψ` holds or at the start of the line. -/
-theorem TGD2.u0At (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) (r : I) (hr : r.Scoped k')
-    (hψ : (ival (idEnv k') (ψ.subst τ.τ)).holds ∨ r = .zero) :
+/-- The starts in the fibers, where the face holds and where `ψ` holds or at the start of the line. -/
+theorem TGD2.u0F {k' : ℕ} (τ : ISub k' k) (r : I) (hr : r.Scoped k')
+    (hψ : (ival (idEnv k') (ψ.subst τ.τ)).holds ∨ r = .zero)
+    (hφr : (ival (idEnv k') (φ.subst (ISub.cons r hr τ).τ)).holds) :
     RE2 S k' (T.isub (ISub.cons r hr τ)) (u0.isub τ) (u0'.isub τ) := by
   obtain ⟨l, hG⟩ := D.hG
   obtain ⟨-, -, -, hφ⟩ := D.closedL hW
@@ -282,7 +279,13 @@ theorem TGD2.u0At (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) 
     · exact RE2.conv hW (RT2.symm hW (tyCode_of_univ hW hGr) (D.cG k' τ r hr hh)) h0
     · exact h0
   rw [isub_glue] at hg hGr
-  exact RE2_glue_fib hW hGr (entails_of_holds (I.scoped_subst hφ (ISub.cons r hr τ).sc) (D.faceL hW hδ _)) (D.rTT k' _ (D.faceL hW hδ _)) hg
+  exact RE2_glue_fib hW hGr (entails_of_holds (I.scoped_subst hφ (ISub.cons r hr τ).sc) hφr) (D.rTT k' _ hφr) hg
+
+/-- On `δ`, the starts in the fibers, where `ψ` holds or at the start of the line. -/
+theorem TGD2.u0At (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) (r : I) (hr : r.Scoped k')
+    (hψ : (ival (idEnv k') (ψ.subst τ.τ)).holds ∨ r = .zero) :
+    RE2 S k' (T.isub (ISub.cons r hr τ)) (u0.isub τ) (u0'.isub τ) :=
+  D.u0F hW τ r hr hψ (D.faceL hW hδ _)
 
 /-- On `δ`, the fiber line is typed. -/
 theorem TGD2.hTδ (hδ : (ival (idEnv k) δ).holds) : ∃ l, HasTy S (k + 1) .one [] T (.univ l) := by
@@ -382,9 +385,9 @@ omit D in
 theorem RE2.reflL {X t t' : Tm} (hXX : RT2 S k X X) (h : RE2 S k X t t') : RE2 S k X t t :=
   RE2.trans hW hXX h (RE2.symm hW hXX h)
 
-/-- On `δ`, where `ψ` holds, the tube of the bases is the equivalence applied to the start. -/
-theorem TGD2.tubeE (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) {r : I} (hr : r.Scoped k')
-    (hh : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+/-- Where `ψ` and the face hold, the tube of the bases is the equivalence applied to the start. -/
+theorem TGD2.tubeEF {k' : ℕ} (τ : ISub k' k) {r : I} (hr : r.Scoped k')
+    (hh : (ival (idEnv k') (ψ.subst τ.τ)).holds) (hφr : (ival (idEnv k') (φ.subst (ISub.cons r hr τ).τ)).holds) :
     RE2 S k' (A.isub (ISub.cons r hr τ)) (((tgTube φ e u0).isub τ.up).dinst r)
       (.app (.fst (e.isub (ISub.cons r hr τ))) (u0.isub τ)) := by
   obtain ⟨l, hG⟩ := D.hG
@@ -392,18 +395,25 @@ theorem TGD2.tubeE (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k)
   obtain ⟨l1, H⟩ := D.tgL hW
   obtain ⟨-, lA, hAt, -⟩ := glue_data hW hG
   have hAA := D.rAA k' τ r r hr hr (I_eq_refl _)
-  have x := RE2.reflL hW hAA (D.eu0 hW hδ τ hr hr (I_eq_refl _) (.inl hh))
+  have x := RE2.reflL hW hAA (D.eApp hW τ hr hr (I_eq_refl _) hφr (D.u0F hW τ r hr (.inl hh) hφr))
   have hu := ty_line_at hW H.hψ (minimal_to_spec H.htube) τ r hr hh
   rw [isub_up_dinst _ _ _ hr, tgTube_cons] at *
   have hg : HasTy S k' .one [] (u0.isub τ) ((Tm.glue A φ T e).isub (ISub.cons r hr τ)) := by
     have h0 := RE2.isub hW D.ha0 τ
     rw [dinst_isub_end _ (.inl rfl), isub_up_dinst _ _ .zero trivial] at h0
     exact (RE2.typed h0).1.tyConv (Comp2_ty_base (D.cG k' τ r hr hh)).2.2.2.2.2.symm
-  obtain ⟨-, -, heσ⟩ := glue_fiber_ty hW hG (ISub.cons r hr τ) (D.faceL hW hδ _)
+  obtain ⟨-, -, heσ⟩ := glue_fiber_ty hW hG (ISub.cons r hr τ) hφr
   rw [isub_glue] at hg
-  have hst := stable_unglueFace hW (entails_of_holds (I.scoped_subst hφ (ISub.cons r hr τ).sc) (D.faceL hW hδ _))
+  have hst := stable_unglueFace hW (entails_of_holds (I.scoped_subst hφ (ISub.cons r hr τ).sc) hφr)
     hu hg (HasTy.isubS hW hAt _) heσ (TyEq.refl _)
   exact RE2.expandL hW hAA hu (RE2.typed x).1 hst x
+
+/-- On `δ`, where `ψ` holds, the tube of the bases is the equivalence applied to the start. -/
+theorem TGD2.tubeE (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) {r : I} (hr : r.Scoped k')
+    (hh : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+    RE2 S k' (A.isub (ISub.cons r hr τ)) (((tgTube φ e u0).isub τ.up).dinst r)
+      (.app (.fst (e.isub (ISub.cons r hr τ))) (u0.isub τ)) :=
+  D.tubeEF hW τ hr hh (D.faceL hW hδ _)
 
 
 /-- The left tube, related to itself at near points. -/
@@ -763,6 +773,24 @@ theorem TGD2.fill1 {k' : ℕ} (τ : ISub k' k) :
       have x := D.tubeL hW σ (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _) hh
       rw [tgTube_zero φ e u0]; rwa [tgTube_zero φ e u0] at x) τ
 
+/-- On `δ`, where `ψ` holds, the equivalence applied to the start is the composition in the bases. -/
+theorem TGD2.eu0a1 (hδ : (ival (idEnv k) δ).holds) {k4 : ℕ} (σ2 : ISub k4 k) (hh : (ival (idEnv k4) (ψ.subst σ2.τ)).holds) :
+    RE2 S k4 (A.isub (ISub.cons .one trivial σ2)) (.app (.fst (e.isub (ISub.cons .one trivial σ2))) (u0.isub σ2))
+      ((tgA1' A φ e ψ u0).isub σ2) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hAA2 := D.rAA k4 σ2 .one .one trivial trivial (I_eq_refl _)
+  have t := D.tubeE hW hδ σ2 (r := .one) trivial hh
+  rw [isub_up_dinst _ _ .one trivial] at t
+  have hc := HasTy.isubS hW (minimal_to_spec H.ha1') σ2
+  rw [dinst_isub_end _ (.inr rfl), isub_up_dinst _ _ .one trivial] at hc
+  have st := stable_compFace hW (entails_of_holds (I.scoped_subst H.hψ σ2.sc) hh)
+    (by unfold tgA1' at hc; rw [comp_isub] at hc; exact hc)
+  unfold tgA1'
+  rw [comp_isub]
+  rw [isub_up_dinst _ _ .one trivial] at st
+  exact RE2.expandR hW hAA2 (RE2.typed t).2.1 (by unfold tgA1' at hc; rwa [comp_isub] at hc) st
+    (RE2.symm hW hAA2 t)
+
 /-- On `δ`, the body of `ω` at the end of the path is the composition in the bases. -/
 theorem TGD2.w1 (hδ : (ival (idEnv k) δ).holds) :
     RE2 S k (A.dinst .one) ((tgBody A φ T e ψ u0).dinst .one) (tgA1' A φ e ψ u0) := by
@@ -798,18 +826,7 @@ theorem TGD2.w1 (hδ : (ival (idEnv k) δ).holds) :
     have hh : (ival (idEnv k4) (ψ.subst σ2.τ)).holds := by
       rw [holds_iff_entails (I.scoped_subst H.hψ σ2.sc)]
       rw [I_subst_id H.hψ] at h; exact h
-    have hAA2 := D.rAA k4 σ2 .one .one trivial trivial (I_eq_refl _)
-    have t := D.tubeE hW hδ σ2 (r := .one) trivial hh
-    rw [isub_up_dinst _ _ .one trivial] at t
-    have hc := HasTy.isubS hW (minimal_to_spec H.ha1') σ2
-    rw [dinst_isub_end _ (.inr rfl), isub_up_dinst _ _ .one trivial] at hc
-    have st := stable_compFace hW (entails_of_holds (I.scoped_subst H.hψ σ2.sc) hh)
-      (by unfold tgA1' at hc; rw [comp_isub] at hc; exact hc)
-    unfold tgA1'
-    rw [comp_isub]
-    rw [isub_up_dinst _ _ .one trivial] at st
-    exact RE2.expandR hW hAA2 (RE2.typed t).2.1 (by unfold tgA1' at hc; rwa [comp_isub] at hc) st
-      (RE2.symm hW hAA2 t)
+    exact D.eu0a1 hW hδ σ2 hh
   · have hσ := HasTy.isubS hW hsp σ2
     have hin := HasTy.eqR (EqTm.splitR h hσ)
     have hAA2 := D.rAA k4 σ2 .one .one trivial trivial (I_eq_refl _)
