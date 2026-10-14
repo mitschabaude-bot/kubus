@@ -240,6 +240,132 @@ theorem argTy_rel {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {ps ps' args 
   rw [hAk]
   rwa [e1, e2] at this
 
+/-! ### The relation of literal inductive types -/
+
+omit hH in
+theorem tyLook_code {X : Tm} {l k'' : ℕ} (hX : HasTy S k'' .one [] (.data d X) (.univ l)) (hxl : X = Tm.ofList X.toList)
+    {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {j : ℕ} {A : Tm} (hA : C.args[j]? = some (.point A))
+    {pre : List Tm} (hlen : pre.length = j) (hnat : ∀ t ∈ pre, Natural S t k'' (idEnv k'') (γ0 k''))
+    (hv : ValidPre (ΘK S D d k'' X) c j (pre.map (semK S k''))) :
+    tyLook (shapeV (ΘK S D d k'' X)) c j (pre.map (semK S k'')) =
+      semK S k'' ((C.argTy d D.params.length j).substList (pre.reverse ++ X.toList.reverse)) := by
+  rw [tyLook_eq hv, ΘK_ty_id hW hD hX hxl hC hA hlen hnat (ptValid_of_validPre hv)]
+
+omit hW hD hH in
+theorem validPre2_of_el {n : ℕ} {Λ : SData n} {c j : ℕ} {pre : List V} {k : ℕ} {A t t' : Tm}
+    (h : (Comp2 S (tyLook (shapeV Λ) c j pre) k k (Hom.id k)).el A t t') : ValidPre Λ c j pre := by
+  rcases tyLook_cases Λ c j pre with h0 | h0
+  · rw [h0, Comp2_empty] at h; exact h.elim
+  · exact h0
+
+omit hD hH in
+theorem DR2.memL {m k : ℕ} {d : ℕ} {D : DataDecl} {Mem : (k : ℕ) → Hom k m → Tm → Prop}
+    {P : (k : ℕ) → Hom k m → ℕ → ℕ → List V → Tm → Tm → Tm → Prop} {f : Hom k m} {A t t' : Tm}
+    (h : DR2 S d D Mem P k f A t t') : Mem k f t := by
+  cases h with
+  | intro he h2 _ _ =>
+    have := h2 k (ISub.id k)
+    rw [ISub.hom_id, Hom.comp_id, isub_id_of_closed (closed_of_ty hW (minimal_to_spec
+      (presup hW (spec_to_minimal_eq hW he)).1))] at this
+    cases this with
+    | con hm => exact hm
+    | hcomp hm => exact hm
+
+/-- Elementwise judgmentally equal lists. -/
+def ListEq (S : Sig) (k : ℕ) (L L' : List Tm) : Prop :=
+  List.Forall₂ (fun a b => ∃ T, EqTm S k .one [] a b T) L L'
+
+omit hW hD hH in
+theorem ListEq.get {L L' : List Tm} (h : ListEq S k L L') :
+    L.length = L'.length ∧ ∀ i (hi : i < L.length) (hi' : i < L'.length), ∃ T, EqTm S k .one [] L[i] L'[i] T :=
+  ⟨h.length_eq, fun i hi hi' => List.forall₂_iff_get.1 h |>.2 i hi hi'⟩
+
+omit hW hD hH in
+theorem ListEq.refl {L : List Tm} (h : ∀ t ∈ L, ∃ T, HasTy S k .one [] t T) : ListEq S k L L := by
+  induction L with
+  | nil => exact .nil
+  | cons a L ih =>
+    obtain ⟨T, hT⟩ := h a (List.mem_cons_self ..)
+    exact .cons ⟨T, EqTm.refl hT⟩ (ih fun t ht => h t (List.mem_cons_of_mem _ ht))
+
+/-- The argument clause of a literal inductive type, from related parameter lists. -/
+theorem argRelH_of {P : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ l)) (hpl : P = Tm.ofList P.toList)
+    {k' : ℕ} (σ : ISub k' k) {ps ps' : Tm}
+    (hpar : ∀ k'' (σ' : ISub k'' k'), ParRel2 S k'' D (ps.isub σ').toList (ps'.isub σ').toList)
+    (hpeq : ∀ k'' (σ' : ISub k'' k'), ListEq S k'' (P.isub (σ.comp σ')).toList (ps.isub σ').toList) :
+    argRelH (ΘK S D d k P) (Hom.id k) S k' σ.hom ps ps' := by
+  intro k'' σ' c C args args' hC hl hl' hr hrec hpt
+  simp only [show (ΘK S D d k P).idx = d from rfl, dataD_eq hW hD] at hC hrec hpt ⊢
+  have hΛ : (ΘK S D d k P).restr ((Hom.id k).comp (σ.hom.comp σ'.hom)) = ΘK S D d k'' (P.isub (σ.comp σ')) := by
+    rw [Hom.id_comp, ← ISub.hom_comp]; exact ΘK_restr P (σ.comp σ')
+  simp only [dataP2] at hpt
+  rw [hΛ] at hpt
+  rw [hΛ]
+  have hPτ : HasTy S k'' .one [] (.data d (P.isub (σ.comp σ'))) (.univ l) := HasTy.isubS hW hP (σ.comp σ')
+  have hplτ : P.isub (σ.comp σ') = Tm.ofList (P.isub (σ.comp σ')).toList := isList_subst hpl _ _
+  obtain ⟨hc', hCeq⟩ := List.getElem?_eq_some_iff.1 hC
+  -- typing and naturality of the arguments
+  have htyA : ∀ i (hi : i < args.length) (hi' : i < args'.length), ∃ T, HasTy S k'' .one [] args[i] T := by
+    intro i hi hi'
+    cases hri : C.isRec i
+    · exact ⟨_, (Comp2_el (hpt i hi hi' hri)).1.1⟩
+    · cases hrec i hi hi' hri with
+      | intro he _ _ _ => exact ⟨_, minimal_to_spec (presup hW (spec_to_minimal_eq hW he)).1⟩
+  have hnat : ∀ t ∈ args, Natural S t k'' (idEnv k'') (γ0 k'') := by
+    intro t ht
+    obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ht
+    obtain ⟨T, hT⟩ := htyA i hi (by omega)
+    exact natural_of_ty hW hT
+  have hargsEq : ∀ j, j ≤ args.length → ListEq S k'' (args.take j) (args.take j) := fun j _ =>
+    ListEq.refl fun t ht => by
+      obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ht
+      simp only [List.getElem_take]
+      exact htyA i (by simp at hi; omega) (by simp at hi; omega)
+  -- the codes of the point argument types
+  have hcode : ∀ j (hj : j < C.args.length) (hjl : j ≤ args.length), C.isRec j = false →
+      ValidPre (ΘK S D d k'' (P.isub (σ.comp σ'))) c j ((args.take j).map (semK S k'')) →
+      tyLook (shapeV (ΘK S D d k'' (P.isub (σ.comp σ')))) c j ((args.take j).map (semK S k'')) =
+        semK S k'' ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ (ps.isub σ').toList.reverse)) := by
+    intro j hj hjl hrj hv
+    obtain ⟨A, hA⟩ := point_of_not_rec hj hrj
+    rw [tyLook_code hW hD hPτ hplτ hC hA (by simp; omega) (fun t ht => hnat t (List.mem_of_mem_take ht)) hv]
+    have hE : ListEq S k'' ((args.take j).reverse ++ (P.isub (σ.comp σ')).toList.reverse)
+        ((args.take j).reverse ++ (ps.isub σ').toList.reverse) :=
+      List.rel_append (List.forall₂_reverse_iff.2 (hargsEq j hjl)) (List.forall₂_reverse_iff.2 (hpeq k'' σ'))
+    exact semK_substList_congr hW _ hE.get.1 hE.get.2
+  have hargs : ∀ i (hi : i < args.length) (hi' : i < args'.length), C.isRec i = false →
+      RE2 S k'' ((C.argTy d D.params.length i).substList ((args.take i).reverse ++ (ps.isub σ').toList.reverse))
+        args[i] args'[i] := by
+    intro i hi hi' hri
+    have h := hpt i hi hi' hri
+    have hv := validPre2_of_el h
+    unfold RE2
+    rw [← hcode i (by omega) hi.le hri hv]
+    exact h
+  -- the valid prefix of the arguments
+  have hv : ValidPre (ΘK S D d k'' (P.isub (σ.comp σ'))) c args.length (args.map (semK S k'')) := by
+    refine ⟨hc', by simp only [show (ΘK S D d k'' (P.isub (σ.comp σ'))).ctors = D.ctors from rfl, hCeq]; omega,
+      by simp, fun i hi => ?_⟩
+    simp only [List.length_map] at hi
+    simp only [argSet, show (ΘK S D d k'' (P.isub (σ.comp σ'))).ctors = D.ctors from rfl, hCeq]
+    split
+    · rename_i hri
+      have := DR2.memL hW (hrec i hi (by omega) (by simpa using hri))
+      simp only [dataMem] at this
+      rw [hΛ] at this
+      simpa using this
+    · rename_i hri
+      have hri' : C.isRec i = false := by simpa using hri
+      have h := hpt i hi (by omega) hri'
+      have hvi := validPre2_of_el h
+      have := (Comp2_el h).2
+      rw [El_res, Hom.comp_id, tyLook_eq hvi] at this
+      simpa [List.map_take] using this
+  have hc := hcode args.length hl (Nat.le_refl _) hr (by simpa using hv)
+  simp only [List.take_length] at hc
+  rw [hc]
+  exact argTy_rel hW hD hH hC (hpar k'' σ') hl hl' hr hargs
+
 end
 
 end Model.Whnf
