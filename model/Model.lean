@@ -68,4 +68,4 @@ import Model.Whnf.Valid2CompGlue
 import Model.Whnf.Valid2LineEquiv
 import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Kan2Glue
-import Model.Whnf.Kan2DataTStep
+import Model.Whnf.Kan2DataTCon
