@@ -249,6 +249,7 @@ structure GHD (S : Sig) (k : ℕ) (A T e A' T' e' : Tm) (φ φ' ψ ψ' : I) (u u
   hG : ∃ l, HasTy S k .one [] (.glue A φ T e) (.univ l)
   hG' : ∃ l, HasTy S k .one [] (.glue A' φ' T' e') (.univ l)
   gG : TyEq S k (.glue A φ T e) (.glue A' φ' T' e')
+  hGG : RT2 S k (.glue A φ T e) (.glue A φ T e)
   hA : RT2 S k A A'
   hT : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → RT2 S k' (T.isub σ) (T'.isub σ)
   hE : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
@@ -285,7 +286,8 @@ theorem GHD.isub {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
   have hXA : TyCode k (semK S k A) := tyCode_of_univ hW hA0
   have hc : ∀ {k''} (σ : ISub k'' k'), (ival (idEnv k'') ((φ.subst ρ.τ).subst σ.τ)).holds →
       (ival (idEnv k'') (φ.subst (ρ.comp σ).τ)).holds := fun σ h => by rwa [I_subst_comp]
-  refine ⟨⟨l, HasTy.isubS hW hG ρ⟩, ⟨l', HasTy.isubS hW hG' ρ⟩, TyEq.isub hW ρ D.gG, RT2.isub hW hXA D.hA ρ, fun k'' σ hh => ?_,
+  refine ⟨⟨l, HasTy.isubS hW hG ρ⟩, ⟨l', HasTy.isubS hW hG' ρ⟩, TyEq.isub hW ρ D.gG,
+    RT2.isub hW (tyCode_of_univ hW hG) D.hGG ρ, RT2.isub hW hXA D.hA ρ, fun k'' σ hh => ?_,
     fun k'' σ hh => ?_, fun k'' σ hh => ?_, ent_subst D.f12 ρ.τ, ent_subst D.f21 ρ.τ, ?_, fun k'' σ => ?_,
     fun k'' σ hh => ?_,
     HasTy.isubS hW D.hty ρ, HasTy.isubS hW D.hty' ρ, EqTm.isubS hW D.heq ρ, ?_, ent_subst D.p12 ρ.τ,
@@ -849,6 +851,54 @@ theorem GHD.hat {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
     have R := Dσ.fibRel hW hφσ
     simp only [isub_app, isub_fst, isub_dinst, isub_hfill, isub_hcomp, I.subst]
     exact RE2_equiv_app hW (D.hEL k' σ (hhold σ hφs hφσ)) (K.onePt hW R.1 (Dσ.kTd hW hφσ))
+
+
+/-- `hcompGlue` at related Glue types whose face does not hold. -/
+theorem GHD.core {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (hn : ¬ (ival (idEnv k) φ).holds) :
+    RE2 S k (.glue A φ T e) (Tm.hcompGlue A φ T e ψ u a0) (Tm.hcompGlue A' φ' T' e' ψ' u' a0') := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
+  obtain ⟨hφs', lA', hA0', he0'⟩ := glue_data hW hG'
+  obtain ⟨l1', ⟨hG'0, hψs', hu', ha0', hside'⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty') rfl
+  have hty'G' : HasTy0 S k .one [] (.hcomp (.glue A' φ' T' e') ψ' u' a0') (.glue A' φ' T' e') :=
+    HasTy0.hcomp hG'0 hψs' hu' ha0' hside'
+  have hXA : TyCode k (semK S k A) := tyCode_of_univ hW hA0
+  have hAA : RT2 S k A A := RT2.refl hW hXA D.hA
+  have eG := EqTm.hcompGlue D.hty hA0 he0
+  have eG' := EqTm.hcompGlue (minimal_to_spec hty'G') hA0' he0'
+  have hhold : ∀ {k'} {x : I} (σ : ISub k' k), x.Scoped k → (ival (idEnv k') (x.subst σ.τ)).holds →
+      I.Entails .one (x.subst σ.τ) := fun σ hx h => (holds_iff_entails (I.scoped_subst hx σ.sc)).1 h
+  have ha : ∀ k' (σ : ISub k' k), RE2 S k' (A.isub σ)
+      ((Tm.hcomp A (.or ψ φ) (KubusCore.Meta.glueTube φ T e ψ u a0) (.unglue φ e a0)).isub σ)
+      ((Tm.hcomp A' (.or ψ' φ') (KubusCore.Meta.glueTube φ' T' e' ψ' u' a0') (.unglue φ' e' a0')).isub σ) := by
+    intro k' σ
+    rw [isub_hcomp, isub_hcomp, glueTube_isub, glueTube_isub, isub_unglue, isub_unglue]
+    exact (D.isub hW σ).base hW
+  have ht : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (T.isub σ) ((Tm.hcomp T ψ u a0).isub σ) ((Tm.hcomp T' ψ' u' a0').isub σ) := by
+    intro k' σ hh
+    rw [isub_hcomp, isub_hcomp]
+    exact (D.isub hW σ).fib hW (hhold σ hφs hh)
+  have hat : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (A.isub σ) ((Tm.hcomp A (.or ψ φ) (KubusCore.Meta.glueTube φ T e ψ u a0) (.unglue φ e a0)).isub σ)
+        (.app (.fst (e.isub σ)) ((Tm.hcomp T ψ u a0).isub σ)) := by
+    intro k' σ hh
+    rw [isub_hcomp, isub_hcomp, glueTube_isub, isub_unglue]
+    exact (D.isub hW σ).hat hW (hhold σ hφs hh)
+  rw [KubusCore.Meta.hcompGlue_eq, KubusCore.Meta.hcompGlue_eq]
+  rw [KubusCore.Meta.hcompGlue_eq] at eG eG'
+  refine RE2_glueEl_intro hW hG hn ⟨HasTy.eqR eG, (HasTy.eqR eG').tyConv (TyEq.symm D.gG),
+      eG.symm.trans (D.heq.trans (eG'.tyConv (TyEq.symm D.gG)))⟩ D.f12 D.f21 D.ee D.hGG
+    (fun k' σ => RT2.isub hW hXA hAA σ)
+    (fun k' σ hh => RT2.refl hW (tyCode_of_univ hW (glue_fiber_ty hW hG σ hh).choose_spec.1) (D.hT k' σ hh))
+    ha ht hat (fun k' σ hh => ?_)
+  have hAσ := RT2.isub hW hXA hAA σ
+  have hTσ := RT2.refl hW (tyCode_of_univ hW (glue_fiber_ty hW hG σ hh).choose_spec.1) (D.hT k' σ hh)
+  exact RE2.trans hW hAσ (RE2.symm hW hAσ (ha k' σ))
+    (RE2.trans hW hAσ (hat k' σ hh) (RE2_equiv_app hW (D.hEL k' σ hh) (ht k' σ hh)))
 
 end
 
