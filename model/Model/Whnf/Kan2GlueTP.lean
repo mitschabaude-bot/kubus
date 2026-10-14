@@ -206,6 +206,64 @@ theorem TGD2.t1' (hδ : (ival (idEnv k) δ).holds) : RE2 S k (T.dinst .one) (tgT
   exact hK (D.rTL hW hδ) ψ ψ' u0 u0' (D.cT hW hδ) ht ht''
     (eqTm_transp_of hW ht ht'' (Comp2_ty_base hTT).2.2.2.2.2 D.p12 D.p21 (RE2.typed h0).2.2) D.p12 D.p21 h0
 
+
+/-- On `δ`, the starts in the fibers, where `ψ` holds or at the start of the line. -/
+theorem TGD2.u0At (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) (r : I) (hr : r.Scoped k')
+    (hψ : (ival (idEnv k') (ψ.subst τ.τ)).holds ∨ r = .zero) :
+    RE2 S k' (T.isub (ISub.cons r hr τ)) (u0.isub τ) (u0'.isub τ) := by
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨-, -, -, hφ⟩ := D.closedL hW
+  have h0 := RE2.isub hW D.ha0 τ
+  rw [dinst_isub_end _ (.inl rfl), isub_up_dinst _ _ .zero trivial] at h0
+  have hGr := HasTy.isubS hW hG (ISub.cons r hr τ)
+  have hg : RE2 S k' ((Tm.glue A φ T e).isub (ISub.cons r hr τ)) (u0.isub τ) (u0'.isub τ) := by
+    rcases hψ with hh | rfl
+    · exact RE2.conv hW (RT2.symm hW (tyCode_of_univ hW hGr) (D.cG k' τ r hr hh)) h0
+    · exact h0
+  rw [isub_glue] at hg hGr
+  exact RE2_glue_fib hW hGr (entails_of_holds (I.scoped_subst hφ (ISub.cons r hr τ).sc) (D.faceL hW hδ _)) (D.rTT k' _ (D.faceL hW hδ _)) hg
+
+/-- On `δ`, the fiber line is typed. -/
+theorem TGD2.hTδ (hδ : (ival (idEnv k) δ).holds) : ∃ l, HasTy S (k + 1) .one [] T (.univ l) := by
+  obtain ⟨l, H⟩ := D.tgL hW
+  exact ⟨l, HasTy.restrict (Φ' := .one) trivial (ent_shift (ent_cof_one hW (entails_of_holds D.hδs hδ)))
+    (minimal_to_spec H.hTZ)⟩
+
+/-- On `δ`, the fiber line is related to itself at near points. -/
+theorem TGD2.rTLL (hδ : (ival (idEnv k) δ).holds) : LineRob S k T T := fun k' τ y y' hy hy' he => by
+  obtain ⟨l, hT⟩ := D.hTδ hW hδ
+  exact RT2_near hW (tyCode_of_univ hW (HasTy.isubS hW hT _)) (D.rTT k' _ (D.faceL hW hδ _)) (near_cons T hy hy' he)
+    ⟨l, .inl (HasTy.isubS hW hT _)⟩
+
+/-- On `δ`, the transport fillers in the fibers. -/
+theorem TGD2.tfAt (hδ : (ival (idEnv k) δ).holds) {k3 : ℕ} (σ σ' : ISub k3 (k + 1)) (et : σ.tail = σ'.tail)
+    (e0 : I.Eq (σ.τ 0) (σ'.τ 0)) :
+    RE2 S k3 (T.isub σ) ((Tm.transpFill T ψ u0).isub σ) ((Tm.transpFill T' ψ' u0').isub σ') := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨-, hTc, -, -⟩ := D.closedL hW
+  obtain ⟨l, hT⟩ := D.hTδ hW hδ
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hδe := ent_cof_one hW (entails_of_holds D.hδs hδ)
+  have hδe' := ent_cof_one hW (entails_of_holds D.hδs' (D.hδ' hδ))
+  have hF := HasTy.restrict (Φ' := .one) trivial (ent_shift hδe)
+    (minimal_to_spec (transpFill_typed hS H.hTZ H.hψ H.hconstT H.hu0T).1)
+  have hF' := HasTy.restrict (Φ' := .one) trivial (ent_shift hδe')
+    (minimal_to_spec (transpFill_typed hS H'.hTZ H'.hψ H'.hconstT H'.hu0T).1)
+  have ha := D.u0At hW hδ (ISub.id k) .zero trivial (.inr rfl)
+  rw [isub_cons_id_of_closed hTc, isub_id_of_closed (closed_ty H.hu0), isub_id_of_closed (closed_ty H'.hu0)] at ha
+  refine tfill_rel hW hT H.hψ D.p12 D.p21 (D.rTL hW hδ) (D.rTLL hW hδ) (D.cT hW hδ)
+    (fun k4 τ y y' hy hy' he _ => ?_) hF hF' ha k3 σ σ' et e0
+  exact KanT2.at (D.kTT k4 (ISub.cons y hy τ.up.tail) (D.faceL hW hδ _) _ (D.rTL hW hδ (k4 + 1) τ.up.tail y y' hy hy' he)) _ _
+
+/-- The first components of the equivalences, applied at near points. -/
+theorem TGD2.eApp {k' : ℕ} (τ : ISub k' k) {r r' : I} (hr : r.Scoped k') (hr' : r'.Scoped k') (he : I.Eq r r')
+    (hh : (ival (idEnv k') (φ.subst (ISub.cons r hr τ).τ)).holds) {x x' : Tm}
+    (hx : RE2 S k' (T.isub (ISub.cons r hr τ)) x x') :
+    RE2 S k' (A.isub (ISub.cons r hr τ)) (.app (.fst (e.isub (ISub.cons r hr τ))) x)
+      (.app (.fst (e'.isub (ISub.cons r' hr' τ))) x') :=
+  RE2_equiv_app hW (D.rEN hW τ hr hr' he hh) hx
+
 end
 
 end
