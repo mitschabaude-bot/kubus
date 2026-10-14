@@ -958,6 +958,81 @@ theorem valid_face {t A : Tm} {i : ℕ} {d : Bool} (hi : i < Ψ) (hent : I.Entai
       · rw [if_neg hni, if_neg hni]; rfl
   rw [hR]; exact e
 
+
+/-! ### No confusion and definitions -/
+
+omit hW in
+theorem tyHead_subst {X : Tm} {h : ℕ × ℕ} (hX : X.tyHead = some h) (γ : ℕ → Tm) (τ : ℕ → I) :
+    (X.subst γ τ).tyHead = some h := by
+  cases X <;> simp_all [Tm.tyHead, Tm.subst]
+
+/-- Judgmentally equal closed types have the same head. -/
+theorem tyHead_eq_of_eq {X Y : Tm} {l : ℕ} {hx hy : ℕ × ℕ} (hX : X.tyHead = some hx) (hY : Y.tyHead = some hy)
+    (he : EqTm S k .one [] X Y (.univ l)) : hx = hy := by
+  have hok := sigOK_of_wfSig _ S rfl hW
+  have hs := sound_eq hok he
+  have hp := isPoint_idEnv S k
+  have e := codeHead_sem hs.1 hX hp
+  rw [hs.2.2 k (idEnv k) (γ0 k) hp, codeHead_sem hs.2.1 hY hp] at e
+  have fx := tyHead_facts hX; have fy := tyHead_facts hY
+  exact (headEnc_inj fy.1 fx.1 fy.2 fx.2 e).symm
+
+theorem valid_noConf {X Y t u T : Tm} {l : ℕ} (h0 : X.headClash Y = true)
+    (hXY : Valid2 S Ψ Φ Γ X Y (.univ l)) : Valid2 S Ψ Φ Γ t u T := by
+  intro k c
+  exfalso
+  have he := (RE2.typed (hXY k c).2).2.2
+  unfold Tm.headClash at h0
+  cases hX : X.tyHead with
+  | none => rw [hX] at h0; simp at h0
+  | some hx =>
+    cases hY : Y.tyHead with
+    | none => rw [hX, hY] at h0; simp at h0
+    | some hy =>
+      rw [hX, hY] at h0
+      have := tyHead_eq_of_eq hW (tyHead_subst hX _ _) (tyHead_subst hY _ _) he
+      subst this; simp at h0
+
+omit hW in
+theorem closed0_subst {t : Tm} (h : t.closedB 0 0 = true) (γ : ℕ → Tm) (τ : ℕ → I) : t.subst γ τ = t :=
+  closed_subst_id h (fun x hx => absurd hx (Nat.not_lt_zero _)) (fun i hi => absurd hi (Nat.not_lt_zero _))
+
+theorem stable_delta {i : ℕ} {t A : Tm} (hd : S[i]? = some (.defn t A)) (hty : HasTy S k .one [] (.const i) A) :
+    StableE S k A (.const i) t := by
+  obtain ⟨htc, hAc, -, -⟩ := hW.1 i t A hd
+  intro k' σ
+  have hσ := HasTy.isubS hW hty σ
+  have ht : t.isub σ = t := closed0_subst htc _ _
+  have hA : A.isub σ = A := closed0_subst hAc _ _
+  rw [hA] at hσ
+  show Red S (.const i) (t.isub σ) ∧ EqTm S k' .one [] (.const i) (t.isub σ) (A.isub σ)
+  rw [ht, hA]
+  exact ⟨.step (by simp [step, hd]) (.refl _), EqTm.delta hσ hd⟩
+
+/-- A definition's body, related to itself, makes the constant valid. -/
+theorem valid_const {i : ℕ} {t A : Tm} (hd : S[i]? = some (.defn t A))
+    (hdef : ∀ k, RT2 S k A A ∧ RE2 S k A t t) (hty : HasTy0 S Ψ Φ Γ (.const i) A) :
+    Valid2 S Ψ Φ Γ (.const i) (.const i) A := by
+  intro k c
+  obtain ⟨-, hAc, -, -⟩ := hW.1 i t A hd
+  have hA : c.L A = A := closed0_subst hAc _ _
+  have hA' : c.R A = A := closed0_subst hAc _ _
+  have hct : HasTy S k .one [] (.const i) A := by have := c.ty hW hty; rwa [hA] at this
+  obtain ⟨hAA, h⟩ := hdef k
+  rw [hA, hA']
+  exact ⟨hAA, RE2.expand2 hW hAA hct hct (stable_delta hW hd hct) (stable_delta hW hd hct) h⟩
+
+theorem valid_delta {i : ℕ} {t A : Tm} (hd : S[i]? = some (.defn t A)) (h : Valid2 S Ψ Φ Γ (.const i) (.const i) A)
+    (hty : HasTy0 S Ψ Φ Γ (.const i) A) (hu : HasTy0 S Ψ Φ Γ t A) : Valid2 S Ψ Φ Γ (.const i) t A := by
+  obtain ⟨htc, hAc, -, -⟩ := hW.1 i t A hd
+  refine valid_redR hW h hu fun k c => ?_
+  have hR : c.R t = t := closed0_subst htc _ _
+  have hA : c.L A = A := closed0_subst hAc _ _
+  have := c.tyR' hW hty
+  rw [hA] at this ⊢
+  rw [hR]
+  exact stable_delta hW hd this
+
 end
 
 end Model.Whnf
