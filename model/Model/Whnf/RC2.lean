@@ -99,18 +99,18 @@ include hA
 theorem rcTy_piC {f : Hom k m} {T T' B' : Tm} (h : (Comp2 S (piC m A B) m k f).ty T T') (hs : StableT S k T' B')
     (hB : IsTyK S k B') : (Comp2 S (piC m A B) m k f).ty T B' := by
   rw [Comp2_piC A B hA] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, hk'⟩ := h
   refine ⟨base_rc hW hB hb hs, fun k' σ => ?_, hc, fun k1 σ k2 σ' A1 B1 A2 B2 h1 h2 =>
-    hc' k1 σ k2 σ' A1 B1 A2 B2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2)⟩
+    hc' k1 σ k2 σ' A1 B1 A2 B2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2), hk, fun k' σ A1 B1 hR => hk' k' σ A1 B1 (RedT.stable' hW hs σ hR)⟩
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' σ
   exact ⟨A1, B1, A1', B1', h1, RedT.stable hW hs σ h2, h3, h4⟩
 
 theorem rcTy_sigmaC {f : Hom k m} {T T' B' : Tm} (h : (Comp2 S (sigmaC m A B) m k f).ty T T') (hs : StableT S k T' B')
     (hB : IsTyK S k B') : (Comp2 S (sigmaC m A B) m k f).ty T B' := by
   rw [Comp2_sigmaC A B hA] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, hk'⟩ := h
   refine ⟨base_rc hW hB hb hs, fun k' σ => ?_, hc, fun k1 σ k2 σ' A1 B1 A2 B2 h1 h2 =>
-    hc' k1 σ k2 σ' A1 B1 A2 B2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2)⟩
+    hc' k1 σ k2 σ' A1 B1 A2 B2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2), hk, fun k' σ A1 B1 hR => hk' k' σ A1 B1 (RedT.stable' hW hs σ hR)⟩
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' σ
   exact ⟨A1, B1, A1', B1', h1, RedT.stable hW hs σ h2, h3, h4⟩
 

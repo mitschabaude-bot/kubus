@@ -69,12 +69,28 @@ theorem cohIPi_isub {L : V} {f : Hom k m} {T : Tm} (h : cohIPi S L f T) (σ0 : I
   have := h k1 (σ0.comp σ) k2 σ' L1 L2 h1 (by rwa [ISub.comp_assoc])
   rw [ISub.comp_assoc] at this; rwa [lift_hom_comp]
 
+omit hW in
+theorem kanPi2_isub {A B : V} {f : Hom k m} {T : Tm} (h : kanPi2 S A B f T) (σ0 : ISub k' k) :
+    kanPi2 S A B (f.comp σ0.hom) (T.isub σ0) := by
+  intro k1 σ A1 B1 hR
+  rw [Tm.isub_isub] at hR
+  have hh := h k1 (σ0.comp σ) A1 B1 hR
+  simpa only [ISub.hom_comp, Hom.comp_assoc] using hh
+
+omit hW in
+theorem kanSigma2_isub {A B : V} {f : Hom k m} {T : Tm} (h : kanSigma2 S A B f T) (σ0 : ISub k' k) :
+    kanSigma2 S A B (f.comp σ0.hom) (T.isub σ0) := by
+  intro k1 σ A1 B1 hR
+  rw [Tm.isub_isub] at hR
+  have hh := h k1 (σ0.comp σ) A1 B1 hR
+  simpa only [ISub.hom_comp, Hom.comp_assoc] using hh
+
 theorem kr2_piC {A B : V} (hX : Fib (piC m A B) m) (hA : A ≠ ∅) : KR2 S m (piC m A B) := by
   intro k f k' σ T T' t t'
   rw [Comp2_piC A B hA, Comp2_piC A B hA]
   constructor
-  · rintro ⟨hb, hall, hc, hc'⟩
-    refine ⟨?_, fun k'' σ' => ?_, cohPi_isub hc σ, cohPi_isub hc' σ⟩
+  · rintro ⟨hb, hall, hc, hc', hk, hk'⟩
+    refine ⟨?_, fun k'' σ' => ?_, cohPi_isub hc σ, cohPi_isub hc' σ, kanPi2_isub hk σ, kanPi2_isub hk' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
     · obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k'' (σ.comp σ')
       refine ⟨A1, B1, A1', B1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_, ?_⟩
@@ -92,8 +108,8 @@ theorem kr2_sigmaC {A B : V} (hX : Fib (sigmaC m A B) m) (hA : A ≠ ∅) : KR2 
   intro k f k' σ T T' t t'
   rw [Comp2_sigmaC A B hA, Comp2_sigmaC A B hA]
   constructor
-  · rintro ⟨hb, hall, hc, hc'⟩
-    refine ⟨?_, fun k'' σ' => ?_, cohSigma_isub hc σ, cohSigma_isub hc' σ⟩
+  · rintro ⟨hb, hall, hc, hc', hk, hk'⟩
+    refine ⟨?_, fun k'' σ' => ?_, cohSigma_isub hc σ, cohSigma_isub hc' σ, kanSigma2_isub hk σ, kanSigma2_isub hk' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
     · obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k'' (σ.comp σ')
       refine ⟨A1, B1, A1', B1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_, ?_⟩

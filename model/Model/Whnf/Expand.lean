@@ -169,7 +169,7 @@ theorem piC_at (hW : WfSig S) {g : Hom k m} {U V : Tm} (h : (Comp2 S (piC m A B)
 theorem piC_coh {g : Hom k m} {U V : Tm} (h : (Comp2 S (piC m A B) m k g).ty U V) :
     cohPi S A B g U ∧ cohPi S A B g V := by
   rw [Comp2_piC A B hA] at h
-  exact h.2.2
+  exact ⟨h.2.2.1, h.2.2.2.1⟩
 
 theorem piC_coh1 (hW : WfSig S) {g : Hom k m} {U V : Tm} (h : (Comp2 S (piC m A B) m k g).ty U V)
     (σ' : ISub k'' k) {A1 B1 A2 B2 : Tm} (h1 : RedT S k U (.pi A1 B1)) (h2 : RedT S k'' (U.isub σ') (.pi A2 B2)) :
@@ -227,14 +227,30 @@ theorem cohPi_expand {f : Hom k m} {T T' : Tm}
   rw [← fib_code hW ha] at x3
   exact Q.transTy x1 (Q.transTy x2 (Q.symTy x3))
 
+omit perA krX perB in
+/-- Expansion preserves Kan evidence at the syntactic components. -/
+theorem kanPi2_expand {f : Hom k m} {T T' : Tm}
+    (hall : ∀ k' (σ : ISub k' k), ∃ U, Red S (T.isub σ) U ∧ TyEq S k' (T.isub σ) U ∧
+      (Comp2 S (piC m A B) m k' (f.comp σ.hom)).ty U (T'.isub σ)) : kanPi2 S A B f T := by
+  intro k' σ A1 B1 hR
+  obtain ⟨U, r, e, hU⟩ := hall k' σ
+  have hUc := closed_of_isTyK hW (Comp2_ty_base hU).2.1
+  have hR' := RedT.to_red hW r e hR
+  rw [Comp2_piC A B hA] at hU
+  have hh := hU.2.2.2.2.1 k' (ISub.id k') A1 B1 (by rwa [isub_id_of_closed hUc])
+  simpa only [ISub.hom_id, Hom.comp_id] using hh
+
 /-- Head expansion for `Π` types. -/
 theorem heTy_piC {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k T')
     (hall : ∀ k' (σ : ISub k' k), ∃ U, Red S (T.isub σ) U ∧ TyEq S k' (T.isub σ) U ∧
       (Comp2 S (piC m A B) m k' (f.comp σ.hom)).ty U (T'.isub σ)) : (Comp2 S (piC m A B) m k f).ty T T' := by
   obtain ⟨U0, -, e0, hU0⟩ := hypT_id hW hT hT' hall
   have hc' := (piC_coh hA hU0).2
+  have hk' := hU0
+  rw [Comp2_piC A B hA] at hk'
+  replace hk' := hk'.2.2.2.2.2
   rw [Comp2_piC A B hA]
-  refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_, cohPi_expand hA hW perA krX perB hall, hc'⟩
+  refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_, cohPi_expand hA hW perA krX perB hall, hc', kanPi2_expand hA hW hall, hk'⟩
   obtain ⟨U, r, e, hU⟩ := hall k' σ
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := piC_at hA hW hU
   exact ⟨A1, B1, A1', B1', RedT.of_red hW r e h1, h2, h3, h4⟩
@@ -316,7 +332,7 @@ theorem sigmaC_at (hW : WfSig S) {g : Hom k m} {U V : Tm} (h : (Comp2 S (sigmaC 
 theorem sigmaC_coh {g : Hom k m} {U V : Tm} (h : (Comp2 S (sigmaC m A B) m k g).ty U V) :
     cohSigma S A B g U ∧ cohSigma S A B g V := by
   rw [Comp2_sigmaC A B hA] at h
-  exact h.2.2
+  exact ⟨h.2.2.1, h.2.2.2.1⟩
 
 theorem sigmaC_coh1 (hW : WfSig S) {g : Hom k m} {U V : Tm} (h : (Comp2 S (sigmaC m A B) m k g).ty U V)
     (σ' : ISub k'' k) {A1 B1 A2 B2 : Tm} (h1 : RedT S k U (.sigma A1 B1)) (h2 : RedT S k'' (U.isub σ') (.sigma A2 B2)) :
@@ -363,14 +379,30 @@ theorem cohSigma_expand {f : Hom k m} {T T' : Tm}
   rw [← fib_code hW ha] at x3
   exact Q.transTy x1 (Q.transTy x2 (Q.symTy x3))
 
+omit perA krX perB in
+/-- Expansion preserves Kan evidence at the syntactic components. -/
+theorem kanSigma2_expand {f : Hom k m} {T T' : Tm}
+    (hall : ∀ k' (σ : ISub k' k), ∃ U, Red S (T.isub σ) U ∧ TyEq S k' (T.isub σ) U ∧
+      (Comp2 S (sigmaC m A B) m k' (f.comp σ.hom)).ty U (T'.isub σ)) : kanSigma2 S A B f T := by
+  intro k' σ A1 B1 hR
+  obtain ⟨U, r, e, hU⟩ := hall k' σ
+  have hUc := closed_of_isTyK hW (Comp2_ty_base hU).2.1
+  have hR' := RedT.to_red hW r e hR
+  rw [Comp2_sigmaC A B hA] at hU
+  have hh := hU.2.2.2.2.1 k' (ISub.id k') A1 B1 (by rwa [isub_id_of_closed hUc])
+  simpa only [ISub.hom_id, Hom.comp_id] using hh
+
 /-- Head expansion for `Σ` types. -/
 theorem heTy_sigmaC {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k T')
     (hall : ∀ k' (σ : ISub k' k), ∃ U, Red S (T.isub σ) U ∧ TyEq S k' (T.isub σ) U ∧
       (Comp2 S (sigmaC m A B) m k' (f.comp σ.hom)).ty U (T'.isub σ)) : (Comp2 S (sigmaC m A B) m k f).ty T T' := by
   obtain ⟨U0, -, e0, hU0⟩ := hypT_id hW hT hT' hall
   have hc' := (sigmaC_coh hA hU0).2
+  have hk' := hU0
+  rw [Comp2_sigmaC A B hA] at hk'
+  replace hk' := hk'.2.2.2.2.2
   rw [Comp2_sigmaC A B hA]
-  refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_, cohSigma_expand hA hW perA krX perB hall, hc'⟩
+  refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_, cohSigma_expand hA hW perA krX perB hall, hc', kanSigma2_expand hA hW hall, hk'⟩
   obtain ⟨U, r, e, hU⟩ := hall k' σ
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := sigmaC_at hA hW hU
   exact ⟨A1, B1, A1', B1', RedT.of_red hW r e h1, h2, h3, h4⟩

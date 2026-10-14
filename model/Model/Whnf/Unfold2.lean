@@ -20,12 +20,12 @@ variable {S : Sig} {k k' m m' : ℕ}
 
 theorem Comp2_unfold {X : V} (hX : X ≠ ∅) (f : Hom k m) :
     Comp2 S X m k f = body2 S k (fun k' g => dat X k' (f.comp g)) (res f X) (rank X)
-      (fun k' g => rank_dat_lt hX _) (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) := by
+      (fun k' g => rank_dat_lt hX _) (fun Y _ => Comp2 S Y) := by
   rw [Comp2_eq]; unfold compF2; rw [dif_pos hX]
 
 theorem body2_congr {Dt Dt' : (k' : ℕ) → Hom k' k → V} (hDt : Dt = Dt') (self : V) {ρ ρ' : Ordinal}
     (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ) (hD' : ∀ k' (h : Hom k' k), rank (Dt' k' h) < ρ') :
-    body2 S k Dt self ρ hD (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) = body2 S k Dt' self ρ' hD' (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) := by
+    body2 S k Dt self ρ hD (fun Y _ => Comp2 S Y) = body2 S k Dt' self ρ' hD' (fun Y _ => Comp2 S Y) := by
   subst hDt; rfl
 
 theorem Comp2_congr {X Y : V} (hX : X ≠ ∅) (hY : Y ≠ ∅) (f : Hom k m) (g : Hom k m')
@@ -52,24 +52,6 @@ theorem KanPG.restrict {X : V} (hX : X ≠ ∅) (h : KanPG S m (Comp2 S X m)) (g
   have e : Comp2 S (res g X) k = fun k' f => Comp2 S X m k' (g.comp f) :=
     funext fun k' => funext fun f => Comp2_res hX g f
   rw [e]; exact h.comp g
-
-/-- The hereditary Kan predicate restricts with the code. -/
-theorem kanParts2_congr {Dt Dt' : (k' : ℕ) → Hom k' k → V} (hDt : Dt = Dt') {ρ ρ' : Ordinal}
-    (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ) (hD' : ∀ k' (h : Hom k' k), rank (Dt' k' h) < ρ') :
-    kanParts2 S k Dt ρ hD (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) =
-      kanParts2 S k Dt' ρ' hD' (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) := by
-  subst hDt; rfl
-
-theorem HerKan2.restrict {X : V} (hX : X ≠ ∅) (h : HerKan2 S m X) (g : Hom k m) :
-    HerKan2 S k (res g X) := by
-  rw [HerKan2_eq] at h ⊢
-  refine ⟨h.1.restrict hX g, fun k' f => ?_⟩
-  rw [dif_pos (show res g X ≠ ∅ from mkKV_ne_empty _)]
-  have hp := h.2 k' (g.comp f)
-  rw [dif_pos hX] at hp
-  have e : (fun n h => dat (res g X) n (f.comp h)) = fun n h => dat X n ((g.comp f).comp h) := by
-    funext n h; rw [dat_res, Hom.comp_assoc]
-  rwa [kanParts2_congr e]
 
 theorem Comp2_eq_res {X : V} (hX : X ≠ ∅) (f : Hom k m) : Comp2 S X m k f = Comp2 S (res f X) k k (Hom.id k) := by
   rw [Comp2_res hX, Hom.comp_id]
@@ -115,6 +97,20 @@ def cohIPi (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
     RedT S k' (T.isub σ) (.ipi L1) → RedT S k'' (T.isub (σ.comp σ')) (.ipi L2) →
     (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift f).comp (σ.comp σ').up.hom)).ty (L1.isub σ'.up) L2
 
+/-- Kan evidence for the components of a Π normal form, at its own syntactic domain. -/
+def kanPi2 (S : Sig) (A B : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) A1 B1, RedT S k' (T.isub σ) (.pi A1 B1) →
+    KanPG S k' (fun n g => Comp2 S A m n ((f.comp σ.hom).comp g)) ∧
+    ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
+      KanPG S k' (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k')
+
+/-- Kan evidence for the components of a Σ normal form, at its own syntactic domain. -/
+def kanSigma2 (S : Sig) (A B : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) A1 B1, RedT S k' (T.isub σ) (.sigma A1 B1) →
+    KanPG S k' (fun n g => Comp2 S A m n ((f.comp σ.hom).comp g)) ∧
+    ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
+      KanPG S k' (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k')
+
 theorem Comp2_piC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
     Comp2 S (piC m A B) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (piC m A B) ∧
@@ -123,14 +119,14 @@ theorem Comp2_piC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
           (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
             ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
               (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ∧
-          cohPi S A B f T ∧ cohPi S A B f T',
+          cohPi S A B f T ∧ cohPi S A B f T' ∧ kanPi2 S A B f T ∧ kanPi2 S A B f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (piC m A B)) (Hom.id k) ∧
           piE2 S (fun k' σ => (Comp2 S A m k' (f.comp σ.hom)).el)
             (fun k' σ a k'' σ' => (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k'' σ'.hom).el)
             k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show piC m A B ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, piC, dat_mkKV, piDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, true_or,
-    if_true, natZ_inj, Comp2_res hA, appV_res_res, cohPi]
+    if_true, natZ_inj, Comp2_res hA, appV_res_res, cohPi, kanPi2, Hom.comp_assoc]
 
 theorem Comp2_sigmaC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
     Comp2 S (sigmaC m A B) m k f =
@@ -140,14 +136,14 @@ theorem Comp2_sigmaC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
           (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
             ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
               (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ∧
-          cohSigma S A B f T ∧ cohSigma S A B f T',
+          cohSigma S A B f T ∧ cohSigma S A B f T' ∧ kanSigma2 S A B f T ∧ kanSigma2 S A B f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (sigmaC m A B)) (Hom.id k) ∧
           sigmaE2 S (fun k' σ => (Comp2 S A m k' (f.comp σ.hom)).el)
             (fun k' σ a k'' σ' => (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k'' σ'.hom).el)
             k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show sigmaC m A B ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, sigmaC, dat_mkKV, sigmaDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, or_true,
-    if_true, natZ_inj, Comp2_res hA, appV_res_res, tPi, tSigma, if_false, show ¬ (3 = 2) by decide, cohSigma]
+    if_true, natZ_inj, Comp2_res hA, appV_res_res, tPi, tSigma, if_false, show ¬ (3 = 2) by decide, cohSigma, kanSigma2, Hom.comp_assoc]
 
 theorem Comp2_pathC (L a0 a1 : V) (hL : L ≠ ∅) (f : Hom k m) :
     Comp2 S (pathC m L a0 a1) m k f =
@@ -190,7 +186,7 @@ theorem Comp2_univC (l : ℕ) (f : Hom k m) :
           RedT S k' (T.isub σ) (.univ l) ∧ RedT S k' (T'.isub σ) (.univ l),
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (univC m l)) (Hom.id k) ∧
           ∃ _ : semK S k t ∈ ZFSet.sep (WF l k) (Vt l), (Comp2 S (semK S k t) k k (Hom.id k)).ty t t' ∧
-            HerKan2 S k (semK S k t)⟩ := by
+            KanPG S k (Comp2 S (semK S k t) k)⟩ := by
   rw [Comp2_unfold (show univC m l ≠ ∅ from mkKV_ne_empty (fun k _ => univDatum (WF l) l k))]
   simp only [body2, core2, univC, univCode, dat_mkKV, univDatum, π1_quad, tagZ, π1_pair, π2_pair,
     natZ_inj, tPi, tSigma, tPath, tIPi, tUniv, if_false, show ¬ (6 = 2) by decide,

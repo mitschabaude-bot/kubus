@@ -262,8 +262,7 @@ theorem rank_vnth_le : ∀ (v : V) (j : ℕ), rank (vnth v j) ≤ rank v
 `ρ`. -/
 def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal)
     (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ)
-    (rec : (Y : V) → rank Y < ρ → (m k : ℕ) → Hom k m → Pack2)
-    (recK : (Y : V) → rank Y < ρ → ℕ → Prop) : Pack2 :=
+    (rec : (Y : V) → rank Y < ρ → (m k : ℕ) → Hom k m → Pack2) : Pack2 :=
   let sh := π1 (Dt k (Hom.id k))
   have hsh : rank sh < ρ := (rank_π1_le _).trans_lt (hD k (Hom.id k))
   have h2 : rank (π2 sh) < ρ := (rank_π2_le _).trans_lt hsh
@@ -288,11 +287,17 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
       (RY k'' (σ.comp σ')).ty (A1.isub σ') A2 ∧
       ∀ a a', (RY k'' (σ.comp σ')).el (A1.isub σ') a a' →
         (RB k'' (σ.comp σ') a).ty ((B1.isub σ').inst a) (B2.inst a')
+    let kan : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) A1 B1,
+      RedT S k' (A.isub σ) (if isPi then .pi A1 B1 else .sigma A1 B1) →
+      KanPG S k' (fun n g => rec Y h12 k n (σ.hom.comp g)) ∧
+      ∀ a a', (RY k' σ).el A1 a a' →
+        KanPG S k' (rec (appV k' (res σ.hom B) (semK S k' a))
+          ((rank_appV_res_le _ _ _).trans_lt h22) k')
     { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
           RedT S k' (A.isub σ) (if isPi then .pi A1 B1 else .sigma A1 B1) ∧
           RedT S k' (A'.isub σ) (if isPi then .pi A1' B1' else .sigma A1' B1') ∧
           (RY k' σ).ty A1 A1' ∧ ∀ a a', (RY k' σ).el A1 a a' → (RB k' σ a).ty (B1.inst a) (B1'.inst a')) ∧
-          coh A ∧ coh A'
+          coh A ∧ coh A' ∧ kan A ∧ kan A'
       el := if isPi then piE2 S (fun k' σ => (RY k' σ).el) cod k (ISub.id k)
         else sigmaE2 S (fun k' σ => (RY k' σ).el) cod k (ISub.id k) }
   else if π1 sh = natZ tPath ∨ π1 sh = natZ tIPi then
@@ -328,8 +333,8 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
       el := fun A T T' => ∃ h : semK S k T ∈ π1 (π2 (Dt k (Hom.id k))),
         (rec (semK S k T) (lt_trans (rank_lt_of_mem h) ((rank_π1_le _).trans_lt ((rank_π2_le _).trans_lt
           (hD k (Hom.id k))))) k k (Hom.id k)).ty T T' ∧
-        recK (semK S k T) (lt_trans (rank_lt_of_mem h) ((rank_π1_le _).trans_lt ((rank_π2_le _).trans_lt
-          (hD k (Hom.id k))))) k }
+        KanPG S k (rec (semK S k T) (lt_trans (rank_lt_of_mem h) ((rank_π1_le _).trans_lt ((rank_π2_le _).trans_lt
+          (hD k (Hom.id k))))) k) }
   else if π1 sh = natZ tEmpty then
     { ty := fun _ _ => True
       el := fun _ _ _ => False }
@@ -431,83 +436,23 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
 code's element set. -/
 def body2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal)
     (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ)
-    (rec : (Y : V) → rank Y < ρ → (m k : ℕ) → Hom k m → Pack2)
-    (recK : (Y : V) → rank Y < ρ → ℕ → Prop) : Pack2 :=
+    (rec : (Y : V) → rank Y < ρ → (m k : ℕ) → Hom k m → Pack2) : Pack2 :=
   ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ semK S k A = self ∧ semK S k A' = self ∧ TyEq S k A A') ∧
-    (core2 S k Dt self ρ hD rec recK).ty A A', fun A t t' => EB S k A t t' ∧ semK S k t ∈ El self (Hom.id k) ∧
-    (core2 S k Dt self ρ hD rec recK).el A t t'⟩
+    (core2 S k Dt self ρ hD rec).ty A A', fun A t t' => EB S k A t t' ∧ semK S k t ∈ El self (Hom.id k) ∧
+    (core2 S k Dt self ρ hD rec).el A t t'⟩
 
-def compF2 (X : V) (rec : (Y : V) → rank Y < rank X → (m k : ℕ) → Hom k m → Pack2)
-    (recK : (Y : V) → rank Y < rank X → ℕ → Prop) (m k : ℕ) (f : Hom k m) : Pack2 :=
+def compF2 (X : V) (rec : (Y : V) → rank Y < rank X → (m k : ℕ) → Hom k m → Pack2) (m k : ℕ) (f : Hom k m) :
+    Pack2 :=
   if h : X ≠ ∅ then body2 S k (fun k' g => dat X k' (f.comp g)) (res f X) (rank X)
-    (fun k' g => rank_dat_lt h _) rec recK
+    (fun k' g => rank_dat_lt h _) rec
   else Pack2.bot
 
-/-- Hereditary Kan of the components of a datum. Dependent fibres are required only at related
-arguments. Universe elements carry their own hereditary Kan in the element relation. -/
-def kanParts2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (ρ : Ordinal)
-    (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ)
-    (rec : (Y : V) → rank Y < ρ → (m k : ℕ) → Hom k m → Pack2)
-    (recK : (Y : V) → rank Y < ρ → ℕ → Prop) : Prop :=
-  let sh := π1 (Dt k (Hom.id k))
-  have hsh : rank sh < ρ := (rank_π1_le _).trans_lt (hD k (Hom.id k))
-  have h2 : rank (π2 sh) < ρ := (rank_π2_le _).trans_lt hsh
-  have h12 : rank (π1 (π2 sh)) < ρ := (rank_π1_le _).trans_lt h2
-  have h22 : rank (π2 (π2 sh)) < ρ := (rank_π2_le _).trans_lt h2
-  have h1222 : rank (π1 (π2 (π2 (π2 sh)))) < ρ := (rank_π1_le _).trans_lt
-    ((rank_π2_le _).trans_lt h22)
-  if π1 sh = natZ tPi ∨ π1 sh = natZ tSigma then
-    let Y := π1 (π2 sh)
-    let B := π2 (π2 sh)
-    recK Y h12 k ∧ ∀ A a a', (rec Y h12 k k (Hom.id k)).el A a a' →
-      recK (appV k B (semK S k a)) ((rank_apZ_le _ _).trans_lt ((rank_dat_le _ _).trans_lt h22)) k
-  else if π1 sh = natZ tPath ∨ π1 sh = natZ tIPi then
-    recK (π1 (π2 sh)) h12 (k + 1)
-  else if π1 sh = natZ tGlue then
-    let φ := cofOf k (π1 (π2 (π2 sh)))
-    let Tp := π1 (π2 (π2 (π2 sh)))
-    recK (π1 (π2 sh)) h12 k ∧ ∀ k' (g : Hom k' k), (φ.restr g).holds →
-      recK (dat Tp k' g) ((rank_dat_le _ _).trans_lt h1222) k'
-  else if π1 sh = natZ tData then
-    let pe := fun j => vnth (π2 (π1 (π2 (π2 sh)))) j
-    have hpe : ∀ j, rank (π2 (pe j)) < ρ := fun j =>
-      ((rank_π2_le _).trans ((rank_vnth_le _ _).trans ((rank_π2_le _).trans
-        ((rank_π1_le _).trans ((rank_π2_le _).trans (rank_π2_le _)))))).trans_lt hsh
-    ∀ j, π1 (pe j) = natZ 0 ∨ π1 (pe j) = natZ 1 → recK (π2 (pe j)) (hpe j) k
-  else True
-
-/-- The relations and hereditary Kan predicate of a code, defined together by rank recursion. -/
-structure Code2 where
-  rel : (m k : ℕ) → Hom k m → Pack2
-  kan : ℕ → Prop
-
-def codeF2 (X : V) (rec : (Y : V) → rank Y < rank X → Code2) : Code2 :=
-  let R := compF2 S X (fun Y h => (rec Y h).rel) (fun Y h => (rec Y h).kan)
-  ⟨R, fun m => KanPG S m (R m) ∧ ∀ k (f : Hom k m),
-    if h : X ≠ ∅ then kanParts2 S k (fun k' g => dat X k' (f.comp g)) (rank X)
-      (fun k' g => rank_dat_lt h _) (fun Y h => (rec Y h).rel) (fun Y h => (rec Y h).kan)
-    else True⟩
-
-def code2 (X : V) : Code2 := rank_wf.fix (fun X rec => codeF2 S X rec) X
-
-theorem code2_eq (X : V) : code2 S X = codeF2 S X (fun Y _ => code2 S Y) := rank_wf.fix_eq _ X
-
-attribute [irreducible] code2
-
 /-- The binary relations for the code `X` (at stage `m`) restricted along `f : Hom k m`. -/
-def Comp2 (X : V) : (m k : ℕ) → Hom k m → Pack2 := (code2 S X).rel
+def Comp2 (X : V) : (m k : ℕ) → Hom k m → Pack2 :=
+  rank_wf.fix (C := fun _ => (m k : ℕ) → Hom k m → Pack2) (fun X rec => compF2 S X rec) X
 
-/-- A code is Kan, hereditarily in its components at every restriction. -/
-def HerKan2 (m : ℕ) (X : V) : Prop := (code2 S X).kan m
-
-theorem Comp2_eq (X : V) : Comp2 S X = compF2 S X (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) := by
-  unfold Comp2; rw [code2_eq]; rfl
-
-theorem HerKan2_eq (X : V) (m : ℕ) : HerKan2 S m X ↔ KanPG S m (Comp2 S X m) ∧ ∀ k (f : Hom k m),
-    if h : X ≠ ∅ then kanParts2 S k (fun k' g => dat X k' (f.comp g)) (rank X)
-      (fun k' g => rank_dat_lt h _) (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y)
-    else True := by
-  unfold HerKan2; rw [code2_eq]; rw [Comp2_eq]; rfl
+theorem Comp2_eq (X : V) : Comp2 S X = compF2 S X (fun Y _ => Comp2 S Y) :=
+  rank_wf.fix_eq _ X
 
 /-- Related types at a stage. -/
 def RT2 (k : ℕ) (A A' : Tm) : Prop := (Comp2 S (semK S k A) k k (Hom.id k)).ty A A'

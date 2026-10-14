@@ -68,9 +68,9 @@ theorem per2_piC {A B : V} (hA : A ≠ ∅) (ihA : PER2 S m A)
           (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ↔
       piT (S := S) D C T T' := by
     intro T T'; simp only [piT, D, C, ISub.hom_id]
-  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, (eT T' T).2 (pi_symTy D C hD hC hCa ((eT T T').1 hT.2.1)), hT.2.2.2, hT.2.2.1⟩,
+  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, (eT T' T).2 (pi_symTy D C hD hC hCa ((eT T T').1 hT.2.1)), hT.2.2.2.1, hT.2.2.1, hT.2.2.2.2.2, hT.2.2.2.2.1⟩,
     fun {T T' T''} hT hT' => ⟨base_trans hW hT.1 hT'.1,
-      (eT T T'').2 (pi_transTy D C hD hC hCa ((eT T T').1 hT.2.1) ((eT T' T'').1 hT'.2.1)), hT.2.2.1, hT'.2.2.2⟩,
+      (eT T T'').2 (pi_transTy D C hD hC hCa ((eT T T').1 hT.2.1) ((eT T' T'').1 hT'.2.1)), hT.2.2.1, hT'.2.2.2.1, hT.2.2.2.2.1, hT'.2.2.2.2.2⟩,
     fun {T T' t t'} hT ht => ?_, fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
   · obtain ⟨he, hmem, hpi⟩ := ht
     exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, pi_symEl D C hD hC hCa ((eT T T').1 hT.2.1) hpi⟩
@@ -100,9 +100,9 @@ theorem per2_sigmaC {A B : V} (hA : A ≠ ∅) (ihA : PER2 S m A)
           (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ↔
       sigT (S := S) D C T T' := by
     intro T T'; simp only [sigT, D, C, ISub.hom_id]
-  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, (eT T' T).2 (sig_symTy D C hD hC hCa ((eT T T').1 hT.2.1)), hT.2.2.2, hT.2.2.1⟩,
+  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, (eT T' T).2 (sig_symTy D C hD hC hCa ((eT T T').1 hT.2.1)), hT.2.2.2.1, hT.2.2.1, hT.2.2.2.2.2, hT.2.2.2.2.1⟩,
     fun {T T' T''} hT hT' => ⟨base_trans hW hT.1 hT'.1,
-      (eT T T'').2 (sig_transTy D C hD hC hCa ((eT T T').1 hT.2.1) ((eT T' T'').1 hT'.2.1)), hT.2.2.1, hT'.2.2.2⟩,
+      (eT T T'').2 (sig_transTy D C hD hC hCa ((eT T T').1 hT.2.1) ((eT T' T'').1 hT'.2.1)), hT.2.2.1, hT'.2.2.2.1, hT.2.2.2.2.1, hT'.2.2.2.2.2⟩,
     fun {T T' t t'} hT ht => ?_, fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
   · obtain ⟨he, hmem, hpi⟩ := ht
     exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, sig_symEl D C hD hC hCa ((eT T T').1 hT.2.1) hpi⟩

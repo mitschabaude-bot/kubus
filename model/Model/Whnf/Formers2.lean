@@ -138,9 +138,9 @@ theorem kanPG_iff {X : V} : KanPG S m (Comp2 S X m) ↔ KanP2 S m X :=
 /-- Related elements of a universe: related types of the universe whose code is Kan. -/
 theorem RE2_univ_iff {l : ℕ} {T T' : Tm} :
     RE2 S k (.univ l) T T' ↔ EB S k (.univ l) T T' ∧ semK S k T ∈ ZFSet.sep (WF l k) (Vt l) ∧ RT2 S k T T' ∧
-      HerKan2 S k (semK S k T) := by
+      KanP2 S k (semK S k T) := by
   unfold RE2 RT2
-  rw [show semK S k (.univ l) = univC k l from rfl, Comp2_univC]
+  rw [show semK S k (.univ l) = univC k l from rfl, Comp2_univC, ← kanPG_iff hW]
   constructor
   · rintro ⟨he, -, hm, hrt, hK⟩; exact ⟨he, hm, hrt, hK⟩
   · rintro ⟨he, hm, hrt, hK⟩
@@ -148,7 +148,7 @@ theorem RE2_univ_iff {l : ℕ} {T T' : Tm} :
     rw [res_id (isKV_univC _), El_univC]; exact hm
 
 theorem RE2_univ_of {l : ℕ} {T T' : Tm} (he : EB S k (.univ l) T T') (hrt : RT2 S k T T')
-    (hK : HerKan2 S k (semK S k T)) : RE2 S k (.univ l) T T' := by
+    (hK : KanP2 S k (semK S k T)) : RE2 S k (.univ l) T T' := by
   refine (RE2_univ_iff hW).2 ⟨he, ?_, hrt, hK⟩
   have := mem_of_ty hW he.1
   rwa [show semK S k (.univ l) = univC k l from rfl, El_univC] at this
@@ -156,15 +156,8 @@ theorem RE2_univ_of {l : ℕ} {T T' : Tm} (he : EB S k (.univ l) T T') (hrt : RT
 theorem RE2_univ_ty {l : ℕ} {T T' : Tm} (h : RE2 S k (.univ l) T T') : RT2 S k T T' :=
   ((RE2_univ_iff hW).1 h).2.2.1
 
-theorem RE2_univ_herKan {l : ℕ} {T T' : Tm} (h : RE2 S k (.univ l) T T') : HerKan2 S k (semK S k T) :=
-  ((RE2_univ_iff hW).1 h).2.2.2
-
-/-- Hereditary Kan includes the Kan operations of the code itself. -/
-theorem HerKan2.kan {X : V} (h : HerKan2 S m X) : KanP2 S m X :=
-  (kanPG_iff hW).1 ((HerKan2_eq S X m).1 h).1
-
 theorem RE2_univ_kan {l : ℕ} {T T' : Tm} (h : RE2 S k (.univ l) T T') : KanP2 S k (semK S k T) :=
-  (RE2_univ_herKan hW h).kan hW
+  ((RE2_univ_iff hW).1 h).2.2.2
 
 omit hW in
 /-- The type relation of a universe: both sides reduce to it at every restriction. -/

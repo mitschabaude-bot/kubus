@@ -25,7 +25,7 @@ def Valid2 (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (t u A : Tm) : Prop :=
 
 /-- The instances of a type have Kan codes. -/
 def KanV (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (X : Tm) : Prop :=
-  ∀ k (c : CSub2 S Ψ Φ Γ k), HerKan2 S k (semK S k (c.L X))
+  ∀ k (c : CSub2 S Ψ Φ Γ k), KanP2 S k (semK S k (c.L X))
 
 variable (hW : WfSig S)
 include hW
@@ -34,7 +34,7 @@ variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
 /-- The instances of a valid type have Kan codes. -/
 theorem Valid2.kanV {A B : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ A B (.univ l)) : KanV S Ψ Φ Γ A :=
-  fun k c => RE2_univ_herKan hW (h k c).2
+  fun k c => RE2_univ_kan hW (h k c).2
 
 theorem Valid2.tyCode {t u A : Tm} (h : Valid2 S Ψ Φ Γ t u A) (c : CSub2 S Ψ Φ Γ k) :
     TyCode k (semK S k (c.L A)) :=
