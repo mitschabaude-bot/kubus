@@ -448,13 +448,25 @@ theorem red_unglue_base {φ ψ : I} {e g e0 t0 a0 : Tm} (hn : ¬ I.Entails .one 
     rw [step]; simp only [hn', Bool.false_eq_true, ↓reduceIte, hw]
   exact (red_unglue hn h.1).trans (.step hs (.refl _))
 
+/-- The coherence of the normal forms of elements of closed Glue types whose face does not hold, at
+the base of the Glue type (spec change C4: `glueBeta` takes this coherence as a premise). It holds
+given the compatibility of Glue annotations (`glueCohW_of_glueCompat`); the canonicity relation
+records the coherence only pointwise, where the face holds, so it is an explicit hypothesis here. -/
+def GlueCohW (S : Sig) : Prop :=
+  ∀ (k : ℕ) (A1 T1 e1 g e0 t0 a0 : Tm) (φ1 ψ : I) (l : ℕ),
+    HasTy S k .one [] (.glue A1 φ1 T1 e1) (.univ l) →
+    EqTm S k .one [] g (.glueEl ψ e0 t0 a0) (.glue A1 φ1 T1 e1) → I.Entails ψ φ1 → I.Entails φ1 ψ →
+    EqTm S k (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) → ¬ I.Entails .one φ1 →
+    EqTm S k (cof .one ψ) [] a0 (.app (.fst e0) t0) A1
+
 /-- `unglue` of an element of a Glue type whose face does not hold, by the base of a normal form with
 agreeing annotations. -/
 theorem unglue_base_eq {A1 T1 e1 g e0 t0 a0 : Tm} {φ1 ψ : I} {l : ℕ}
     (hG : HasTy S k .one [] (.glue A1 φ1 T1 e1) (.univ l))
     (hg : EqTm S k .one [] g (.glueEl ψ e0 t0 a0) (.glue A1 φ1 T1 e1))
     (q12 : I.Entails ψ φ1) (q21 : I.Entails φ1 ψ)
-    (ee : EqTm S k (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1)) (ha0 : HasTy S k .one [] a0 A1) :
+    (ee : EqTm S k (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1)) (ha0 : HasTy S k .one [] a0 A1)
+    (hCW : GlueCohW S) (hn : ¬ I.Entails .one φ1) :
     EqTm S k .one [] (.unglue φ1 e1 g) a0 A1 := by
   obtain ⟨l', ⟨hA1, hφ1, hT1, he1⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) (spec_to_minimal hW hG) rfl
   have hw := HasTy.eqR hg
@@ -483,7 +495,7 @@ theorem unglue_base_eq {A1 T1 e1 g e0 t0 a0 : Tm} {φ1 ψ : I} {l : ℕ}
   have e1' := unglue_eq hW hGK hdata hg
   have e2 : EqTm S k .one [] (.unglue φ1 e1 (.glueEl ψ e0 t0 a0)) (.unglue ψ e0 (.glueEl ψ e0 t0 a0)) A1 :=
     EqTm.unglue (unglue_ty hW hGK hdata hw) (unglue_ty hW hG2K hdata2 hw2) q21 q12 ee.symm (EqTm.refl hw)
-  have e3 := EqTm.glueBeta (unglue_ty hW hG2K hdata2 hw2) ha0
+  have e3 := EqTm.glueBeta (unglue_ty hW hG2K hdata2 hw2) ha0 (hCW k A1 T1 e1 g e0 t0 a0 φ1 ψ l hG hg q12 q21 ee hn)
   exact e1'.trans (e2.trans e3)
 
 
@@ -516,7 +528,7 @@ theorem glue_annot_eq {A T e e' : Tm} {φ φ' : I} {l : ℕ} (hG : HasTy S k .on
 
 
 /-- `unglue` of related elements of a Glue type whose face does not hold, and the base of a normal form of the left element related to the right `unglue`. -/
-theorem RE2_unglue_and {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
+theorem RE2_unglue_and {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ} (hCW : GlueCohW S)
     (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) (hn : ¬ (ival (idEnv k) φ).holds)
     (hgg : RE2 S k (.glue A φ T e) g g')
     (hu : HasTy S k .one [] (.unglue φ e g) A) (hu' : HasTy S k .one [] (.unglue φ' e' g') A)
@@ -666,7 +678,7 @@ theorem RE2_unglue_and {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
           (Tm.equiv (T.isub (σ.comp ρ)) (A.isub (σ.comp ρ))) :=
         EqTm.restrict hs' c' (ff0'.trans ee'τ.symm)
       refine ⟨b0', red_unglue_base hne2' rh'.1,
-        unglue_base_eq hW hG2τ rh'2 (ent_trans p2 q21') (ent_trans q12' p2') ff1 (RE2.typed hb0).2.1, ?_⟩
+        unglue_base_eq hW hG2τ rh'2 (ent_trans p2 q21') (ent_trans q12' p2') ff1 (RE2.typed hb0).2.1 hCW hne2', ?_⟩
       -- the coherence of the left side and the relation at this stage
       have hcl := hcohσ.2 hnf2
       unfold glueLocE at hcl; rw [if_neg hnf2] at hcl
@@ -716,10 +728,10 @@ theorem RE2_unglue_and {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
     have rgσ := rg.2
     rw [isub_glue] at rgσ
     exact ⟨a0, by rw [isub_unglue]; exact red_unglue_base hne rg.1,
-      by rw [isub_unglue]; exact unglue_base_eq hW hGσ rgσ q1 q1' ee0 (RE2.typed ha0).1, base k' σ hh _ _ _ _ rg.1⟩
+      by rw [isub_unglue]; exact unglue_base_eq hW hGσ rgσ q1 q1' ee0 (RE2.typed ha0).1 hCW hne, base k' σ hh _ _ _ _ rg.1⟩
 
 /-- `unglue` of related elements of a Glue type whose face does not hold. -/
-theorem RE2_unglue {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
+theorem RE2_unglue {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ} (hCW : GlueCohW S)
     (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) (hn : ¬ (ival (idEnv k) φ).holds)
     (hgg : RE2 S k (.glue A φ T e) g g')
     (hu : HasTy S k .one [] (.unglue φ e g) A) (hu' : HasTy S k .one [] (.unglue φ' e' g') A)
@@ -730,7 +742,7 @@ theorem RE2_unglue {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
     (hE : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e'.isub σ)) :
     RE2 S k A (.unglue φ e g) (.unglue φ' e' g') :=
-  (RE2_unglue_and hW hG hn hgg hu hu' hφ' h12 h21 ee' hAA hTT hE).1
+  (RE2_unglue_and hW hCW hG hn hgg hu hu' hφ' h12 h21 ee' hAA hTT hE).1
 
 
 end

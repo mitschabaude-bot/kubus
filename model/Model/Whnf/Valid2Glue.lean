@@ -385,7 +385,7 @@ theorem stable_unglueFace {X A T e g : Tm} {φ : I} {l : ℕ} (hφe : I.Entails 
   refine ⟨.step (by simp [step, show I.entails .one (φ.subst σ.τ) = true from hφσ]) (.refl _), ?_⟩
   exact (EqTm.unglueFace hφσ hgσ (HasTy.isubS hW hA σ) heσ).tyConv (TyEq.symm (hX.isub hW σ))
 
-theorem valid_unglue_core {A T e e' g g' : Tm} {φ φ' : I} (hφ : φ.Scoped Ψ) (hφ' : φ'.Scoped Ψ)
+theorem valid_unglue_core {A T e e' g g' : Tm} {φ φ' : I} (hCW : GlueCohW S) (hφ : φ.Scoped Ψ) (hφ' : φ'.Scoped Ψ)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)
     (hAty : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L A) (c.R A))
     (hee : EqTm0 S Ψ (cof Φ φ) Γ e e' (Tm.equiv T A)) (he : Valid2 S Ψ (cof Φ φ) Γ e e' (Tm.equiv T A))
@@ -447,7 +447,7 @@ theorem valid_unglue_core {A T e e' g g' : Tm} {φ φ' : I} (hφ : φ.Scoped Ψ)
       (stable_unglueFace hW hφe' hu' hg2 hAL heR' (TyEq.refl _)) happ
   · have hinv := RT2_glue_inv hW hGt hGt (fun h => hh ((holds_iff_entails hφL).2 h))
       (fun h => hh ((holds_iff_entails hφL).2 h)) hGG
-    refine RE2_unglue hW hGt hh hgr hu hu' hφR e12 e21 ee' (fun k' σ => RT2.isub hW hXA hAA σ)
+    refine RE2_unglue hW hCW hGt hh hgr hu hu' hφR e12 e21 ee' (fun k' σ => RT2.isub hW hXA hAA σ)
       (fun k' σ hh' => (hinv.2 k' σ hh').1) (fun k' σ hh' => ?_)
     have h' := holds_restr hh' hφ
     have := (he k' ((c.restr hW σ).cof h')).2
@@ -460,22 +460,22 @@ theorem valid_unglue_core {A T e e' g g' : Tm} {φ φ' : I} (hφ : φ.Scoped Ψ)
     exact (CSub2.restr_L hW c σ e ▸ CSub2.restr_R hW c σ e' ▸ this)
 
 
-theorem valid_unglue {A T e g : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+theorem valid_unglue {A T e g : Tm} {φ : I} {l : ℕ} (hCW : GlueCohW S) (hφ : φ.Scoped Ψ)
     (hA : Valid2 S Ψ Φ Γ A A (.univ l)) (he0 : HasTy0 S Ψ (cof Φ φ) Γ e (Tm.equiv T A))
     (he : Valid2 S Ψ (cof Φ φ) Γ e e (Tm.equiv T A)) (hg : Valid2 S Ψ Φ Γ g g (.glue A φ T e))
     (hty : HasTy0 S Ψ Φ Γ (.unglue φ e g) A) :
     Valid2 S Ψ Φ Γ (.unglue φ e g) (.unglue φ e g) A :=
-  valid_unglue_core hW hφ hφ (ent_refl _) (ent_refl _) (fun k c => hA.ty hW c) (EqTm0.refl he0) he hg hty hty
+  valid_unglue_core hW hCW hφ hφ (ent_refl _) (ent_refl _) (fun k c => hA.ty hW c) (EqTm0.refl he0) he hg hty hty
     (EqTm0.refl hty)
 
-theorem valid_unglue_eq {A T e e' g g' : Tm} {φ φ' : I} (hφ : φ.Scoped Ψ) (hφ' : φ'.Scoped Ψ)
+theorem valid_unglue_eq {A T e e' g g' : Tm} {φ φ' : I} (hCW : GlueCohW S) (hφ : φ.Scoped Ψ) (hφ' : φ'.Scoped Ψ)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (hu : Valid2 S Ψ Φ Γ (.unglue φ e g) (.unglue φ e g) A)
     (hee : EqTm0 S Ψ (cof Φ φ) Γ e e' (Tm.equiv T A)) (he : Valid2 S Ψ (cof Φ φ) Γ e e' (Tm.equiv T A))
     (hg : Valid2 S Ψ Φ Γ g g' (.glue A φ T e))
     (hty : HasTy0 S Ψ Φ Γ (.unglue φ e g) A) (hty' : HasTy0 S Ψ Φ Γ (.unglue φ' e' g') A)
     (heq : EqTm0 S Ψ Φ Γ (.unglue φ e g) (.unglue φ' e' g') A) :
     Valid2 S Ψ Φ Γ (.unglue φ e g) (.unglue φ' e' g') A :=
-  valid_unglue_core hW hφ hφ' h12 h21 (fun k c => (hu k c).1) hee he hg hty hty' heq
+  valid_unglue_core hW hCW hφ hφ' h12 h21 (fun k c => (hu k c).1) hee he hg hty hty' heq
 
 theorem valid_glueFace {A T e G : Tm} {φ : I} (hφ0 : I.Entails Φ φ)
     (h : Valid2 S Ψ Φ Γ (.glue A φ T e) (.glue A φ T e) G) (hty : HasTy0 S Ψ Φ Γ (.glue A φ T e) G)
