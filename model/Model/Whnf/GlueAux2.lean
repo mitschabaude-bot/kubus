@@ -80,6 +80,21 @@ theorem holds_of_face {k'' : ℕ} {φ1 : I} {ψ : Cof k'} (hf : (ival (idEnv k')
     (h : (ψ.restr σ'.hom).holds) : (ival (idEnv k'') (φ1.subst σ'.τ)).holds := by
   rw [DM.holds_iff_face_holds, face_isub hf σ']; exact h
 
+omit hW in
+theorem face_of_holds {k'' : ℕ} {φ1 : I} {ψ : Cof k'} (hf : (ival (idEnv k') φ1).face = ψ) (σ' : ISub k'' k')
+    (h : (ival (idEnv k'') (φ1.subst σ'.τ)).holds) : (ψ.restr σ'.hom).holds := by
+  rw [DM.holds_iff_face_holds, face_isub hf σ'] at h; exact h
+
+/-- The type of the equivalence of a Glue type, under its face, at the top universe. -/
+theorem equiv_ty_cof {φ1 : I} (hs : φ1.Scoped k) {A1 T1 : Tm} {l : ℕ} (hA1 : HasTy S k .one [] A1 (.univ l))
+    (hT1 : HasTy S k (cof .one φ1) [] T1 (.univ l)) :
+    HasTy S k (cof .one φ1) [] (Tm.equiv T1 A1) (.univ maxLevel) := by
+  have hS := sigClosed_of_wfSig hW
+  have hA1' := HasTy0.restrict (show (cof .one φ1).Scoped k from ⟨trivial, hs⟩) (ent_and_left _ _)
+    (spec_to_minimal hW hA1)
+  have h := equiv_typed hS (spec_to_minimal hW hT1) hA1'
+  exact minimal_to_spec (h.lift (lvl_bound hW h) le_rfl)
+
 end
 
 end Model.Whnf

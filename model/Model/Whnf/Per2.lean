@@ -332,7 +332,60 @@ theorem per2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
     obtain ⟨rfl, rfl, rfl, rfl⟩ := e''
     exact ⟨_, _, _, _, ψ, e0, t0, a0, χ', f0', s0', b0', r3, rg, rh', h1, h2, h7, h8, he0, hf0',
       (ihA k' _).transEl hAA ha hb⟩
-  · sorry
+  · -- transfer along related types
+    obtain ⟨he, hmem, -, hall⟩ := ht
+    have hTT := hT.1.2.2.2.2
+    refine ⟨he.conv hTT, hmem, he.conv hTT, fun k' σ => ?_⟩
+    have h := hall k' σ
+    have hTσ := hT.2 k' σ
+    split_ifs at h hTσ ⊢ with hh
+    · exact (ihT k' _ hh k' (Hom.id k')).conv hTσ h
+    obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', h1, h2, h3, h4, he0, he0', ha⟩ := h
+    obtain ⟨A2, φ2, T2, e2, A2', φ2', T2', e2', r2, r2', s2, s2', f2, f2', hAA, hrest⟩ := hTσ
+    have e := RedW.unique r2.1 r1.1
+    simp only [Tm.glue.injEq] at e
+    obtain ⟨rfl, rfl, rfl, rfl⟩ := e
+    have hX := hT.1.1.isub hW σ
+    have hX' := hT.1.2.1.isub hW σ
+    have hTσ : TyEq S k' (T.isub σ) (T'.isub σ) := hTT.isub hW σ
+    obtain ⟨l1, hA1, -, hT1, he1⟩ := glue_parts hW r1 hX
+    obtain ⟨l2, hA2, -, hT2, he2⟩ := glue_parts hW r2' hX'
+    have q12 : I.Entails φ2 φ2' := ent_of_face_eq s2 s2' (f2.trans f2'.symm)
+    have q21 : I.Entails φ2' φ2 := ent_of_face_eq s2' s2 (f2'.trans f2.symm)
+    have hΦ : (cof .one φ2).Scoped k' := ⟨trivial, s2⟩
+    have hΦ' : (cof .one φ2').Scoped k' := ⟨trivial, s2'⟩
+    have c12 : I.Entails (cof .one φ2) (cof .one φ2') := ent_and_intro (ent_and_left _ _) (ent_trans (ent_and_right _ _) q12)
+    have c21 : I.Entails (cof .one φ2') (cof .one φ2) := ent_and_intro (ent_and_left _ _) (ent_trans (ent_and_right _ _) q21)
+    have hE1 := equiv_ty_cof hW s2 hA1 hT1
+    have hE2 := HasTy.restrict hΦ c12 (equiv_ty_cof hW s2' hA2 hT2)
+    -- the two equivalence types agree under the face
+    have eqv : EqTm S k' (cof .one φ2) [] (Tm.equiv T2 A2) (Tm.equiv T2' A2') (.univ maxLevel) := by
+      refine eq_of_restr hW s2 (.inr rfl) hE1 hE2 fun k'' σ' hh1 => ?_
+      have hh' := face_of_holds f2 σ' hh1
+      rw [Cof.restr_restr, ISub.comp_hom] at hh'
+      obtain ⟨hTT2, -⟩ := hrest k'' σ' hh'
+      have hEq := equivTy σ hX hX' r1 r2' f2 f2' hAA σ' hh' hTT2
+      have hty := face_ty hW s2 hE1 σ' hh1
+      rw [isub_equiv, isub_univ] at hty
+      rw [isub_equiv, isub_equiv, isub_univ]
+      exact eqTop hW hEq.1.2.2 hty
+    -- the equivalences agree under the face
+    have key : EqTm S k' (cof .one φ2) [] e2 e2' (Tm.equiv T2 A2) := by
+      have he2' := HasTy.restrict hΦ c12 he2
+      refine eq_of_restr hW s2 (.inl hE1) he1 (HasTy.conv he2' (EqTm.symm eqv)) fun k'' σ' hh1 => ?_
+      have hh' := face_of_holds f2 σ' hh1
+      rw [Cof.restr_restr, ISub.comp_hom] at hh'
+      obtain ⟨-, hee⟩ := hrest k'' σ' hh'
+      rw [isub_equiv]
+      exact hee.1.2.2
+    -- conclusion
+    have eT' : EqTm S k' (cof .one φ2') [] (Tm.equiv T2 A2) (Tm.equiv T2' A2') (.univ maxLevel) :=
+      EqTm.restrict hΦ' c21 eqv
+    refine ⟨A2', φ2', T2', e2', ψ, e0, t0, a0, ψ', e0', t0', a0', r2', ⟨rg.1, rg.2.tyConv hTσ⟩,
+      ⟨rg'.1, rg'.2.tyConv hTσ⟩, ent_trans h1 q12, ent_trans q21 h2, ent_trans h3 q12, ent_trans q21 h4,
+      ?_, ?_, (ihA k' _).conv hAA ha⟩
+    · exact EqTm.conv (EqTm.restrict hΦ' c21 (he0.trans key)) eT'
+    · exact EqTm.conv (EqTm.restrict hΦ' c21 (he0'.trans key)) eT'
 
 end
 
