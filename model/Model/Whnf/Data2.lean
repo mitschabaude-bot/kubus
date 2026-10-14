@@ -21,10 +21,16 @@ theorem DR2.isub (hW : WfSig S) {k : ℕ} {g : Hom k k0} {A t t' : Tm}
     (h : DR2 S d D (dataMem S Θ f) (dataP2 S Θ f) k g A t t') (σ : ISub k' k) :
     DR2 S d D (dataMem S Θ f) (dataP2 S Θ f) k' (g.comp σ.hom) (A.isub σ) (t.isub σ) (t'.isub σ) := by
   cases h with
-  | intro he hh =>
-    refine .intro (EqTm.isubS hW he σ) fun k'' σ' => ?_
-    have := hh k'' (σ.comp σ')
-    rwa [← ISub.comp_hom, ← Tm.isub_isub, ← Tm.isub_isub, ← Tm.isub_isub] at this
+  | intro he hh hc hc' =>
+    refine .intro (EqTm.isubS hW he σ) (fun k'' σ' => ?_) (fun k'' σ' w hw k3 ρ => ?_) (fun k'' σ' w hw k3 ρ => ?_)
+    · have := hh k'' (σ.comp σ')
+      rwa [← ISub.comp_hom, ← Tm.isub_isub, ← Tm.isub_isub, ← Tm.isub_isub] at this
+    · rw [Tm.isub_isub] at hw
+      have := hc k'' (σ.comp σ') w hw k3 ρ
+      simp only [Tm.isub_isub, ISub.comp_hom, ISub.comp_assoc] at this ⊢; exact this
+    · rw [Tm.isub_isub] at hw
+      have := hc' k'' (σ.comp σ') w hw k3 ρ
+      simp only [Tm.isub_isub, ISub.comp_hom, ISub.comp_assoc] at this ⊢; exact this
 
 theorem DR2.rebase {k : ℕ} {f' : Hom k k0} {A t t' : Tm}
     (hr : DR2 S d D (dataMem S Θ f) (dataP2 S Θ f) k f' A t t') :
@@ -34,8 +40,10 @@ theorem DR2.rebase {k : ℕ} {f' : Hom k k0} {A t t' : Tm}
       DR2 S d D (dataMem S Θ (f.comp h)) (dataP2 S Θ (f.comp h)) k g A t t')
     (motive_2 := fun k f' A t t' _ => ∀ {k1 : ℕ} (h : Hom k1 k0) (g : Hom k k1), f' = h.comp g →
       DR2At S d D (dataMem S Θ (f.comp h)) (dataP2 S Θ (f.comp h)) k g A t t') ?_ ?_ ?_ hr
-  · intro k f' A t t' he _ ih k1 h g e
-    exact .intro he fun k' σ => ih k' σ h (g.comp σ.hom) (by rw [e, Hom.comp_assoc])
+  · intro k f' A t t' he _ _ _ ih ihc ihc' k1 h g e
+    exact .intro he (fun k' σ => ih k' σ h (g.comp σ.hom) (by rw [e, Hom.comp_assoc]))
+      (fun k' σ w hw k'' ρ => ihc k' σ w hw k'' ρ h (g.comp (σ.comp ρ).hom) (by rw [e, Hom.comp_assoc]))
+      (fun k' σ w hw k'' ρ => ihc' k' σ w hw k'' ρ h (g.comp (σ.comp ρ).hom) (by rw [e, Hom.comp_assoc]))
   · intro k f' A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
       hrec hpt ihrec k1 h g e
     subst e
@@ -56,8 +64,11 @@ theorem DR2.unbase {k k1 : ℕ} {h : Hom k1 k0} {g : Hom k k1} {A t t' : Tm}
     DR2 S d D (dataMem S Θ f) (dataP2 S Θ f) k (h.comp g) A t t' := by
   refine DR2.rec (motive_1 := fun k g A t t' _ => DR2 S d D (dataMem S Θ f) (dataP2 S Θ f) k (h.comp g) A t t')
     (motive_2 := fun k g A t t' _ => DR2At S d D (dataMem S Θ f) (dataP2 S Θ f) k (h.comp g) A t t') ?_ ?_ ?_ hr
-  · intro k g A t t' he _ ih
-    exact .intro he fun k' σ => by have := ih k' σ; simp only at this; rwa [Hom.comp_assoc]
+  · intro k g A t t' he _ _ _ ih ihc ihc'
+    refine .intro he (fun k' σ => ?_) (fun k' σ w hw k'' ρ => ?_) (fun k' σ w hw k'' ρ => ?_)
+    · have := ih k' σ; simp only at this; rwa [Hom.comp_assoc]
+    · have := ihc k' σ w hw k'' ρ; simp only at this; rwa [Hom.comp_assoc]
+    · have := ihc' k' σ w hw k'' ρ; simp only at this; rwa [Hom.comp_assoc]
   · intro k g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
       hrec hpt ihrec
     refine .con ?_ ?_ heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' ihrec (fun j hj hj' hr => ?_)

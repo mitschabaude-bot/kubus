@@ -164,12 +164,18 @@ end fam
 /-! ### Inductive types -/
 
 mutual
-/-- Related elements of an inductive type: related at every restriction (`DR2At`). -/
+/-- Related elements of an inductive type: related at every restriction (`DR2At`), and coherent: the
+weak-head normal form of each side at a restriction, restricted further, is related to that side at the
+further restriction. -/
 inductive DR2 {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m → Tm → Prop)
     (P : (k : ℕ) → Hom k m → ℕ → ℕ → List V → Tm → Tm → Tm → Prop) :
     (k : ℕ) → Hom k m → Tm → Tm → Tm → Prop
   | intro {k : ℕ} {f : Hom k m} {A t t' : Tm} : EqTm S k .one [] t t' A →
       (∀ k' (σ : ISub k' k), DR2At d D Mem P k' (f.comp σ.hom) (A.isub σ) (t.isub σ) (t'.isub σ)) →
+      (∀ k' (σ : ISub k' k) w, RedW S (t.isub σ) w → ∀ k'' (ρ : ISub k'' k'),
+        DR2At d D Mem P k'' (f.comp (σ.comp ρ).hom) (A.isub (σ.comp ρ)) (w.isub ρ) (t.isub (σ.comp ρ))) →
+      (∀ k' (σ : ISub k' k) w, RedW S (t'.isub σ) w → ∀ k'' (ρ : ISub k'' k'),
+        DR2At d D Mem P k'' (f.comp (σ.comp ρ).hom) (A.isub (σ.comp ρ)) (w.isub ρ) (t'.isub (σ.comp ρ))) →
       DR2 d D Mem P k f A t t'
 
 /-- Related elements of an inductive type at a stage: weak-head normal forms which are the same
@@ -285,24 +291,35 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
       rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k' k' (Hom.id k')
     let ET : (k' : ℕ) → ISub k' k → (k'' : ℕ) → ISub k'' k' → Pack2 := fun k' σ k'' σ' =>
       rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k' k'' σ'.hom
-    { ty := fun A A' => ∀ k' (σ : ISub k' k),
-          if (φ.restr σ.hom).holds then (RT k' σ).ty (A.isub σ) (A'.isub σ)
-          else ∃ A1 φ1 T1 e1 A1' φ1' T1' e1',
-            RedT S k' (A.isub σ) (.glue A1 φ1 T1 e1) ∧ RedT S k' (A'.isub σ) (.glue A1' φ1' T1' e1') ∧
-            φ1.Scoped k' ∧ φ1'.Scoped k' ∧
-            (ival (idEnv k') φ1).face = φ.restr σ.hom ∧ (ival (idEnv k') φ1').face = φ.restr σ.hom ∧
-            (RA k' σ).ty A1 A1' ∧
-            ∀ k'' (σ' : ISub k'' k'), (φ.restr (σ.comp σ').hom).holds →
-              (RT k'' (σ.comp σ')).ty (T1.isub σ') (T1'.isub σ') ∧
-              (equivF S (ET k'' (σ.comp σ')) (fun k3 σ3 => RA k3 ((σ.comp σ').comp σ3)) k'' (ISub.id k'')).el
-                (Tm.equiv (T1.isub σ') (A1.isub σ')) (e1.isub σ') (e1'.isub σ')
-      el := fun A g g' => EB S k A g g' ∧ ∀ k' (σ : ISub k' k),
-          if (φ.restr σ.hom).holds then (RT k' σ).el (A.isub σ) (g.isub σ) (g'.isub σ)
-          else ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedT S k' (A.isub σ) (.glue A1 φ1 T1 e1) ∧
-            RedE S k' (A.isub σ) (g.isub σ) (.glueEl ψ e0 t0 a0) ∧ RedE S k' (A.isub σ) (g'.isub σ) (.glueEl ψ' e0' t0' a0') ∧
-            I.Entails ψ φ1 ∧ I.Entails φ1 ψ ∧ I.Entails ψ' φ1 ∧ I.Entails φ1 ψ' ∧
-            EqTm S k' (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) ∧ EqTm S k' (cof .one φ1) [] e0' e1 (Tm.equiv T1 A1) ∧
-            (RA k' σ).el A1 a0 a0' }
+    -- the relations at one stage, of types and of elements
+    let locT : (k' : ℕ) → ISub k' k → Tm → Tm → Prop := fun k' σ Y Z =>
+      if (φ.restr σ.hom).holds then (RT k' σ).ty Y Z
+      else ∃ A1 φ1 T1 e1 A1' φ1' T1' e1',
+        RedT S k' Y (.glue A1 φ1 T1 e1) ∧ RedT S k' Z (.glue A1' φ1' T1' e1') ∧
+        φ1.Scoped k' ∧ φ1'.Scoped k' ∧
+        (ival (idEnv k') φ1).face = φ.restr σ.hom ∧ (ival (idEnv k') φ1').face = φ.restr σ.hom ∧
+        (RA k' σ).ty A1 A1' ∧
+        ∀ k'' (σ' : ISub k'' k'), (φ.restr (σ.comp σ').hom).holds →
+          (RT k'' (σ.comp σ')).ty (T1.isub σ') (T1'.isub σ') ∧
+          (equivF S (ET k'' (σ.comp σ')) (fun k3 σ3 => RA k3 ((σ.comp σ').comp σ3)) k'' (ISub.id k'')).el
+            (Tm.equiv (T1.isub σ') (A1.isub σ')) (e1.isub σ') (e1'.isub σ')
+    let locE : (k' : ℕ) → ISub k' k → Tm → Tm → Tm → Prop := fun k' σ X g g' =>
+      if (φ.restr σ.hom).holds then (RT k' σ).el X g g'
+      else ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedT S k' X (.glue A1 φ1 T1 e1) ∧
+        RedE S k' X g (.glueEl ψ e0 t0 a0) ∧ RedE S k' X g' (.glueEl ψ' e0' t0' a0') ∧
+        I.Entails ψ φ1 ∧ I.Entails φ1 ψ ∧ I.Entails ψ' φ1 ∧ I.Entails φ1 ψ' ∧
+        EqTm S k' (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) ∧ EqTm S k' (cof .one φ1) [] e0' e1 (Tm.equiv T1 A1) ∧
+        (RA k' σ).el A1 a0 a0'
+    -- coherence: where the face does not hold, the normal form at a restriction, restricted further, is
+    -- related to the further restriction
+    let cohT : Tm → Prop := fun A => ∀ k' (σ : ISub k' k), ¬ (φ.restr σ.hom).holds → ∀ W, RedW S (A.isub σ) W →
+      ∀ k'' (ρ : ISub k'' k'), locT k'' (σ.comp ρ) (W.isub ρ) (A.isub (σ.comp ρ))
+    let cohE : Tm → Tm → Prop := fun A g => ∀ k' (σ : ISub k' k), ¬ (φ.restr σ.hom).holds → ∀ w,
+      RedW S (g.isub σ) w → ∀ k'' (ρ : ISub k'' k'),
+        locE k'' (σ.comp ρ) (A.isub (σ.comp ρ)) (w.isub ρ) (g.isub (σ.comp ρ))
+    { ty := fun A A' => (∀ k' (σ : ISub k' k), locT k' σ (A.isub σ) (A'.isub σ)) ∧ cohT A ∧ cohT A'
+      el := fun A g g' => EB S k A g g' ∧ (∀ k' (σ : ISub k' k), locE k' σ (A.isub σ) (g.isub σ) (g'.isub σ)) ∧
+        cohE A g ∧ cohE A g' }
   else if π1 sh = natZ tData then
     let d := natOf (π1 (π2 sh))
     let D : DataDecl := dataD S d

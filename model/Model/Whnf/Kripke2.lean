@@ -185,49 +185,35 @@ theorem kr2_glueC {l : ℕ} {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ
     KR2 S m (glueC m A φ Tp ep) := by
   have hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f) := fun k f hh => (hTw k f hh).fib.kv
   intro k f k' σ T T' t t'
-  rw [Comp2_glueC_at hφ hTp hTkv f, Comp2_glueC_at hφ hTp hTkv (f.comp σ.hom)]
   by_cases hf : (φ.restr f).holds
-  · have hfσ : (φ.restr (f.comp σ.hom)).holds := by
+  · rw [Comp2_glueC_at hφ hTp hTkv f, Comp2_glueC_at hφ hTp hTkv (f.comp σ.hom)]
+    have hfσ : (φ.restr (f.comp σ.hom)).holds := by
       rw [← Cof.restr_restr]; exact (hφ.restr f).holds_restr hf _
     rw [if_pos hf, if_pos hfσ, ← hTp k f hf k' σ.hom, ← Comp2_eq_res (IsKV.ne_empty (hTkv k f hf))]
     have := ihT k f hf k (Hom.id k) k' σ T T' t t'
     rwa [Hom.id_comp] at this
-  rw [if_neg hf, Comp2_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr f) hf]
-  simp only [Comp2_res (IsKV.ne_empty hA), dat_res, Cof.restr_restr]
-  have hG : glueC k (res f A) (φ.restr f) (res f Tp) (res f ep) = res f (glueC m A φ Tp ep) := by
-    rw [res_glueC hTp hTkv hφ f, if_neg hf]
+  rw [Comp2_glueC_f hA hφ hTp hTkv f hf]
   by_cases hfσ : (φ.restr (f.comp σ.hom)).holds
-  · rw [if_pos hfσ]
+  · rw [Comp2_glueC_at hφ hTp hTkv (f.comp σ.hom), if_pos hfσ]
     constructor
-    · rintro ⟨-, hall⟩
+    · rintro ⟨-, hall, -⟩
       have := hall k' σ
+      unfold glueLocT at this
       rwa [if_pos hfσ] at this
-    · rintro ⟨-, -, -, hall⟩
+    · rintro ⟨-, -, -, hall, -⟩
       have := hall k' σ
+      unfold glueLocE at this
       rwa [if_pos hfσ] at this
-  · rw [if_neg hfσ, Comp2_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr _) hfσ]
-    simp only [Comp2_res (IsKV.ne_empty hA), dat_res, Cof.restr_restr]
-    have hG' : glueC k' (res (f.comp σ.hom) A) (φ.restr (f.comp σ.hom)) (res (f.comp σ.hom) Tp)
-        (res (f.comp σ.hom) ep) = res (f.comp σ.hom) (glueC m A φ Tp ep) := by
-      rw [res_glueC hTp hTkv hφ _, if_neg hfσ]
+  · rw [Comp2_glueC_f hA hφ hTp hTkv _ hfσ]
     constructor
-    · rintro ⟨hb, hall⟩
-      refine ⟨?_, fun k'' σ' => ?_⟩
-      · have := base_isub hW hb σ
-        simp only [hG, res_res, Hom.comp_id] at this
-        simp only [hG', res_res, Hom.comp_id]; exact this
-      · have := hall k'' (σ.comp σ')
-        simp only [ISub.comp_hom, Tm.isub_isub, ISub.comp_assoc] at this ⊢
-        exact this
-    · rintro ⟨he, hmem, -, hall⟩
-      have hmem' : semK S k' (t.isub σ) ∈ El (res (Hom.id k') (res (f.comp σ.hom) (glueC m A φ Tp ep))) (Hom.id k') := by
-        rw [hG, res_res, Hom.comp_id] at hmem
-        have := mem_isub hW hX he.1 hmem σ
-        rwa [res_res, Hom.comp_id]
-      refine ⟨he.isub hW σ, by rw [hG']; exact hmem', he.isub hW σ, fun k'' σ' => ?_⟩
-      have := hall k'' (σ.comp σ')
-      simp only [ISub.comp_hom, Tm.isub_isub] at this ⊢
-      exact this
+    · rintro ⟨hb, hall, hc, hc'⟩
+      refine ⟨?_, fun k'' σ' => ?_, cohGT_isub hc σ, cohGT_isub hc' σ⟩
+      · have := base_isub hW hb σ; rwa [res_res] at this
+      · rw [glueLocT_comp, Tm.isub_isub, Tm.isub_isub]; exact hall k'' (σ.comp σ')
+    · rintro ⟨he, hmem, -, hall, hc, hc'⟩
+      refine ⟨he.isub hW σ, mem_isub hW hX he.1 hmem σ, he.isub hW σ, fun k'' σ' => ?_,
+        cohGE_isub hc σ, cohGE_isub hc' σ⟩
+      rw [glueLocE_comp, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]; exact hall k'' (σ.comp σ')
 
 end
 
