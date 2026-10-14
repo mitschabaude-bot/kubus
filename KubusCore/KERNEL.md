@@ -13,11 +13,15 @@ def CheckedSig.extend (C : CheckedSig) (t A : Tm) : Except String CheckedSig   -
 - Lean 4 and its kernel; the kernel's definitions use only the axioms `propext`, `Classical.choice` and `Quot.sound` (`#print axioms KubusCore.Kernel.checkSig`).
 - The specification: `KubusCore/Syntax.lean` and `KubusCore/Rules.lean`.
 
+`KubusCore/Meta` (the metatheory) is not trusted either: it consists of theorems, checked by Lean, about the specification. The kernel imports it and uses its theorems in derivations, so `#print axioms` of the kernel covers them as well.
+
 Nothing in `KubusCore/Kernel/` is trusted. All kernel functions are total (recursion on fuel), and contain no `sorry`, `partial`, `unsafe` or `implemented_by`. No rules were added to the spec (no "PENDING REVIEW" section).
 
 The bridge `Kubus/Bridge.lean` is not trusted either: it produces KubusCore terms, which the kernel checks.
 
-The kernel uses the metatheory (`KubusCore/Meta`, proven, imported into the kernel): when the signature is known to be well-formed (`SigInfo.wf`, from the `CheckedSig`), a full-spec derivation is moved to the minimal judgments (`Meta.spec_to_minimal`), a generation or renaming theorem is applied, and the result is moved back (`Meta.minimal_to_spec`). Its conclusions are propositions, so they are used only where the kernel needs no witnesses from them.
+The kernel uses the metatheory: when the signature is known to be well-formed (`SigInfo.wf`, from the `CheckedSig`), a full-spec derivation is moved to the minimal judgments (`Meta.spec_to_minimal`), a generation or renaming theorem is applied, and the result is moved back (`Meta.minimal_to_spec`). Its conclusions are propositions, so they are used only where the kernel needs no witnesses from them. The theorems used: generation lemmas (`gen_hcomp`, `gen_transpF`, `gen_elimHead`, `gen_pi`, `gen_sigma`, `gen_path`, `gen_univ`), presupposition (`pre_ty`), renaming (`ren_ty`, `ren_eq`, `wfAll_of_wf`) and replacement of β-redexes (`beta_replace`, `Meta/Replace.lean`). Importing them makes a clean build of the kernel take about 3 minutes instead of 20 s; the binary grows by about 0.1 MB.
+
+What a certification means for the user's statement is checked separately (see Translation adequacy).
 
 The cache (see Memoization) compares terms with Lean core's `withPtrEq`, which is logically the structural comparison; its pointer-equality shortcut is part of Lean's runtime, like the compiler.
 
@@ -32,11 +36,12 @@ The cache (see Memoization) compares terms with Lean core's `withPtrEq`, which i
 | `Infer.lean` | bidirectional inference and checking; Glue types (`toGlue`, `reglue`) |
 | `Whnf.lean` | typed weak-head reduction |
 | `Conv.lean` | conversion |
+| `Rename.lean` | judgments in the smallest context, moved back by the renaming theorem |
 | `Main.lean` | tying the knot, memoization, signatures |
 
 Kernel functions run in the monad `K S := EStateM String (Cache S)`: errors, and a cache of derived judgments (see Memoization). Each kernel function is a separate definition taking a record `R : Rec S` of the recursive calls (infer, check, whnf, whnf-with-inference, conversion, neutral comparison). `Kernel.rec S n` ties the knot with fuel `n`, the nesting depth of calls (default 20000); each level of the record is built lazily. Side conditions that are decidable are checked at run time and the check yields the proof: syntactic equality of terms (`DecidableEq Tm`), `I.Entails` (a `Bool` function), `I.Scoped`, `I.Eq` (via `I.eqB_sound`), level bounds. This avoids proving metatheory: the kernel computes what a rule needs and compares.
 
-There is no subject reduction or inversion of elimination forms, so the kernel re-derives typings when it needs them: reducing `f a` infers `f` (its type in weak-head normal form gives the inversion rules something to decompose) and re-checks `a`. Equations are always derived at a type; when a congruence produces an equation at a different (convertible) type, `bridge` converts it with a type conversion. Rules stated for "any type of the redex" (β, endpoints, face rules, CHM rules) apply directly at the type at hand.
+The spec has no subject reduction or inversion of elimination forms, so the kernel re-derives typings when it needs them: reducing `f a` infers `f` (its type in weak-head normal form gives the inversion rules something to decompose) and re-checks `a`. Where the metatheory gives the needed facts as propositions, the kernel uses them instead (typed facts, smallest contexts, replacement). Equations are always derived at a type; when a congruence produces an equation at a different (convertible) type, `bridge` converts it with a type conversion. Rules stated for "any type of the redex" (β, endpoints, face rules, CHM rules) apply directly at the type at hand.
 
 ### Inference and checking
 
@@ -46,7 +51,7 @@ Glue types have no inversion rules for the base and the equivalence, so the kern
 
 ### Weak-head reduction
 
-At a given type: β for Π, Σ (`fst`/`snd`), paths; path endpoints `p 0`, `p 1` (also for interval terms equal to 0/1, and after substituting endpoints that the restriction fixes, by the face rule); systems (`splitL`/`splitR`); δ-unfolding of constants; `transpFace`, `hcompFace`, `glueFace`, `glueElFace`, `unglueFace`, `glueBeta`; the CHM computation rules `transpU/Pi/Sigma/Path/Glue/IPi` and `hcompPi/Sigma/Path/Glue/IPi`, after reducing the line (resp. type) to weak-head normal form with the congruence rules. Eliminations reduce their head first.
+At a given type: β for Π, Σ (`fst`/`snd`), paths; path endpoints `p 0`, `p 1` (also for interval terms equal to 0/1, and after substituting endpoints that the restriction fixes, by the face rule); systems (`splitL`/`splitR`); δ-unfolding of constants; `transpFace`, `hcompFace`, `glueFace`, `glueElFace`, `unglueFace`, `glueBeta`; the CHM computation rules `transpU/Pi/Sigma/Path/Glue/IPi` and `hcompPi/Sigma/Path/Glue/IPi`, after reducing the line (resp. type) to weak-head normal form with the congruence rules. Eliminations reduce their head first, after contracting the β-redexes `(λ x. b) a` inside them (replacement, `Meta.beta_replace`: a λ in head position has no informative inferred type).
 
 Typed reduction: the contracta of `transp` along Π, Σ, path, Glue and `(i : I) → A` lines eliminate the base (`app u0 w`, `fst u0`, `unglue u0`, …). When the base is an introduction form (λ, pair, path abstraction), inference in the contractum would only give it a weak, non-dependent type, so before contracting the kernel annotates it with the type `L(0)` known from the redex's typing: `transp (_. L(0)) 1 u0`, which equals `u0` by `transpFace` and has an inferable type. The annotation is a spec term, so it survives the substitutions that later act on the contractum. `unglue φ e (glue [φ' ↦ t] a)` with `φ'`, `e'` equal to `φ`, `e` only up to the interval laws resp. conversion is aligned by the congruence of glue elements before `glueBeta`.
 
@@ -93,9 +98,17 @@ The kernel certifies every definition and data type in `lib/`, including `ua`, `
 - No regularity: `transp` along a constant line does not reduce unless the line is a type former or the cofibration holds. This is the spec's theory, and since October 2026 also the Kubus evaluator's.
 - Triage of the fuzzer's kernel-only rejections (October 2026): Kubus's evaluator equates terms the spec does not. Minimal examples: `comp i A [] a ≡ hcomp i A [] a` for any type `A` (regularity), and `transport (λ i → Int) a ≡ a` for a variable `a` (a first-order shortcut; in the spec `hcomp Int [] a` is stuck on a neutral `a`). The evaluator also composes in Glue types and in the universe with cubicaltt's comp-based algorithms (`compGlue`, `compU`) instead of the spec's CHM `transpGlue`/`hcompGlue`/`hcompU`. The remaining Glue and composition-in-the-universe rejections came from these differences, so the evaluator was aligned with the spec's operations (`Kubus/Eval.lean`); the library needed `hfill` instead of `fill` along a constant line in two places (`rUnit`, `unglueIsEquivI`).
 - Systems under a restriction with several faces are inferable only when their branches have the same type (e.g. systems of types in a universe); otherwise they are not inferable (nor is `glue` when its equivalence is such a system and its fibres can't be guessed branchwise). The kernel checks them against types instead, and handles redexes whose head is not inferable (`(a, b).1`, `unglue (glue …)`, comparing pairs componentwise). An elimination of such a term in a position where its type is needed but cannot be reconstructed is rejected.
-- `unglue φ e g` and `unglue φ' e' g'` are compared only if `e` and `e'` are syntactically equal (the spec has no congruence rule for the equivalence argument).
 - Universe levels are bounded by `maxLevel` (spec); types at the top level cannot be reduced or compared.
 - Cost: without subject reduction the kernel re-infers heads and re-checks arguments while reducing, so checking is slower than evaluation-based conversion.
+- Known stress cases (fuzzer, 20 seeds × 40 cases, 60 s per case, October 2026): 14 cases where elaboration succeeds but the kernel times out. They share a shape: `hcomp` in `Int` whose tubes are `winding (comp … (Path S1 base base) …)`, which unfolds into nested `transpGlue`/`hcompU` contracta (along `sucPathInt`, `ua`). With 120 s, 4 of them are certified, 2 are rejected ("cannot infer the type of a system": a system whose faces hold only under a stronger restriction ends up checked under a weaker one; minimal example: `hcomp k Int [j = 1 -> W i, j = 0 -> W i] (W i)` with `W i := winding (comp k (Path S1 base base) [i = 0 -> \_ -> base] (\_ -> base))`), and the rest still time out.
+
+## Translation adequacy
+
+The kernel certifies the translated statement. `kubus` checks for every certified definition that this is the statement the user wrote (`Kubus/Adequacy.lean`, run by the command-line driver): the kernel's type is read back into a Kubus core term by a syntactic inverse of the kernel's term formers (written independently of the translation: term and interval indices are merged again, constants and inductive types are named again, systems are rebuilt from nested `split`s, λ domains are dropped), evaluated by Kubus, and compared with the elaborated type by Kubus's conversion check, in both directions. A mismatch is reported as `kernel: ADEQUACY MISMATCH` and fails the run; `--verbose` lists the adequate definitions and prints a summary (`adequacy: n adequate, m not covered, k mismatches`).
+
+Covered: types built from Π, Σ, λ, application, pairs and projections, universes, constants (with displacement), path types, path abstraction and application, `(i : I) → A`, `transp`, `hcomp` and the heterogeneous `comp` of the translation, Glue types, `glue`, inductive types and constructors. Not covered (reported with `--verbose`, not an error): statements whose kernel form contains `unglue` (Kubus's `unglue` records the Glue type, which the kernel term does not), eliminators (Kubus represents them by named pattern-matching definitions) or bare systems. Also not covered: data type declarations (their parameter and constructor types), the bodies of definitions (the kernel checks the translated body against the translated type; a body translated into a different term of the same type is not detected), and the language server and website builds, which certify without this check.
+
+The comparison uses Kubus's evaluator and conversion, so it relies on them agreeing with the reading of the statement (both are untrusted; a disagreement can only produce a false mismatch or, if both the translation and the read-back are wrong in the same way, a missed one). `tests/run.sh` runs the check over `lib/` and `tests/pass/` and a self-test: with `KUBUS_ADEQUACY_SELFTEST` set, the kernel's statements are deliberately corrupted before the comparison (path endpoints swapped, or an extra Π), and every definition of `lib/basic.ktt` but at most one (a symmetric path type) must mismatch. Currently every certified definition of `lib/` (208) and `tests/pass/` (157) is adequate, none not covered.
 
 ## Performance
 
@@ -111,6 +124,10 @@ Kernel time (translation and check, summed over the definitions, `--verbose`), o
 | reuse of results from weaker restrictions | 3.4 s | ~0.14 s |
 | fast paths before the cache | 2.5 s | 0.12–0.17 s |
 | cache entries grouped by context and terms (restrictions as variants) | 1.4 s | 0.04–0.08 s |
+| typed reduction, glue congruence, strengthening by an unused interval variable | ≈ 1.1 s | |
+| typed facts and generation lemmas, judgments in the smallest context, replacement | ≈ 0.35 s | |
+
+On the fuzzer (20 seeds × 40 cases), the last two rows took the kernel stress timeouts (elaboration succeeds, the kernel times out at 60 s) from 42 to 14; kernel-only rejections and skips are 0. Profiling the stress cases showed about 127 thousand comparisons on only about 1.6 thousand distinct triples of terms, repeated across contexts and restrictions; the smallest context removes most of the repetition.
 
 Since imported declarations are certified only when used, the times for the other files cover their own declarations and dependencies. `kubus lib/loopspace.ktt` takes 1.8 s end to end (elaboration 0.33 s, after the evaluator stopped applying interval substitutions to values that do not mention the substituted variable).
 
