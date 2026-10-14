@@ -1,5 +1,6 @@
 import KubusCore.Meta.Final
 import KubusCore.Meta.Near
+import KubusCore.Meta.NearData
 
 /-!
 # Metatheory: near typed terms are judgmentally equal
@@ -184,6 +185,23 @@ variable (hS : SigClosed S) (hT : SigTyped0 S) (hC : ContractaTyped S)
 include hS hT hC
 
 theorem eqR0 {Ψ Φ Γ t u A} (h : EqTm0 S Ψ Φ Γ t u A) : HasTy0 S Ψ Φ Γ u A := (pre_eq hS hT hC h).2.1
+
+omit hS hT hC in
+theorem ieqL_length : ∀ {rs rs' : List I}, IEqL rs rs' → rs.length = rs'.length
+  | _, _, .nil => rfl
+  | _, _, .cons _ h => by simp [ieqL_length h]
+
+omit hS hT hC in
+theorem ieqL_get : ∀ {rs rs' : List I}, IEqL rs rs' → ∀ (k : Nat) (r r' : I), rs[k]? = some r → rs'[k]? = some r' →
+    I.Eq r r'
+  | _, _, .nil => fun k r r' h _ => by simp at h
+  | _, _, .cons e h => fun k r r' h1 h2 => by
+    cases k with
+    | zero => simp at h1 h2; subst h1 h2; exact e
+    | succ k => simp at h1 h2; exact ieqL_get h k r r' h1 h2
+
+variable (hW : WfSig S)
+include hW
 
 mutual
 
@@ -404,6 +422,27 @@ theorem near_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → ∀ {t'}, TmNear t t'
       have hu' := HasTy0.unglue (eqR0 hS hT hC eG) hA (HasTy0.restrict hs1 c1 (eqR0 hS hT hC ee))
         (HasTy0.conv (eqR0 hS hT hC eg) eG)
       exact EqTm0.unglue (HasTy0.unglue hG hA he hg) hu' eφ.1 eφ.2 ee eg
+  | @HasTy0.data _ Ψ Φ Γ d D ps h0 hl h2 => fun hn hc => by
+    cases hn with
+    | data nps =>
+      simp only [Tm.closedB] at hc
+      have es := near_teleC h2 nps hc
+      have ht' := params_tele hS hW h0 (eqR0 hS hT hC) h2 es
+      exact EqTm0.data h0 (HasTy0.data h0 hl h2) (HasTy0.data h0 hl ht') es.toEqTele0
+  | @HasTy0.con _ Ψ Φ Γ d D c C ps args rs h0 h1 h2 h3 h4 h5 h6 h7 => fun hn hc => by
+    cases hn with
+    | @con _ _ _ ps' _ args' _ rs' nps nargs hrs =>
+      simp only [Tm.closedB, Bool.and_eq_true, List.all_eq_true] at hc
+      have es := near_teleC h4 nps hc.1.1
+      have eas := near_teleC h5 nargs hc.1.2
+      have edata := near_ty h3 (TmNear.data nps) (by simpa [Tm.closedB] using hc.1.1)
+      have hpt' := params_tele hS hW h0 (eqR0 hS hT hC) h4 es
+      have hat' := args_near hS hW h0 h1 (eqR0 hS hT hC) h4 es h5 eas edata
+      have hrs' : rs'.length = C.dims := by rw [← ieqL_length hrs]; exact h6
+      have hcon' := HasTy0.con h0 h1 es.isList' (eqR0 hS hT hC edata) hpt' hat' hrs'
+        (fun r hr => (I.scopedB_iff _ _).1 (hc.2 r hr))
+      exact EqTm0.con h0 h1 (HasTy0.con h0 h1 h2 h3 h4 h5 h6 h7) (HasTy0.conv hcon' (EqTm0.symm edata))
+        es.toEqTele0 eas.toEqTele0 (ieqL_length hrs) (fun k r r' h1 h2 => ieqL_get hrs k r r' h1 h2)
   | _ => sorry
 
 theorem near_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → ∀ {ts'}, TmNear ts ts' →
@@ -414,6 +453,15 @@ theorem near_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → ∀
     | tcons na nas =>
       simp only [Tm.closedB, Bool.and_eq_true] at hc
       exact EqTele0.cons (near_ty ha na hc.1) (near_tele has nas hc.2)
+
+theorem near_teleC {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → ∀ {ts'}, TmNear ts ts' →
+    ts'.closedB Γ.length Ψ = true → EqTeleS S Ψ Φ Γ ts ts' Δ prev
+  | @HasTele0.nil _ Ψ Φ Γ prev hw => fun hn _ => by cases hn; exact EqTeleS.nil hw
+  | @HasTele0.cons _ Ψ Φ Γ a as A Δ prev ha has => fun hn hc => by
+    cases hn with
+    | tcons na nas =>
+      simp only [Tm.closedB, Bool.and_eq_true] at hc
+      exact EqTeleS.cons (near_ty ha na hc.1) (near_teleC has nas hc.2)
 
 end
 
