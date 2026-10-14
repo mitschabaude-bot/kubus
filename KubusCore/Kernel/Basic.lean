@@ -1,5 +1,8 @@
 import KubusCore.Kernel.Ctx
 import Std.Data.HashMap
+import KubusCore.Meta.Final
+import KubusCore.Meta.GenRedex
+import KubusCore.Meta.Replace
 
 /-!
 # Kernel: result types, the recursion record, and helpers
@@ -267,6 +270,10 @@ def tmEq (a b : Tm) : Bool := @decide (a = b) (withPtrEqDecEq a b (fun _ => tmDe
 theorem tmEq_sound {a b : Tm} (h : tmEq a b = true) : a = b :=
   @of_decide_eq_true _ (withPtrEqDecEq a b (fun _ => tmDec a b)) h
 
+/-- Within the kernel, equality of terms is decided with the pointer-equality shortcuts (the
+derived instance traverses shared subterms in full). -/
+instance (priority := high) tmDecEq : DecidableEq Tm := fun a b => withPtrEqDecEq a b (fun _ => tmDec a b)
+
 def ctxEqAux : Ctx → Ctx → Bool
   | [], [] => true
   | A :: Γ, B :: Δ => tmEq A B && withPtrEq Γ Δ (fun _ => decide (Γ = Δ)) (by intro h; simp [h])
@@ -338,7 +345,8 @@ def Tm.hashTop : Nat → Tm → UInt64
     | .elim d ps P bs t => mixHash 26 (mixHash (hash d) (mixHash (h P) (mixHash (h bs) (h t))))
 
 def keyOf (Ψ : Nat) (Γ : Ctx) (ts : List Tm) : UInt64 :=
-  ts.foldl (fun acc t => mixHash acc (Tm.hashTop 4 t)) (mixHash (hash Ψ) (hash Γ.length))
+  let hΓ := Γ.foldl (fun h A => mixHash h (Tm.hashTop 4 A)) (hash Γ.length)
+  ts.foldl (fun acc t => mixHash acc (Tm.hashTop 7 t)) (mixHash (hash Ψ) hΓ)
 
 /-- A cached result under the restriction `Φ` (with its faces). -/
 structure CVar (S : Sig) (F : Sig → Nat → I → Ctx → List Tm → Type) (Ψ : Nat) (Γ : Ctx)
@@ -438,6 +446,17 @@ def _root_.KubusCore.Tm.rigid : Tm → Bool
   | .data .. | .con _ _ _ _ [] => true
   | _ => false
 
+/-- Terms known to be typed (at some type): the premises of their typing rule can then be read
+off by the generation lemmas instead of being checked. -/
+def TypedF : Sig → Nat → I → Ctx → List Tm → Type
+  | S, Ψ, Φ, Γ, [t] => PLift (∃ T, HasTy S Ψ Φ Γ t T)
+  | _, _, _, _, _ => PUnit
+
+def TypedF.restr {S : Sig} : Restr S TypedF := fun {Ψ Φ Φ' Γ ts} hs he v =>
+  match ts, v with
+  | [_], ⟨h⟩ => some ⟨by obtain ⟨T, h⟩ := h; exact ⟨T, HasTy.restrict hs he h⟩⟩
+  | [], _ | _ :: _ :: _, _ => none
+
 def InfF.restr {S : Sig} : Restr S InfF := fun {Ψ Φ Φ' Γ ts} hs he v =>
   match ts, v with
   | [_], i => some ⟨i.ty, i.lvl, HasTy.restrict hs he i.hty, HasTy.restrict hs he i.htm⟩
@@ -503,7 +522,13 @@ structure Cache (S : Sig) where
   elim : Table S ElimF := {}
   /-- comparisons that failed (no proof needed), so that alternatives tried after a failure
   do not repeat it -/
-  convFail : Table S (fun _ _ _ _ _ => PUnit) := {}
+  convFail : Table S (fun _ _ _ _ _ => String) := {}
+  /-- judgments for which strengthening did not work (keys tagged by the judgment) -/
+  strFail : Table S (fun _ _ _ _ _ => PUnit) := {}
+  /-- kernel contexts with an interval variable removed (strengthening) -/
+  ctxs : Table S (fun S Ψ Φ Γ _ => KCtx S Ψ Φ Γ) := {}
+  /-- terms known to be typed (the results of reduction, and the heads of their eliminations) -/
+  typed : Table S TypedF := {}
   /-- inside an attempt to compare without splitting the restriction into faces -/
   noSplit : Bool := false
   /-- inside an attempt to compare by congruence before reducing -/
@@ -749,21 +774,62 @@ structure TranspInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) 
   l : Nat
   hA : HasTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l)
   hφ : φ.Scoped Ψ
-  heq : EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l)
+  /-- the line is constant on `φ` (at some level: the generation lemma does not say which) -/
+  heq : ∃ l', l' ≤ maxLevel ∧ HasTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l') ∧
+    EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l')
   ha : HasTy S Ψ Φ Γ a (A.dinst .zero)
   ht : HasTy S Ψ Φ Γ (.transp A φ a) (A.dinst .one)
 
-def inferTransp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (a : Tm) :
-    K S (TranspInfo S Ψ Φ Γ A φ a) := do
+/-- The same transport with another base. -/
+theorem TranspInfo.retype {Ψ Φ Γ A φ a a'} (i : TranspInfo S Ψ Φ Γ A φ a)
+    (ha' : HasTy S Ψ Φ Γ a' (A.dinst .zero)) : HasTy S Ψ Φ Γ (.transp A φ a') (A.dinst .one) := by
+  obtain ⟨_, _, hA', heq'⟩ := i.heq
+  exact HasTy.transp hA' i.hφ heq' ha'
+
+/-- Typed types have levels below `maxLevel` (presupposition and generation for universes). -/
+theorem HasTy.lvl_le (hS : WfSig S) {Ψ Φ Γ A l} (h : HasTy S Ψ Φ Γ A (.univ l)) : l ≤ maxLevel := by
+  have h0 := Meta.spec_to_minimal hS h
+  rcases Meta.pre_ty (Meta.sigClosed_of_wfSig hS) (Meta.wf_typed _ S rfl hS).1
+      (Meta.wf_typed _ S rfl hS).2 h0 with ⟨_, hu⟩ | ⟨_, he, hl⟩
+  · have := Meta.gen_univ hu rfl; omega
+  · cases he; exact hl
+
+/-- The premises of a transport known to be typed, read off its typing by the generation lemma
+(`Meta.gen_transpF`); only the level of the line is inferred. -/
+def transpInfoEx (R : Rec S) (E : KCtx S Ψ Φ Γ) (hS : WfSig S) {A : Tm} {φ : I} {a : Tm}
+    (hex : ∃ T, HasTy S Ψ Φ Γ (.transp A φ a) T) : K S (TranspInfo S Ψ Φ Γ A φ a) := do
   let ⟨hφ⟩ ← ensureScoped φ Ψ
   let ⟨l, ⟨hA⟩⟩ ← inferType R E.dext A
+  have heq : ∃ l', l' ≤ maxLevel ∧ HasTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l') ∧
+      EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l') := by
+    obtain ⟨T, ht⟩ := hex
+    obtain ⟨l', ⟨h1, _, h3, _⟩, _⟩ := Meta.gen_transpF (Meta.spec_to_minimal hS ht) rfl
+    have h1' := Meta.minimal_to_spec h1
+    exact ⟨l', HasTy.lvl_le hS h1', h1', Meta.minimal_to_spec_eq h3⟩
+  have ha : HasTy S Ψ Φ Γ a (A.dinst .zero) := by
+    obtain ⟨T, ht⟩ := hex
+    obtain ⟨_, ⟨_, _, _, h4⟩, _⟩ := Meta.gen_transpF (Meta.spec_to_minimal hS ht) rfl
+    exact Meta.minimal_to_spec h4
+  have ht : HasTy S Ψ Φ Γ (.transp A φ a) (A.dinst .one) := by
+    obtain ⟨_, _, hA', heq'⟩ := heq
+    exact HasTy.transp hA' hφ heq' ha
+  pure ⟨l, hA, hφ, heq, ha, ht⟩
+
+def inferTransp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (a : Tm) :
+    K S (TranspInfo S Ψ Φ Γ A φ a) := do
+  if let some ⟨hS⟩ := E.sig.wf then
+    if let some ⟨hex⟩ := (← get).typed.find? Ψ Φ Γ [.transp A φ a] E.fs.get E.hfs E.hsc TypedF.restr then
+      return ← transpInfoEx R E hS hex
+  let ⟨hφ⟩ ← ensureScoped φ Ψ
+  let ⟨l, ⟨hA⟩⟩ ← inferType R E.dext A
+  let ⟨hl⟩ ← ensureLvl l
   let hA0 : HasTy S Ψ Φ Γ (A.dinst .zero) (.univ l) := HasTy.dsubst hA trivial
   let ⟨ha⟩ ← R.check E a (A.dinst .zero) l hA0
   let E' := (E.cof φ hφ).dext
   let ⟨hU⟩ ← univTyK E' l
   let ⟨heq⟩ ← R.conv E' (.univ l) (l + 1) hU A (A.dinst .zero).dshift
     (HasTy.rsd E hφ hA) (HasTy.dwkCof E hφ hA0)
-  pure ⟨l, hA, hφ, heq, ha, HasTy.transp hA hφ heq ha⟩
+  pure ⟨l, hA, hφ, ⟨l, hl, hA, heq⟩, ha, HasTy.transp hA hφ heq ha⟩
 
 structure HcompInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (u a : Tm) where
   l : Nat
@@ -774,8 +840,31 @@ structure HcompInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (
   heq : EqTm S Ψ (cof Φ φ) Γ (u.dinst .zero) a A
   ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) A
 
+/-- The premises of a composition known to be typed, read off its typing by the generation
+lemma (`Meta.gen_hcomp`, through the minimal judgments); only the level of `A` is inferred. -/
+def hcompInfoEx (R : Rec S) (E : KCtx S Ψ Φ Γ) (hS : WfSig S) {A : Tm} {φ : I} {u a : Tm}
+    (hex : ∃ T, HasTy S Ψ Φ Γ (.hcomp A φ u a) T) : K S (HcompInfo S Ψ Φ Γ A φ u a) := do
+  let ⟨hφ⟩ ← ensureScoped φ Ψ
+  let ⟨l, ⟨hA⟩⟩ ← inferType R E A
+  have hu : HasTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift := by
+    obtain ⟨T, ht⟩ := hex
+    obtain ⟨_, ⟨_, _, h, _, _⟩, _⟩ := Meta.gen_hcomp (Meta.spec_to_minimal hS ht) rfl
+    exact Meta.minimal_to_spec h
+  have ha : HasTy S Ψ Φ Γ a A := by
+    obtain ⟨T, ht⟩ := hex
+    obtain ⟨_, ⟨_, _, _, h, _⟩, _⟩ := Meta.gen_hcomp (Meta.spec_to_minimal hS ht) rfl
+    exact Meta.minimal_to_spec h
+  have heq : EqTm S Ψ (cof Φ φ) Γ (u.dinst .zero) a A := by
+    obtain ⟨T, ht⟩ := hex
+    obtain ⟨_, ⟨_, _, _, _, h⟩, _⟩ := Meta.gen_hcomp (Meta.spec_to_minimal hS ht) rfl
+    exact Meta.minimal_to_spec_eq h
+  pure ⟨l, hA, hφ, hu, ha, heq, HasTy.hcomp hA hφ hu ha heq⟩
+
 def inferHcomp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u a : Tm) :
     K S (HcompInfo S Ψ Φ Γ A φ u a) := do
+  if let some ⟨hS⟩ := E.sig.wf then
+    if let some ⟨hex⟩ := (← get).typed.find? Ψ Φ Γ [.hcomp A φ u a] E.fs.get E.hfs E.hsc TypedF.restr then
+      return ← hcompInfoEx R E hS hex
   let ⟨hφ⟩ ← ensureScoped φ Ψ
   let ⟨l, ⟨hA⟩⟩ ← inferType R E A
   let E1 := E.cof φ hφ
@@ -786,5 +875,78 @@ def inferHcomp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u a : Tm) :
     rwa [Tm.dshift_dinst] at this
   let ⟨heq⟩ ← R.conv E1 A l (HasTy.rs E hφ hA) (u.dinst .zero) a hu0 (HasTy.rs E hφ ha)
   pure ⟨l, hA, hφ, hu, ha, heq, HasTy.hcomp hA hφ hu ha heq⟩
+
+/-- Record that `t` is typed in `Ψ; Φ; Γ` (with the faces `fs` of `Φ`), and so are the subterms
+that the generation lemmas show typed in the same restriction: the heads of eliminations, the
+type and base of compositions, the base of transports, the components of Π, Σ and path types
+(`Meta.gen_elimHead`, `gen_hcomp`, `gen_transpF`, `gen_pi`, `gen_sigma`, `gen_path`). -/
+def noteTypedIn (hS : WfSig S) (fs : List I.Face) (hfs : fs = Φ.faces) :
+    Nat → (Γ : Ctx) → (t : Tm) → (∃ T, HasTy S Ψ Φ Γ t T) → K S Unit
+  | 0, _, _, _ => pure ()
+  | n + 1, Γ, t, h => do
+    modify fun c => { c with typed := c.typed.insert Ψ Φ Γ [t] fs hfs (⟨h⟩ : PLift _) }
+    have h0 : ∃ T, Meta.HasTy0 S Ψ Φ Γ t T := by
+      obtain ⟨T, h⟩ := h; exact ⟨T, Meta.spec_to_minimal hS h⟩
+    match hp : t.elimHead with
+    | some p => noteTypedIn hS fs hfs n Γ p (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨T', h'⟩ := Meta.gen_elimHead h hp
+        exact ⟨T', Meta.minimal_to_spec h'⟩)
+    | none =>
+    match t with
+    | .hcomp A φ u a => do
+      noteTypedIn hS fs hfs n Γ a (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, _, _, ha, _⟩, _⟩ := Meta.gen_hcomp h rfl
+        exact ⟨A, Meta.minimal_to_spec ha⟩)
+      noteTypedIn hS fs hfs n Γ A (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨l, ⟨hA, _⟩, _⟩ := Meta.gen_hcomp h rfl
+        exact ⟨_, Meta.minimal_to_spec hA⟩)
+    | .transp A φ a => noteTypedIn hS fs hfs n Γ a (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, _, _, ha⟩, _⟩ := Meta.gen_transpF h rfl
+        exact ⟨_, Meta.minimal_to_spec ha⟩)
+    | .pi A B => do
+      noteTypedIn hS fs hfs n Γ A (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨hA, _⟩, _⟩ := Meta.gen_pi (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec hA⟩)
+      noteTypedIn hS fs hfs n (A :: Γ) B (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, hB⟩, _⟩ := Meta.gen_pi (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec hB⟩)
+    | .sigma A B => do
+      noteTypedIn hS fs hfs n Γ A (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨hA, _⟩, _⟩ := Meta.gen_sigma (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec hA⟩)
+      noteTypedIn hS fs hfs n (A :: Γ) B (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, hB⟩, _⟩ := Meta.gen_sigma (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec hB⟩)
+    | .path A a b => do
+      noteTypedIn hS fs hfs n Γ a (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, ha, _⟩, _⟩ := Meta.gen_path (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec ha⟩)
+      noteTypedIn hS fs hfs n Γ b (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, _, hb⟩, _⟩ := Meta.gen_path (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec hb⟩)
+    | _ => pure ()
+
+/-- Record that `t` is typed (see `noteTypedIn`). -/
+def noteTyped (E : KCtx S Ψ Φ Γ) (n : Nat) (t : Tm) (h : ∃ T, HasTy S Ψ Φ Γ t T) : K S Unit :=
+  match E.sig.wf with
+  | some ⟨hS⟩ => noteTypedIn hS E.fs.get E.hfs n Γ t h
+  | none => modify fun c => { c with typed := c.typed.insert Ψ Φ Γ [t] E.fs.get E.hfs (⟨h⟩ : PLift _) }
+
+/-- The premises of a composition that is known to be typed. -/
+def hcompInfoOf (R : Rec S) (E : KCtx S Ψ Φ Γ) {A : Tm} {φ : I} {u a T : Tm}
+    (ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) T) : K S (HcompInfo S Ψ Φ Γ A φ u a) :=
+  match E.sig.wf with
+  | none => inferHcomp R E A φ u a
+  | some ⟨hS⟩ => hcompInfoEx R E hS ⟨T, ht⟩
 
 end KubusCore.Kernel
