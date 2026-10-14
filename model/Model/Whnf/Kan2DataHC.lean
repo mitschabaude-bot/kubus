@@ -91,7 +91,7 @@ structure HCC (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P Q Q' : Tm) (k1 : �
   hPP : RT2 S K (.data d P) (.data d P)
   hQ : RT2 S K (.data d P) (.data d Q)
   hQ' : RT2 S K (.data d P) (.data d Q')
-  hArgK : ∀ c j n (g : Hom n K) pre, (ΘK S D d K P).PtValid c n g pre → KanP2 S n ((ΘK S D d K P).ty c j n g pre)
+  hArgK : KanShape S K (ΘK S D d K P)
   hC : D.ctors[c]? = some C
   hXl : X.length = C.args.length
   hXl' : X'.length = C.args.length
