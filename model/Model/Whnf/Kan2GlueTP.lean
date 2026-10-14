@@ -349,6 +349,53 @@ theorem TGD2.tubeE (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k)
     hu hg (HasTy.isubS hW hAt _) heσ (TyEq.refl _)
   exact RE2.expandL hW hAA hu (RE2.typed x).1 hst x
 
+
+/-- The left tube, related to itself at near points. -/
+theorem TGD2.tubeL (τ : ISub k' k) {r r' : I} (hr : r.Scoped k') (hr' : r'.Scoped k') (he : I.Eq r r')
+    (hh : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+    RE2 S k' (A.isub (ISub.cons r hr τ)) (((tgTube φ e u0).isub τ.up).dinst r) (((tgTube φ e u0).isub τ.up).dinst r') := by
+  have hAA := D.rAA k' τ r r hr hr (I_eq_refl _)
+  have x := D.tube hW τ hr hr' he hh
+  have y := RE2.conv hW (D.rAA k' τ r' r hr' hr (I_eq_symm he)) (D.tube hW τ hr' hr' (I_eq_refl _) hh)
+  exact RE2.trans hW hAA x (RE2.symm hW hAA y)
+
+theorem TGD2.hF : HasTy S (k + 1) .one [] (Tm.fill A ψ (tgTube φ e u0) (tgA0 φ e u0)) A := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  exact minimal_to_spec (fill_typed (sigClosed_of_wfSig hW) H.hA H.hψ H.htube H.ha0 H.htube_side).1
+
+/-- On `δ`, where `ψ` holds, the filler of the bases is the equivalence applied to the start. -/
+theorem TGD2.fillE (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) {r : I} (hr : r.Scoped k')
+    (hh : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+    RE2 S k' (A.isub (ISub.cons r hr τ)) ((Tm.fill A ψ (tgTube φ e u0) (tgA0 φ e u0)).isub (ISub.cons r hr τ))
+      (.app (.fst (e.isub (ISub.cons r hr τ))) (u0.isub τ)) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hAA := D.rAA k' τ r r hr hr (I_eq_refl _)
+  have a := fill_face_pt hW H.hψ D.rAA (D.hF hW) (fun k4 σ r r' hr hr' he hh => D.tubeL hW σ hr hr' he hh) τ r hr hh
+  exact RE2.trans hW hAA a (D.tubeE hW hδ τ hr hh)
+
+/-- On `δ`, where `ψ` holds, the transport filler in the fiber is the start. -/
+theorem TGD2.tfE (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) {r : I} (hr : r.Scoped k')
+    (hh : (ival (idEnv k') (ψ.subst τ.τ)).holds ∨ r = .zero) :
+    RE2 S k' (T.isub (ISub.cons r hr τ)) ((Tm.transpFill T ψ u0).isub (ISub.cons r hr τ)) (u0.isub τ) := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨-, hTc, -, -⟩ := D.closedL hW
+  obtain ⟨l, hT⟩ := D.hTδ hW hδ
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hδe := ent_cof_one hW (entails_of_holds D.hδs hδ)
+  have hF := HasTy.restrict (Φ' := .one) trivial (ent_shift hδe)
+    (minimal_to_spec (transpFill_typed hS H.hTZ H.hψ H.hconstT H.hu0T).1)
+  have ha := D.u0At hW hδ (ISub.id k) .zero trivial (.inr rfl)
+  rw [isub_cons_id_of_closed hTc, isub_id_of_closed (closed_ty H.hu0), isub_id_of_closed
+    (closed_ty (D.tgR hW).choose_spec.hu0)] at ha
+  have hTT0 : RT2 S k (T.dinst .zero) (T.dinst .zero) := by
+    have := D.rTT k (ISub.cons .zero trivial (ISub.id k)) (D.faceL hW hδ _)
+    rwa [isub_cons_id_of_closed hTc] at this
+  have hor : I.Entails .one (I.or (ψ.subst τ.τ) (.neg r)) := by
+    rcases hh with hh | rfl
+    · exact ent_trans (entails_of_holds (I.scoped_subst H.hψ τ.sc) hh) (ent_or_left _ _)
+    · exact ent_trans (show I.Entails .one (I.neg .zero) by decide) (ent_or_right _ _)
+  exact tfill_face hW hT (D.rTLL hW hδ) (D.cT hW hδ) hF (RE2.reflL hW hTT0 ha) τ r hr hor hh
+
 end
 
 end
