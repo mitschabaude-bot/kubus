@@ -269,7 +269,7 @@ theorem DR2_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
 /-- A related prefix of arguments is related to itself. -/
 theorem prefix_refl {k : ℕ} {g : Hom k k0} {ps : Tm} (hR : argRelH Θ f S k g ps ps) (hpc : ps.closedB 0 k = true)
     {c : ℕ} {C : Ctor} (hC : (dataD S Θ.idx).ctors[c]? = some C) {args args' : List Tm}
-    (hl : args.length = C.args.length) (hl' : args'.length = C.args.length)
+    (hl : args.length ≤ C.args.length) (hl' : args'.length = args.length)
     (hrec : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
       DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g (.data Θ.idx ps) args[j] args'[j])
     (hpt : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
@@ -336,7 +336,7 @@ theorem DR2_conv : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
       obtain rfl := redT_data_eq h1
       obtain rfl := redT_data_eq h2
       exact ⟨argRelH_isub Θ f hR σ, argRelH_isub Θ f hRd σ, argRelH_isub Θ f hRd' σ⟩
-    · obtain ⟨hrecd, hptd⟩ := prefix_refl hW f hP hRd hpc hC hl hl' hrec hpt
+    · obtain ⟨hrecd, hptd⟩ := prefix_refl hW f hP hRd hpc hC (by omega) (by omega) hrec hpt
       have hlj : (args.take j).length = j := by simp; omega
       have hty := argRelH_id f hR hpc hpc' (args := args.take j) (args' := args.take j) hC
         (by rw [hlj]; omega) rfl (by rw [hlj]; exact hr)
@@ -376,6 +376,46 @@ theorem DR2_conv : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
     · intro k'' σ'
       rw [Tm.isub_isub]
       exact ⟨ps'.isub (σ.comp σ'), ⟨redW_self rfl, TyEq.refl _⟩, isList_subst hpl' _ _⟩
+
+/-- A related prefix of arguments, at related parameters. -/
+theorem prefix_conv {k : ℕ} {g : Hom k k0} {ps ps' : Tm} (hR : argRelH Θ f S k g ps ps')
+    (hRd : argRelH Θ f S k g ps ps) (hRd' : argRelH Θ f S k g ps' ps')
+    (hpc : ps.closedB 0 k = true) (hpc' : ps'.closedB 0 k = true) (hpl' : ps' = Tm.ofList ps'.toList)
+    (hdd : TyEq S k (.data Θ.idx ps) (.data Θ.idx ps'))
+    {c : ℕ} {C : Ctor} (hC : (dataD S Θ.idx).ctors[c]? = some C) {args args' : List Tm}
+    (hl : args.length ≤ C.args.length) (hl' : args'.length = args.length)
+    (hrec : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g (.data Θ.idx ps) args[j] args'[j])
+    (hpt : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
+      dataP2 S Θ f k g c j ((args.take j).map (semK S k))
+        ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps.toList.reverse))
+        args[j] args'[j]) :
+    (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g (.data Θ.idx ps') args[j] args'[j]) ∧
+    (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
+      dataP2 S Θ f k g c j ((args.take j).map (semK S k))
+        ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps'.toList.reverse))
+        args[j] args'[j]) := by
+  refine ⟨fun j hj hj' hr => ?_, fun j hj hj' hr => ?_⟩
+  · refine DR2_conv hW f hP (hrec j hj hj' hr) hdd (fun k' σ ps2 ps2' h1 h2 => ?_) (fun k' σ =>
+      ⟨ps'.isub σ, ⟨redW_self rfl, TyEq.refl _⟩, isList_subst hpl' _ _⟩)
+    obtain rfl := redT_data_eq h1
+    obtain rfl := redT_data_eq h2
+    exact ⟨argRelH_isub Θ f hR σ, argRelH_isub Θ f hRd σ, argRelH_isub Θ f hRd' σ⟩
+  · obtain ⟨hrecd, hptd⟩ := prefix_refl hW f hP hRd hpc hC hl hl' hrec hpt
+    have hlj : (args.take j).length = j := by simp; omega
+    have hty := argRelH_id f hR hpc hpc' (args := args.take j) (args' := args.take j) hC
+      (by rw [hlj]; omega) rfl (by rw [hlj]; exact hr)
+      (fun i hi _ hri => by
+        simp only [List.getElem_take]; exact hrecd i (by simp at hi; omega) hri)
+      (fun i hi _ hri => by
+        simp only [List.getElem_take, List.take_take]
+        rw [Nat.min_eq_left (by simp at hi; omega)]
+        exact hptd i (by simp at hi; omega) hri)
+    rw [hlj] at hty
+    have x := hpt j hj hj' hr
+    unfold dataP2 at x ⊢
+    exact (hP (f.comp g) c j _).conv hty x
 
 end dr
 
