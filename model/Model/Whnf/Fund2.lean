@@ -8,6 +8,7 @@ import Model.Whnf.Valid2Data
 import Model.Whnf.Valid2Elim
 import Model.Whnf.Valid2TranspCon
 import Model.Whnf.Valid2HcompCon
+import Model.Whnf.Valid2TranspHcomp
 import Model.Whnf.NearAll
 import Model.Whnf.Valid2GlueBeta
 
@@ -711,8 +712,8 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     exact hDa.transpCon h0 hH h1 h2 h3 h4 (sigwk_tele hpre h5) (sigwk_ty hpre h6)
       (pre2 hW hpre (.transpCon h0 h1 h2 h3 h4 h5 h6)).2 (fund2_tele h5) (fund2_ty h6)
   | .transpHcomp h0 h1 h2 h3 h4 =>
-    hDa.transpHcomp h0 h1 h2 (sigwk_ty hpre h3) (sigwk_ty hpre h4) (pre2 hW hpre (.transpHcomp h0 h1 h2 h3 h4)).2
-      (fund2_ty h3) (fund2_ty h4)
+    valid_transpHcomp hW (hpre _ _ h0) h1 h2 hK (sigwk_ty hpre h3) (sigwk_ty hpre h4)
+      (pre2 hW hpre (.transpHcomp h0 h1 h2 h3 h4)).2 (fund2_ty h4) (fund2_transpInv h4 rfl) (fund2_hcompInv h3 rfl)
 termination_by structural hd
 
 end

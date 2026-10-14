@@ -149,20 +149,6 @@ structure DataHyp2 (S S' : Sig) : Prop where
     Valid2 S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs))
       (.con d c (ps.dinst .one)
         (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
-  transpHcomp : ∀ {Ψ Φ Γ d D ps φ qs ψ u a T}, S'[d]? = some (.data D) → D.params ≠ [] → D.isHIT = true →
-    HasTy0 S Ψ Φ Γ (.hcomp (.data d (ps.dinst .zero)) ψ u a) (.data d (ps.dinst .zero)) →
-    HasTy0 S Ψ Φ Γ (.transp (.data d ps) φ (.hcomp (.data d qs) ψ u a)) T →
-    HasTy0 S Ψ Φ Γ (.hcomp (.data d (ps.dinst .one)) ψ
-        (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u)
-        (.transp (.data d ps) φ a)) T →
-    Valid2 S Ψ Φ Γ (.hcomp (.data d (ps.dinst .zero)) ψ u a) (.hcomp (.data d (ps.dinst .zero)) ψ u a)
-      (.data d (ps.dinst .zero)) →
-    Valid2 S Ψ Φ Γ (.transp (.data d ps) φ (.hcomp (.data d qs) ψ u a))
-      (.transp (.data d ps) φ (.hcomp (.data d qs) ψ u a)) T →
-    Valid2 S Ψ Φ Γ (.transp (.data d ps) φ (.hcomp (.data d qs) ψ u a))
-      (.hcomp (.data d (ps.dinst .one)) ψ
-        (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u)
-        (.transp (.data d ps) φ a)) T
 
 end
 
