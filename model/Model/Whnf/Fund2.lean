@@ -120,7 +120,9 @@ theorem fund2_ty {Ψ Φ Γ t A} (hd : HasTy0 S' Ψ Φ Γ t A) :
     cases hH : D.isHIT
     · have hd := (List.getElem?_eq_some_iff.1 h0).1
       exact valid_con_nonHIT hW (hpre _ _ h0) (hDe.mono (by omega)) hH h1 h2 (sigwk_ty hpre (.con h0 h1 h2 h3 h4 h5 h6 h7))
-        (by simpa using Meta.tele_length h4) (tele_isList h5) (by simpa [Ctor.argTys] using Meta.tele_length h5) h6 a3 a5
+        (.refl (sigwk_ty hpre (.con h0 h1 h2 h3 h4 h5 h6 h7))) (by simpa using Meta.tele_length h4) (tele_isList h5)
+        (tele_isList h5) (by simpa [Ctor.argTys] using Meta.tele_length h5)
+        (by simpa [Ctor.argTys] using Meta.tele_length h5) h6 h6 a3 a5
     · exact hDa.con h0 hH h1 h2 (sigwk_ty hpre h3) (sigwk_tele hpre h4) (sigwk_tele hpre h5) h6 h7 a3 a4 a5
   | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => by
     rename_i D _ _ _ _ _
@@ -629,8 +631,30 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     have hd := (List.getElem?_eq_some_iff.1 h0).1
     exact valid_dataEq hW (hpre _ _ h0) (hDe.mono (by omega)) (sigwk_ty hpre h1) (sigwk_ty hpre h2)
       (sigwk_eq hpre (.data h0 h1 h2 h3)) a3
-  | .con h0 h1 h2 h3 h4 h5 h6 h7 =>
-    hDa.conEq h0 h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (sigwk_eqtele hpre h4) (sigwk_eqtele hpre h5) h6 h7
+  | .con h0 h1 h2 h3 h4 h5 h6 h7 => by
+    rename_i d D _ _ ps _ _ _ _ _
+    cases hH : D.isHIT
+    · have hD := hpre _ _ h0
+      have hd := (List.getElem?_eq_some_iff.1 h0).1
+      have hcon := sigwk_ty hpre h2
+      have hcon' := sigwk_ty hpre h3
+      obtain ⟨D1, C1, hD1, hC1, hpl, hpsl, -, hrs⟩ := gen_con hcon rfl
+      obtain ⟨D2, C2, hD2, hC2, -, -, -, hrs'⟩ := gen_con hcon' rfl
+      rw [hD] at hD1 hD2; cases hD1; cases hD2
+      rw [h1] at hC1 hC2; cases hC1; cases hC2
+      have va := fund2_eqtele h5
+      obtain ⟨hal, hal', hall, hall'⟩ := VTele2.shape va
+      simp only [Ctor.argTys, List.length_map, List.length_range] at hall hall'
+      have hvd : Valid2 S Ψ Φ Γ (.data d ps) (.data d ps) (.univ D.level) := by
+        rcases pre_ty (sigClosed_of_wfSig hW) (wf_typed _ S rfl hW).1 (wf_typed _ S rfl hW).2 hcon with
+          ⟨l, hl⟩ | ⟨l, he, -⟩
+        · obtain ⟨D3, hD3, htele⟩ := gen_data_tele hl rfl
+          rw [hD] at hD3; cases hD3
+          exact valid_data hW hD (hDe.mono (by omega)) (hW.2 _ D hD).1 htele (VTele2.left hW (fund2_eqtele h4))
+        · cases he
+      exact valid_con_nonHIT hW hD (hDe.mono (by omega)) hH h1 hpl hcon (sigwk_eq hpre (.con h0 h1 h2 h3 h4 h5 h6 h7))
+        hpsl hal hal' hall hall' hrs hrs' hvd va
+    exact hDa.conEq h0 hH h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (sigwk_eqtele hpre h4) (sigwk_eqtele hpre h5) h6 h7
       (fund2_ty h2) (fund2_ty h3) (fund2_eqtele h4) (fund2_eqtele h5)
   | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => by
     rename_i D _ _ _ _ _ _ _ _ _

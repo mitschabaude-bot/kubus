@@ -104,7 +104,7 @@ structure DataHyp2 (S S' : Sig) : Prop where
         (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P)) →
     Valid2 S Ψ Φ Γ t t (.data d ps) →
     Valid2 S Ψ Φ Γ (.elim d ps P bs t) (.elim d ps P bs t) (P.inst t)
-  conEq : ∀ {Ψ Φ Γ d D c C ps ps' args args' rs rs'}, S'[d]? = some (.data D) → D.ctors[c]? = some C →
+  conEq : ∀ {Ψ Φ Γ d D c C ps ps' args args' rs rs'}, S'[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C →
     HasTy0 S Ψ Φ Γ (.con d c ps args rs) (.data d ps) →
     HasTy0 S Ψ Φ Γ (.con d c ps' args' rs') (.data d ps) →
     EqTele0 S Ψ Φ Γ ps ps' D.params [] →
