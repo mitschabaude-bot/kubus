@@ -324,4 +324,52 @@ theorem argvar_ty (hS : SigClosed S) {d : Nat} {D : DataDecl} {c : Nat} {C : Cto
     · intro x; simp only [Tm.subst, wkIv]; congr 1; omega
     · intro j; simp [I.subst, wkIv]
 
+/-- The argument variables of the branch context, in order. -/
+def argVars (o n' : Nat) : List Tm := (List.range n').map fun i => .var (o + n' - 1 - i)
+
+theorem argVars_length (o n' : Nat) : (argVars o n').length = n' := by simp [argVars]
+
+theorem argVars_get (o n' : Nat) {i : Nat} (hi : i < n') : (argVars o n').getD i .abort = .var (o + n' - 1 - i) := by
+  simp [argVars, List.getD_eq_getElem?_getD, hi]
+
+theorem argVars_take_rev (o n' : Nat) {i : Nat} (hi : i ≤ n') :
+    ((argVars o n').take i).reverse = (List.range i).map (fun j => .var (j + (o + n' - i))) := by
+  apply List.ext_getElem (by simp [argVars]; omega)
+  intro j h1 h2
+  simp only [List.length_reverse, List.length_take, argVars_length] at h1
+  rw [List.getElem_reverse]
+  simp only [argVars, List.getElem_take, List.getElem_map, List.getElem_range, List.length_take,
+    List.length_map, List.length_range]
+  congr 1; omega
+
+theorem wkN_toList {ps : Tm} (hps : IsList ps) (a b : Nat) :
+    (ps.wkN a b).toList = ps.toList.map (·.wkN a b) := by
+  rw [wkN_eq, toList_subst hps]; congr 1; funext p; rw [wkN_eq]
+
+theorem argvars_hty (hS : SigClosed S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {ps : Tm} (hps : IsList ps)
+    (hpl : ps.toList.length = D.params.length) {Ψ' X Γ} (E : Ctx) (m n' : Nat)
+    (hw : Wf0 S Ψ' X (ctxWkI m (E ++ argCtxB d D.params.length C ps n' ++ Γ))) {i : Nat} (hi : i < n') :
+    HasTy0 S Ψ' X (ctxWkI m (E ++ argCtxB d D.params.length C ps n' ++ Γ)) ((argVars E.length n').getD i .abort)
+      ((C.argTy d D.params.length i).substList (((argVars E.length n').take i).reverse ++
+        (ps.wkN (E.length + n') m).toList.reverse)) := by
+  rw [argVars_get _ _ hi, argVars_take_rev _ _ (Nat.le_of_lt hi), wkN_toList hps]
+  exact argvar_ty hS hD hC hps hpl E m n' hw hi
+
+theorem argvars_tele (hS : SigClosed S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {ps : Tm} (hps : IsList ps)
+    (hpl : ps.toList.length = D.params.length) {Ψ' X Γ} (E : Ctx) (m : Nat)
+    (hw : Wf0 S Ψ' X (ctxWkI m (E ++ argCtxB d D.params.length C ps C.args.length ++ Γ))) :
+    HasTele0 S Ψ' X (ctxWkI m (E ++ argCtxB d D.params.length C ps C.args.length ++ Γ))
+      (Tm.ofList (argVars E.length C.args.length)) (C.argTys d D.params.length)
+      (ps.wkN (E.length + C.args.length) m).toList.reverse := by
+  apply HasTele0.ofList_of hw _ _ _ (by simp [argVars_length, argTys_length])
+  intro k a A ha hA
+  have hk : k < C.args.length := by
+    have := (List.getElem?_eq_some_iff.1 hA).1; rwa [argTys_length] at this
+  rw [argTys_get hk] at hA; cases hA
+  have := argvars_hty hS hD hC hps hpl E m _ hw hk
+  rw [List.getD_eq_getElem?_getD, ha] at this
+  exact this
+
 end KubusCore.Meta
