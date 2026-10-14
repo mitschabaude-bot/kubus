@@ -842,6 +842,13 @@ theorem argRel2_unbase {Θ : SData m} {k k'' : ℕ} (f : Hom k m) {k' : ℕ} (σ
       (by rw [← ISub.hom_comp, ← ISub.comp_assoc]; exact hpt j hj hj' hrj))
   rw [ISub.comp_hom, ← ISub.comp_assoc] at this; exact this
 
+omit hW in
+theorem parRel2_unbase {Θ : SData m} {k k'' : ℕ} (f : Hom k m) {k' : ℕ} (σ : ISub k' k) {σ' : ISub k'' k'}
+    {ps ps' : Tm} (h : parRel2 S Θ (f.comp σ.hom) k'' σ' ps ps') : parRel2 S Θ f k'' (σ.comp σ') ps ps' := by
+  unfold parRel2 at h ⊢
+  simp only [parEntry_base f σ σ'] at h
+  exact h
+
 /-- A related element of an inductive type at a stage, through a reduct. -/
 theorem DR2At.expand {k0 : ℕ} {Θ : SData m} {f : Hom k0 m} {d : ℕ} {D : DataDecl} {g : Hom k k0} {A t u t' : Tm}
     (h : DR2At S d D (dataMem S Θ f) (dataP2 S Θ f) k g A u t') (r : Red S t u) (e : EqTm S k .one [] t u A) :
@@ -878,12 +885,14 @@ theorem he2_dataC {Θ : SData m}
     obtain ⟨U, r, e, hU⟩ := hall k' σ
     rw [Comp2_dataC] at hU
     obtain ⟨⟨hUt, hVt, -⟩, hc⟩ := hU
-    obtain ⟨ps, ps', h1, h2, hpl, hpl', a1, a2, a3, a4⟩ := hc k' (ISub.id k')
+    obtain ⟨ps, ps', h1, h2, hpl, hpl', a1, a2, a3, a4, a5⟩ := hc k' (ISub.id k')
     rw [isub_id_of_closed (closed_of_isTyK hW hUt)] at h1
     rw [isub_id_of_closed (closed_of_isTyK hW hVt)] at h2
     have := fun {x y : Tm} (h : argRel2 S Θ (f.comp σ.hom) k' (ISub.id k') x y) => by
       have := argRel2_unbase f σ h; rwa [ISub.comp_id] at this
-    exact ⟨ps, ps', RedT.of_red hW r e h1, h2, hpl, hpl', this a1, this a2, this a3, this a4⟩
+    have hp5 := parRel2_unbase f σ a5
+    rw [ISub.comp_id] at hp5
+    exact ⟨ps, ps', RedT.of_red hW r e h1, h2, hpl, hpl', this a1, this a2, this a3, this a4, hp5⟩
   · intro hTT ht ht' hall
     obtain ⟨u0, -, e0, hu0⟩ := hypE_id hW (Comp2_ty_base hTT).2.1 ht ht' hall
     obtain ⟨hEB, hmem⟩ := el_expand hW ht e0 hu0

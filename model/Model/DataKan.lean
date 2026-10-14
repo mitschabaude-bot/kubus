@@ -166,7 +166,8 @@ def dataTr : (k : ℕ) → SData k → V
 
 /-- The datum of the inductive type `Λ` at its own stage. -/
 def dataDatum (Λ : SData k) : V :=
-  quad (tagZ tData (ZFSet.pair (natZ Λ.idx) (ZFSet.pair (Λ.pv k (Hom.id k)) (shapeV Λ)))) (delemSet Λ k (Hom.id k))
+  quad (tagZ tData (ZFSet.pair (natZ Λ.idx) (ZFSet.pair (ZFSet.pair (Λ.pv k (Hom.id k)) (Λ.pt k (Hom.id k)))
+    (shapeV Λ)))) (delemSet Λ k (Hom.id k))
     (dataTr k Λ)
     (hcGraph k (fun n g => delemSet Λ n g) fun φ u a => hcD Λ k (Hom.id k) φ u a)
 

@@ -288,6 +288,89 @@ theorem params_small {S0 : Sig} (hS0 : SigOK S0) {D : DataDecl} (hWf : D.Wf S0 S
     simp only [interp, El_univC, ZFSet.mem_sep] at hm
     exact Vt_mono hk hl hm.1
 
+/-- The code of a parameter type of the declared level is small and well-formed. -/
+theorem paramTyC_small {S0 : Sig} (hS0 : SigOK S0) {D : DataDecl} (hWf : D.Wf S0 S0.length)
+    {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) D m ps) (n : ℕ) (g : Hom n m) {i : ℕ} (hi : i < D.params.length)
+    (hA : HasTy S0 0 .one (D.paramCtx i) D.params[i] (.univ D.level)) :
+    paramTyC (sigV S0) D.params[i] i n (ps n g) ∈ Vt D.level ∧ WF D.level n (paramTyC (sigV S0) D.params[i] i n (ps n g)) := by
+  have hcl : ∀ (j : ℕ) (A : Tm), D.params[j]? = some A → A.closedB j 0 = true := fun j A h => (hWf.2.1 j A h).1
+  have hp := isPoint_paramCtx hcl hps g (fun _ => DM.zero n) (Φ := .one) (by simp [DM.holds, ival.fn, I.eval]) i hi.le
+  obtain ⟨hmU, -, -, -⟩ := (sound_ty hS0 hA).2.2.2 n _ _ hp
+  rw [sem_univ, El_univC, ZFSet.mem_sep] at hmU
+  have e : sem S0 D.params[i] n (fun _ => DM.zero n) (argEnvKV n (plist (ps n g) i) []) =
+      paramTyC (sigV S0) D.params[i] i n (ps n g) := by
+    refine interp_congr_closed _ _ _ _ i 0 (hcl i _ (List.getElem?_eq_getElem _)) n _ _ _ _
+      (fun _ h => absurd h (by omega)) fun y hy => ?_
+    rw [argEnvKV_eq_of_lt (by simp [plist]; omega), argEnv_eq_of_lt (by simp [plist]; omega)]
+    simp
+  rw [e] at hmU
+  exact hmU
+
+/-- Parameter values are small. -/
+theorem param_val_small {S0 : Sig} (hS0 : SigOK S0) {D : DataDecl} (hWf : D.Wf S0 S0.length)
+    {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) D m ps) (n : ℕ) (g : Hom n m) {i : ℕ} (hi : i < D.params.length) :
+    vnth (ps n g) i ∈ Vt D.level := by
+  have hl : D.level ≤ 4 := by have := hWf.1; unfold maxLevel at this; omega
+  have hm := ((hps n g).2.1 i hi).2
+  rcases (hWf.2.1 i _ (List.getElem?_eq_getElem hi)).2.2 with hA | ⟨k, hk, hA⟩
+  · exact Vt_trans _ (El_mem_Vt hl (paramTyC_small hS0 hWf hps n g hi hA).1 _) hm
+  · rw [hA] at hm
+    simp only [interp, El_univC, ZFSet.mem_sep] at hm
+    exact Vt_mono hk hl hm.1
+
+/-- The recorded parameter entries are small and their codes well-formed. -/
+theorem param_entry_small {S0 : Sig} (hS0 : SigOK S0) {D : DataDecl} (hWf : D.Wf S0 S0.length)
+    {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) D m ps) (n : ℕ) (g : Hom n m) {i : ℕ} (hi : i < D.params.length) :
+    paramEntry (sigV S0) D i n (ps n g) ∈ Vt D.level ∧
+      ∀ t X, paramEntry (sigV S0) D i n (ps n g) = ZFSet.pair t X → X ∈ Vt D.level ∧ WF D.level n X := by
+  have hl : D.level ≤ 4 := by have := hWf.1; unfold maxLevel at this; omega
+  have hm := ((hps n g).2.1 i hi).2
+  have hwf := (hWf.2.1 i _ (List.getElem?_eq_getElem hi)).2.2
+  have hval := param_val_small hS0 hWf hps n g hi
+  have hsm := fun h => paramTyC_small hS0 hWf hps n g hi h
+  unfold paramEntry
+  rw [List.getElem?_eq_getElem hi]
+  generalize hAe : D.params[i] = A at hm hwf hsm
+  cases A
+  case univ k =>
+    simp only
+    split_ifs with hk
+    · refine ⟨pair_mem_Vt (natZ_mem_Vt hl _) hval, fun t X e => ?_⟩
+      rw [ZFSet.pair_inj] at e
+      obtain ⟨-, rfl⟩ := e
+      simp only [interp, El_univC, ZFSet.mem_sep] at hm
+      exact ⟨hval, hm.2.mono hk⟩
+    · have h1 : HasTy S0 0 .one (D.paramCtx i) (.univ k) (.univ D.level) := by
+        rcases hwf with h | ⟨k', hk', h⟩
+        · exact h
+        · cases h; omega
+      obtain ⟨h2, h3⟩ := hsm h1
+      refine ⟨pair_mem_Vt (natZ_mem_Vt hl _) h2, fun t X e => ?_⟩
+      rw [ZFSet.pair_inj] at e
+      obtain ⟨-, rfl⟩ := e
+      exact ⟨h2, h3⟩
+  all_goals
+    have h1 := hwf.resolve_right (by rintro ⟨_, _, h⟩; cases h)
+    obtain ⟨h2, h3⟩ := hsm h1
+    refine ⟨pair_mem_Vt (natZ_mem_Vt hl _) h2, fun t X e => ?_⟩
+    rw [ZFSet.pair_inj] at e
+    obtain ⟨-, rfl⟩ := e
+    exact ⟨h2, h3⟩
+
+theorem vnth_vlist_lt : ∀ (L : List V) (j : ℕ) (hj : j < L.length), vnth (vlist L) j = L[j]
+  | a :: L, 0, _ => by simp [vlist, vnth]
+  | a :: L, j + 1, hj => by
+    simp only [vlist, vnth, π2_pair]
+    exact vnth_vlist_lt L j (by simp at hj; omega)
+
+theorem vnth_empty_V : ∀ (i : ℕ), vnth (∅ : V) i = ∅
+  | 0 => by
+    simp only [vnth, π1]; rw [dif_neg]; rintro ⟨a, b, h⟩; exact pair_ne_empty a b h.symm
+  | i + 1 => by
+    have : π2 (∅ : V) = ∅ := by
+      simp only [π2]; rw [dif_neg]; rintro ⟨a, b, h⟩; exact pair_ne_empty a b h.symm
+    simp only [vnth, this]; exact vnth_empty_V i
+
 section argty
 
 variable (S0 : Sig) (D : DataDecl) (hsyn : DataSyn S0.length D)
@@ -675,6 +758,9 @@ theorem dataSD_basic {m : ℕ} {ps : RV m} (hps : ParamsOK (sigV S0) E m ps) :
 
 theorem dataOK_of
     (hpv : ∀ m (ps : RV m), ParamsOK (sigV S0) E m ps → ∀ n (g : Hom n m), ps n g ∈ Vt E.level)
+    (hpe : ∀ m (ps : RV m), ParamsOK (sigV S0) E m ps → ∀ n (g : Hom n m) i, i < E.params.length →
+      paramEntry (sigV S0) E i n (ps n g) ∈ Vt E.level ∧
+        ∀ t X, paramEntry (sigV S0) E i n (ps n g) = ZFSet.pair t X → X ∈ Vt E.level ∧ WF E.level n X)
     (hbo : ∀ m (ps : RV m), ParamsOK (sigV S0) E m ps →
       (∀ c C, (dataSD (sigV S0) E S0.length m ps).ctors[c]? = some C → ∀ ψ b, (ψ, b) ∈ C.bnd →
         ∀ n (rs : List (DM n)), (ival (renv rs) ψ).holds → BTy (dataSD (sigV S0) E S0.length m ps) c C b) ∧
@@ -696,7 +782,22 @@ theorem dataOK_of
               simpa [dataSD] using hp) c j n _ _ pre
             nonhit := fun hh c C hC => isHIT_false hh hC
             ovl := ho
-            fib := fun c j n g pre _ => ?_ }, fun c j n g pre => ?_, hpv m ps hps⟩
+            fib := fun c j n g pre _ => ?_ }, fun c j n g pre => ?_, hpv m ps hps, fun n g => ⟨?_, ?_⟩⟩
+  rotate_left 2
+  · refine vlist_mem_Vt hl fun a ha => ?_
+    obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ha
+    simp only [List.length_map, List.length_range] at hi
+    simp only [List.getElem_map, List.getElem_range]
+    exact (hpe m ps hps n g i hi).1
+  · intro j t X e
+    show X ∈ Vt E.level ∧ WF E.level n X
+    change vnth (vlist ((List.range E.params.length).map fun j => paramEntry (sigV S0) E j n (ps n g))) j = _ at e
+    by_cases hj : j < E.params.length
+    · rw [vnth_vlist_lt _ _ (by simpa using hj)] at e
+      simp only [List.getElem_map, List.getElem_range] at e
+      exact (hpe m ps hps n g j hj).2 t X e
+    · rw [vnth_vlist_ge _ _ (by simp; omega), vnth_empty_V] at e
+      exact absurd e.symm (pair_ne_empty t X)
   · rcases argTySem_facts S0 E hsyn hU hps c j n g pre with h | h
     · rw [mem_El_univ_iff] at h; exact h.2.fib
     · show Fib (argTySem _ _ _ _ _ _ _ _) n
@@ -1859,6 +1960,7 @@ theorem dataOK_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
     DataOK (S0 ++ [.data { D with ctors := X }]) S0.length { D with ctors := X } :=
   dataOK_of S0 _ (dataSyn_X S0 hS0 D hWf X B hXB hXr hok0) (argTysOK_X S0 hS0 D hWf X B hXB hXr hXH hok0)
     (fun m ps hps n g => params_small hS0 hWf (D := D) hps n g)
+    (fun m ps hps n g i hi => param_entry_small hS0 hWf (D := D) hps n g hi)
     fun m ps hps => ⟨bnd_X S0 hS0 D hWf X B hB hXB hXr hokB hok0 m ps hps,
       ovl_X S0 hS0 D hWf X B hB hXB hXr hokB hXH hok0 m ps hps⟩
 

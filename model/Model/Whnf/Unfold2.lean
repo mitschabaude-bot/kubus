@@ -257,6 +257,19 @@ def argRel2 (S : Sig) (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (
       ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
         (args'.reverse ++ (ps'.isub σ').toList.reverse))
 
+/-- The recorded parameter entry `j` of an inductive type's code at a restriction. -/
+abbrev parEntry (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (j : ℕ) : V :=
+  vnth ((Θ.restr (f.comp σ.hom)).pt k' (Hom.id k')) j
+
+/-- The parameters of an inductive type's code are related, from `ps` to `ps'`, at the restriction `σ`. -/
+def parRel2 (S : Sig) (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (ps ps' : Tm) : Prop :=
+  ∀ j (p p' : Tm), ps.toList[j]? = some p → ps'.toList[j]? = some p' →
+    (π1 (parEntry Θ f k' σ j) = natZ 1 → (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')).ty p p') ∧
+    (π1 (parEntry Θ f k' σ j) = natZ 0 → ∀ Aj, (dataD S Θ.idx).params[j]? = some Aj →
+      (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')).ty
+        (Aj.substList (ps.toList.take j).reverse) (Aj.substList (ps'.toList.take j).reverse) ∧
+      (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')).el (Aj.substList (ps.toList.take j).reverse) p p')
+
 theorem Comp2_dataC (Θ : SData m) (f : Hom k m) :
     Comp2 S (dataC Θ) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (dataC Θ) ∧
@@ -264,7 +277,7 @@ theorem Comp2_dataC (Θ : SData m) (f : Hom k m) :
           RedT S k' (T.isub σ) (.data Θ.idx ps) ∧ RedT S k' (T'.isub σ) (.data Θ.idx ps') ∧
           ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
           argRel2 S Θ f k' σ ps ps' ∧ argRel2 S Θ f k' σ ps' ps ∧ argRel2 S Θ f k' σ ps ps ∧
-          argRel2 S Θ f k' σ ps' ps',
+          argRel2 S Θ f k' σ ps' ps' ∧ parRel2 S Θ f k' σ ps ps',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (dataC Θ)) (Hom.id k) ∧
           EB S k T t t' ∧ DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k (Hom.id k) T t t'⟩ := by
   rw [Comp2_unfold (show dataC Θ ≠ ∅ from mkKV_ne_empty _)]

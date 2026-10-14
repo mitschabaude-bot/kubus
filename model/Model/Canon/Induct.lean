@@ -45,7 +45,9 @@ theorem code_ind (P : ℕ → V → Prop)
       P m A → (∀ k (f : Hom k m), (φ.restr f).holds → P k (dat Tp k f)) → P m (glueC m A φ Tp ep))
     (hdata : ∀ l m (Θ : SData m), Θ.GoodCore →
       (∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → WF l n (Θ.ty c j n g pre)) →
-      (∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → P n (Θ.ty c j n g pre)) → P m (dataC Θ)) :
+      (∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → WF l n X) →
+      (∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → P n (Θ.ty c j n g pre)) →
+      (∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → P n X) → P m (dataC Θ)) :
     ∀ l, l ≤ maxLevel → ∀ m X, WF l m X → P m X := by
   intro l
   induction l using Nat.strong_induction_on with
@@ -63,7 +65,7 @@ theorem code_ind (P : ℕ → V → Prop)
       exact huniv m l' (by omega) fun m' X hX => ihl l' hl' (by omega) m' X hX
     | glue hA hφ hn hTp hep hTw hTn hem hen ihA ihT =>
       exact hglue l _ _ _ _ _ hl hA hφ hn hTp hep hTw hTn hem hen ihA ihT
-    | data Θ hc hw ih => exact hdata l _ Θ hc hw ih
+    | data Θ hc hw hp ih ihp => exact hdata l _ Θ hc hw hp ih ihp
 
 /-- The induction principle for the codes of types (`TyCode`: well-formed codes and universes). -/
 theorem tyCode_ind (P : ℕ → V → Prop)
@@ -94,7 +96,9 @@ theorem tyCode_ind (P : ℕ → V → Prop)
       P m A → (∀ k (f : Hom k m), (φ.restr f).holds → P k (dat Tp k f)) → P m (glueC m A φ Tp ep))
     (hdata : ∀ l m (Θ : SData m), Θ.GoodCore →
       (∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → WF l n (Θ.ty c j n g pre)) →
-      (∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → P n (Θ.ty c j n g pre)) → P m (dataC Θ)) :
+      (∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → WF l n X) →
+      (∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → P n (Θ.ty c j n g pre)) →
+      (∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → P n X) → P m (dataC Θ)) :
     ∀ m X, TyCode m X → P m X := by
   have hwf := code_ind P hemp hpi hsigma hpath hipi huniv hglue hdata
   rintro m X ⟨l, hl, (⟨hX, -⟩ | rfl)⟩

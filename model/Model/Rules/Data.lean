@@ -55,10 +55,12 @@ theorem sem_HasTy_data {Ψ Φ Γ d D ps} (hS : SigOK S) (h0 : S[d]? = some (.dat
   have hd : d < S.length := (List.getElem?_eq_some_iff.1 h0).1
   have hok := hS.2 d D h0
   refine ⟨h2.wf, ⟨hd, h2.constsLt⟩, trivial, fun m ρ γ hp => ⟨?_, fun k f => ?_, tyOK_univ h1 ρ γ, natural_univ _ ρ γ⟩⟩
-  · obtain ⟨hgood, hty, hpv⟩ := hok.2 m _ (paramsOK_of_tele hd.le hok.1 h2 hp)
+  · obtain ⟨hgood, hty, hpv, hpt⟩ := hok.2 m _ (paramsOK_of_tele hd.le hok.1 h2 hp)
     rw [sem_data_of h0 (paramsOK_of_tele hd.le hok.1 h2 hp), sem_univ, mem_El_univ_iff]
-    exact ⟨dataC_mem_Vt (by unfold maxLevel at h1; omega) (fun c j n g pre => (hty c j n g pre).1) hpv,
-      WFI.data _ hgood.toGoodCore fun c j n g pre hpv => (hty c j n g pre).2 hpv⟩
+    exact ⟨dataC_mem_Vt (by unfold maxLevel at h1; omega) (fun c j n g pre => (hty c j n g pre).1) hpv
+      (fun n g => (hpt n g).1),
+      WFI.data _ hgood.toGoodCore (fun c j n g pre hpv => (hty c j n g pre).2 hpv)
+        fun n g j t X e => ((hpt n g).2 j t X e).2⟩
   · rw [sem_data_of h0 (paramsOK_of_tele hd.le hok.1 h2 (hp.restr h2.wf f)),
       sem_data_of h0 (paramsOK_of_tele hd.le hok.1 h2 hp), res_dataC, dataSD_restr]
 
