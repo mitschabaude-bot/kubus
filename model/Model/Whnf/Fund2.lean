@@ -698,7 +698,8 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
       (sigwk_eqtele hpre h9) (sigwk_ty hpre h10) (pre2 hW hpre (.hcompCon h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10)).2
       (fund2_tele h6) (fund2_tele h7) (fund2_eq h8) (fund2_eqtele h9) (fund2_ty h10)
   | .transpData0 h0 h1 h2 =>
-    hDa.transpData0 h0 h1 (sigwk_ty hpre h2) (pre2 hW hpre (.transpData0 h0 h1 h2)).2 (fund2_ty h2)
+    valid_transpData0 hW (hpre _ _ h0) h1 (pre2 hW hpre (.transpData0 h0 h1 h2)).2
+      (sigwk_eq hpre (.transpData0 h0 h1 h2)) (fund2_ty h2)
   | .transpCon h0 h1 h2 h3 h4 h5 h6 =>
     hDa.transpCon h0 h1 h2 h3 h4 (sigwk_tele hpre h5) (sigwk_ty hpre h6)
       (pre2 hW hpre (.transpCon h0 h1 h2 h3 h4 h5 h6)).2 (fund2_tele h5) (fund2_ty h6)

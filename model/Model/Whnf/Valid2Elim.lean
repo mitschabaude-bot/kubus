@@ -610,6 +610,17 @@ theorem valid_elimCon (hH : D.isHIT = false) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {c :
   simp only [List.getD_eq_getElem?_getD, List.getElem?_map]
   cases args.toList[j]? <;> rfl
 
+/-- **Transport in an inductive type without parameters** is the identity. -/
+theorem valid_transpData0 (hp : D.params = []) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps a T : Tm} {φ : I}
+    (hu : HasTy0 S Ψ Φ Γ a T) (heq : EqTm0 S Ψ Φ Γ (.transp (.data d ps) φ a) a T)
+    (h : Valid2 S Ψ Φ Γ (.transp (.data d ps) φ a) (.transp (.data d ps) φ a) T) :
+    Valid2 S Ψ Φ Γ (.transp (.data d ps) φ a) a T := by
+  refine valid_redE hW h hu heq fun k c => .step ?_ (.refl _)
+  simp only [CSub2.R, Tm.subst, step]
+  split
+  · rfl
+  · simp [hD, hp]
+
 end valid
 
 
