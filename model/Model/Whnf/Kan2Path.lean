@@ -345,6 +345,11 @@ theorem papp_dinst_isub (u : Tm) (w : ISub k' k) (x s : I) (σ : ISub k'' k') :
   rw [isub_dinst, Tm.isub_isub, ← ISub.up_comp]
 
 omit hW in
+theorem dinst_up_isub (u : Tm) (w : ISub k' k) (x : I) (σ : ISub k'' k') :
+    ((u.isub w.up).dinst x).isub σ = (u.isub (w.comp σ).up).dinst (x.subst σ.τ) := by
+  rw [isub_dinst, Tm.isub_isub, ← ISub.up_comp]
+
+omit hW in
 theorem not_ent_zero : ¬ I.Entails .one .zero := by decide
 
 omit hW in
@@ -362,6 +367,10 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
     (hty' : HasTy S k .one [] (.hcomp T' φ' u' a0') T)
     (heq : EqTm S k .one [] (.hcomp T φ u a0) (.hcomp T' φ' u' a0') T)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : Tube2 S k T φ u u') (ha0 : RE2 S k T a0 a0')
+    (hbd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (T.isub σ) ((u.isub σ.up).dinst .zero) (a0'.isub σ))
+    (hbd' : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (T.isub σ) (a0.isub σ) ((u'.isub σ.up).dinst .zero))
     {L1 b0 b1 : Tm} (hR : RedT S k T (.path L1 b0 b1)) {r r' : I} (hr : r.Scoped k) (hr' : r'.Scoped k)
     (hE : I.Eq r r') :
     RE2 S k (L1.dinst r) (.papp (.hcomp T φ u a0) r) (.papp (.hcomp T' φ' u' a0') r') := by
@@ -620,6 +629,7 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
       rw [show (Tm.papp (a0.isub ρ) (r.subst ρ.τ)).isub ρ' = Tm.papp (a0.isub (ρ.comp ρ')) (r.subst (ρ.comp ρ').τ) by
         show Tm.papp ((a0.isub ρ).isub ρ') ((r.subst ρ.τ).subst ρ'.τ) = _; rw [Tm.isub_isub, I_subst_comp]]
       exact hel k'' (ρ.comp ρ') _ _ (RE2.isub hW ha0 _))
+    (fun k' ρ k'' ρ' hnf k3 σ3 hh => ?_) (fun k' ρ k'' ρ' hnf k3 σ3 hh => ?_)
     (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21 htube
   · simpa only [hrid, hrid'] using H
   · have hρ : HasTy S k' .one [] (.hcomp (T.isub ρ) (φ.subst ρ.τ) (u.isub ρ.up) (a0.isub ρ)) (T.isub ρ) :=
@@ -742,6 +752,122 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
       have c := cR1 k'' (ρ.comp ρ') k4 (σ3.comp σ4) (by rw [assoc]; exact e1)
       rw [assoc] at c
       exact tr _ (cL1 k' ρ k4 (ρ'.comp (σ3.comp σ4)) e1) c
+  · -- the boundary of the tubes, on the left
+    have hf : ¬ I.Entails .one (φ.subst ρ.τ) := fun h => hnf (ent_comp h)
+    have hf' : ¬ I.Entails .one (φ'.subst (ρ.comp ρ').τ) := fun h => hnf (ent_trans h (ent_subst h21 _))
+    have hsφ : (I.or (φ.subst ρ.τ) (.or (.neg (r.subst ρ.τ)) (r.subst ρ.τ))).Scoped k' :=
+      ⟨I.scoped_subst hφs ρ.sc, hsc k' ρ, hsc k' ρ⟩
+    have hh1 : (ival (idEnv k3)
+        ((I.or (φ.subst ρ.τ) (.or (.neg (r.subst ρ.τ)) (r.subst ρ.τ))).subst (ρ'.comp σ3).τ)).holds := by
+      rw [I_subst_comp]; exact hh
+    have hor : I.Entails .one (I.or (φ.subst (ρ.comp (ρ'.comp σ3)).τ)
+        (.or (.neg (r.subst (ρ.comp (ρ'.comp σ3)).τ)) (r.subst (ρ.comp (ρ'.comp σ3)).τ))) := by
+      have := (holds_iff_entails (I.scoped_subst hsφ (ρ'.comp σ3).sc)).1 hh1
+      have e := ent_comp_inv (φ := I.or φ (.or (.neg r) r)) (ρ := ρ) (ρ' := ρ'.comp σ3) this
+      exact e
+    have hor' : I.Entails .one (I.or (φ'.subst (ρ.comp (ρ'.comp σ3)).τ)
+        (.or (.neg (r'.subst (ρ.comp (ρ'.comp σ3)).τ)) (r'.subst (ρ.comp (ρ'.comp σ3)).τ))) :=
+      ent_trans hor (ent_or3 (ent_subst h12 _) (hEρ k3 _))
+    have hh2 : (ival (idEnv k3) ((I.or (φ'.subst (ρ.comp ρ').τ)
+        (.or (.neg (r'.subst (ρ.comp ρ').τ)) (r'.subst (ρ.comp ρ').τ))).subst σ3.τ)).holds := by
+      have hs' : (I.or φ' (.or (.neg r') r')).Scoped k := ⟨by
+        obtain ⟨l1, ⟨-, h, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty') rfl; exact h, hr', hr'⟩
+      refine (holds_iff_entails (I.scoped_subst (I.scoped_subst hs' (ρ.comp ρ').sc) σ3.sc)).2 ?_
+      have e : I.Entails .one ((I.or φ' (.or (.neg r') r')).subst ((ρ.comp ρ').comp σ3).τ) := by
+        rw [ISub.comp_assoc]; exact hor'
+      rw [I_subst_comp] at e; exact e
+    have hT := hsysT k' ρ k3 (ρ'.comp σ3) .zero trivial hf hh1
+    have hT' := hsysT' k'' (ρ.comp ρ') k3 σ3 .zero trivial hf' hh2
+    show RE2 S k3 (((L1.dinst r).isub (ρ.comp ρ')).isub σ3)
+      ((((sysP (φ.subst ρ.τ) (r.subst ρ.τ) (u.isub ρ.up) (c0 k' ρ) (c1 k' ρ)).isub ρ'.up).isub σ3.up).dinst .zero)
+      ((Tm.papp (a0'.isub (ρ.comp ρ')) (r'.subst (ρ.comp ρ').τ)).isub σ3)
+    have eq : (Tm.papp (a0'.isub (ρ.comp ρ')) (r'.subst (ρ.comp ρ').τ)).isub σ3 =
+        .papp (a0'.isub (ρ.comp (ρ'.comp σ3))) (r'.subst (ρ.comp (ρ'.comp σ3)).τ) := by
+      show Tm.papp ((a0'.isub (ρ.comp ρ')).isub σ3) ((r'.subst (ρ.comp ρ').τ).subst σ3.τ) = _
+      rw [Tm.isub_isub, ← I_subst_comp, ISub.comp_assoc]
+    rw [eq, Tm.isub_isub (sysP _ _ _ _ _), ← ISub.up_comp, sysP_isub_dinst]
+    rw [sysP_isub_dinst] at hT hT'
+    simp only [Tm.isub_isub, ← ISub.up_comp, ← I_subst_comp, ISub.comp_assoc] at hT hT' ⊢
+    have hq := hel k3 (ρ.comp (ρ'.comp σ3)) _ _ (RE2.isub hW ha0 (ρ.comp (ρ'.comp σ3)))
+    refine RE2.symm hW (hYv k3 _) (RE2_sys_r hW (I.scoped_subst hφs (ρ.comp (ρ'.comp σ3)).sc) (hsc k3 _) hor
+      (hYv k3 _) hT (RE2.typed hq).2.1 (fun k4 σ4 h => ?_) (fun k4 σ4 h => ?_) (fun k4 σ4 h => ?_)) <;>
+      simp only [isub_papp, dinst_up_isub, Tm.isub_isub, ← I_subst_comp, ISub.comp_assoc]
+    · have h1 : I.Entails .one (φ.subst (ρ.comp (ρ'.comp (σ3.comp σ4))).τ) := by
+        have := ent_comp_inv (φ := φ) (ρ := ρ.comp (ρ'.comp σ3)) (ρ' := σ4) h
+        simpa only [ISub.comp_assoc] using this
+      have hh4 := (holds_iff_entails (I.scoped_subst hφs ((ρ.comp (ρ'.comp (σ3.comp σ4)))).sc)).2 h1
+      exact sy _ (hel k4 _ _ _ (hbd k4 _ hh4))
+    · have h' : I.Entails .one (I.neg (r.subst (ρ.comp (ρ'.comp (σ3.comp σ4))).τ)) := by
+        have := ent_comp_inv (φ := .neg r) (ρ := ρ.comp (ρ'.comp σ3)) (ρ' := σ4) h; simpa only [ISub.comp_assoc] using this
+      have e0 := eq0 (hsc k4 _) h'
+      exact tr _ (pR0 k4 _ _ _ (RE2.isub hW ha0 _) e0) (sy _ (cL0 k' ρ k4 (ρ'.comp (σ3.comp σ4)) e0))
+    · have h' : I.Entails .one (r.subst (ρ.comp (ρ'.comp (σ3.comp σ4))).τ) := by
+        have := ent_comp_inv (φ := r) (ρ := ρ.comp (ρ'.comp σ3)) (ρ' := σ4) h; simpa only [ISub.comp_assoc] using this
+      have e1 := eq1 (hsc k4 _) h'
+      exact tr _ (pR1 k4 _ _ _ (RE2.isub hW ha0 _) e1) (sy _ (cL1 k' ρ k4 (ρ'.comp (σ3.comp σ4)) e1))
+  · -- the boundary of the tubes, on the right
+    have hf : ¬ I.Entails .one (φ.subst ρ.τ) := fun h => hnf (ent_comp h)
+    have hf' : ¬ I.Entails .one (φ'.subst (ρ.comp ρ').τ) := fun h => hnf (ent_trans h (ent_subst h21 _))
+    have hsφ : (I.or (φ.subst ρ.τ) (.or (.neg (r.subst ρ.τ)) (r.subst ρ.τ))).Scoped k' :=
+      ⟨I.scoped_subst hφs ρ.sc, hsc k' ρ, hsc k' ρ⟩
+    have hh1 : (ival (idEnv k3)
+        ((I.or (φ.subst ρ.τ) (.or (.neg (r.subst ρ.τ)) (r.subst ρ.τ))).subst (ρ'.comp σ3).τ)).holds := by
+      rw [I_subst_comp]; exact hh
+    have hor : I.Entails .one (I.or (φ.subst (ρ.comp (ρ'.comp σ3)).τ)
+        (.or (.neg (r.subst (ρ.comp (ρ'.comp σ3)).τ)) (r.subst (ρ.comp (ρ'.comp σ3)).τ))) := by
+      have := (holds_iff_entails (I.scoped_subst hsφ (ρ'.comp σ3).sc)).1 hh1
+      have e := ent_comp_inv (φ := I.or φ (.or (.neg r) r)) (ρ := ρ) (ρ' := ρ'.comp σ3) this
+      exact e
+    have hor' : I.Entails .one (I.or (φ'.subst (ρ.comp (ρ'.comp σ3)).τ)
+        (.or (.neg (r'.subst (ρ.comp (ρ'.comp σ3)).τ)) (r'.subst (ρ.comp (ρ'.comp σ3)).τ))) :=
+      ent_trans hor (ent_or3 (ent_subst h12 _) (hEρ k3 _))
+    have hh2 : (ival (idEnv k3) ((I.or (φ'.subst (ρ.comp ρ').τ)
+        (.or (.neg (r'.subst (ρ.comp ρ').τ)) (r'.subst (ρ.comp ρ').τ))).subst σ3.τ)).holds := by
+      have hs' : (I.or φ' (.or (.neg r') r')).Scoped k := ⟨by
+        obtain ⟨l1, ⟨-, h, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty') rfl; exact h, hr', hr'⟩
+      refine (holds_iff_entails (I.scoped_subst (I.scoped_subst hs' (ρ.comp ρ').sc) σ3.sc)).2 ?_
+      have e : I.Entails .one ((I.or φ' (.or (.neg r') r')).subst ((ρ.comp ρ').comp σ3).τ) := by
+        rw [ISub.comp_assoc]; exact hor'
+      rw [I_subst_comp] at e; exact e
+    have hT := hsysT k' ρ k3 (ρ'.comp σ3) .zero trivial hf hh1
+    have hT' := hsysT' k'' (ρ.comp ρ') k3 σ3 .zero trivial hf' hh2
+    show RE2 S k3 (((L1.dinst r).isub (ρ.comp ρ')).isub σ3)
+      (((Tm.papp (a0.isub ρ) (r.subst ρ.τ)).isub ρ').isub σ3)
+      (((sysP (φ'.subst (ρ.comp ρ').τ) (r'.subst (ρ.comp ρ').τ) (u'.isub (ρ.comp ρ').up) (c0' k'' (ρ.comp ρ'))
+        (c1' k'' (ρ.comp ρ'))).isub σ3.up).dinst .zero)
+    have eq : ((Tm.papp (a0.isub ρ) (r.subst ρ.τ)).isub ρ').isub σ3 =
+        .papp (a0.isub (ρ.comp (ρ'.comp σ3))) (r.subst (ρ.comp (ρ'.comp σ3)).τ) := by
+      show Tm.papp (((a0.isub ρ).isub ρ').isub σ3) (((r.subst ρ.τ).subst ρ'.τ).subst σ3.τ) = _
+      rw [Tm.isub_isub, Tm.isub_isub, I_subst_comp, I_subst_comp]
+    rw [eq, sysP_isub_dinst]
+    rw [sysP_isub_dinst] at hT hT'
+    simp only [Tm.isub_isub, ← ISub.up_comp, ← I_subst_comp, ISub.comp_assoc] at hT hT' ⊢
+    have hφs' : φ'.Scoped k := by
+      obtain ⟨l1, ⟨-, h, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty') rfl; exact h
+    have hq := hel k3 (ρ.comp (ρ'.comp σ3)) _ _ (RE2.isub hW ha0 (ρ.comp (ρ'.comp σ3)))
+    have assoc : ∀ {k4 : ℕ} (σ4 : ISub k4 k3), (ρ.comp ρ').comp (σ3.comp σ4) = ρ.comp (ρ'.comp (σ3.comp σ4)) :=
+      fun σ4 => ISub.comp_assoc _ _ _
+    refine RE2_sys_r hW (I.scoped_subst hφs' (ρ.comp (ρ'.comp σ3)).sc) (hsc' k3 _) hor'
+      (hYv k3 _) hT' (RE2.typed hq).1 (fun k4 σ4 h => ?_) (fun k4 σ4 h => ?_) (fun k4 σ4 h => ?_) <;>
+      simp only [isub_papp, dinst_up_isub, Tm.isub_isub, ← I_subst_comp, ISub.comp_assoc]
+    · have h1 : I.Entails .one (φ'.subst (ρ.comp (ρ'.comp (σ3.comp σ4))).τ) := by
+        have := ent_comp_inv (φ := φ') (ρ := ρ.comp (ρ'.comp σ3)) (ρ' := σ4) h
+        simpa only [ISub.comp_assoc] using this
+      have hh4 := (holds_iff_entails (I.scoped_subst hφs ((ρ.comp (ρ'.comp (σ3.comp σ4)))).sc)).2
+        (ent_trans h1 (ent_subst h21 _))
+      exact hel k4 _ _ _ (hbd' k4 _ hh4)
+    · have h' : I.Entails .one (I.neg (r'.subst (ρ.comp (ρ'.comp (σ3.comp σ4))).τ)) := by
+        have := ent_comp_inv (φ := .neg r') (ρ := ρ.comp (ρ'.comp σ3)) (ρ' := σ4) h; simpa only [ISub.comp_assoc] using this
+      have e0 := I_eq_trans (hEρ k4 _) (eq0 (hsc' k4 _) h')
+      have c := cR0 k'' (ρ.comp ρ') k4 (σ3.comp σ4) (by rw [assoc]; exact e0)
+      rw [assoc] at c
+      exact tr _ (pL0 k4 _ _ _ (RE2.isub hW ha0 _) e0) c
+    · have h' : I.Entails .one (r'.subst (ρ.comp (ρ'.comp (σ3.comp σ4))).τ) := by
+        have := ent_comp_inv (φ := r') (ρ := ρ.comp (ρ'.comp σ3)) (ρ' := σ4) h; simpa only [ISub.comp_assoc] using this
+      have e1 := I_eq_trans (hEρ k4 _) (eq1 (hsc' k4 _) h')
+      have c := cR1 k'' (ρ.comp ρ') k4 (σ3.comp σ4) (by rw [assoc]; exact e1)
+      rw [assoc] at c
+      exact tr _ (pL1 k4 _ _ _ (RE2.isub hW ha0 _) e1) c
   · have cc := hcoh k' ρ k'' ρ'
     exact RT2.trans hW (RT2.tyCode_l hW cc (hX2 k'' _ _ (hsc k'' _))) cc
       (RT2.symm hW (hXY k'' _) (hCY k'' (ρ.comp ρ')))
@@ -988,7 +1114,7 @@ theorem kanH2_path {T T' L a b : Tm} {l : ℕ} (hTT : RT2 S k T T') (hR : RedT S
       ∀ k'' (ρ' : ISub k'' k') X', RT2 S k'' ((L1.dinst s).isub ρ') X' → KanH2 S k'' ((L1.dinst s).isub ρ') X') :
     KanH2 S k T T' := by
   have hP := PathStr_of hW hTT hR hpath
-  intro φ φ' u u' a0 a0' hty hty' heq h12 h21 htube ha0
+  intro φ φ' u u' a0 a0' hty hty' heq h12 h21 htube ha0 hbd hbd'
   have hXT : TyCode k (semK S k T) := tyCode_of_ty hW hty
   refine RE2_pathW_intro hW (RT2.refl hW hXT hTT) hR hpath ⟨hty, hty', heq⟩ fun k' ρ L1 b0 b1 h1 => ?_
   have hPρ := hP.isub hW ρ
@@ -1000,7 +1126,8 @@ theorem kanH2_path {T T' L a b : Tm} {l : ℕ} (hTT : RT2 S k T T') (hR : RedT S
     rw [Tm.isub_isub] at h3
     exact hIH k1 (ρ.comp ρ1) L3 c0 c1 h3 s hs k2 ρ2 X' hX'
   exact ⟨fun r r' hr hr' hE => kanH2_path_core hW hPρ hTTρ hIHρ (HasTy.isubS hW hty ρ) (HasTy.isubS hW hty' ρ)
-      (EqTm.isubS hW heq ρ) (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ) (RE2.isub hW ha0 ρ) h1 hr hr' hE,
+      (EqTm.isubS hW heq ρ) (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ) (RE2.isub hW ha0 ρ)
+      (bdry_isub hbd ρ) (bdry_isub' hbd' ρ) h1 hr hr' hE,
     hcomp_path_end0 hW hPρ hTTρ (HasTy.isubS hW hty ρ) (htube.isub ρ) (RE2.isub hW ha0 ρ) h1,
     hcomp_path_end1 hW hPρ hTTρ (HasTy.isubS hW hty ρ) (htube.isub ρ) (RE2.isub hW ha0 ρ) h1⟩
 

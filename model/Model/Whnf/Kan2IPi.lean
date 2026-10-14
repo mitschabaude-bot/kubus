@@ -156,6 +156,10 @@ theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')
     (hty' : HasTy S k .one [] (.hcomp T' φ' u' a0') T)
     (heq : EqTm S k .one [] (.hcomp T φ u a0) (.hcomp T' φ' u' a0') T)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : Tube2 S k T φ u u') (ha0 : RE2 S k T a0 a0')
+    (hbd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (T.isub σ) ((u.isub σ.up).dinst .zero) (a0'.isub σ))
+    (hbd' : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (T.isub σ) (a0.isub σ) ((u'.isub σ.up).dinst .zero))
     {L1 : Tm} (hR : RedT S k T (.ipi L1)) {r r' : I} (hr : r.Scoped k) (hr' : r'.Scoped k) (hE : I.Eq r r') :
     RE2 S k (L1.dinst r) (.papp (.hcomp T φ u a0) r) (.papp (.hcomp T' φ' u' a0') r') := by
   obtain ⟨l0, ⟨-, hφs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
@@ -234,6 +238,29 @@ theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')
       rw [show (Tm.papp (a0.isub ρ) (r.subst ρ.τ)).isub ρ' = Tm.papp (a0.isub (ρ.comp ρ')) (r.subst (ρ.comp ρ').τ) by
         show Tm.papp ((a0.isub ρ).isub ρ') ((r.subst ρ.τ).subst ρ'.τ) = _; rw [Tm.isub_isub, I_subst_comp]]
       exact hel k'' (ρ.comp ρ') _ _ (RE2.isub hW ha0 _))
+    (fun k' ρ k'' ρ' _ k3 σ3 hh => by
+      show RE2 S k3 _ ((((Tm.papp (u.isub ρ.up) (r.subst ρ.τ).shift).isub ρ'.up).isub σ3.up).dinst .zero)
+        ((Tm.papp (a0'.isub (ρ.comp ρ')) (r'.subst (ρ.comp ρ').τ)).isub σ3)
+      have e1 : (((Tm.papp (u.isub ρ.up) (r.subst ρ.τ).shift).isub ρ'.up).isub σ3.up).dinst .zero =
+          Tm.papp ((u.isub (ρ.comp (ρ'.comp σ3)).up).dinst .zero) (r.subst (ρ.comp (ρ'.comp σ3)).τ) := by
+        rw [Tm.isub_isub, ← ISub.up_comp, papp_up_dinst]
+      have e2 : (Tm.papp (a0'.isub (ρ.comp ρ')) (r'.subst (ρ.comp ρ').τ)).isub σ3 =
+          Tm.papp (a0'.isub (ρ.comp (ρ'.comp σ3))) (r'.subst (ρ.comp (ρ'.comp σ3)).τ) := by
+        show Tm.papp ((a0'.isub (ρ.comp ρ')).isub σ3) ((r'.subst (ρ.comp ρ').τ).subst σ3.τ) = _
+        rw [Tm.isub_isub, I_subst_comp, ISub.comp_assoc, I_subst_comp, I_subst_comp]
+      rw [e1, e2, Tm.isub_isub, ISub.comp_assoc]
+      refine hel k3 _ _ _ (hbd k3 _ ?_)
+      rw [I_subst_comp, I_subst_comp]; exact hh)
+    (fun k' ρ k'' ρ' _ k3 σ3 hh => by
+      show RE2 S k3 _ ((Tm.papp (a0.isub ρ) (r.subst ρ.τ)).isub ρ' |>.isub σ3)
+        (((Tm.papp (u'.isub (ρ.comp ρ').up) (r'.subst (ρ.comp ρ').τ).shift).isub σ3.up).dinst .zero)
+      have e1 : ((Tm.papp (a0.isub ρ) (r.subst ρ.τ)).isub ρ').isub σ3 =
+          Tm.papp (a0.isub (ρ.comp (ρ'.comp σ3))) (r.subst (ρ.comp (ρ'.comp σ3)).τ) := by
+        show Tm.papp (((a0.isub ρ).isub ρ').isub σ3) (((r.subst ρ.τ).subst ρ'.τ).subst σ3.τ) = _
+        rw [Tm.isub_isub, Tm.isub_isub, I_subst_comp, I_subst_comp]
+      rw [e1, papp_up_dinst, Tm.isub_isub, ISub.comp_assoc]
+      refine hel k3 _ _ _ (hbd' k3 _ ?_)
+      rw [I_subst_comp, I_subst_comp]; exact hh)
     (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21 htube
   · simpa only [hrid, hrid'] using H
   · have hρ : HasTy S k' .one [] (.hcomp (T.isub ρ) (φ.subst ρ.τ) (u.isub ρ.up) (a0.isub ρ)) (T.isub ρ) :=
@@ -290,12 +317,12 @@ theorem kanH2_ipi {T T' L : Tm} {l : ℕ} (hTT : RT2 S k T T') (hR : RedT S k T 
       ∀ k'' (ρ' : ISub k'' k') X', RT2 S k'' ((L1.dinst s).isub ρ') X' → KanH2 S k'' ((L1.dinst s).isub ρ') X') :
     KanH2 S k T T' := by
   have hP := IPiStr_of hW hTT hR hipi
-  intro φ φ' u u' a0 a0' hty hty' heq h12 h21 htube ha0
+  intro φ φ' u u' a0 a0' hty hty' heq h12 h21 htube ha0 hbd hbd'
   have hXT : TyCode k (semK S k T) := tyCode_of_ty hW hty
   refine RE2_ipiW_intro hW (RT2.refl hW hXT hTT) hR hipi ⟨hty, hty', heq⟩ fun k' ρ L1 h1 r r' hr hr' hE => ?_
   refine kanH2_ipi_core hW (hP.isub hW ρ) (fun k1 ρ1 L3 h3 s hs k2 ρ2 X' hX' => ?_) (HasTy.isubS hW hty ρ)
     (HasTy.isubS hW hty' ρ) (EqTm.isubS hW heq ρ) (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ)
-    (RE2.isub hW ha0 ρ) h1 hr hr' hE
+    (RE2.isub hW ha0 ρ) (bdry_isub hbd ρ) (bdry_isub' hbd' ρ) h1 hr hr' hE
   rw [Tm.isub_isub] at h3
   exact hIH k1 (ρ.comp ρ1) L3 h3 s hs k2 ρ2 X' hX'
 

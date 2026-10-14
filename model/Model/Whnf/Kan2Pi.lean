@@ -115,6 +115,10 @@ theorem kanH2_pi_core {T T' : Tm} (hP : PiStr S k T T')
     (hty' : HasTy S k .one [] (.hcomp T' φ' u' a0') T)
     (heq : EqTm S k .one [] (.hcomp T φ u a0) (.hcomp T' φ' u' a0') T)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : Tube2 S k T φ u u') (ha0 : RE2 S k T a0 a0')
+    (hbd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (T.isub σ) ((u.isub σ.up).dinst .zero) (a0'.isub σ))
+    (hbd' : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (T.isub σ) (a0.isub σ) ((u'.isub σ.up).dinst .zero))
     {A1 B1 : Tm} (hR : RedT S k T (.pi A1 B1)) {a a' : Tm} (ha : RE2 S k A1 a a') :
     RE2 S k (B1.inst a) (.app (.hcomp T φ u a0) a) (.app (.hcomp T' φ' u' a0') a') := by
   obtain ⟨l0, ⟨-, hφs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
@@ -288,7 +292,8 @@ theorem kanH2_pi_core {T T' : Tm} (hP : PiStr S k T T')
     rw [hR'] at htyR
     rw [hL, hR']
     refine RE2.conv hW hXY (hK _ _ _ _ _ _ (htyL.tyConv (TyEq.symm hTyXY)) (htyR.tyConv (TyEq.symm hTyXY))
-      (Eall.tyConv (TyEq.symm hTyXY)) ?_ ?_ (fun k3 σ3 r r' hr hr' hE hh => ?_) ?_)
+      (Eall.tyConv (TyEq.symm hTyXY)) ?_ ?_ (fun k3 σ3 r r' hr hr' hE hh => ?_) ?_ (fun k3 σ3 hh => ?_)
+      (fun k3 σ3 hh => ?_))
     · rw [I_subst_subst]; exact ent_subst h12 (ρ.comp ρ').τ
     · rw [I_subst_subst]; exact ent_subst h21 (ρ.comp ρ').τ
     · -- the tubes, applied
@@ -307,6 +312,31 @@ theorem kanH2_pi_core {T T' : Tm} (hP : PiStr S k T T')
       have h1 := H1 k'' (ρ.comp ρ') _ _ (RE2.isub hW ha0 (ρ.comp ρ'))
       rw [isub_app, Tm.isub_isub, Tm.isub_isub]
       exact RE2.conv' hW hXY h1 hXcode
+    · -- the boundaries, applied
+      have hh' : (ival (idEnv k3) (φ.subst ((ρ.comp ρ').comp σ3).τ)).holds := by
+        have e : φ.subst ((ρ.comp ρ').comp σ3).τ = ((φ.subst ρ.τ).subst ρ'.τ).subst σ3.τ := by
+          rw [I_subst_comp, I_subst_comp]
+        rw [e]; exact hh
+      simp only [Tm.isub_isub, ← ISub.up_comp]
+      rw [app_up_dinst]
+      have h1 := H1 k3 ((ρ.comp ρ').comp σ3) _ _ (hbd k3 _ hh')
+      have hXY3 := RT2.isub hW hXcode hXY σ3
+      simp only [Tm.isub_isub] at hXY3
+      rw [isub_app, Tm.isub_isub, Tm.isub_isub]
+      rw [ISub.comp_assoc] at h1 hXY3 ⊢
+      exact RE2.conv' hW hXY3 h1 (RT2.tyCode_l hW hXY3 (RE2.tyCode hW h1))
+    · have hh' : (ival (idEnv k3) (φ.subst ((ρ.comp ρ').comp σ3).τ)).holds := by
+        have e : φ.subst ((ρ.comp ρ').comp σ3).τ = ((φ.subst ρ.τ).subst ρ'.τ).subst σ3.τ := by
+          rw [I_subst_comp, I_subst_comp]
+        rw [e]; exact hh
+      simp only [Tm.isub_isub, ← ISub.up_comp]
+      rw [app_up_dinst]
+      have h1 := H1 k3 ((ρ.comp ρ').comp σ3) _ _ (hbd' k3 _ hh')
+      have hXY3 := RT2.isub hW hXcode hXY σ3
+      simp only [Tm.isub_isub] at hXY3
+      rw [isub_app, Tm.isub_isub, Tm.isub_isub]
+      rw [ISub.comp_assoc] at h1 hXY3 ⊢
+      exact RE2.conv' hW hXY3 h1 (RT2.tyCode_l hW hXY3 (RE2.tyCode hW h1))
 
 
 theorem PiStr.isub {T T' : Tm} (hP : PiStr S k T T') (σ : ISub k' k) : PiStr S k' (T.isub σ) (T'.isub σ) where
@@ -331,6 +361,24 @@ theorem Tube2.isub {T u u' : Tm} {φ : I} (h : Tube2 S k T φ u u') (σ : ISub k
   have := h k'' (σ.comp ρ) r r' hr hr' hE (by rwa [I_subst_comp])
   rwa [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, ← ISub.up_comp]
 
+omit hW in
+theorem bdry_isub {T u a' : Tm} {φ : I} (h : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (T.isub σ) ((u.isub σ.up).dinst .zero) (a'.isub σ)) (ρ : ISub k' k) :
+    ∀ k'' (σ : ISub k'' k'), (ival (idEnv k'') ((φ.subst ρ.τ).subst σ.τ)).holds →
+      RE2 S k'' ((T.isub ρ).isub σ) (((u.isub ρ.up).isub σ.up).dinst .zero) ((a'.isub ρ).isub σ) := by
+  intro k'' σ hh
+  have := h k'' (ρ.comp σ) (by rwa [I_subst_comp])
+  rwa [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, ← ISub.up_comp]
+
+omit hW in
+theorem bdry_isub' {T u' a : Tm} {φ : I} (h : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (T.isub σ) (a.isub σ) ((u'.isub σ.up).dinst .zero)) (ρ : ISub k' k) :
+    ∀ k'' (σ : ISub k'' k'), (ival (idEnv k'') ((φ.subst ρ.τ).subst σ.τ)).holds →
+      RE2 S k'' ((T.isub ρ).isub σ) ((a.isub ρ).isub σ) (((u'.isub ρ.up).isub σ.up).dinst .zero) := by
+  intro k'' σ hh
+  have := h k'' (ρ.comp σ) (by rwa [I_subst_comp])
+  rwa [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, ← ISub.up_comp]
+
 /-- Composition at a pair of related types whose normal forms are Π-types. -/
 theorem kanH2_pi {T T' : Tm} (hP : PiStr S k T T')
     (hIH : ∀ k' (ρ : ISub k' k) A1 B1, RedT S k' (T.isub ρ) (.pi A1 B1) → ∀ b, RE2 S k' A1 b b →
@@ -338,11 +386,11 @@ theorem kanH2_pi {T T' : Tm} (hP : PiStr S k T T')
     (hintro : ∀ t t', EB S k T t t' → (∀ k' (ρ : ISub k' k) A1 B1, RedT S k' (T.isub ρ) (.pi A1 B1) →
       ∀ a a', RE2 S k' A1 a a' → RE2 S k' (B1.inst a) (.app (t.isub ρ) a) (.app (t'.isub ρ) a')) →
       RE2 S k T t t') : KanH2 S k T T' := by
-  intro φ φ' u u' a0 a0' hty hty' heq h12 h21 htube ha0
+  intro φ φ' u u' a0 a0' hty hty' heq h12 h21 htube ha0 hbd hbd'
   refine hintro _ _ ⟨hty, hty', heq⟩ fun k' ρ A1 B1 hR a a' ha => ?_
   refine kanH2_pi_core hW (hP.isub hW ρ) (fun k1 ρ1 A3 B3 h3 b hb k2 ρ2 X' hX' => ?_) (HasTy.isubS hW hty ρ)
     (HasTy.isubS hW hty' ρ) (EqTm.isubS hW heq ρ) (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ)
-    (RE2.isub hW ha0 ρ) hR ha
+    (RE2.isub hW ha0 ρ) (bdry_isub hbd ρ) (bdry_isub' hbd' ρ) hR ha
   rw [Tm.isub_isub] at h3
   exact hIH k1 (ρ.comp ρ1) A3 B3 h3 b hb k2 ρ2 X' hX'
 

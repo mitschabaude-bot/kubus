@@ -29,6 +29,10 @@ def KanH2 (S : Sig) (k : ℕ) (A A' : Tm) : Prop :=
   ∀ (φ φ' : I) (u u' a a' : Tm), HasTy S k .one [] (.hcomp A φ u a) A → HasTy S k .one [] (.hcomp A' φ' u' a') A →
     EqTm S k .one [] (.hcomp A φ u a) (.hcomp A' φ' u' a') A →
     I.Entails φ φ' → I.Entails φ' φ → Tube2 S k A φ u u' → RE2 S k A a a' →
+    (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (A.isub σ) ((u.isub σ.up).dinst .zero) (a'.isub σ)) →
+    (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (A.isub σ) (a.isub σ) ((u'.isub σ.up).dinst .zero)) →
     RE2 S k A (.hcomp A φ u a) (.hcomp A' φ' u' a')
 
 /-- Lines (at stage `k + 1`) related at `I.Eq`-equal points of every restriction. -/

@@ -66,6 +66,14 @@ theorem kanH2_elim_core {T T' Y u u' a0 a0' : Tm} {φ φ' : I} (hφs : φ.Scoped
       Tube2 S k'' (Y.isub (ρ.comp ρ')) ((Ψ k' ρ).subst ρ'.τ) ((U k' ρ).isub ρ'.up) (U' k'' (ρ.comp ρ')))
     (hA0r : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), ¬ I.Entails .one (φ.subst (ρ.comp ρ').τ) →
       RE2 S k'' (Y.isub (ρ.comp ρ')) ((A0 k' ρ).isub ρ') (A0' k'' (ρ.comp ρ')))
+    (hUb : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), ¬ I.Entails .one (φ.subst (ρ.comp ρ').τ) →
+      ∀ k3 (σ3 : ISub k3 k''), (ival (idEnv k3) (((Ψ k' ρ).subst ρ'.τ).subst σ3.τ)).holds →
+      RE2 S k3 ((Y.isub (ρ.comp ρ')).isub σ3) ((((U k' ρ).isub ρ'.up).isub σ3.up).dinst .zero)
+        ((A0' k'' (ρ.comp ρ')).isub σ3))
+    (hUb' : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), ¬ I.Entails .one (φ.subst (ρ.comp ρ').τ) →
+      ∀ k3 (σ3 : ISub k3 k''), (ival (idEnv k3) (((Ψ k' ρ).subst ρ'.τ).subst σ3.τ)).holds →
+      RE2 S k3 ((Y.isub (ρ.comp ρ')).isub σ3) (((A0 k' ρ).isub ρ').isub σ3)
+        (((U' k'' (ρ.comp ρ')).isub σ3.up).dinst .zero))
     -- the eliminated types
     (hCY : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), ¬ I.Entails .one (φ.subst (ρ.comp ρ').τ) →
       RT2 S k'' ((C k' ρ).isub ρ') (Y.isub (ρ.comp ρ')))
@@ -145,11 +153,17 @@ theorem kanH2_elim_core {T T' Y u u' a0 a0' : Tm} {φ φ' : I} (hφs : φ.Scoped
     obtain ⟨e12, e21⟩ := hΨΨ k' ρ k'' ρ' hf2
     refine RE2.conv hW hXY (hIH k' ρ k'' ρ' hf2 _ _ _ _ _ _ (htyL.tyConv (TyEq.symm hTyXY))
       (htyR.tyConv (TyEq.symm hTyXY)) (Eall.tyConv (TyEq.symm hTyXY)) e12 e21
-      (fun k3 σ3 r r' hr hr' hE hh => ?_) ?_)
+      (fun k3 σ3 r r' hr hr' hE hh => ?_) ?_ (fun k3 σ3 hh => ?_) (fun k3 σ3 hh => ?_))
     · have h1 := hTU k' ρ k'' ρ' hf2 k3 σ3 r r' hr hr' hE hh
       have hXY3 := RT2.isub hW hXcode hXY σ3
       exact RE2.conv' hW hXY3 h1 (RT2.tyCode_l hW hXY3 (RE2.tyCode hW h1))
     · exact RE2.conv' hW hXY (hA0r k' ρ k'' ρ' hf2) hXcode
+    · have h1 := hUb k' ρ k'' ρ' hf2 k3 σ3 hh
+      have hXY3 := RT2.isub hW hXcode hXY σ3
+      exact RE2.conv' hW hXY3 h1 (RT2.tyCode_l hW hXY3 (RE2.tyCode hW h1))
+    · have h1 := hUb' k' ρ k'' ρ' hf2 k3 σ3 hh
+      have hXY3 := RT2.isub hW hXcode hXY σ3
+      exact RE2.conv' hW hXY3 h1 (RT2.tyCode_l hW hXY3 (RE2.tyCode hW h1))
 
 end
 
