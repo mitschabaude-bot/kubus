@@ -221,4 +221,45 @@ theorem gen_glueEl {Ψ Φ Γ s G} (h : HasTy0 S Ψ Φ Γ s G) {φ e t a} (ht : s
   | .con _ _ _ _ _ _ _ _ => by cases ht
   | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
 
+/-- The head of an elimination (the eliminated term). -/
+def _root_.KubusCore.Tm.elimHead : Tm → Option Tm
+  | .app f _ | .fst f | .snd f | .papp f _ | .unglue _ _ f | .elim _ _ _ _ f => some f
+  | _ => none
+
+/-- The head of a typed elimination is typed. -/
+theorem gen_elimHead {Ψ Φ Γ s T} (h : HasTy0 S Ψ Φ Γ s T) {p} (ht : s.elimHead = some p) :
+    ∃ T', HasTy0 S Ψ Φ Γ p T' :=
+  match h with
+  | .var _ _ => by simp [Tm.elimHead] at ht
+  | .conv h0 _ => gen_elimHead h0 ht
+  | .restrict hs he h2 => by
+    obtain ⟨T', h'⟩ := gen_elimHead h2 ht
+    exact ⟨T', HasTy0.restrict hs he h'⟩
+  | .const _ _ => by simp [Tm.elimHead] at ht
+  | .univ _ _ => by simp [Tm.elimHead] at ht
+  | .cumul _ h1 => gen_elimHead h1 ht
+  | .pi _ _ => by simp [Tm.elimHead] at ht
+  | .lam _ _ => by simp [Tm.elimHead] at ht
+  | .app h0 _ => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h0⟩
+  | .sigma _ _ => by simp [Tm.elimHead] at ht
+  | .pair _ _ _ => by simp [Tm.elimHead] at ht
+  | .fst h0 => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h0⟩
+  | .snd h0 => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h0⟩
+  | .path _ _ _ => by simp [Tm.elimHead] at ht
+  | .plam _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .papp h0 _ => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h0⟩
+  | .ipi _ _ => by simp [Tm.elimHead] at ht
+  | .ilam _ _ => by simp [Tm.elimHead] at ht
+  | .iapp h0 _ => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h0⟩
+  | .split _ _ _ _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .abort _ _ => by simp [Tm.elimHead] at ht
+  | .transp _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .hcomp _ _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .glue _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .glueEl _ _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .unglue _ _ _ h3 => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h3⟩
+  | .data _ _ _ => by simp [Tm.elimHead] at ht
+  | .con _ _ _ _ _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .elim _ _ _ _ _ _ _ _ _ h9 => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h9⟩
+
 end KubusCore.Meta

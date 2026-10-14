@@ -344,9 +344,7 @@ def Tm.hashTop : Nat → Tm → UInt64
     | .elim d ps P bs t => mixHash 26 (mixHash (hash d) (mixHash (h P) (mixHash (h bs) (h t))))
 
 def keyOf (Ψ : Nat) (Γ : Ctx) (ts : List Tm) : UInt64 :=
-  let hΓ := match Γ with
-    | A :: _ => mixHash (hash Γ.length) (Tm.hashTop 3 A)
-    | [] => 0
+  let hΓ := Γ.foldl (fun h A => mixHash h (Tm.hashTop 4 A)) (hash Γ.length)
   ts.foldl (fun acc t => mixHash acc (Tm.hashTop 7 t)) (mixHash (hash Ψ) hΓ)
 
 /-- A cached result under the restriction `Φ` (with its faces). -/
@@ -447,6 +445,17 @@ def _root_.KubusCore.Tm.rigid : Tm → Bool
   | .data .. | .con _ _ _ _ [] => true
   | _ => false
 
+/-- Terms known to be typed (at some type): the premises of their typing rule can then be read
+off by the generation lemmas instead of being checked. -/
+def TypedF : Sig → Nat → I → Ctx → List Tm → Type
+  | S, Ψ, Φ, Γ, [t] => PLift (∃ T, HasTy S Ψ Φ Γ t T)
+  | _, _, _, _, _ => PUnit
+
+def TypedF.restr {S : Sig} : Restr S TypedF := fun {Ψ Φ Φ' Γ ts} hs he v =>
+  match ts, v with
+  | [_], ⟨h⟩ => some ⟨by obtain ⟨T, h⟩ := h; exact ⟨T, HasTy.restrict hs he h⟩⟩
+  | [], _ | _ :: _ :: _, _ => none
+
 def InfF.restr {S : Sig} : Restr S InfF := fun {Ψ Φ Φ' Γ ts} hs he v =>
   match ts, v with
   | [_], i => some ⟨i.ty, i.lvl, HasTy.restrict hs he i.hty, HasTy.restrict hs he i.htm⟩
@@ -517,6 +526,8 @@ structure Cache (S : Sig) where
   strFail : Table S (fun _ _ _ _ _ => PUnit) := {}
   /-- kernel contexts with an interval variable removed (strengthening) -/
   ctxs : Table S (fun S Ψ Φ Γ _ => KCtx S Ψ Φ Γ) := {}
+  /-- terms known to be typed (the results of reduction, and the heads of their eliminations) -/
+  typed : Table S TypedF := {}
   /-- inside an attempt to compare without splitting the restriction into faces -/
   noSplit : Bool := false
   /-- inside an attempt to compare by congruence before reducing -/
@@ -787,8 +798,31 @@ structure HcompInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (
   heq : EqTm S Ψ (cof Φ φ) Γ (u.dinst .zero) a A
   ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) A
 
+/-- The premises of a composition known to be typed, read off its typing by the generation
+lemma (`Meta.gen_hcomp`, through the minimal judgments); only the level of `A` is inferred. -/
+def hcompInfoEx (R : Rec S) (E : KCtx S Ψ Φ Γ) (hS : WfSig S) {A : Tm} {φ : I} {u a : Tm}
+    (hex : ∃ T, HasTy S Ψ Φ Γ (.hcomp A φ u a) T) : K S (HcompInfo S Ψ Φ Γ A φ u a) := do
+  let ⟨hφ⟩ ← ensureScoped φ Ψ
+  let ⟨l, ⟨hA⟩⟩ ← inferType R E A
+  have hu : HasTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift := by
+    obtain ⟨T, ht⟩ := hex
+    obtain ⟨_, ⟨_, _, h, _, _⟩, _⟩ := Meta.gen_hcomp (Meta.spec_to_minimal hS ht) rfl
+    exact Meta.minimal_to_spec h
+  have ha : HasTy S Ψ Φ Γ a A := by
+    obtain ⟨T, ht⟩ := hex
+    obtain ⟨_, ⟨_, _, _, h, _⟩, _⟩ := Meta.gen_hcomp (Meta.spec_to_minimal hS ht) rfl
+    exact Meta.minimal_to_spec h
+  have heq : EqTm S Ψ (cof Φ φ) Γ (u.dinst .zero) a A := by
+    obtain ⟨T, ht⟩ := hex
+    obtain ⟨_, ⟨_, _, _, _, h⟩, _⟩ := Meta.gen_hcomp (Meta.spec_to_minimal hS ht) rfl
+    exact Meta.minimal_to_spec_eq h
+  pure ⟨l, hA, hφ, hu, ha, heq, HasTy.hcomp hA hφ hu ha heq⟩
+
 def inferHcomp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u a : Tm) :
     K S (HcompInfo S Ψ Φ Γ A φ u a) := do
+  if let some ⟨hS⟩ := E.sig.wf then
+    if let some ⟨hex⟩ := (← get).typed.find? Ψ Φ Γ [.hcomp A φ u a] E.fs.get E.hfs E.hsc TypedF.restr then
+      return ← hcompInfoEx R E hS hex
   let ⟨hφ⟩ ← ensureScoped φ Ψ
   let ⟨l, ⟨hA⟩⟩ ← inferType R E A
   let E1 := E.cof φ hφ
@@ -800,23 +834,24 @@ def inferHcomp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u a : Tm) :
   let ⟨heq⟩ ← R.conv E1 A l (HasTy.rs E hφ hA) (u.dinst .zero) a hu0 (HasTy.rs E hφ ha)
   pure ⟨l, hA, hφ, hu, ha, heq, HasTy.hcomp hA hφ hu ha heq⟩
 
-/-- The premises of a composition that is known to be typed: when the signature is known to be
-well-formed, they are read off the typing by the generation lemma (`Meta.gen_hcomp`, through
-the minimal judgments), without checking them again; only the level of `A` is inferred. -/
+/-- Record that `t` is typed, and so are the heads of its eliminations (`Meta.gen_elimHead`). -/
+def noteTyped (E : KCtx S Ψ Φ Γ) : Nat → (t : Tm) → (∃ T, HasTy S Ψ Φ Γ t T) → K S Unit
+  | 0, _, _ => pure ()
+  | n + 1, t, h => do
+    modify fun c => { c with typed := c.typed.insert Ψ Φ Γ [t] E.fs.get E.hfs (⟨h⟩ : PLift _) }
+    match E.sig.wf, hp : t.elimHead with
+    | some ⟨hS⟩, some p =>
+      noteTyped E n p (by
+        obtain ⟨T, h⟩ := h
+        obtain ⟨T', h'⟩ := Meta.gen_elimHead (Meta.spec_to_minimal hS h) hp
+        exact ⟨T', Meta.minimal_to_spec h'⟩)
+    | _, _ => pure ()
+
+/-- The premises of a composition that is known to be typed. -/
 def hcompInfoOf (R : Rec S) (E : KCtx S Ψ Φ Γ) {A : Tm} {φ : I} {u a T : Tm}
-    (ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) T) : K S (HcompInfo S Ψ Φ Γ A φ u a) := do
+    (ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) T) : K S (HcompInfo S Ψ Φ Γ A φ u a) :=
   match E.sig.wf with
   | none => inferHcomp R E A φ u a
-  | some ⟨hS⟩ =>
-    let ⟨hφ⟩ ← ensureScoped φ Ψ
-    let ⟨l, ⟨hA⟩⟩ ← inferType R E A
-    have hg := Meta.gen_hcomp (Meta.spec_to_minimal hS ht) rfl
-    have hu : HasTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift := by
-      obtain ⟨_, ⟨_, _, h, _, _⟩, _⟩ := hg; exact Meta.minimal_to_spec h
-    have ha : HasTy S Ψ Φ Γ a A := by
-      obtain ⟨_, ⟨_, _, _, h, _⟩, _⟩ := hg; exact Meta.minimal_to_spec h
-    have heq : EqTm S Ψ (cof Φ φ) Γ (u.dinst .zero) a A := by
-      obtain ⟨_, ⟨_, _, _, _, h⟩, _⟩ := hg; exact Meta.minimal_to_spec_eq h
-    pure ⟨l, hA, hφ, hu, ha, heq, HasTy.hcomp hA hφ hu ha heq⟩
+  | some ⟨hS⟩ => hcompInfoEx R E hS ⟨T, ht⟩
 
 end KubusCore.Kernel
