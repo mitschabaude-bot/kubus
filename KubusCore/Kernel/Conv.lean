@@ -574,6 +574,37 @@ def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
   | .unglue φ e g, .unglue φ' e' g' =>
     if he : e' = e then by subst he; exact convNeUnglue R E φ _ g φ' g'
     else fail s!"kernel: unglue with different equivalences:\n  {short e}\n  {short e'}"
+  | .glueEl φ e t a, .glueEl φ' e' t' a' => do
+    -- congruence: the base, and under `φ` the equivalence and the fibre element
+    let i ← R.infer E (.glueEl φ e t a)
+    match hty : i.ty with
+    | .glue A φ0 T e0 =>
+      if h : φ0 = φ ∧ e0 = e then
+        have hG : HasTy S Ψ Φ Γ (.glue A φ T e) (.univ i.lvl) := by
+          have := i.hty; rw [hty, h.1, h.2] at this; exact this
+        have ht1 : HasTy S Ψ Φ Γ (.glueEl φ e t a) (.glue A φ T e) := by
+          have := i.htm; rw [hty, h.1, h.2] at this; exact this
+        let ⟨hφ⟩ ← ensureScoped φ Ψ
+        let ⟨hu⟩ ← R.check E (.glueEl φ' e' t' a') _ i.lvl hG
+        let ⟨h1⟩ ← ensureEnt φ φ'
+        let ⟨h2⟩ ← ensureEnt φ' φ
+        let ⟨hA⟩ ← checkType R E A i.lvl
+        let E1 := E.cof φ hφ
+        have hT : HasTy S Ψ (cof Φ φ) Γ T (.univ i.lvl) := HasTy.glueFib hG
+        let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A) i.lvl
+        let ⟨he⟩ ← R.check E1 e _ i.lvl hq
+        let ⟨he'⟩ ← R.check E1 e' _ i.lvl hq
+        let ⟨htt⟩ ← R.check E1 t T i.lvl hT
+        let ⟨htt'⟩ ← R.check E1 t' T i.lvl hT
+        let ⟨ha⟩ ← R.check E a A i.lvl hA
+        let ⟨ha'⟩ ← R.check E a' A i.lvl hA
+        let ⟨ee⟩ ← R.conv E1 (Tm.equiv T A) i.lvl hq e e' he he'
+        let ⟨et⟩ ← R.conv E1 T i.lvl hT t t' htt htt'
+        let ⟨ea⟩ ← R.conv E A i.lvl hA a a' ha ha'
+        have r := EqTm.glueEl ht1 hu h1 h2 ee et ea
+        return ⟨i, ⟨by rw [hty, h.1, h.2]; exact r⟩⟩
+      else fail "kernel: unexpected type of a glue element"
+    | _ => fail "kernel: unexpected type of a glue element"
   | .con d c ps args rs, .con d' c' ps' args' rs' =>
     if h : d' = d ∧ c' = c then by
       obtain ⟨rfl, rfl⟩ := h; exact convNeCon R E d' c' ps args rs ps' args' rs'
