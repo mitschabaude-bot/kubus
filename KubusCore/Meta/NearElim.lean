@@ -392,4 +392,60 @@ theorem params_wk (hS : SigClosed S) {d : Nat} {D : DataDecl} (hD : S[d]? = some
   · have := (sub_eq hS edata).2 T
     simp only [Tm.subst] at this; rw [e1, e1] at this; exact this
 
+/-! ## Branch types: the argument types -/
+
+theorem isList_wkN {ps : Tm} (hps : IsList ps) (a b : Nat) : IsList (ps.wkN a b) := by
+  rw [wkN_eq]; exact isList_subst hps _ _
+
+theorem branchArgTy_eq_inst {d np : Nat} {C : Ctor} {ps : Tm} (hps : IsList ps) (k : Nat) :
+    DataDecl.branchArgTy d np C ps k = (C.argTy d np k).substList
+      (((argVars 0 k).take k).reverse ++ (ps.wkN k 0).toList.reverse) := by
+  unfold DataDecl.branchArgTy
+  rw [argVars_take_rev 0 k (Nat.le_refl _), wkN_toList hps, List.map_reverse]
+  congr 2
+  apply List.map_congr_left; intro j _; simp
+
+theorem branchArgTy_rec {d np : Nat} {C : Ctor} {ps : Tm} (hps : IsList ps) (hpl : ps.toList.length = np)
+    {k : Nat} (hr : C.isRec k = true) : DataDecl.branchArgTy d np C ps k = data d (ps.wkN k 0) := by
+  rw [branchArgTy_eq_inst hps, argTy_rec' hr, substList_eq]
+  simp only [Tm.subst]
+  rw [← substList_eq, paramVars_substList (isList_wkN hps k 0)
+    (by rw [wkN_toList hps]; simp [hpl]) (by simp [argVars_length])]
+
+theorem argTy_congr (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+    (hpres : ∀ {Ψ Φ Γ t u A}, EqTm0 S Ψ Φ Γ t u A → HasTy0 S Ψ Φ Γ u A)
+    {Ψ Φ Γ} {ps ps' : Tm} {l : Nat}
+    (ht : HasTele0 S Ψ Φ Γ ps D.params []) (es : EqTeleS S Ψ Φ Γ ps ps' D.params [])
+    (edata : EqTm0 S Ψ Φ Γ (data d ps) (data d ps') (univ l))
+    {k : Nat} (hk : k < C.args.length) (hw : Wf0 S Ψ Φ (argCtxB d D.params.length C ps k ++ Γ)) :
+    EqTm0 S Ψ Φ (argCtxB d D.params.length C ps k ++ Γ) (DataDecl.branchArgTy d D.params.length C ps k)
+      (DataDecl.branchArgTy d D.params.length C ps' k) (univ D.level) := by
+  have hpsL := tele_isList ht
+  have hpsL' := es.isList'
+  have hpl : ps.toList.length = D.params.length := by simpa using tele_length ht
+  have hpl' : ps'.toList.length = D.params.length := by simpa using es.length'
+  have hw0 : Wf0 S (Ψ + 0) Φ (ctxWkI 0 (argCtxB d D.params.length C ps k ++ Γ)) := by rw [wkI_zero]; exact hw
+  obtain ⟨ht1, es1, ed1⟩ := params_wk hS hD ht es edata _ 0 hw0 (by rw [I_wkI_zero]; exact ent_refl _)
+  rw [wkI_zero, argCtxB_length] at ht1 es1 ed1
+  cases hr : C.isRec k
+  · obtain ⟨A0, hA0⟩ := point_of_not_rec hk hr
+    have hAk : C.argTy d D.params.length k = A0 := by simp [Ctor.argTy, hA0]
+    have hty : ∀ i, i < k → HasTy0 S Ψ Φ (argCtxB d D.params.length C ps k ++ Γ) ((argVars 0 k).getD i .abort)
+        ((C.argTy d D.params.length i).substList (((argVars 0 k).take i).reverse ++ (ps.wkN k 0).toList.reverse)) := by
+      intro i hi
+      have := argvars_hty hS hD hC hpsL hpl [] 0 k (by simpa [wkI_zero] using hw) hi
+      simpa [wkI_zero] using this
+    obtain ⟨TL, T', E, -⟩ := pts_near hS hW hD hC hpres ht1 es1 ed1 k (Nat.le_of_lt hk)
+      (by simp [argVars_length]) (by simp [argVars_length]) hty (fun i hi => EqTm0.refl (hty i hi)) k (Nat.le_refl _)
+    have F := (sub_ty hS (pt_typed hW (htr_of_wf hW hD) hD hC hA0)).2.2 TL T' E
+    rw [pt_inst hW hD hC hA0 (by simp [argVars_length]) (by simp [wkN_toList hpsL, hpl]) 0 I.var,
+      pt_inst hW hD hC hA0 (by simp [argVars_length]) (by simp [wkN_toList hpsL', hpl']) 0 I.var] at F
+    rw [branchArgTy_eq_inst hpsL, branchArgTy_eq_inst hpsL', hAk]
+    exact F
+  · rw [branchArgTy_rec hpsL hpl hr, branchArgTy_rec hpsL' hpl' hr]
+    have hl := (hW.2 d D hD).1
+    exact EqTm0.data hD (HasTy0.data hD hl ht1) (HasTy0.data hD hl (params_tele hS hW hD hpres ht1 es1))
+      es1.toEqTele0
+
 end KubusCore.Meta
