@@ -385,21 +385,42 @@ theorem RT2_path_intro {L a b L' a' b' : Tm} {l : ℕ} (hpath : HasTy S k .one [
       have := RE2.isub hW hb σ; rwa [isub_dinst] at this
   · intro k1 σ k2 σ' L1 b0 b1 L2 c0 c1 h1 h2
     rw [isub_path] at h1 h2
-    obtain ⟨rfl, -⟩ : L.isub σ.up = L1 ∧ True := by
-      have := RedW.unique (redW_self rfl) h1.1; injection this; exact ⟨by assumption, trivial⟩
-    obtain ⟨rfl, -⟩ : L.isub (σ.comp σ').up = L2 ∧ True := by
-      have := RedW.unique (redW_self rfl) h2.1; injection this; exact ⟨by assumption, trivial⟩
-    rw [Tm.isub_isub, ← ISub.up_comp, Comp2_res_up hW hL0]
-    exact RT2.refl hW (hX _ _) (hL k2 (σ.comp σ'))
+    obtain ⟨rfl, rfl, rfl⟩ : L.isub σ.up = L1 ∧ a.isub σ = b0 ∧ b.isub σ = b1 := by
+      have := RedW.unique (redW_self rfl) h1.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
+    obtain ⟨rfl, rfl, rfl⟩ : L.isub (σ.comp σ').up = L2 ∧ a.isub (σ.comp σ') = c0 ∧ b.isub (σ.comp σ') = c1 := by
+      have := RedW.unique (redW_self rfl) h2.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
+    refine ⟨?_, ?_, ?_⟩
+    · rw [Tm.isub_isub, ← ISub.up_comp, Comp2_res_up hW hL0]
+      exact RT2.refl hW (hX _ _) (hL k2 (σ.comp σ'))
+    · rw [Tm.isub_isub, Comp2_res_line hW hL0]
+      have h0 := RE2.isub hW ha (σ.comp σ'); rw [isub_dinst] at h0
+      have t := hLr k2 (σ.comp σ') .zero .zero trivial trivial (I_eq_refl _)
+      exact RE2.trans hW t h0 (RE2.symm hW t h0)
+    · rw [Tm.isub_isub, Comp2_res_line hW hL0]
+      have h0 := RE2.isub hW hb (σ.comp σ'); rw [isub_dinst] at h0
+      have t := hLr k2 (σ.comp σ') .one .one trivial trivial (I_eq_refl _)
+      exact RE2.trans hW t h0 (RE2.symm hW t h0)
   · intro k1 σ k2 σ' L1 b0 b1 L2 c0 c1 h1 h2
     rw [isub_path] at h1 h2
-    obtain ⟨rfl, -⟩ : L'.isub σ.up = L1 ∧ True := by
-      have := RedW.unique (redW_self rfl) h1.1; injection this; exact ⟨by assumption, trivial⟩
-    obtain ⟨rfl, -⟩ : L'.isub (σ.comp σ').up = L2 ∧ True := by
-      have := RedW.unique (redW_self rfl) h2.1; injection this; exact ⟨by assumption, trivial⟩
-    rw [Tm.isub_isub, ← ISub.up_comp, Comp2_res_up hW hL0]
-    have := RT2.refl' hW (hX _ _) (hL k2 (σ.comp σ'))
-    unfold RT2 at this; rwa [RT2.semK_eq hW (hL k2 (σ.comp σ'))] at this
+    obtain ⟨rfl, rfl, rfl⟩ : L'.isub σ.up = L1 ∧ a'.isub σ = b0 ∧ b'.isub σ = b1 := by
+      have := RedW.unique (redW_self rfl) h1.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
+    obtain ⟨rfl, rfl, rfl⟩ : L'.isub (σ.comp σ').up = L2 ∧ a'.isub (σ.comp σ') = c0 ∧
+        b'.isub (σ.comp σ') = c1 := by
+      have := RedW.unique (redW_self rfl) h2.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
+    refine ⟨?_, ?_, ?_⟩
+    · rw [Tm.isub_isub, ← ISub.up_comp, Comp2_res_up hW hL0]
+      have := RT2.refl' hW (hX _ _) (hL k2 (σ.comp σ'))
+      unfold RT2 at this; rwa [RT2.semK_eq hW (hL k2 (σ.comp σ'))] at this
+    · rw [Tm.isub_isub, Comp2_res_line hW hL0]
+      have h0 := RE2.isub hW ha (σ.comp σ'); rw [isub_dinst] at h0
+      have t := hLr k2 (σ.comp σ') .zero .zero trivial trivial (I_eq_refl _)
+      have h1 := RE2.conv hW t (RE2.trans hW t (RE2.symm hW t h0) h0)
+      unfold RE2 at h1; rwa [RT2.semK_eq hW t] at h1
+    · rw [Tm.isub_isub, Comp2_res_line hW hL0]
+      have h0 := RE2.isub hW hb (σ.comp σ'); rw [isub_dinst] at h0
+      have t := hLr k2 (σ.comp σ') .one .one trivial trivial (I_eq_refl _)
+      have h1 := RE2.conv hW t (RE2.trans hW t (RE2.symm hW t h0) h0)
+      unfold RE2 at h1; rwa [RT2.semK_eq hW t] at h1
 
 theorem RE2_path_intro {L a b p p' : Tm} {l : ℕ} (hpath : HasTy S k .one [] (.path L a b) (.univ l))
     (hp : EB S k (.path L a b) p p')

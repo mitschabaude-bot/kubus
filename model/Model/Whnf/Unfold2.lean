@@ -74,7 +74,11 @@ def cohSigma (S : Sig) (A B : V) (f : Hom k m) (T : Tm) : Prop :=
 def cohPath (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
   ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') L1 b0 b1 L2 c0 c1,
     RedT S k' (T.isub σ) (.path L1 b0 b1) → RedT S k'' (T.isub (σ.comp σ')) (.path L2 c0 c1) →
-    (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift f).comp (σ.comp σ').up.hom)).ty (L1.isub σ'.up) L2
+    (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift f).comp (σ.comp σ').up.hom)).ty (L1.isub σ'.up) L2 ∧
+    (Comp2 S L (m + 1) k'' ((Hom.lift f).comp (ISub.cons .zero trivial (σ.comp σ')).hom)).el
+      (L2.dinst .zero) (b0.isub σ') c0 ∧
+    (Comp2 S L (m + 1) k'' ((Hom.lift f).comp (ISub.cons .one trivial (σ.comp σ')).hom)).el
+      (L2.dinst .one) (b1.isub σ') c1
 
 /-- Coherence of the normal forms of a type `(i : I) → L`. -/
 def cohIPi (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=

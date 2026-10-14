@@ -495,7 +495,11 @@ theorem pathC_coh {g : Hom k m} {U V : Tm} (h : (Comp2 S (pathC m L a0 a1) m k g
 theorem pathC_coh1 {g : Hom k m} {U V : Tm} (h : (Comp2 S (pathC m L a0 a1) m k g).ty U V)
     (σ' : ISub k'' k) {L1 b0 b1 L2 c0 c1 : Tm} (h1 : RedT S k U (.path L1 b0 b1))
     (h2 : RedT S k'' (U.isub σ') (.path L2 c0 c1)) :
-    (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift g).comp σ'.up.hom)).ty (L1.isub σ'.up) L2 := by
+    (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift g).comp σ'.up.hom)).ty (L1.isub σ'.up) L2 ∧
+    (Comp2 S L (m + 1) k'' ((Hom.lift g).comp (ISub.cons .zero trivial σ').hom)).el
+      (L2.dinst .zero) (b0.isub σ') c0 ∧
+    (Comp2 S L (m + 1) k'' ((Hom.lift g).comp (ISub.cons .one trivial σ').hom)).el
+      (L2.dinst .one) (b1.isub σ') c1 := by
   have hU := (Comp2_ty_base h).2.1
   have := (pathC_coh hLne h).1 k (ISub.id k) k'' σ' L1 b0 b1 L2 c0 c1
     (by rwa [isub_id_of_closed (closed_of_isTyK hW hU)]) (by rwa [ISub.id_comp])
@@ -532,17 +536,37 @@ theorem cohPath_expand {f : Hom k m} {T T' : Tm}
   have h2' := RedT.to_red hW rV eV h2
   have hUσ := (krX k1 (f.comp σ.hom) k2 σ' U (T'.isub σ) U U).1 hU
   rw [ISub.comp_hom, Tm.isub_isub] at hUσ
-  obtain ⟨M1, d0, d1, E1, e0', e1', hM, hE, hME, -, -, -⟩ := pathC_clause hLne hW hUσ
-  have hc := pathC_coh1 hLne hW hU σ' h1' hM
-  obtain ⟨L2', c0', c1', E1', e0'', e1'', hL2, hE', hLE, -, -, -⟩ := pathC_clause hLne hW hV
-  obtain ⟨rfl, -, -⟩ : L2' = L2 ∧ c0' = c0 ∧ c1' = c1 := by
-    have := RedW.unique hL2.1 h2'.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
-  obtain ⟨rfl, -, -⟩ : E1' = E1 ∧ True ∧ True := by
-    have := RedW.unique hE'.1 hE.1; injection this; exact ⟨by assumption, trivial, trivial⟩
+  obtain ⟨M1, d0, d1, E1, e0', e1', hM, hE, hME, hrrM, hd0, hd1⟩ := pathC_clause hLne hW hUσ
+  obtain ⟨hc, hc0, hc1⟩ := pathC_coh1 hLne hW hU σ' h1' hM
+  obtain ⟨L2', c0', c1', E1', e0'', e1'', hL2, hE', hLE, hrrL, hl0, hl1⟩ := pathC_clause hLne hW hV
+  obtain ⟨rfl, rfl, rfl⟩ : L2 = L2' ∧ c0 = c0' ∧ c1 = c1' := by
+    have := RedW.unique h2'.1 hL2.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
+  obtain ⟨rfl, rfl, rfl⟩ : E1' = E1 ∧ e0'' = e0' ∧ e1'' = e1' := by
+    have := RedW.unique hE'.1 hE.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
   rw [lift_hom_comp, ISub.comp_id] at hME hLE
   rw [lift_hom_comp] at hc
+  rw [lift_cons] at hc0 hc1
+  rw [lift_cons, ISub.comp_id] at hd0 hd1 hl0 hl1
   have P := perL (k2 + 1) ((Hom.lift f).comp (σ.comp σ').up.hom)
-  exact P.transTy hc (P.transTy hME (P.symTy hLE))
+  have ends : ∀ (e : I) (he : e = .zero ∨ e = .one) {x y z w : Tm},
+      (Comp2 S L (m + 1) k2 ((Hom.lift f).comp (ISub.cons e (by rcases he with rfl | rfl <;> trivial)
+        (σ.comp σ')).hom)).el (M1.dinst e) x y →
+      (Comp2 S L (m + 1) k2 ((Hom.lift f).comp (ISub.cons e (by rcases he with rfl | rfl <;> trivial)
+        (σ.comp σ')).hom)).el (M1.dinst e) y z →
+      (Comp2 S L (m + 1) k2 ((Hom.lift f).comp (ISub.cons e (by rcases he with rfl | rfl <;> trivial)
+        (σ.comp σ')).hom)).el (L2.dinst e) w z →
+      (Comp2 S L (m + 1) k2 ((Hom.lift f).comp (ISub.cons e (by rcases he with rfl | rfl <;> trivial)
+        (σ.comp σ')).hom)).el (L2.dinst e) x w := by
+    intro e he x y z w h1 h2 h3
+    have hes : e.Scoped k2 := by rcases he with rfl | rfl <;> trivial
+    have tM := hrrM e e hes hes (I_eq_refl _)
+    have tL := hrrL e e hes hes (I_eq_refl _)
+    rw [lift_cons, ISub.comp_id] at tM tL
+    have Q := perL k2 ((Hom.lift f).comp (ISub.cons e hes (σ.comp σ')).hom)
+    have x13 := Q.conv (Q.transTy tM (Q.symTy tL)) (Q.transEl tM h1 h2)
+    exact Q.transEl tL x13 (Q.symEl tL h3)
+  exact ⟨P.transTy hc (P.transTy hME (P.symTy hLE)), ends .zero (.inl rfl) hc0 hd0 hl0,
+    ends .one (.inr rfl) hc1 hd1 hl1⟩
 
 omit krL in
 /-- Head expansion for path types. -/
@@ -616,7 +640,7 @@ theorem heEl_pathC (heL : HE2 S (m + 1) L) (perX : PER2 S m (pathC m L a0 a1)) (
     · rw [isub_papp, isub_dinst, Hom.comp_assoc, ← ISub.hom_comp, ISub.cons_comp]
       obtain ⟨L3, c0, c1, hR3, hp3, -, -⟩ := pathC_el_at hLne hW (hrel k3 σ3 u3 hu3)
       have hc := hcT k1 σ1 k3 σ3 L1y b0y b1y L3 c0 c1 hR1 hR3
-      have hl := line_ty hW krL (σ1.comp σ3) hc (r.subst σ3.τ) hrσ
+      have hl := line_ty hW krL (σ1.comp σ3) hc.1 (r.subst σ3.τ) hrσ
       have x := hp3 (r.subst σ3.τ) (r'.subst σ3.τ) hrσ hrσ' (Meta.I_eq_subst hE _)
       rw [lift_cons, ISub.comp_id] at x
       have P := perL k3 ((Hom.lift f).comp (ISub.cons (r.subst σ3.τ) hrσ (σ1.comp σ3)).hom)

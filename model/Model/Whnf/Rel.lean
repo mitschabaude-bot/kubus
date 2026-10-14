@@ -258,7 +258,9 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     if π1 sh = natZ tPath then
       let coh : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') L1 b0 b1 L2 c0 c1,
         RedT S k' (A.isub σ) (.path L1 b0 b1) → RedT S k'' (A.isub (σ.comp σ')) (.path L2 c0 c1) →
-        (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2
+        (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2 ∧
+        (RL k'' (ISub.cons .zero trivial (σ.comp σ'))).el (L2.dinst .zero) (b0.isub σ') c0 ∧
+        (RL k'' (ISub.cons .one trivial (σ.comp σ'))).el (L2.dinst .one) (b1.isub σ') c1
       { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
             RedT S k' (A.isub σ) (.path L1 b0 b1) ∧ RedT S k' (A'.isub σ) (.path L1' b0' b1') ∧
             (RL (k' + 1) σ.up).ty L1 L1' ∧
