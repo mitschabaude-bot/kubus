@@ -1143,6 +1143,71 @@ theorem glue_whnf_pair {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S k T T'
   exact ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', l1, l2, r1, r2, h1, h2, nh s1 f1, nh s2 f2,
     ent_of_face_eq s1 hφσ (f1.trans fσ.symm), ent_of_face_eq hφσ s1 (fσ.trans f1.symm)⟩
 
+
+/-- Composition at a pair of related types whose normal forms are Glue types. -/
+theorem kanH2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S k T T') (hR : RedT S k T (.glue A φ Tf e))
+    (hG : HasTy S k .one [] (.glue A φ Tf e) (.univ l))
+    (hIHA : ∀ k1 (ρ1 : ISub k1 k) A1 φ1 T1 e1, RedT S k1 (T.isub ρ1) (.glue A1 φ1 T1 e1) →
+      ∀ k2 (ρ2 : ISub k2 k1) X X', RT2 S k2 (A1.isub ρ2) X → RT2 S k2 X X' → KanH2 S k2 X X')
+    (hIHT : ∀ k1 (ρ1 : ISub k1 k) A1 φ1 T1 e1, RedT S k1 (T.isub ρ1) (.glue A1 φ1 T1 e1) →
+      ∀ k2 (ρ2 : ISub k2 k1), (ival (idEnv k2) (φ1.subst ρ2.τ)).holds →
+      ∀ X X', RT2 S k2 (T1.isub ρ2) X → RT2 S k2 X X' → KanH2 S k2 X X') :
+    KanH2 S k T T' := by
+  intro ψ ψ' u u' a0 a0' hty hty' heq hteq p12 p21 htube ha0 hbd hbd'
+  have K : KD S k T T' ψ ψ' u u' a0 a0' := ⟨hty, hty', heq, hteq, p12, p21, htube, ha0, hbd, hbd'⟩
+  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
+  obtain ⟨-, ⟨-, hψs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
+  have hψs' : ψ'.Scoped k := (gen_hcomp (spec_to_minimal hW hty') rfl).choose_spec.1.2.1
+  have hn : ¬ I.Entails .one φ := fun h => by
+    have := hR.1.2; simp [IsWhnf, step, show I.entails .one φ = true from h] at this
+  have hXT : TyCode k (semK S k T) := tyCode_of_ty hW hty
+  have hTTd : RT2 S k T T := RT2.refl hW hXT hTT
+  have hTT'e : TyEq S k T T' := (Comp2_ty_base hTT).2.2.2.2.2
+  have hGT := (RT2_glue_whnf hW hG hn hTTd hR).1
+  have hGG := (RT2_glue_whnf hW hG hn hTTd hR).2
+  have invG := RT2_glueW_inv hW hG hG hn hn hGG (redT_glue_self hn) (redT_glue_self hn)
+  have hTc : T.closedB 0 k = true := closed_of_isTyK hW (isTyK_of_ty hW hty)
+  have hTτ : ∀ {k'} (τ : ISub k' k), RT2 S k' (T.isub τ) (T.isub τ) := fun τ => RT2.isub hW hXT hTTd τ
+  have hTτ' : ∀ {k'} (τ : ISub k' k), RT2 S k' (T.isub τ) (T'.isub τ) := fun τ => RT2.isub hW hXT hTT τ
+  have hholdψ : ∀ {k'} (τ : ISub k' k), I.Entails .one (ψ.subst τ.τ) → (ival (idEnv k') (ψ.subst τ.τ)).holds :=
+    fun τ h => (holds_iff_entails (I.scoped_subst hψs τ.sc)).2 h
+  -- normal forms where the face does not hold
+  have hw := fun k' (σ : ISub k' k) (hh : ¬ (ival (idEnv k') (φ.subst σ.τ)).holds) =>
+    glue_whnf_pair hW hTT hR hG hn σ hh
+  choose A1 φ1 T1 e1 A1' φ1' T1' e1' l1 l1' hw using hw
+  refine RE2.expandBoth hW hXT hTTd hty hty'
+    (fun k' σ => if I.Entails .one (ψ.subst σ.τ) then (u.isub σ.up).dinst .one
+      else if hf : (ival (idEnv k') (φ.subst σ.τ)).holds then .hcomp (T.isub σ) (ψ.subst σ.τ) (u.isub σ.up) (a0.isub σ)
+      else Tm.hcompGlue (A1 k' σ hf) (φ1 k' σ hf) (T1 k' σ hf) (e1 k' σ hf) (ψ.subst σ.τ) (u.isub σ.up) (a0.isub σ))
+    (fun k' σ => if I.Entails .one (ψ'.subst σ.τ) then (u'.isub σ.up).dinst .one
+      else if hf : (ival (idEnv k') (φ.subst σ.τ)).holds then
+        .hcomp (T'.isub σ) (ψ'.subst σ.τ) (u'.isub σ.up) (a0'.isub σ)
+      else Tm.hcompGlue (A1' k' σ hf) (φ1' k' σ hf) (T1' k' σ hf) (e1' k' σ hf) (ψ'.subst σ.τ) (u'.isub σ.up)
+        (a0'.isub σ))
+    (fun k' σ => ?_) (fun k' σ => ?_) (fun k' σ k'' ρ => ?_)
+  · -- the left reducts
+    have htyσ : HasTy S k' .one [] (.hcomp (T.isub σ) (ψ.subst σ.τ) (u.isub σ.up) (a0.isub σ)) (T.isub σ) :=
+      HasTy.isubS hW hty σ
+    rw [isub_hcomp]
+    dsimp only
+    split_ifs with hψ hf
+    · exact ⟨.step (step_hcomp_face hψ) (.refl _), EqTm.hcompFace hψ htyσ⟩
+    · exact ⟨.refl _, EqTm.refl htyσ⟩
+    · exact red_hcomp_glue hW htyσ (hw k' σ hf).1 (hw k' σ hf).2.2.1 hψ
+  · -- the right reducts
+    have htyσ : HasTy S k' .one [] (.hcomp (T'.isub σ) (ψ'.subst σ.τ) (u'.isub σ.up) (a0'.isub σ)) (T.isub σ) :=
+      HasTy.isubS hW hty' σ
+    have eσ : TyEq S k' (T.isub σ) (T'.isub σ) := TyEq.isub hW σ hTT'e
+    rw [isub_hcomp]
+    dsimp only
+    split_ifs with hψ hf
+    · exact ⟨.step (step_hcomp_face hψ) (.refl _), EqTm.hcompFace hψ htyσ⟩
+    · exact ⟨.refl _, EqTm.refl htyσ⟩
+    · have r := red_hcomp_glue hW (htyσ.tyConv eσ) (hw k' σ hf).2.1 (hw k' σ hf).2.2.2.1 hψ
+      exact ⟨r.1, r.2.tyConv (TyEq.symm eσ)⟩
+  · -- the reducts across restrictions
+    sorry
+
 end
 
 end Model.Whnf
