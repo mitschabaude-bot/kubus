@@ -72,7 +72,7 @@ theorem valid_restrict {Φ' : I} {t u A : Tm} (he : I.Entails Φ' Φ) (h : Valid
     Valid2 S Ψ Φ' Γ t u A := fun k c => h k (c.restrictTo he)
 
 theorem valid_var {x : ℕ} {A : Tm} (h : Γ.lookup x = some A) : Valid2 S Ψ Φ Γ (.var x) (.var x) A :=
-  fun k c => ⟨c.lookT x A h, c.look x A h⟩
+  fun k c => ⟨c.lookT' h, c.look x A h⟩
 
 theorem valid_univ {l : ℕ} (hl : l + 1 ≤ maxLevel) : Valid2 S Ψ Φ Γ (.univ l) (.univ l) (.univ (l + 1)) := by
   intro k c
@@ -116,7 +116,7 @@ theorem valid_pi {A A' B B' : Tm} {l : ℕ} (hA : Valid2 S Ψ Φ Γ A A' (.univ 
       (fun k' σ a a' ha => ?_))⟩
   rw [← CSub2.restr_L hW c σ] at ha
   have hAA := hA.tySelf hW (c.restr hW σ)
-  have := hB.ty hW ((c.restr hW σ).ext A a a' ha hAA)
+  have := hB.ty hW ((c.restr hW σ).ext hW A a a' ha (CSub2.tyRob_of hW (fun k c => hA.tySelf hW c) _))
   rw [subst_up_isub_inst, subst_up_isub_inst]
   exact this
 
@@ -179,11 +179,11 @@ theorem valid_lam {A B t t' : Tm} {l : ℕ} (hpi : Valid2 S Ψ Φ Γ (.pi A B) (
   rw [isub_pi, isub_lam] at hlamL hlamR
   have happL := HasTy.app hlamL (RE2.typed ha).1
   have happR := (HasTy.app hlamR (RE2.typed ha).2.1).tyConv (TyEq.symm hTyE)
-  have hA1 := hI.1
   have ha1 := ha
-  rw [← CSub2.restr_L hW c σ] at ha1 hA1
-  rw [← CSub2.restr_R hW c σ] at hA1
-  have hmain := (ht k' ((c.restr hW σ).ext A a a' ha1 hA1)).2
+  rw [← CSub2.restr_L hW c σ] at ha1
+  have hA1 := CSub2.tyRob_of hW (fun k c => (RT2_pi_inv hW (show RT2 S k (.pi _ _) (.pi _ _) from hpi.ty hW c)).1)
+    (c.restr hW σ)
+  have hmain := (ht k' ((c.restr hW σ).ext hW A a a' ha1 hA1)).2
   have hm : RE2 S k' (((B.subst (Tm.up c.γ) c.σ.τ).isub σ).inst a) (((t.subst (Tm.up c.γ) c.σ.τ).isub σ).inst a)
       (((t'.subst (Tm.up c.γ') c.σ'.τ).isub σ).inst a') := by
     rw [subst_up_isub_inst, subst_up_isub_inst, subst_up_isub_inst]; exact hmain
@@ -301,7 +301,7 @@ theorem valid_sigma {A A' B B' : Tm} {l : ℕ} (hA : Valid2 S Ψ Φ Γ A A' (.un
   refine valid_univ_of hW hty hty' heq fun k c => RT2_sigma_intro hW (c.ty hW hty) (c.tyR hW hty') (c.eq hW heq)
     (fun k' σ => hA.tyRestr hW c σ) (fun k' σ a a' ha => ?_)
   rw [← CSub2.restr_L hW c σ] at ha
-  have := hB.ty hW ((c.restr hW σ).ext A a a' ha (hA.tySelf hW (c.restr hW σ)))
+  have := hB.ty hW ((c.restr hW σ).ext hW A a a' ha (CSub2.tyRob_of hW (fun k c => hA.tySelf hW c) _))
   rw [subst_up_isub_inst, subst_up_isub_inst]
   exact this
 
@@ -910,6 +910,53 @@ theorem valid_absurd {t u A : Tm} (hz : I.Entails Φ .zero) : Valid2 S Ψ Φ Γ 
   intro k c
   exact absurd (entails_holds (ent_trans c.face (ent_subst hz c.σ.τ)) (ρ := idEnv k) (by rw [ival_one]; rfl))
     not_holds_zero
+
+
+/-! ### Faces -/
+
+omit hW in
+/-- An interval variable fixed by the face is `I.Eq` to its endpoint. -/
+theorem CSub2.ieq_lit (c : CSub2 S Ψ Φ Γ k) {i : ℕ} {d : Bool} (hi : i < Ψ) (hent : I.Entails Φ (I.lit i d)) :
+    I.Eq (c.σ.τ i) (I.ofDir d) := by
+  have he := ent_trans c.face (ent_subst hent c.σ.τ)
+  have hh := entails_holds he (ρ := idEnv k) (by rw [ival_one]; rfl)
+  cases d
+  · exact ieq_zero_of_holds_neg (c.σ.sc i hi) hh
+  · exact ieq_one_of_holds (c.σ.sc i hi) hh
+
+/-- The right interval substitution with a variable set to an endpoint. -/
+def CSub2.setR (c : CSub2 S Ψ Φ Γ k) {i : ℕ} (hi : i < Ψ) (d : Bool) : ISub k Ψ :=
+  ⟨fun n => if n = i then I.ofDir d else c.σ'.τ n,
+    fun n hn => by by_cases h : n = i <;> simp only [h, if_true, if_false] <;> first | (cases d <;> trivial) | exact c.σ'.sc n hn,
+    fun n hn => by show (if n = i then I.ofDir d else c.σ'.τ n) = _; rw [if_neg (by omega)]; exact c.σ'.hi n hn⟩
+
+theorem valid_face {t A : Tm} {i : ℕ} {d : Bool} (hi : i < Ψ) (hent : I.Entails Φ (I.lit i d))
+    (h : Valid2 S Ψ Φ Γ t t A) : Valid2 S Ψ Φ Γ t (t.dset i (I.ofDir d)) A := by
+  intro k c
+  have hn : INear (c.σ.comp (ISub.id k)) (c.setR hi d) := by
+    rw [ISub.comp_id]
+    intro n
+    show I.Eq (c.σ.τ n) (if n = i then I.ofDir d else c.σ'.τ n)
+    by_cases hni : n = i
+    · subst hni; rw [if_pos rfl]; exact c.ieq_lit hi hent
+    · rw [if_neg hni]; exact c.hσ n
+  have hn0 : INear (c.σ.comp (ISub.id k)) c.σ := by rw [ISub.comp_id]; exact INear.refl _
+  have e : RE2 S k (A.subst (fun y => (cond true c.γ c.γ' y).isub (ISub.id k)) c.σ.τ)
+      (t.subst (fun y => (cond true c.γ c.γ' y).isub (ISub.id k)) c.σ.τ)
+      (t.subst (fun y => (cond false c.γ c.γ' y).isub (ISub.id k)) (c.setR hi d).τ) :=
+    (h k (c.variant hW (ISub.id k) c.σ (c.setR hi d) hn0 hn true false)).2
+  rw [c.cond_isub_id, c.cond_isub_id] at e
+  refine ⟨(h k c).1, ?_⟩
+  have hR : c.R (t.dset i (I.ofDir d)) = t.subst c.γ' (c.setR hi d).τ := by
+    simp only [CSub2.R, Tm.dset, Tm.dsubst, subst_subst]
+    apply subst_congr
+    · intro x; rfl
+    · intro n
+      show (if n = i then I.ofDir d else I.var n).subst c.σ'.τ = if n = i then I.ofDir d else c.σ'.τ n
+      by_cases hni : n = i
+      · rw [if_pos hni, if_pos hni]; cases d <;> rfl
+      · rw [if_neg hni, if_neg hni]; rfl
+  rw [hR]; exact e
 
 end
 
