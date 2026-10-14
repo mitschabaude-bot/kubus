@@ -122,6 +122,8 @@ theorem Comp2_pathC (L a0 a1 : V) (hL : L ≠ ∅) (f : Hom k m) :
           semK S k T' = res f (pathC m L a0 a1) ∧ TyEq S k T T') ∧ (∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
           RedT S k' (T.isub σ) (.path L1 b0 b1) ∧ RedT S k' (T'.isub σ) (.path L1' b0' b1') ∧
           (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1' ∧
+          (∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+            (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L1.dinst r) (L1'.dinst r')) ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .zero trivial σ).hom)).el (L1.dinst .zero) b0 b0' ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .one trivial σ).hom)).el (L1.dinst .one) b1 b1') ∧
           cohPath S L f T ∧ cohPath S L f T',
@@ -137,7 +139,10 @@ theorem Comp2_ipiC (L : V) (hL : L ≠ ∅) (f : Hom k m) :
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (ipiC m L) ∧
           semK S k T' = res f (ipiC m L) ∧ TyEq S k T T') ∧ (∀ k' (σ : ISub k' k), ∃ L1 L1',
           RedT S k' (T.isub σ) (.ipi L1) ∧ RedT S k' (T'.isub σ) (.ipi L1') ∧
-          (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1') ∧ cohIPi S L f T ∧ cohIPi S L f T',
+          (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1' ∧
+          ∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+            (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L1.dinst r) (L1'.dinst r')) ∧
+          cohIPi S L f T ∧ cohIPi S L f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (ipiC m L)) (Hom.id k) ∧
           ipiE2 S (fun k' σ => (Comp2 S L (m + 1) k' ((Hom.lift f).comp σ.hom)).el) k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show ipiC m L ≠ ∅ from mkKV_ne_empty _)]
@@ -168,37 +173,57 @@ theorem Comp2_emptyC (f : Hom k m) :
     show ¬ (1 = 3) by decide, show ¬ (1 = 4) by decide, show ¬ (1 = 5) by decide, show ¬ (1 = 6) by decide,
     or_self, if_true, and_false, and_true]
 
+/-- The type relation of a Glue code at one stage `σ` of the restriction `f`. -/
+def glueLocT (S : Sig) (A Tp : V) (φ : Cof m) {k : ℕ} (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (Y Z : Tm) : Prop :=
+  if (φ.restr (f.comp σ.hom)).holds then (Comp2 S (dat Tp k' (f.comp σ.hom)) k' k' (Hom.id k')).ty Y Z
+  else ∃ A1 φ1 T1 e1 A1' φ1' T1' e1',
+    RedT S k' Y (.glue A1 φ1 T1 e1) ∧ RedT S k' Z (.glue A1' φ1' T1' e1') ∧
+    φ1.Scoped k' ∧ φ1'.Scoped k' ∧
+    (ival (idEnv k') φ1).face = φ.restr (f.comp σ.hom) ∧ (ival (idEnv k') φ1').face = φ.restr (f.comp σ.hom) ∧
+    (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
+    ∀ k'' (σ' : ISub k'' k'), (φ.restr (f.comp (σ.comp σ').hom)).holds →
+      (Comp2 S (dat Tp k'' (f.comp (σ.comp σ').hom)) k'' k'' (Hom.id k'')).ty (T1.isub σ') (T1'.isub σ') ∧
+      (equivF S (fun k3 σ3 => Comp2 S (dat Tp k'' (f.comp (σ.comp σ').hom)) k'' k3 σ3.hom)
+        (fun k3 σ3 => Comp2 S A m k3 (f.comp ((σ.comp σ').comp σ3).hom)) k'' (ISub.id k'')).el
+        (Tm.equiv (T1.isub σ') (A1.isub σ')) (e1.isub σ') (e1'.isub σ')
+
+/-- The element relation of a Glue code at one stage `σ` of the restriction `f`. -/
+def glueLocE (S : Sig) (A Tp : V) (φ : Cof m) {k : ℕ} (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (X g g' : Tm) :
+    Prop :=
+  if (φ.restr (f.comp σ.hom)).holds then (Comp2 S (dat Tp k' (f.comp σ.hom)) k' k' (Hom.id k')).el X g g'
+  else ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedT S k' X (.glue A1 φ1 T1 e1) ∧
+    RedE S k' X g (.glueEl ψ e0 t0 a0) ∧ RedE S k' X g' (.glueEl ψ' e0' t0' a0') ∧
+    I.Entails ψ φ1 ∧ I.Entails φ1 ψ ∧ I.Entails ψ' φ1 ∧ I.Entails φ1 ψ' ∧
+    EqTm S k' (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) ∧ EqTm S k' (cof .one φ1) [] e0' e1 (Tm.equiv T1 A1) ∧
+    (Comp2 S A m k' (f.comp σ.hom)).el A1 a0 a0'
+
+/-- Coherence of the normal forms of a Glue type. -/
+def cohGT (S : Sig) (A Tp : V) (φ : Cof m) {k : ℕ} (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k), ¬ (φ.restr (f.comp σ.hom)).holds → ∀ W, RedW S (T.isub σ) W → ∀ k'' (ρ : ISub k'' k'),
+    glueLocT S A Tp φ f k'' (σ.comp ρ) (W.isub ρ) (T.isub (σ.comp ρ))
+
+/-- Coherence of the normal forms of an element of a Glue type. -/
+def cohGE (S : Sig) (A Tp : V) (φ : Cof m) {k : ℕ} (f : Hom k m) (T g : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k), ¬ (φ.restr (f.comp σ.hom)).holds → ∀ w, RedW S (g.isub σ) w → ∀ k'' (ρ : ISub k'' k'),
+    glueLocE S A Tp φ f k'' (σ.comp ρ) (T.isub (σ.comp ρ)) (w.isub ρ) (g.isub (σ.comp ρ))
+
 theorem Comp2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp) (hφ : φ.IsCof)
     (hn : ¬ φ.holds) :
     Comp2 S (glueC m A φ Tp ep) m m (Hom.id m) =
       ⟨fun T T' => (IsTyK S m T ∧ IsTyK S m T' ∧ semK S m T = res (Hom.id m) (glueC m A φ Tp ep) ∧
-          semK S m T' = res (Hom.id m) (glueC m A φ Tp ep) ∧ TyEq S m T T') ∧ ∀ k' (σ : ISub k' m),
-          if (φ.restr σ.hom).holds then (Comp2 S (dat Tp k' σ.hom) k' k' (Hom.id k')).ty (T.isub σ) (T'.isub σ)
-          else ∃ A1 φ1 T1 e1 A1' φ1' T1' e1',
-            RedT S k' (T.isub σ) (.glue A1 φ1 T1 e1) ∧ RedT S k' (T'.isub σ) (.glue A1' φ1' T1' e1') ∧
-            φ1.Scoped k' ∧ φ1'.Scoped k' ∧
-            (ival (idEnv k') φ1).face = φ.restr σ.hom ∧ (ival (idEnv k') φ1').face = φ.restr σ.hom ∧
-            (Comp2 S A m k' σ.hom).ty A1 A1' ∧
-            ∀ k'' (σ' : ISub k'' k'), (φ.restr (σ.comp σ').hom).holds →
-              (Comp2 S (dat Tp k'' (σ.comp σ').hom) k'' k'' (Hom.id k'')).ty (T1.isub σ') (T1'.isub σ') ∧
-              (equivF S (fun k3 σ3 => Comp2 S (dat Tp k'' (σ.comp σ').hom) k'' k3 σ3.hom)
-                (fun k3 σ3 => Comp2 S A m k3 ((σ.comp σ').comp σ3).hom) k'' (ISub.id k'')).el
-                (Tm.equiv (T1.isub σ') (A1.isub σ')) (e1.isub σ') (e1'.isub σ'),
+          semK S m T' = res (Hom.id m) (glueC m A φ Tp ep) ∧ TyEq S m T T') ∧
+          (∀ k' (σ : ISub k' m), glueLocT S A Tp φ (Hom.id m) k' σ (T.isub σ) (T'.isub σ)) ∧
+          cohGT S A Tp φ (Hom.id m) T ∧ cohGT S A Tp φ (Hom.id m) T',
         fun T g g' => EB S m T g g' ∧ semK S m g ∈ El (res (Hom.id m) (glueC m A φ Tp ep)) (Hom.id m) ∧
-          EB S m T g g' ∧ ∀ k' (σ : ISub k' m),
-          if (φ.restr σ.hom).holds then (Comp2 S (dat Tp k' σ.hom) k' k' (Hom.id k')).el (T.isub σ) (g.isub σ) (g'.isub σ)
-          else ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedT S k' (T.isub σ) (.glue A1 φ1 T1 e1) ∧
-            RedE S k' (T.isub σ) (g.isub σ) (.glueEl ψ e0 t0 a0) ∧ RedE S k' (T.isub σ) (g'.isub σ) (.glueEl ψ' e0' t0' a0') ∧
-            I.Entails ψ φ1 ∧ I.Entails φ1 ψ ∧ I.Entails ψ' φ1 ∧ I.Entails φ1 ψ' ∧
-            EqTm S k' (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) ∧ EqTm S k' (cof .one φ1) [] e0' e1 (Tm.equiv T1 A1) ∧
-            (Comp2 S A m k' σ.hom).el A1 a0 a0'⟩ := by
+          EB S m T g g' ∧ (∀ k' (σ : ISub k' m), glueLocE S A Tp φ (Hom.id m) k' σ (T.isub σ) (g.isub σ) (g'.isub σ)) ∧
+          cohGE S A Tp φ (Hom.id m) T g ∧ cohGE S A Tp φ (Hom.id m) T g'⟩ := by
   rw [Comp2_unfold (show glueC m A φ Tp ep ≠ ∅ from mkKV_ne_empty _)]
   have hdat : dat (glueC m A φ Tp ep) m (Hom.id m) = glueDatum m A φ Tp (res (Hom.id m) ep) := by
     unfold glueC; rw [dat_mkKV, if_neg (by rwa [hφ.restr_id]), hφ.restr_id, res_id hA, res_id hTp]
   simp only [body2, core2, Hom.comp_id, hdat, glueDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id,
     natZ_inj, tPi, tSigma, tPath, tIPi, tUniv, tEmpty, tGlue, if_false, show ¬ (7 = 2) by decide,
     show ¬ (7 = 3) by decide, show ¬ (7 = 4) by decide, show ¬ (7 = 5) by decide, show ¬ (7 = 6) by decide,
-    show ¬ (7 = 1) by decide, or_self, if_true, cofOf_enc, Hom.id_comp]
+    show ¬ (7 = 1) by decide, or_self, if_true, cofOf_enc, Hom.id_comp, glueLocT, glueLocE, cohGT, cohGE]
 
 /-- The point argument relation of an inductive type's code. -/
 def dataP2 (S : Sig) (Θ : SData m) (f : Hom k m) : (k' : ℕ) → Hom k' k → ℕ → ℕ → List V → Tm → Tm → Tm → Prop :=
@@ -250,6 +275,56 @@ theorem Comp2_glueC_at {A Tp ep : V} {φ : Cof m} (hφ : φ.IsCof)
       else Comp2 S (glueC k (res f A) (φ.restr f) (res f Tp) (res f ep)) k k (Hom.id k) := by
   rw [Comp2_eq_res (IsKV.ne_empty (isKV_glueC _ _ _ _)), res_glueC hTp hTkv hφ f]
   split <;> rfl
+
+theorem glueLocT_res {A Tp : V} {φ : Cof m} (hA : A ≠ ∅) {k : ℕ} (f : Hom k m) {k' : ℕ} (σ : ISub k' k) (Y Z : Tm) :
+    glueLocT S (res f A) (res f Tp) (φ.restr f) (Hom.id k) k' σ Y Z = glueLocT S A Tp φ f k' σ Y Z := by
+  simp only [glueLocT, Hom.id_comp, Comp2_res hA, dat_res, Cof.restr_restr, ISub.comp_hom]
+
+theorem glueLocE_res {A Tp : V} {φ : Cof m} (hA : A ≠ ∅) {k : ℕ} (f : Hom k m) {k' : ℕ} (σ : ISub k' k) (X g g' : Tm) :
+    glueLocE S (res f A) (res f Tp) (φ.restr f) (Hom.id k) k' σ X g g' = glueLocE S A Tp φ f k' σ X g g' := by
+  simp only [glueLocE, Hom.id_comp, Comp2_res hA, dat_res, Cof.restr_restr]
+
+theorem glueLocT_comp {A Tp : V} {φ : Cof m} {k k1 : ℕ} (f : Hom k m) (σ0 : ISub k1 k) {k' : ℕ} (σ : ISub k' k1)
+    (Y Z : Tm) : glueLocT S A Tp φ (f.comp σ0.hom) k' σ Y Z = glueLocT S A Tp φ f k' (σ0.comp σ) Y Z := by
+  simp only [glueLocT, ISub.comp_hom, ISub.comp_assoc]
+
+theorem glueLocE_comp {A Tp : V} {φ : Cof m} {k k1 : ℕ} (f : Hom k m) (σ0 : ISub k1 k) {k' : ℕ} (σ : ISub k' k1)
+    (X g g' : Tm) : glueLocE S A Tp φ (f.comp σ0.hom) k' σ X g g' = glueLocE S A Tp φ f k' (σ0.comp σ) X g g' := by
+  simp only [glueLocE, ISub.comp_hom]
+
+theorem cohGT_isub {A Tp : V} {φ : Cof m} {k k1 : ℕ} {f : Hom k m} {T : Tm} (h : cohGT S A Tp φ f T)
+    (σ0 : ISub k1 k) : cohGT S A Tp φ (f.comp σ0.hom) (T.isub σ0) := by
+  intro k' σ hn W hW k'' ρ
+  rw [Tm.isub_isub] at hW
+  have := h k' (σ0.comp σ) (by rwa [← ISub.comp_hom]) W hW k'' ρ
+  rw [glueLocT_comp, Tm.isub_isub, ← ISub.comp_assoc]; exact this
+
+theorem cohGE_isub {A Tp : V} {φ : Cof m} {k k1 : ℕ} {f : Hom k m} {T g : Tm} (h : cohGE S A Tp φ f T g)
+    (σ0 : ISub k1 k) : cohGE S A Tp φ (f.comp σ0.hom) (T.isub σ0) (g.isub σ0) := by
+  intro k' σ hn w hw k'' ρ
+  rw [Tm.isub_isub] at hw
+  have := h k' (σ0.comp σ) (by rwa [← ISub.comp_hom]) w hw k'' ρ
+  rw [glueLocE_comp, Tm.isub_isub, Tm.isub_isub, ← ISub.comp_assoc]; exact this
+
+/-- The relations of a Glue code at a restriction where its face does not hold. -/
+theorem Comp2_glueC_f {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
+    (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
+    (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f)) {k : ℕ} (f : Hom k m)
+    (hf : ¬ (φ.restr f).holds) :
+    Comp2 S (glueC m A φ Tp ep) m k f =
+      ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (glueC m A φ Tp ep) ∧
+          semK S k T' = res f (glueC m A φ Tp ep) ∧ TyEq S k T T') ∧
+          (∀ k' (σ : ISub k' k), glueLocT S A Tp φ f k' σ (T.isub σ) (T'.isub σ)) ∧
+          cohGT S A Tp φ f T ∧ cohGT S A Tp φ f T',
+        fun T g g' => EB S k T g g' ∧ semK S k g ∈ El (res f (glueC m A φ Tp ep)) (Hom.id k) ∧
+          EB S k T g g' ∧ (∀ k' (σ : ISub k' k), glueLocE S A Tp φ f k' σ (T.isub σ) (g.isub σ) (g'.isub σ)) ∧
+          cohGE S A Tp φ f T g ∧ cohGE S A Tp φ f T g'⟩ := by
+  have hG : glueC k (res f A) (φ.restr f) (res f Tp) (res f ep) = res f (glueC m A φ Tp ep) := by
+    rw [res_glueC hTp hTkv hφ f, if_neg hf]
+  rw [Comp2_glueC_at hφ hTp hTkv f, if_neg hf, Comp2_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr f) hf, hG,
+    res_id (isKV_res _ _)]
+  simp only [cohGT, cohGE, glueLocT_res (IsKV.ne_empty hA), glueLocE_res (IsKV.ne_empty hA), Hom.id_comp,
+    Cof.restr_restr]
 
 /-- Every pair of related types has the base clause. -/
 theorem Comp2_ty_base {X : V} {f : Hom k m} {T T' : Tm} (h : (Comp2 S X m k f).ty T T') :

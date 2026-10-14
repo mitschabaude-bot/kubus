@@ -132,25 +132,26 @@ theorem ps_closed {k : ℕ} {A ps : Tm} (hA : RedT S k A (.data Θ.idx ps)) (hAt
   have := closed_of_isTyK hW (hAt.of_tyEq hA.2)
   simpa [Tm.closedB] using this
 
+mutual
 /-- Related elements of an inductive type, swapped. -/
 theorem DR2_symm : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
     DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t' →
     (∀ k' (σ : ISub k' k) ps, RedT S k' (A.isub σ) (.data Θ.idx ps) → argRelH Θ f S k' (g.comp σ.hom) ps ps) →
-    DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t' t := by
-  intro k g A t t' hr
-  refine DR2.rec (motive_1 := fun k g A t t' _ =>
-      (∀ k' (σ : ISub k' k) ps, RedT S k' (A.isub σ) (.data Θ.idx ps) → argRelH Θ f S k' (g.comp σ.hom) ps ps) →
-      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t' t)
-    (motive_2 := fun k g A t t' _ => (∀ ps, RedT S k A (.data Θ.idx ps) → argRelH Θ f S k g ps ps) →
-      DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t' t) ?_ ?_ ?_ hr
-  · intro k g A t t' he _ ih hyp
-    exact .intro he.symm fun k' σ => ih k' σ fun ps hps => hyp k' σ ps hps
-  · intro k g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
-      hrec hpt ihrec hyp
+    DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t' t
+  | _, _, _, _, _, .intro he hh hc hc', hyp =>
+    .intro he.symm (fun k' σ => DR2At_symm (hh k' σ) fun ps hps => hyp k' σ ps hps) hc' hc
+
+/-- Related elements of an inductive type at a stage, swapped. -/
+theorem DR2At_symm : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
+    DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t' →
+    (∀ ps, RedT S k A (.data Θ.idx ps) → argRelH Θ f S k g ps ps) →
+    DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t' t
+  | k, g, A, t, t', .con (ps := ps) (c := c) (args := args) (args' := args') hm hm' heq hC hA hpl ht ht' hrs hrs'
+      hreq hsc hsc' hl hl' hrec hpt, hyp => by
     have hR := hyp ps hA
     have hpc : ps.closedB 0 k = true := ps_closed hW hA (isTyK_of_ty hW (HasTy.eqL heq))
     refine .con hm' hm heq.symm hC hA hpl ht' ht hrs' hrs (fun i r r' h1 h2 => I_eq_symm (hreq i r' r h2 h1))
-      hsc' hsc hl' hl (fun j hj' hj hr => ihrec j hj hj' hr (hypData f hR)) (fun j hj' hj hr => ?_)
+      hsc' hsc hl' hl (fun j hj' hj hr => DR2_symm (hrec j hj hj' hr) (hypData f hR)) (fun j hj' hj hr => ?_)
     have x := hpt j hj hj' hr
     have hsem := args_sem hW f hrec hpt (by omega)
     have hsemj : (args'.take j).map (semK S k) = (args.take j).map (semK S k) := by
@@ -170,10 +171,10 @@ theorem DR2_symm : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
     rw [hsemj]
     have y := P.symEl hty x
     exact P.conv hty y
-  · intro k g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu hyp
+  | k, g, A, t, t', .hcomp (ps := ps) hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu, hyp => by
     have hR := hyp ps hA
-    refine .hcomp hm' hm heq.symm hH hA hpl ht' ht hs' hs h21 h12 (iha (hypData f hR))
-      (fun k' σ r hr hh => ihu k' σ r hr ?_ ?_)
+    refine .hcomp hm' hm heq.symm hH hA hpl ht' ht hs' hs h21 h12 (DR2_symm ha (hypData f hR))
+      (fun k' σ r hr hh => DR2_symm (hu k' σ r hr ?_) ?_)
     · rw [holds_iff_entails (I.scoped_subst hs σ.sc)]
       exact ent_trans ((holds_iff_entails (I.scoped_subst hs' σ.sc)).1 hh) (ent_subst h21 σ.τ)
     · intro k'' σ' ps2 h
@@ -181,27 +182,26 @@ theorem DR2_symm : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
       obtain rfl := redT_data_eq h
       rw [Hom.comp_assoc, ← ISub.hom_comp]
       exact argRelH_isub Θ f hR (σ.comp σ')
+end
 
+mutual
 /-- Related elements of an inductive type compose. -/
-theorem DR2_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
-    DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t' → ∀ {t'' : Tm},
+theorem DR2_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' t'' : Tm},
+    DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t' →
     DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t' t'' →
     (∀ k' (σ : ISub k' k) ps, RedT S k' (A.isub σ) (.data Θ.idx ps) → argRelH Θ f S k' (g.comp σ.hom) ps ps) →
-    DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t'' := by
-  intro k g A t t' hr
-  refine DR2.rec (motive_1 := fun k g A t t' _ => ∀ {t'' : Tm},
-      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t' t'' →
-      (∀ k' (σ : ISub k' k) ps, RedT S k' (A.isub σ) (.data Θ.idx ps) → argRelH Θ f S k' (g.comp σ.hom) ps ps) →
-      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t'')
-    (motive_2 := fun k g A t t' _ => ∀ {t'' : Tm},
-      DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t' t'' →
-      (∀ ps, RedT S k A (.data Θ.idx ps) → argRelH Θ f S k g ps ps) →
-      DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t'') ?_ ?_ ?_ hr
-  · intro k g A t t' he _ ih t'' h2 hyp
-    cases h2 with
-    | intro he2 hh2 => exact .intro (he.trans he2) fun k' σ => ih k' σ (hh2 k' σ) fun ps hps => hyp k' σ ps hps
-  · intro k g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
-      hrec hpt ihrec t'' h2 hyp
+    DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t''
+  | _, _, _, _, _, _, .intro he hh hc _, .intro he2 hh2 _ hc2, hyp =>
+    .intro (he.trans he2) (fun k' σ => DR2At_trans (hh k' σ) (hh2 k' σ) fun ps hps => hyp k' σ ps hps) hc hc2
+
+/-- Related elements of an inductive type at a stage compose. -/
+theorem DR2At_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' t'' : Tm},
+    DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t' →
+    DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t' t'' →
+    (∀ ps, RedT S k A (.data Θ.idx ps) → argRelH Θ f S k g ps ps) →
+    DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t''
+  | k, g, A, t, t', t'', .con (ps := ps) (c := c) (C := C) (args := args) (args' := args') (rs' := rs') hm hm' heq hC hA hpl ht ht'
+      hrs hrs' hreq hsc hsc' hl hl' hrec hpt, h2, hyp => by
     have hR := hyp ps hA
     have hpc : ps.closedB 0 k = true := ps_closed hW hA (isTyK_of_ty hW (HasTy.eqL heq))
     cases h2 with
@@ -224,7 +224,7 @@ theorem DR2_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
           refine ⟨rs'[i]'?_, List.getElem?_eq_getElem _⟩
           have := (List.getElem?_eq_some_iff.1 h1).1; omega
         exact I_eq_trans (hreq i r r' h1 h2) (hreq2 i r' r'' h2 h3)
-      · exact ihrec j hj (by omega) hr (hrec2 j (by omega) hj'' hr) (hypData f hR)
+      · exact DR2_trans (hrec j hj (by omega) hr) (hrec2 j (by omega) hj'' hr) (hypData f hR)
       · have x := hpt j hj (by omega) hr
         have y := hpt2 j (by omega) hj'' hr
         have hsem := args_sem hW f hrec hpt (by omega)
@@ -244,7 +244,7 @@ theorem DR2_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
         unfold dataP2 at x y ⊢
         rw [hsemj] at y
         exact P.transEl hty x (P.conv (P.symTy hty) y)
-  · intro k g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu t'' h2 hyp
+  | k, g, A, t, t', t'', .hcomp (ps := ps) hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu, h2, hyp => by
     have hR := hyp ps hA
     cases h2 with
     | con _ _ _ _ _ _ ht2 =>
@@ -257,7 +257,7 @@ theorem DR2_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
       simp only [Tm.data.injEq] at e2
       obtain ⟨-, rfl⟩ := e2
       refine .hcomp hm hm2' (heq.trans heq2) hH hA hpl ht ht2' hs hs2' (ent_trans h12 h122) (ent_trans h212 h21)
-        (iha ha2 (hypData f hR)) (fun k' σ r hr hh => ihu k' σ r hr hh (hu2 k' σ r hr ?_) ?_)
+        (DR2_trans ha ha2 (hypData f hR)) (fun k' σ r hr hh => DR2_trans (hu k' σ r hr hh) (hu2 k' σ r hr ?_) ?_)
       · rw [holds_iff_entails (I.scoped_subst hs' σ.sc)]
         exact ent_trans ((holds_iff_entails (I.scoped_subst hs σ.sc)).1 hh) (ent_subst h12 σ.τ)
       · intro k'' σ' ps2 h
@@ -265,6 +265,7 @@ theorem DR2_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
         obtain rfl := redT_data_eq h
         rw [Hom.comp_assoc, ← ISub.hom_comp]
         exact argRelH_isub Θ f hR (σ.comp σ')
+end
 
 /-- A related prefix of arguments is related to itself. -/
 theorem prefix_refl {k : ℕ} {g : Hom k k0} {ps : Tm} (hR : argRelH Θ f S k g ps ps) (hpc : ps.closedB 0 k = true)
@@ -319,10 +320,14 @@ theorem DR2_conv : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
       (∀ ps, RedT S k A (.data Θ.idx ps) →
         argRelH Θ f S k g ps ps' ∧ argRelH Θ f S k g ps ps ∧ argRelH Θ f S k g ps' ps') →
       DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A' t t') ?_ ?_ ?_ hr
-  · intro k g A t t' he _ ih A' hE hyp hex
-    refine .intro (he.tyConv hE) fun k' σ => ?_
-    obtain ⟨ps', hps', hpl'⟩ := hex k' σ
-    exact ih k' σ (hE.isub hW σ) hps' hpl' fun ps hps => hyp k' σ ps ps' hps hps'
+  · intro k g A t t' he _ _ _ ih ihc ihc' A' hE hyp hex
+    refine .intro (he.tyConv hE) (fun k' σ => ?_) (fun k' σ w hw k'' ρ => ?_) (fun k' σ w hw k'' ρ => ?_)
+    · obtain ⟨ps', hps', hpl'⟩ := hex k' σ
+      exact ih k' σ (hE.isub hW σ) hps' hpl' fun ps hps => hyp k' σ ps ps' hps hps'
+    · obtain ⟨ps', hps', hpl'⟩ := hex k'' (σ.comp ρ)
+      exact ihc k' σ w hw k'' ρ (hE.isub hW _) hps' hpl' fun ps hps => hyp k'' (σ.comp ρ) ps ps' hps hps'
+    · obtain ⟨ps', hps', hpl'⟩ := hex k'' (σ.comp ρ)
+      exact ihc' k' σ w hw k'' ρ (hE.isub hW _) hps' hpl' fun ps hps => hyp k'' (σ.comp ρ) ps ps' hps hps'
   · intro k g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
       hrec hpt ihrec A' ps' hE hA' hpl' hyp
     obtain ⟨hR, hRd, hRd'⟩ := hyp ps hA
