@@ -132,22 +132,6 @@ structure DataHyp2 (S S' : Sig) : Prop where
       Valid2 S Ψ Φ Γ b b' (D.branchTy d c C ps P)) →
     Valid2 S Ψ Φ Γ t t' (.data d ps) →
     Valid2 S Ψ Φ Γ (.elim d ps P bs t) (.elim d ps' P' bs' t') (P.inst t)
-  dataInj : ∀ {Ψ Φ Γ d D ps ps' l}, S'[d]? = some (.data D) →
-    HasTele0 S Ψ Φ Γ ps D.params [] → HasTele0 S Ψ Φ Γ ps' D.params [] →
-    EqTm0 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ l) →
-    VTele2 S Ψ Φ Γ ps ps D.params [] → VTele2 S Ψ Φ Γ ps' ps' D.params [] →
-    Valid2 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ l) →
-    VTele2 S Ψ Φ Γ ps ps' D.params []
-  dataInjAt : ∀ {Ψ Φ Γ d} {D : DataDecl} {ps ps' : Tm} {l k : ℕ} {p p' A : Tm}, S'[d]? = some (.data D) →
-    ps = Tm.ofList ps.toList → ps' = Tm.ofList ps'.toList →
-    EqTm0 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ l) →
-    ps.toList[k]? = some p → ps'.toList[k]? = some p' → D.params[k]? = some A →
-    HasTy0 S Ψ Φ Γ p (A.substList (ps.toList.take k).reverse) →
-    HasTy0 S Ψ Φ Γ p' (A.substList (ps.toList.take k).reverse) →
-    Valid2 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ l) →
-    Valid2 S Ψ Φ Γ p p (A.substList (ps.toList.take k).reverse) →
-    Valid2 S Ψ Φ Γ p' p' (A.substList (ps.toList.take k).reverse) →
-    Valid2 S Ψ Φ Γ p p' (A.substList (ps.toList.take k).reverse)
   conBnd : ∀ {Ψ Φ Γ d D c C ps args rs} {k : ℕ} {ψ b T}, S'[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C →
     C.bnd[k]? = some (ψ, b) → I.Entails Φ (Ctor.cofAt ψ rs) →
     ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →

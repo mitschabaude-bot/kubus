@@ -468,6 +468,77 @@ theorem parRel2_of {P : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ
     exact hgen _ heq'.symm
   · rename_i heq; rw [List.getElem?_eq_getElem hjD] at heq; cases heq
 
+omit hW hD hH in
+theorem paramEntry_point {σv : SigV} {j n : ℕ} {psv : V} {A : Tm} (hA : D.params[j]? = some A)
+    (hu : ¬ ∃ kk, A = .univ kk ∧ kk ≤ D.level) :
+    paramEntry σv D j n psv = ZFSet.pair (natZ 0) (paramTyC σv A j n psv) := by
+  unfold paramEntry
+  rw [hA]
+  cases A with
+  | univ kk => simp only [show ¬ kk ≤ D.level from fun h => hu ⟨kk, rfl, h⟩, if_false]
+  | _ => rfl
+
+omit hH in
+/-- The parameter clause of a literal inductive type, back to related parameters. -/
+theorem parRel2_inv {P : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ l)) (hpl : P = Tm.ofList P.toList)
+    {k' : ℕ} (σ : ISub k' k) {ps' : Tm} (h : parRel2 S (ΘK S D d k P) (Hom.id k) k' σ (P.isub σ) ps')
+    (hty : ∀ t ∈ (P.isub σ).toList, ∃ T, HasTy S k' .one [] t T)
+    {j : ℕ} {p p' A : Tm} (hp : (P.isub σ).toList[j]? = some p) (hp' : ps'.toList[j]? = some p')
+    (hA : D.params[j]? = some A)
+    (he : ∀ kk, A = .univ kk → EqTm S k' .one [] p p' (.univ kk)) :
+    RE2 S k' (A.substList ((P.isub σ).toList.take j).reverse) p p' := by
+  have hjD : j < D.params.length := (List.getElem?_eq_some_iff.1 hA).1
+  have hAj : D.params[j] = A := by rw [List.getElem?_eq_getElem hjD] at hA; exact Option.some.inj hA
+  have hPσ : HasTy S k' .one [] (.data d (P.isub σ)) (.univ l) := HasTy.isubS hW hP σ
+  have hplσ : P.isub σ = Tm.ofList (P.isub σ).toList := isList_subst hpl _ _
+  have hlenσ : (P.isub σ).toList.length = D.params.length := by
+    have := data_len_of hW (⟨l, .inl hPσ⟩ : IsTyK S k' _); rwa [dataD_eq hW hD] at this
+  have hjP : j < (P.isub σ).toList.length := by omega
+  have hnat : ∀ t ∈ (P.isub σ).toList, Natural S t k' (idEnv k') (γ0 k') := fun t ht => by
+    obtain ⟨T, hT⟩ := hty t ht; exact natural_of_ty hW hT
+  have hent : parEntry (ΘK S D d k P) (Hom.id k) k' σ j =
+      paramEntry (sigUpTo S d) D j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')) := by
+    unfold parEntry
+    rw [Hom.id_comp, ΘK_restr P σ]
+    show vnth (vlist ((List.range D.params.length).map fun j => paramEntry (sigUpTo S d) D j k'
+      (psRV S (P.isub σ) k' (idEnv k') (γ0 k') k' (Hom.id k')))) j = _
+    rw [vnth_vlist_lt _ _ (by simpa using hjD)]
+    simp only [List.getElem_map, List.getElem_range, psRV, IEnv.restr_id, γ0_restr]
+  have H := h j p p' hp hp'
+  rw [hent] at H
+  simp only [show (ΘK S D d k P).idx = d from rfl, dataD_eq hW hD] at H
+  have ep : (P.isub σ).toList[j] = p := (List.getElem?_eq_some_iff.1 hp).2
+  by_cases hu : ∃ kk, A = .univ kk ∧ kk ≤ D.level
+  · obtain ⟨kk, rfl, hkk⟩ := hu
+    have e : paramEntry (sigUpTo S d) D j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')) =
+        ZFSet.pair (natZ 1) (vnth (sem S (P.isub σ) k' (idEnv k') (γ0 k')) j) := by
+      unfold paramEntry; rw [hA]; simp only [hkk, if_true]
+    rw [e] at H
+    simp only [π1_pair, π2_pair] at H
+    have hrt := H.1 trivial
+    rw [sem_vnth _ _ _ j hjP, ep] at hrt
+    show RE2 S k' (.univ kk) _ _
+    have he' := he kk rfl
+    exact RE2_univ_of hW ⟨HasTy.eqL he', HasTy.eqR he', he'⟩ hrt
+  · rw [paramEntry_point hA hu] at H
+    simp only [π1_pair, π2_pair] at H
+    have H2 := (H.2 trivial A hA).2
+    rw [← hAj, paramTyC_eq hW hD hplσ hlenσ hnat j hjD] at H2
+    rw [← hAj]
+    exact H2
+
+omit hH in
+/-- Related literal inductive types have parameter clauses at every restriction. -/
+theorem parRel2_of_RT2 {P Q : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ l))
+    (h : RT2 S k (.data d P) (.data d Q)) {k' : ℕ} (σ : ISub k' k) :
+    parRel2 S (ΘK S D d k P) (Hom.id k) k' σ (P.isub σ) (Q.isub σ) := by
+  unfold RT2 at h
+  rw [semK_dataT hW hD hP, Comp2_dataC] at h
+  obtain ⟨ps1, ps2, h1, h2, -, -, -, -, -, -, hpar⟩ := h.2.1 k' σ
+  obtain rfl := redT_data_eq (Θ := ΘK S D d k P) h1
+  obtain rfl := redT_data_eq (Θ := ΘK S D d k P) h2
+  exact hpar
+
 omit hD hH in
 theorem ListEq.of_parRel2 {ps ps' : List Tm} (h : ParRel2 S k D ps ps') :
     ListEq S k ps ps ∧ ListEq S k ps ps' := by
@@ -563,6 +634,23 @@ theorem VTele2.left {Ψ : ℕ} {Φ : I} {Γ : Ctx} : ∀ {ts ts' : Tm} {Δ prev 
   | .tnil, .tcons _ _, _, _, h => by cases h
   | .tcons _ _, .tnil, _, _, h => by cases h
   | .tcons _ _, .tcons _ _, [], _, h => h.elim
+
+omit hW hD hH in
+/-- Related telescopes from related components. -/
+theorem VTele2.ofList {Ψ : ℕ} {Φ : I} {Γ : Ctx} : ∀ (L L' Δ prev : List Tm), L.length = Δ.length → L'.length = Δ.length →
+    (∀ j (hj : j < L.length) (hj' : j < L'.length) (hΔ : j < Δ.length),
+      Valid2 S Ψ Φ Γ L[j] L'[j] (Δ[j].substList ((L.take j).reverse ++ prev))) →
+    VTele2 S Ψ Φ Γ (Tm.ofList L) (Tm.ofList L') Δ prev
+  | [], [], [], _, _, _, _ => trivial
+  | a :: L, a' :: L', A :: Δ, prev, hl, hl', h =>
+    ⟨by simpa using h 0 (by simp) (by simp) (by simp),
+      VTele2.ofList L L' Δ (a :: prev) (by simpa using hl) (by simpa using hl') fun j hj hj' hΔ => by
+        simpa [List.take_succ_cons, List.reverse_cons, List.append_assoc] using
+          h (j + 1) (by simp; omega) (by simp; omega) (by simp; omega)⟩
+  | [], [], _ :: _, _, hl, _, _ => by simp at hl
+  | [], _ :: _, _, _, hl, hl', _ => by simp at hl hl'; omega
+  | _ :: _, [], _, _, hl, hl', _ => by simp at hl hl'; omega
+  | _ :: _, _ :: _, [], _, hl, _, _ => by simp at hl
 
 omit hW hD hH in
 theorem VTele2.shape {Ψ : ℕ} {Φ : I} {Γ : Ctx} : ∀ {ts ts' : Tm} {Δ prev : List Tm}, VTele2 S Ψ Φ Γ ts ts' Δ prev →
@@ -709,6 +797,87 @@ theorem valid_con_nonHIT (hHIT : D.isHIT = false) {Ψ : ℕ} {Φ : I} {Γ : Ctx}
   rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_map,
     List.getElem?_eq_getElem hi0, List.getElem?_eq_getElem hi0']
   exact h
+
+omit hH in
+/-- **Injectivity of inductive types** at a parameter (the equation of the parameters is needed where
+they are types, as the relation at a universe includes it). -/
+theorem valid_dataInjAt {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' : Tm} {l j : ℕ} {p p' A : Tm}
+    (hpl : ps = Tm.ofList ps.toList) (hpl' : ps' = Tm.ofList ps'.toList)
+    (hdeq : EqTm0 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ l))
+    (hj : ps.toList[j]? = some p) (hj' : ps'.toList[j]? = some p') (hA : D.params[j]? = some A)
+    (heq : ∀ kk, A = .univ kk → EqTm0 S Ψ Φ Γ p p' (.univ kk))
+    (hvd : Valid2 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ l))
+    (hvp : Valid2 S Ψ Φ Γ p p (A.substList (ps.toList.take j).reverse)) :
+    Valid2 S Ψ Φ Γ p p' (A.substList (ps.toList.take j).reverse) := by
+  intro k c
+  refine ⟨(hvp k c).1, ?_⟩
+  have hjD : j < D.params.length := (List.getElem?_eq_some_iff.1 hA).1
+  have hjp : j < ps.toList.length := (List.getElem?_eq_some_iff.1 hj).1
+  have hdT : HasTy S k .one [] (.data d (c.L ps)) (.univ l) := c.ty hW (presup hW hdeq).1
+  have hpc : (c.L ps).closedB 0 k = true := by
+    have := closed_of_ty hW hdT; simpa [Tm.closedB] using this
+  have hpc' : (c.R ps').closedB 0 k = true := by
+    have := closed_of_ty hW (c.tyR' hW (presup hW hdeq).2); simpa [Tm.closedB] using this
+  have hpar := parRel2_of_RT2 hW hD hdT (hvd.ty hW c) (ISub.id k)
+  rw [isub_id_of_closed hpc'] at hpar
+  -- the elements of the left parameters are typed
+  obtain ⟨D', hD', htele⟩ := gen_data_tele (presup hW hdeq).1 rfl
+  rw [hD] at hD'; cases hD'
+  have hty : ∀ t ∈ ((c.L ps).isub (ISub.id k)).toList, ∃ T, HasTy S k .one [] t T := by
+    rw [isub_id_of_closed hpc]
+    intro t ht
+    have : (c.L ps).toList = ps.toList.map c.L := toList_subst hpl _ _
+    rw [this] at ht
+    obtain ⟨a, ha, rfl⟩ := List.mem_map.1 ht
+    obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ha
+    have hiD : i < D.params.length := by
+      have := Meta.tele_length htele; simp at this; omega
+    exact ⟨_, c.ty hW (tele_get htele i _ _ (List.getElem?_eq_getElem hi) (List.getElem?_eq_getElem hiD))⟩
+  have hLj : ((c.L ps).isub (ISub.id k)).toList[j]? = some (c.L p) := by
+    rw [isub_id_of_closed hpc]
+    show (ps.subst _ _).toList[j]? = _
+    rw [toList_subst hpl, List.getElem?_map, hj]; rfl
+  have hRj : (c.R ps').toList[j]? = some (c.R p') := by
+    show (ps'.subst _ _).toList[j]? = _
+    rw [toList_subst hpl', List.getElem?_map, hj']; rfl
+  have hcl : A.closedB ((ps.toList.take j).reverse).length 0 = true := by
+    have := params_closed (sigClosed_of_wfSig hW) hD j A hA
+    simpa [Nat.min_eq_left hjp.le] using this
+  have e3 : c.L (A.substList (ps.toList.take j).reverse) =
+      A.substList (((c.L ps).isub (ISub.id k)).toList.take j).reverse := by
+    rw [isub_id_of_closed hpc]
+    show (A.substList _).subst c.γ c.σ.τ = _
+    rw [substList_subst hcl, List.map_reverse, List.map_take, ← toList_subst hpl]
+  rw [e3]
+  exact parRel2_inv hW hD hdT (isList_subst hpl _ _) (ISub.id k) hpar hty hLj hRj hA
+    fun kk hk => c.eq hW (heq kk hk)
+
+omit hH in
+/-- **Injectivity of inductive types**. -/
+theorem valid_dataInj {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' : Tm} {l : ℕ}
+    (ht : HasTele0 S Ψ Φ Γ ps D.params []) (ht' : HasTele0 S Ψ Φ Γ ps' D.params [])
+    (hdeq : EqTm0 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ l))
+    (hv : VTele2 S Ψ Φ Γ ps ps D.params []) (hvd : Valid2 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ l)) :
+    VTele2 S Ψ Φ Γ ps ps' D.params [] := by
+  have hpl := tele_isList ht
+  have hpl' := tele_isList ht'
+  have hl : ps.toList.length = D.params.length := by simpa using Meta.tele_length ht
+  have hl' : ps'.toList.length = D.params.length := by simpa using Meta.tele_length ht'
+  have hu : ∀ (kk : ℕ) (L : List Tm), (Tm.univ kk).substList L = .univ kk := fun _ _ => rfl
+  rw [hpl, hpl']
+  refine VTele2.ofList _ _ _ _ hl hl' fun j hj hj' hΔ => ?_
+  have hjv := VTele2.get hv j hj hj hΔ
+  have hA : D.params[j]? = some D.params[j] := List.getElem?_eq_getElem hΔ
+  rw [List.append_nil] at hjv ⊢
+  refine valid_dataInjAt hW hD hpl hpl' hdeq (List.getElem?_eq_getElem hj) (List.getElem?_eq_getElem hj') hA
+    (fun kk hk => ?_) hvd hjv
+  have p1 := tele_get ht j _ _ (List.getElem?_eq_getElem hj) hA
+  have p2 := tele_get ht' j _ _ (List.getElem?_eq_getElem hj') hA
+  rw [hk, hu] at p1 p2
+  have hA' : D.params[j]? = some (.univ kk) := by rw [hA, hk]
+  have e := EqTm0.dataInjAt hD hpl hpl' hdeq (List.getElem?_eq_getElem hj) (List.getElem?_eq_getElem hj') hA'
+    (by rw [hu]; exact p1) (by rw [hu]; exact p2)
+  rwa [hu] at e
 
 end
 

@@ -152,7 +152,7 @@ theorem fund2_eqtele {Ψ Φ Γ ts ts' Δ prev} (hd : EqTele0 S' Ψ Φ Γ ts ts' 
   | .nil _ => trivial
   | .cons h0 h1 => ⟨fund2_eq h0, fund2_eqtele h1⟩
   | .dataInj h0 h1 h2 h3 =>
-    hDa.dataInj h0 (sigwk_tele hpre h1) (sigwk_tele hpre h2) (sigwk_eq hpre h3) (fund2_tele h1) (fund2_tele h2)
+    valid_dataInj hW (hpre _ _ h0) (sigwk_tele hpre h1) (sigwk_tele hpre h2) (sigwk_eq hpre h3) (fund2_tele h1)
       (fund2_eq h3)
 termination_by structural hd
 
@@ -564,8 +564,8 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     have p := pre2 hW hpre (.ipiInj h0 h1)
     exact valid_ipiInj hW (fund2_eq h0) h1 p.1 p.2 (sigwk_eq hpre (.ipiInj h0 h1))
   | .dataInjAt h0 h1 h2 h3 h4 h5 h6 h7 h8 =>
-    hDa.dataInjAt h0 h1 h2 (sigwk_eq hpre h3) h4 h5 h6 (sigwk_ty hpre h7) (sigwk_ty hpre h8) (fund2_eq h3)
-      (fund2_ty h7) (fund2_ty h8)
+    valid_dataInjAt hW (hpre _ _ h0) h1 h2 (sigwk_eq hpre h3) h4 h5 h6
+      (fun kk hk => by subst hk; exact sigwk_eq hpre (.dataInjAt h0 h1 h2 h3 h4 h5 h6 h7 h8)) (fund2_eq h3) (fund2_ty h7)
   | .noConf h0 h1 _ _ => valid_noConf hW h0 (fund2_eq h1)
   | .piBeta h0 => valid_piBeta hW (fund2_ty h0) (sigwk_ty hpre h0) (pre2 hW hpre (.piBeta h0)).2
   | .piEta h0 => valid_piEta hW (fund2_ty h0) (sigwk_ty hpre h0) (pre2 hW hpre (.piEta h0)).2
