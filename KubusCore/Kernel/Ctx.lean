@@ -105,43 +105,6 @@ def canonOf (Ψ : Nat) (Φ : I) (fs : List I.Face) (hfs : fs = Φ.faces) :
 
 end Kernel
 
-namespace Kernel
-
-/-- `t` with interval variable 0 removed (only meaningful if `t` does not mention it). -/
-def lowerI (t : Tm) : Tm := t.dsubst fun i => .var (i - 1)
-
-/-- The data of strengthening a context by its interval variable 0: the smaller context
-`Ψ'; Φ'; Γ'` (with the restriction weakened to its literals on the other variables). -/
-structure StrData (Ψ : Nat) (Φ : I) (Γ : Ctx) where
-  Ψ' : Nat
-  Φ' : I
-  Γ' : Ctx
-  hΨ : Ψ = Ψ' + 1
-  hΓ : Γ'.dshift = Γ
-  hent : I.Entails Φ Φ'.shift
-  hs' : Φ'.Scoped Ψ'
-
-/-- The strengthening data, if `Γ` does not mention interval variable 0. -/
-def strDataOf (Ψ : Nat) (Φ : I) (Γ : Ctx) (fs : List I.Face) (hfs : fs = Φ.faces) :
-    Option (StrData Ψ Φ Γ) :=
-  match Ψ with
-  | 0 => none
-  | k + 1 =>
-    if Γ.any (·.mentionsI 0) then none else
-    let Γ' : Ctx := Γ.map lowerI
-    if hΓ : Γ'.dshift = Γ then
-      let Φ' := I.ofFaces (fs.map fun f => (f.filter (·.1 != 0)).map fun (i, d) => (i - 1, d))
-      if hent : (fs.all fun c => Φ'.shift.faces.any fun d => d.all (c.contains ·)) = true then
-        if hs : Φ'.Scoped k then
-          some ⟨k, Φ', Γ', rfl, hΓ, by
-            show I.entails Φ Φ'.shift = true
-            unfold I.entails; rw [← hfs]; exact hent, hs⟩
-        else none
-      else none
-    else none
-
-end Kernel
-
 structure KCtx (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) where
   sig : SigInfo S
   /-- the restriction is known to be in canonical form (a hint only: it lets the kernel skip
@@ -153,7 +116,6 @@ structure KCtx (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) where
   /-- the canonical form of the restriction, computed once (`none`: keep `Φ`) -/
   cn : Thunk (Option ((Φ' : I) × Kernel.Equiv' Ψ Φ Φ'))
   /-- strengthening by interval variable 0, computed once -/
-  sd : Thunk (Option (Kernel.StrData Ψ Φ Γ))
   lv : List Nat
   wf : Wf S Ψ Φ Γ
   hsc : Φ.Scoped Ψ
@@ -169,7 +131,6 @@ def root (sig : SigInfo S) : KCtx S 0 .one [] where
   fs := Thunk.mk fun _ => I.faces .one
   hfs := rfl
   cn := Thunk.pure none
-  sd := Thunk.pure none
   lv := []
   wf := Wf.nil trivial
   hsc := trivial
@@ -187,7 +148,6 @@ def ext {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat) (hA : HasTy S Ψ Φ 
   fs := E.fs
   hfs := E.hfs
   cn := E.cn
-  sd := Thunk.mk fun _ => Kernel.strDataOf Ψ Φ (A :: Γ) E.fs.get E.hfs
   lv := l :: E.lv
   wf := Wf.cons hA
   hsc := E.hsc
@@ -221,7 +181,6 @@ def dext {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : KCtx S (Ψ + 1) Φ.shift Γ.dshift :
     fs := fs
     hfs := rfl
     cn := Thunk.mk fun _ => Kernel.canonOf (Ψ + 1) Φ.shift fs.get rfl
-    sd := Thunk.mk fun _ => Kernel.strDataOf (Ψ + 1) Φ.shift Γ.dshift fs.get rfl
     lv := E.lv
     wf := E.wf.dwk E.hsc
     hsc := I.scoped_shift E.hsc
@@ -248,7 +207,6 @@ def restrict {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (Φ' : I) (hs : Φ'.Scoped Ψ) (he
     fs := fs
     hfs := rfl
     cn := Thunk.mk fun _ => Kernel.canonOf Ψ Φ' fs.get rfl
-    sd := Thunk.mk fun _ => Kernel.strDataOf Ψ Φ' Γ fs.get rfl
     lv := E.lv
     wf := E.wf.restrict hs he
     hsc := hs

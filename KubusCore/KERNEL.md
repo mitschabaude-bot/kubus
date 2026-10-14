@@ -17,6 +17,8 @@ Nothing in `KubusCore/Kernel/` is trusted. All kernel functions are total (recur
 
 The bridge `Kubus/Bridge.lean` is not trusted either: it produces KubusCore terms, which the kernel checks.
 
+The kernel uses the metatheory (`KubusCore/Meta`, proven, imported into the kernel): when the signature is known to be well-formed (`SigInfo.wf`, from the `CheckedSig`), a full-spec derivation is moved to the minimal judgments (`Meta.spec_to_minimal`), a generation or renaming theorem is applied, and the result is moved back (`Meta.minimal_to_spec`). Its conclusions are propositions, so they are used only where the kernel needs no witnesses from them.
+
 The cache (see Memoization) compares terms with Lean core's `withPtrEq`, which is logically the structural comparison; its pointer-equality shortcut is part of Lean's runtime, like the compiler.
 
 ## Architecture
@@ -62,6 +64,14 @@ Nested systems make the syntactic restriction `Φ ∧ φ₁ ∧ φ₂ …` grow,
 ### Memoization
 
 `infer`, `check`, `whnf`, `whnfI`, `conv` and the premises of eliminators (`inferElimInfo`) store their results, derivations included, in a cache keyed by the context and the terms (`Cache` in `Basic.lean`). A lookup compares the keys structurally, which yields the equations along which the cached derivation is transported; nothing is trusted. A result derived under a weaker restriction `Φ₀` is reused under `Φ` when `Φ ⊨ Φ₀` (decided with the cached faces), moved by the restriction rule. For weak-head normal forms this is done only if the result is a canonical form (Π, Σ, a path type, λ, a pair, `data`, a constructor without interval arguments, …), which no stronger restriction reduces further, so reuse cannot make the kernel less complete. Variables, constants, weak-head reduction of canonical forms and conversion of identical terms bypass the cache. The cache lives for one definition (its translation and its check).
+
+### Typed facts
+
+Reduction produces terms that are known to be typed (the contractum of a typed redex, the heads of the eliminations being reduced, the terms being compared), at a type the kernel may not know. `noteTyped` records `∃ T, t : T` for such terms and, by the generation lemmas (`Meta.gen_elimHead`, `gen_hcomp`, `gen_transpF`, `gen_pi`, `gen_sigma`, `gen_path`), for their subterms in the same restriction. Inferring a composition or transport that is known to be typed then reads the premises (the tube, the base, the boundary agreement, the constancy of the line on `φ`) off the generation lemma instead of checking them; only the level of the type is inferred.
+
+### Judgments in the smallest context
+
+The contracta of the Kan operations bind many interval variables around subterms that mention few of them, so the same judgment recurs in many contexts. `infer` and `conv` first move the judgment to the context of just the variables it mentions (term variables closed under the dependencies of their types, the interval variables of all of these, the restriction projected onto them), derive it there, and rename the result back by the renaming theorem (`Meta.ren_ty`, `Meta.ren_eq`; `Rename.lean`). The kernel checks the conditions of the renaming (injectivity and bounds of the interval renaming, entailment of the restriction, the context lookups) and that renaming the small terms gives back the terms. The cache keyed by the small context shares the result between all the contexts the judgment occurs in. If the small derivation fails, the judgment is derived in the full context.
 
 ## The bridge
 
