@@ -488,7 +488,7 @@ theorem near_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → ∀ {t'}, TmNear t t'
         have X := EqTm0.trans (EqTm0.symm eA) (EqTm0.trans hco eB)
         have T := ctxConv_branch hS hW h0 hC hpres h3 es edata eP hΞ he
         have X' := (sub_eq hS X).2 T
-        have eBody := (sub_eq hS (body_congr hS hW h0 hC hpres h3 es edata eP hw he)).2 T
+        have eBody := (sub_eq hS (body_congrN hS hW h0 hC hpres h3 es edata eP hw he)).2 T
         rw [subst_var, subst_var, subst_var] at X'
         rw [subst_var, subst_var] at eBody
         exact EqTm0.conv X' eBody

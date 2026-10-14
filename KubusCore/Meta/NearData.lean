@@ -126,9 +126,9 @@ theorem params_tele (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} (
   rw [List.getD_eq_getElem?_getD, ha] at this
   simpa using this
 
-theorem tele_isList {Ψ Φ Γ} : ∀ {ts Δ prev}, HasTele0 S Ψ Φ Γ ts Δ prev → ts = Tm.ofList ts.toList
+theorem tele_isListN {Ψ Φ Γ} : ∀ {ts Δ prev}, HasTele0 S Ψ Φ Γ ts Δ prev → ts = Tm.ofList ts.toList
   | _, _, _, .nil _ => rfl
-  | _, _, _, .cons _ h1 => by simp only [Tm.toList, Tm.ofList]; rw [← tele_isList h1]
+  | _, _, _, .cons _ h1 => by simp only [Tm.toList, Tm.ofList]; rw [← tele_isListN h1]
 
 /-! ## Constructor arguments -/
 
@@ -147,7 +147,7 @@ theorem args_near (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c 
     have := tele_length hat; rwa [argTys_length] at this
   have hal' : args'.toList.length = C.args.length := by
     have := eas.length'; rwa [argTys_length] at this
-  have hpsL := tele_isList ht
+  have hpsL := tele_isListN ht
   have hpsL' := es.isList'
   have h0 : ∀ σ, TySub S 0 .one [] Ψ Φ Γ σ I.var :=
     fun σ => tySub_nil (fun i hi => absurd hi (Nat.not_lt_zero _)) (ent_one _) hw
