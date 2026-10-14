@@ -526,6 +526,32 @@ theorem hfill_one_pt {A v v0 : Tm} {φ : I} (hφs : φ.Scoped k) (hX : TyCode k 
     rw [Tm.isub_isub A, Tm.isub_isub v0, Tm.isub_isub v, ← ISub.up_comp]
     exact RE2.symm hW (RT2.isub hW hX hAA _) (hbd k4 (τ.comp σ2) hh4)
 
+/-- The tube of a heterogeneous composition is typed at the points of its line where its face holds. -/
+theorem comp_tube_typed {C u u0 X : Tm} {ψ : I} (h : HasTy S k .one [] (Tm.comp C ψ u u0) X) {k3 : ℕ} (σ : ISub k3 k)
+    (x : I) (hx : x.Scoped k3) (hh : (ival (idEnv k3) (ψ.subst σ.τ)).holds) :
+    HasTy S k3 .one [] ((u.isub σ.up).dinst x) (C.isub (ISub.cons x hx σ)) := by
+  have hS := sigClosed_of_wfSig hW
+  have hm := spec_to_minimal hW h
+  rw [comp_eq] at hm
+  obtain ⟨l1, ⟨-, hψ, htube, hb, -⟩, -⟩ := gen_hcomp hm rfl
+  obtain ⟨lC, ⟨hC, -, -, -⟩, -⟩ := gen_transpF hb rfl
+  obtain ⟨lL, ⟨-, -, -, hu⟩, -⟩ := gen_transpF htube rfl
+  have h1 := HasTy0.isub hS hu (Ψ' := k3) (Φ' := .one) (τ := (ISub.cons x hx σ).τ)
+    (fun i hi => (ISub.cons x hx σ).sc i hi) (ent_cof_cons hW hψ x hx σ hh) (Wf0.nil trivial)
+  have h2 : HasTy S k3 .one [] ((u.isub σ.up).dinst x)
+      ((((C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))).dinst .zero)).isub (ISub.cons x hx σ)) := by
+    rw [isub_up_dinst _ σ x hx]; exact minimal_to_spec h1
+  refine h2.tyConv (tyEq_ieq hW hC (τ1 := fun i => ((Tm.bind2 (.or (.var 1) (.var 0)) i).subst (I.inst0 .zero)).subst
+    (ISub.cons x hx σ).τ) (τ2 := (ISub.cons x hx σ).τ) (fun i hi => ?_) (fun i hi => (ISub.cons x hx σ).sc i hi)
+    (fun i hi => ?_) (by
+      simp only [Tm.isub, Tm.dinst, Tm.dsubst, subst_subst]; exact subst_congr (fun _ => rfl) (fun _ => rfl) C) rfl)
+  · rcases i with _ | i
+    · exact ⟨hx, trivial⟩
+    · exact σ.sc i (by omega)
+  · rcases i with _ | i
+    · exact I_eq_or_zero_r x
+    · exact I_eq_refl _
+
 end
 
 end Model.Whnf
