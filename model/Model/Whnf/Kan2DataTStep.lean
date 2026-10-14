@@ -26,9 +26,13 @@ def tOuts (d : ℕ) (D : DataDecl) (C : Ctor) (ps : Tm) (φ : I) (X : List Tm) :
   (List.range C.args.length).map fun j =>
     Tm.transp (Meta.tLine (C.argTy d D.params.length) ps.toList φ X j) φ (X.getD j .abort)
 
+/-- The contractum of `transpCon`, at a constructor with interval arguments `rs`. -/
+def tConR (d : ℕ) (D : DataDecl) (c : ℕ) (C : Ctor) (ps : Tm) (φ : I) (X : List Tm) (rs : List I) : Tm :=
+  .con d c (ps.dinst .one) (Tm.ofList (tOuts d D C ps φ X)) rs
+
 /-- The contractum of `transpCon`. -/
-def tCon (d : ℕ) (D : DataDecl) (c : ℕ) (C : Ctor) (ps : Tm) (φ : I) (X : List Tm) : Tm :=
-  .con d c (ps.dinst .one) (Tm.ofList (tOuts d D C ps φ X)) []
+abbrev tCon (d : ℕ) (D : DataDecl) (c : ℕ) (C : Ctor) (ps : Tm) (φ : I) (X : List Tm) : Tm :=
+  tConR d D c C ps φ X []
 
 theorem transpTele_tOuts (d : ℕ) (D : DataDecl) (C : Ctor) (ps : Tm) (φ : I) {X : List Tm}
     (hXl : X.length = C.args.length) :
@@ -58,8 +62,18 @@ theorem step_transp_con (hH : D.isHIT = false) {c : ℕ} {C : Ctor} (hC : D.ctor
     {φ : I} (hn : ¬ I.Entails .one φ) {X : List Tm} (hXl : X.length = C.args.length) :
     step S (.transp (.data d ps) φ (.con d c qs (Tm.ofList X) [])) = some (tCon d D c C ps φ X) := by
   have hn' : I.entails .one φ = false := by simpa [I.Entails] using hn
-  simp [step, hn', hD, hp, hC, toList_ofList, (nonHIT_ctor hH hC).2, firstBnd, tCon,
+  simp [step, hn', hD, hp, hC, toList_ofList, (nonHIT_ctor hH hC).2, firstBnd, tCon, tConR,
     transpTele_tOuts d D C ps φ hXl]
+
+/-- `transpCon` as a step, at a normal constructor with interval arguments. -/
+theorem step_transp_conR {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {ps qs : Tm} {rs : List I}
+    {φ : I} (hn : ¬ I.Entails .one φ) {X : List Tm} (hXl : X.length = C.args.length)
+    (hcs : step S (.con d c qs (Tm.ofList X) rs) = none) :
+    step S (.transp (.data d ps) φ (.con d c qs (Tm.ofList X) rs)) = some (tConR d D c C ps φ X rs) := by
+  have hn' : I.entails .one φ = false := by simpa [I.Entails] using hn
+  have hfb : firstBnd C.bnd rs = none := by
+    have := hcs; simp [step, hD, hC] at this; exact this
+  simp [step, hn', hD, hp, hC, hfb, toList_ofList, tConR, transpTele_tOuts d D C ps φ hXl]
 
 end red
 
@@ -93,6 +107,38 @@ theorem transpCon_eq {ps qs T : Tm} {φ : I} {c : ℕ} {C : Ctor} {X : List Tm} 
 
 end eq
 
+section eqR
+variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hp : D.params ≠ [])
+include hW hD hp
+
+/-- `transpCon` as a judgmental equality at a constructor with interval arguments. -/
+theorem transpCon_eqR {ps qs T : Tm} {φ : I} {c : ℕ} {C : Ctor} {X : List Tm} {rs : List I}
+    (hC : D.ctors[c]? = some C)
+    (hty : HasTy S k .one [] (.transp (.data d ps) φ (.con d c qs (Tm.ofList X) rs)) T) :
+    EqTm S k .one [] (.transp (.data d ps) φ (.con d c qs (Tm.ofList X) rs)) (tConR d D c C ps φ X rs) T ∧
+    HasTele0 S k .one [] (Tm.ofList X) (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse ∧
+    X.length = C.args.length ∧ rs.length = C.dims := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l0, ⟨hLt, hφ, hc, hb0⟩, -⟩ := gen_transpF (spec_to_minimal hW hty) rfl
+  obtain ⟨D', hD', hPt⟩ := gen_data_tele hLt rfl
+  rw [hD] at hD'; cases hD'
+  have hPl : ps = Tm.ofList ps.toList := tele_isList hPt
+  have hw : Wf0 S k .one [] := Wf0.nil trivial
+  have hP0t : HasTele0 S k .one [] (ps.dinst .zero) D.params [] := by
+    have := HasTele0.post (I.inst0 .zero) hw (fun t B h => HasTy0.dsubst hS h (r := .zero) trivial) hPt
+      (params_closed hS hD)
+    simpa using this
+  have hd0 : HasTy0 S k .one [] (.data d (ps.dinst .zero)) (.univ D.level) := HasTy0.data hD (hW.2 d D hD).1 hP0t
+  obtain ⟨D0, C0, hD0, hC0, -, -, htp, hrs, -⟩ := con_args hW hb0 hd0
+  rw [hD] at hD0; cases hD0; rw [hC] at hC0; cases hC0
+  have hXl : X.length = C.args.length := by
+    have := Meta.tele_length htp; rwa [toList_ofList, argTys_length] at this
+  have eT := EqTm.transpCon hD hp hC hPl (by rw [toList_ofList]) (toFull_tele htp) hty
+  rw [toList_ofList, transpTele_tOuts d D C ps φ hXl] at eT
+  exact ⟨eT, htp, hXl, hrs⟩
+
+end eqR
+
 section comm
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
 include hW hD
@@ -117,6 +163,16 @@ theorem tCon_isub {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {ps : Tm} {φ
     (κ : ISub k' k) :
     (tCon d D c C ps φ X).isub κ = tCon d D c C (ps.isub κ.up) (φ.subst κ.τ) (X.map (·.isub κ)) := by
   show Tm.con d c ((ps.dinst .one).isub κ) ((Tm.ofList (tOuts d D C ps φ X)).isub κ) [] = _
+  rw [ofList_isub, tOuts_isub hW hD hC hps hpl hXl κ, isub_dinst]
+  rfl
+
+/-- The `transpCon` contractum at a constructor with interval arguments, restricted. -/
+theorem tConR_isub {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {ps : Tm} {φ : I} {X : List Tm} {rs : List I}
+    (hps : IsList ps) (hpl : ps.toList.length = D.params.length) (hXl : X.length = C.args.length)
+    (κ : ISub k' k) :
+    (tConR d D c C ps φ X rs).isub κ =
+      tConR d D c C (ps.isub κ.up) (φ.subst κ.τ) (X.map (·.isub κ)) (rs.map (·.subst κ.τ)) := by
+  show Tm.con d c ((ps.dinst .one).isub κ) ((Tm.ofList (tOuts d D C ps φ X)).isub κ) _ = _
   rw [ofList_isub, tOuts_isub hW hD hC hps hpl hXl κ, isub_dinst]
   rfl
 

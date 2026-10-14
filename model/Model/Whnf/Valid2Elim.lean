@@ -263,10 +263,10 @@ theorem em2_con {k1 : ℕ} {g : Hom k1 K} {M bs A t t' ps qs qs' : Tm} {c : ℕ}
     have := data_len_of hW hTP; rwa [hdD] at this
   refine elimCon_rel hW hD hH hC' hplen (hER.br k1 ρ _ C hC') hl hl' (fun i hi hi' => ?_) (fun j hj => ?_)
   · have := hZ i (by omega)
-    rwa [getD_eq_get' hW hD hH hP hPP hi, getD_eq_get' hW hD hH hP hPP hi'] at this
+    rwa [getD_eq_get' hi, getD_eq_get' hi'] at this
   · obtain ⟨hjn, hjr⟩ := mem_recPos hj
-    rw [getD_eq_get' hW hD hH hP hPP (show j < args.length by omega),
-      getD_eq_get' hW hD hH hP hPP (show j < args'.length by omega)]
+    rw [getD_eq_get' (show j < args.length by omega),
+      getD_eq_get' (show j < args'.length by omega)]
     exact ihrec j (by omega) (by omega) hjr ρ rfl rfl Q M' bs' hER
 
 omit hW hD hH hP hPP in

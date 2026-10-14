@@ -97,7 +97,7 @@ theorem lineKan {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
     have := closed_of_isTyK H.hW hQT; simpa [Tm.closedB] using this
   have hc2 : (Q'.isub (ρ.comp τ)).closedB 0 n = true := by
     have := closed_of_isTyK H.hW hQ'T; simpa [Tm.closedB] using this
-  have hcode := argTy_code_rel H.hW H.hD H.hH H.hP (ρ.comp τ) hRR' (semK_dataQ H.hW H.hD H.hP H.hQ (ρ.comp τ)) hc1 hc2
+  have hcode := argTy_code_rel H.hW H.hD H.hP (ρ.comp τ) hRR' (semK_dataQ H.hW H.hD H.hP H.hQ (ρ.comp τ)) hc1 hc2
     H.hC (A := ((conFills d D c C (Q.isub ρ) φ u X).map (·.isub (ISub.cons r hr τ))).take j)
     (A' := ((conFills d D c C (Q'.isub ρ) φ' u' X').map (·.isub (ISub.cons r hr τ))).take j)
     (by simp [hFl, hFl'])

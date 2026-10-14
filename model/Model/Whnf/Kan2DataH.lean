@@ -219,7 +219,7 @@ theorem mot2_con {k1 : ℕ} (ρ : ISub k1 K) {Q Q' : Tm} (hQ : RT2 S K (.data d 
         exact (RE2_dataLit_iff hW hD hP ρ).2 ⟨⟨HasTy.eqL he, HasTy.eqR he, he⟩, h⟩
       hptR := fun i hi hri => by
         rw [getD_eq_get (by omega), getD_eq_get (by omega)]
-        have := dataP2_RE2 hW hD hH hP hPP ρ hC (by omega) (by omega) hrecD hptD (by omega) (by omega) hri
+        have := dataP2_RE2 hW hD hP hPP ρ hC (by omega) (by omega) hrecD hptD (by omega) (by omega) hri
         rwa [hdD] at this
       hrecH := fun i hi hri Q1 Q1' h1 h2 K2 σ => by
         rw [getD_eq_get (by omega), getD_eq_get (by omega)]

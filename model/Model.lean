@@ -72,3 +72,4 @@ import Model.Whnf.Valid2Elim
 import Model.Whnf.Kan2Glue
 import Model.Whnf.Kan2DataCode
 import Model.Whnf.NearAll
+import Model.Whnf.Kan2DataHCSound
