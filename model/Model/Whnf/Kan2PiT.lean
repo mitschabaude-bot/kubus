@@ -1,4 +1,4 @@
-import Model.Whnf.Kan2ElimT
+import Model.Whnf.Kan2IPiT
 
 /-!
 # The binary transport at Π-types
@@ -201,6 +201,49 @@ theorem eqTm_transp_of {A A' a a' : Tm} {φ φ' : I} (h1 : HasTy S k .one [] (.t
     exact EqTm.transp h1 h2 (EqTm.refl (minimal_to_spec hL)) h12 h21 ea
   · exact EqTm.transp h1 h2 e h12 h21 ea
 
+omit hW in
+theorem ISub.cons_var0_up_tail (σ : ISub k' k) :
+    ISub.cons (.var 0) (show (0 : ℕ) < k' + 1 by omega) σ.up.tail = σ.up := by
+  ext i; rcases i with _ | i <;> rfl
+
+omit hW in
+theorem isub_bind2_up (X : Tm) (τ : ISub k'' k') :
+    (X.dsubst (Tm.bind2 (.or (.var 1) (.neg (.var 0))))).isub τ.up.up =
+      X.isub (ISub.cons (.or (.var 1) (.neg (.var 0))) ⟨show 1 < k'' + 2 by omega, show 0 < k'' + 2 by omega⟩
+        τ.up.tail.up.tail) := by
+  simp only [Tm.dsubst, Tm.isub, subst_subst]
+  refine subst_congr (fun _ => rfl) (fun i => ?_) X
+  rcases i with _ | i
+  · rfl
+  · rfl
+
+omit hW in
+theorem dsubst_bind2_closed {X : Tm} (hX : X.closedB 0 (k + 1) = true) :
+    X.dsubst (Tm.bind2 (.or (.var 1) (.neg (.var 0)))) =
+      X.isub (ISub.cons (.or (.var 1) (.neg (.var 0))) ⟨show 1 < k + 2 by omega, show 0 < k + 2 by omega⟩
+        (ISub.id k).up.tail.up.tail) := by
+  simp only [Tm.dsubst, Tm.isub]
+  refine closed_subst_eq X 0 (k + 1) _ _ _ _ hX (fun _ h => absurd h (Nat.not_lt_zero _)) fun i hi => ?_
+  rcases i with _ | i
+  · rfl
+  · show I.var (i + 2) = (((ISub.id k).τ i).shift).shift
+    simp [ISub.id, show i < k by omega, I.shift, I.ren, I.subst]
+
+omit hW in
+theorem isub_up_tail_eq (t : Tm) (σ : ISub k' k) : t.isub σ.up.tail = (t.isub σ).dshift := by
+  simp only [Tm.isub, Tm.dshift, ren_eq_subst, subst_subst]
+  refine subst_congr (fun _ => rfl) (fun i => ?_) t
+  show (σ.τ i).shift = (σ.τ i).subst _
+  simp only [I.shift, I.ren]
+
+omit hW in
+theorem shift_subst_comp {k3 k4 : ℕ} (φ : I) (σ : ISub k3 k) (τ2 : ISub k4 (k3 + 1)) :
+    (φ.subst σ.τ).shift.subst τ2.τ = φ.subst ((σ.up.tail).comp τ2).τ := by
+  rw [I_subst_comp]
+  congr 1
+  show (φ.subst σ.τ).shift = φ.subst (fun i => (σ.τ i).shift)
+  simp only [I.shift, I.ren, I_subst_subst]
+
 /-- Transport along related lines of Π-types, applied to related arguments. -/
 theorem kanT2_pi_core {T T' : Tm} (hTT : RT2 S (k + 1) T T') (hP : PiStr S (k + 1) T T')
     (hLR : LineRob S k T T')
@@ -315,6 +358,26 @@ theorem kanT2_pi_core {T T' : Tm} (hTT : RT2 S (k + 1) T T') (hP : PiStr S (k + 
       rw [← isub_cons_id_of_closed hcl e he, Tm.isub_isub]
       exact (G3' k1' σ1' k3 _ _ (by rw [← ISub.comp_assoc, e1', ISub.cons_comp, ISub.up_tail_comp_cons,
         ISub.comp_id])).1
+  -- constancy of lines of domains
+  have LCgen : ∀ k3 (σ0 : ISub k3 k) k1 (σ1 : ISub k1 (k + 1)) (Θ1 : ISub (k3 + 1) k1) (y : I)
+      (hy : y.Scoped (k3 + 1)), σ1.comp Θ1 = ISub.cons y hy σ0.up.tail → ∀ (ψ : I), ψ.Scoped k3 →
+      (∀ k4 (τ2 : ISub k4 k3) (z : I) (hz : z.Scoped k4), I.Entails .one (ψ.subst τ2.τ) →
+        RT2 S k4 (A2 k4 (ISub.cons (y.subst (ISub.cons z hz τ2).τ) (I.scoped_subst hy (ISub.cons z hz τ2).sc)
+          (σ0.comp τ2)))
+          (A2 k4 (ISub.cons (y.subst (ISub.cons .zero trivial τ2).τ)
+            (I.scoped_subst hy (ISub.cons .zero trivial τ2).sc) (σ0.comp τ2)))) →
+      LineConst S k3 ((A2 k1 σ1).isub Θ1) ψ := by
+    intro k3 σ0 k1 σ1 Θ1 y hy e1 ψ hψ hmid k4 τ2 z hz hh
+    rw [Tm.isub_isub, Tm.isub_isub]
+    have d : ∀ (z : I) (hz : z.Scoped k4), RT2 S k4 ((A2 k1 σ1).isub (Θ1.comp (ISub.cons z hz τ2)))
+        (A2 k4 (ISub.cons (y.subst (ISub.cons z hz τ2).τ) (I.scoped_subst hy (ISub.cons z hz τ2).sc)
+          (σ0.comp τ2))) := fun z hz =>
+      (G3 k1 σ1 k4 _ _ (by rw [← ISub.comp_assoc, e1, ISub.cons_comp, ISub.up_tail_comp_cons])).1
+    have d1 := d z hz
+    have d0 := d .zero trivial
+    have mid := hmid k4 τ2 z hz ((holds_iff_entails (I.scoped_subst hψ τ2.sc)).1 hh)
+    exact RT2.trans hW (RT2.tyCode_l hW d1 (hXA _ _)) d1
+      (RT2.trans hW (hXA _ _) mid (RT2.symm hW (RT2.tyCode_l hW d0 (hXA _ _)) d0))
   -- the endpoint `T(1)`
   let ι1 : ISub k (k + 1) := ISub.cons .one trivial (ISub.id k)
   have hR1' : RedT S k (T.isub ι1) (.pi A1 B1) := by rw [isub_cons_id_of_closed hTc]; exact hR1
@@ -483,6 +546,79 @@ theorem kanT2_pi_core {T T' : Tm} (hTT : RT2 S (k + 1) T T') (hP : PiStr S (k + 
     rw [isub_dinst, isub_bind2] at h
     rw [← wpt']; exact h
   have ieqn1 : I.Eq (I.neg .one) .zero := fun _ => rfl
+  -- the transports of the arguments, as elements of the domains
+  have hbb : ∀ {k3 : ℕ}, (I.or (.var 1) (.neg (.var 0))).Scoped (k3 + 2) :=
+    fun {k3} => ⟨show 1 < k3 + 2 by omega, show 0 < k3 + 2 by omega⟩
+  have wcross : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), RE2 S (k'' + 1) (A2 (k'' + 1) (ρ.comp ρ').up)
+      ((wL k' ρ).isub ρ'.up) (wR k'' (ρ.comp ρ')) := by
+    intro k' ρ k'' ρ'
+    have eL : (wL k' ρ).isub ρ'.up = .transp ((A2 (k' + 1) ρ.up).isub (ISub.cons bb hbb ρ'.up.tail.up.tail))
+        (.or (φ.subst (ρ.comp ρ').τ).shift (.var 0)) (v.isub (ρ.comp ρ')).dshift := by
+      show Tm.transp (((A2 (k' + 1) ρ.up).dsubst (Tm.bind2 bb)).isub ρ'.up.up)
+        ((I.or (φ.subst ρ.τ).shift (.var 0)).subst ρ'.up.τ) (((v.isub ρ).dshift).isub ρ'.up) = _
+      rw [isub_bind2_up, isub_dshift, Tm.isub_isub]
+      congr 1
+      show I.or (((φ.subst ρ.τ).shift).subst (I.up ρ'.τ)) (.var 0) = _
+      rw [I_shift_subst_up, I_subst_comp]
+    have hclR := closed_of_isTyK hW (Comp2_ty_base (hw (k'' + 1) (ρ.comp ρ').up).2.2.1).2.2.1
+    have eR : wR k'' (ρ.comp ρ') = .transp ((A2' (k'' + 1) (ρ.comp ρ').up).isub
+        (ISub.cons bb hbb (ISub.id k'').up.tail.up.tail)) (.or (φ'.subst (ρ.comp ρ').τ).shift (.var 0))
+        (v'.isub (ρ.comp ρ')).dshift := by
+      show Tm.transp ((A2' (k'' + 1) (ρ.comp ρ').up).dsubst (Tm.bind2 bb)) _ _ = _
+      rw [dsubst_bind2_closed hclR]
+    have e1 : ρ.up.comp (ISub.cons bb hbb ρ'.up.tail.up.tail) = ISub.cons bb hbb (ρ.comp ρ').up.tail.up.tail := by
+      rw [ISub.up_comp_cons, ISub.comp_up_tail, ISub.comp_up_tail]
+    have e1' : (ρ.comp ρ').up.comp (ISub.cons bb hbb (ISub.id k'').up.tail.up.tail) =
+        ISub.cons bb hbb (ρ.comp ρ').up.tail.up.tail := by
+      rw [ISub.up_comp_cons, ISub.comp_up_tail, ISub.comp_up_tail, ISub.comp_id]
+    have lk := lineKan (k' + 1) ρ.up (k'' + 1) (ρ.comp ρ').up (k'' + 1) _ _ (ρ.comp ρ').up.tail bb bb hbb hbb
+      (I_eq_refl _) e1 e1'
+    -- the typings
+    have hty1 : HasTy S (k'' + 1) .one [] ((wL k' ρ).isub ρ'.up)
+        (((A2 (k' + 1) ρ.up).isub (ISub.cons bb hbb ρ'.up.tail.up.tail)).dinst .one) := by
+      have h := HasTy.isubS hW (parts k' ρ).2.2.1 ρ'.up
+      rw [isub_dinst, isub_bind2_up] at h; exact h
+    rw [eL] at hty1 ⊢
+    have hty2 := (parts' k'' (ρ.comp ρ')).2.2.1
+    rw [dsubst_bind2_closed hclR] at hty2
+    have hty2' := hty2.tyConv (TyEq.symm (tyEq_dinst hW (tyB lk.2.2.2.1) (r := .one) trivial))
+    rw [eR]
+    -- the base
+    have b0 := lk.2.2.1 .zero trivial
+    have g0 := (G1L (k'' + 1) (ρ.comp ρ').up.tail _ .one (I.scoped_subst hbb (ISub.cons .zero trivial
+      (ISub.id (k'' + 1))).sc) trivial (ieq_or_negzero _)).1
+    have hv0 := v1 (k'' + 1) (ρ.comp ρ').up.tail
+    rw [isub_up_tail_eq, isub_up_tail_eq] at hv0
+    have hbase := RE2.conv' hW (RT2.trans hW (RT2.tyCode_l hW b0 (hXA _ _)) b0 g0) hv0 (RT2.tyCode_l hW b0 (hXA _ _))
+    have h12' : I.Entails (I.or (φ.subst (ρ.comp ρ').τ).shift (.var 0)) (I.or (φ'.subst (ρ.comp ρ').τ).shift (.var 0)) :=
+      ent_or_elim (ent_trans (ent_shift (ent_subst h12 _)) (ent_or_left _ _)) (ent_or_right _ _)
+    have h21' : I.Entails (I.or (φ'.subst (ρ.comp ρ').τ).shift (.var 0)) (I.or (φ.subst (ρ.comp ρ').τ).shift (.var 0)) :=
+      ent_or_elim (ent_trans (ent_shift (ent_subst h21 _)) (ent_or_left _ _)) (ent_or_right _ _)
+    have heqw := eqTm_transp_of hW hty1 hty2' (tyB lk.2.2.2.1) h12' h21' (RE2.typed hbase).2.2
+    -- the constancy of the line
+    have hsF : (I.or (φ.subst (ρ.comp ρ').τ).shift (.var 0)).Scoped (k'' + 1) :=
+      ⟨KubusCore.I.scoped_shift (I.scoped_subst hφs (ρ.comp ρ').sc), show 0 < k'' + 1 by omega⟩
+    have LC := LCgen (k'' + 1) (ρ.comp ρ').up.tail (k' + 1) ρ.up _ bb hbb e1 _ hsF (fun k4 τ2 z hz he => by
+      rcases ent_or_cases (I.scoped_subst (KubusCore.I.scoped_shift (I.scoped_subst hφs (ρ.comp ρ').sc)) τ2.sc)
+        (I.scoped_subst (show (I.var 0).Scoped (k'' + 1) from show 0 < k'' + 1 by omega) τ2.sc) he with h | h
+      · rw [shift_subst_comp] at h
+        have hh2 := (holds_iff_entails (I.scoped_subst hφs (((ρ.comp ρ').up.tail).comp τ2).sc)).2 h
+        have gz := G2 k4 _ _ (I.scoped_subst hbb (ISub.cons z hz τ2).sc) hh2
+        have g0 := G2 k4 _ _ (I.scoped_subst hbb (ISub.cons .zero trivial τ2).sc) hh2
+        exact RT2.trans hW (hXA _ _) gz.1 (RT2.symm hW (hXA _ _) g0.1)
+      · have e1 : I.Eq (τ2.τ 0) .one :=
+          ieq_one_of_holds (I.scoped_subst (show (I.var 0).Scoped (k'' + 1) from show 0 < k'' + 1 by omega) τ2.sc)
+            (entails_holds h (ρ := idEnv k4) (by rw [ival_one]; rfl))
+        exact (G1L k4 _ _ _ _ _ (I_eq_trans (ieq_or_one_left _ e1) (I_eq_symm (ieq_or_one_left _ e1)))).1)
+    have r := lk.1 lk.2.1 _ _ _ _ LC hty1 hty2' heqw h12' h21' hbase
+    have c1 := lk.2.2.1 .one trivial
+    have eid : I.Eq (((ISub.id (k'' + 1)).τ 0).or (.neg .one)) (.var 0) := by
+      have : (ISub.id (k'' + 1)).τ 0 = .var 0 := by simp [ISub.id]
+      rw [this]; exact ieq_or_negone _
+    have g1 := (G1L (k'' + 1) (ρ.comp ρ').up.tail _ (.var 0) (I.scoped_subst hbb (ISub.cons .one trivial
+      (ISub.id (k'' + 1))).sc) (show 0 < k'' + 1 by omega) eid).1
+    rw [ISub.cons_var0_up_tail] at g1
+    exact RE2.conv hW (RT2.trans hW (RT2.tyCode_l hW c1 (hXA _ _)) c1 g1) r
   have hE0 : EqTm S k .one [] (.app (.transp T φ a0) v) (.app (.transp T' φ' a0') v') (B1.inst v) :=
     EqTm.app (heq.tyConv hR1.2) (RE2.typed hv).2.2
   have H := kanT2_elim_core hW (fun k' ρ x => .app x (v.isub ρ)) (fun k' ρ x => .app x (v'.isub ρ))
@@ -712,7 +848,146 @@ theorem kanT2_pi_core {T T' : Tm} (hTT : RT2 S (k + 1) T T') (hP : PiStr S (k + 
     have u := hBpt k3 _ _ (RE2.typed (wrel x hx).2).1
     have u0 := RT2.tyCode_r hW gx u
     exact RT2.trans hW (RT2.tyCode_l hW bx u) bx (RT2.trans hW u gx (RT2.symm hW (RT2.tyCode_l hW b0 u0) b0))
-  all_goals sorry
+  · -- the eliminated bases
+    have eapp : (Tm.app (a0.isub ρ) (w0L k' ρ)).isub ρ' = .app (a0.isub (ρ.comp ρ')) ((w0L k' ρ).isub ρ') := by
+      show Tm.app ((a0.isub ρ).isub ρ') ((w0L k' ρ).isub ρ') = _
+      rw [Tm.isub_isub]
+    show RE2 S k'' ((((B2 (k' + 1) ρ.up).inst (wL k' ρ)).isub ρ'.up).dinst .zero)
+      ((Tm.app (a0.isub ρ) (w0L k' ρ)).isub ρ') (.app (a0'.isub (ρ.comp ρ')) (w0R k'' (ρ.comp ρ')))
+    rw [isub_up_dinst _ ρ' .zero trivial, isub_inst, wpt, eapp, w0pt, w0R']
+    have hφσ : (φ.subst (ρ.comp ρ').τ).Scoped k'' := I.scoped_subst hφs (ρ.comp ρ').sc
+    have eid : (ρ.comp ρ').up.comp (ISub.cons _ hy0 (ISub.id k'').up.tail) =
+        ISub.cons _ hy0 (ρ.comp ρ').up.tail := by rw [upΘ, ISub.comp_id]
+    have eid' : (ρ.comp ρ').up.comp (ISub.cons _ hy0 (ISub.id k'').up.tail) =
+        ISub.cons (.neg (.var 0)) hy0 (ρ.comp ρ').up.tail := eid
+    have hy00 : I.Eq (I.or (I.zero.shift) (.neg (.var 0))) (.neg (.var 0)) := fun ρ0 => by
+      have : (I.zero.shift : I) = .zero := rfl
+      rw [this]; simp only [I.eval]; cases ((ρ0 0).neg) <;> rfl
+    have lkA := lineKan (k' + 1) ρ.up (k'' + 1) (ρ.comp ρ').up k'' _ _ (ρ.comp ρ') _ _ hy0 hy0 (I_eq_refl _)
+      (upΘ k' ρ k'' ρ' _ hy0) eid'
+    have lkB := lineKan (k' + 1) ρ.up (k'' + 1) (ρ.comp ρ').up k'' _ _ (ρ.comp ρ') _ _ (hyx .zero trivial) hy0 hy00
+      (upΘ k' ρ k'' ρ' _ (hyx .zero trivial)) eid'
+    -- the typings of the transports of the argument
+    have htyR := tw0' k'' (ρ.comp ρ') k'' (ISub.id k'')
+    rw [ISub.comp_id] at htyR
+    have htyA := tw0 k' ρ k'' ρ'
+    have htyA' := htyR.tyConv (TyEq.symm (tyEq_dinst hW (tyB lkA.2.2.2.1) (r := .one) trivial))
+    have htyB := tw k' ρ k'' ρ' .zero trivial
+    have htyB' := htyR.tyConv (TyEq.symm (tyEq_dinst hW (tyB lkB.2.2.2.1) (r := .one) trivial))
+    -- the bases
+    have c1 : I.Eq (I.neg .zero) .one := fun _ => rfl
+    have bA0 := lkA.2.2.1 .zero trivial
+    have gA0 := (G1L k'' (ρ.comp ρ') (.neg .zero) .one trivial trivial c1).1
+    have baseA := RE2.conv' hW (RT2.trans hW (RT2.tyCode_l hW bA0 (hXA _ _)) bA0 gA0) (v1 k'' _)
+      (RT2.tyCode_l hW bA0 (hXA _ _))
+    have bB0 := lkB.2.2.1 .zero trivial
+    have gB0 := (G1L k'' (ρ.comp ρ') _ .one (I.scoped_subst (hyx .zero trivial) (ISub.cons .zero trivial
+      (ISub.id k'')).sc) trivial (ieq_or_negzero _)).1
+    have baseB := RE2.conv' hW (RT2.trans hW (RT2.tyCode_l hW bB0 (hXA _ _)) bB0 gB0) (v1 k'' _)
+      (RT2.tyCode_l hW bB0 (hXA _ _))
+    -- the constancy of the lines
+    have hstay : ∀ k4 (τ2 : ISub k4 k'') (y : I) (hy : y.Scoped (k'' + 1)) (z : I) (hz : z.Scoped k4),
+        I.Entails .one ((φ.subst (ρ.comp ρ').τ).subst τ2.τ) →
+        RT2 S k4 (A2 k4 (ISub.cons (y.subst (ISub.cons z hz τ2).τ) (I.scoped_subst hy (ISub.cons z hz τ2).sc)
+          ((ρ.comp ρ').comp τ2)))
+          (A2 k4 (ISub.cons (y.subst (ISub.cons .zero trivial τ2).τ)
+            (I.scoped_subst hy (ISub.cons .zero trivial τ2).sc) ((ρ.comp ρ').comp τ2))) := by
+      intro k4 τ2 y hy z hz he
+      have hh2 := (holds_iff_entails (I.scoped_subst hφs ((ρ.comp ρ').comp τ2).sc)).2 (ent_comp_inv he)
+      have gz := G2 k4 _ _ (I.scoped_subst hy (ISub.cons z hz τ2).sc) hh2
+      have g0 := G2 k4 _ _ (I.scoped_subst hy (ISub.cons .zero trivial τ2).sc) hh2
+      exact RT2.trans hW (hXA _ _) gz.1 (RT2.symm hW (hXA _ _) g0.1)
+    have LCA := LCgen k'' (ρ.comp ρ') (k' + 1) ρ.up _ _ hy0 (upΘ k' ρ k'' ρ' _ hy0) _ hφσ
+      (fun k4 τ2 z hz he => hstay k4 τ2 _ hy0 z hz he)
+    have LCB := LCgen k'' (ρ.comp ρ') (k' + 1) ρ.up _ _ (hyx .zero trivial) (upΘ k' ρ k'' ρ' _ (hyx .zero trivial))
+      (I.or (φ.subst (ρ.comp ρ').τ) .zero) ⟨hφσ, trivial⟩ (fun k4 τ2 z hz he => by
+        rcases ent_or_cases (I.scoped_subst hφσ τ2.sc) (show (I.zero.subst τ2.τ).Scoped k4 from trivial) he with h | h
+        · exact hstay k4 τ2 _ (hyx .zero trivial) z hz h
+        · exact ((by decide : ¬ I.Entails .one .zero) h).elim)
+    have heqA := eqTm_transp_of hW htyA htyA' (tyB lkA.2.2.2.1) (ent_subst h12 _) (ent_subst h21 _)
+      (RE2.typed baseA).2.2
+    have h12B : I.Entails (I.or (φ.subst (ρ.comp ρ').τ) .zero) (φ'.subst (ρ.comp ρ').τ) :=
+      ent_or_elim (ent_subst h12 _) (ent_zero _)
+    have h21B : I.Entails (φ'.subst (ρ.comp ρ').τ) (I.or (φ.subst (ρ.comp ρ').τ) .zero) :=
+      ent_trans (ent_subst h21 _) (ent_or_left _ _)
+    have heqB := eqTm_transp_of hW htyB htyB' (tyB lkB.2.2.2.1) h12B h21B (RE2.typed baseB).2.2
+    have rA := lkA.1 lkA.2.1 _ _ _ _ LCA htyA htyA' heqA (ent_subst h12 _) (ent_subst h21 _) baseA
+    have rB := lkB.1 lkB.2.1 _ _ _ _ LCB htyB htyB' heqB h12B h21B baseB
+    -- to the domain at `0`
+    have cA := lkA.2.2.1 .one trivial
+    have gA := (G1L k'' (ρ.comp ρ') (.neg .one) .zero trivial trivial ieqn1).1
+    have cB := lkB.2.2.1 .one trivial
+    have gB := (G1L k'' (ρ.comp ρ') _ .zero (I.scoped_subst (hyx .zero trivial) (ISub.cons .one trivial
+      (ISub.id k'')).sc) trivial (ieq_or_negone _)).1
+    have rA0 := RE2.conv hW (RT2.trans hW (RT2.tyCode_l hW cA (hXA _ _)) cA gA) rA
+    have rB0 := RE2.conv hW (RT2.trans hW (RT2.tyCode_l hW cB (hXA _ _)) cB gB) rB
+    have hX00 := (hw k'' (ISub.cons .zero trivial (ρ.comp ρ'))).2.2.1
+    have rw0 := RE2.trans hW hX00 rB0 (RE2.symm hW hX00 rA0)
+    have h0 := RE2.isub hW ha0 (ρ.comp ρ')
+    rw [hT0] at h0
+    have el := hP.elim k'' _ _ _ _ _ (hw k'' _).1 h0 _ _ rA0
+    have gL0 := G3 (k' + 1) ρ.up k'' (ISub.cons .zero trivial ρ') (ISub.cons .zero trivial (ρ.comp ρ'))
+      (ISub.up_comp_cons ρ .zero trivial ρ')
+    have hXL := RT2.tyCode_l hW gL0.1 (hXA _ _)
+    have b := gL0.2 _ _ (RE2.conv hW (RT2.symm hW hXL gL0.1) rw0)
+    exact RE2.conv' hW b el (RT2.tyCode_l hW b (hBpt k'' _ _ (RE2.typed rA0).1))
+  · -- the induction hypothesis for the codomains
+    have wLL : RE2 S (k' + 1) (A2 (k' + 1) ρ.up) (wL k' ρ) (wL k' ρ) := by
+      have r := wcross k' ρ k' (ISub.id k')
+      have hcl := closed_of_ty hW (parts k' ρ).2.2.1
+      rw [ISub.comp_id, isub_up_id_of_closed hcl] at r
+      have hA := (hw (k' + 1) ρ.up).2.2.1
+      exact RE2.trans hW hA r (RE2.symm hW hA r)
+    refine hIHB (k' + 1) ρ.up _ _ (hw _ ρ.up).1 (wL k' ρ) wLL k'' ρ'.up _ ?_
+    rw [isub_inst]
+    have wc := wcross k' ρ k'' ρ'
+    have g := G3 (k' + 1) ρ.up (k'' + 1) ρ'.up (ρ.comp ρ').up (ISub.up_comp ρ ρ').symm
+    have hXg := RT2.tyCode_l hW g.1 (hXA _ _)
+    have hA := (hw (k'' + 1) (ρ.comp ρ').up).2.2.1
+    have wcc := RE2.trans hW hA wc (RE2.symm hW hA wc)
+    have b1 := g.2 _ _ (RE2.conv hW (RT2.symm hW hXg g.1) wcc)
+    have b2 := (hw (k'' + 1) (ρ.comp ρ').up).2.2.2 _ _ wc
+    have u := hBpt _ _ _ (RE2.typed wc).1
+    exact RT2.trans hW (RT2.tyCode_l hW b1 u) b1 b2
+
+
+/-- Transport along related lines whose normal forms are Π-types. -/
+theorem kanT2_pi {T T' A B : Tm} {l : ℕ} (hTT : RT2 S (k + 1) T T') (hR : RedT S (k + 1) T (.pi A B))
+    (hpi : HasTy S (k + 1) .one [] (.pi A B) (.univ l))
+    (hIHA : ∀ k1 (ρ : ISub k1 (k + 1)) A1 B1, RedT S k1 (T.isub ρ) (.pi A1 B1) →
+      ∀ k2 (ρ' : ISub (k2 + 1) k1) X', RT2 S (k2 + 1) (A1.isub ρ') X' → KanT2 S k2 (A1.isub ρ') X')
+    (hIHB : ∀ k1 (ρ : ISub k1 (k + 1)) A1 B1, RedT S k1 (T.isub ρ) (.pi A1 B1) → ∀ b, RE2 S k1 A1 b b →
+      ∀ k2 (ρ' : ISub (k2 + 1) k1) X', RT2 S (k2 + 1) ((B1.inst b).isub ρ') X' → KanT2 S k2 ((B1.inst b).isub ρ') X') :
+    KanT2 S k T T' := by
+  have hP := PiStr_of hW hTT hR hpi
+  intro hLR φ φ' a0 a0' hC hty hty' heq h12 h21 ha0
+  obtain ⟨l0, ⟨hTl, -, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty) rfl
+  have hTc : T.closedB 0 (k + 1) = true := closed_ty hTl
+  have hXT : TyCode (k + 1) (semK S (k + 1) T) := tyCode_of_univ hW (minimal_to_spec hTl)
+  have hT1K : IsTyK S k (T.dinst .one) := isTyK_of_ty hW hty
+  obtain ⟨A1, B1, A1', B1', h1, -, -, -⟩ := hP.whnf k (ISub.cons .one trivial (ISub.id k))
+  rw [isub_cons_id_of_closed hTc] at h1
+  obtain ⟨l1, hpi1⟩ := piW_typed hW hT1K h1
+  have hX1 : TyCode k (semK S k (T.dinst .one)) := tyCode_of_ty hW hty
+  have hTT1 : RT2 S k (T.dinst .one) (T.dinst .one) := by
+    have := hLR k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
+    rw [isub_cons_id_of_closed hTc] at this
+    exact RT2.refl hW hX1 this
+  refine RE2_piW_intro hW hTT1 h1 hpi1 ⟨hty, hty', heq⟩ fun k' ρ A3 B3 h a a' ha => ?_
+  have hd1 : ∀ (X : Tm) (x : I), (X.dinst x).isub ρ = (X.isub ρ.up).dinst (x.subst ρ.τ) := fun X x => isub_dinst X x ρ
+  rw [hd1] at h
+  have htyρ := HasTy.isubS hW hty ρ
+  have htyρ' := HasTy.isubS hW hty' ρ
+  have heqρ := EqTm.isubS hW heq ρ
+  have ha0ρ := RE2.isub hW ha0 ρ
+  rw [hd1] at htyρ htyρ' heqρ ha0ρ
+  refine kanT2_pi_core hW (RT2.isub hW hXT hTT ρ.up) (hP.isub hW ρ.up) (hLR.isub ρ)
+    (fun k1 ρ1 A4 B4 h4 k2 ρ2 X' hX' => ?_) (fun k1 ρ1 A4 B4 h4 b hb k2 ρ2 X' hX' => ?_) (hC.isub ρ)
+    htyρ htyρ' heqρ (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) ha0ρ h ha
+  · rw [Tm.isub_isub] at h4
+    exact hIHA k1 (ρ.up.comp ρ1) A4 B4 h4 k2 ρ2 X' hX'
+  · rw [Tm.isub_isub] at h4
+    exact hIHB k1 (ρ.up.comp ρ1) A4 B4 h4 b hb k2 ρ2 X' hX'
 
 end
 

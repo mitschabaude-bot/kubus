@@ -40,3 +40,4 @@ import Model.Whnf.Kan2IPi
 import Model.Whnf.Kan2Path
 import Model.Whnf.Kan2ElimT
 import Model.Whnf.Kan2IPiT
+import Model.Whnf.Kan2PiT
