@@ -701,6 +701,50 @@ theorem kanH2_sigma_snd {T T' : Tm} (hTT : RT2 S k T T') (hP : SigmaStr S k T T'
         simp only [if_neg hf2']
         exact compC k' ρ k'' ρ' hf2
 
+/-- Composition at a pair of related types whose normal forms are Σ-types. -/
+theorem kanH2_sigma {T T' A B : Tm} {l : ℕ} (hTT : RT2 S k T T') (hR : RedT S k T (.sigma A B))
+    (hsig : HasTy S k .one [] (.sigma A B) (.univ l))
+    (hIHA : ∀ k1 (ρ1 : ISub k1 k) A1 B1, RedT S k1 (T.isub ρ1) (.sigma A1 B1) →
+      ∀ k2 (ρ2 : ISub k2 k1) X X', RT2 S k2 (A1.isub ρ2) X → RT2 S k2 X X' → KanH2 S k2 X X')
+    (hIHBH : ∀ k1 (ρ1 : ISub k1 k) A1 B1, RedT S k1 (T.isub ρ1) (.sigma A1 B1) → ∀ b, RE2 S k1 A1 b b →
+      ∀ k2 (ρ2 : ISub k2 k1) X X', RT2 S k2 ((B1.inst b).isub ρ2) X → RT2 S k2 X X' → KanH2 S k2 X X')
+    (hIHBT : ∀ k1 (ρ1 : ISub k1 k) A1 B1, RedT S k1 (T.isub ρ1) (.sigma A1 B1) → ∀ b, RE2 S k1 A1 b b →
+      ∀ k2 (ρ2 : ISub (k2 + 1) k1) X X', RT2 S (k2 + 1) ((B1.inst b).isub ρ2) X → RT2 S (k2 + 1) X X' →
+        KanT2 S k2 X X') :
+    KanH2 S k T T' := by
+  have hP := SigmaStr_of hW hTT hR hsig
+  intro φ φ' u u' a0 a0' hty hty' heq hteq h12 h21 htube ha0 hbd hbd'
+  have hXT : TyCode k (semK S k T) := tyCode_of_ty hW hty
+  obtain ⟨l0, ⟨-, hφs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
+  refine RE2_sigmaW_intro hW (RT2.refl hW hXT hTT) hR hsig ⟨hty, hty', heq⟩ fun k' ρ A1 B1 h1 => ?_
+  have hteqρ := EqTm.cofIsub hW hφs hteq ρ
+  rw [isub_dshift] at hteqρ
+  have hIHAρ : ∀ k1 (ρ1 : ISub k1 k') A1 B1, RedT S k1 ((T.isub ρ).isub ρ1) (.sigma A1 B1) →
+      ∀ k2 (ρ2 : ISub k2 k1) X X', RT2 S k2 (A1.isub ρ2) X → RT2 S k2 X X' → KanH2 S k2 X X' := by
+    intro k1 ρ1 A3 B3 h3; rw [Tm.isub_isub] at h3; exact hIHA k1 (ρ.comp ρ1) A3 B3 h3
+  have hIHBHρ : ∀ k1 (ρ1 : ISub k1 k') A1 B1, RedT S k1 ((T.isub ρ).isub ρ1) (.sigma A1 B1) → ∀ b,
+      RE2 S k1 A1 b b → ∀ k2 (ρ2 : ISub k2 k1) X X', RT2 S k2 ((B1.inst b).isub ρ2) X → RT2 S k2 X X' →
+        KanH2 S k2 X X' := by
+    intro k1 ρ1 A3 B3 h3; rw [Tm.isub_isub] at h3; exact hIHBH k1 (ρ.comp ρ1) A3 B3 h3
+  have hIHBTρ : ∀ k1 (ρ1 : ISub k1 k') A1 B1, RedT S k1 ((T.isub ρ).isub ρ1) (.sigma A1 B1) → ∀ b,
+      RE2 S k1 A1 b b → ∀ k2 (ρ2 : ISub (k2 + 1) k1) X X', RT2 S (k2 + 1) ((B1.inst b).isub ρ2) X →
+        RT2 S (k2 + 1) X X' → KanT2 S k2 X X' := by
+    intro k1 ρ1 A3 B3 h3; rw [Tm.isub_isub] at h3; exact hIHBT k1 (ρ.comp ρ1) A3 B3 h3
+  have hIHAρ' : ∀ k1 (ρ1 : ISub k1 k') A1 B1, RedT S k1 ((T.isub ρ).isub ρ1) (.sigma A1 B1) →
+      ∀ k2 (ρ2 : ISub k2 k1) X', RT2 S k2 (A1.isub ρ2) X' → KanH2 S k2 (A1.isub ρ2) X' := by
+    intro k1 ρ1 A3 B3 h3 k2 ρ2 X' hX'
+    rw [Tm.isub_isub] at h3
+    obtain ⟨l3, hs3⟩ := sigmaW_typed hW ((isTyK_of_ty hW hty).isub hW (ρ.comp ρ1)) h3
+    exact hIHA k1 (ρ.comp ρ1) A3 B3 h3 k2 ρ2 _ X'
+      (RT2.refl hW (tyCode_of_univ hW (HasTy.isubS hW (HasTy.sigmaDom hs3) ρ2)) hX') hX'
+  have hTTρ := RT2.isub hW hXT hTT ρ
+  exact ⟨(kanH2_sigma_fst hW (hP.isub hW ρ) hIHAρ' (HasTy.isubS hW hty ρ) (HasTy.isubS hW hty' ρ)
+      (EqTm.isubS hW heq ρ) hteqρ (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ) (RE2.isub hW ha0 ρ)
+      (bdry_isub hbd ρ) (bdry_isub' hbd' ρ) h1).1,
+    kanH2_sigma_snd hW hTTρ (hP.isub hW ρ) hIHAρ hIHBHρ hIHBTρ (HasTy.isubS hW hty ρ) (HasTy.isubS hW hty' ρ)
+      (EqTm.isubS hW heq ρ) hteqρ (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ) (RE2.isub hW ha0 ρ)
+      (bdry_isub hbd ρ) (bdry_isub' hbd' ρ) h1⟩
+
 end
 
 end Model.Whnf
