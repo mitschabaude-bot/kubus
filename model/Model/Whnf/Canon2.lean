@@ -10,8 +10,8 @@ relation of Glue normal forms relates their bases and equivalences, which gives 
 Glue annotations (`glueCompat_of`), the hypothesis of `canonicity_of_glueCompat`.
 
 The remaining obligations of the binary development are bundled in `Obl2`: transport along lines of
-higher inductive types with parameters (`HITTransp2`), the rules of higher inductive types
-(`DataHyp2`), and `glueBeta` (`GlueBetaHyp2`).
+higher inductive types with parameters (`HITTransp2`) and the rules of higher inductive types
+(`DataHyp2`).
 -/
 
 set_option autoImplicit false
@@ -28,12 +28,11 @@ variable {S : Sig}
 structure Obl2 (S : Sig) : Prop where
   hit : HITTransp2 S
   data : ∀ n, DataHyp2 S (S.take n)
-  glueBeta : GlueBetaHyp2 S
 
 /-- **The compatibility of Glue annotations**, from the binary fundamental lemma. -/
 theorem glueCompat_of (hW : WfSig S) (O : Obl2 S) : GlueCompat S := by
   intro k A A' T T' e e' φ φ' l h hn h12 h21
-  obtain ⟨-, hr⟩ := fund2_closed hW (kanOracle2 hW O.hit) O.data O.glueBeta (spec_to_minimal_eq hW h)
+  obtain ⟨-, hr⟩ := fund2_closed hW (kanOracle2 hW O.hit) O.data (spec_to_minimal_eq hW h)
   have hGG' := RE2_univ_ty hW hr
   have hG := HasTy.eqL h
   have hG' := HasTy.eqR h
