@@ -1,4 +1,5 @@
 import Model.Whnf.Kan2GlueT
+import Model.Whnf.Kan2DataTFill
 
 /-!
 # Binary transport in Glue types: the pieces

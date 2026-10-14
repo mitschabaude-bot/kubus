@@ -27,7 +27,7 @@ variable (hW : WfSig S)
 include hW
 
 /-- The parts of a heterogeneous composition, typed. -/
-theorem comp_parts {C u u0 X : Tm} {ψ : I} (h : HasTy S k .one [] (Tm.comp C ψ u u0) X) :
+theorem comp_partsS {C u u0 X : Tm} {ψ : I} (h : HasTy S k .one [] (Tm.comp C ψ u u0) X) :
     ∃ l, HasTy S (k + 1) .one [] C (.univ l) ∧ ψ.Scoped k ∧ HasTy S (k + 1) (cof .one ψ).shift [] u C ∧
       HasTy S k .one [] u0 (C.dinst .zero) := by
   have hS := sigClosed_of_wfSig hW
@@ -77,8 +77,8 @@ theorem comp2r {C C' u u' u0 u0' : Tm} {ψ ψ' : I} (hLR : LineRob S k C C') (hL
       RE2 S k3 (C.isub (ISub.cons .zero trivial σ)) (u0.isub σ) ((u'.isub σ.up).dinst .zero)) :
     RE2 S k (C.dinst .one) (Tm.comp C ψ u u0) (Tm.comp C' ψ' u' u0') := by
   have hS := sigClosed_of_wfSig hW
-  obtain ⟨l, hC, hψs, hu, -⟩ := comp_parts hW hty
-  obtain ⟨l', hC', -, hu', -⟩ := comp_parts hW hty'
+  obtain ⟨l, hC, hψs, hu, -⟩ := comp_partsS hW hty
+  obtain ⟨l', hC', -, hu', -⟩ := comp_partsS hW hty'
   have hCC := eqLine_of_rob hW hC hC' hLR
   have hc : (cof .one ψ).shift.Scoped (k + 1) := KubusCore.I.scoped_shift ⟨trivial, hψs⟩
   have hu'C : HasTy S (k + 1) (cof .one ψ).shift [] u' C :=
