@@ -1,5 +1,6 @@
 import Kubus
 import Kubus.Bridge
+import Kubus.Adequacy
 import Kubus.Lsp
 import Kubus.Doc
 
@@ -15,6 +16,10 @@ structure Driver where
   selfcheckImports : Bool := true
   /-- the certified kernel's state (`none` with `--no-kernel`) -/
   kernel : Option Bridge.State := some {}
+  /-- adequacy of the certified statements: checked, not covered, mismatched -/
+  adequate : Nat := 0
+  notCovered : Nat := 0
+  mismatches : Nat := 0
 
 abbrev DM := StateT Driver (ExceptT String IO)
 
@@ -25,6 +30,27 @@ def kernelMsgs (msgs : List String) : DM Unit := do
     if m.startsWith "kernel: certified" then
       if (← get).verbose then IO.println m
     else do (← IO.getStdout).flush; IO.eprintln m
+
+/-- Check the adequacy of the statements certified since index `start` (`Kubus/Adequacy.lean`):
+mismatches are errors, statements that cannot be read back are reported with `--verbose`. -/
+def adequacy (st : St) (start : Nat) (ks : Bridge.State) : DM Unit := do
+  let nm := Adequacy.Names.of ks.env st.globals
+  let selftest := (← IO.getEnv "KUBUS_ADEQUACY_SELFTEST").isSome
+  for (n, k, kty) in ks.certTys.extract start ks.certTys.size do
+    let name := Bridge.showName n k
+    match (Adequacy.check nm n k kty selftest).run' st with
+    | .ok .adequate =>
+      modify fun dr => { dr with adequate := dr.adequate + 1 }
+      if (← get).verbose then IO.println s!"kernel: adequate {name}"
+    | .ok (.notCovered why) =>
+      modify fun dr => { dr with notCovered := dr.notCovered + 1 }
+      if (← get).verbose then IO.println s!"kernel: adequacy not covered for {name}: {why}"
+    | .ok (.mismatch why) =>
+      modify fun dr => { dr with mismatches := dr.mismatches + 1 }
+      (← IO.getStdout).flush; IO.eprintln s!"kernel: ADEQUACY MISMATCH {name}: {why}"
+    | .error e =>
+      modify fun dr => { dr with mismatches := dr.mismatches + 1 }
+      (← IO.getStdout).flush; IO.eprintln s!"kernel: ADEQUACY MISMATCH {name}: {e}"
 
 mutual
 partial def runFile (path : System.FilePath) (top : Bool := true) : DM Unit := do
@@ -80,6 +106,7 @@ partial def runDecls (path : String) (dir : System.FilePath) (decls : List Decl)
             kernelMsgs msgs
             if (← get).verbose then IO.println s!"kernel: {n}: {t1 - t0} ms"
             modify fun dr => { dr with kernel := some ks' }
+            adequacy st' ks.certTys.size ks'
           if let .data n .. := d then
             let (msgs, ks') := (Bridge.addData st'.globals n 0).run ks
             kernelMsgs msgs
@@ -180,5 +207,7 @@ def main (args : List String) : IO UInt32 := do
     if drv.verbose || ks.skipped.size > 0 then
       (← IO.getStdout).flush
       IO.eprintln s!"kernel: {ks.certified} certified, {ks.skipped.size - ks.rejected} skipped, {ks.rejected} rejected"
-    if ks.rejected > 0 then return 1
+    if drv.verbose || drv.mismatches > 0 then
+      IO.eprintln s!"adequacy: {drv.adequate} adequate, {drv.notCovered} not covered, {drv.mismatches} mismatches"
+    if ks.rejected > 0 || drv.mismatches > 0 then return 1
   return 0

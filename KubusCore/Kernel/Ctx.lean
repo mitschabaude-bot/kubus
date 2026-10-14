@@ -16,6 +16,9 @@ structure SigInfo (S : Sig) where
   lv : List Nat
   closed : ∀ (k : Nat) (t A : Tm), S[k]? = some (.defn t A) → k < lv.length → A.closedB 0 0 = true
   ok : ∀ (k : Nat) (t A : Tm) (l : Nat), S[k]? = some (.defn t A) → lv[k]? = some l → HasTy S 0 .one [] A (.univ l)
+  /-- well-formedness of the signature, when known: it gives access to the metatheory
+  (inversion of typings by the generation lemmas) -/
+  wf : Option (PLift (WfSig S)) := none
 
 namespace Kernel
 
@@ -112,6 +115,7 @@ structure KCtx (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) where
   hfs : fs.get = Φ.faces
   /-- the canonical form of the restriction, computed once (`none`: keep `Φ`) -/
   cn : Thunk (Option ((Φ' : I) × Kernel.Equiv' Ψ Φ Φ'))
+  /-- strengthening by interval variable 0, computed once -/
   lv : List Nat
   wf : Wf S Ψ Φ Γ
   hsc : Φ.Scoped Ψ

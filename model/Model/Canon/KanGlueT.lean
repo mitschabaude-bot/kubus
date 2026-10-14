@@ -701,7 +701,7 @@ theorem kanT_glue {A T e : Tm} {φ : I} (hD : GlueL S (k + 1) A φ T e) : KanT S
     have eGT := EqTm.glueFace hent hG1
     have eF := EqTm.glueElFace hent hg
     exact hT.conv hW (TyEq.symm (.inr ⟨l1, eGT⟩)) (eq.trans eF).symm
-  · refine (RE_glueEl_intro hW hG1 hφ1 hg (fun k' σ => ?_) (fun k' σ hh => ?_)).conv hW (TyEq.refl _) eq.symm
+  · refine (RE_glueEl_intro hW hGC hG1 hφ1 hg (fun k' σ => ?_) (fun k' σ hh => ?_)).conv hW (TyEq.refl _) eq.symm
     · rw [(tg_isub A φ T e ψ u0 φ.forall0 σ).2.2.2.2.2, dinst_isub_end _ (.inr rfl)]
       exact L_a1 hW hGC (D.isub hW σ)
     · rw [I_phi1_isub] at hh

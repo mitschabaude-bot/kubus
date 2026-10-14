@@ -44,7 +44,9 @@ theorem hcompGlue_parts (hS : SigClosed S) {Ψ Φ Γ A φ T e ψ u u0 l}
     HasTy0 S Ψ Φ Γ (hcomp A (.or ψ φ) (Meta.glueTube φ T e ψ u u0) (unglue φ e u0)) A ∧
     HasTy0 S (Ψ + 1) (cof Φ (.or ψ φ)).shift Γ.dshift (Meta.glueTube φ T e ψ u u0) A.dshift ∧
     HasTy0 S (Ψ + 1) (cof (cof Φ φ) ψ).shift Γ.dshift u T.dshift ∧
-    HasTy0 S Ψ (cof Φ φ) Γ u0 T := by
+    HasTy0 S Ψ (cof Φ φ) Γ u0 T ∧
+    EqTm0 S Ψ (cof Φ φ) Γ (app (fst e) (hcomp T ψ u u0))
+      (hcomp A (.or ψ φ) (Meta.glueTube φ T e ψ u u0) (unglue φ e u0)) A := by
   obtain ⟨l1, ⟨-, hψ, hu, hu0, hside⟩, -⟩ := gen_hcomp h rfl
   obtain ⟨l0, ⟨hA0, hφ, hT0, he⟩, chg⟩ := gen_glue hS hG rfl
   have hA := chg.transport hA0
@@ -156,7 +158,7 @@ theorem hcompGlue_parts (hS : SigClosed S) {Ψ Φ Γ A φ T e ψ u u0 l}
     have b2 := EqTm0.splitR (ent_and_right _ _) (HasTy0.restrict hXφ hYφ ht1)
     have b3 := app_fst_congr he hfl1
     exact EqTm0.symm (EqTm0.trans b1 (EqTm0.trans b2 b3))
-  exact ⟨htc, hbase, htube, huT, hu0T⟩
+  exact ⟨htc, hbase, htube, huT, hu0T, hgside⟩
 
 end
 
@@ -233,7 +235,7 @@ theorem kanH_glue {A T e : Tm} {φ : I} (hD : GlueL S k A φ T e) : KanH S k (.g
   have eq := EqTm.hcompGlue hty hAt he
   rw [hcompGlue_eq] at eq
   have hg := HasTy.eqR eq
-  obtain ⟨htc0, hbase0, htube0, -, -⟩ := hcompGlue_parts hS (spec_to_minimal hW hty) (spec_to_minimal hW hG)
+  obtain ⟨htc0, hbase0, htube0, -, -, -⟩ := hcompGlue_parts hS (spec_to_minimal hW hty) (spec_to_minimal hW hG)
   obtain ⟨-, ⟨-, hψs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
   have hGρ : ∀ k' (ρ : ISub k' k), HasTy S k' .one [] (.glue (A.isub ρ) (φ.subst ρ.τ) (T.isub ρ) (e.isub ρ)) (.univ lG) :=
     fun k' ρ => HasTy.isubS hW hG ρ
@@ -260,7 +262,7 @@ theorem kanH_glue {A T e : Tm} {φ : I} (hD : GlueL S k A φ T e) : KanH S k (.g
     · have h1 := (hu.isub ρ) k'' σ' r hr hh'
       have e1 := EqTm.isubS hW (hGT k' ρ hh) σ'
       exact h1.conv_ty hW (.inr ⟨lG, e1⟩)
-  refine (RE_glueEl_intro hW hG hn hg (fun k' σ => ?_) (fun k' σ hh => ?_)).conv hW (TyEq.refl _) eq.symm
+  refine (RE_glueEl_intro hW hGC hG hn hg (fun k' σ => ?_) (fun k' σ hh => ?_)).conv hW (TyEq.refl _) eq.symm
   · refine hD.kA.1 k' σ _ _ _ (HasTy.isubS hW (minimal_to_spec hbase0) σ) ?_ (hung k' σ _ (hu0.isub hW σ))
     intro k'' σ' r hr hh
     change RE S k'' ((A.isub σ).isub σ') ((((Meta.glueTube φ T e ψ u u0).isub σ.up).isub σ'.up).dinst r)

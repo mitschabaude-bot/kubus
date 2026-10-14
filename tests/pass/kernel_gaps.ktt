@@ -29,3 +29,7 @@ def lamUnderPlam (i : I) : Int -> Nat := (\(x : I) -> ((\y -> zero) : (Int -> Na
 -- compositions of types compared by congruence (cofibrations equal only up to the interval laws)
 def w1 (i : I) : U := hcomp j U [i = 0 -> Bool, i = 1 -> Bool] Bool
 def w1fill (j : I) (x : w1 0) : w1 j := fill m (hcomp k U [m = 0 -> Bool, m = 1 -> Bool] Bool) [] x j
+
+-- `unglue` of a glue element whose face is equal to `unglue`'s only up to the interval laws
+def ungAlign (i : I) : Glue Bool [i = 0 -> (Bool, idEquiv Bool)] :=
+  comp k (Glue Bool [i = 0 -> (Bool, idEquiv Bool)]) [i = 1 -> fill m (Glue Bool [i = 0 -> (Bool, idEquiv Bool)]) [] (glue [i = 0 -> false] false) k] (glue [i = 0 -> false] false)
