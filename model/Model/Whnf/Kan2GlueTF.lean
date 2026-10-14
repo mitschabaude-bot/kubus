@@ -32,6 +32,20 @@ theorem fibB_isub_inst (X f y a : Tm) (σ : ISub k' k) :
     show Tm.app (f.shift.isub σ) (Tm.var 0) = _; rw [isub_shift]
   rw [eapp, P_inst]
 
+theorem isub_cons_var0_wk {X : Tm} {n : ℕ} (h : X.closedB n (k + 1) = true) :
+    X.isub (ISub.cons (.var 0) (show (0 : ℕ) < k + 1 by omega) (ISub.wk k)) = X :=
+  closed_subst_id h (fun x _ => rfl) (fun i hi => by
+    rcases i with _ | i
+    · rfl
+    · simp [ISub.cons, ISub.wk, show i < k by omega])
+
+theorem tgBody_isub (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (σ : ISub k' k) :
+    (tgBody A φ T e ψ u0).isub σ.up =
+      tgBody (A.isub σ.up) (φ.subst σ.up.τ) (T.isub σ.up) (e.isub σ.up) (ψ.subst σ.τ) (u0.isub σ) := by
+  have h := (tg_subst_low A φ T e ψ u0 Tm.var σ.τ).2.1
+  rw [dupS_var] at h
+  exact h
+
 variable (hW : WfSig S)
 include hW
 
@@ -435,6 +449,22 @@ theorem TGD2.wψ (hδ : (ival (idEnv k) δ).holds) (hψk : (ival (idEnv k) ψ).h
       exact RE2.trans hW hAA3 (RE2_equiv_app hW (D.rEL k5 _ hf) x) (D.eu0a1 hW hδ (σ2.comp σ3) hψτ)
     · simp only [← isub_eq_subst, isub_app, isub_fst, Tm.isub_isub, ISub.cons_comp, I.subst, ISub.id_comp]
       exact D.fill1 hW (σ2.comp σ3)
+
+
+/-- On `δ` and `ψ`, the bodies of `ω` along the path are the composition in the bases. -/
+theorem TGD2.bodyψ (hδ : (ival (idEnv k) δ).holds) (hψk : (ival (idEnv k) ψ).holds) :
+    RE2 S (k + 1) (A.dinst .one).dshift (tgBody A φ T e ψ u0) (tgA1' A φ e ψ u0).dshift := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hφs : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have hφ1' : (ival (idEnv (k + 1)) ((φ.subst (ISub.wk k).up.τ).subst (I.inst0 .one))).holds := by
+    have := holds_isub hW hφs hφ1 (ISub.wk k)
+    rwa [I_end_isub _ (.inr rfl)] at this
+  have x := (D.isub hW (ISub.wk k)).wψ hW hφ1' (holds_isub hW D.hδs hδ (ISub.wk k))
+    (holds_isub hW H.hψ hψk (ISub.wk k)) (r := .var 0) (show (0 : ℕ) < k + 1 by omega)
+  rw [← dinst_isub_end _ (.inr rfl), isub_wk_of_closed (closed_of_ty hW (minimal_to_spec (H.hAr (r := .one) trivial))),
+    ← tgA1'_isub, isub_wk_of_closed (closed_ty H.ha1'), ← tgBody_isub, isub_up_dinst _ _ (.var 0) (show (I.var 0).Scoped (k + 1) from show (0 : ℕ) < k + 1 by omega),
+    isub_cons_var0_wk (closed_ty H.hbody)] at x
+  exact x
 
 end
 
