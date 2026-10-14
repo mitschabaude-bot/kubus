@@ -1,4 +1,5 @@
 import Model.Whnf.Kan2SigmaS
+import Model.Whnf.Kan2PathTEq
 
 /-!
 # The binary transport along lines of path types
@@ -97,6 +98,14 @@ theorem pathW_rel {X Y L b0 b1 L' b0' b1' : Tm} (h : RT2 S k X Y) (hX : RedT S k
   obtain ⟨rfl, rfl, rfl⟩ : L1' = L' ∧ c0' = b0' ∧ c1' = b1' := by
     have := RedW.unique h2.1 hY.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
   exact ⟨hl, hc0, hc1⟩
+
+omit hW in
+theorem sysT_isub (φ r : I) (p0 a b : Tm) (θ : ISub k' k) :
+    (sysT φ r p0 a b).isub θ.up = sysT (φ.subst θ.τ) (r.subst θ.τ) (p0.isub θ) (a.isub θ.up) (b.isub θ.up) := by
+  show Tm.split (φ.shift.subst (I.up θ.τ)) (.papp (p0.dshift.isub θ.up) (r.shift.subst (I.up θ.τ)))
+    (.or (.neg (r.shift.subst (I.up θ.τ))) (r.shift.subst (I.up θ.τ)))
+    (.split (.neg (r.shift.subst (I.up θ.τ))) (a.isub θ.up) (r.shift.subst (I.up θ.τ)) (b.isub θ.up)) = _
+  rw [isub_dshift, I_shift_subst_up, I_shift_subst_up]; rfl
 
 omit hW in
 theorem sysT_isub_dinst (φ r : I) (p0 a b : Tm) (θ : ISub k' k) (x : I) :
@@ -500,7 +509,58 @@ theorem kanT2_path_core {T T' : Tm} (hTT : RT2 S (k + 1) T T') (hP : PathStr S (
       intro X' hX'
       rw [eC1] at hX' ⊢
       exact hIHH (k' + 1) ρ.up _ _ _ (hw _ _).1 _ (KubusCore.I.scoped_shift (hsc k' ρ)) k'' _ X' hX'
-    · sorry
+    · -- the judgmental equality of the systems
+      have eU : ((sysT (φ.subst ρ.τ) (r.subst ρ.τ) (a0.isub ρ) (c0 (k' + 1) ρ.up) (c1 (k' + 1) ρ.up))).isub ρ'.up = sysT (φ.subst (ρ.comp ρ').τ) (r.subst (ρ.comp ρ').τ) (a0.isub (ρ.comp ρ'))
+          ((c0 (k' + 1) ρ.up).isub ρ'.up) ((c1 (k' + 1) ρ.up).isub ρ'.up) := by
+        rw [sysT_isub, Tm.isub_isub, ← I_subst_comp, ← I_subst_comp]
+      have eCc : (((W (k' + 1) ρ.up).dinst ((r.subst ρ.τ).shift))).isub ρ'.up = ((W (k' + 1) ρ.up).isub ρ'.up.up).dinst ((r.subst (ρ.comp ρ').τ).shift) := by
+        rw [isub_dinst]
+        show ((W (k' + 1) ρ.up).isub ρ'.up.up).dinst (((r.subst ρ.τ).shift).subst (I.up ρ'.τ)) = _
+        rw [I_shift_subst_up, ← I_subst_comp]
+      rw [eU, eCc]
+      -- the typings of the transports in the normal forms
+      have hTW : ∀ k3 (σ : ISub k3 k), TyEq S (k3 + 1) (T.isub σ.up) (.path (W (k3 + 1) σ.up) (c0 (k3 + 1) σ.up)
+          (c1 (k3 + 1) σ.up)) := fun k3 σ => (hw (k3 + 1) σ.up).1.2
+      have hTW' : ∀ k3 (σ : ISub k3 k), TyEq S (k3 + 1) (T'.isub σ.up) (.path (W' (k3 + 1) σ.up) (c0' (k3 + 1) σ.up)
+          (c1' (k3 + 1) σ.up)) := fun k3 σ => (hw (k3 + 1) σ.up).2.1.2
+      have hLt := HasTy.isubS hW (HasTy.eqR (eq_transp_ty hW (hρT k' ρ) (hTW k' ρ))) ρ'
+      have hLt' : HasTy S k'' .one [] (.transp (.path ((W (k' + 1) ρ.up).isub ρ'.up.up) ((c0 (k' + 1) ρ.up).isub ρ'.up)
+          ((c1 (k' + 1) ρ.up).isub ρ'.up)) (φ.subst (ρ.comp ρ').τ) (a0.isub (ρ.comp ρ')))
+          (((T.isub ρ.up).dinst .one).isub ρ') := by
+        have e3 : (Tm.transp (.path (W (k' + 1) ρ.up) (c0 (k' + 1) ρ.up) (c1 (k' + 1) ρ.up)) (φ.subst ρ.τ)
+            (a0.isub ρ)).isub ρ' = .transp (.path ((W (k' + 1) ρ.up).isub ρ'.up.up) ((c0 (k' + 1) ρ.up).isub ρ'.up)
+            ((c1 (k' + 1) ρ.up).isub ρ'.up)) (φ.subst (ρ.comp ρ').τ) (a0.isub (ρ.comp ρ')) := by
+          show Tm.transp ((Tm.path _ _ _).isub ρ'.up) ((φ.subst ρ.τ).subst ρ'.τ) ((a0.isub ρ).isub ρ') = _
+          rw [isub_path, Tm.isub_isub, ← I_subst_comp]
+        rw [e3] at hLt; exact hLt
+      have hRt := HasTy.eqR (eq_transp_ty hW (hρT' k'' (ρ.comp ρ')) (hTW' k'' (ρ.comp ρ')))
+      have ePL : TyEq S (k'' + 1) (.path ((W (k' + 1) ρ.up).isub ρ'.up.up) ((c0 (k' + 1) ρ.up).isub ρ'.up)
+          ((c1 (k' + 1) ρ.up).isub ρ'.up)) (T.isub (ρ.comp ρ').up) := by
+        have := (hTW k' ρ).isub hW ρ'.up
+        rw [Tm.isub_isub, ← ISub.up_comp, isub_path] at this
+        exact TyEq.symm this
+      have ePP : TyEq S (k'' + 1) (.path ((W (k' + 1) ρ.up).isub ρ'.up.up) ((c0 (k' + 1) ρ.up).isub ρ'.up)
+          ((c1 (k' + 1) ρ.up).isub ρ'.up)) (.path (W' (k'' + 1) (ρ.comp ρ').up) (c0' (k'' + 1) (ρ.comp ρ').up)
+          (c1' (k'' + 1) (ρ.comp ρ').up)) :=
+        TyEq.trans hW ePL (TyEq.trans hW (hP.tyEq.isub hW (ρ.comp ρ').up) (hTW' k'' (ρ.comp ρ')))
+      have hPP : Tm.path ((W (k' + 1) ρ.up).isub ρ'.up.up) ((c0 (k' + 1) ρ.up).isub ρ'.up)
+          ((c1 (k' + 1) ρ.up).isub ρ'.up) = .path (W' (k'' + 1) (ρ.comp ρ').up) (c0' (k'' + 1) (ρ.comp ρ').up)
+          (c1' (k'' + 1) (ρ.comp ρ').up) ∨ ∃ l, EqTm0 S (k'' + 1) .one []
+          (.path ((W (k' + 1) ρ.up).isub ρ'.up.up) ((c0 (k' + 1) ρ.up).isub ρ'.up) ((c1 (k' + 1) ρ.up).isub ρ'.up))
+          (.path (W' (k'' + 1) (ρ.comp ρ').up) (c0' (k'' + 1) (ρ.comp ρ').up) (c1' (k'' + 1) (ρ.comp ρ').up))
+          (.univ l) := by
+        rcases ePP with e | ⟨l, e⟩
+        · exact .inl e
+        · exact .inr ⟨l, spec_to_minimal_eq hW e⟩
+      have hp0 : EqTm S k'' .one [] (a0.isub (ρ.comp ρ')) (a0'.isub (ρ.comp ρ'))
+          ((Tm.path ((W (k' + 1) ρ.up).isub ρ'.up.up) ((c0 (k' + 1) ρ.up).isub ρ'.up)
+            ((c1 (k' + 1) ρ.up).isub ρ'.up)).dinst .zero) := by
+        have e := EqTm.isubS hW (RE2.typed ha0).2.2 (ρ.comp ρ')
+        rw [isub_dinst] at e
+        exact e.tyConv (TyEq.symm (tyEq_dinst hW ePL (r := .zero) trivial))
+      exact minimal_to_spec_eq (transpPath_sysr_eq hW (spec_to_minimal hW hLt') (spec_to_minimal hW hRt) hPP
+        (spec_to_minimal_eq hW hp0) (ent_subst h12 _) (hsc k'' (ρ.comp ρ')) (hsc' k'' (ρ.comp ρ'))
+        (hEρ k'' (ρ.comp ρ')))
     · -- the tubes
       intro k3 σ x x' hx hx' hEx hh
       have eσ : (ρ.comp ρ').comp σ = ρ.comp (ρ'.comp σ) := ISub.comp_assoc _ _ _
