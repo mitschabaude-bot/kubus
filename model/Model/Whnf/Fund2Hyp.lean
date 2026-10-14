@@ -148,13 +148,13 @@ structure DataHyp2 (S S' : Sig) : Prop where
     Valid2 S Ψ Φ Γ p p (A.substList (ps.toList.take k).reverse) →
     Valid2 S Ψ Φ Γ p' p' (A.substList (ps.toList.take k).reverse) →
     Valid2 S Ψ Φ Γ p p' (A.substList (ps.toList.take k).reverse)
-  conBnd : ∀ {Ψ Φ Γ d D c C ps args rs} {k : ℕ} {ψ b T}, S'[d]? = some (.data D) → D.ctors[c]? = some C →
+  conBnd : ∀ {Ψ Φ Γ d D c C ps args rs} {k : ℕ} {ψ b T}, S'[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C →
     C.bnd[k]? = some (ψ, b) → I.Entails Φ (Ctor.cofAt ψ rs) →
     ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
     HasTy0 S Ψ Φ Γ (.con d c ps args rs) T → HasTy0 S Ψ Φ Γ (Ctor.bndAt b ps.toList args.toList rs) T →
     Valid2 S Ψ Φ Γ (.con d c ps args rs) (.con d c ps args rs) T →
     Valid2 S Ψ Φ Γ (.con d c ps args rs) (Ctor.bndAt b ps.toList args.toList rs) T
-  elimCon : ∀ {Ψ Φ Γ d D c C ps P bs b qs args rs T}, S'[d]? = some (.data D) →
+  elimCon : ∀ {Ψ Φ Γ d D c C ps P bs b qs args rs T}, S'[d]? = some (.data D) → D.isHIT = true →
     D.ctors[c]? = some C → bs.toList[c]? = some b →
     ps = Tm.ofList ps.toList → args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
     HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →

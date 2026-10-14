@@ -553,6 +553,63 @@ theorem valid_elim (hH : D.isHIT = false) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps'
     rw [inst_subst]
     exact T
 
+omit hD in
+/-- A computation rule, from a derivation of the equation: the right instances of `t` reduce to those
+of `u`. -/
+theorem valid_redE {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u T : Tm} (h : Valid2 S Ψ Φ Γ t t T) (hu : HasTy0 S Ψ Φ Γ u T)
+    (heq : EqTm0 S Ψ Φ Γ t u T) (hr : ∀ k (c : CSub2 S Ψ Φ Γ k), Red S (c.R t) (c.R u)) :
+    Valid2 S Ψ Φ Γ t u T := by
+  refine valid_redR hW h hu fun k c k' σ => ?_
+  rw [← CSub2.restr_R hW c σ, ← CSub2.restr_R hW c σ, ← CSub2.restr_L hW c σ]
+  refine ⟨hr k' (c.restr hW σ), ?_⟩
+  have e : EqTm S k' .one [] ((c.restr hW σ).R t) ((c.restr hW σ).R u) ((c.restr hW σ).R T) :=
+    ((c.restr hW σ).diagR hW).eq hW heq
+  exact e.tyConv (TyEq.symm (Comp2_ty_base (h k' (c.restr hW σ)).1).2.2.2.2.2)
+
+/-- **Elimination of a constructor** of an inductive type without path constructors. -/
+theorem valid_elimCon (hH : D.isHIT = false) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {c : ℕ} {C : Ctor} {ps P bs b qs args : Tm}
+    {rs : List I} {T : Tm} (hC : D.ctors[c]? = some C) (hb : bs.toList[c]? = some b)
+    (hal : args = Tm.ofList args.toList) (hbl : bs = Tm.ofList bs.toList)
+    (hty : HasTy0 S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) T)
+    (hu : HasTy0 S Ψ Φ Γ (Tm.papps (Tm.apps b (args.toList ++
+      C.recPos.map fun k => .elim d ps P bs (args.toList.getD k .abort))) rs) T)
+    (heq : EqTm0 S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) (Tm.papps (Tm.apps b (args.toList ++
+      C.recPos.map fun k => .elim d ps P bs (args.toList.getD k .abort))) rs) T)
+    (h : Valid2 S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs)) (.elim d ps P bs (.con d c qs args rs)) T) :
+    Valid2 S Ψ Φ Γ (.elim d ps P bs (.con d c qs args rs))
+      (Tm.papps (Tm.apps b (args.toList ++
+        C.recPos.map fun k => .elim d ps P bs (args.toList.getD k .abort))) rs) T := by
+  obtain ⟨-, -, -, hx⟩ := gen_elimP hty rfl
+  obtain ⟨D1, C1, hD1, hC1, -, -, -, hrs⟩ := gen_con hx rfl
+  rw [hD] at hD1; cases hD1
+  rw [hC] at hC1; cases hC1
+  rw [dims_of_not_hit hH hC, List.length_eq_zero_iff] at hrs
+  subst hrs
+  refine valid_redE hW h hu heq fun k c' => ?_
+  have hX : c'.R args = Tm.ofList (args.toList.map c'.R) := by
+    conv_lhs => rw [hal]
+    exact ofList_subst _ _ _
+  have hb' : (c'.R bs).toList[c]? = some (c'.R b) := by
+    show (bs.subst _ _).toList[c]? = _
+    rw [toList_subst hbl, List.getElem?_map, hb]; rfl
+  have hs := step_elimCon hD hH hC (ps := c'.R ps) (M := P.subst (Tm.up c'.γ') c'.σ'.τ) (qs := c'.R qs)
+    (X := args.toList.map c'.R) hb'
+  rw [← hX] at hs
+  refine .step hs ?_
+  suffices e : Tm.apps (c'.R b) (args.toList.map c'.R ++
+      ihsOf d C (c'.R ps) (P.subst (Tm.up c'.γ') c'.σ'.τ) (c'.R bs) (args.toList.map c'.R)) =
+      (Tm.apps b (args.toList ++ C.recPos.map fun k => .elim d ps P bs (args.toList.getD k .abort))).subst c'.γ' c'.σ'.τ by
+    rw [e]; exact .refl _
+  rw [apps_subst, List.map_append, List.map_map]
+  congr 2
+  simp only [ihsOf, List.map_map]
+  congr 1; funext j
+  simp only [Function.comp]
+  show Tm.elim d _ _ _ _ = Tm.elim d _ _ _ _
+  congr 1
+  simp only [List.getD_eq_getElem?_getD, List.getElem?_map]
+  cases args.toList[j]? <;> rfl
+
 end valid
 
 

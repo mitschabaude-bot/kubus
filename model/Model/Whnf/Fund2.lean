@@ -649,10 +649,22 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
       (fun c C b b' hC hb hb' => sigwk_eq hpre (h8 c C b b' hC hb hb')) (sigwk_eq hpre h9)
       (fund2_ty h1) (fund2_ty h2) (fund2_eqtele h3) (fund2_eq h4)
       (fun c C b b' hC hb hb' => fund2_eq (h8 c C b b' hC hb hb')) (fund2_eq h9)
-  | .conBnd h0 h1 h2 h3 h4 h5 h6 =>
-    hDa.conBnd h0 h1 h2 h3 h4 h5 (sigwk_ty hpre h6) (pre2 hW hpre (.conBnd h0 h1 h2 h3 h4 h5 h6)).2 (fund2_ty h6)
-  | .elimCon h0 h1 h2 h3 h4 h5 h6 h7 =>
-    hDa.elimCon h0 h1 h2 h3 h4 h5 (sigwk_tele hpre h6) (sigwk_ty hpre h7)
+  | .conBnd h0 h1 h2 h3 h4 h5 h6 => by
+    rename_i D _ C _ _ _ _ _ _
+    cases hH : D.isHIT
+    · simp only [DataDecl.isHIT, List.any_eq_false] at hH
+      have := hH _ (List.mem_of_getElem? h1)
+      simp only [Bool.or_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true', List.isEmpty_eq_false_iff] at this
+      have hb : C.bnd = [] := Classical.byContradiction fun hne => this (.inr hne)
+      rw [hb] at h2; cases h2
+    exact hDa.conBnd h0 hH h1 h2 h3 h4 h5 (sigwk_ty hpre h6) (pre2 hW hpre (.conBnd h0 h1 h2 h3 h4 h5 h6)).2 (fund2_ty h6)
+  | .elimCon h0 h1 h2 h3 h4 h5 h6 h7 => by
+    rename_i D _ _ _ _ _ _ _ _ _
+    cases hH : D.isHIT
+    · exact valid_elimCon hW (hpre _ _ h0) hH h1 h2 h4 h5 (sigwk_ty hpre h7)
+        (pre2 hW hpre (.elimCon h0 h1 h2 h3 h4 h5 h6 h7)).2 (sigwk_eq hpre (.elimCon h0 h1 h2 h3 h4 h5 h6 h7))
+        (fund2_ty h7)
+    exact hDa.elimCon h0 hH h1 h2 h3 h4 h5 (sigwk_tele hpre h6) (sigwk_ty hpre h7)
       (pre2 hW hpre (.elimCon h0 h1 h2 h3 h4 h5 h6 h7)).2 (fund2_tele h6) (fund2_ty h7)
   | .elimHcomp h0 h1 h2 h3 =>
     hDa.elimHcomp h0 h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (pre2 hW hpre (.elimHcomp h0 h1 h2 h3)).2
