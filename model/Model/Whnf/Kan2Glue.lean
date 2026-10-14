@@ -1149,9 +1149,11 @@ theorem glue_whnf_pair {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S k T T'
 /-- Composition at a pair of related types whose normal forms are Glue types. -/
 theorem kanH2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S k T T') (hR : RedT S k T (.glue A φ Tf e))
     (hG : HasTy S k .one [] (.glue A φ Tf e) (.univ l))
-    (hIHA : ∀ k1 (ρ1 : ISub k1 k) A1 φ1 T1 e1, RedT S k1 (T.isub ρ1) (.glue A1 φ1 T1 e1) →
+    (hIHA : ∀ k1 (ρ1 : ISub k1 k) A1 φ1 T1 e1, ¬ (ival (idEnv k1) (φ.subst ρ1.τ)).holds →
+      RedT S k1 (T.isub ρ1) (.glue A1 φ1 T1 e1) →
       ∀ k2 (ρ2 : ISub k2 k1) X X', RT2 S k2 (A1.isub ρ2) X → RT2 S k2 X X' → KanH2 S k2 X X')
-    (hIHT : ∀ k1 (ρ1 : ISub k1 k) A1 φ1 T1 e1, RedT S k1 (T.isub ρ1) (.glue A1 φ1 T1 e1) →
+    (hIHT : ∀ k1 (ρ1 : ISub k1 k) A1 φ1 T1 e1, ¬ (ival (idEnv k1) (φ.subst ρ1.τ)).holds →
+      RedT S k1 (T.isub ρ1) (.glue A1 φ1 T1 e1) →
       ∀ k2 (ρ2 : ISub k2 k1), (ival (idEnv k2) (φ1.subst ρ2.τ)).holds →
       ∀ X X', RT2 S k2 (T1.isub ρ2) X → RT2 S k2 X X' → KanH2 S k2 X X') :
     KanH2 S k T T' := by
@@ -1237,7 +1239,7 @@ theorem kanH2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S k T T') (h
         have hTfT : RT2 S k'' (Tf.isub (σ.comp ρ)) (T.isub (σ.comp ρ)) :=
           RT2.trans hW hTfX (RT2_glue_fib0 hW hGτ hfe (invG.2 k'' (σ.comp ρ) hfτ).1)
             (RT2.isub hW (tyCode_of_univ hW hG) hGT (σ.comp ρ))
-        have hK := hIHT k (ISub.id k) A φ Tf e (by rw [isub_id_of_closed hTc]; exact hR) k'' (σ.comp ρ)
+        have hK := hIHT k (ISub.id k) A φ Tf e (by rw [I_subst_id hφs]; exact fun h => hn ((holds_iff_entails hφs).1 h)) (by rw [isub_id_of_closed hTc]; exact hR) k'' (σ.comp ρ)
           hfτ (T.isub (σ.comp ρ)) (T'.isub (σ.comp ρ)) hTfT (hTτ' (σ.comp ρ))
         exact K2.kan hK
     -- the face of the Glue type does not hold: `hcompGlue` at the normal form
@@ -1267,14 +1269,14 @@ theorem kanH2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S k T T') (h
     have kA : ∀ k3 (σ3 : ISub k3 k'') X'', RT2 S k3 (((A1 k' σ hf).isub ρ).isub σ3) X'' →
         KanH2 S k3 (((A1 k' σ hf).isub ρ).isub σ3) X'' := fun k3 σ3 X'' h => by
       rw [Tm.isub_isub] at h ⊢
-      exact hIHA k' σ _ _ _ _ hwσ.1 k3 (ρ.comp σ3) _ X''
+      exact hIHA k' σ _ _ _ _ hf hwσ.1 k3 (ρ.comp σ3) _ X''
         (RT2.refl hW (tyCode_of_univ hW (HasTy.isubS hW hA1 _)) h) h
     have kT : ∀ k3 (σ3 : ISub k3 k''), (ival (idEnv k3) (((φ1 k' σ hf).subst ρ.τ).subst σ3.τ)).holds →
         ∀ X'', RT2 S k3 (((T1 k' σ hf).isub ρ).isub σ3) X'' → KanH2 S k3 (((T1 k' σ hf).isub ρ).isub σ3) X'' :=
       fun k3 σ3 hh X'' h => by
         rw [Tm.isub_isub] at h ⊢
         rw [← I_subst_comp] at hh
-        exact hIHT k' σ _ _ _ _ hwσ.1 k3 (ρ.comp σ3) hh _ X''
+        exact hIHT k' σ _ _ _ _ hf hwσ.1 k3 (ρ.comp σ3) hh _ X''
           (RT2.refl hW (tyCode_of_univ hW (glue_fiber_ty hW hWσ (ρ.comp σ3) hh).choose_spec.1) h) h
     have mkD : ∀ (hfτ : ¬ (ival (idEnv k'') (φ.subst (σ.comp ρ).τ)).holds), ¬ I.Entails .one ((φ1 k' σ hf).subst ρ.τ) →
         GHD S k'' ((A1 k' σ hf).isub ρ) ((T1 k' σ hf).isub ρ) ((e1 k' σ hf).isub ρ) (A1' k'' (σ.comp ρ) hfτ)
@@ -1320,7 +1322,7 @@ theorem kanH2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S k T T') (h
           tyCode_of_univ hW (glue_fiber_ty hW hWσ ρ hh1).choose_spec.1
         have hT1T : RT2 S k'' ((T1 k' σ hf).isub ρ) (T.isub (σ.comp ρ)) :=
           RT2.trans hW hT1X (RT2_glue_fib0 hW hWρ hφ1ρ (invW.2 k'' ρ hh1).1) hWTρ
-        have hK := hIHT k' σ _ _ _ _ hwσ.1 k'' ρ hh1 _ (T'.isub (σ.comp ρ)) (RT2.refl hW hT1X hT1T)
+        have hK := hIHT k' σ _ _ _ _ hf hwσ.1 k'' ρ hh1 _ (T'.isub (σ.comp ρ)) (RT2.refl hW hT1X hT1T)
           (RT2.trans hW hT1X hT1T (hTτ' (σ.comp ρ)))
         have r := (K2.retype hW (RT2.symm hW hT1X hT1T)).kan hK
         have r' := RE2.conv hW hT1T r
