@@ -52,7 +52,8 @@ theorem kanH2_elim_core {T T' Y u u' a0 a0' : Tm} {φ φ' : I} (hφs : φ.Scoped
         EqTm S k' .one [] (E' k' ρ ((Tm.hcomp T' φ' u' a0').isub ρ))
           (.hcomp (C' k' ρ) (Ψ' k' ρ) (U' k' ρ) (A0' k' ρ)) (Y.isub ρ)))
     -- the eliminations of related elements
-    (hel : ∀ k' (ρ : ISub k' k) f f', RE2 S k' (T.isub ρ) f f' → RE2 S k' (Y.isub ρ) (E k' ρ f) (E' k' ρ f'))
+    (hfinU : ∀ k' (ρ : ISub k' k), I.Entails .one (φ.subst ρ.τ) →
+      RE2 S k' (Y.isub ρ) (E k' ρ ((u.isub ρ.up).dinst .one)) (E' k' ρ ((u'.isub ρ.up).dinst .one)))
     -- the eliminated faces
     (hΨ : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), I.Entails .one (φ.subst (ρ.comp ρ').τ) →
       I.Entails .one ((Ψ k' ρ).subst ρ'.τ))
@@ -79,7 +80,7 @@ theorem kanH2_elim_core {T T' Y u u' a0 a0' : Tm} {φ φ' : I} (hφs : φ.Scoped
       RT2 S k'' ((C k' ρ).isub ρ') (Y.isub (ρ.comp ρ')))
     (hIH : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), ¬ I.Entails .one (φ.subst (ρ.comp ρ').τ) →
       KanH2 S k'' ((C k' ρ).isub ρ') (C' k'' (ρ.comp ρ')))
-    (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : Tube2 S k T φ u u') :
+    (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) :
     RE2 S k Y (E k (ISub.id k) (.hcomp T φ u a0)) (E' k (ISub.id k) (.hcomp T' φ' u' a0')) := by
   have hnat0 : ∀ k' (ρ : ISub k' k), (E k (ISub.id k) (.hcomp T φ u a0)).isub ρ = E k' ρ ((Tm.hcomp T φ u a0).isub ρ) := by
     intro k' ρ; rw [hEnat, ISub.id_comp]
@@ -124,8 +125,7 @@ theorem kanH2_elim_core {T T' Y u u' a0 a0' : Tm} {φ φ' : I} (hφs : φ.Scoped
       simp only [L, if_pos hf]
       rw [hEnat, up_dinst_one_isub]
     rw [hL, hRpos (ent_comp hf)]
-    exact hel k'' (ρ.comp ρ') _ _
-      (htube k'' (ρ.comp ρ') .one .one trivial trivial (I_eq_refl _) (hholds _ (ent_comp hf)))
+    exact hfinU k'' (ρ.comp ρ') (ent_comp hf)
   have hL : (L k' ρ).isub ρ' = .hcomp ((C k' ρ).isub ρ') ((Ψ k' ρ).subst ρ'.τ)
       ((U k' ρ).isub ρ'.up) ((A0 k' ρ).isub ρ') := by
     simp only [L, if_neg hf]; rfl

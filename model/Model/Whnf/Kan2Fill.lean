@@ -43,6 +43,11 @@ theorem fillTube_isub_dinst (φ : I) (u u0 : Tm) {k3 : ℕ} (σ : ISub k3 (k + 1
   · rw [isub_dshift, dshift_dinst, dshift_isub_tail]
 
 
+theorem isub_hfill (A : Tm) (φ : I) (u u0 : Tm) (σ : ISub k' k) :
+    (Tm.hfill A φ u u0).isub σ.up = Tm.hfill (A.isub σ) (φ.subst σ.τ) (u.isub σ.up) (u0.isub σ) := by
+  show (Tm.hfill A φ u u0).subst .var (I.up σ.τ) = _
+  rw [show (Tm.var : ℕ → Tm) = dupS Tm.var from funext fun n => rfl, hfill_subst]; rfl
+
 variable (hW : WfSig S)
 include hW
 

@@ -115,7 +115,9 @@ theorem kanH2_sigma_fst {T T' : Tm} (hP : SigmaStr S k T T')
     (fun k' ρ => φ.subst ρ.τ) (fun k' ρ => φ'.subst ρ.τ)
     hX hYY (HasTy.fst (hty.tyConv hR.2)) (HasTy.eqR hE0) hE0
     (fun k' ρ k'' ρ' x => rfl) (fun k' ρ k'' ρ' x => rfl)
-    (fun k' ρ => ?_) (fun k' ρ => ?_) hel
+    (fun k' ρ => ?_) (fun k' ρ => ?_)
+    (fun k' ρ hf => hel k' ρ _ _ (htube k' ρ .one .one trivial trivial (I_eq_refl _)
+      ((holds_iff_entails (I.scoped_subst hφs ρ.sc)).2 hf)))
     (fun k' ρ k'' ρ' hf2 => by
       show I.Entails .one ((φ.subst ρ.τ).subst ρ'.τ); rw [← I_subst_comp]; exact hf2)
     (fun k' ρ k'' ρ' _ => by
@@ -150,7 +152,7 @@ theorem kanH2_sigma_fst {T T' : Tm} (hP : SigmaStr S k T T')
       rw [hfst_up', Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, ISub.comp_assoc]
       refine hel k3 _ _ _ (hbd' k3 _ ?_)
       rw [I_subst_comp, I_subst_comp]; exact hh)
-    (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21 htube
+    (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21
   · exact H
   · have hρ : HasTy S k' .one [] (.hcomp (T.isub ρ) (φ.subst ρ.τ) (u.isub ρ.up) (a0.isub ρ)) (T.isub ρ) :=
       HasTy.isubS hW hty ρ

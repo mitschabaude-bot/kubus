@@ -610,7 +610,9 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
     (fun k' ρ k'' ρ' x => by
       show Tm.papp (x.isub ρ') ((r'.subst ρ.τ).subst ρ'.τ) = Tm.papp (x.isub ρ') (r'.subst (ρ.comp ρ').τ)
       rw [I_subst_comp])
-    (fun k' ρ => ?_) (fun k' ρ => ?_) hel
+    (fun k' ρ => ?_) (fun k' ρ => ?_)
+    (fun k' ρ hf => hel k' ρ _ _ (htube k' ρ .one .one trivial trivial (I_eq_refl _)
+      ((holds_iff_entails (I.scoped_subst hφs ρ.sc)).2 hf)))
     (fun k' ρ k'' ρ' hf2 => by
       show I.Entails .one (.or ((φ.subst ρ.τ).subst ρ'.τ) _)
       rw [← I_subst_comp]; exact ent_trans hf2 (ent_or_left _ _))
@@ -630,7 +632,7 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
         show Tm.papp ((a0.isub ρ).isub ρ') ((r.subst ρ.τ).subst ρ'.τ) = _; rw [Tm.isub_isub, I_subst_comp]]
       exact hel k'' (ρ.comp ρ') _ _ (RE2.isub hW ha0 _))
     (fun k' ρ k'' ρ' hnf k3 σ3 hh => ?_) (fun k' ρ k'' ρ' hnf k3 σ3 hh => ?_)
-    (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21 htube
+    (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21
   · simpa only [hrid, hrid'] using H
   · have hρ : HasTy S k' .one [] (.hcomp (T.isub ρ) (φ.subst ρ.τ) (u.isub ρ.up) (a0.isub ρ)) (T.isub ρ) :=
       HasTy.isubS hW hty ρ

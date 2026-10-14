@@ -212,7 +212,9 @@ theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')
     (fun k' ρ k'' ρ' x => by
       show Tm.papp (x.isub ρ') ((r'.subst ρ.τ).subst ρ'.τ) = Tm.papp (x.isub ρ') (r'.subst (ρ.comp ρ').τ)
       rw [I_subst_comp])
-    (fun k' ρ => ?_) (fun k' ρ => ?_) hel
+    (fun k' ρ => ?_) (fun k' ρ => ?_)
+    (fun k' ρ hf => hel k' ρ _ _ (htube k' ρ .one .one trivial trivial (I_eq_refl _)
+      ((holds_iff_entails (I.scoped_subst hφs ρ.sc)).2 hf)))
     (fun k' ρ k'' ρ' hf2 => by
       show I.Entails .one ((φ.subst ρ.τ).subst ρ'.τ); rw [← I_subst_comp]; exact hf2)
     (fun k' ρ k'' ρ' _ => by
@@ -261,7 +263,7 @@ theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')
       rw [e1, papp_up_dinst, Tm.isub_isub, ISub.comp_assoc]
       refine hel k3 _ _ _ (hbd' k3 _ ?_)
       rw [I_subst_comp, I_subst_comp]; exact hh)
-    (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21 htube
+    (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21
   · simpa only [hrid, hrid'] using H
   · have hρ : HasTy S k' .one [] (.hcomp (T.isub ρ) (φ.subst ρ.τ) (u.isub ρ.up) (a0.isub ρ)) (T.isub ρ) :=
       HasTy.isubS hW hty ρ
