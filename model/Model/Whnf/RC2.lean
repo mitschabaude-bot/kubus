@@ -354,9 +354,12 @@ theorem DR2At.redR {k0 : ℕ} {Θ : SData m} {f : Hom k0 m} {d : ℕ} {D : DataD
 theorem rc2_dataC {Θ : SData m} : RC2 S m (dataC Θ) := by
   intro k f T T' B' t t' u'
   rw [Comp2_dataC]
-  refine ⟨fun h hs hB => ⟨base_rc hW hB h.1 hs, fun k' σ => ?_⟩, fun _ h hs hu => ?_⟩
-  · obtain ⟨ps, ps', h1, h2, rest⟩ := h.2 k' σ
+  refine ⟨fun h hs hB => ⟨base_rc hW hB h.1 hs, fun k' σ => ?_, h.2.2.1, fun k' σ k'' σ' ps1 ps2 h1 h2 => ?_⟩,
+    fun _ h hs hu => ?_⟩
+  · obtain ⟨ps, ps', h1, h2, rest⟩ := h.2.1 k' σ
     exact ⟨ps, ps', h1, RedT.stable hW hs σ h2, rest⟩
+  · exact h.2.2.2 k' σ k'' σ' ps1 ps2 (RedT.of_red hW (hs k' σ).1 (hs k' σ).2 h1)
+      (RedT.of_red hW (hs k'' (σ.comp σ')).1 (hs k'' (σ.comp σ')).2 h2)
   · obtain ⟨hE, hmem, -, hdr⟩ := h
     have hE' := EB.rc hW hE hs hu
     refine ⟨hE', hmem, hE', ?_⟩

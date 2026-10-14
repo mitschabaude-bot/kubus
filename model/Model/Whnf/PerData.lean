@@ -513,13 +513,13 @@ theorem per2_dataC (hW : WfSig S) {Θ : SData m}
     rw [Hom.id_comp]; exact (argRel2_iff Θ σ).1 hd
   refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
     fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
-  · obtain ⟨hb, hall⟩ := hT
-    refine ⟨base_symm hb, fun k' σ => ?_⟩
+  · obtain ⟨hb, hall, hc, hc'⟩ := hT
+    refine ⟨base_symm hb, fun k' σ => ?_, hc', hc⟩
     obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d', pr⟩ := hall k' σ
     exact ⟨ps', ps, h2, h1, hl', hl, r21, r12, d', d, parRel2_symm ihp f σ pr⟩
-  · obtain ⟨hb, hall⟩ := hT
-    obtain ⟨hb', hall'⟩ := hT'
-    refine ⟨base_trans hW hb hb', fun k' σ => ?_⟩
+  · obtain ⟨hb, hall, hc, -⟩ := hT
+    obtain ⟨hb', hall', -, hc''⟩ := hT'
+    refine ⟨base_trans hW hb hb', fun k' σ => ?_, hc, hc''⟩
     obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d', pr⟩ := hall k' σ
     obtain ⟨ps2, ps'', g1, g2, hl2, hl'', r12', r21', d2, d'', pr'⟩ := hall' k' σ
     obtain rfl : ps2 = ps' := by have := RedW.unique g1.1 h2.1; injection this
@@ -536,19 +536,19 @@ theorem per2_dataC (hW : WfSig S) {Θ : SData m}
       (argRel2_iff Θ σ).2 d'', parRel2_trans ihp f σ
         (by rw [data_len_of hW hTd', data_len_of hW hTd]) pr pr'⟩
   · obtain ⟨he, hmem, -, hdr⟩ := ht
-    exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm, DR2_symm hW f hP hdr (diagOf hT.2)⟩
+    exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm, DR2_symm hW f hP hdr (diagOf hT.2.1)⟩
   · obtain ⟨he, hmem, -, hdr⟩ := ht
     obtain ⟨he', -, -, hdr'⟩ := ht'
-    exact ⟨he.trans he', hmem, he.trans he', DR2_trans hW f hP hdr hdr' (diagOf hT.2)⟩
+    exact ⟨he.trans he', hmem, he.trans he', DR2_trans hW f hP hdr hdr' (diagOf hT.2.1)⟩
   · obtain ⟨he, hmem, -, hdr⟩ := ht
     have hTT := hT.1.2.2.2.2
     refine ⟨he.conv hTT, hmem, he.conv hTT, DR2_conv hW f hP hdr hTT (fun k' σ ps ps' h1 h2 => ?_) (fun k' σ => ?_)⟩
-    · obtain ⟨ps0, ps0', g1, g2, -, -, r12, -, d, d', -⟩ := hT.2 k' σ
+    · obtain ⟨ps0, ps0', g1, g2, -, -, r12, -, d, d', -⟩ := hT.2.1 k' σ
       obtain rfl : ps = ps0 := by have := RedW.unique h1.1 g1.1; injection this
       obtain rfl : ps' = ps0' := by have := RedW.unique h2.1 g2.1; injection this
       rw [Hom.id_comp]
       exact ⟨(argRel2_iff Θ σ).1 r12, (argRel2_iff Θ σ).1 d, (argRel2_iff Θ σ).1 d'⟩
-    · obtain ⟨ps0, ps0', -, g2, -, hl', -⟩ := hT.2 k' σ
+    · obtain ⟨ps0, ps0', -, g2, -, hl', -⟩ := hT.2.1 k' σ
       exact ⟨ps0', g2, hl'⟩
 
 end
