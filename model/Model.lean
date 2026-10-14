@@ -34,6 +34,7 @@ import Model.Whnf.Sound
 import Model.Whnf.CSub2
 import Model.Whnf.Valid2
 import Model.Whnf.Valid2Glue
+import Model.Whnf.Valid2GlueEta
 import Model.Whnf.Kan2Pi
 import Model.Whnf.Kan2Elim
 import Model.Whnf.Kan2IPi
@@ -52,3 +53,4 @@ import Model.Whnf.Kan2SigmaS
 import Model.Whnf.Kan2PathTEq
 import Model.Whnf.Kan2PathT
 import Model.Whnf.Kan2Univ
+import Model.Whnf.Kan2Glue
