@@ -57,3 +57,5 @@ import Model.Whnf.Valid2Kan
 import Model.Whnf.Fund2Hyp
 import Model.Whnf.Fund2Aux
 import Model.Whnf.Fund2
+import Model.Whnf.Valid2Sub
+import Model.Whnf.Valid2Comp

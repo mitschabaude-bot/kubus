@@ -153,15 +153,54 @@ theorem SplitInv.cumul {φ ψ : I} {t u : Tm} {l : ℕ} (hl : l + 1 ≤ maxLevel
     (h : SplitInv S Ψ Φ Γ φ t ψ u (.univ l)) : SplitInv S Ψ Φ Γ φ t ψ u (.univ (l + 1)) :=
   ⟨h.1, h.2.1, h.2.2.1, valid_cumul hW hl h.2.2.2.1, valid_cumul hW hl h.2.2.2.2.1, valid_cumul hW hl h.2.2.2.2.2⟩
 
-theorem HcompInv_restrict {Φ' φ : I} {u a A : Tm} (he : I.Entails Φ' Φ)
-    (h : φ.Scoped Ψ ∧ Valid2 S Ψ (cof Φ φ) Γ (u.dinst .zero) a A) :
-    φ.Scoped Ψ ∧ Valid2 S Ψ (cof Φ' φ) Γ (u.dinst .zero) a A :=
-  ⟨h.1, valid_restrict hW (ent_and_mono he (ent_refl _)) h.2⟩
+/-- The inverted typing of a composition at `T`. -/
+def HcompInv (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (u a T : Tm) : Prop :=
+  ∃ l, φ.Scoped Ψ ∧ Valid2 S Ψ Φ Γ A A (.univ l) ∧ Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u u A.dshift ∧
+    Valid2 S Ψ Φ Γ a a A ∧ Valid2 S Ψ (cof Φ φ) Γ (u.dinst .zero) a A ∧ ElTr2 S Ψ Φ Γ A T ∧
+    HasTy0 S Ψ Φ Γ A (.univ l) ∧ HasTy0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift ∧ HasTy0 S Ψ Φ Γ a A ∧
+    EqTm0 S Ψ (cof Φ φ) Γ (u.dinst .zero) a A
 
-theorem TranspInv_restrict {Φ' φ : I} {A : Tm} (he : I.Entails Φ' Φ)
-    (h : φ.Scoped Ψ ∧ ∃ l, Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l)) :
-    φ.Scoped Ψ ∧ ∃ l, Valid2 S (Ψ + 1) (cof Φ' φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l) :=
-  ⟨h.1, h.2.choose, valid_restrict hW (ent_shift (ent_and_mono he (ent_refl _))) h.2.choose_spec⟩
+theorem HcompInv.conv {A u a T T' : Tm} {φ : I} {m : ℕ} (h : HcompInv S Ψ Φ Γ A φ u a T)
+    (hT : Valid2 S Ψ Φ Γ T T' (.univ m)) : HcompInv S Ψ Φ Γ A φ u a T' := by
+  obtain ⟨l, h0, h1, h2, h3, h4, h5, h6⟩ := h
+  exact ⟨l, h0, h1, h2, h3, h4, h5.trans (ElTr2.of_valid hW hT), h6⟩
+
+theorem HcompInv.restrict {Φ' φ : I} {A u a T : Tm} (hs : Φ'.Scoped Ψ) (he : I.Entails Φ' Φ)
+    (h : HcompInv S Ψ Φ Γ A φ u a T) : HcompInv S Ψ Φ' Γ A φ u a T := by
+  obtain ⟨l, h0, h1, h2, h3, h4, h5, t1, t2, t3, t4⟩ := h
+  have hs' : (cof Φ' φ).Scoped Ψ := ⟨hs, h0⟩
+  have he' : I.Entails (cof Φ' φ) (cof Φ φ) := ent_and_mono he (ent_refl _)
+  exact ⟨l, h0, valid_restrict hW he h1, valid_restrict hW (ent_shift he') h2,
+    valid_restrict hW he h3, valid_restrict hW he' h4, h5.restrict he, HasTy0.restrict hs he t1,
+    HasTy0.restrict (KubusCore.I.scoped_shift hs') (ent_shift he') t2, HasTy0.restrict hs he t3,
+    EqTm0.restrict hs' he' t4⟩
+
+theorem HcompInv.cumul {A u a : Tm} {φ : I} {l : ℕ} (hl : l + 1 ≤ maxLevel)
+    (h : HcompInv S Ψ Φ Γ A φ u a (.univ l)) : HcompInv S Ψ Φ Γ A φ u a (.univ (l + 1)) := by
+  obtain ⟨l', h0, h1, h2, h3, h4, h5, h6⟩ := h
+  exact ⟨l', h0, h1, h2, h3, h4, h5.trans (ElTr2.cumul hW hl), h6⟩
+
+/-- The inverted typing of a transport at `T`. -/
+def TranspInv (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (a T : Tm) : Prop :=
+  ∃ l, φ.Scoped Ψ ∧ Valid2 S (Ψ + 1) Φ.shift Γ.dshift A A (.univ l) ∧
+    Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l) ∧
+    Valid2 S Ψ Φ Γ a a (A.dinst .zero) ∧ ElTr2 S Ψ Φ Γ (A.dinst .one) T
+
+theorem TranspInv.conv {A a T T' : Tm} {φ : I} {m : ℕ} (h : TranspInv S Ψ Φ Γ A φ a T)
+    (hT : Valid2 S Ψ Φ Γ T T' (.univ m)) : TranspInv S Ψ Φ Γ A φ a T' := by
+  obtain ⟨l, h0, h1, h2, h3, h4⟩ := h
+  exact ⟨l, h0, h1, h2, h3, h4.trans (ElTr2.of_valid hW hT)⟩
+
+theorem TranspInv.restrict {Φ' φ : I} {A a T : Tm} (he : I.Entails Φ' Φ) (h : TranspInv S Ψ Φ Γ A φ a T) :
+    TranspInv S Ψ Φ' Γ A φ a T := by
+  obtain ⟨l, h0, h1, h2, h3, h4⟩ := h
+  exact ⟨l, h0, valid_restrict hW (ent_shift he) h1,
+    valid_restrict hW (ent_shift (ent_and_mono he (ent_refl _))) h2, valid_restrict hW he h3, h4.restrict he⟩
+
+theorem TranspInv.cumul {A a : Tm} {φ : I} {l : ℕ} (hl : l + 1 ≤ maxLevel)
+    (h : TranspInv S Ψ Φ Γ A φ a (.univ l)) : TranspInv S Ψ Φ Γ A φ a (.univ (l + 1)) := by
+  obtain ⟨l', h0, h1, h2, h3, h4⟩ := h
+  exact ⟨l', h0, h1, h2, h3, h4.trans (ElTr2.cumul hW hl)⟩
 
 /-- The inverted typing of a Glue introduction at `G`. -/
 def GlueElInv (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (φ : I) (e t a G : Tm) : Prop :=

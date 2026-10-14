@@ -171,13 +171,15 @@ termination_by structural hd
 
 
 theorem fund2_hcompInv {Ψ Φ Γ s T} (hd : HasTy0 S' Ψ Φ Γ s T) :
-    ∀ {A φ u a}, s = .hcomp A φ u a →
-    φ.Scoped Ψ ∧ Valid2 S Ψ (cof Φ φ) Γ (u.dinst .zero) a A :=
+    ∀ {A φ u a}, s = .hcomp A φ u a → HcompInv S Ψ Φ Γ A φ u a T :=
   match hd with
-  | .hcomp _ h1 _ _ h4 => fun hs => by have a := fund2_eq h4; cases hs; exact ⟨h1, a⟩
-  | .conv h0 _ => fun hs => fund2_hcompInv h0 hs
-  | .restrict _ h1 h2 => fun hs => HcompInv_restrict hW h1 (fund2_hcompInv h2 hs)
-  | .cumul _ h1 => fun hs => fund2_hcompInv h1 hs
+  | .hcomp h0 h1 h2 h3 h4 => fun hs => by
+    have a0 := fund2_ty h0; have a2 := fund2_ty h2; have a3 := fund2_ty h3; have a4 := fund2_eq h4
+    cases hs; exact ⟨_, h1, a0, a2, a3, a4, ElTr2.refl _, sigwk_ty hpre h0, sigwk_ty hpre h2, sigwk_ty hpre h3,
+      sigwk_eq hpre h4⟩
+  | .conv h0 h1 => fun hs => (fund2_hcompInv h0 hs).conv hW (fund2_eq h1)
+  | .restrict h0 h1 h2 => fun hs => (fund2_hcompInv h2 hs).restrict hW h0 h1
+  | .cumul h0 h1 => fun hs => (fund2_hcompInv h1 hs).cumul hW h0
   | .var _ _ => fun hs => by cases hs
   | .const _ _ => fun hs => by cases hs
   | .univ _ _ => fun hs => by cases hs
@@ -207,13 +209,14 @@ termination_by structural hd
 
 
 theorem fund2_transpInv {Ψ Φ Γ s T} (hd : HasTy0 S' Ψ Φ Γ s T) :
-    ∀ {A φ a}, s = .transp A φ a →
-    φ.Scoped Ψ ∧ ∃ l, Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l) :=
+    ∀ {A φ a}, s = .transp A φ a → TranspInv S Ψ Φ Γ A φ a T :=
   match hd with
-  | .transp _ h1 h2 _ => fun hs => by have a := fund2_eq h2; cases hs; exact ⟨h1, _, a⟩
-  | .conv h0 _ => fun hs => fund2_transpInv h0 hs
-  | .restrict _ h1 h2 => fun hs => TranspInv_restrict hW h1 (fund2_transpInv h2 hs)
-  | .cumul _ h1 => fun hs => fund2_transpInv h1 hs
+  | .transp h0 h1 h2 h3 => fun hs => by
+    have a0 := fund2_ty h0; have a2 := fund2_eq h2; have a3 := fund2_ty h3
+    cases hs; exact ⟨_, h1, a0, a2, a3, ElTr2.refl _⟩
+  | .conv h0 h1 => fun hs => (fund2_transpInv h0 hs).conv hW (fund2_eq h1)
+  | .restrict _ h1 h2 => fun hs => (fund2_transpInv h2 hs).restrict hW h1
+  | .cumul h0 h1 => fun hs => (fund2_transpInv h1 hs).cumul hW h0
   | .var _ _ => fun hs => by cases hs
   | .const _ _ => fun hs => by cases hs
   | .univ _ _ => fun hs => by cases hs
@@ -367,13 +370,13 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     exact valid_split hW i0.1 i0.2.1 i0.2.2.1 (fund2_eq h2) (fund2_eq h3) i1.2.2.2.2.2 (sigwk_ty hpre h0)
       (sigwk_ty hpre h1)
   | .transp h0 h1 h2 h3 h4 h5 => by
-    obtain ⟨hφ, _, hC⟩ := fund2_transpInv h0 rfl
+    obtain ⟨_, hφ, -, hC, -⟩ := fund2_transpInv h0 rfl
     have hA := fund2_eq h2
     exact valid_transp hW hφ h3 h4 hA hC (fund2_eq h5) (sigwk_ty hpre h0) (sigwk_ty hpre h1)
       (sigwk_eq hpre (.transp h0 h1 h2 h3 h4 h5)) fun k c => hK.transp k _ _ (hA.ty hW (c.up hW))
   | .hcomp h0 h1 h2 h3 h4 h5 h6 => by
-    obtain ⟨hφ, hu0⟩ := fund2_hcompInv h0 rfl
-    obtain ⟨-, hu0'⟩ := fund2_hcompInv h1 rfl
+    obtain ⟨_, hφ, -, -, -, hu0, -⟩ := fund2_hcompInv h0 rfl
+    obtain ⟨_, -, -, -, -, hu0', -⟩ := fund2_hcompInv h1 rfl
     have hA := fund2_eq h2
     have hu0'' := valid_conv hW (valid_restrict hW (ent_and_mono (ent_refl _) h3) hu0')
       (valid_restrict hW (ent_and_left _ _) (valid_symm hW hA))
