@@ -1,4 +1,6 @@
 import Model.Whnf.Kan2Glue
+import Model.Whnf.Kan2IPiT
+import Model.Canon.KanGlueT
 
 /-!
 # Binary Kan lemma: transport along lines of Glue types
@@ -86,6 +88,80 @@ theorem comp2r {C C' u u' u0 u0' : Tm} {ψ ψ' : I} (hLR : LineRob S k C C') (hL
   have heq := minimal_to_spec_eq (comp_cong hS (spec_to_minimal hW hty) (spec_to_minimal hW hty')
     (spec_to_minimal_eq hW hCC) h12 h21 (spec_to_minimal_eq hW hteq) (spec_to_minimal_eq hW (RE2.typed hu0).2.2))
   exact comp2 hW hLR hLRL hKT hKH hty hty' heq hteq h12 h21 htube hu0 hbd hbd'
+
+
+/-- The data of a transport along a pair of Glue lines: related bases, fibers and equivalences, Kan
+bases and fibers, and a related start of the transport at the left line. -/
+structure TGD2 (S : Sig) (k : ℕ) (A : Tm) (φ : I) (T e A' : Tm) (φ' : I) (T' e' : Tm) (ψ ψ' : I) (u0 u0' : Tm)
+    (δ δ' : I) : Prop where
+  hG : ∃ l, HasTy S (k + 1) .one [] (.glue A φ T e) (.univ l)
+  hG' : ∃ l, HasTy S (k + 1) .one [] (.glue A' φ' T' e') (.univ l)
+  rA : LineRob S k A A'
+  rAA : LineRob S k A A
+  rT : ∀ k' (σ : ISub k' (k + 1)), (ival (idEnv k') (φ.subst σ.τ)).holds → RT2 S k' (T.isub σ) (T'.isub σ)
+  rTT : ∀ k' (σ : ISub k' (k + 1)), (ival (idEnv k') (φ.subst σ.τ)).holds → RT2 S k' (T.isub σ) (T.isub σ)
+  rE : ∀ k' (σ : ISub k' (k + 1)), (ival (idEnv k') (φ.subst σ.τ)).holds →
+    RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e'.isub σ)
+  rEL : ∀ k' (σ : ISub k' (k + 1)), (ival (idEnv k') (φ.subst σ.τ)).holds →
+    RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e.isub σ)
+  f12 : I.Entails φ φ'
+  f21 : I.Entails φ' φ
+  kAH : ∀ k' (σ : ISub k' (k + 1)) X', RT2 S k' (A.isub σ) X' → KanH2 S k' (A.isub σ) X'
+  kAT : ∀ k' (Θ : ISub (k' + 1) (k + 1)) X', RT2 S (k' + 1) (A.isub Θ) X' → KanT2 S k' (A.isub Θ) X'
+  kTH : ∀ k' (σ : ISub k' (k + 1)), (ival (idEnv k') (φ.subst σ.τ)).holds → ∀ X', RT2 S k' (T.isub σ) X' →
+    KanH2 S k' (T.isub σ) X'
+  kTT : ∀ k' (Θ : ISub (k' + 1) (k + 1)), (ival (idEnv (k' + 1)) (φ.subst Θ.τ)).holds → ∀ X',
+    RT2 S (k' + 1) (T.isub Θ) X' → KanT2 S k' (T.isub Θ) X'
+  hδs : δ.Scoped k
+  hδ1 : I.Entails δ φ.forall0
+  hδ2 : I.Entails φ.forall0 δ
+  hδs' : δ'.Scoped k
+  hδ1' : I.Entails δ' φ'.forall0
+  hδ2' : I.Entails φ'.forall0 δ'
+  hty : HasTy S k .one [] (.transp (.glue A φ T e) ψ u0) ((Tm.glue A φ T e).dinst .one)
+  hty' : HasTy S k .one [] (.transp (.glue A' φ' T' e') ψ' u0') ((Tm.glue A φ T e).dinst .one)
+  heq : EqTm S k .one [] (.transp (.glue A φ T e) ψ u0) (.transp (.glue A' φ' T' e') ψ' u0')
+    ((Tm.glue A φ T e).dinst .one)
+  p12 : I.Entails ψ ψ'
+  p21 : I.Entails ψ' ψ
+  rG : LineRob S k (.glue A φ T e) (.glue A' φ' T' e')
+  rGG : LineRob S k (.glue A φ T e) (.glue A φ T e)
+  cG : LineConst S k (.glue A φ T e) ψ
+  ha0 : RE2 S k ((Tm.glue A φ T e).dinst .zero) u0 u0'
+
+
+theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+    (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ') (ρ : ISub k' k) :
+    TGD2 S k' (A.isub ρ.up) (φ.subst ρ.up.τ) (T.isub ρ.up) (e.isub ρ.up) (A'.isub ρ.up) (φ'.subst ρ.up.τ)
+      (T'.isub ρ.up) (e'.isub ρ.up) (ψ.subst ρ.τ) (ψ'.subst ρ.τ) (u0.isub ρ) (u0'.isub ρ) (δ.subst ρ.τ)
+      (δ'.subst ρ.τ) := by
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  have hc : ∀ {k3} (σ : ISub k3 (k' + 1)), (ival (idEnv k3) ((φ.subst ρ.up.τ).subst σ.τ)).holds →
+      (ival (idEnv k3) (φ.subst (ρ.up.comp σ).τ)).holds := fun σ h => by rwa [I_subst_comp]
+  refine ⟨⟨l, HasTy.isubS hW hG ρ.up⟩, ⟨l', HasTy.isubS hW hG' ρ.up⟩, D.rA.isub ρ, D.rAA.isub ρ,
+    fun k3 σ hh => ?_, fun k3 σ hh => ?_, fun k3 σ hh => ?_, fun k3 σ hh => ?_, ent_subst D.f12 _,
+    ent_subst D.f21 _, fun k3 σ X' h => ?_, fun k3 Θ X' h => ?_, fun k3 σ hh X' h => ?_, fun k3 Θ hh X' h => ?_,
+    I.scoped_subst D.hδs ρ.sc, ent_trans (ent_subst D.hδ1 ρ.τ) (forall0_subst φ ρ.τ).1,
+    ent_trans (forall0_subst φ ρ.τ).2 (ent_subst D.hδ2 ρ.τ), I.scoped_subst D.hδs' ρ.sc,
+    ent_trans (ent_subst D.hδ1' ρ.τ) (forall0_subst φ' ρ.τ).1, ent_trans (forall0_subst φ' ρ.τ).2 (ent_subst D.hδ2' ρ.τ),
+    ?_, ?_, ?_, ent_subst D.p12 _, ent_subst D.p21 _, D.rG.isub ρ, D.rGG.isub ρ, D.cG.isub ρ, ?_⟩
+  · rw [Tm.isub_isub, Tm.isub_isub]; exact D.rT k3 _ (hc σ hh)
+  · rw [Tm.isub_isub]; exact D.rTT k3 _ (hc σ hh)
+  · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]; exact D.rE k3 _ (hc σ hh)
+  · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]; exact D.rEL k3 _ (hc σ hh)
+  · rw [Tm.isub_isub] at h ⊢; exact D.kAH k3 _ X' h
+  · rw [Tm.isub_isub] at h ⊢; exact D.kAT k3 _ X' h
+  · rw [Tm.isub_isub] at h ⊢; exact D.kTH k3 _ (hc σ hh) X' h
+  · rw [Tm.isub_isub] at h ⊢; exact D.kTT k3 _ (hc Θ hh) X' h
+  · have := HasTy.isubS hW D.hty ρ
+    rwa [transp_isub, dinst_isub_end _ (.inr rfl)] at this
+  · have := HasTy.isubS hW D.hty' ρ
+    rwa [transp_isub, dinst_isub_end _ (.inr rfl)] at this
+  · have := EqTm.isubS hW D.heq ρ
+    rwa [transp_isub, transp_isub, dinst_isub_end _ (.inr rfl)] at this
+  · have := RE2.isub hW D.ha0 ρ
+    rwa [dinst_isub_end _ (.inl rfl)] at this
 
 end
 
