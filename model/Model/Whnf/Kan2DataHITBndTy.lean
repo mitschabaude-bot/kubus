@@ -334,10 +334,14 @@ theorem parRel2_self (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some 
   rwa [isub_id_of_closed hpc] at h
 
 /-- **`HITHyp2.bndTy` at an inductive type `d`** from the validity of the derivations of the signature
-before `d` (the binary fundamental lemma at that prefix) and of the declared types up to `d`. -/
-theorem bndTy_of_valid (hW : WfSig S) {d : ℕ}
-    (hV : ∀ {Ψ Φ Γ t u A}, EqTm0 (S.take d) Ψ Φ Γ t u A → Valid2 S Ψ Φ Γ t u A) (hDH : DeclHyp2 S (d + 1))
-    {D : DataDecl} {c : ℕ} {C : Ctor} {P1 : Tm} {Y : List Tm} {rs : List I} {kb : ℕ} {ψ : I} {b : Tm}
+before `d` (the binary fundamental lemma at that prefix) and of the declared types up to `d`.
+Only equations at `D.level` in the constructor's point context are used; the closing substitution
+is diagonal in both parameters and point arguments. -/
+theorem bndTy_of_valid (hW : WfSig S) {d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor}
+    (hV : ∀ {ψ T T'}, EqTm0 (S.take d) C.dims ψ (D.pointCtx d C C.args.length) T T' (.univ D.level) →
+      Valid2 S C.dims ψ (D.pointCtx d C C.args.length) T T' (.univ D.level))
+    (hDH : DeclHyp2 S (d + 1))
+    {P1 : Tm} {Y : List Tm} {rs : List I} {kb : ℕ} {ψ : I} {b : Tm}
     (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) (hb : C.bnd[kb]? = some (ψ, b))
     (hent : I.Entails .one (Ctor.cofAt ψ rs))
     (hP1 : HasTy S k .one [] (.data d P1) (.univ D.level)) (hPP : RT2 S k (.data d P1) (.data d P1))
