@@ -122,26 +122,12 @@ theorem HC2.retype {A L L' M M' a a' : Tm} (h : HC2 S k A L L' a a') (eL : TyEq 
   exact h φ φ' u u' (r.1.tyConv eA) (r'.1.tyConv eA') ((r.2.tyConv eA).symm.trans (heq.trans (r'.2.tyConv eA')))
     hteq h12 h21 htube haa hbd hbd'
 
-variable (hH : D.isHIT = false)
-include hH
-
-/-- Composition at a literal inductive type without path constructors, against a related literal type. -/
-theorem kanH2_litId {K : ℕ} {P Q' : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level))
-    (hPP : RT2 S K (.data d P) (.data d P))
-    (hArgK : ∀ c j n (g : Hom n K) pre, (ΘK S D d K P).PtValid c n g pre → KanP2 S n ((ΘK S D d K P).ty c j n g pre))
-    (hQ' : RT2 S K (.data d P) (.data d Q')) (a a' : Tm) :
-    HC2 S K (.data d P) (.data d P) (.data d Q') a a' := by
-  have h := kanH2_lit hW hD hH hP hPP hArgK (ISub.id K) hPP hQ' a a'
-  have hPc : P.closedB 0 K = true := by have := closed_of_ty hW hP; simpa [Tm.closedB] using this
-  have hQc : Q'.closedB 0 K = true := by
-    have := closed_of_isTyK hW (Comp2_ty_base hQ').2.2.1; simpa [Tm.closedB] using this
-  rwa [isub_id_of_closed hPc, isub_id_of_closed hQc] at h
-
-/-- Composition at a type related to itself and equal to a literal inductive type without path
-constructors, against a related type: compositions at the literal types. -/
+/-- Composition at a type related to itself and equal to a literal inductive type, against a related
+type: compositions at the literal types. -/
 theorem kanH2_data_at {X X' P Q' : Tm} (hP : HasTy S k .one [] (.data d P) (.univ D.level))
     (hPX : RT2 S k (.data d P) X) (hXX' : RT2 S k X X') (hX'Q : RT2 S k X' (.data d Q'))
-    (hArgK : ∀ c j n (g : Hom n k) pre, (ΘK S D d k P).PtValid c n g pre → KanP2 S n ((ΘK S D d k P).ty c j n g pre))
+    (hlit : RT2 S k (.data d P) (.data d P) → RT2 S k (.data d P) (.data d Q') →
+      ∀ a a', HC2 S k (.data d P) (.data d P) (.data d Q') a a')
     {φ φ' : I} {u u' a a' : Tm}
     (hty : HasTy S k .one [] (.hcomp X φ u a) X) (hty' : HasTy S k .one [] (.hcomp X' φ' u' a') X)
     (heq : EqTm S k .one [] (.hcomp X φ u a) (.hcomp X' φ' u' a') X)
@@ -156,19 +142,18 @@ theorem kanH2_data_at {X X' P Q' : Tm} (hP : HasTy S k .one [] (.data d P) (.uni
   have hXc : TyCode k (semK S k X) := RT2.tyCode_r hW hPX hPc
   have hPP : RT2 S k (.data d P) (.data d P) := RT2.trans hW hPc hPX (RT2.symm hW hPc hPX)
   have hPQ : RT2 S k (.data d P) (.data d Q') := RT2.trans hW hPc hPX (RT2.trans hW hXc hXX' hX'Q)
-  have h := (kanH2_litId hW hD hH hP hPP hArgK hPQ a a').conv hW hPX hPc
+  have h := (hlit hPP hPQ a a').conv hW hPX hPc
   have eXP : TyEq S k X (.data d P) := TyEq.symm (Comp2_ty_base hPX).2.2.2.2.2
   have eXX' : TyEq S k X X' := (Comp2_ty_base hXX').2.2.2.2.2
   have eX'Q : TyEq S k X' (.data d Q') := (Comp2_ty_base hX'Q).2.2.2.2.2
   exact h.retype hW eXP eX'Q (TyEq.refl _) (TyEq.symm eXX') hty hty' heq hteq h12 h21 htube haa hbd hbd'
 
-/-- Composition at a pair of related types whose normal forms are an inductive type without path
-constructors. The Kan properties of the argument types are required at the literal types related to
-the restrictions of `T`. -/
-theorem kanH2_data {T T' ps : Tm} (hTT : RT2 S k T T') (hR : RedT S k T (.data d ps))
-    (hK : ∀ k1 (ρ1 : ISub k1 k) P1, HasTy S k1 .one [] (.data d P1) (.univ D.level) →
-      RT2 S k1 (.data d P1) (T.isub ρ1) →
-      ∀ c j n (g : Hom n k1) pre, (ΘK S D d k1 P1).PtValid c n g pre → KanP2 S n ((ΘK S D d k1 P1).ty c j n g pre)) :
+/-- Composition at a pair of related types whose normal forms are an inductive type, from composition at
+the literal types related to the restrictions of `T`. -/
+theorem kanH2_data_gen {T T' ps : Tm} (hTT : RT2 S k T T') (hR : RedT S k T (.data d ps))
+    (hL : ∀ k1 (ρ1 : ISub k1 k) P1 Q1, HasTy S k1 .one [] (.data d P1) (.univ D.level) →
+      RT2 S k1 (.data d P1) (T.isub ρ1) → RT2 S k1 (.data d P1) (.data d P1) → RT2 S k1 (.data d P1) (.data d Q1) →
+      ∀ a a', HC2 S k1 (.data d P1) (.data d P1) (.data d Q1) a a') :
     KanH2 S k T T' := by
   intro ψ ψ' u u' a0 a0' hty hty' heq hteq p12 p21 htube ha0 hbd hbd'
   obtain ⟨-, ⟨-, hψs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
@@ -225,7 +210,7 @@ theorem kanH2_data {T T' ps : Tm} (hTT : RT2 S k T T') (hR : RedT S k T (.data d
     have hX'Q := RT2_data_whnf hW hD (hT'τ (σ.comp ρ)) (hw k'' (σ.comp ρ)).2
     have hteqτ := EqTm.cofIsub hW hψs hteq (σ.comp ρ)
     rw [isub_dshift] at hteqτ
-    have M := kanH2_data_at hW hD hH hP hPX (hTτ' (σ.comp ρ)) hX'Q (hK k'' (σ.comp ρ) _ hP hPX)
+    have M := kanH2_data_at hW hD hP hPX (hTτ' (σ.comp ρ)) hX'Q (hL k'' (σ.comp ρ) _ _ hP hPX)
       (HasTy.isubS hW hty (σ.comp ρ)) (HasTy.isubS hW hty' (σ.comp ρ)) (EqTm.isubS hW heq (σ.comp ρ)) hteqτ
       (ent_subst p12 _) (ent_subst p21 _) (htube.isub (σ.comp ρ)) (RE2.isub hW ha0 (σ.comp ρ))
       (bdry_isub hbd (σ.comp ρ)) (bdry_isub' hbd' (σ.comp ρ))
@@ -238,6 +223,32 @@ theorem kanH2_data {T T' ps : Tm} (hTT : RT2 S k T T') (hR : RedT S k T (.data d
       exact el_reduceSR hW (RE2.tyCode hW M) (hTτ (σ.comp ρ)) M (stable_hcompFace hW hψ2' hq) (RE2.typed tb).2.1
     · rw [if_neg hψ2']
       exact M
+variable (hH : D.isHIT = false)
+include hH
+
+/-- Composition at a literal inductive type without path constructors, against a related literal type. -/
+theorem kanH2_litId {K : ℕ} {P Q' : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level))
+    (hPP : RT2 S K (.data d P) (.data d P))
+    (hArgK : ∀ c j n (g : Hom n K) pre, (ΘK S D d K P).PtValid c n g pre → KanP2 S n ((ΘK S D d K P).ty c j n g pre))
+    (hQ' : RT2 S K (.data d P) (.data d Q')) (a a' : Tm) :
+    HC2 S K (.data d P) (.data d P) (.data d Q') a a' := by
+  have h := kanH2_lit hW hD hH hP hPP hArgK (ISub.id K) hPP hQ' a a'
+  have hPc : P.closedB 0 K = true := by have := closed_of_ty hW hP; simpa [Tm.closedB] using this
+  have hQc : Q'.closedB 0 K = true := by
+    have := closed_of_isTyK hW (Comp2_ty_base hQ').2.2.1; simpa [Tm.closedB] using this
+  rwa [isub_id_of_closed hPc, isub_id_of_closed hQc] at h
+
+
+/-- Composition at a pair of related types whose normal forms are an inductive type without path
+constructors. The Kan properties of the argument types are required at the literal types related to
+the restrictions of `T`. -/
+theorem kanH2_data {T T' ps : Tm} (hTT : RT2 S k T T') (hR : RedT S k T (.data d ps))
+    (hK : ∀ k1 (ρ1 : ISub k1 k) P1, HasTy S k1 .one [] (.data d P1) (.univ D.level) →
+      RT2 S k1 (.data d P1) (T.isub ρ1) →
+      ∀ c j n (g : Hom n k1) pre, (ΘK S D d k1 P1).PtValid c n g pre → KanP2 S n ((ΘK S D d k1 P1).ty c j n g pre)) :
+    KanH2 S k T T' :=
+  kanH2_data_gen hW hD hTT hR fun k1 ρ1 P1 _ hP1 hPX hPP hPQ a a' =>
+    kanH2_litId hW hD hH hP1 hPP (hK k1 ρ1 P1 hP1 hPX) hPQ a a'
 
 end
 
