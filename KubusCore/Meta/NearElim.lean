@@ -603,6 +603,71 @@ theorem IupN_var (m : Nat) : IupN m I.var = I.var := by
   · rfl
   · simp only [I.subst]; congr 1; omega
 
+/-- The hypothesis variables of the branch context, in order. -/
+def ihVars (r : Nat) : List Tm := (List.range r).map fun s => .var (r - 1 - s)
+
+theorem ihVars_length (r : Nat) : (ihVars r).length = r := by simp [ihVars]
+
+theorem ihVars_take_rev (r : Nat) {s : Nat} (hs : s ≤ r) :
+    ((ihVars r).take s).reverse = (List.range s).map (fun j => .var (j + (r - s))) := by
+  apply List.ext_getElem (by simp [ihVars]; omega)
+  intro j h1 h2
+  simp only [List.length_reverse, List.length_take, ihVars_length] at h1
+  rw [List.getElem_reverse]
+  simp only [ihVars, List.getElem_take, List.getElem_map, List.getElem_range, List.length_take,
+    List.length_map, List.length_range]
+  congr 1; omega
+
+/-- The hypothesis variables of the branch context form the hypothesis telescope. -/
+theorem ihvars_tele {d np : Nat} {C : Ctor} {ps P : Tm} {Ψ' X Γ} (m : Nat)
+    (hw : Wf0 S Ψ' X (ctxWkI m (ihCtxB C P C.recPos.length ++ argCtxB d np C ps C.args.length ++ Γ))) :
+    HasTele0 S Ψ' X (ctxWkI m (ihCtxB C P C.recPos.length ++ argCtxB d np C ps C.args.length ++ Γ))
+      (Tm.ofList (ihVars C.recPos.length))
+      ((List.range C.recPos.length).map (DataDecl.branchIhTy C
+        (P.subst (Tm.up fun j => .var (j + (C.recPos.length + C.args.length))) (wkIv m))))
+      (argVars C.recPos.length C.args.length).reverse := by
+  apply HasTele0.ofList_of hw _ _ _ (by simp [ihVars_length])
+  intro s a A ha hA
+  have hs : s < C.recPos.length := by have := (List.getElem?_eq_some_iff.1 hA).1; simpa using this
+  simp only [List.getElem?_map, List.getElem?_range hs, Option.map_some, Option.some.injEq] at hA
+  subst hA
+  have ha' : a = .var (C.recPos.length - 1 - s) := by
+    simp [ihVars, hs] at ha; exact ha.symm
+  subst ha'
+  have hk : C.recPos.getD s 0 ∈ C.recPos := by
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; exact List.getElem_mem hs
+  obtain ⟨hkn, -⟩ := mem_recPos hk
+  have hget : (ihCtxB C P C.recPos.length ++ argCtxB d np C ps C.args.length ++ Γ)[C.recPos.length - 1 - s]? =
+      some (DataDecl.branchIhTy C P s) := by
+    rw [List.append_assoc, List.getElem?_append_left (by rw [ihCtxB_length]; omega)]
+    exact range_rev_map_get _ hs
+  refine HasTy0.var hw ?_
+  rw [lookup_wkI, lookup_of_get _ _ _ hget]
+  simp only [Option.map_some, Option.some.injEq]
+  unfold DataDecl.branchIhTy
+  generalize C.recPos.getD s 0 = k at hkn ⊢
+  have hL : ((ihVars C.recPos.length).take s).reverse.length = s := by simp [ihVars_length]; omega
+  rw [ren_eq_subst, subst_subst, subst_subst, substList_eq, subst_subst, subst_subst]
+  apply subst_congr
+  · intro x; cases x with
+    | zero =>
+      simp only [Tm.subst, Tm.up, wkIv]
+      rw [slS_lt (by simp only [List.length_append, hL, List.length_reverse, argVars_length]; omega),
+        List.getElem_append_right (by rw [hL]; omega)]
+      simp only [List.getElem_reverse, argVars, List.getElem_map, List.getElem_range, List.length_map,
+        List.length_range]
+      rw [hL]
+      congr 1; omega
+    | succ x =>
+      simp only [Tm.subst, Tm.up, Tm.shift, Tm.ren, wkIv]
+      have := slS_add (((ihVars C.recPos.length).take s).reverse ++ (argVars C.recPos.length C.args.length).reverse)
+        (x + (C.recPos.length + C.args.length))
+      simp only [List.length_append, hL, List.length_reverse, argVars_length] at this
+      rw [show x + (C.recPos.length + C.args.length) + C.args.length + s =
+        x + (C.recPos.length + C.args.length) + (s + C.args.length) by omega, this]
+      congr 1; omega
+  · intro i; simp [I.subst, wkIv]
+
 section
 variable (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
   (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
