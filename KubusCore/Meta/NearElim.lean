@@ -448,4 +448,47 @@ theorem argTy_congr (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {
     exact EqTm0.data hD (HasTy0.data hD hl ht1) (HasTy0.data hD hl (params_tele hS hW hD hpres ht1 es1))
       es1.toEqTele0
 
+/-! ## Branch types: the hypothesis types -/
+
+theorem ihTy_congr (hS : SigClosed S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+    {Ψ Φ Γ} {ps P P' : Tm} {mP : Nat} (hpsL : IsList ps) (hpl : ps.toList.length = D.params.length)
+    (eP : EqTm0 S Ψ Φ (data d ps :: Γ) P P' (univ mP)) {s : Nat} (hs : s < C.recPos.length)
+    (hw : Wf0 S Ψ Φ (ihCtxB C P s ++ argCtxB d D.params.length C ps C.args.length ++ Γ)) :
+    EqTm0 S Ψ Φ (ihCtxB C P s ++ argCtxB d D.params.length C ps C.args.length ++ Γ)
+      (DataDecl.branchIhTy C P s) (DataDecl.branchIhTy C P' s) (univ mP) := by
+  have hk : C.recPos.getD s 0 ∈ C.recPos := by
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; exact List.getElem_mem hs
+  obtain ⟨hkn, hr⟩ := mem_recPos hk
+  generalize hkk : C.recPos.getD s 0 = k at hk hkn hr
+  let E := ihCtxB C P s ++ argCtxB d D.params.length C ps C.args.length
+  have hEl : E.length = s + C.args.length := by simp [E, ihCtxB_length, argCtxB_length]
+  have hw0 : Wf0 S (Ψ + 0) Φ (ctxWkI 0 (E ++ Γ)) := by rw [wkI_zero]; exact hw
+  have T0 := tySub_wkE (S := S) (Γ := Γ) (Φ := Φ) E 0 hw0 (by rw [I_wkI_zero]; exact ent_refl _)
+  have hv := argvar_ty hS hD hC hpsL hpl (ihCtxB C P s) 0 C.args.length
+    (by rw [wkI_zero]; exact hw) hkn
+  rw [argTy_rec' hr, substList_eq] at hv
+  simp only [Tm.subst] at hv
+  rw [← substList_eq, ← wkN_toList hpsL, paramVars_substList (isList_wkN hpsL _ _)
+    (by rw [wkN_toList hpsL]; simp [hpl]) (by simp)] at hv
+  rw [ihCtxB_length, wkI_zero] at hv
+  have T := T0.cons (A := data d ps) (a := .var (s + C.args.length - 1 - k)) (by
+    rw [hEl]; simp only [Tm.subst]; rw [wkI_zero]
+    rw [show ps.subst (fun j => .var (j + (s + C.args.length))) (wkIv 0) = ps.wkN (s + C.args.length) 0 by
+      rw [wkN_eq]; rfl]
+    exact hv)
+  have e := (sub_eq hS eP).2 T
+  rw [wkI_zero] at e
+  have hσ : ∀ Q : Tm, Q.subst (consT (.var (s + C.args.length - 1 - k)) (fun j => .var (j + E.length))) (wkIv 0) =
+      Q.subst (fun | 0 => .var (s + C.args.length - 1 - k) | j + 1 => .var (j + C.args.length + s)) I.var := by
+    intro Q; apply subst_congr
+    · intro x; cases x with
+      | zero => rfl
+      | succ x => simp only [consT, hEl]; congr 1; omega
+    · intro i; rfl
+  rw [hσ, hσ] at e
+  unfold DataDecl.branchIhTy
+  rw [hkk]
+  exact e
+
 end KubusCore.Meta
