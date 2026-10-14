@@ -668,6 +668,26 @@ theorem ihvars_tele {d np : Nat} {C : Ctor} {ps P : Tm} {Ψ' X Γ} (m : Nat)
       congr 1; omega
   · intro i; simp [I.subst, wkIv]
 
+theorem branchApp_eq (C : Ctor) (b : Tm) (E : Ctx) (hE : E.length = C.recPos.length + C.args.length) :
+    DataDecl.branchApp C b = Tm.papps (Tm.apps (b.subst (fun j => .var (j + E.length)) (wkIv C.dims))
+      (argVars C.recPos.length C.args.length ++ ihVars C.recPos.length)) (ivars C.dims) := by
+  unfold DataDecl.branchApp
+  dsimp only
+  rw [wkN_eq]
+  congr 2
+  apply subst_congr
+  · intro x; simp only [hE]; congr 1; omega
+  · intro i; rfl
+
+theorem inst_up_eq (P X : Tm) (σ : Nat → Tm) (τ : Nat → I) :
+    (P.subst (Tm.up σ) τ).inst X = P.subst (consT X σ) τ := by
+  simp only [Tm.inst, subst_subst]
+  apply subst_congr
+  · intro x; cases x with
+    | zero => rfl
+    | succ x => simp only [Tm.up, consT]; exact shift_inst _ _
+  · intro i; exact I_subst_var _
+
 section
 variable (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
   (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
@@ -772,6 +792,40 @@ theorem ctxConv_branch {Ξ : I} (hΞ : Ξ.Scoped (Ψ + C.dims)) (he : I.Entails 
   rw [dupN_var, IupN_var] at h
   exact ⟨h.bound, hΞ, by rw [I_subst_var]; exact ent_refl _,
     fun x A hx => HasTy0.restrict hΞ he (h.look x A hx), h.wf.restrict hΞ he⟩
+
+include eP in
+/-- The branch applied to the variables of the branch context, at near branches. -/
+theorem branchApp_congr {b b' : Tm} (eb : EqTm0 S Ψ Φ Γ b b' (D.branchTy d c C ps P)) {Ξ : I}
+    (hw : Wf0 S (Ψ + C.dims) Ξ (ctxWkI C.dims (ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length ++ Γ)))
+    (he : I.Entails Ξ (Φ.subst (wkIv C.dims))) :
+    EqTm0 S (Ψ + C.dims) Ξ (ctxWkI C.dims (ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length ++ Γ))
+      (DataDecl.branchApp C b) (DataDecl.branchApp C b') (DataDecl.branchBody d c C ps P) := by
+  have hpsL := tele_isList ht
+  have hpl : ps.toList.length = D.params.length := by simpa using tele_length ht
+  let E := ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length
+  have hEl : E.length = C.recPos.length + C.args.length := by simp [E, ihCtxB_length, argCtxB_length]
+  have T0 := tySub_wkE (S := S) (Γ := Γ) (Φ := Φ) E C.dims hw he
+  have eb' := (sub_eq hS eb).2 T0
+  rw [branchTy_subst _ _ hS hD hC hpsL hpl] at eb'
+  have hpsw : ps.subst (fun j => .var (j + E.length)) (wkIv C.dims) = ps.wkN (C.recPos.length + C.args.length) C.dims := by
+    rw [wkN_eq, hEl]; rfl
+  rw [hpsw] at eb'
+  have hxs := argvars_tele hS hD hC hpsL hpl (ihCtxB C P C.recPos.length) C.dims hw
+  rw [ihCtxB_length] at hxs
+  have hih := ihvars_tele (S := S) (d := d) (np := D.params.length) (ps := ps) (P := P) C.dims hw
+  have hivs : (ivars C.dims).length = C.dims := by simp [ivars]
+  have hivsc : ∀ r ∈ ivars C.dims, r.Scoped (Ψ + C.dims) := by
+    intro r hr; simp only [ivars, List.mem_map, List.mem_range] at hr
+    obtain ⟨j, hj, rfl⟩ := hr; show C.dims - 1 - j < Ψ + C.dims; omega
+  have hσ : (Tm.up fun j => Tm.var (j + E.length)) = Tm.up fun j => Tm.var (j + (C.recPos.length + C.args.length)) := by
+    rw [hEl]
+  rw [hσ] at eb'
+  have := branch_app_eq hS hD hC (by rw [wkN_toList hpsL]; simp [hpl]) eb' (EqTeleS.refl hxs) (EqTeleS.refl hih) hivs hivsc
+  rw [branchApp_eq C b E hEl, branchApp_eq C b' E hEl, branchBody_eq d c C ps P E hEl, ← inst_up_eq]
+  rw [show ps.wkN (C.args.length + C.recPos.length) C.dims = ps.wkN (C.recPos.length + C.args.length) C.dims by
+    rw [Nat.add_comm]]
+  rw [hσ]
+  exact this
 
 end
 
