@@ -399,6 +399,24 @@ theorem em1_intro {M bs : Tm} (hRL : ElimRel S d D K P M bs P M bs) {k1 : ℕ} {
     rw [eT, ecTm_isub d (C k4 κ) (c k4 κ) hbs, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, eT3, hcc', hCC]
     exact RE2.trans hW hTg R1' R2'
 
+/-- Eliminations of related elements of a literal inductive type, by induction on their relation. -/
+theorem elim_DR2 {M bs : Tm} (hRL : ElimRel S d D K P M bs P M bs) : ∀ {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm},
+    DR2 S d (dataD S d) (dataMem S (ΘK S D d K P) (Hom.id K)) (dataP2 S (ΘK S D d K P) (Hom.id K)) k1 g A x x' →
+    EM1 S d D K P M bs k1 g A x x' := by
+  have hdD := dataD_eq hW hD
+  intro k1 g A x x' h
+  refine DR2.rec (motive_1 := fun k1 g A x x' _ => EM1 S d D K P M bs k1 g A x x')
+    (motive_2 := fun k1 g A y y' _ => EM2 S d D K P M bs k1 g A y y') ?_ ?_ ?_ h
+  · intro k1 g A x x' he h2 h3 h4 ih ihc _
+    exact em1_intro hW hD hH hP hPP hRL (DR2.intro he h2 h3 h4) ih ihc
+  · intro k1 g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
+      hrec hpt ihrec
+    exact em2_con hW hD hH hP hPP (DR2At.con hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' hrec hpt)
+      hC hA ht ht' hl hl' ihrec
+  · intro k1 g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH' _
+    have : D.isHIT = true := hdD ▸ hH'
+    rw [hH] at this; cases this
+
 end lit
 
 end
