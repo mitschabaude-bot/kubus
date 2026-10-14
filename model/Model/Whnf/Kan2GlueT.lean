@@ -104,6 +104,13 @@ structure TGD2 (S : Sig) (k : ℕ) (A : Tm) (φ : I) (T e A' : Tm) (φ' : I) (T'
     RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e'.isub σ)
   rEL : ∀ k' (σ : ISub k' (k + 1)), (ival (idEnv k') (φ.subst σ.τ)).holds →
     RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e.isub σ)
+  rTN : ∀ k' (τ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+    (ival (idEnv k') (φ.subst (ISub.cons r hr τ).τ)).holds →
+    RT2 S k' (T.isub (ISub.cons r hr τ)) (T'.isub (ISub.cons r' hr' τ))
+  rEN : ∀ k' (τ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+    (ival (idEnv k') (φ.subst (ISub.cons r hr τ).τ)).holds →
+    RE2 S k' (Tm.equiv (T.isub (ISub.cons r hr τ)) (A.isub (ISub.cons r hr τ))) (e.isub (ISub.cons r hr τ))
+      (e'.isub (ISub.cons r' hr' τ))
   f12 : I.Entails φ φ'
   f21 : I.Entails φ' φ
   kAH : ∀ k' (σ : ISub k' (k + 1)) X', RT2 S k' (A.isub σ) X' → KanH2 S k' (A.isub σ) X'
@@ -140,7 +147,8 @@ theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
   have hc : ∀ {k3} (σ : ISub k3 (k' + 1)), (ival (idEnv k3) ((φ.subst ρ.up.τ).subst σ.τ)).holds →
       (ival (idEnv k3) (φ.subst (ρ.up.comp σ).τ)).holds := fun σ h => by rwa [I_subst_comp]
   refine ⟨⟨l, HasTy.isubS hW hG ρ.up⟩, ⟨l', HasTy.isubS hW hG' ρ.up⟩, D.rA.isub ρ, D.rAA.isub ρ,
-    fun k3 σ hh => ?_, fun k3 σ hh => ?_, fun k3 σ hh => ?_, fun k3 σ hh => ?_, ent_subst D.f12 _,
+    fun k3 σ hh => ?_, fun k3 σ hh => ?_, fun k3 σ hh => ?_, fun k3 σ hh => ?_,
+    fun k3 τ r r' hr hr' hE hh => ?_, fun k3 τ r r' hr hr' hE hh => ?_, ent_subst D.f12 _,
     ent_subst D.f21 _, fun k3 σ X' h => ?_, fun k3 Θ X' h => ?_, fun k3 σ hh X' h => ?_, fun k3 Θ hh X' h => ?_,
     I.scoped_subst D.hδs ρ.sc, ent_trans (ent_subst D.hδ1 ρ.τ) (forall0_subst φ ρ.τ).1,
     ent_trans (forall0_subst φ ρ.τ).2 (ent_subst D.hδ2 ρ.τ), I.scoped_subst D.hδs' ρ.sc,
@@ -150,6 +158,10 @@ theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
   · rw [Tm.isub_isub]; exact D.rTT k3 _ (hc σ hh)
   · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]; exact D.rE k3 _ (hc σ hh)
   · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]; exact D.rEL k3 _ (hc σ hh)
+  · rw [Tm.isub_isub, Tm.isub_isub, ISub.up_comp_cons, ISub.up_comp_cons]
+    exact D.rTN k3 (ρ.comp τ) r r' hr hr' hE (by rw [← ISub.up_comp_cons]; exact hc _ hh)
+  · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, ISub.up_comp_cons, ISub.up_comp_cons]
+    exact D.rEN k3 (ρ.comp τ) r r' hr hr' hE (by rw [← ISub.up_comp_cons]; exact hc _ hh)
   · rw [Tm.isub_isub] at h ⊢; exact D.kAH k3 _ X' h
   · rw [Tm.isub_isub] at h ⊢; exact D.kAT k3 _ X' h
   · rw [Tm.isub_isub] at h ⊢; exact D.kTH k3 _ (hc σ hh) X' h
@@ -162,6 +174,61 @@ theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
     rwa [transp_isub, transp_isub, dinst_isub_end _ (.inr rfl)] at this
   · have := RE2.isub hW D.ha0 ρ
     rwa [dinst_isub_end _ (.inl rfl)] at this
+
+
+theorem tg_of {A T e u0 X : Tm} {φ ψ δ : I} (h : HasTy S k .one [] (.transp (.glue A φ T e) ψ u0) X)
+    (hδs : δ.Scoped k) (hδ1 : I.Entails δ φ.forall0) : ∃ l, TG S k .one [] A φ T e ψ u0 δ l := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨m, ⟨hG, hψ, hconst, hu0⟩, -⟩ := gen_transpF (spec_to_minimal hW h) rfl
+  obtain ⟨l0, ⟨hA0, hφ, hT0, he0⟩, chg⟩ := gen_glue hS hG rfl
+  have hconst' := (chg.restrict (scoped_shift (show (cof I.one ψ).Scoped k from ⟨trivial, hψ⟩))
+    (ent_shift (ent_and_left I.one ψ))).backEq hconst
+  exact ⟨l0, ⟨hS, hA0, hφ, hT0, he0, hψ, hδs, hδ1, hconst', hu0⟩⟩
+
+theorem TGD2.tgL {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+    (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ') : ∃ l, TG S k .one [] A φ T e ψ u0 δ l :=
+  tg_of hW D.hty D.hδs D.hδ1
+
+theorem TGD2.tgR {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+    (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ') : ∃ l, TG S k .one [] A' φ' T' e' ψ' u0' δ' l :=
+  tg_of hW D.hty' D.hδs' D.hδ1'
+
+
+omit hW in
+theorem LineRob.at {C C' : Tm} (h : LineRob S k C C') (σ : ISub k' (k + 1)) : RT2 S k' (C.isub σ) (C'.isub σ) := by
+  have := h k' σ.tail (σ.τ 0) (σ.τ 0) (σ.sc 0 (by omega)) (σ.sc 0 (by omega)) (I_eq_refl _)
+  rwa [ISub.cons_tail] at this
+
+/-- `unglue` along restrictions of the Glue lines. -/
+theorem TGD2.ugAt {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+    (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ') (σ : ISub k' (k + 1)) {g g' : Tm}
+    (h : RE2 S k' ((Tm.glue A φ T e).isub σ) g g') :
+    RE2 S k' (A.isub σ) (.unglue (φ.subst σ.τ) (e.isub σ) g) (.unglue (φ'.subst σ.τ) (e'.isub σ) g') := by
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  have hGσ : HasTy S k' .one [] (.glue (A.isub σ) (φ.subst σ.τ) (T.isub σ) (e.isub σ)) (.univ l) := HasTy.isubS hW hG σ
+  have hG'σ : HasTy S k' .one [] (.glue (A'.isub σ) (φ'.subst σ.τ) (T'.isub σ) (e'.isub σ)) (.univ l') :=
+    HasTy.isubS hW hG' σ
+  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hGσ
+  obtain ⟨hφs', lA', hA0', he0'⟩ := glue_data hW hG'σ
+  have hc : ∀ {k3} (τ : ISub k3 k'), (ival (idEnv k3) ((φ.subst σ.τ).subst τ.τ)).holds →
+      (ival (idEnv k3) (φ.subst (σ.comp τ).τ)).holds := fun τ h => by rwa [I_subst_comp]
+  have hAσ := D.rA.at σ
+  have hT : ∀ k3 (τ : ISub k3 k'), (ival (idEnv k3) ((φ.subst σ.τ).subst τ.τ)).holds →
+      RT2 S k3 ((T.isub σ).isub τ) ((T'.isub σ).isub τ) := fun k3 τ hh => by
+    rw [Tm.isub_isub, Tm.isub_isub]; exact D.rT k3 _ (hc τ hh)
+  have hE : ∀ k3 (τ : ISub k3 k'), (ival (idEnv k3) ((φ.subst σ.τ).subst τ.τ)).holds →
+      RE2 S k3 (Tm.equiv ((T.isub σ).isub τ) ((A.isub σ).isub τ)) ((e.isub σ).isub τ) ((e'.isub σ).isub τ) :=
+    fun k3 τ hh => by rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]; exact D.rE k3 _ (hc τ hh)
+  have ee' := glue_ee hW hGσ hG'σ (ent_subst D.f12 σ.τ) hAσ hT hE
+  have hu := unglue_ty hW ⟨l, .inl hGσ⟩ ⟨lA, hA0, he0⟩ (RE2.typed h).1
+  have eGG : TyEq S k' ((Tm.glue A φ T e).isub σ) ((Tm.glue A' φ' T' e').isub σ) :=
+    (Comp2_ty_base (D.rG.at σ)).2.2.2.2.2
+  have hu' := (unglue_ty hW ⟨l', .inl hG'σ⟩ ⟨lA', hA0', he0'⟩ ((RE2.typed h).2.1.tyConv eGG)).tyConv
+    (TyEq.symm (Comp2_ty_base hAσ).2.2.2.2.2)
+  exact RE2_unglue_gen hW hGσ h hu hu' hφs' (ent_subst D.f12 σ.τ) (ent_subst D.f21 σ.τ) ee'
+    (fun k3 τ => by rw [Tm.isub_isub]; exact D.rAA.at _)
+    (fun k3 τ hh => by rw [Tm.isub_isub]; exact D.rTT k3 _ (hc τ hh)) hE
 
 end
 
