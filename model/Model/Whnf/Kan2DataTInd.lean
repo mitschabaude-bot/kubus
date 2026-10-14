@@ -162,8 +162,7 @@ theorem ieq_zero_up {k3 k4 : ℕ} {y : I} (h0 : I.Eq (y.subst (ISub.cons .zero t
 section ind
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
   (hp : D.params ≠ []) {K : ℕ} {P : Tm} (hP : HasTy S (K + 1) .one [] (.data d P) (.univ D.level))
-  (hArgK : ∀ c j n (g : Hom n (K + 1)) pre, (ΘK S D d (K + 1) P).PtValid c n g pre →
-    KanP2 S n ((ΘK S D d (K + 1) P).ty c j n g pre))
+  (hArgK : KanShape S (K + 1) (ΘK S D d (K + 1) P))
   (hRL : Rob S d K P P)
 include hW hD hH hp hP hArgK hRL
 

@@ -35,8 +35,7 @@ structure TC (S : Sig) (k d : ℕ) (D : DataDecl) (PL QL : Tm) (φ φ' : I) (c :
     RT2 S k3 (.data d (PL.isub (ISub.cons y hy τ))) (.data d (QL.isub (ISub.cons y' hy' τ)))
   hRL : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped k3) (hy' : y'.Scoped k3), I.Eq y y' →
     RT2 S k3 (.data d (PL.isub (ISub.cons y hy τ))) (.data d (PL.isub (ISub.cons y' hy' τ)))
-  hArgK : ∀ c j n (g : Hom n (k + 1)) pre, (ΘK S D d (k + 1) PL).PtValid c n g pre →
-    KanP2 S n ((ΘK S D d (k + 1) PL).ty c j n g pre)
+  hArgK : KanShape S (k + 1) (ΘK S D d (k + 1) PL)
   hφs : φ.Scoped k
   h12 : I.Entails φ φ'
   h21 : I.Entails φ' φ
@@ -163,12 +162,10 @@ def Good (S : Sig) (k d : ℕ) (D : DataDecl) (PL QL : Tm) (φ φ' : I) (C : Cto
 
 /-- The Kan properties of the argument types' codes, at a restriction of a literal inductive type. -/
 theorem argK_restr {d : ℕ} {D : DataDecl} {K : ℕ} {P : Tm}
-    (hArgK : ∀ c j n (g : Hom n K) pre, (ΘK S D d K P).PtValid c n g pre → KanP2 S n ((ΘK S D d K P).ty c j n g pre))
-    (σ : ISub k' K) : ∀ c j n (g : Hom n k') pre, (ΘK S D d k' (P.isub σ)).PtValid c n g pre →
-      KanP2 S n ((ΘK S D d k' (P.isub σ)).ty c j n g pre) := by
+    (hArgK : KanShape S K (ΘK S D d K P))
+    (σ : ISub k' K) : KanShape S k' (ΘK S D d k' (P.isub σ)) := by
   rw [← ΘK_restr]
-  intro c j n g pre hv
-  exact hArgK c j n (σ.hom.comp g) pre hv
+  exact hArgK.restr σ.hom
 
 section face
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hp : D.params ≠ [])

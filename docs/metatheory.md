@@ -85,3 +85,8 @@ The general theorems behind these:
 2. **`transpGlue` is not syntactically stable under interval substitution (M5).** `(φ.forall0)[τ]` and `(φ[τ⁺]).forall0` are equivalent but different terms. M5 is in the spec.
 3. **Presupposition needs injectivity of type formers** for the computation rules stated at any type `T`: resolved by the primitive injectivity and no-confusion rules (patches 1 and 2), with `glueBeta` taking the base element's typing.
 4. **Checks in signatures that do not embed into `S`.** `DataDecl.Wf` checks boundaries and argument types in `S.take d ++ [data (D.truncate c)]`, whose index-`c` constructor is a dummy and whose eliminators have fewer branches, so derivations there do not carry over to `S`. The checks the metatheory needs are in the prefix `S.take d` instead: the boundary equations (P8, on phase2) and the point argument types (P11, patch 3).
+
+## Near terms
+
+`TmNear t t'` (`Meta/Near.lean`): `t` and `t'` have the same shape, their interval terms are equal in the free De Morgan algebra (`I.Eq`), and their cofibrations entail each other. `near_ty` (`Meta/NearTy.lean`, with `NearData.lean` and `NearElim.lean` for inductive types): for `WfSig S`, a typed term is judgmentally equal to each of its near terms whose interval variables are in scope (so these are typed too). It is admissible, not a rule: by induction on the typing derivation, rebuilding the near term's typing from its components; the inductive-type cases carry telescopes over to near parameters with the signature's checks, and the eliminator's boundary coherence by congruence of `bndElim`. `nearTy_of_wfSig` states it for the spec's judgments in the closed context.
+

@@ -117,7 +117,7 @@ theorem HC2_iff {k : ℕ} {A L L' a a' : Tm} : HC2 S k A L L' a a' ↔ HC2R S k 
 section ind
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
   {K : ℕ} {P : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level)) (hPP : RT2 S K (.data d P) (.data d P))
-  (hArgK : ∀ c j n (g : Hom n K) pre, (ΘK S D d K P).PtValid c n g pre → KanP2 S n ((ΘK S D d K P).ty c j n g pre))
+  (hArgK : KanShape S K (ΘK S D d K P))
 include hW hD hH hP hPP
 
 /-- An element is related to its normal form, a constructor. -/

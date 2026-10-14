@@ -31,8 +31,7 @@ to the restrictions of `T`. -/
 theorem kanT2_data {T T' ps : Tm} (hTT : RT2 S (k + 1) T T') (hR : RedT S (k + 1) T (.data d ps))
     (hK : ∀ k1 (θ : ISub (k1 + 1) (k + 1)) P1, HasTy S (k1 + 1) .one [] (.data d P1) (.univ D.level) →
       RT2 S (k1 + 1) (.data d P1) (T.isub θ) →
-      ∀ c j n (g : Hom n (k1 + 1)) pre, (ΘK S D d (k1 + 1) P1).PtValid c n g pre →
-        KanP2 S n ((ΘK S D d (k1 + 1) P1).ty c j n g pre)) :
+      KanShape S (k1 + 1) (ΘK S D d (k1 + 1) P1)) :
     KanT2 S k T T' := by
   intro hLR φ φ' a0 a0' hC hty hty' heq h12 h21 ha0
   obtain ⟨l0, ⟨hTl, hφs, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty) rfl
@@ -231,8 +230,7 @@ theorem kanT2_data' (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (
     (hR : RedT S (k + 1) T (.data d ps))
     (hK : ∀ k1 (θ : ISub (k1 + 1) (k + 1)) P1, HasTy S (k1 + 1) .one [] (.data d P1) (.univ D.level) →
       RT2 S (k1 + 1) (.data d P1) (T.isub θ) →
-      ∀ c j n (g : Hom n (k1 + 1)) pre, (ΘK S D d (k1 + 1) P1).PtValid c n g pre →
-        KanP2 S n ((ΘK S D d (k1 + 1) P1).ty c j n g pre)) :
+      KanShape S (k1 + 1) (ΘK S D d (k1 + 1) P1)) :
     KanT2 S k T T' := by
   by_cases h0 : D.params = []
   · exact kanT2_data0 hW hD h0 hTT hR
