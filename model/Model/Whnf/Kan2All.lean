@@ -369,11 +369,6 @@ theorem kanP2_glueC {l m : ℕ} {A Tp ep : V} {φ : Cof m} (hAw : WF l m A) (hφ
 
 /-! ### Inductive types -/
 
-/-- Transport along lines of types whose normal forms are higher inductive types with parameters. -/
-def HITTransp2 (S : Sig) : Prop :=
-  ∀ (m : ℕ) (Θ : SData m) (D : DataDecl), S[Θ.idx]? = some (.data D) → D.isHIT = true → D.params ≠ [] →
-    KanShape S m Θ → ∀ k (f : Hom (k + 1) m) (A A' : Tm), (Comp2 S (dataC Θ) m (k + 1) f).ty A A' → KanT2 S k A A'
-
 theorem data_decl {m : ℕ} {Θ : SData m} {f : Hom k m} {A A' : Tm} (hT : (Comp2 S (dataC Θ) m k f).ty A A') :
     ∃ D, S[Θ.idx]? = some (.data D) := by
   have hb := Comp2_ty_base hT
@@ -384,19 +379,16 @@ theorem data_decl {m : ℕ} {Θ : SData m} {f : Hom k m} {A A' : Tm} (hT : (Comp
   obtain ⟨D, hD, -⟩ := gen_data (spec_to_minimal hW hd) rfl
   exact ⟨D, hD⟩
 
-theorem kanP2_dataC' (hHT : HITTransp2 S) {m : ℕ} {Θ : SData m} (hKS : KanShape S m Θ) : KanP2 S m (dataC Θ) := by
+theorem kanP2_dataC' (hyp : HITHyp2 S) {m : ℕ} {Θ : SData m} (hKS : KanShape S m Θ) : KanP2 S m (dataC Θ) := by
   refine ⟨fun k f A A' hT => ?_, fun k f A A' hT => ?_⟩
   · obtain ⟨D, hD⟩ := data_decl hW hT
     exact kanH2_dataC hW hD hKS hT
   · obtain ⟨D, hD⟩ := data_decl hW hT
-    by_cases hHp : D.isHIT = false ∨ D.params = []
-    · exact kanT2_dataC hW hD hKS hHp hT
-    · push_neg at hHp
-      exact hHT m Θ D hD (by simpa using hHp.1) hHp.2 hKS k f A A' hT
+    exact kanT2_dataC hW hD hKS hyp hT
 
 /-! ### All codes -/
 
-theorem kanP2_tyCode (hHT : HITTransp2 S) {m : ℕ} {X : V} (hX : TyCode m X) : KanP2 S m X := by
+theorem kanP2_tyCode (hyp : HITHyp2 S) {m : ℕ} {X : V} (hX : TyCode m X) : KanP2 S m X := by
   refine tyCode_ind (fun m X => KanP2 S m X) (fun m => kanP2_emptyC hW) ?_ ?_ ?_ ?_ ?_ ?_ ?_ m X hX
   · intro l m A B hA hB hBf hBw hBn ihA ihB
     exact kanP2_piC hW hA ihA ihB
@@ -411,18 +403,18 @@ theorem kanP2_tyCode (hHT : HITTransp2 S) {m : ℕ} {X : V} (hX : TyCode m X) : 
   · intro l m A φ Tp ep hl hAw hφ hn hTpE hepE hTw hTn hem hen ihA ihT
     exact kanP2_glueC hW hAw hφ hTn (fun k f hh => (hTw k f hh).fib.kv) ihA ihT
   · intro l m Θ hc hw hpw ih ihp
-    exact kanP2_dataC' hW hHT (kanShape_of ih)
+    exact kanP2_dataC' hW hyp (kanShape_of ih)
 
 /-- **The binary Kan property of all related types.** -/
-theorem kanOracle2 (hHT : HITTransp2 S) : KanOracle2 S := by
+theorem kanOracle2 (hyp : HITHyp2 S) : KanOracle2 S := by
   have hKT : ∀ l, KTAt S l := fun l k X X' hXX hX =>
-    (kanP2_tyCode hW hHT (tyCode_of_univ hW hX)).2 k (Hom.id (k + 1)) X X' (by unfold RT2 at hXX; exact hXX)
+    (kanP2_tyCode hW hyp (tyCode_of_univ hW hX)).2 k (Hom.id (k + 1)) X X' (by unfold RT2 at hXX; exact hXX)
   refine ⟨fun k A A' h => ?_, fun k A A' h => ?_⟩
   · obtain ⟨l, hA | rfl⟩ := (Comp2_ty_base h).2.1
-    · exact (kanP2_tyCode hW hHT (tyCode_of_univ hW hA)).1 k (Hom.id k) A A' (by unfold RT2 at h; exact h)
+    · exact (kanP2_tyCode hW hyp (tyCode_of_univ hW hA)).1 k (Hom.id k) A A' (by unfold RT2 at h; exact h)
     · exact kanH2_univ hW (hKT l) h ⟨redW_self rfl, TyEq.refl _⟩
   · obtain ⟨l, hA | rfl⟩ := (Comp2_ty_base h).2.1
-    · exact (kanP2_tyCode hW hHT (tyCode_of_univ hW hA)).2 k (Hom.id (k + 1)) A A' (by unfold RT2 at h; exact h)
+    · exact (kanP2_tyCode hW hyp (tyCode_of_univ hW hA)).2 k (Hom.id (k + 1)) A A' (by unfold RT2 at h; exact h)
     · exact kanT2_univ hW h ⟨redW_self rfl, TyEq.refl _⟩
 
 end
