@@ -688,6 +688,24 @@ theorem inst_up_eq (P X : Tm) (σ : Nat → Tm) (τ : Nat → I) :
     | succ x => simp only [Tm.up, consT]; exact shift_inst _ _
   · intro i; exact I_subst_var _
 
+theorem branchCtx_eq (D : DataDecl) (d : Nat) (C : Ctor) (ps P : Tm) (Γ : Ctx) :
+    D.branchCtx d C ps P Γ = ctxWkI C.dims (ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length ++ Γ) := by
+  unfold DataDecl.branchCtx; rw [Ctx_ren_add_eq]; rfl
+
+theorem near_list : ∀ (L : List Tm) {t' : Tm}, TmNear (Tm.ofList L) t' →
+    t' = Tm.ofList t'.toList ∧ t'.toList.length = L.length ∧
+      ∀ (i : Nat) (a a' : Tm), L[i]? = some a → t'.toList[i]? = some a' → TmNear a a'
+  | [], t', h => by
+    cases h; exact ⟨rfl, rfl, fun i a a' h _ => by simp at h⟩
+  | a :: L, t', h => by
+    cases h with
+    | @tcons _ a' _ ts' na nts =>
+      obtain ⟨h1, h2, h3⟩ := near_list L nts
+      refine ⟨by simp only [Tm.toList, Tm.ofList]; rw [← h1], by simp [Tm.toList, h2], fun i b b' hb hb' => ?_⟩
+      cases i with
+      | zero => simp [Tm.toList] at hb hb'; subst hb hb'; exact na
+      | succ i => simp [Tm.toList] at hb hb'; exact h3 i b b' hb hb'
+
 section
 variable (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
   (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
@@ -826,6 +844,19 @@ theorem branchApp_congr {b b' : Tm} (eb : EqTm0 S Ψ Φ Γ b b' (D.branchTy d c 
     rw [Nat.add_comm]]
   rw [hσ]
   exact this
+
+include eP in
+/-- The eliminator on a boundary, at near data. -/
+theorem bndElim_congr {bs bs' : Tm} (hbs : bs = Tm.ofList bs.toList) (hbs' : bs' = Tm.ofList bs'.toList)
+    (hbl : bs.toList.length = bs'.toList.length)
+    (ebs : ∀ (c' : Nat) (C' : Ctor) (b b' : Tm), D.ctors[c']? = some C' → bs.toList[c']? = some b →
+      bs'.toList[c']? = some b' → EqTm0 S Ψ Φ Γ b b' (D.branchTy d c' C' ps P))
+    {k : Nat} {e : Tm} {ψ : I} (hk : C.bnd[k]? = some (ψ, e)) {Ξ : I}
+    (hw : Wf0 S (Ψ + C.dims) Ξ (ctxWkI C.dims (ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length ++ Γ)))
+    (he : I.Entails Ξ (Φ.subst (wkIv C.dims))) (hψ : I.Entails Ξ ψ) :
+    EqTm0 S (Ψ + C.dims) Ξ (ctxWkI C.dims (ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length ++ Γ))
+      (D.bndElim C ps bs e) (D.bndElim C ps' bs' e) (DataDecl.branchBody d c C ps P) := by
+  sorry
 
 end
 
