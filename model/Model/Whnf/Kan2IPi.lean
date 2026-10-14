@@ -189,6 +189,7 @@ theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')
     (fun k' ρ => (L2 k' ρ).dinst (r.subst ρ.τ)) (fun k' ρ => (L2' k' ρ).dinst (r'.subst ρ.τ))
     (fun k' ρ => .papp (u.isub ρ.up) (r.subst ρ.τ).shift) (fun k' ρ => .papp (u'.isub ρ.up) (r'.subst ρ.τ).shift)
     (fun k' ρ => .papp (a0.isub ρ) (r.subst ρ.τ)) (fun k' ρ => .papp (a0'.isub ρ) (r'.subst ρ.τ))
+    (fun k' ρ => φ.subst ρ.τ) (fun k' ρ => φ'.subst ρ.τ)
     hX hYY (by simp only [hrid]; exact HasTy.iapp hpT hr) (by simp only [hrid']; exact HasTy.eqR hE0)
     (by simp only [hrid, hrid']; exact hE0)
     (fun k' ρ k'' ρ' x => by
@@ -197,13 +198,33 @@ theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')
     (fun k' ρ k'' ρ' x => by
       show Tm.papp (x.isub ρ') ((r'.subst ρ.τ).subst ρ'.τ) = Tm.papp (x.isub ρ') (r'.subst (ρ.comp ρ').τ)
       rw [I_subst_comp])
-    (fun k' ρ => ?_) (fun k' ρ => ?_)
-    (fun k' ρ k'' θ x => papp_up_dinst u r ρ θ x) (fun k' ρ k'' θ x => papp_up_dinst u' r' ρ θ x)
-    (fun k' ρ k'' θ => by
-      show Tm.papp ((a0.isub ρ).isub θ) ((r.subst ρ.τ).subst θ.τ) = Tm.papp (a0.isub (ρ.comp θ)) (r.subst (ρ.comp θ).τ)
-      rw [Tm.isub_isub, I_subst_comp])
-    (fun k' ρ => rfl) hel
-    (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21 htube ha0
+    (fun k' ρ => ?_) (fun k' ρ => ?_) hel
+    (fun k' ρ k'' ρ' hf2 => by
+      show I.Entails .one ((φ.subst ρ.τ).subst ρ'.τ); rw [← I_subst_comp]; exact hf2)
+    (fun k' ρ k'' ρ' _ => by
+      show I.Entails ((φ.subst ρ.τ).subst ρ'.τ) (φ'.subst (ρ.comp ρ').τ) ∧
+        I.Entails (φ'.subst (ρ.comp ρ').τ) ((φ.subst ρ.τ).subst ρ'.τ)
+      rw [← I_subst_comp]; exact ⟨ent_subst h12 _, ent_subst h21 _⟩)
+    (fun k' ρ k'' ρ' _ hf2 => by
+      show RE2 S k'' _ (((Tm.papp (u.isub ρ.up) (r.subst ρ.τ).shift).isub ρ'.up).dinst .one) _
+      rw [papp_up_dinst]
+      exact hel k'' (ρ.comp ρ') _ _ (htube k'' (ρ.comp ρ') .one .one trivial trivial (I_eq_refl _)
+        ((holds_iff_entails (I.scoped_subst hφs (ρ.comp ρ').sc)).2 hf2)))
+    (fun k' ρ k'' ρ' _ k3 σ3 x x' hx hx' hEx hh => by
+      show RE2 S k3 _ ((((Tm.papp (u.isub ρ.up) (r.subst ρ.τ).shift).isub ρ'.up).isub σ3.up).dinst x)
+        (((Tm.papp (u'.isub (ρ.comp ρ').up) (r'.subst (ρ.comp ρ').τ).shift).isub σ3.up).dinst x')
+      have e1 : (((Tm.papp (u.isub ρ.up) (r.subst ρ.τ).shift).isub ρ'.up).isub σ3.up).dinst x =
+          Tm.papp ((u.isub (ρ.comp (ρ'.comp σ3)).up).dinst x) (r.subst (ρ.comp (ρ'.comp σ3)).τ) := by
+        rw [Tm.isub_isub, ← ISub.up_comp, papp_up_dinst]
+      rw [e1, papp_up_dinst, Tm.isub_isub, ISub.comp_assoc]
+      refine hel k3 _ _ _ (htube k3 _ x x' hx hx' hEx ?_)
+      rw [I_subst_comp, I_subst_comp]; exact hh)
+    (fun k' ρ k'' ρ' _ => by
+      show RE2 S k'' _ ((Tm.papp (a0.isub ρ) (r.subst ρ.τ)).isub ρ') (Tm.papp (a0'.isub (ρ.comp ρ')) (r'.subst (ρ.comp ρ').τ))
+      rw [show (Tm.papp (a0.isub ρ) (r.subst ρ.τ)).isub ρ' = Tm.papp (a0.isub (ρ.comp ρ')) (r.subst (ρ.comp ρ').τ) by
+        show Tm.papp ((a0.isub ρ).isub ρ') ((r.subst ρ.τ).subst ρ'.τ) = _; rw [Tm.isub_isub, I_subst_comp]]
+      exact hel k'' (ρ.comp ρ') _ _ (RE2.isub hW ha0 _))
+    (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21 htube
   · simpa only [hrid, hrid'] using H
   · have hρ : HasTy S k' .one [] (.hcomp (T.isub ρ) (φ.subst ρ.τ) (u.isub ρ.up) (a0.isub ρ)) (T.isub ρ) :=
       HasTy.isubS hW hty ρ
