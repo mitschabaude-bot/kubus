@@ -300,7 +300,262 @@ theorem DR2At_near2 : ∀ {k : ℕ} {g : Hom k k0} {A t t' t2 t2' : Tm},
 termination_by structural _ _ _ _ _ _ _ h => h
 end
 
+/-- Arguments related at the parameters `ps1` are related at near parameters `ps2` with an argument clause,
+given their recursive arguments related at `ps2`. -/
+theorem prefix_nearConv {k : ℕ} {g : Hom k k0} {ps1 ps2 : Tm} (hR2 : argRelH Θ f S k g ps2 ps2)
+    (hpc2 : ps2.closedB 0 k = true) (hn : TmNear ps1 ps2)
+    {c : ℕ} {C : Ctor} (hC : (dataD S Θ.idx).ctors[c]? = some C) {args args' : List Tm}
+    (hl : args.length ≤ C.args.length) (hl' : args'.length = args.length)
+    (hrec2 : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g (.data Θ.idx ps2) args[j] args'[j])
+    (hpt1 : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
+      dataP2 S Θ f k g c j ((args.take j).map (semK S k))
+        ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps1.toList.reverse))
+        args[j] args'[j]) :
+    ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
+      dataP2 S Θ f k g c j ((args.take j).map (semK S k))
+        ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps2.toList.reverse))
+        args[j] args'[j] := by
+  intro j
+  induction j using Nat.strong_induction_on with
+  | _ j ih =>
+  intro hj hj' hr
+  have hlj : (args.take j).length = j := by simp; omega
+  -- the prefix, related at `ps2`
+  have hrecp : ∀ i (hi : i < (args.take j).length) (hi' : i < (args'.take j).length), C.isRec i = true →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g (.data Θ.idx ps2) (args.take j)[i] (args'.take j)[i] :=
+    fun i hi hi' hri => by
+      simp only [List.getElem_take]; exact hrec2 i (by simp at hi; omega) (by simp at hi'; omega) hri
+  have hptp : ∀ i (hi : i < (args.take j).length) (hi' : i < (args'.take j).length), C.isRec i = false →
+      dataP2 S Θ f k g c i (((args.take j).take i).map (semK S k))
+        ((C.argTy Θ.idx (dataD S Θ.idx).params.length i).substList (((args.take j).take i).reverse ++ ps2.toList.reverse))
+        (args.take j)[i] (args'.take j)[i] := fun i hi hi' hri => by
+    simp only [List.getElem_take, List.take_take]
+    rw [Nat.min_eq_left (by simp at hi; omega)]
+    exact ih i (by simp at hi; omega) (by simp at hi; omega) (by simp at hi'; omega) hri
+  obtain ⟨hrecd, hptd⟩ := prefix_refl hW f hP hR2 hpc2 hC (by simp; omega) (by simp; omega) hrecp hptp
+  have hty := argRelH_id f hR2 hpc2 hpc2 (args := args.take j) (args' := args.take j) hC (by rw [hlj]; omega) rfl
+    (by rw [hlj]; exact hr) (fun i hi _ hri => hrecd i hi hri) (fun i hi _ hri => hptd i hi hri)
+  rw [hlj] at hty
+  have P := hP (f.comp g) c j ((args.take j).map (semK S k))
+  have Q := hQ (f.comp g) c j ((args.take j).map (semK S k))
+  have nX : TmNear ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps2.toList.reverse))
+      ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps1.toList.reverse)) :=
+    near_substList (nearL_append (nearL_refl _) (nearL_reverse (toList_near hn.symm))) (TmNear.refl _)
+  have x := hpt1 j hj hj' hr
+  unfold dataP2 at x ⊢
+  have hx := (Comp2_el x).1
+  have gX : goodB S k ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList
+      ((args.take j).reverse ++ ps1.toList.reverse)) = true :=
+    good_of_isTyK hW (isTyK_of_ty hW hx.1)
+  have hX := NIP.tyL P Q hty nX (tyEq_near hW hN (Comp2_ty_base hty).2.1 nX gX).2
+  exact P.conv hX x
+
+set_option maxHeartbeats 2000000 in
+mutual
+/-- Related elements of an inductive type are related at a near type with an argument clause. -/
+theorem DR2_tyNear : ∀ {k : ℕ} {g : Hom k k0} {A t t' A2 : Tm},
+    DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t' → TmNear A A2 → IsTyK S k A2 →
+    (∀ k' (σ : ISub k' k) ps, RedT S k' (A2.isub σ) (.data Θ.idx ps) → argRelH Θ f S k' (g.comp σ.hom) ps ps) →
+    DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A2 t t'
+  | k, g, A, t, t', A2, .intro he hh hc hc', hn, hA2, hyp => by
+    have e := (tyEq_near hW hN (isTyK_of_ty hW (HasTy.eqL he)) hn (good_of_isTyK hW hA2)).1
+    exact .intro (he.tyConv e)
+      (fun k' σ => DR2At_tyNear (hh k' σ) (hn.isub σ) (hA2.isub hW σ) fun ps hps => hyp k' σ ps hps)
+      (fun k' σ w hw k'' ρ => DR2At_tyNear (hc k' σ w hw k'' ρ) (hn.isub _) (hA2.isub hW _)
+        fun ps hps => hyp k'' (σ.comp ρ) ps hps)
+      (fun k' σ w hw k'' ρ => DR2At_tyNear (hc' k' σ w hw k'' ρ) (hn.isub _) (hA2.isub hW _)
+        fun ps hps => hyp k'' (σ.comp ρ) ps hps)
+termination_by structural _ _ _ _ _ _ h => h
+
+theorem DR2At_tyNear : ∀ {k : ℕ} {g : Hom k k0} {A t t' A2 : Tm},
+    DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t' → TmNear A A2 → IsTyK S k A2 →
+    (∀ ps, RedT S k A2 (.data Θ.idx ps) → argRelH Θ f S k g ps ps) →
+    DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A2 t t'
+  | k, g, A, t, t', A2, .con (ps := ps) (c := c) (C := C) (args := args) (args' := args')
+      hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' hrec hpt, hn, hA2, hyp => by
+    have hAt := isTyK_of_ty hW (HasTy.eqL heq)
+    have e := (tyEq_near hW hN hAt hn (good_of_isTyK hW hA2)).1
+    obtain ⟨W, hW2, nW⟩ := RedT.near hW hN hA hAt hn (good_of_isTyK hW hA2)
+    cases nW with | @data _ _ ps2 nps =>
+    have hR2 := hyp ps2 hW2
+    have hd2 := RedT.isTyK hW hW2 hA2
+    have hpc2 : ps2.closedB 0 k = true := ps_closed hW hW2 hA2
+    have hpl2 : ps2 = Tm.ofList ps2.toList := by
+      rw [hpl] at nps
+      obtain ⟨L, rfl, -⟩ := near_ofList_inv nps
+      rw [toList_ofList]
+    have hrec2 : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
+        DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g (.data Θ.idx ps2) args[j] args'[j] :=
+      fun j hj hj' hr => DR2_tyNear (hrec j hj hj' hr) (.data nps) hd2 (hypData f hR2)
+    exact .con hm hm' (heq.tyConv e) hC hW2 hpl2 ⟨ht.1, ht.2.tyConv e⟩ ⟨ht'.1, ht'.2.tyConv e⟩ hrs hrs' hreq hsc hsc'
+      hl hl' hrec2 (prefix_nearConv hW hN f hP hQ hR2 hpc2 nps hC (by omega) (by omega) hrec2 hpt)
+  | k, g, A, t, t', A2, .hcomp (ps := ps) hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu, hn, hA2, hyp => by
+    have hAt := isTyK_of_ty hW (HasTy.eqL heq)
+    have e := (tyEq_near hW hN hAt hn (good_of_isTyK hW hA2)).1
+    obtain ⟨W, hW2, nW⟩ := RedT.near hW hN hA hAt hn (good_of_isTyK hW hA2)
+    cases nW with | @data _ _ ps2 nps =>
+    have hR2 := hyp ps2 hW2
+    have hd2 := RedT.isTyK hW hW2 hA2
+    have hpl2 : ps2 = Tm.ofList ps2.toList := by
+      rw [hpl] at nps
+      obtain ⟨L, rfl, -⟩ := near_ofList_inv nps
+      rw [toList_ofList]
+    refine .hcomp hm hm' (heq.tyConv e) hH hW2 hpl2 ⟨ht.1, ht.2.tyConv e⟩ ⟨ht'.1, ht'.2.tyConv e⟩ hs hs' h12 h21
+      (DR2_tyNear ha (.data nps) hd2 (hypData f hR2)) (fun k' σ r hr hh =>
+        DR2_tyNear (hu k' σ r hr hh) ((TmNear.data nps).isub σ) (hd2.isub hW σ) ?_)
+    intro k'' σ' ps3 h
+    rw [Tm.isub_isub] at h
+    obtain rfl := redT_data_eq h
+    rw [Hom.comp_assoc, ← ISub.hom_comp]
+    exact argRelH_isub Θ f hR2 (σ.comp σ')
+termination_by structural _ _ _ _ _ _ h => h
+end
+
+omit hN hP hQ in
+/-- Related arguments are good. -/
+theorem args_good {k : ℕ} {g : Hom k k0} {ps : Tm} {c : ℕ} {C : Ctor} {args args' : List Tm}
+    (hl' : args'.length = args.length)
+    (hrec : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g (.data Θ.idx ps) args[j] args'[j])
+    (hpt : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
+      dataP2 S Θ f k g c j ((args.take j).map (semK S k))
+        ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps.toList.reverse))
+        args[j] args'[j]) :
+    (∀ x ∈ args, goodB S k x = true) ∧ (∀ x ∈ args', goodB S k x = true) := by
+  have key : ∀ j (hj : j < args.length) (hj' : j < args'.length), goodB S k args[j] = true ∧ goodB S k args'[j] = true := by
+    intro j hj hj'
+    cases hr : C.isRec j
+    · have := (Comp2_el (hpt j hj hj' hr)).1; exact ⟨good_of_ty hW this.1, good_of_ty hW this.2.1⟩
+    · have := DR2.eqTm f (hrec j hj hj' hr); exact ⟨good_of_ty hW (HasTy.eqL this), good_of_ty hW (HasTy.eqR this)⟩
+  refine ⟨fun x hx => ?_, fun x hx => ?_⟩
+  · obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hx; exact (key j hj (by omega)).1
+  · obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hx; exact (key j (by omega) hj).2
+
+/-- The argument clause, at near parameters on the right. -/
+theorem argRelH_nearR {k : ℕ} {g : Hom k k0} {ps ps' ps'' : Tm} (hD : S[Θ.idx]? = some (.data (dataD S Θ.idx)))
+    (h : argRelH Θ f S k g ps ps') (hn : TmNear ps' ps'') (gps : goodB S k ps'' = true) : argRelH Θ f S k g ps ps'' := by
+  intro k'' σ' c C args args' hC hl hl' hr hrec hpt
+  have x := h k'' σ' c C args args' hC hl hl' hr hrec hpt
+  have nX : TmNear ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
+        (args'.reverse ++ (ps'.isub σ').toList.reverse))
+      ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
+        (args'.reverse ++ (ps''.isub σ').toList.reverse)) :=
+    near_substList (nearL_append (nearL_refl _) (nearL_reverse (toList_near (hn.isub σ')))) (TmNear.refl _)
+  have gX : goodB S k'' ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
+      (args'.reverse ++ (ps''.isub σ').toList.reverse)) = true := by
+    refine good_substList (good_argTy hW hD hC _ _ _) fun y hy => ?_
+    rcases List.mem_append.1 hy with h | h
+    · exact (args_good hW f hl' hrec hpt).2 y (List.mem_reverse.1 h)
+    · exact goodB_toList (good_isub gps σ') y (List.mem_reverse.1 h)
+  exact (hQ _ c _ _).1 _ _ _ x nX (tyEq_near hW hN (Comp2_ty_base x).2.2.1 nX gX).2
+
+/-- The argument clause, at near parameters on the left. -/
+theorem argRelH_nearL {k : ℕ} {g : Hom k k0} {ps ps' ps'' : Tm} (hD : S[Θ.idx]? = some (.data (dataD S Θ.idx)))
+    (h : argRelH Θ f S k g ps ps') (hd : argRelH Θ f S k g ps ps) (hps : IsTyK S k (.data Θ.idx ps))
+    (hn : TmNear ps'' ps) (gps : goodB S k ps'' = true) : argRelH Θ f S k g ps'' ps' := by
+  intro k'' σ' c C args args' hC hl hl' hr hrec hpt
+  have hdσ := argRelH_isub Θ f hd σ'
+  have hpsσ : IsTyK S k'' (.data Θ.idx (ps.isub σ')) := hps.isub hW σ'
+  have hpc : (ps.isub σ').closedB 0 k'' = true := by
+    have := closed_of_isTyK hW hpsσ; simpa [Tm.closedB] using this
+  have hrec2 : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k'' (g.comp σ'.hom) (.data Θ.idx (ps.isub σ'))
+        args[j] args'[j] := fun j hj hj' hr' =>
+    DR2_tyNear hW hN f hP hQ (hrec j hj hj' hr') (.data (hn.isub σ')) hpsσ (hypData f hdσ)
+  have hpt2 := prefix_nearConv hW hN f hP hQ hdσ hpc (hn.isub σ') hC hl.le hl' hrec2 hpt
+  have x := h k'' σ' c C args args' hC hl hl' hr hrec2 hpt2
+  have nX : TmNear ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
+        (args.reverse ++ (ps.isub σ').toList.reverse))
+      ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
+        (args.reverse ++ (ps''.isub σ').toList.reverse)) :=
+    near_substList (nearL_append (nearL_refl _) (nearL_reverse (toList_near (hn.symm.isub σ')))) (TmNear.refl _)
+  have gX : goodB S k'' ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
+      (args.reverse ++ (ps''.isub σ').toList.reverse)) = true := by
+    refine good_substList (good_argTy hW hD hC _ _ _) fun y hy => ?_
+    rcases List.mem_append.1 hy with h | h
+    · exact (args_good hW f hl' hrec hpt).1 y (List.mem_reverse.1 h)
+    · exact goodB_toList (good_isub gps σ') y (List.mem_reverse.1 h)
+  have P := hP (f.comp (g.comp σ'.hom)) c args.length (args.map (semK S k''))
+  exact NIP.tyL P (hQ _ c _ _) x nX (tyEq_near hW hN (Comp2_ty_base x).2.1 nX gX).2
+
 end dr
+
+theorem good_param (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) {j : ℕ} {A : Tm}
+    (hA : D.params[j]? = some A) (m : ℕ) : goodB S m A = true := by
+  rcases ((hW.2 d D hD).2.1 j A hA).2.2 with h | ⟨l, -, rfl⟩
+  · exact goodB_mono A (good_ty (Model.Canon.htr_of hW d h)) (Nat.zero_le m)
+  · rfl
+
+/-- The parameter clause, at near parameters on the right. -/
+theorem parRel2_nearR (hW : WfSig S) (hN : NearTy S) {m : ℕ} {Θ : SData m}
+    (ihp : ∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → PER2 S n X)
+    (nip : ∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → NI2 S n X)
+    {k0 : ℕ} (f : Hom k0 m) {k' : ℕ} (σ : ISub k' k0) {ps ps' ps'' : Tm} (hD : S[Θ.idx]? = some (.data (dataD S Θ.idx)))
+    (h : parRel2 S Θ f k' σ ps ps') (hn : TmNear ps' ps'') (gps : goodB S k' ps'' = true) :
+    parRel2 S Θ f k' σ ps ps'' := by
+  intro j p p'' e1 e3
+  have nL := toList_near hn
+  have hj : j < ps'.toList.length := by
+    have := (List.getElem?_eq_some_iff.1 e3).1; rw [← nL.length_eq] at this; exact this
+  have e2 : ps'.toList[j]? = some ps'.toList[j] := List.getElem?_eq_getElem hj
+  have np := forall2_getElem? nL e2 e3
+  have gp : goodB S k' p'' = true := goodB_toList gps p'' (List.mem_of_getElem? e3)
+  have P := perP_parEntry ihp f σ j
+  have Q := niP_parEntry nip f σ j
+  obtain ⟨a1, a0⟩ := h j p _ e1 e2
+  refine ⟨fun t => ?_, fun t Aj hA => ?_⟩
+  · have x := a1 t
+    exact Q.1 _ _ _ x np (tyEq_near hW hN (Comp2_ty_base x).2.2.1 np gp).2
+  · obtain ⟨x, y⟩ := a0 t Aj hA
+    have nX : TmNear (Aj.substList (ps'.toList.take j).reverse) (Aj.substList (ps''.toList.take j).reverse) :=
+      near_substList (nearL_reverse (nearL_take nL j)) (TmNear.refl _)
+    have gX : goodB S k' (Aj.substList (ps''.toList.take j).reverse) = true :=
+      good_substList (good_param hW hD hA k') fun z hz =>
+        goodB_toList gps z (List.mem_of_mem_take (List.mem_reverse.1 hz))
+    have hy := (Comp2_el y).1
+    exact ⟨Q.1 _ _ _ x nX (tyEq_near hW hN (Comp2_ty_base x).2.2.1 nX gX).2,
+      Q.2 _ _ _ _ (P.reflTy x) y np (HasTy.near' hW hN hy.2.1 np gp)⟩
+
+
+/-- The relations of an inductive type's code are invariant under near terms. -/
+theorem ni2_dataC (hW : WfSig S) (hN : NearTy S) {m : ℕ} {Θ : SData m}
+    (ih : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → PER2 S n (Θ.ty c j n g pre))
+    (ihp : ∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → PER2 S n X)
+    (ni : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → NI2 S n (Θ.ty c j n g pre))
+    (nip : ∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → NI2 S n X) :
+    NI2 S m (dataC Θ) := by
+  intro k f T T' T'' t t' t''
+  have hP : ∀ {n : ℕ} (h : Hom n m) (c j : ℕ) (pre : List V),
+      PERP (Comp2 S (tyLook (shapeV (Θ.restr h)) c j pre) n n (Hom.id n)) := fun h c j pre => perP_tyLook ih h c j pre
+  have hQ : ∀ {n : ℕ} (h : Hom n m) (c j : ℕ) (pre : List V),
+      NIP S n (Comp2 S (tyLook (shapeV (Θ.restr h)) c j pre) n n (Hom.id n)) := fun h c j pre => niP_tyLook ni h c j pre
+  rw [Comp2_dataC]
+  refine ⟨fun h hn hT => ⟨base_near hW hN h.1 hn hT, fun k' σ => ?_⟩, fun hTT h hn hu => ?_⟩
+  · obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d', pr⟩ := h.2 k' σ
+    have hT' := h.1.2.1
+    obtain ⟨W, h2'', nW⟩ := RedT.near hW hN h2 (hT'.isub hW σ) (hn.isub σ) (good_of_isTyK hW (hT.isub hW σ))
+    cases nW with | @data _ _ ps'' nps =>
+    have hd' := RedT.isTyK hW h2 (hT'.isub hW σ)
+    have hD := data_decl_of hW hd'
+    have gps : goodB S k' ps'' = true := by
+      have := good_whnf hW h2'' (good_of_isTyK hW (hT.isub hW σ)); simpa [goodB] using this
+    have hl'' : ps'' = Tm.ofList ps''.toList := by
+      rw [hl'] at nps
+      obtain ⟨L, rfl, -⟩ := near_ofList_inv nps
+      rw [toList_ofList]
+    rw [argRel2_iff] at r12 r21 d d'
+    have r1 := argRelH_nearR hW hN f hP hQ hD r12 nps gps
+    have r2 := argRelH_nearL hW hN f hP hQ hD r21 d' hd' nps.symm gps
+    have d2 := argRelH_nearL hW hN f hP hQ hD (argRelH_nearR hW hN f hP hQ hD d' nps gps) d' hd' nps.symm gps
+    exact ⟨ps, ps'', h1, h2'', hl, hl'', (argRel2_iff Θ σ).2 r1, (argRel2_iff Θ σ).2 r2, (argRel2_iff Θ σ).2 d,
+      (argRel2_iff Θ σ).2 d2, parRel2_nearR hW hN ihp nip f σ hD pr nps gps⟩
+  · obtain ⟨hE, hmem, -, hdr⟩ := h
+    have hE' : EB S k T t t'' := ⟨hE.1, hu, hE.2.2.trans (eq_near hW hN hE.2.1 hn (good_of_ty hW hu))⟩
+    refine ⟨hE', hmem, hE', DR2_near2 hW hN f hP hQ hdr (TmNear.refl t) hn hE.1 hu fun k' σ ps hps => ?_⟩
+    obtain ⟨ps0, -, g1, -, -, -, -, -, hd, -, -⟩ := hTT.2 k' σ
+    obtain rfl : ps = ps0 := by have := RedW.unique hps.1 g1.1; injection this
+    rw [Hom.id_comp]; exact (argRel2_iff Θ σ).1 hd
 
 end
 
