@@ -68,6 +68,7 @@ import Model.Whnf.Valid2CompGlue
 import Model.Whnf.Valid2LineEquiv
 import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Valid2Data
+import Model.Whnf.Valid2Elim
 import Model.Whnf.Kan2Glue
 import Model.Whnf.Kan2DataCode
 import Model.Whnf.NearAll

@@ -419,6 +419,143 @@ theorem elim_DR2 {M bs : Tm} (hRL : ElimRel S d D K P M bs P M bs) : ∀ {k1 : �
 
 end lit
 
+theorem CSub2.upL_restr {Ψ : ℕ} {Φ : I} {Γ : Ctx} (c : CSub2 S Ψ Φ Γ k) {k' : ℕ} (ρ : ISub k' k) (t : Tm) :
+    t.subst (Tm.up (c.restr hW ρ).γ) (c.restr hW ρ).σ.τ = (t.subst (Tm.up c.γ) c.σ.τ).isub ρ := by
+  simp only [CSub2.restr, Tm.isub, subst_subst, ISub.comp]
+  apply subst_congr
+  · intro x; cases x with
+    | zero => rfl
+    | succ x => exact (isub_shift (c.γ x) ρ).symm
+  · intro i; rfl
+
+theorem CSub2.upR_restr {Ψ : ℕ} {Φ : I} {Γ : Ctx} (c : CSub2 S Ψ Φ Γ k) {k' : ℕ} (ρ : ISub k' k) (t : Tm) :
+    t.subst (Tm.up (c.restr hW ρ).γ') (c.restr hW ρ).σ'.τ = (t.subst (Tm.up c.γ') c.σ'.τ).isub ρ := by
+  simp only [CSub2.restr, Tm.isub, subst_subst, ISub.comp]
+  apply subst_congr
+  · intro x; cases x with
+    | zero => rfl
+    | succ x => exact (isub_shift (c.γ' x) ρ).symm
+  · intro i; rfl
+
+section valid
+variable {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
+include hD
+
+/-- The premises of two eliminations with valid components, at a related substitution. -/
+theorem elimRel_of {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' P P' bs bs' t t' T T' : Tm} {m : ℕ}
+    (hty : HasTy0 S Ψ Φ Γ (.elim d ps P bs t) T) (hty' : HasTy0 S Ψ Φ Γ (.elim d ps' P' bs' t') T')
+    (hps : Valid2 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ D.level))
+    (hM : Valid2 S Ψ Φ (.data d ps :: Γ) P P' (.univ m))
+    (hbr : ∀ (c : ℕ) (C : Ctor) (b b' : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
+      bs'.toList[c]? = some b' → Valid2 S Ψ Φ Γ b b' (D.branchTy d c C ps P))
+    (c : CSub2 S Ψ Φ Γ k) :
+    ElimRel S d D k (c.L ps) (P.subst (Tm.up c.γ) c.σ.τ) (c.L bs) (c.R ps') (P'.subst (Tm.up c.γ') c.σ'.τ) (c.R bs') := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨D0, m0, hE0, -⟩ := gen_elimP hty rfl
+  obtain ⟨D1, m1, hE1, -⟩ := gen_elimP hty' rfl
+  have e0 : D0 = D := by have := hE0.hD; rw [hD] at this; cases this; rfl
+  have e1 : D1 = D := by have := hE1.hD; rw [hD] at this; cases this; rfl
+  rw [e0] at hE0; rw [e1] at hE1
+  have hlen : ps.toList.length = D.params.length := by simpa using Meta.tele_length hE0.hpt
+  refine ⟨fun k1 ρ => hps.tyRestr hW c ρ, fun k1 ρ x x' hx => ?_, fun k1 ρ cc C hC => ?_, fun k1 ρ => ?_,
+    fun k1 ρ => ?_⟩
+  · have ha : RE2 S k1 ((c.restr hW ρ).L (.data d ps)) x x' := by rw [CSub2.restr_L]; exact hx
+    have := hM.ty hW ((c.restr hW ρ).ext hW (.data d ps) x x' ha
+      (CSub2.tyRob_of hW (fun k c => hps.tySelf hW c) _))
+    rw [subst_up_isub_inst, subst_up_isub_inst]
+    exact this
+  · have hcl : cc < D.ctors.length := (List.getElem?_eq_some_iff.1 hC).1
+    obtain ⟨b, hb⟩ : ∃ b, bs.toList[cc]? = some b := ⟨_, List.getElem?_eq_getElem (by rw [hE0.hlen]; exact hcl)⟩
+    obtain ⟨b', hb'⟩ : ∃ b, bs'.toList[cc]? = some b := ⟨_, List.getElem?_eq_getElem (by rw [hE1.hlen]; exact hcl)⟩
+    have := ((hbr cc C b b' hC hb hb') k1 (c.restr hW ρ)).2
+    have e := branchTy_subst hS hD hC hE0.hps hlen P (σ := (c.restr hW ρ).γ) (τ := (c.restr hW ρ).σ.τ)
+    rw [show (c.restr hW ρ).L (D.branchTy d cc C ps P) = _ from e,
+      show ps.subst (c.restr hW ρ).γ (c.restr hW ρ).σ.τ = (c.L ps).isub ρ from CSub2.restr_L hW c ρ ps,
+      CSub2.upL_restr] at this
+    have gL : ((c.L bs).isub ρ).toList.getD cc .abort = (c.restr hW ρ).L b := by
+      rw [← CSub2.restr_L hW c ρ bs]
+      show (bs.subst _ _).toList.getD cc .abort = _
+      rw [toList_subst hE0.hbs]
+      simp [List.getD_eq_getElem?_getD, List.getElem?_map, hb]
+    have gR : ((c.R bs').isub ρ).toList.getD cc .abort = (c.restr hW ρ).R b' := by
+      rw [← CSub2.restr_R hW c ρ bs']
+      show (bs'.subst _ _).toList.getD cc .abort = _
+      rw [toList_subst hE1.hbs]
+      simp [List.getD_eq_getElem?_getD, List.getElem?_map, hb']
+    rw [gL, gR]; exact this
+  · have h := (c.restr hW ρ).ty hW hty
+    obtain ⟨D'', m', hE', -⟩ := gen_elimP (spec_to_minimal hW h) rfl
+    have hDD : D'' = D := by have := hE'.hD; rw [hD] at this; cases this; rfl
+    rw [hDD] at hE'
+    rw [show ps.subst (c.restr hW ρ).γ (c.restr hW ρ).σ.τ = (c.L ps).isub ρ from CSub2.restr_L hW c ρ ps,
+      show bs.subst (c.restr hW ρ).γ (c.restr hW ρ).σ.τ = (c.L bs).isub ρ from CSub2.restr_L hW c ρ bs,
+      CSub2.upL_restr] at hE'
+    exact ⟨m', hE'⟩
+  · have h := (c.restr hW ρ).tyR hW hty'
+    obtain ⟨D'', m', hE', -⟩ := gen_elimP (spec_to_minimal hW h) rfl
+    have hDD : D'' = D := by have := hE'.hD; rw [hD] at this; cases this; rfl
+    rw [hDD] at hE'
+    rw [show ps'.subst (c.restr hW ρ).γ' (c.restr hW ρ).σ'.τ = (c.R ps').isub ρ from CSub2.restr_R hW c ρ ps',
+      show bs'.subst (c.restr hW ρ).γ' (c.restr hW ρ).σ'.τ = (c.R bs').isub ρ from CSub2.restr_R hW c ρ bs',
+      CSub2.upR_restr] at hE'
+    exact ⟨m', hE'⟩
+
+/-- **Elimination** of an inductive type without path constructors, with valid components. -/
+theorem valid_elim (hH : D.isHIT = false) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' P P' bs bs' t t' : Tm} {m : ℕ}
+    (hty : HasTy0 S Ψ Φ Γ (.elim d ps P bs t) (P.inst t)) (hty' : HasTy0 S Ψ Φ Γ (.elim d ps' P' bs' t') (P.inst t))
+    (hps : Valid2 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ D.level))
+    (hM : Valid2 S Ψ Φ (.data d ps :: Γ) P P' (.univ m))
+    (hbr : ∀ (c : ℕ) (C : Ctor) (b b' : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
+      bs'.toList[c]? = some b' → Valid2 S Ψ Φ Γ b b' (D.branchTy d c C ps P))
+    (ht : Valid2 S Ψ Φ Γ t t' (.data d ps)) :
+    Valid2 S Ψ Φ Γ (.elim d ps P bs t) (.elim d ps' P' bs' t') (P.inst t) := by
+  obtain ⟨D0, m0, hE0, -⟩ := gen_elimP hty rfl
+  obtain ⟨D1, m1, hE1, -⟩ := gen_elimP hty' rfl
+  have e0 : D0 = D := by have := hE0.hD; rw [hD] at this; cases this; rfl
+  have e1 : D1 = D := by have := hE1.hD; rw [hD] at this; cases this; rfl
+  rw [e0] at hE0; rw [e1] at hE1
+  have hpsL := valid_trans hW hps (valid_symm hW hps)
+  have hML := valid_trans hW hM (valid_symm hW hM)
+  have htL := valid_trans hW ht (valid_symm hW ht)
+  have hbrL : ∀ (c : ℕ) (C : Ctor) (b b' : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
+      bs.toList[c]? = some b' → Valid2 S Ψ Φ Γ b b' (D.branchTy d c C ps P) := by
+    intro cc C b b2 hC hb hb2
+    rw [hb] at hb2; cases hb2
+    have hcl : cc < D.ctors.length := (List.getElem?_eq_some_iff.1 hC).1
+    obtain ⟨b', hb'⟩ : ∃ b, bs'.toList[cc]? = some b := ⟨_, List.getElem?_eq_getElem (by rw [hE1.hlen]; exact hcl)⟩
+    have h := hbr cc C b b' hC hb hb'
+    exact valid_trans hW h (valid_symm hW h)
+  intro k c
+  have hRL : ElimRel S d D k (c.L ps) (P.subst (Tm.up c.γ) c.σ.τ) (c.L bs) (c.L ps) (P.subst (Tm.up c.γ) c.σ.τ)
+      (c.L bs) := elimRel_of hW hD hty hty hpsL hML hbrL (c.diagL hW)
+  have hER := elimRel_of hW hD hty hty' hps hM hbr c
+  have hP : HasTy S k .one [] (.data d (c.L ps)) (.univ D.level) := c.ty hW hE0.hdata
+  have hPP : RT2 S k (.data d (c.L ps)) (.data d (c.L ps)) := hpsL.ty hW (c.diagL hW)
+  have hx : RE2 S k (.data d (c.L ps)) (c.L t) (c.R t') := (ht k c).2
+  have hpc : (c.L ps).closedB 0 k = true := by
+    have := closed_of_ty hW hP; simpa [Tm.closedB] using this
+  have hx' : RE2 S k (.data d ((c.L ps).isub (ISub.id k))) (c.L t) (c.R t') := by
+    rw [isub_id_of_closed hpc]; exact hx
+  obtain ⟨-, hdr⟩ := (RE2_dataLit_iff hW hD hP (ISub.id k)).1 hx'
+  have T := elim_DR2 hW hD hH hP hPP hRL hdr (ISub.id k) rfl rfl _ _ _ hER
+  have hcl := closed_of_ty hW (c.ty hW hty)
+  have hcl' := closed_of_ty hW (c.tyR hW hty')
+  simp only [CSub2.L, CSub2.R, Tm.subst, Tm.closedB, Bool.and_eq_true] at hcl hcl'
+  rw [isub_id_of_closed hpc, isub_id_of_closed hcl.1.1.2, isub_id_of_closed hcl.1.2,
+    isub_id_of_closed hcl'.1.1.1, isub_id_of_closed hcl'.1.1.2, isub_id_of_closed hcl'.1.2] at T
+  refine ⟨?_, ?_⟩
+  · have := hML.ty hW (c.ext hW (.data d ps) (c.L t) (c.R t) (htL k c).2
+      (CSub2.tyRob_of hW (fun k c => hpsL.tySelf hW c) _))
+    show RT2 S k ((P.inst t).subst c.γ c.σ.τ) ((P.inst t).subst c.γ' c.σ'.τ)
+    rw [inst_subst_consT, inst_subst_consT]
+    exact this
+  · show RE2 S k ((P.inst t).subst c.γ c.σ.τ) _ _
+    rw [inst_subst]
+    exact T
+
+end valid
+
+
 end
 
 end Model.Whnf

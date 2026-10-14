@@ -13,7 +13,7 @@ derivations in a prefix `S'` of the signature `S`. It is parametrized by:
   lemma by induction on codes (the computation rules of `transp`/`hcomp` are proven, from the typing
   derivations of their contracta with validity, `Valid2Comp*.lean`, `Valid2LineEquiv.lean`,
   `Valid2TranspGlue.lean`);
-- `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'`;
+- `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'` (formation, and constructors and elimination of types without path constructors, are proven: `Valid2Data.lean`, `Valid2Elim.lean`);
 - `GlueBetaHyp2 S`: the validity of `glueBeta`, from the data that inverting the typing of its redex
   gives (see the remark at `GlueBetaHyp2`);
 
@@ -82,7 +82,7 @@ structure DataHyp2 (S S' : Sig) : Prop where
     Valid2 S Ψ Φ Γ (.data d ps) (.data d ps) (.univ D.level) → VTele2 S Ψ Φ Γ ps ps D.params [] →
     VTele2 S Ψ Φ Γ args args (C.argTys d D.params.length) ps.toList.reverse →
     Valid2 S Ψ Φ Γ (.con d c ps args rs) (.con d c ps args rs) (.data d ps)
-  elim : ∀ {Ψ Φ Γ d D ps P bs t m}, S'[d]? = some (.data D) →
+  elim : ∀ {Ψ Φ Γ d D ps P bs t m}, S'[d]? = some (.data D) → D.isHIT = true →
     ps = Tm.ofList ps.toList →
     HasTy0 S Ψ Φ Γ (.data d ps) (.univ D.level) → HasTele0 S Ψ Φ Γ ps D.params [] →
     HasTy0 S Ψ Φ (.data d ps :: Γ) P (.univ m) →
@@ -115,7 +115,7 @@ structure DataHyp2 (S S' : Sig) : Prop where
     VTele2 S Ψ Φ Γ ps ps' D.params [] →
     VTele2 S Ψ Φ Γ args args' (C.argTys d D.params.length) ps.toList.reverse →
     Valid2 S Ψ Φ Γ (.con d c ps args rs) (.con d c ps' args' rs') (.data d ps)
-  elimEq : ∀ {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m}, S'[d]? = some (.data D) →
+  elimEq : ∀ {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m}, S'[d]? = some (.data D) → D.isHIT = true →
     HasTy0 S Ψ Φ Γ (.elim d ps P bs t) (P.inst t) → HasTy0 S Ψ Φ Γ (.elim d ps' P' bs' t') (P.inst t) →
     EqTele0 S Ψ Φ Γ ps ps' D.params [] → EqTm0 S Ψ Φ (.data d ps :: Γ) P P' (.univ m) →
     bs = Tm.ofList bs.toList → bs' = Tm.ofList bs'.toList →

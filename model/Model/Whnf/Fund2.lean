@@ -5,6 +5,7 @@ import Model.Whnf.Valid2CompGlue
 import Model.Whnf.Valid2LineEquiv
 import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Valid2Data
+import Model.Whnf.Valid2Elim
 import Model.Whnf.NearAll
 
 /-!
@@ -121,8 +122,13 @@ theorem fund2_ty {Ψ Φ Γ t A} (hd : HasTy0 S' Ψ Φ Γ t A) :
       exact valid_con_nonHIT hW (hpre _ _ h0) (hDe.mono (by omega)) hH h1 h2 (sigwk_ty hpre (.con h0 h1 h2 h3 h4 h5 h6 h7))
         (by simpa using Meta.tele_length h4) (tele_isList h5) (by simpa [Ctor.argTys] using Meta.tele_length h5) h6 a3 a5
     · exact hDa.con h0 hH h1 h2 (sigwk_ty hpre h3) (sigwk_tele hpre h4) (sigwk_tele hpre h5) h6 h7 a3 a4 a5
-  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 =>
-    hDa.elim h0 h1 (sigwk_ty hpre h2) (sigwk_tele hpre h3) (sigwk_ty hpre h4) h5 h6
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => by
+    rename_i D _ _ _ _ _
+    cases hH : D.isHIT
+    · have hty := sigwk_ty hpre (.elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9)
+      exact valid_elim hW (hpre _ _ h0) hH hty hty (fund2_ty h2) (fund2_ty h4)
+        (fun c C b b' hC hb hb' => by rw [hb] at hb'; cases hb'; exact fund2_ty (h7 c C b hC hb)) (fund2_ty h9)
+    exact hDa.elim h0 hH h1 (sigwk_ty hpre h2) (sigwk_tele hpre h3) (sigwk_ty hpre h4) h5 h6
       (fun c C b hC hb => sigwk_ty hpre (h7 c C b hC hb))
       (fun c C b k ψ e hC hb hk => sigwk_eq hpre (h8 c C b k ψ e hC hb hk)) (sigwk_ty hpre h9)
       (fund2_ty h2) (fund2_tele h3) (fund2_ty h4) (fun c C b hC hb => fund2_ty (h7 c C b hC hb))
@@ -626,8 +632,20 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
   | .con h0 h1 h2 h3 h4 h5 h6 h7 =>
     hDa.conEq h0 h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (sigwk_eqtele hpre h4) (sigwk_eqtele hpre h5) h6 h7
       (fund2_ty h2) (fund2_ty h3) (fund2_eqtele h4) (fund2_eqtele h5)
-  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 =>
-    hDa.elimEq h0 (sigwk_ty hpre h1) (sigwk_ty hpre h2) (sigwk_eqtele hpre h3) (sigwk_eq hpre h4) h5 h6 h7
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => by
+    rename_i D _ _ _ _ _ _ _ _ _
+    cases hH : D.isHIT
+    · obtain ⟨D0, m0, hE0, -⟩ := gen_elimP h1 rfl
+      obtain ⟨D1, m1, hE1, -⟩ := gen_elimP h2 rfl
+      have e0 : D0 = D := by have := hE0.hD; rw [h0] at this; cases this; rfl
+      have e1 : D1 = D := by have := hE1.hD; rw [h0] at this; cases this; rfl
+      rw [e0] at hE0; rw [e1] at hE1
+      have hd := (List.getElem?_eq_some_iff.1 h0).1
+      have hps := valid_dataEq hW (hpre _ _ h0) (hDe.mono (by omega)) (sigwk_ty hpre hE0.hdata)
+        (sigwk_ty hpre hE1.hdata) (sigwk_eq hpre (.data h0 hE0.hdata hE1.hdata h3)) (fund2_eqtele h3)
+      exact valid_elim hW (hpre _ _ h0) hH (sigwk_ty hpre h1) (sigwk_ty hpre h2) hps (fund2_eq h4)
+        (fun c C b b' hC hb hb' => fund2_eq (h8 c C b b' hC hb hb')) (fund2_eq h9)
+    exact hDa.elimEq h0 hH (sigwk_ty hpre h1) (sigwk_ty hpre h2) (sigwk_eqtele hpre h3) (sigwk_eq hpre h4) h5 h6 h7
       (fun c C b b' hC hb hb' => sigwk_eq hpre (h8 c C b b' hC hb hb')) (sigwk_eq hpre h9)
       (fund2_ty h1) (fund2_ty h2) (fund2_eqtele h3) (fund2_eq h4)
       (fun c C b b' hC hb hb' => fund2_eq (h8 c C b b' hC hb hb')) (fund2_eq h9)
