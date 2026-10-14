@@ -103,6 +103,7 @@ inductive WFI (U : ℕ → ℕ → V) (l : ℕ) : ℕ → V → Prop
       WFI U l m (glueC m A φ Tp ep)
   | data {m} (Θ : SData m) : Θ.GoodCore →
       (∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → WFI U l n (Θ.ty c j n g pre)) →
+      (∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → WFI U l n X) →
       WFI U l m (dataC Θ)
 
 /-- The universe codes below a level bound. -/
@@ -128,6 +129,21 @@ theorem Ucodes_lt : ∀ {l l' : ℕ} (m : ℕ), l' < l → Ucodes l m l' = univC
     · rw [if_neg h1, if_pos (by omega)]
       have : l' = l := by omega
       subst this; rfl
+
+/-- Well-formed codes of a level are well-formed at every higher level. -/
+theorem WF.mono {k l : ℕ} (hkl : k ≤ l) {m : ℕ} {X : V} (h : WF k m X) : WF l m X := by
+  unfold WF at h ⊢
+  induction h with
+  | empty => exact .empty
+  | pi _ hB hBf _ hBn ihA ihB => exact .pi ihA hB hBf ihB hBn
+  | sigma _ hB hBf _ hBn ihA ihB => exact .sigma ihA hB hBf ihB hBn
+  | path _ h0 h1 ihL => exact .path ihL h0 h1
+  | ipi _ ihL => exact .ipi ihL
+  | @univ m l' hl' =>
+    rw [Ucodes_lt m hl', ← Ucodes_lt (l := l) m (by omega)]
+    exact .univ (by omega)
+  | glue _ hφ hn hTp hep _ hTn hem hen ihA ihT => exact .glue ihA hφ hn hTp hep ihT hTn hem hen
+  | data Θ hc _ _ ihw ihp => exact .data Θ hc ihw ihp
 
 @[simp] theorem El_univC (l : ℕ) (f : Hom k m) : El (univC m l) f = ZFSet.sep (WF l k) (Vt l) := by
   simp [univC, univCode, univDatum]

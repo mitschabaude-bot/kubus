@@ -52,7 +52,7 @@ theorem cv_wf : ∀ l, l ≤ maxLevel → ∀ m X, WF l m X → CV S m X := by
   · intro m l _ ih; exact cv_univC hW ih
   · intro l m A φ Tp ep _ hA hφ _ _ _ hTw hTn _ _ ihA ihT
     exact cv_glueC hW hA.fib.kv hφ hTn (fun k f hh => (hTw k f hh).fib.kv) ihA ihT
-  · intro l m Θ _ _ _; exact cv_dataC hW Θ
+  · intro l m Θ _ _ _ _ _; exact cv_dataC hW Θ
 
 theorem cv_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : CV S m X := by
   obtain ⟨l, hl, (⟨hX, -⟩ | rfl)⟩ := hX

@@ -221,7 +221,7 @@ theorem dataC_inj {Θ Θ' : SData m} (h : dataC Θ = dataC Θ') :
     Θ.idx = Θ'.idx ∧ Θ.pv m (Hom.id m) = Θ'.pv m (Hom.id m) := by
   have := congrArg (fun c => shapeOf c (Hom.id m)) h
   simp only [shapeOf_dataC, tagZ_inj, pair_inj', natZ_inj, true_and] at this
-  exact ⟨this.1, this.2.1⟩
+  exact ⟨this.1, this.2.1.1⟩
 
 theorem sem_ps_eq_of_data {Ψ Φ Γ d D ps ps' l} (hd : S[d]? = some (.data D))
     (h : SemEq S Ψ Φ Γ (.data d ps) (.data d ps') (.univ l)) {ρ : IEnv m} {γ : ℕ → V}

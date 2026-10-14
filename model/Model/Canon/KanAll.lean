@@ -44,9 +44,9 @@ theorem kanP_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KanP S m X := by
       (WF.fib (show WF l m (glueC m A φ Tp ep) from WFI.glue hAw hφ hn hTpE hepE hTw hTn hem hen))
       (fun k f hh => (ihT k f hh).1),
       kanP_glue hW hGC hAw.fib.kv hφ hTn hTkv ihA.1 ihA.2 ihT⟩
-  · intro l m Θ hc hw ih
+  · intro l m Θ hc hw hpw ih _
     have hΘ : Θ.Good := { hc with fib := fun c j n g pre hp => (hw c j n g pre hp).fib }
-    have hKR := kr_dataC hW hΘ (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw)) (fun c j n g pre hp => (ih c j n g pre hp).1)
+    have hKR := kr_dataC hW hΘ (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw hpw)) (fun c j n g pre hp => (ih c j n g pre hp).1)
     exact ⟨hKR, kanP_data hW hΘ ih hKR⟩
 
 theorem kanOracle : KanOracle S := fun _ _ hX => kanP_tyCode hW hGC hX

@@ -137,8 +137,8 @@ theorem kr2_wf : ∀ l, l ≤ maxLevel → ∀ m X, WF l m X → KR2 S m X := by
   · intro l m A φ Tp ep hl hA hφ hn hTp hep hTw hTn hem hen _ ihT
     exact kr2_glueC hW hA.fib.kv hφ hTn hTw
       (WF.fib (show WF l m (glueC m A φ Tp ep) from WFI.glue hA hφ hn hTp hep hTw hTn hem hen)) ihT
-  · intro l m Θ hc hw _
-    exact kr2_dataC hW (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw))
+  · intro l m Θ hc hw hpw _ _
+    exact kr2_dataC hW (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw hpw))
 
 theorem kr2_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KR2 S m X := by
   obtain ⟨l, hl, (⟨hX, -⟩ | rfl)⟩ := hX
