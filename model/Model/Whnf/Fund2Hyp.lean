@@ -13,7 +13,7 @@ derivations in a prefix `S'` of the signature `S`. It is parametrized by:
   lemma by induction on codes (the computation rules of `transp`/`hcomp` are proven, from the typing
   derivations of their contracta with validity, `Valid2Comp*.lean`, `Valid2LineEquiv.lean`,
   `Valid2TranspGlue.lean`);
-- `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'` (formation, and constructors and elimination of types without path constructors, are proven: `Valid2Data.lean`, `Valid2Elim.lean`);
+- `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'` (formation, injectivity, `transpData0`, and the rules of types without path constructors are proven: `Valid2Data.lean`, `Valid2Elim.lean`, `Valid2TranspCon.lean`, `Valid2HcompCon.lean`);
 - `GlueBetaHyp2 S`: the validity of `glueBeta`, from the data that inverting the typing of its redex
   gives (see the remark at `GlueBetaHyp2`);
 
@@ -160,24 +160,6 @@ structure DataHyp2 (S S' : Sig) : Prop where
     Valid2 S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a))
       (Tm.comp (P.subst (consSub (Tm.hfill (.data d ps) φ u a)) (fun i => .var (i + 1))) φ
         (.elim d ps.dshift P.dshift bs.dshift u) (.elim d ps P bs a)) T
-  hcompCon : ∀ {Ψ Φ Γ d D c C ps φ u qs uargs args T}, S'[d]? = some (.data D) → D.isHIT = false →
-    D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
-    uargs = Tm.ofList uargs.toList →
-    HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
-    HasTele0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift uargs (C.argTys d D.params.length) ps.dshift.toList.reverse →
-    EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (.con d c ps.dshift uargs []) (.data d ps.dshift) →
-    EqTele0 S Ψ (cof Φ φ) Γ (uargs.dinst .zero) args (C.argTys d D.params.length) ps.toList.reverse →
-    HasTy0 S Ψ Φ Γ (.hcomp (.data d ps) φ u (.con d c qs args [])) T →
-    HasTy0 S Ψ Φ Γ (.con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (.data d ps)
-        ps.dshift.toList φ 0 [] uargs.toList args.toList)) []) T →
-    VTele2 S Ψ Φ Γ args args (C.argTys d D.params.length) ps.toList.reverse →
-    VTele2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift uargs uargs (C.argTys d D.params.length) ps.dshift.toList.reverse →
-    Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (.con d c ps.dshift uargs []) (.data d ps.dshift) →
-    VTele2 S Ψ (cof Φ φ) Γ (uargs.dinst .zero) args (C.argTys d D.params.length) ps.toList.reverse →
-    Valid2 S Ψ Φ Γ (.hcomp (.data d ps) φ u (.con d c qs args [])) (.hcomp (.data d ps) φ u (.con d c qs args [])) T →
-    Valid2 S Ψ Φ Γ (.hcomp (.data d ps) φ u (.con d c qs args []))
-      (.con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (.data d ps) ps.dshift.toList φ 0 []
-        uargs.toList args.toList)) []) T
   transpCon : ∀ {Ψ Φ Γ d D c C ps φ qs args rs T}, S'[d]? = some (.data D) → D.isHIT = true → D.params ≠ [] →
     D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
     HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →

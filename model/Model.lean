@@ -70,6 +70,11 @@ import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Valid2Data
 import Model.Whnf.Valid2Elim
 import Model.Whnf.Valid2TranspCon
+import Model.Whnf.HCCGen
+import Model.Whnf.HCCGen2
+import Model.Whnf.HCCGen3
+import Model.Whnf.HCCGen4
+import Model.Whnf.Valid2HcompCon
 import Model.Whnf.Kan2Glue
 import Model.Whnf.Kan2DataCode
 import Model.Whnf.NearAll
