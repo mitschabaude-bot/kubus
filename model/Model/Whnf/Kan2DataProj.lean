@@ -84,6 +84,7 @@ variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (
   {K : ℕ} {P : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level)) (hPP : RT2 S K (.data d P) (.data d P))
 include hW hD hH hP hPP
 
+omit hH in
 /-- The arguments of a related pair of constructors in a literal inductive type, whose prefix is
 related to itself, give related argument types. -/
 theorem dataLit_argTy {k3 : ℕ} (ρ' : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {Z Z' : List Tm}
@@ -110,6 +111,7 @@ theorem dataLit_argTy {k3 : ℕ} (ρ' : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D.
   exact argRelH_id (Hom.id K) hR hpc hpc hC' hr rfl hrr (fun i hi _ hri => hrecd i hi hri)
     (fun i hi _ hri => hptd i hi hri)
 
+omit hH in
 /-- Related point arguments, from their relation at the code of their type. -/
 theorem dataP2_RE2 {k3 : ℕ} (ρ' : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {Z Z' : List Tm}
     (hl : Z.length ≤ C.args.length) (hl' : Z'.length = Z.length)
@@ -124,7 +126,7 @@ theorem dataP2_RE2 {k3 : ℕ} (ρ' : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D.cto
     RE2 S k3 ((C.argTy d (dataD S d).params.length j).substList ((Z.take j).reverse ++ (P.isub ρ').toList.reverse))
       Z[j] Z'[j] := by
   have hlj : (Z.take j).length = j := by simp; omega
-  have hty := dataLit_argTy hW hD hH hP hPP ρ' hC (Z := Z.take j) (Z' := Z'.take j) (by simp; omega) (by simp; omega)
+  have hty := dataLit_argTy hW hD hP hPP ρ' hC (Z := Z.take j) (Z' := Z'.take j) (by simp; omega) (by simp; omega)
     (fun i hi hi' hri => by
       simp only [List.getElem_take]; exact hrec i (by simp at hi; omega) (by simp at hi'; omega) hri)
     (fun i hi hi' hri => by
@@ -163,7 +165,7 @@ theorem dataLit_args {k3 : ℕ} (ρ' : ISub k3 K) {x x' : Tm} (hx : RE2 S k3 (.d
     · have h := hrec i hi hi' hri
       obtain ⟨he⟩ : Nonempty (EqTm S k3 .one [] _ _ (.data d (P.isub ρ'))) := by cases h with | intro he => exact ⟨he⟩
       exact (RE2_dataLit_iff hW hD hP ρ').2 ⟨⟨HasTy.eqL he, HasTy.eqR he, he⟩, h⟩
-    · have := dataP2_RE2 hW hD hH hP hPP ρ' hC' (by omega) (by omega) hrec hpt hi hi' hri
+    · have := dataP2_RE2 hW hD hP hPP ρ' hC' (by omega) (by omega) hrec hpt hi hi' hri
       rwa [hdD] at this
   | hcomp _ _ _ hH' =>
     have : D.isHIT = true := hdD ▸ hH'
@@ -211,7 +213,7 @@ theorem dataLit_coh {k3 : ℕ} (ρ' : ISub k3 K) {x x' : Tm} (hx : RE2 S k3 (.da
           cases h with | intro he => exact ⟨he⟩
         have := (RE2_dataLit_iff hW hD hP (ρ'.comp κ)).2 ⟨⟨HasTy.eqL he, HasTy.eqR he, he⟩, h⟩
         simpa using this
-      · have := dataP2_RE2 hW hD hH hP hPP (ρ'.comp κ) hC (le_of_eq hl) (hl'.trans hl.symm) hrec hpt
+      · have := dataP2_RE2 hW hD hP hPP (ρ'.comp κ) hC (le_of_eq hl) (hl'.trans hl.symm) hrec hpt
           (by simpa using hi) hi' hri
         rw [hdD] at this
         simpa using this
@@ -246,7 +248,7 @@ theorem dataLit_tyRT2 {k3 : ℕ} (ρ' : ISub k3 K) {x x' : Tm} (hx : RE2 S k3 (.
     have hlen := data_len_of hW hTK
     cases hrj : C.isRec j
     · have hlj : (Z.take j).length = j := by simp; omega
-      have hty := dataLit_argTy hW hD hH hP hPP ρ' hC (Z := Z.take j) (Z' := Z.take j) (by simp; omega) rfl
+      have hty := dataLit_argTy hW hD hP hPP ρ' hC (Z := Z.take j) (Z' := Z.take j) (by simp; omega) rfl
         (fun i hi hi' hri => by
           have := (prefix_refl hW (Hom.id K) (perP_ΘK hW hD hP) (dataLit_rel hW hD hP hPP ρ').2.2.1
             (by have := closed_of_ty hW (HasTy.isubS hW hP ρ'); simpa [Tm.closedB] using this) hC1 (by omega)

@@ -93,7 +93,7 @@ theorem DR2At_args {k3 : ℕ} (ρ' : ISub k3 K) {x x' : Tm}
     refine ⟨_, _, _, _, _, _, hC', hl, hl', ht, ht', fun i hi => ?_⟩
     rw [getD_eq_get' (by omega), getD_eq_get' (by omega)]
     cases hri : C.isRec i
-    · have := dataP2_RE2 hW hD hH hP hPP ρ' hC' (by omega) (by omega) hrec hpt (show i < _ by omega)
+    · have := dataP2_RE2 hW hD hP hPP ρ' hC' (by omega) (by omega) hrec hpt (show i < _ by omega)
         (show i < _ by omega) hri
       rwa [hdD] at this
     · rw [argTy_rec_inst hri hPl hplen (by simp; omega)]
