@@ -36,6 +36,24 @@ def transpConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) {d : 
   let ⟨hc⟩ ← checkTele R E args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse
   return some ⟨_, EqTm.transpCon hS hp hC h1 h2 hc ht⟩
 
+/-- The coherence premise of `glueBeta`: under `φ`, the base of the glue element is the
+equivalence applied to its fibre element, at the type of the redex. `e.1 t` is typed from the
+typing of the equivalence (`e : Equiv T A` under `φ`; it may be a system, whose type is not
+inferable), then compared with the base. -/
+def glueBetaCoh (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e t a A T : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) (ha : HasTy S Ψ Φ Γ a A)
+    (he : HasTy S Ψ (cof Φ φ) Γ e (Tm.equiv T A)) :
+    K S (PLift (EqTm S Ψ (cof Φ φ) Γ a (.app (.fst e) t) A)) := do
+  let ⟨hφ⟩ ← ensureScoped φ Ψ
+  let E1 := E.cof φ hφ
+  have hA1 := HasTy.rs E hφ hA
+  let ⟨lT, ⟨hT⟩⟩ ← inferType R E1 T
+  let ⟨ht⟩ ← R.check E1 t T lT hT
+  have hfst : HasTy S Ψ (cof Φ φ) Γ (.fst e) (.pi T A.shift) := HasTy.fst he
+  have hf : HasTy S Ψ (cof Φ φ) Γ (.app (.fst e) t) A := by
+    have := HasTy.app hfst ht; rwa [Tm.shift_inst] at this
+  R.conv E1 A l hA1 a _ (HasTy.rs E hφ ha) hf
+
 /-- Computation rule of `transp` for a line in weak-head normal form. -/
 def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a T : Tm)
     (ht : HasTy S Ψ Φ Γ (.transp L φ a) T) : K S (Option (Red S Ψ Φ Γ (.transp L φ a) T)) :=
@@ -315,12 +333,9 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     else pure none
   | .glue _ φ T _, ht =>
     if h : E.Ent φ then pure (some (⟨T, EqTm.glueFace h ht⟩, false)) else pure none
-  | .unglue φ e (.glueEl φ' e' t1 a1), ht =>
-    if h : φ' = φ ∧ e' = e then do
-      -- the rule takes the typing of the base element as a premise
-      let ⟨ha⟩ ← R.check E a1 A l hA
-      pure (some (⟨a1, by obtain ⟨h1, h2⟩ := h; subst h1; subst h2; exact EqTm.glueBeta ht ha⟩, false))
-    else elimStep R E (.unglue φ e (.glueEl φ' e' t1 a1)) A l hA
+  | .unglue φ e (.glueEl φ' e' t1 a1), _ =>
+    -- `glueBeta` needs the Glue type of the element (for its coherence premise): `whnfI`
+    elimStep R E (.unglue φ e (.glueEl φ' e' t1 a1)) A l hA
   | .glueEl φ _ t1 _, ht =>
     if h : E.Ent φ then pure (some (⟨t1, EqTm.glueElFace h ht⟩, false)) else pure none
   | .const k, _ =>
@@ -540,7 +555,7 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
       have e1 := EqTm.unglueFace hφ hg hA1 (HasTy.restrict E.hsc hc he)
       let r2 ← R.whnf E _ A1 gi.lvl inf.hty (HasTy.eqR e1)
       return ⟨inf, ⟨r2.tm, EqTm.trans e1 r2.eq⟩⟩
-    if gr.tm = g then return ⟨inf, ⟨_, EqTm.refl inf.htm⟩⟩
+    if gr.tm = g ∧ !(g matches .glueEl ..) then return ⟨inf, ⟨_, EqTm.refl inf.htm⟩⟩
     have eg := EqTm.conv gr.eq eG
     have e1 : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e gr.tm) A1 :=
       EqTm.unglue inf.htm (HasTy.unglue hG hA1 he (HasTy.eqR eg)) (I.entails_refl φ) (I.entails_refl φ) (EqTm.refl he) eg
@@ -550,7 +565,9 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
         have e1' : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e (.glueEl φ e t1 a1)) A1 := by
           rw [h, hφ'.1, hφ'.2] at e1; exact e1
         let ⟨ha⟩ ← R.check E a1 A1 gi.lvl inf.hty
-        have e2 := EqTm.glueBeta (HasTy.eqR e1') ha
+        let some ⟨hc⟩ ← tryOpt (glueBetaCoh R E φ e t1 a1 A1 T gi.lvl inf.hty ha he)
+          | return ⟨inf, ⟨_, h ▸ e1⟩⟩
+        have e2 := EqTm.glueBeta (HasTy.eqR e1') ha hc
         let r3 ← R.whnf E a1 A1 gi.lvl inf.hty (HasTy.eqR e2)
         return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩
       else return ⟨inf, ⟨_, h ▸ e1⟩⟩

@@ -130,7 +130,7 @@ theorem sigwk_eq (hpre : ∀ (k : Nat) (e : Entry), S'[k]? = some e → S[k]? = 
   | .glueFace h0 h1 => EqTm0.glueFace h0 (sigwk_ty hpre h1)
   | .glueElFace h0 h1 => EqTm0.glueElFace h0 (sigwk_ty hpre h1)
   | .unglueFace h0 h1 h2 h3 => EqTm0.unglueFace h0 (sigwk_ty hpre h1) (sigwk_ty hpre h2) (sigwk_ty hpre h3)
-  | .glueBeta h0 h1 => EqTm0.glueBeta (sigwk_ty hpre h0) (sigwk_ty hpre h1)
+  | .glueBeta h0 h1 h2 => EqTm0.glueBeta (sigwk_ty hpre h0) (sigwk_ty hpre h1) (sigwk_eq hpre h2)
   | .glueEta h0 => EqTm0.glueEta (sigwk_ty hpre h0)
   | .data h0 h1 h2 h3 => EqTm0.data (hpre _ _ h0) (sigwk_ty hpre h1) (sigwk_ty hpre h2) (sigwk_eqtele hpre h3)
   | .con h0 h1 h2 h3 h4 h5 h6 h7 => EqTm0.con (hpre _ _ h0) h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (sigwk_eqtele hpre h4) (sigwk_eqtele hpre h5) h6 h7
