@@ -77,7 +77,7 @@ def GlueCompat (S : Sig) : Prop :=
   ∀ (k : Nat) (A A' T T' e e' : Tm) (φ φ' : I) (l : Nat),
     EqTm S k .one [] (.glue A φ T e) (.glue A' φ' T' e') (.univ l) → ¬ I.Entails .one φ →
     I.Entails φ φ' → I.Entails φ' φ →
-    EqTm S k .one [] A A' (.univ l) ∧ EqTm S k (cof .one φ) [] e e' (Tm.equiv T A)
+    (∃ l', EqTm S k .one [] A A' (.univ l')) ∧ EqTm S k (cof .one φ) [] e e' (Tm.equiv T A)
 ```
 
 The faces are a premise, not a conclusion. The first version concluded `φ ⟺ φ'` and was false, which made `canonicity_of_glueCompat` vacuous: `glue A φ T e ≡ glue (glue A φ T e) 1 (glue A φ T e) idEquiv` by `glueFace` (symmetrically), with `¬ φ` but `1 ⇏ φ`. In the canonicity proof the faces come from the model. The relation records the face of the Glue code, and cofibrations with equal faces entail each other (`ent_of_face_eq`, `Model/Canon/Sub.lean`), so `RE_glue_elim` supplies the premises.
@@ -196,3 +196,13 @@ Kan lemma, binary (in progress). `KanH2`/`KanT2` (`Kan2Basic.lean`) relate compo
 Design change: the type relation at path codes now also requires the endpoints of normal forms to be coherent across restrictions (`cohPath`, `PathStr.ends`). Endpoints of normal forms at different restrictions are only judgmentally equal, and transport along path lines compares them.
 
 Remaining Kan cases: Glue, inductive types, and composition at universes. The latter needs the fundamental lemma for terms whose Kan operations are at lower codes (`lineEquiv`), as in the unary `fund_closed`, so `Fund2` with a Kan oracle comes first and `KanAll2` is stratified by level.
+
+### Milestones (c4) and (c5): the binary Kan lemma and `GlueCompat`
+
+The binary Kan lemma is complete at all codes except transport along lines of higher inductive types with parameters (`kanOracle2`, `Kan2All.lean`). The per-former lemmas take the Kan properties of the components in the form the code induction supplies: compositions and transports at all types related to restrictions of a component (`KHRel`, `KTRel`, `Kan2Rel.lean`), obtained from the induction hypotheses at the component codes (`KCode`).
+
+- Transport along Glue lines (`kanT2_glue`, `Kan2GlueT*.lean`): at each restriction the transports reduce to the start where the face holds, to a transport in the fibre where the face of the Glue line holds along the whole line, and otherwise to `transpGlueWith`. The pieces of the contractum are related piece by piece (`TGD2`); the reducts across restrictions are related by `TGD2.final`, `TGD2.bdryψ` and `TGD2.bdryδ`.
+- Composition in universes (`kanH2_univ`, `Kan2UnivH.lean`): the contracta are Glue types whose equivalences are `lineEquiv` of the reversed tubes. These are related by a binary version of the validity of `lineEquiv` (`VEq.lineEquiv₂`, `Valid2LineEquivB.lean`), which uses transport only along lines of the universe's level (`KTAt S l`). So the code induction needs no stratification of the fundamental lemma: at `univC l` the induction hypothesis covers all codes of level `l`.
+- The coherence that `glueBeta` needs (spec change C4) is derived for related elements from the relation (`coh_of_fibs`, `Glue2.lean`), which records the agreement of base and fibre at every restriction where the face holds.
+
+(c5) `glueCompat_of` (`Canon2.lean`): the binary fundamental lemma relates the two sides of an equality of Glue types whose face does not hold; the relation of Glue normal forms relates their bases and equivalences. `GlueCompat` now concludes the equality of the bases at some universe, which is all `canonicity_of_glueCompat` uses. `canonicity_of_obl2` is canonicity given the remaining obligations, bundled in `Obl2`: transport along lines of higher inductive types with parameters (`HITTransp2`), the rules of higher inductive types (`DataHyp2`), and `glueBeta` (`GlueBetaHyp2`).
