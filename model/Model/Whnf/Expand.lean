@@ -835,11 +835,11 @@ theorem he2_univC {l : ℕ} (ih : ∀ m' X, WF l m' X → HE2 S m' X) : HE2 S m 
     replace hTc := hTc.2
     obtain ⟨hEB, hmem⟩ := el_expand hW ht e0 hu0
     rw [Comp2_univC] at hu0 ⊢
-    obtain ⟨-, -, hm0, -⟩ := hu0
+    obtain ⟨-, -, hm0, -, hK0⟩ := hu0
     have hsem := semK_eq hW e0
     have hWF : WF l k (semK S k t) := by rw [hsem]; exact (ZFSet.mem_sep.1 hm0).2
     have hne : semK S k t ≠ ∅ := IsKV.ne_empty hWF.fib.kv
-    refine ⟨hEB, hmem, by rw [hsem]; exact hm0, ?_⟩
+    refine ⟨hEB, hmem, by rw [hsem]; exact hm0, ?_, by rw [hsem]; exact hK0⟩
     have hU : ∀ k' (σ : ISub k' k), TyEq S k' (T.isub σ) (.univ l) := fun k' σ => (hTc k' σ).1.2
     have htU : ∀ k' (σ : ISub k' k) {x : Tm}, HasTy S k' .one [] x (T.isub σ) → HasTy S k' .one [] x (.univ l) :=
       fun k' σ x hx => hx.tyConv (hU k' σ)
@@ -850,7 +850,7 @@ theorem he2_univC {l : ℕ} (ih : ∀ m' X, WF l m' X → HE2 S m' X) : HE2 S m 
     obtain ⟨u, r, e, hu⟩ := hall k' σ
     refine ⟨u, r, .inr ⟨l, e.tyConv (hU k' σ)⟩, ?_⟩
     rw [Comp2_univC] at hu
-    obtain ⟨-, -, -, hty⟩ := hu
+    obtain ⟨-, -, -, hty, -⟩ := hu
     rw [Hom.id_comp, Comp2_eq_res hne, ← semK_isubS hW ht0, semK_eq hW (e.tyConv (hU k' σ))]
     exact hty
 

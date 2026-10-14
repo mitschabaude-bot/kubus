@@ -20,12 +20,12 @@ variable {S : Sig} {k k' m m' : ℕ}
 
 theorem Comp2_unfold {X : V} (hX : X ≠ ∅) (f : Hom k m) :
     Comp2 S X m k f = body2 S k (fun k' g => dat X k' (f.comp g)) (res f X) (rank X)
-      (fun k' g => rank_dat_lt hX _) (fun Y _ => Comp2 S Y) := by
+      (fun k' g => rank_dat_lt hX _) (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) := by
   rw [Comp2_eq]; unfold compF2; rw [dif_pos hX]
 
 theorem body2_congr {Dt Dt' : (k' : ℕ) → Hom k' k → V} (hDt : Dt = Dt') (self : V) {ρ ρ' : Ordinal}
     (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ) (hD' : ∀ k' (h : Hom k' k), rank (Dt' k' h) < ρ') :
-    body2 S k Dt self ρ hD (fun Y _ => Comp2 S Y) = body2 S k Dt' self ρ' hD' (fun Y _ => Comp2 S Y) := by
+    body2 S k Dt self ρ hD (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) = body2 S k Dt' self ρ' hD' (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) := by
   subst hDt; rfl
 
 theorem Comp2_congr {X Y : V} (hX : X ≠ ∅) (hY : Y ≠ ∅) (f : Hom k m) (g : Hom k m')
@@ -41,6 +41,35 @@ theorem Comp2_res {X : V} (hX : X ≠ ∅) (g : Hom k m) (h : Hom k' k) :
     rw [dat_res, Hom.comp_assoc]
   · show res h (res g X) = _
     rw [res_res]
+
+theorem KanPG.comp {n : ℕ} {R : (k : ℕ) → Hom k m → Pack2} (h : KanPG S m R) (g : Hom n m) :
+    KanPG S n (fun k f => R k (g.comp f)) :=
+  ⟨fun k f => h.1 k (g.comp f), fun k f => h.2 k (g.comp f)⟩
+
+/-- The Kan property of a code restricts. -/
+theorem KanPG.restrict {X : V} (hX : X ≠ ∅) (h : KanPG S m (Comp2 S X m)) (g : Hom k m) :
+    KanPG S k (Comp2 S (res g X) k) := by
+  have e : Comp2 S (res g X) k = fun k' f => Comp2 S X m k' (g.comp f) :=
+    funext fun k' => funext fun f => Comp2_res hX g f
+  rw [e]; exact h.comp g
+
+/-- The hereditary Kan predicate restricts with the code. -/
+theorem kanParts2_congr {Dt Dt' : (k' : ℕ) → Hom k' k → V} (hDt : Dt = Dt') {ρ ρ' : Ordinal}
+    (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ) (hD' : ∀ k' (h : Hom k' k), rank (Dt' k' h) < ρ') :
+    kanParts2 S k Dt ρ hD (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) =
+      kanParts2 S k Dt' ρ' hD' (fun Y _ => Comp2 S Y) (fun Y _ m => HerKan2 S m Y) := by
+  subst hDt; rfl
+
+theorem HerKan2.restrict {X : V} (hX : X ≠ ∅) (h : HerKan2 S m X) (g : Hom k m) :
+    HerKan2 S k (res g X) := by
+  rw [HerKan2_eq] at h ⊢
+  refine ⟨h.1.restrict hX g, fun k' f => ?_⟩
+  rw [dif_pos (show res g X ≠ ∅ from mkKV_ne_empty _)]
+  have hp := h.2 k' (g.comp f)
+  rw [dif_pos hX] at hp
+  have e : (fun n h => dat (res g X) n (f.comp h)) = fun n h => dat X n ((g.comp f).comp h) := by
+    funext n h; rw [dat_res, Hom.comp_assoc]
+  rwa [kanParts2_congr e]
 
 theorem Comp2_eq_res {X : V} (hX : X ≠ ∅) (f : Hom k m) : Comp2 S X m k f = Comp2 S (res f X) k k (Hom.id k) := by
   rw [Comp2_res hX, Hom.comp_id]
@@ -160,7 +189,8 @@ theorem Comp2_univC (l : ℕ) (f : Hom k m) :
           semK S k T' = res f (univC m l) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k),
           RedT S k' (T.isub σ) (.univ l) ∧ RedT S k' (T'.isub σ) (.univ l),
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (univC m l)) (Hom.id k) ∧
-          ∃ _ : semK S k t ∈ ZFSet.sep (WF l k) (Vt l), (Comp2 S (semK S k t) k k (Hom.id k)).ty t t'⟩ := by
+          ∃ _ : semK S k t ∈ ZFSet.sep (WF l k) (Vt l), (Comp2 S (semK S k t) k k (Hom.id k)).ty t t' ∧
+            HerKan2 S k (semK S k t)⟩ := by
   rw [Comp2_unfold (show univC m l ≠ ∅ from mkKV_ne_empty (fun k _ => univDatum (WF l) l k))]
   simp only [body2, core2, univC, univCode, dat_mkKV, univDatum, π1_quad, tagZ, π1_pair, π2_pair,
     natZ_inj, tPi, tSigma, tPath, tIPi, tUniv, if_false, show ¬ (6 = 2) by decide,

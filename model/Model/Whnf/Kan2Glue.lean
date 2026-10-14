@@ -1,5 +1,5 @@
 import Model.Whnf.Kan2GlueEq
-import Model.Whnf.Valid2GlueEta
+import Model.Whnf.Glue2Closed
 import Model.Canon.KanGlue
 
 /-!

@@ -161,21 +161,23 @@ theorem kr2_univC {l : ℕ} (ih : ∀ m' X, WF l m' X → KR2 S m' X) : KR2 S m 
     refine ⟨?_, fun k'' σ' => ?_⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
     · rw [Tm.isub_isub, Tm.isub_isub]; exact hall k'' (σ.comp σ')
-  · rintro ⟨he, hmem, hm, hty⟩
+  · rintro ⟨he, hmem, hm, hty, hK⟩
     have ht := he.1
     have hm' : semK S k' (t.isub σ) ∈ ZFSet.sep (WF l k') (Vt l) := by
       rw [ZFSet.mem_sep] at hm ⊢
       rw [semK_isubS hW ht]
       exact ⟨res_mem_Vt hm.1 _, hm.2.res _⟩
-    refine ⟨he.isub hW σ, ?_, hm', ?_⟩
+    have hY : WF l k (semK S k t) := (ZFSet.mem_sep.1 hm).2
+    refine ⟨he.isub hW σ, ?_, hm', ?_, ?_⟩
     · rw [semK_isubS hW ht, El_res, Hom.comp_id]
       rw [El_res, Hom.comp_id] at hmem
       exact (WF.fib (show WF (l + 1) m (univC m l) from wf_univC)).elRes _ _ _ hmem _ _
-    · have hY : WF l k (semK S k t) := (ZFSet.mem_sep.1 hm).2
-      have := ((ih k _ hY) k (Hom.id k) k' σ t t' t t).1 hty
+    · have := ((ih k _ hY) k (Hom.id k) k' σ t t' t t).1 hty
       rw [Hom.id_comp] at this
       rw [semK_isubS hW ht, ← Comp2_eq_res (IsKV.ne_empty hY.fib.kv) σ.hom]
       exact this
+    · rw [semK_isubS hW ht]
+      exact hK.restrict (IsKV.ne_empty hY.fib.kv) σ.hom
 
 theorem kr2_glueC {l : ℕ} {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
     (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))

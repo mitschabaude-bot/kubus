@@ -796,7 +796,7 @@ theorem hyps_take (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S (S
       rcases ((hW.2 d D hD).2.1 j A hA).2.2 with hty | ⟨kk, hkk, rfl⟩
       · have hv := hfund (spec_to_minimal (wfSig_take hW d) hty)
         exact ((RE2_univ_iff hW).1 (hv k c).2).2.2
-      · exact RT2_univ hW
+      · exact RT2_univ
     · by_cases hdn : d < n
       · exact ih.2.points d hdn D hD c' C hC i A hA k cs
       obtain rfl : d = n := by omega

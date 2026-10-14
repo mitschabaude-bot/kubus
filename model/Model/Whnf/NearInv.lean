@@ -462,9 +462,9 @@ theorem ni2_univC {m l : ℕ} (ih : ∀ m' X, WF l m' X → NI2 S m' X) : NI2 S 
     obtain ⟨W, h2', hw⟩ := RedT.near hW h2 (h.1.2.1.isub hW σ) (hn.isub σ) (good_of_isTyK hW (hT.isub hW σ))
     cases hw
     exact ⟨h1, h2'⟩
-  · obtain ⟨hE, hmem, hm, hty⟩ := h
+  · obtain ⟨hE, hmem, hm, hty, hK⟩ := h
     have hE' : EB S k T t t'' := ⟨hE.1, hu, hE.2.2.trans (eq_near hW hE.2.1 hn (good_of_ty hW hu))⟩
-    refine ⟨hE', hmem, hm, ?_⟩
+    refine ⟨hE', hmem, hm, ?_, hK⟩
     have hWF : WF l k (semK S k t) := (ZFSet.mem_sep.1 hm).2
     have hU : TyEq S k T (.univ l) := by
       have := (hTT.2 k (ISub.id k)).1.2

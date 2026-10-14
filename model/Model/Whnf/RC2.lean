@@ -330,8 +330,8 @@ theorem rc2_univC {l : ℕ} (ih : ∀ m' X, WF l m' X → RC2 S m' X) : RC2 S m 
   rw [Comp2_univC]
   refine ⟨fun h hs hB => ⟨base_rc hW hB h.1 hs, fun k' σ => ⟨(h.2 k' σ).1, RedT.stable hW hs σ (h.2 k' σ).2⟩⟩,
     fun hTT h hs hu => ?_⟩
-  obtain ⟨hE, hmem, hm, hty⟩ := h
-  refine ⟨EB.rc hW hE hs hu, hmem, hm, ?_⟩
+  obtain ⟨hE, hmem, hm, hty, hK⟩ := h
+  refine ⟨EB.rc hW hE hs hu, hmem, hm, ?_, hK⟩
   have hWF : WF l k (semK S k t) := (ZFSet.mem_sep.1 hm).2
   have hU : ∀ k' (σ : ISub k' k), TyEq S k' (T.isub σ) (.univ l) := fun k' σ => (hTT.2 k' σ).1.2
   have hst : StableT S k t' u' := fun k' σ => ⟨(hs k' σ).1, .inr ⟨l, (hs k' σ).2.tyConv (hU k' σ)⟩⟩

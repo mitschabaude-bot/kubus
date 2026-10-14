@@ -96,7 +96,7 @@ theorem tube_valid {u1 u2 : Tm} {ψ : I} {l : ℕ} (hψs : ψ.Scoped k)
     rw [holds_iff_entails (I.scoped_subst hψs θ.tail.sc)]
     have := ent_trans h (ent_subst (ent_shift (ent_and_right .one ψ)) θ.τ)
     rwa [shift_subst_tail] at this
-  exact valid_closed_ofF hW hc hu1 hu2 (fun k3 θ _ => RT2_univ hW) (fun k3 θ h => tubeAt hW tube θ (hh θ h))
+  exact valid_closed_ofF hW hc hu1 hu2 (fun k3 θ _ => RT2_univ) (fun k3 θ h => tubeAt hW tube θ (hh θ h))
 
 
 /-- The equivalences of the `hcompU` contracta of related tubes, valid together under the face. -/
@@ -137,7 +137,7 @@ theorem equiv_valid {u1 u2 a1 : Tm} {ψ : I} {l : ℕ} (hKT : KTAt S l) (hψs : 
     exact ent_trans h (ent_subst (ent_and_right .one ψ) θ.τ)
   have hsideV : VEq S k (cof .one ψ) [] (u1.dinst .zero) a1 (.univ l) := by
     refine ⟨spec_to_minimal_eq hW hside, valid_closed_ofF hW hX (HasTy.eqL hside)
-      (HasTy.restrict hX (ent_and_left _ _) ha1) (fun k3 θ _ => RT2_univ hW) fun k3 θ h => ?_⟩
+      (HasTy.restrict hX (ent_and_left _ _) ha1) (fun k3 θ _ => RT2_univ) fun k3 θ h => ?_⟩
     rw [isub_dinst]; exact hbd k3 θ (hha θ h)
   have eq := VEq.equiv₂ hW e0 (VEq.trans' hW e1 hsideV)
   exact (VEq.conv' hW hLE eq).v
@@ -176,7 +176,7 @@ theorem RE2_hcompU {X' : Tm} {ψ ψ' : I} {u u' a a' : Tm} {l : ℕ} (hKT : KTAt
     fun σ hh => ent_cof_one hW ((holds_iff_entails (I.scoped_subst hψs σ.sc)).1 hh)
   have hc' : ∀ {k'} (σ : ISub k' k), (ival (idEnv k') (ψ.subst σ.τ)).holds → I.Entails .one (cof .one (ψ'.subst σ.τ)) :=
     fun σ hh => ent_trans (hc σ hh) (ent_and_mono (ent_refl _) (ent_subst K.p12 σ.τ))
-  have hUU : ∀ {k3 : ℕ}, RT2 S k3 (.univ l) (.univ l) := RT2_univ hW
+  have hUU : ∀ {k3 : ℕ}, RT2 S k3 (.univ l) (.univ l) := RT2_univ
   -- the tubes against themselves, and against the bases
   have hh21 : ∀ {k'} (σ : ISub k' k), (ival (idEnv k') (ψ'.subst σ.τ)).holds → (ival (idEnv k') (ψ.subst σ.τ)).holds :=
     fun σ hh => (holds_iff_entails (I.scoped_subst hψs σ.sc)).2
@@ -281,7 +281,7 @@ theorem kanH2_univ {T T' : Tm} {l : ℕ} (hKT : KTAt S l) (hTT : RT2 S k T T') (
       have tb := RE2.conv hW hTU2 (htube k'' (σ.comp ρ) .one .one trivial trivial (I_eq_refl _) (hholdψ _ hψ2))
       have hGτ := HasTy.eqR (EqTm.hcompU K2.hty)
       rw [hcompU_eq] at hGτ ⊢
-      exact RE2.conv hW hUT (RE2.expandL hW (RT2_univ hW) hGτ (RE2.typed tb).2.1 (stable_glueU hW hGτ hψ2) tb)
+      exact RE2.conv hW hUT (RE2.expandL hW (RT2_univ) hGτ (RE2.typed tb).2.1 (stable_glueU hW hGτ hψ2) tb)
     · rw [if_neg hψ2']
       have hn2 : ¬ I.Entails .one (ψ.subst (σ.comp ρ).τ) := fun h => hψ2' (ent_trans h (ent_subst h12 _))
       exact RE2.conv hW hUT (RE2_hcompU hW hKT K2 (fun k3 θ => by rw [Tm.isub_isub]; exact (hcl _ _).2) hn2)

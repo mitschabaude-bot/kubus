@@ -79,27 +79,94 @@ theorem Comp2_res_el {A : Tm} {l : ℕ} (hA : HasTy S k .one [] A (.univ l)) (σ
     Comp2 S (semK S k A) k k' σ.hom = Comp2 S (semK S k' (A.isub σ)) k' k' (Hom.id k') := by
   rw [semK_isubS hW hA, Comp2_eq_res (semK_ne hW hA)]
 
+/-! ### The Kan property of a code -/
+
+omit hW in
+theorem kanHG_congr {A A' : Tm} {E1 E2 : (k' : ℕ) → ISub k' k → Tm → Tm → Tm → Prop}
+    (h1 : ∀ k' (σ : ISub k' k), E1 k' σ (A.isub σ) = E2 k' σ (A.isub σ))
+    (h2 : E1 k (ISub.id k) A = E2 k (ISub.id k) A) :
+    KanHG S k A A' E1 ↔ KanHG S k A A' E2 := by
+  unfold KanHG; simp only [h1, h2]
+
+omit hW in
+theorem kanTG_congr {A A' : Tm} {Rt1 Rt2 : (k' : ℕ) → ISub k' (k + 1) → Tm → Tm → Prop}
+    {Re1 Re2 : (k' : ℕ) → ISub k' (k + 1) → Tm → Tm → Tm → Prop}
+    (h1 : ∀ k' (ρ : ISub k' (k + 1)), Rt1 k' ρ (A.isub ρ) = Rt2 k' ρ (A.isub ρ))
+    (h0 : Re1 k (ISub.cons .zero trivial (ISub.id k)) (A.dinst .zero) =
+      Re2 k (ISub.cons .zero trivial (ISub.id k)) (A.dinst .zero))
+    (h1' : Re1 k (ISub.cons .one trivial (ISub.id k)) (A.dinst .one) =
+      Re2 k (ISub.cons .one trivial (ISub.id k)) (A.dinst .one)) :
+    KanTG S k A A' Rt1 Re1 ↔ KanTG S k A A' Rt2 Re2 := by
+  unfold KanTG; simp only [h1, h0, h1']
+
+/-- The relations of a code at the restrictions of a type related at it are those of the restricted
+type. -/
+theorem Comp2_at {X : V} {f : Hom k m} {A A' : Tm} (hT : (Comp2 S X m k f).ty A A') (σ : ISub k' k) :
+    Comp2 S X m k' (f.comp σ.hom) = Comp2 S (semK S k' (A.isub σ)) k' k' (Hom.id k') := by
+  have hb := Comp2_ty_base hT
+  rw [semK_isubTy hW hb.2.1 σ, hb.2.2.2.1, res_res, ← Comp2_eq_res hb.1]
+
+theorem kanHG_code {X : V} {f : Hom k m} {A A' : Tm} (hT : (Comp2 S X m k f).ty A A') :
+    KanHG S k A A' (fun k' σ => (Comp2 S X m k' (f.comp σ.hom)).el) ↔ KanH2 S k A A' := by
+  refine kanHG_congr (fun k' σ => by rw [Comp2_at hW hT σ]; rfl) ?_
+  have e := Comp2_at hW hT (ISub.id k)
+  rw [isub_id_of_closed (closed_of_isTyK hW (Comp2_ty_base hT).2.1)] at e
+  show (Comp2 S X m k (f.comp (ISub.id k).hom)).el A = _
+  rw [e]; rfl
+
+theorem kanTG_code {X : V} {f : Hom (k + 1) m} {A A' : Tm} (hT : (Comp2 S X m (k + 1) f).ty A A') :
+    KanTG S k A A' (fun k' ρ => (Comp2 S X m k' (f.comp ρ.hom)).ty) (fun k' ρ => (Comp2 S X m k' (f.comp ρ.hom)).el) ↔
+      KanT2 S k A A' := by
+  have hc := closed_of_isTyK hW (Comp2_ty_base hT).2.1
+  have ep : ∀ (r : I) (hr : r.Scoped k), (Comp2 S X m k (f.comp (ISub.cons r hr (ISub.id k)).hom)).el (A.dinst r) =
+      RE2 S k (A.dinst r) := fun r hr => by
+    rw [Comp2_at hW hT, isub_cons_id_of_closed hc]; rfl
+  show _ ↔ KanTG S k A A' (fun k' _ => RT2 S k') (fun k' _ => RE2 S k')
+  refine kanTG_congr (fun k' ρ => by rw [Comp2_at hW hT ρ]; rfl) ?_ ?_
+  · exact ep .zero trivial
+  · exact ep .one trivial
+
+/-- The Kan property of a code, through its relations, is `KanP2`. -/
+theorem kanPG_iff {X : V} : KanPG S m (Comp2 S X m) ↔ KanP2 S m X :=
+  ⟨fun h => ⟨fun k f A A' hT => (kanHG_code hW hT).1 (h.1 k f A A' hT),
+      fun k f A A' hT => (kanTG_code hW hT).1 (h.2 k f A A' hT)⟩,
+    fun h => ⟨fun k f A A' hT => (kanHG_code hW hT).2 (h.1 k f A A' hT),
+      fun k f A A' hT => (kanTG_code hW hT).2 (h.2 k f A A' hT)⟩⟩
+
 /-! ### Universes -/
 
+/-- Related elements of a universe: related types of the universe whose code is Kan. -/
 theorem RE2_univ_iff {l : ℕ} {T T' : Tm} :
-    RE2 S k (.univ l) T T' ↔ EB S k (.univ l) T T' ∧ semK S k T ∈ ZFSet.sep (WF l k) (Vt l) ∧ RT2 S k T T' := by
+    RE2 S k (.univ l) T T' ↔ EB S k (.univ l) T T' ∧ semK S k T ∈ ZFSet.sep (WF l k) (Vt l) ∧ RT2 S k T T' ∧
+      HerKan2 S k (semK S k T) := by
   unfold RE2 RT2
   rw [show semK S k (.univ l) = univC k l from rfl, Comp2_univC]
   constructor
-  · rintro ⟨he, -, hm, hrt⟩; exact ⟨he, hm, hrt⟩
-  · rintro ⟨he, hm, hrt⟩
-    refine ⟨he, ?_, hm, hrt⟩
+  · rintro ⟨he, -, hm, hrt, hK⟩; exact ⟨he, hm, hrt, hK⟩
+  · rintro ⟨he, hm, hrt, hK⟩
+    refine ⟨he, ?_, hm, hrt, hK⟩
     rw [res_id (isKV_univC _), El_univC]; exact hm
 
-theorem RE2_univ_of {l : ℕ} {T T' : Tm} (he : EB S k (.univ l) T T') (hrt : RT2 S k T T') :
-    RE2 S k (.univ l) T T' := by
-  refine (RE2_univ_iff hW).2 ⟨he, ?_, hrt⟩
+theorem RE2_univ_of {l : ℕ} {T T' : Tm} (he : EB S k (.univ l) T T') (hrt : RT2 S k T T')
+    (hK : HerKan2 S k (semK S k T)) : RE2 S k (.univ l) T T' := by
+  refine (RE2_univ_iff hW).2 ⟨he, ?_, hrt, hK⟩
   have := mem_of_ty hW he.1
   rwa [show semK S k (.univ l) = univC k l from rfl, El_univC] at this
 
 theorem RE2_univ_ty {l : ℕ} {T T' : Tm} (h : RE2 S k (.univ l) T T') : RT2 S k T T' :=
-  ((RE2_univ_iff hW).1 h).2.2
+  ((RE2_univ_iff hW).1 h).2.2.1
 
+theorem RE2_univ_herKan {l : ℕ} {T T' : Tm} (h : RE2 S k (.univ l) T T') : HerKan2 S k (semK S k T) :=
+  ((RE2_univ_iff hW).1 h).2.2.2
+
+/-- Hereditary Kan includes the Kan operations of the code itself. -/
+theorem HerKan2.kan {X : V} (h : HerKan2 S m X) : KanP2 S m X :=
+  (kanPG_iff hW).1 ((HerKan2_eq S X m).1 h).1
+
+theorem RE2_univ_kan {l : ℕ} {T T' : Tm} (h : RE2 S k (.univ l) T T') : KanP2 S k (semK S k T) :=
+  (RE2_univ_herKan hW h).kan hW
+
+omit hW in
 /-- The type relation of a universe: both sides reduce to it at every restriction. -/
 theorem RT2_univ {l : ℕ} : RT2 S k (.univ l) (.univ l) := by
   unfold RT2
