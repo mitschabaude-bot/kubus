@@ -46,6 +46,26 @@ theorem tubeArgs_isub {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {q u : Tm
   show q.dshift.isub κ.up = (q.isub κ).dshift
   exact isub_dshift q κ
 
+omit hW hD in
+theorem conOuts_eq_tele {c : ℕ} {C : Ctor} (q : Tm) (φ : I) (u : Tm) (X : List Tm) (hXl : X.length = C.args.length) :
+    conOuts d D c C q φ u X = Tm.hcompTele C (C.argTy d D.params.length) (.data d q) q.dshift.toList φ 0 []
+      (tubeArgs d D c C q u) X := by
+  have hul : (tubeArgs d D c C q u).length = C.args.length := by simp [tubeArgs]
+  have heqT := Meta.hcompTele_eq C (C.argTy d D.params.length) (.data d q) q.dshift.toList φ
+    (tubeArgs d D c C q u) X (tubeArgs d D c C q u) X 0 rfl rfl (by rw [hul, hXl])
+  simp only [hXl, ← List.range_eq_range'] at heqT
+  rw [show ([] : List Tm) = (Meta.hFills C (C.argTy d D.params.length) (.data d q) q.dshift.toList
+    φ (tubeArgs d D c C q u) X 0).reverse from rfl, heqT]
+  rfl
+
+omit hW in
+/-- `hcompCon` as a step, with its contractum's arguments. -/
+theorem step_hcompCon' (hH : D.isHIT = false) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {q u qs : Tm}
+    {φ : I} (hn : ¬ I.Entails .one φ) {X : List Tm} (hXl : X.length = C.args.length) :
+    step S (.hcomp (.data d q) φ u (.con d c qs (Tm.ofList X) [])) =
+      some (.con d c q (Tm.ofList (conOuts d D c C q φ u X)) []) := by
+  rw [step_hcompCon hD hH hC hn X, conOuts_eq_tele q φ u X hXl]; rfl
+
 /-- The arguments of the `hcompCon` contractum, restricted. -/
 theorem conOuts_isub {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {q u : Tm} {φ : I} {X : List Tm}
     (hq : IsList q) (hql : q.toList.length = D.params.length) (hXl : X.length = C.args.length) (κ : ISub k' k) :
