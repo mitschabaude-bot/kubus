@@ -633,6 +633,47 @@ theorem tm1_introH {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm}
     rw [← eL1] at RW
     exact RE2.symm hW hA1 RW
 
+/-- Transport of related elements of the start of the line, by induction on their relation. -/
+theorem transp_DR2H : ∀ {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm},
+    DR2 S d (dataD S d) (dataMem S (ΘK S D d K (P.dinst .zero)) (Hom.id K))
+      (dataP2 S (ΘK S D d K (P.dinst .zero)) (Hom.id K)) k1 g A x x' →
+    TM1H S d D K P k1 g A x x' := by
+  have hP0 := P0_ty hW hD hp hP hArgK hRL
+  intro k1 g A x x' h
+  refine DR2.rec (motive_1 := fun k1 g A x x' _ => TM1H S d D K P k1 g A x x')
+    (motive_2 := fun k1 g A y y' _ => TM2H S d D K P k1 g A y y') ?_ ?_ ?_ h
+  · intro k1 g A x x' he hst hc hc' ih ihc _
+    refine tm1_introH hW hD hH hyp hp hP hArgK hRL (fun ρ hg hAe => ?_) ih ihc
+    subst hg hAe
+    exact (RE2_dataLit_iff hW hD hP0 ρ).2 ⟨⟨HasTy.eqL he, HasTy.eqR he, he⟩, .intro he hst hc hc'⟩
+  · intro k1 g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
+      hrec hpt ihrec
+    exact tm2_conH hW hD hH hyp hp hP hArgK hRL
+      (DR2At.con hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' hrec hpt) hC hA ht ht' hrs hrs' hreq hl hl'
+      ihrec
+  · intro k1 g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH' hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu
+    exact tm2_hcompH hW hD hH hp hP hArgK hRL
+      (DR2At.hcomp hm hm' heq hH' hA hpl ht ht' hs hs' h12 h21 ha hu) hA ht ht' iha ihu
+
+/-- Transport along a literal line of a higher inductive type, against a robustly related literal line. -/
+theorem kanT2_litH {Q : Tm} (hQ : Rob S d K P Q) : KanT2 S K (.data d P) (.data d Q) := by
+  intro hLR φ φ' a a' hLC hty hty' heq h12 h21 ha
+  have hP0 := P0_ty hW hD hp hP hArgK hRL
+  have hP0c : (P.dinst .zero).closedB 0 K = true := data_closed hW hD hP0
+  have hac := closed_of_ty hW (RE2.typed ha).1
+  have hac' := closed_of_ty hW (RE2.typed ha).2.1
+  have ha' : RE2 S K (.data d ((P.dinst .zero).isub (ISub.id K))) a a' := by
+    rw [isub_id_of_closed hP0c]; exact ha
+  obtain ⟨-, hdr⟩ := (RE2_dataLit_iff hW hD hP0 (ISub.id K)).1 ha'
+  have T := (transp_DR2H hW hD hH hyp hp hP hArgK hRL hdr).1 (ISub.id K) rfl rfl Q hQ K (ISub.id K) (.var 0) (.var 0)
+    (show 0 < K + 1 by omega) (show 0 < K + 1 by omega) (I_eq_refl _) (I_eq_refl _)
+  have hQc : (Tm.data d Q).closedB 0 (K + 1) = true := by
+    obtain ⟨l', ⟨hLt', -, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty') rfl
+    exact closed_ty hLt'
+  rw [ISub.comp_id, ISub.cons_var0_up_tail, isub_up_id_of_closed (show (Tm.data d P).closedB 0 (K + 1) = true from
+    closed_of_ty hW hP), isub_up_id_of_closed hQc, isub_id_of_closed hac, isub_id_of_closed hac'] at T
+  exact T hLR φ φ' hLC hty hty' heq h12 h21 ha
+
 end ind
 
 end
