@@ -550,7 +550,32 @@ theorem kanH2_sigma_snd {T T' : Tm} (hTT : RT2 S k T T') (hP : SigmaStr S k T T'
       exact RE2.symm hW (RT2.isub hW (hXA _ _) (SAA _ _) _)
         (hfill_one_pt hW (Sφ k' ρ) (hXA k' ρ) (SAA k' ρ) (SK k' ρ) htH (STy k' ρ) (STube k' ρ) (Sv0 k' ρ)
           (Sbd k' ρ) ρ')
-    · sorry
+    · -- the judgmental equality of the tubes
+      have hfσ := EqTm.cofIsub hW hφs hteq (ρ.comp ρ')
+      rw [isub_dshift] at hfσ
+      obtain ⟨ls, hs⟩ := hsigTy k' ρ _ _ (hw k' ρ).1
+      have hsL := HasTy.isubS hW hs ρ'
+      rw [isub_sigma] at hsL
+      have hcl := closed_of_ty hW hsL
+      simp only [Tm.closedB, Bool.and_eq_true] at hcl
+      have eS : TyEq S k'' (T.isub (ρ.comp ρ')) (.sigma ((A2 k' ρ).isub ρ') ((B2 k' ρ).isub ρ')) := by
+        have := (hw k' ρ).1.2.isub hW ρ'
+        rwa [Tm.isub_isub, isub_sigma] at this
+      have h1 := EqTm.cofConv (Sφ k'' (ρ.comp ρ')) hfσ eS
+      rw [← dshift_eq_isub_closed (closed_of_ty hW hsL), isub_sigma] at h1
+      have h2 := EqTm.snd h1
+      have hfu := EqTm.cofIsub hW (Sφ k' ρ) (minimal_to_spec_eq (parts k' ρ).2.2.2.1) ρ'
+      rw [FLeq, fstu1, isub_dshift, ← I_subst_comp, ← dshift_eq_isub_closed hcl.1] at hfu
+      have hsW := HasTy.isubS hW hsL (ISub.wk k'')
+      rw [isub_sigma] at hsW
+      have hscX : (cof .one (φ.subst (ρ.comp ρ').τ)).shift.Scoped (k'' + 1) :=
+        KubusCore.I.scoped_shift ⟨trivial, Sφ k'' (ρ.comp ρ')⟩
+      have hB := HasTy0.restrict hscX (ent_one _) (HasTy0.sigmaCod hS (spec_to_minimal hW hsW))
+      have ic := HasTy0.inst_congr hS hB (spec_to_minimal hW (HasTy.eqR hfu.symm))
+        (spec_to_minimal hW (HasTy.eqR hfu)) (spec_to_minimal_eq hW hfu)
+      have h3 := minimal_to_spec_eq (EqTm0.conv (spec_to_minimal_eq hW h2) (EqTm0.symm ic))
+      rw [isub_inst, isub_dshift, FLeq, ← dshift_eq_isub_closed hcl.2]
+      exact h3
     · -- the tubes
       intro k3 σ r r' hr hr' hE hh
       have e : (ρ.comp ρ').comp σ = ρ.comp (ρ'.comp σ) := ISub.comp_assoc _ _ _
