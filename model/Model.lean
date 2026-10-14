@@ -53,3 +53,4 @@ import Model.Whnf.Kan2SigmaS
 import Model.Whnf.Kan2PathTEq
 import Model.Whnf.Kan2PathT
 import Model.Whnf.Kan2Univ
+import Model.Whnf.Kan2Glue

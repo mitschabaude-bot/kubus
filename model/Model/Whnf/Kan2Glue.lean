@@ -1206,7 +1206,126 @@ theorem kanH2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S k T T') (h
     · have r := red_hcomp_glue hW (htyσ.tyConv eσ) (hw k' σ hf).2.1 (hw k' σ hf).2.2.2.1 hψ
       exact ⟨r.1, r.2.tyConv (TyEq.symm eσ)⟩
   · -- the reducts across restrictions
-    sorry
+    dsimp only
+    have hτ0 : ∀ {x : I}, x.subst (σ.comp ρ).τ = (x.subst σ.τ).subst ρ.τ := fun {x} => I_subst_comp x σ ρ
+    have K2 := K.isub hW (σ.comp ρ)
+    have hTT2 := hTτ (σ.comp ρ)
+    by_cases hψ : I.Entails .one (ψ.subst σ.τ)
+    · -- the face of the composition holds
+      have hψ2 : I.Entails .one (ψ.subst (σ.comp ρ).τ) := by rw [hτ0]; exact ent_one_subst hψ ρ.τ
+      have hψ2' : I.Entails .one (ψ'.subst (σ.comp ρ).τ) := ent_trans hψ2 (ent_subst p12 _)
+      rw [if_pos hψ, if_pos hψ2', isub_dinst, Tm.isub_isub, ← ISub.up_comp]
+      exact htube k'' (σ.comp ρ) _ _ trivial trivial (I_eq_refl _) (hholdψ _ hψ2)
+    rw [if_neg hψ]
+    by_cases hf : (ival (idEnv k') (φ.subst σ.τ)).holds
+    · -- the face of the Glue type holds: compositions in the fibers
+      have hfτ := Model.Canon.holds_restr hφs σ ρ hf
+      rw [dif_pos hf, isub_hcomp, Tm.isub_isub T, Tm.isub_isub u, ← ISub.up_comp, Tm.isub_isub a0, ← hτ0]
+      by_cases hψ2' : I.Entails .one (ψ'.subst (σ.comp ρ).τ)
+      · have hψ2 : I.Entails .one (ψ.subst (σ.comp ρ).τ) := ent_trans hψ2' (ent_subst p21 _)
+        rw [if_pos hψ2']
+        have tb := htube k'' (σ.comp ρ) .one .one trivial trivial (I_eq_refl _) (hholdψ _ hψ2)
+        exact RE2.expandL hW hTT2 K2.hty (RE2.typed tb).2.1 (stable_hcompFace hW hψ2 K2.hty) tb
+      · rw [if_neg hψ2', dif_pos hfτ]
+        have hGτ : HasTy S k'' .one [] (.glue (A.isub (σ.comp ρ)) (φ.subst (σ.comp ρ).τ) (Tf.isub (σ.comp ρ))
+            (e.isub (σ.comp ρ))) (.univ l) := HasTy.isubS hW hG (σ.comp ρ)
+        have hfe := (holds_iff_entails (I.scoped_subst hφs (σ.comp ρ).sc)).1 hfτ
+        have hTfX : TyCode k'' (semK S k'' (Tf.isub (σ.comp ρ))) :=
+          tyCode_of_univ hW (glue_fiber_ty hW hG (σ.comp ρ) hfτ).choose_spec.1
+        have hTfT : RT2 S k'' (Tf.isub (σ.comp ρ)) (T.isub (σ.comp ρ)) :=
+          RT2.trans hW hTfX (RT2_glue_fib0 hW hGτ hfe (invG.2 k'' (σ.comp ρ) hfτ).1)
+            (RT2.isub hW (tyCode_of_univ hW hG) hGT (σ.comp ρ))
+        have hK := hIHT k (ISub.id k) A φ Tf e (by rw [isub_id_of_closed hTc]; exact hR) k'' (σ.comp ρ)
+          hfτ (T.isub (σ.comp ρ)) (T'.isub (σ.comp ρ)) hTfT (hTτ' (σ.comp ρ))
+        exact K2.kan hK
+    -- the face of the Glue type does not hold: `hcompGlue` at the normal form
+    have hwσ := hw k' σ hf
+    have hWσ := hwσ.2.2.1
+    have hn1 := hwσ.2.2.2.2.1
+    have hWX : TyCode k' (semK S k' (.glue (A1 k' σ hf) (φ1 k' σ hf) (T1 k' σ hf) (e1 k' σ hf))) :=
+      tyCode_of_univ hW hWσ
+    have hWT : RT2 S k' (.glue (A1 k' σ hf) (φ1 k' σ hf) (T1 k' σ hf) (e1 k' σ hf)) (T.isub σ) :=
+      (RT2_glue_whnf hW hWσ hn1 (hTτ σ) hwσ.1).1
+    have hWW : RT2 S k' (.glue (A1 k' σ hf) (φ1 k' σ hf) (T1 k' σ hf) (e1 k' σ hf))
+        (.glue (A1 k' σ hf) (φ1 k' σ hf) (T1 k' σ hf) (e1 k' σ hf)) :=
+      (RT2_glue_whnf hW hWσ hn1 (hTτ σ) hwσ.1).2
+    have invW := RT2_glueW_inv hW hWσ hWσ hn1 hn1 hWW (redT_glue_self hn1) (redT_glue_self hn1)
+    obtain ⟨hφ1s, lA1, hA1, -⟩ := glue_data hW hWσ
+    have hWρ : HasTy S k'' .one [] (.glue ((A1 k' σ hf).isub ρ) ((φ1 k' σ hf).subst ρ.τ) ((T1 k' σ hf).isub ρ)
+        ((e1 k' σ hf).isub ρ)) (.univ (l1 k' σ hf)) := HasTy.isubS hW hWσ ρ
+    have hWρX := tyCode_of_univ hW hWρ
+    have hWTρ : RT2 S k'' (.glue ((A1 k' σ hf).isub ρ) ((φ1 k' σ hf).subst ρ.τ) ((T1 k' σ hf).isub ρ)
+        ((e1 k' σ hf).isub ρ)) (T.isub (σ.comp ρ)) := by
+      have := RT2.isub hW hWX hWT ρ; rwa [Tm.isub_isub] at this
+    have hcgσ := HasTy.eqR (red_hcomp_glue hW (by rw [← isub_hcomp]; exact HasTy.isubS hW hty σ) hwσ.1 hWσ hψ).2
+    have hcgτ := HasTy.isubS hW hcgσ ρ
+    rw [hcompGlue_isub, Tm.isub_isub T, Tm.isub_isub u, ← ISub.up_comp, Tm.isub_isub a0, ← hτ0] at hcgτ
+    rw [dif_neg hf, hcompGlue_isub, Tm.isub_isub u, ← ISub.up_comp, Tm.isub_isub a0, ← hτ0]
+    -- the Kan properties of the components of the normal form, at further restrictions
+    have kA : ∀ k3 (σ3 : ISub k3 k'') X'', RT2 S k3 (((A1 k' σ hf).isub ρ).isub σ3) X'' →
+        KanH2 S k3 (((A1 k' σ hf).isub ρ).isub σ3) X'' := fun k3 σ3 X'' h => by
+      rw [Tm.isub_isub] at h ⊢
+      exact hIHA k' σ _ _ _ _ hwσ.1 k3 (ρ.comp σ3) _ X''
+        (RT2.refl hW (tyCode_of_univ hW (HasTy.isubS hW hA1 _)) h) h
+    have kT : ∀ k3 (σ3 : ISub k3 k''), (ival (idEnv k3) (((φ1 k' σ hf).subst ρ.τ).subst σ3.τ)).holds →
+        ∀ X'', RT2 S k3 (((T1 k' σ hf).isub ρ).isub σ3) X'' → KanH2 S k3 (((T1 k' σ hf).isub ρ).isub σ3) X'' :=
+      fun k3 σ3 hh X'' h => by
+        rw [Tm.isub_isub] at h ⊢
+        rw [← I_subst_comp] at hh
+        exact hIHT k' σ _ _ _ _ hwσ.1 k3 (ρ.comp σ3) hh _ X''
+          (RT2.refl hW (tyCode_of_univ hW (glue_fiber_ty hW hWσ (ρ.comp σ3) hh).choose_spec.1) h) h
+    have mkD : ∀ (hfτ : ¬ (ival (idEnv k'') (φ.subst (σ.comp ρ).τ)).holds), ¬ I.Entails .one ((φ1 k' σ hf).subst ρ.τ) →
+        GHD S k'' ((A1 k' σ hf).isub ρ) ((T1 k' σ hf).isub ρ) ((e1 k' σ hf).isub ρ) (A1' k'' (σ.comp ρ) hfτ)
+          (T1' k'' (σ.comp ρ) hfτ) (e1' k'' (σ.comp ρ) hfτ) ((φ1 k' σ hf).subst ρ.τ) (φ1' k'' (σ.comp ρ) hfτ)
+          (ψ.subst (σ.comp ρ).τ) (ψ'.subst (σ.comp ρ).τ) (u.isub (σ.comp ρ).up) (u'.isub (σ.comp ρ).up)
+          (a0.isub (σ.comp ρ)) (a0'.isub (σ.comp ρ)) := fun hfτ hnρ => by
+      have hwτ := hw k'' (σ.comp ρ) hfτ
+      exact GHD_mk hW hWρ hnρ hwτ.2.2.2.1 hwτ.2.2.2.2.2.1 (RT2.trans hW hWρX hWTρ (hTτ' (σ.comp ρ))) hwτ.2.1 kA kT
+        (K2.retype hW (RT2.symm hW hWρX hWTρ))
+    have hφ1ρ_of : (ival (idEnv k'') (φ.subst (σ.comp ρ).τ)).holds → I.Entails .one ((φ1 k' σ hf).subst ρ.τ) :=
+      fun hfτ => by
+        have h1 := (holds_iff_entails (I.scoped_subst hφs (σ.comp ρ).sc)).1 hfτ
+        rw [hτ0] at h1
+        exact ent_trans h1 (ent_subst hwσ.2.2.2.2.2.2.2 ρ.τ)
+    have hnρ_of : ¬ (ival (idEnv k'') (φ.subst (σ.comp ρ).τ)).holds → ¬ I.Entails .one ((φ1 k' σ hf).subst ρ.τ) :=
+      fun hfτ h => hfτ ((holds_iff_entails (I.scoped_subst hφs (σ.comp ρ).sc)).2 (by
+        rw [hτ0]; exact ent_trans h (ent_subst hwσ.2.2.2.2.2.2.1 ρ.τ)))
+    have hnρh : ∀ {x : I}, x.Scoped k'' → ¬ I.Entails .one x → ¬ (ival (idEnv k'') x).holds :=
+      fun hs h hh => h ((holds_iff_entails hs).1 hh)
+    by_cases hψ2' : I.Entails .one (ψ'.subst (σ.comp ρ).τ)
+    · have hψ2 : I.Entails .one (ψ.subst (σ.comp ρ).τ) := ent_trans hψ2' (ent_subst p21 _)
+      rw [if_pos hψ2']
+      have tb := htube k'' (σ.comp ρ) .one .one trivial trivial (I_eq_refl _) (hholdψ _ hψ2)
+      by_cases hfτ : (ival (idEnv k'') (φ.subst (σ.comp ρ).τ)).holds
+      · have hφ1ρ := hφ1ρ_of hfτ
+        rw [KubusCore.Meta.hcompGlue_eq] at hcgτ ⊢
+        have st1 := stable_glueEl hW hcgτ hφ1ρ
+        have ht1 := HasTy.eqR (EqTm.glueElFace hφ1ρ hcgτ)
+        exact RE2.expandL hW hTT2 hcgτ (RE2.typed tb).2.1 st1
+          (RE2.expandL hW hTT2 ht1 (RE2.typed tb).2.1 (stable_hcompFace hW hψ2 ht1) tb)
+      · have D := mkD hfτ (hnρ_of hfτ)
+        have b := D.bdry hW (hnρh (I.scoped_subst hφ1s ρ.sc) (hnρ_of hfτ)) hψ2
+        exact RE2.trans hW hTT2 (RE2.conv hW hWTρ b) tb
+    · rw [if_neg hψ2']
+      by_cases hfτ : (ival (idEnv k'') (φ.subst (σ.comp ρ).τ)).holds
+      · rw [dif_pos hfτ]
+        have hφ1ρ := hφ1ρ_of hfτ
+        rw [KubusCore.Meta.hcompGlue_eq] at hcgτ ⊢
+        have st1 := stable_glueEl hW hcgτ hφ1ρ
+        have hh1 : (ival (idEnv k'') ((φ1 k' σ hf).subst ρ.τ)).holds :=
+          (holds_iff_entails (I.scoped_subst hφ1s ρ.sc)).2 hφ1ρ
+        have hT1X : TyCode k'' (semK S k'' ((T1 k' σ hf).isub ρ)) :=
+          tyCode_of_univ hW (glue_fiber_ty hW hWσ ρ hh1).choose_spec.1
+        have hT1T : RT2 S k'' ((T1 k' σ hf).isub ρ) (T.isub (σ.comp ρ)) :=
+          RT2.trans hW hT1X (RT2_glue_fib0 hW hWρ hφ1ρ (invW.2 k'' ρ hh1).1) hWTρ
+        have hK := hIHT k' σ _ _ _ _ hwσ.1 k'' ρ hh1 _ (T'.isub (σ.comp ρ)) (RT2.refl hW hT1X hT1T)
+          (RT2.trans hW hT1X hT1T (hTτ' (σ.comp ρ)))
+        have r := (K2.retype hW (RT2.symm hW hT1X hT1T)).kan hK
+        have r' := RE2.conv hW hT1T r
+        exact RE2.expandL hW hTT2 hcgτ (RE2.typed r').2.1 st1 r'
+      · rw [dif_neg hfτ]
+        have D := mkD hfτ (hnρ_of hfτ)
+        exact RE2.conv hW hWTρ (D.core hW (hnρh (I.scoped_subst hφ1s ρ.sc) (hnρ_of hfτ)))
 
 end
 
