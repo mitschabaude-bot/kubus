@@ -41,3 +41,6 @@ import Model.Whnf.Kan2Path
 import Model.Whnf.Kan2ElimT
 import Model.Whnf.Kan2IPiT
 import Model.Whnf.Kan2PiT
+import Model.Whnf.Kan2Line
+import Model.Whnf.Kan2Sigma
+import Model.Whnf.Kan2SigmaT
