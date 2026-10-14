@@ -92,4 +92,75 @@ theorem HasTy.beta_replace (hS : WfSig S) {Ψ Φ Γ t T} (h : HasTy S Ψ Φ Γ t
     (presup0 (sigClosed_of_wfSig hS) (wf_typed _ S rfl hS).1 (wf_typed _ S rfl hS).2)
     (spec_to_minimal hS h))
 
+theorem gen_unglue {Ψ Φ Γ s T0} (h : HasTy0 S Ψ Φ Γ s T0) {φ e g} (hs : s = .unglue φ e g) :
+    ∃ A T l, (HasTy0 S Ψ Φ Γ (glue A φ T e) (univ l) ∧ HasTy0 S Ψ Φ Γ A (univ l) ∧
+      HasTy0 S Ψ (cof Φ φ) Γ e (equiv T A) ∧ HasTy0 S Ψ Φ Γ g (glue A φ T e)) ∧ TyChainC S Ψ Φ Γ A T0 :=
+  match h with
+  | .var _ _ => by cases hs
+  | .conv h0 h1 => by
+    obtain ⟨A, T, l, x, ch⟩ := gen_unglue h0 hs
+    exact ⟨A, T, l, x, ch.snoc h1⟩
+  | .restrict hsc he h2 => by
+    obtain ⟨A, T, l, ⟨h0, h1, h2', h3⟩, ch⟩ := gen_unglue h2 hs
+    have hφ := scoped_cof_right (scoped_of_ty h2')
+    have hs' : (cof _ φ).Scoped Ψ := ⟨hsc, hφ⟩
+    exact ⟨A, T, l, ⟨HasTy0.restrict hsc he h0, HasTy0.restrict hsc he h1,
+      HasTy0.restrict hs' (ent_and_mono he (ent_refl _)) h2', HasTy0.restrict hsc he h3⟩, ch.restrict hsc he⟩
+  | .const _ _ => by cases hs
+  | .univ _ _ => by cases hs
+  | .cumul h0 h1 => by
+    obtain ⟨A, T, l, x, ch⟩ := gen_unglue h1 hs
+    exact ⟨A, T, l, x, ch.cumul h0⟩
+  | .pi _ _ => by cases hs
+  | .lam _ _ => by cases hs
+  | .app _ _ => by cases hs
+  | .sigma _ _ => by cases hs
+  | .pair _ _ _ => by cases hs
+  | .fst _ => by cases hs
+  | .snd _ => by cases hs
+  | .path _ _ _ => by cases hs
+  | .plam _ _ _ _ => by cases hs
+  | .papp _ _ => by cases hs
+  | .ipi _ _ => by cases hs
+  | .ilam _ _ => by cases hs
+  | .iapp _ _ => by cases hs
+  | .split _ _ _ _ _ _ _ => by cases hs
+  | .abort _ _ => by cases hs
+  | .transp _ _ _ _ => by cases hs
+  | .hcomp _ _ _ _ _ => by cases hs
+  | .glue _ _ _ _ => by cases hs
+  | .glueEl _ _ _ _ _ => by cases hs
+  | .unglue h0 h1 h2 h3 => by cases hs; exact ⟨_, _, _, ⟨h0, h1, h2, h3⟩, .refl _⟩
+  | .data _ _ _ => by cases hs
+  | .con _ _ _ _ _ _ _ _ => by cases hs
+  | .elim _ _ _ _ _ _ _ _ _ _ => by cases hs
+
+section
+variable (hP : Presup0 S)
+include hP
+
+/-- Replacement under `unglue`: a system argument one of whose faces holds is its branch. -/
+theorem unglue_split {Ψ Φ Γ T0 φ e φ1 t ψ1 u g'}
+    (h : HasTy0 S Ψ Φ Γ (unglue φ e (split φ1 t ψ1 u)) T0)
+    (hb : (I.Entails Φ φ1 ∧ g' = t) ∨ (I.Entails Φ ψ1 ∧ g' = u)) :
+    EqTm0 S Ψ Φ Γ (unglue φ e (split φ1 t ψ1 u)) (unglue φ e g') T0 := by
+  obtain ⟨A, T, l, ⟨hG, hA, he, hg⟩, ch⟩ := gen_unglue h rfl
+  have e1 : EqTm0 S Ψ Φ Γ (split φ1 t ψ1 u) g' (glue A φ T e) := by
+    rcases hb with ⟨hent, rfl⟩ | ⟨hent, rfl⟩
+    · exact EqTm0.splitL hent hg
+    · exact EqTm0.splitR hent hg
+  have hu := HasTy0.unglue hG hA he hg
+  have hu' := HasTy0.unglue hG hA he (hP e1).2
+  exact ch.transportEq (EqTm0.unglue hu hu' (ent_refl _) (ent_refl _) (EqTm0.refl he) e1)
+
+end
+
+theorem HasTy.unglue_split (hS : WfSig S) {Ψ Φ Γ T0 φ e φ1 t ψ1 u g'}
+    (h : HasTy S Ψ Φ Γ (unglue φ e (split φ1 t ψ1 u)) T0)
+    (hb : (I.Entails Φ φ1 ∧ g' = t) ∨ (I.Entails Φ ψ1 ∧ g' = u)) :
+    EqTm S Ψ Φ Γ (unglue φ e (split φ1 t ψ1 u)) (unglue φ e g') T0 :=
+  minimal_to_spec_eq (Meta.unglue_split
+    (presup0 (sigClosed_of_wfSig hS) (wf_typed _ S rfl hS).1 (wf_typed _ S rfl hS).2)
+    (spec_to_minimal hS h) hb)
+
 end KubusCore.Meta
