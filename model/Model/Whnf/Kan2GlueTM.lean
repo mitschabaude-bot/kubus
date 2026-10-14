@@ -53,6 +53,14 @@ theorem red_transp_glue {X A1 T1 e1 a : Tm} {φ1 ψ : I} {l1 : ℕ}
   exact ⟨(red_transp_ty hn hR.1.1).trans (.step (step_transp_glue hn hR.1.2) (.refl _)), e1.trans e2⟩
 
 
+/-- Related lines are related at their points. -/
+theorem RT2.dinstE {X Y : Tm} (hX : TyCode (k + 1) (semK S (k + 1) X)) (h : RT2 S (k + 1) X Y) {d : I}
+    (hd : d.Scoped k) : RT2 S k (X.dinst d) (Y.dinst d) := by
+  have hb := Comp2_ty_base h
+  have := RT2.isub hW hX h (ISub.cons d hd (ISub.id k))
+  rwa [isub_cons_id_of_closed (closed_of_isTyK hW hb.2.1), isub_cons_id_of_closed (closed_of_isTyK hW hb.2.2.1)]
+    at this
+
 /-- Line robustness along related lines. -/
 theorem LineRob.transport {W X W' X' : Tm} {l l' : ℕ} (hWt : HasTy S (k + 1) .one [] W (.univ l))
     (hW't : HasTy S (k + 1) .one [] W' (.univ l')) (hWX : RT2 S (k + 1) W X) (hW'X' : RT2 S (k + 1) W' X')
@@ -225,7 +233,125 @@ theorem kanT2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S (k + 1) T 
     have r := K (hLR.isub (κ.comp κ')) _ _ _ _ (hC.isub (κ.comp κ')) (hρT k5 (κ.comp κ')) (hρT' k5 (κ.comp κ'))
       heqΘ (ent_subst h12 _) (ent_subst h21 _) ha0Θ
     rwa [hT1Θ] at r
-  sorry
+  -- the face of the Glue line does not hold along the line: the contractum at the Glue normal form
+  rw [dif_neg hf]
+  have hwκ := hw (k4 + 1) κ.up hf
+  have hWt := hwκ.2.2.1
+  have hnκ := hwκ.2.2.2.2.1
+  have hWc := tyCode_of_univ hW hWt
+  have hWT := (RT2_glue_whnf hW hWt hnκ (hTτ κ.up) hwκ.1).1
+  have hWW := (RT2_glue_whnf hW hWt hnκ (hTτ κ.up) hwκ.1).2
+  have invW := RT2_glueW_inv hW hWt hWt hnκ hnκ hWW (redT_glue_self hnκ) (redT_glue_self hnκ)
+  obtain ⟨hφ1s, -⟩ := glue_data hW hWt
+  have rGGκ := LineRob.transport hW hWt hWt hWT hWT (hLRL.isub κ)
+  have cGκ := LineConst.transport hW hWt hWT (hC.isub κ)
+  have htyκ := (HasTy.eqR (eq_transp_ty hW (hρT k4 κ) hwκ.1.2)).tyConv (tyEq_dinst hW hwκ.1.2 (r := .one) trivial)
+  obtain ⟨lW, ⟨hW0, -, hconstW, -⟩, -⟩ := gen_transpF (spec_to_minimal hW htyκ) rfl
+  have ha0κ : RE2 S k4 ((T.isub κ.up).dinst .zero) (a0.isub κ) (a0'.isub κ) := by
+    have := RE2.isub hW ha0 κ; rwa [isub_dinst] at this
+  have hW0T : RT2 S k4 ((Tm.glue (A1 (k4 + 1) κ.up hf) (φ1 (k4 + 1) κ.up hf) (T1 (k4 + 1) κ.up hf)
+      (e1 (k4 + 1) κ.up hf)).dinst .zero) ((T.isub κ.up).dinst .zero) := by
+    have := RT2.isub hW hWc hWT (ISub.cons .zero trivial (ISub.id k4))
+    rwa [isub_cons_id_of_closed (closed_of_ty hW hWt), isub_cons_id_of_closed (closed_of_isTyK hW
+      (Comp2_ty_base hWT).2.2.1)] at this
+  have ha0W := RE2.conv hW (RT2.symm hW (RT2.tyCode_l hW hW0T (RE2.tyCode hW ha0κ)) hW0T) ha0κ
+  have hty'κ : HasTy S k4 .one [] (.transp (.glue (A1 (k4 + 1) κ.up hf) (φ1 (k4 + 1) κ.up hf) (T1 (k4 + 1) κ.up hf)
+      (e1 (k4 + 1) κ.up hf)) (ψ.subst κ.τ) (a0'.isub κ)) ((Tm.glue (A1 (k4 + 1) κ.up hf) (φ1 (k4 + 1) κ.up hf)
+      (T1 (k4 + 1) κ.up hf) (e1 (k4 + 1) κ.up hf)).dinst .one) :=
+    minimal_to_spec (HasTy0.transp hW0 (I.scoped_subst hψs κ.sc) hconstW (spec_to_minimal hW (RE2.typed ha0W).2.1))
+  have heqκ := eqTm_transp_of hW htyκ hty'κ (TyEq.refl _) (ent_refl _) (ent_refl _) (RE2.typed ha0W).2.2
+  have IA := hIHA (k4 + 1) κ.up _ _ _ _ hwκ.1
+  have IT := hIHT (k4 + 1) κ.up _ _ _ _ hwκ.1
+  have Dκ := TGD2_mk hW hWt hnκ hWt hnκ rGGκ rGGκ IA.1 IA.2 IT.1 IT.2 (forall0_scoped hφ1s) (ent_refl _)
+    (ent_refl _) (forall0_scoped hφ1s) (ent_refl _) (ent_refl _) htyκ hty'κ heqκ (ent_refl _) (ent_refl _) cGκ ha0W
+  have D2 := Dκ.isub hW κ'
+  rw [Tm.isub_isub a0, Tm.isub_isub a0', ← hτ0] at D2
+  rw [tgw_isub, Tm.isub_isub a0, ← hτ0]
+  -- the restricted Glue normal form against the line
+  have hWT1 : RT2 S k5 ((Tm.glue ((A1 (k4 + 1) κ.up hf).isub κ'.up) ((φ1 (k4 + 1) κ.up hf).subst κ'.up.τ)
+      ((T1 (k4 + 1) κ.up hf).isub κ'.up) ((e1 (k4 + 1) κ.up hf).isub κ'.up)).dinst .one)
+      (T.isub (ISub.cons .one trivial (κ.comp κ'))) := by
+    have := RT2.isub hW hWc hWT (ISub.cons .one trivial κ')
+    rw [Tm.isub_isub, ISub.up_comp_cons, ← isub_up_dinst _ _ .one trivial, isub_glue] at this
+    exact this
+  by_cases hψ2' : I.Entails .one (ψ'.subst (κ.comp κ').τ)
+  · -- the face of the transport holds at the further restriction
+    have hψ2 : I.Entails .one (ψ.subst (κ.comp κ').τ) := ent_trans hψ2' (ent_subst h21 _)
+    rw [if_pos hψ2']
+    exact RE2.conv hW hWT1 (D2.bdryψ hW ((holds_iff_entails hψs2).2 hψ2))
+  rw [if_neg hψ2']
+  -- the faces of the Glue lines at the further restriction
+  have eφ : ∀ {x : I}, (x.subst κ.up.τ).subst κ'.up.τ = x.subst (κ.comp κ').up.τ := fun {x} => by
+    rw [Θe, I_subst_comp]
+  have φ1e : I.Entails ((φ1 (k4 + 1) κ.up hf).subst κ'.up.τ) (φ.subst (κ.comp κ').up.τ) := by
+    rw [← eφ]; exact ent_subst hwκ.2.2.2.2.2.2.1 _
+  have φ1e' : I.Entails (φ.subst (κ.comp κ').up.τ) ((φ1 (k4 + 1) κ.up hf).subst κ'.up.τ) := by
+    rw [← eφ]; exact ent_subst hwκ.2.2.2.2.2.2.2 _
+  have hφτs := I.scoped_subst hφs (κ.comp κ').up.sc
+  have hφ1τs := I.scoped_subst hφ1s κ'.up.sc
+  by_cases hfτ : (ival (idEnv (k5 + 1)) (φ.subst (κ.comp κ').up.τ)).holds
+  · -- the face of the Glue line holds along the further restricted line
+    rw [dif_pos hfτ]
+    have hφ1τ : I.Entails .one ((φ1 (k4 + 1) κ.up hf).subst κ'.up.τ) :=
+      ent_trans ((holds_iff_entails hφτs).1 hfτ) φ1e'
+    have hφ1τh := (holds_iff_entails hφ1τs).2 hφ1τ
+    have hδ2 : (ival (idEnv k5) ((φ1 (k4 + 1) κ.up hf).forall0.subst κ'.τ)).holds :=
+      (holds_iff_entails (I.scoped_subst (forall0_scoped hφ1s) κ'.sc)).2
+        (ent_trans (ent_one_forall0 hφ1τ) (forall0_subst _ κ'.τ).2)
+    have x := D2.bdryδ hW hδ2
+    obtain ⟨lX, hXt, -⟩ := glue_fiber_ty hW hWt κ'.up hφ1τh
+    have hXc := tyCode_of_univ hW hXt
+    have hXX := (invW.2 _ κ'.up hφ1τh).1
+    have hW2t := HasTy.isubS hW hWt κ'.up
+    rw [isub_glue] at hW2t
+    have hXW := RT2_glue_fib0 hW hW2t hφ1τ hXX
+    have hW2T := RT2.isub hW hWc hWT κ'.up
+    rw [Tm.isub_isub, ← Θe, isub_glue] at hW2T
+    have hXT := RT2.trans hW hXc hXW hW2T
+    have hXX' := RT2.trans hW hXc hXT (hTτ' _)
+    obtain ⟨l0', ⟨hT'l, -, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty') rfl
+    have hX't := HasTy.isubS hW (minimal_to_spec hT'l) (κ.comp κ').up
+    have K := IT.2 k5 κ'.up hφ1τh _ _ hXX hXX'
+    have LR := LineRob.transport hW hXt hX't hXT (hT'τ _) (hLR.isub (κ.comp κ'))
+    have LC := LineConst.transport hW hXt hXT (hC.isub (κ.comp κ'))
+    have eXT := (Comp2_ty_base hXT).2.2.2.2.2
+    have eXW := (Comp2_ty_base hXW).2.2.2.2.2
+    have htyX := (RE2.typed x).2.1.tyConv (tyEq_dinst hW (TyEq.symm eXW) (r := .one) trivial)
+    have htyX' := (hρT' k5 (κ.comp κ')).tyConv (tyEq_dinst hW (TyEq.symm eXT) (r := .one) trivial)
+    have hX0T := RT2.dinstE hW hXc hXT (d := .zero) trivial
+    have hX1T := RT2.dinstE hW hXc hXT (d := .one) trivial
+    rw [isub_up_dinst T (κ.comp κ') .zero trivial] at hX0T
+    rw [isub_up_dinst T (κ.comp κ') .one trivial] at hX1T
+    have ha0X := RE2.conv hW (RT2.symm hW (RT2.tyCode_l hW hX0T (RE2.tyCode hW hbase2)) hX0T) hbase2
+    have heqX := eqTm_transp_of hW htyX htyX' (Comp2_ty_base hXX').2.2.2.2.2 (ent_subst h12 _) (ent_subst h21 _)
+      (RE2.typed ha0X).2.2
+    have r := K LR _ _ _ _ LC htyX htyX' heqX (ent_subst h12 _) (ent_subst h21 _) ha0X
+    exact RE2.trans hW (hTτ _) (RE2.conv hW hWT1 x) (RE2.conv hW hX1T r)
+  · rw [dif_neg hfτ]
+    have hwτ := hw (k5 + 1) (κ.comp κ').up hfτ
+    have hW't := hwτ.2.2.2.1
+    have hn'τ := hwτ.2.2.2.2.2.1
+    have hW'T' := (RT2_glue_whnf hW hW't hn'τ (hT'τ _) hwτ.2.1).1
+    have hW2t := HasTy.isubS hW hWt κ'.up
+    rw [isub_glue] at hW2t
+    have hn2 : ¬ I.Entails .one ((φ1 (k4 + 1) κ.up hf).subst κ'.up.τ) := fun h =>
+      hfτ ((holds_iff_entails hφτs).2 (ent_trans h φ1e))
+    have hW2T := RT2.isub hW hWc hWT κ'.up
+    rw [Tm.isub_isub, ← Θe, isub_glue] at hW2T
+    have rG := LineRob.transport hW hW2t hW't hW2T hW'T' (hLR.isub (κ.comp κ'))
+    have rGG := LineRob.transport hW hW2t hW2t hW2T hW2T (hLRL.isub (κ.comp κ'))
+    have eW2T := (Comp2_ty_base hW2T).2.2.2.2.2
+    have eW2T1 := tyEq_dinst hW eW2T (r := .one) trivial
+    have h1 := (hρT' k5 (κ.comp κ')).tyConv (eT1 k5 (κ.comp κ'))
+    have eR := eq_transp_ty hW h1 hwτ.2.1.2
+    have eL := eq_transp_ty hW (hρT k5 (κ.comp κ')) (TyEq.symm eW2T)
+    have hty'5 := (HasTy.eqR eR).tyConv ((TyEq.symm (eT1 k5 (κ.comp κ'))).trans hW (TyEq.symm eW2T1))
+    have heq5 := ((eL.symm.trans heqΘ).trans (eR.tyConv (TyEq.symm (eT1 k5 (κ.comp κ'))))).tyConv
+      (TyEq.symm eW2T1)
+    have D5 := TGD2_mk hW hW2t hn2 hW't hn'τ rG rGG D2.kAR D2.kATR D2.kTR D2.kTTR D2.hδs D2.hδ1 D2.hδ2
+      (forall0_scoped (glue_data hW hW't).1) (ent_refl _) (ent_refl _) D2.hty hty'5 heq5 (ent_subst h12 _)
+      (ent_subst h21 _) D2.cG D2.ha0
+    exact RE2.conv hW hWT1 (D5.final hW)
 
 end
 

@@ -73,4 +73,5 @@ import Model.Whnf.Valid2TranspCon
 import Model.Whnf.Kan2Glue
 import Model.Whnf.Kan2DataCode
 import Model.Whnf.NearAll
+import Model.Whnf.Kan2GlueTM
 import Model.Whnf.Kan2DataHCSound
