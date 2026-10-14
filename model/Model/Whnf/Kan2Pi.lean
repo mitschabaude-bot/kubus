@@ -89,6 +89,9 @@ structure PiStr (S : Sig) (k : ℕ) (T T' : Tm) : Prop where
     RT2 S k'' (A1.isub ρ') A2 ∧ ∀ a a', RE2 S k'' (A1.isub ρ') a a' → RT2 S k'' ((B1.isub ρ').inst a) (B2.inst a')
   elim : ∀ k' (ρ : ISub k' k) A1 B1 f f', RedT S k' (T.isub ρ) (.pi A1 B1) → RE2 S k' (T.isub ρ) f f' →
     ∀ a a', RE2 S k' A1 a a' → RE2 S k' (B1.inst a) (.app f a) (.app f' a')
+  coh' : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k') A1 B1 A2 B2, RedT S k' (T'.isub ρ) (.pi A1 B1) →
+    RedT S k'' (T'.isub (ρ.comp ρ')) (.pi A2 B2) →
+    RT2 S k'' (A1.isub ρ') A2 ∧ ∀ a a', RE2 S k'' (A1.isub ρ') a a' → RT2 S k'' ((B1.isub ρ').inst a) (B2.inst a')
 
 
 omit hW in
@@ -316,6 +319,10 @@ theorem PiStr.isub {T T' : Tm} (hP : PiStr S k T T') (σ : ISub k' k) : PiStr S 
   elim k1 ρ A1 B1 f f' h1 h2 := by
     rw [Tm.isub_isub] at h1 h2
     exact hP.elim k1 (σ.comp ρ) A1 B1 f f' h1 h2
+  coh' k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2 := by
+    rw [Tm.isub_isub] at h1 h2
+    rw [← ISub.comp_assoc] at h2
+    exact hP.coh' k1 (σ.comp ρ) k2 ρ' A1 B1 A2 B2 h1 h2
 
 omit hW in
 theorem Tube2.isub {T u u' : Tm} {φ : I} (h : Tube2 S k T φ u u') (σ : ISub k' k) :
@@ -364,9 +371,14 @@ theorem PiStr_of {T T' A B : Tm} {l : ℕ} (h : RT2 S k T T') (hR : RedT S k T (
   have hT := h
   unfold RT2 at hT
   rw [hX, Comp2_piC _ _ hAne] at hT
-  obtain ⟨hbase, hall, hcoh, -⟩ := hT
+  obtain ⟨hbase, hall, hcoh, hcoh'⟩ := hT
   -- the domain relation at a restriction, and its base
-  refine ⟨hbase.2.2.2.2, fun k' ρ => ?_, fun k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2 => ?_, fun k' ρ A1 B1 f f' h1 hf => ?_⟩
+  refine ⟨hbase.2.2.2.2, fun k' ρ => ?_, fun k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2 => ?_, fun k' ρ A1 B1 f f' h1 hf => ?_,
+    fun k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2 => ?_⟩
+  rotate_right
+  · obtain ⟨c1, c2⟩ := hcoh' k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2
+    refine ⟨Comp2_ty_RT2 c1, fun a a' ha => Comp2_ty_RT2 (c2 a a' ?_)⟩
+    exact (Comp2_el_iff hAne (Comp2_ty_base c1).2.2.2.1).2 ha
   · obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' ρ
     refine ⟨A1, B1, A1', B1', h1, h2, Comp2_ty_RT2 h3, fun a a' ha => Comp2_ty_RT2 (h4 a a' ?_)⟩
     exact (Comp2_el_iff hAne (Comp2_ty_base h3).2.2.2.1).2 ha
