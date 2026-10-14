@@ -1,4 +1,5 @@
 import Model.Whnf.Fund2
+import Model.Whnf.Kan2DataBasic
 
 /-!
 # Validity of the rules of inductive types
@@ -462,6 +463,72 @@ theorem parRel2_of {P : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ
     have heq' : D.params[j] = A := by rw [List.getElem?_eq_getElem hjD] at heq; injection heq
     exact hgen _ heq'.symm
   · rename_i heq; rw [List.getElem?_eq_getElem hjD] at heq; cases heq
+
+omit hD hH in
+theorem ListEq.of_parRel2 {ps ps' : List Tm} (h : ParRel2 S k D ps ps') :
+    ListEq S k ps ps ∧ ListEq S k ps ps' := by
+  have hl : ps.length = ps'.length := by rw [h.1, h.2.1]
+  refine ⟨ListEq.refl fun t ht => ?_, List.forall₂_iff_get.2 ⟨hl, fun i hi hi' => ?_⟩⟩
+  · obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ht
+    exact ⟨_, (RE2.typed (h.2.2 i hi (by omega) (by rw [← h.1]; exact hi))).1⟩
+  · exact ⟨_, (RE2.typed (h.2.2 i hi hi' (by rw [← h.1]; exact hi))).2.2⟩
+
+/-- **Literal inductive types at related parameters are related.** -/
+theorem RT2_dataLit {P Q : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ l))
+    (hQ : HasTy S k .one [] (.data d Q) (.univ l)) (hPQ : TyEq S k (.data d P) (.data d Q))
+    (hpl : P = Tm.ofList P.toList) (hql : Q = Tm.ofList Q.toList)
+    (hrel : ∀ k' (σ : ISub k' k), ParRel2 S k' D (P.isub σ).toList (Q.isub σ).toList) :
+    RT2 S k (.data d P) (.data d Q) := by
+  have hr2 : ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') (X : Tm),
+      ((X.isub σ).isub σ').toList = (X.isub (σ.comp σ')).toList := fun _ σ _ σ' X => by rw [Tm.isub_isub]
+  have hPP : ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k'),
+      ListEq S k'' (P.isub (σ.comp σ')).toList ((P.isub σ).isub σ').toList := fun k' σ k'' σ' => by
+    rw [hr2]; exact (ListEq.of_parRel2 hW (hrel k'' (σ.comp σ'))).1
+  have hPQl : ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k'),
+      ListEq S k'' (P.isub (σ.comp σ')).toList ((Q.isub σ).isub σ').toList := fun k' σ k'' σ' => by
+    rw [hr2]; exact (ListEq.of_parRel2 hW (hrel k'' (σ.comp σ'))).2
+  have hrel' : ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k'),
+      ParRel2 S k'' D ((P.isub σ).isub σ').toList ((Q.isub σ).isub σ').toList := fun k' σ k'' σ' => by
+    rw [hr2, hr2]; exact hrel k'' (σ.comp σ')
+  have hsemQ : semK S k (.data d Q) = semK S k (.data d P) := (semK_tyEq hW hPQ).symm
+  unfold RT2
+  rw [semK_dataT hW hD hP, Comp2_dataC]
+  simp only [show (ΘK S D d k P).idx = d from rfl]
+  have hTP : IsTyK S k (.data d P) := ⟨l, .inl hP⟩
+  have hTQ : IsTyK S k (.data d Q) := ⟨l, .inl hQ⟩
+  refine ⟨⟨hTP, hTQ, ?_, ?_, hPQ⟩, fun k' σ => ?_, ?_, ?_⟩
+  · rw [← semK_dataT hW hD hP, res_id (kv_semK_of_univ hW hP)]
+  · rw [hsemQ, ← semK_dataT hW hD hP, res_id (kv_semK_of_univ hW hP)]
+  · refine ⟨P.isub σ, Q.isub σ, ⟨redW_self (step_data d _), TyEq.refl _⟩, ⟨redW_self (step_data d _), TyEq.refl _⟩,
+      isList_subst hpl _ _, isList_subst hql _ _, ?_, ?_, ?_, ?_, ?_⟩
+    · exact (argRel2_iff _ σ).2 (argRelH_of hW hD hH hP hpl σ (hrel' k' σ) (hPP k' σ))
+    · exact (argRel2_iff _ σ).2 (argRelH_of hW hD hH hP hpl σ (fun k'' σ' => (hrel' k' σ k'' σ').symm hW hD hH)
+        (hPQl k' σ))
+    · exact (argRel2_iff _ σ).2 (argRelH_of hW hD hH hP hpl σ (fun k'' σ' => (hrel' k' σ k'' σ').left hW hD hH)
+        (hPP k' σ))
+    · exact (argRel2_iff _ σ).2 (argRelH_of hW hD hH hP hpl σ (fun k'' σ' => (hrel' k' σ k'' σ').right hW hD hH)
+        (hPQl k' σ))
+    · exact parRel2_of hW hD hH hP hpl σ (hrel k' σ) (ListEq.of_parRel2 hW (hrel k' σ)).1
+  · intro k' σ k'' σ' ps1 ps2 h1 h2
+    obtain rfl := redT_data_eq (Θ := ΘK S D d k P) h1
+    obtain rfl := redT_data_eq (Θ := ΘK S D d k P) h2
+    rw [show (Tm.subst Tm.var σ.τ P).isub σ' = P.isub (σ.comp σ') from Tm.isub_isub P σ σ']
+    have hs := fun k3 (σ3 : ISub k3 k'') => hrel' k'' (σ.comp σ') k3 σ3
+    refine ⟨(argRel2_iff _ _).2 (argRelH_of hW hD hH hP hpl (σ.comp σ') (fun k3 σ3 => (hs k3 σ3).left hW hD hH)
+        (hPP k'' (σ.comp σ'))), (argRel2_iff _ _).2 (argRelH_of hW hD hH hP hpl (σ.comp σ')
+        (fun k3 σ3 => (hs k3 σ3).left hW hD hH) (hPP k'' (σ.comp σ'))), ?_⟩
+    exact parRel2_of hW hD hH hP hpl (σ.comp σ') ((hrel k'' (σ.comp σ')).left hW hD hH)
+      (ListEq.of_parRel2 hW (hrel k'' (σ.comp σ'))).1
+  · intro k' σ k'' σ' ps1 ps2 h1 h2
+    obtain rfl := redT_data_eq (Θ := ΘK S D d k P) h1
+    obtain rfl := redT_data_eq (Θ := ΘK S D d k P) h2
+    rw [show (Tm.subst Tm.var σ.τ Q).isub σ' = Q.isub (σ.comp σ') from Tm.isub_isub Q σ σ']
+    have hs := fun k3 (σ3 : ISub k3 k'') => hrel' k'' (σ.comp σ') k3 σ3
+    refine ⟨(argRel2_iff _ _).2 (argRelH_of hW hD hH hP hpl (σ.comp σ') (fun k3 σ3 => (hs k3 σ3).right hW hD hH)
+        (hPQl k'' (σ.comp σ'))), (argRel2_iff _ _).2 (argRelH_of hW hD hH hP hpl (σ.comp σ')
+        (fun k3 σ3 => (hs k3 σ3).right hW hD hH) (hPQl k'' (σ.comp σ'))), ?_⟩
+    exact parRel2_of hW hD hH hP hpl (σ.comp σ') ((hrel k'' (σ.comp σ')).right hW hD hH)
+      (ListEq.of_parRel2 hW (hrel k'' (σ.comp σ'))).2
 
 end
 
