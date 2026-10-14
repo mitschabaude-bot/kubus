@@ -32,6 +32,11 @@ theorem I_end_isub (φ : I) {d : I} (hd : d = .zero ∨ d = .one) (σ : ISub k' 
   · rcases hd with rfl | rfl <;> rfl
   · show σ.τ i = ((σ.τ i).shift).subst _; rw [I_shift_inst0]
 
+theorem tgTube_cons (φ : I) (e u0 : Tm) (σ : ISub k' k) (r : I) (hr : r.Scoped k') :
+    (tgTube φ e u0).isub (ISub.cons r hr σ) =
+      .unglue (φ.subst (ISub.cons r hr σ).τ) (e.isub (ISub.cons r hr σ)) (u0.isub σ) := by
+  show Tm.unglue _ _ (u0.dshift.isub _) = _; rw [dshift_isub_cons]; rfl
+
 theorem tgTube_zero (φ : I) (e u0 : Tm) (σ : ISub k' k) :
     ((tgTube φ e u0).isub σ.up).dinst .zero = (tgA0 φ e u0).isub σ := by
   show Tm.unglue (((φ.subst σ.up.τ)).subst (I.inst0 .zero)) ((e.isub σ.up).dinst .zero)
@@ -263,6 +268,86 @@ theorem TGD2.eApp {k' : ℕ} (τ : ISub k' k) {r r' : I} (hr : r.Scoped k') (hr'
     RE2 S k' (A.isub (ISub.cons r hr τ)) (.app (.fst (e.isub (ISub.cons r hr τ))) x)
       (.app (.fst (e'.isub (ISub.cons r' hr' τ))) x') :=
   RE2_equiv_app hW (D.rEN hW τ hr hr' he hh) hx
+
+
+/-- The base lines are judgmentally equal. -/
+theorem TGD2.eqA : EqTm S (k + 1) .one [] A A' (.univ maxLevel) := by
+  obtain ⟨hA, -, -, -⟩ := D.closedL hW
+  obtain ⟨hA', -, -, -⟩ := D.closedR hW
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have h := D.rA.at (ISub.id (k + 1))
+  rw [isub_id_of_closed hA, isub_id_of_closed hA'] at h
+  exact tyEq_top hW (minimal_to_spec H.hA) (Comp2_ty_base h).2.2.2.2.2
+
+/-- The tubes of the compositions in the bases are judgmentally equal. -/
+theorem TGD2.eqTube : EqTm S (k + 1) (cof .one ψ).shift [] (tgTube φ e u0) (tgTube φ' e' u0') A := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hc : (cof .one ψ).shift.Scoped (k + 1) := KubusCore.I.scoped_shift ⟨trivial, H.hψ⟩
+  have hu' : HasTy S (k + 1) (cof .one ψ).shift [] (tgTube φ' e' u0') A :=
+    (HasTy.restrict hc (ent_shift (ent_and_mono (ent_refl _) D.p12)) (minimal_to_spec H'.htube)).conv
+      (EqTm.restrict hc (ent_trans (ent_shift (ent_and_left _ _)) (ent_refl _)) (D.eqA hW)).symm
+  exact eqTube_of_rel hW H.hψ (HasTy.restrict hc (ent_trans (ent_shift (ent_and_left _ _)) (ent_refl _))
+    ((minimal_to_spec H.hA).cumulTo (lvl_of_ty hW (minimal_to_spec H.hA)) le_rfl))
+    (minimal_to_spec H.htube) hu' fun k3 σ r hr hh => D.tube hW σ hr hr (I_eq_refl _) hh
+
+/-- The fillers of the compositions in the bases, at near restrictions. -/
+theorem TGD2.fillAt {k3 : ℕ} (σ σ' : ISub k3 (k + 1)) (et : σ.tail = σ'.tail) (e0 : I.Eq (σ.τ 0) (σ'.τ 0)) :
+    RE2 S k3 (A.isub σ) ((Tm.fill A ψ (tgTube φ e u0) (tgA0 φ e u0)).isub σ)
+      ((Tm.fill A' ψ' (tgTube φ' e' u0') (tgA0 φ' e' u0')).isub σ') := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hF := minimal_to_spec (fill_typed hS H.hA H.hψ H.htube H.ha0 H.htube_side).1
+  have hF' := (minimal_to_spec (fill_typed hS H'.hA H'.hψ H'.htube H'.ha0 H'.htube_side).1).conv
+    (D.eqA hW).symm
+  have hteq := D.eqTube hW
+  have heqF := minimal_to_spec_eq (fill_cong hW (spec_to_minimal hW hF) (spec_to_minimal hW hF')
+    ⟨_, spec_to_minimal_eq hW (D.eqA hW)⟩ (spec_to_minimal_eq hW hteq)
+    (spec_to_minimal_eq hW (RE2.typed (D.a0 hW)).2.2) D.p12 D.p21)
+  refine fill_rel hW H.hψ D.rA D.rAA (fun k4 Θ X' h => D.kAT k4 Θ X' h) (fun k4 Θ X' h => D.kAH k4 Θ X' h) hF hF'
+    heqF hteq D.p12 D.p21 (fun k4 σ r r' hr hr' he hh => D.tube hW σ hr hr' he hh) (D.a0 hW)
+    (fun k4 σ hh => ?_) (fun k4 σ hh => ?_) σ σ' et e0
+  · have x := D.tube hW σ (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _) hh
+    rwa [tgTube_zero φ' e' u0'] at x
+  · have x := D.tube hW σ (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _) hh
+    rwa [tgTube_zero φ e u0] at x
+
+
+/-- On `δ`, the equivalences applied to the starts, where `ψ` holds or at the start of the line. -/
+theorem TGD2.eu0 (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) {r r' : I} (hr : r.Scoped k')
+    (hr' : r'.Scoped k') (he : I.Eq r r') (hψ : (ival (idEnv k') (ψ.subst τ.τ)).holds ∨ r = .zero) :
+    RE2 S k' (A.isub (ISub.cons r hr τ)) (.app (.fst (e.isub (ISub.cons r hr τ))) (u0.isub τ))
+      (.app (.fst (e'.isub (ISub.cons r' hr' τ))) (u0'.isub τ)) :=
+  D.eApp hW τ hr hr' he (D.faceL hW hδ _) (D.u0At hW hδ τ r hr hψ)
+
+omit D in
+/-- A related element is related to itself. -/
+theorem RE2.reflL {X t t' : Tm} (hXX : RT2 S k X X) (h : RE2 S k X t t') : RE2 S k X t t :=
+  RE2.trans hW hXX h (RE2.symm hW hXX h)
+
+/-- On `δ`, where `ψ` holds, the tube of the bases is the equivalence applied to the start. -/
+theorem TGD2.tubeE (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) {r : I} (hr : r.Scoped k')
+    (hh : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+    RE2 S k' (A.isub (ISub.cons r hr τ)) (((tgTube φ e u0).isub τ.up).dinst r)
+      (.app (.fst (e.isub (ISub.cons r hr τ))) (u0.isub τ)) := by
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨hA, -, -, hφ⟩ := D.closedL hW
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨-, lA, hAt, -⟩ := glue_data hW hG
+  have hAA := D.rAA k' τ r r hr hr (I_eq_refl _)
+  have x := RE2.reflL hW hAA (D.eu0 hW hδ τ hr hr (I_eq_refl _) (.inl hh))
+  have hu := ty_line_at hW H.hψ (minimal_to_spec H.htube) τ r hr hh
+  rw [isub_up_dinst _ _ _ hr, tgTube_cons] at *
+  have hg : HasTy S k' .one [] (u0.isub τ) ((Tm.glue A φ T e).isub (ISub.cons r hr τ)) := by
+    have h0 := RE2.isub hW D.ha0 τ
+    rw [dinst_isub_end _ (.inl rfl), isub_up_dinst _ _ .zero trivial] at h0
+    exact (RE2.typed h0).1.tyConv (Comp2_ty_base (D.cG k' τ r hr hh)).2.2.2.2.2.symm
+  obtain ⟨-, -, heσ⟩ := glue_fiber_ty hW hG (ISub.cons r hr τ) (D.faceL hW hδ _)
+  rw [isub_glue] at hg
+  have hst := stable_unglueFace hW (entails_of_holds (I.scoped_subst hφ (ISub.cons r hr τ).sc) (D.faceL hW hδ _))
+    hu hg (HasTy.isubS hW hAt _) heσ (TyEq.refl _)
+  exact RE2.expandL hW hAA hu (RE2.typed x).1 hst x
 
 end
 
