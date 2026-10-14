@@ -23,6 +23,12 @@ variable {S : Sig} {k k' k'' m : ℕ}
 theorem getD_eq_get {L : List Tm} {i : ℕ} (h : i < L.length) : L.getD i .abort = L[i] := by
   rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h]; rfl
 
+theorem tele_getD {Ψ : ℕ} {Φ : I} {Γ : Ctx} {L Δ prev : List Tm} (h : HasTele0 S Ψ Φ Γ (Tm.ofList L) Δ prev)
+    {j : ℕ} (hj : j < L.length) {A : Tm} (hA : Δ[j]? = some A) :
+    HasTy0 S Ψ Φ Γ (L.getD j .abort) (A.substList ((L.take j).reverse ++ prev)) := by
+  have := tele_get h j (L.getD j .abort) A (by rw [toList_ofList, getD_eq_get hj]; exact List.getElem?_eq_getElem hj) hA
+  rwa [toList_ofList] at this
+
 namespace HCC
 
 variable {d : ℕ} {D : DataDecl} {K : ℕ} {P Q Q' : Tm} {k1 : ℕ} {ρ : ISub k1 K} {c : ℕ} {C : Ctor}
@@ -260,6 +266,103 @@ theorem ptU0 {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
   rw [← H.lineσ hj.le (ISub.id k1) .zero trivial, H.X_map_id, ISub.comp_id] at hT
   rw [isub_cons_id_of_closed (H.line_closed hj hrj)] at hT hX
   exact RE2.conv H.hW (RT2.symm H.hW hX hT) (H.hptR j hj hrj)
+
+
+/-- The type lines of a point argument are judgmentally equal. -/
+theorem ptLL' {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
+    (hV : ∀ i, i < j → Inv S d D Q Q' ρ c C X X' φ φ' u u' i) :
+    RT2 S (k1 + 1) (conLine d D c C (Q.isub ρ) φ u X j) (conLine d D c C (Q'.isub ρ) φ' u' X' j) := by
+  have h := H.ptLR hj hV (k1 + 1) (ISub.id (k1 + 1)).tail ((ISub.id (k1 + 1)).τ 0) ((ISub.id (k1 + 1)).τ 0)
+    ((ISub.id (k1 + 1)).sc 0 (by omega)) ((ISub.id (k1 + 1)).sc 0 (by omega)) (I_eq_refl _)
+  rw [ISub.cons_tail] at h
+  obtain ⟨-, -, -, hLt, -⟩ := H.ptTypes hj hrj
+  obtain ⟨-, -, -, hLt', -⟩ := H.ptTypes' hj hrj
+  rwa [isub_id_of_closed (closed_ty hLt), isub_id_of_closed (closed_ty hLt')] at h
+
+/-- The fillers and the composites of a point argument: typing and judgmental equality. -/
+theorem ptFill {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
+    (hV : ∀ i, i < j → Inv S d D Q Q' ρ c C X X' φ φ' u u' i) :
+    HasTy S (k1 + 1) .one [] ((conFills d D c C (Q.isub ρ) φ u X).getD j .abort) (conLine d D c C (Q.isub ρ) φ u X j) ∧
+    HasTy S (k1 + 1) .one [] ((conFills d D c C (Q'.isub ρ) φ' u' X').getD j .abort)
+      (conLine d D c C (Q.isub ρ) φ u X j) ∧
+    EqTm S (k1 + 1) .one [] ((conFills d D c C (Q.isub ρ) φ u X).getD j .abort)
+      ((conFills d D c C (Q'.isub ρ) φ' u' X').getD j .abort) (conLine d D c C (Q.isub ρ) φ u X j) ∧
+    HasTy S k1 .one [] ((conOuts d D c C (Q.isub ρ) φ u X).getD j .abort)
+      ((conLine d D c C (Q.isub ρ) φ u X j).dinst .one) ∧
+    HasTy S k1 .one [] ((conOuts d D c C (Q'.isub ρ) φ' u' X').getD j .abort)
+      ((conLine d D c C (Q.isub ρ) φ u X j).dinst .one) ∧
+    EqTm S k1 .one [] ((conOuts d D c C (Q.isub ρ) φ u X).getD j .abort)
+      ((conOuts d D c C (Q'.isub ρ) φ' u' X').getD j .abort) ((conLine d D c C (Q.isub ρ) φ u X j).dinst .one) ∧
+    EqTm S (k1 + 1) (cof .one φ).shift [] ((tubeArgs d D c C (Q.isub ρ) u).getD j .abort)
+      ((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort) (conLine d D c C (Q.isub ρ) φ u X j) := by
+  have hS := sigClosed_of_wfSig H.hW
+  have B := H.basic
+  obtain ⟨⟨G1, -, -, G4⟩, ⟨G1', -, -, G4'⟩⟩ := H.prem
+  obtain ⟨A0, hA0, hAc, hLt, e0, -, eφ⟩ := H.ptTypes hj hrj
+  obtain ⟨A0', hA0', hAc', hLt', e0', -, eφ'⟩ := H.ptTypes' hj hrj
+  rw [hA0] at hA0'; cases hA0'
+  have hXl := H.hXl
+  have hXl' := H.hXl'
+  set L := conLine d D c C (Q.isub ρ) φ u X j with hL
+  set L' := conLine d D c C (Q'.isub ρ) φ' u' X' j with hL'
+  -- the parts of the left side
+  have hu : HasTy0 S (k1 + 1) (cof .one φ).shift [] ((tubeArgs d D c C (Q.isub ρ) u).getD j .abort) L := by
+    have := tele_getD G1 (by simp [tubeArgs]; exact hj) (argTys_get hj)
+    rw [hAc] at this
+    exact HasTy0.conv this (EqTm0.symm eφ)
+  have hu0 : HasTy0 S k1 .one [] (X.getD j .abort) (L.dinst .zero) := by
+    have := tele_getD B.hXq (by omega) (argTys_get hj)
+    rw [hAc] at this
+    exact HasTy0.conv this (EqTm0.symm (spec_to_minimal_eq H.hW e0))
+  have hcs : (cof .one φ).Scoped k1 := ⟨trivial, B.hφs⟩
+  have hside : EqTm0 S k1 (cof .one φ) [] (((tubeArgs d D c C (Q.isub ρ) u).getD j .abort).dinst .zero)
+      (X.getD j .abort) (L.dinst .zero) := by
+    have := G4 j (by omega)
+    rw [hAc, ← getD_eq_get (by omega)] at this
+    rw [H.tubeArgs_getD hj]
+    exact EqTm0.conv this (EqTm0.symm (EqTm0.restrict hcs (ent_and_left _ _) (spec_to_minimal_eq H.hW e0)))
+  -- the parts of the right side
+  have hcs' : (cof .one φ').Scoped k1 := ⟨trivial, B.hφs'⟩
+  have hu' : HasTy0 S (k1 + 1) (cof .one φ').shift [] ((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort) L' := by
+    have := tele_getD G1' (by simp [tubeArgs]; exact hj) (argTys_get hj)
+    rw [hAc] at this
+    exact HasTy0.conv this (EqTm0.symm eφ')
+  have hu0' : HasTy0 S k1 .one [] (X'.getD j .abort) (L'.dinst .zero) := by
+    have := tele_getD B.hXq' (by omega) (argTys_get hj)
+    rw [hAc] at this
+    exact HasTy0.conv this (EqTm0.symm (spec_to_minimal_eq H.hW e0'))
+  have hside' : EqTm0 S k1 (cof .one φ') [] (((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort).dinst .zero)
+      (X'.getD j .abort) (L'.dinst .zero) := by
+    have := G4' j (by omega)
+    rw [hAc, ← getD_eq_get (by omega)] at this
+    rw [H.tubeArgs_getD hj]
+    exact EqTm0.conv this (EqTm0.symm (EqTm0.restrict hcs' (ent_and_left _ _) (spec_to_minimal_eq H.hW e0')))
+  -- the fillers and composites
+  have hF := (fill_typed hS hLt B.hφs hu hu0 hside).1
+  have hF' := (fill_typed hS hLt' B.hφs' hu' hu0' hside').1
+  have hc := comp_typed hS hLt B.hφs hu hu0 hside
+  have hc' := comp_typed hS hLt' B.hφs' hu' hu0' hside'
+  have hLL := H.ptLL' hj hrj hV
+  obtain ⟨lL, eLL⟩ := tyEq_eq H.hW (Comp2_ty_base hLL).2.2.2.2.2 ⟨_, minimal_to_spec hLt'⟩
+  have eLL0 := spec_to_minimal_eq H.hW eLL
+  have e1 : EqTm0 S k1 .one [] (L.dinst .one) (L'.dinst .one) (.univ lL) :=
+    EqTm0.dsubst hS (Ψ := k1) (Φ := .one) (Γ := []) eLL0 (r := .one) trivial
+  have hF'L : HasTy0 S (k1 + 1) .one [] (Tm.fill L' φ' ((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort)
+      (X'.getD j .abort)) L := HasTy0.conv hF' (EqTm0.symm eLL0)
+  have hc'L := HasTy0.conv hc' (EqTm0.symm e1)
+  -- the tubes and bases
+  have huu : EqTm0 S (k1 + 1) (cof .one φ).shift [] ((tubeArgs d D c C (Q.isub ρ) u).getD j .abort)
+      ((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort) L := by
+    have := H.euu j hj
+    rw [hAc] at this
+    exact EqTm0.conv this (EqTm0.symm eφ)
+  have hb := (RE2.typed (H.ptU0 hj hrj hV)).2.2
+  have eF := fill_cong H.hW hF hF'L ⟨_, eLL0⟩ huu (spec_to_minimal_eq H.hW hb) H.h12 H.h21
+  have eC := comp_cong hS hc hc'L eLL0 H.h12 H.h21 huu (spec_to_minimal_eq H.hW hb)
+  rw [fills_get_pt _ _ _ _ hj hrj, fills_get_pt _ _ _ _ hj hrj, outs_get_pt _ _ _ _ hj hrj,
+    outs_get_pt _ _ _ _ hj hrj]
+  exact ⟨minimal_to_spec hF, minimal_to_spec hF'L, minimal_to_spec_eq eF, minimal_to_spec hc,
+    minimal_to_spec hc'L, minimal_to_spec_eq eC, minimal_to_spec_eq huu⟩
 
 
 end HCC
