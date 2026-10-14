@@ -669,7 +669,7 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
     (fun k' ρ k'' ρ' _ => hUEqP k' ρ k'' ρ')
     (fun k' ρ k'' ρ' hnf k3 σ3 hh => ?_) (fun k' ρ k'' ρ' hnf k3 σ3 hh => ?_)
     (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21
-  · simpa only [hrid, hrid'] using H
+  · simpa only [hrid, hrid'] using H.1
   · have hρ : HasTy S k' .one [] (.hcomp (T.isub ρ) (φ.subst ρ.τ) (u.isub ρ.up) (a0.isub ρ)) (T.isub ρ) :=
       HasTy.isubS hW hty ρ
     have e := TyEq.symm (Comp2_ty_base (hCY k' ρ)).2.2.2.2.2

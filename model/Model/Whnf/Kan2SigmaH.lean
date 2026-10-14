@@ -81,7 +81,13 @@ theorem kanH2_sigma_fst {T T' : Tm} (hP : SigmaStr S k T T')
     (hbd' : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (T.isub σ) (a0.isub σ) ((u'.isub σ.up).dinst .zero))
     {A1 B1 : Tm} (hR : RedT S k T (.sigma A1 B1)) :
-    RE2 S k A1 (.fst (.hcomp T φ u a0)) (.fst (.hcomp T' φ' u' a0')) := by
+    RE2 S k A1 (.fst (.hcomp T φ u a0)) (.fst (.hcomp T' φ' u' a0')) ∧
+    ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k') A B A' B', RedT S k' (T.isub ρ) (.sigma A B) →
+      RedT S k'' (T'.isub (ρ.comp ρ')) (.sigma A' B') → RE2 S k'' (A1.isub (ρ.comp ρ'))
+        ((if I.Entails .one (φ.subst ρ.τ) then Tm.fst ((u.isub ρ.up).dinst .one)
+          else .hcomp A (φ.subst ρ.τ) (.fst (u.isub ρ.up)) (.fst (a0.isub ρ))).isub ρ')
+        (if I.Entails .one (φ'.subst (ρ.comp ρ').τ) then Tm.fst ((u'.isub (ρ.comp ρ').up).dinst .one)
+          else .hcomp A' (φ'.subst (ρ.comp ρ').τ) (.fst (u'.isub (ρ.comp ρ').up)) (.fst (a0'.isub (ρ.comp ρ')))) := by
   obtain ⟨l0, ⟨-, hφs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
   have hTK : IsTyK S k T := isTyK_of_ty hW hty
   have hTc : T.isub (ISub.id k) = T := isub_id_of_closed (closed_of_isTyK hW hTK)
@@ -177,7 +183,12 @@ theorem kanH2_sigma_fst {T T' : Tm} (hP : SigmaStr S k T T')
       refine hel k3 _ _ _ (hbd' k3 _ ?_)
       rw [I_subst_comp, I_subst_comp]; exact hh)
     (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21
-  · exact H
+  · refine ⟨H.1, fun k' ρ k'' ρ' A B A' B' hRA hRA' => ?_⟩
+    obtain ⟨rfl, -⟩ : A = A2 k' ρ ∧ B = B2 k' ρ := by
+      have := RedW.unique hRA.1 (hw k' ρ).1.1; injection this; constructor <;> assumption
+    obtain ⟨rfl, -⟩ : A' = A2' k'' (ρ.comp ρ') ∧ B' = B2' k'' (ρ.comp ρ') := by
+      have := RedW.unique hRA'.1 (hw k'' (ρ.comp ρ')).2.1.1; injection this; constructor <;> assumption
+    exact H.2 k' ρ k'' ρ'
   · have hρ : HasTy S k' .one [] (.hcomp (T.isub ρ) (φ.subst ρ.τ) (u.isub ρ.up) (a0.isub ρ)) (T.isub ρ) :=
       HasTy.isubS hW hty ρ
     have e := TyEq.symm (Comp2_ty_base (hCY k' ρ)).2.2.2.2.2

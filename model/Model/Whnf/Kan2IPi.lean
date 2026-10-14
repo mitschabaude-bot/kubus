@@ -297,7 +297,7 @@ theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')
       refine hel k3 _ _ _ (hbd' k3 _ ?_)
       rw [I_subst_comp, I_subst_comp]; exact hh)
     (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21
-  · simpa only [hrid, hrid'] using H
+  · simpa only [hrid, hrid'] using H.1
   · have hρ : HasTy S k' .one [] (.hcomp (T.isub ρ) (φ.subst ρ.τ) (u.isub ρ.up) (a0.isub ρ)) (T.isub ρ) :=
       HasTy.isubS hW hty ρ
     have e := TyEq.symm (Comp2_ty_base (hCY k' ρ)).2.2.2.2.2

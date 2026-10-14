@@ -85,7 +85,12 @@ theorem kanH2_elim_core {T T' Y u u' a0 a0' : Tm} {φ φ' : I} (hφs : φ.Scoped
     (hIH : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), ¬ I.Entails .one (φ.subst (ρ.comp ρ').τ) →
       KanH2 S k'' ((C k' ρ).isub ρ') (C' k'' (ρ.comp ρ')))
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) :
-    RE2 S k Y (E k (ISub.id k) (.hcomp T φ u a0)) (E' k (ISub.id k) (.hcomp T' φ' u' a0')) := by
+    RE2 S k Y (E k (ISub.id k) (.hcomp T φ u a0)) (E' k (ISub.id k) (.hcomp T' φ' u' a0')) ∧
+    ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), RE2 S k'' (Y.isub (ρ.comp ρ'))
+      ((if I.Entails .one (φ.subst ρ.τ) then E k' ρ ((u.isub ρ.up).dinst .one)
+        else .hcomp (C k' ρ) (Ψ k' ρ) (U k' ρ) (A0 k' ρ)).isub ρ')
+      (if I.Entails .one (φ'.subst (ρ.comp ρ').τ) then E' k'' (ρ.comp ρ') ((u'.isub (ρ.comp ρ').up).dinst .one)
+        else .hcomp (C' k'' (ρ.comp ρ')) (Ψ' k'' (ρ.comp ρ')) (U' k'' (ρ.comp ρ')) (A0' k'' (ρ.comp ρ'))) := by
   have hnat0 : ∀ k' (ρ : ISub k' k), (E k (ISub.id k) (.hcomp T φ u a0)).isub ρ = E k' ρ ((Tm.hcomp T φ u a0).isub ρ) := by
     intro k' ρ; rw [hEnat, ISub.id_comp]
   have hnat0' : ∀ k' (ρ : ISub k' k), (E' k (ISub.id k) (.hcomp T' φ' u' a0')).isub ρ =
@@ -111,7 +116,10 @@ theorem kanH2_elim_core {T T' Y u u' a0 a0' : Tm} {φ φ' : I} (hφs : φ.Scoped
     by_cases hf : I.Entails .one (φ'.subst ρ.τ)
     · simp only [R, if_pos hf]; exact (hred' k' ρ).1 hf
     · simp only [R, if_neg hf]; exact (hred' k' ρ).2 hf
-  refine RE2.expandBoth hW hX hYY ht ht' L R hu hu' fun k' ρ k'' ρ' => ?_
+  suffices cross : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'),
+      RE2 S k'' (Y.isub (ρ.comp ρ')) ((L k' ρ).isub ρ') (R k'' (ρ.comp ρ')) from
+    ⟨RE2.expandBoth hW hX hYY ht ht' L R hu hu' cross, cross⟩
+  intro k' ρ k'' ρ'
   have hholds : ∀ {k3 : ℕ} (τ : ISub k3 k), I.Entails .one (φ.subst τ.τ) → (ival (idEnv k3) (φ.subst τ.τ)).holds :=
     fun τ h => (holds_iff_entails (I.scoped_subst hφs τ.sc)).2 h
   have hRpos : I.Entails .one (φ.subst (ρ.comp ρ').τ) →
