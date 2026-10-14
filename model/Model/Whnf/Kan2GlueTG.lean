@@ -342,6 +342,81 @@ theorem TGD2.extU (hφ1 : (ival (idEnv k) (φ.subst (I.inst0 .one))).holds) :
   have z := RE2.reduceR hW hTT1 y (stable_fstBeta hW (RE2.typed y).2.1) (RE2.typed u).1
   exact RE2.trans hW hTT1 z u
 
+
+/-- On `ψ`, the contractum of the left transport is the right start. -/
+theorem TGD2.bdryψ : RE2 S k ((Tm.glue A φ T e).dinst .one) (Tm.transpGlueWith δ A φ T e ψ u0) u0' := by
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
+  have hφ1s : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have hψe := entails_of_holds H.hψ hψk
+  have eqL := EqTm.transpGlue D.hty hA0 he0 D.hδs D.hδ1 D.hδ2
+  have hL := HasTy.eqR eqL
+  have hG1 := minimal_to_spec (H.hGr (r := .one) trivial)
+  have hu := D.u0G1 hW hψk
+  have hGG : RT2 S k ((Tm.glue A φ T e).dinst .one) ((Tm.glue A φ T e).dinst .one) := by
+    have := D.rGG k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
+    rwa [isub_cons_id_of_closed (closed_of_ty hW hG)] at this
+  have eLu : EqTm S k .one [] (Tm.transpGlueWith δ A φ T e ψ u0) u0' ((Tm.glue A φ T e).dinst .one) :=
+    eqL.symm.trans ((EqTm.transpFace hψe D.hty).trans (RE2.typed hu).2.2)
+  rw [transpGlueWith_eq] at hL eLu ⊢
+  rw [glue_dinst] at hL hGG hu eLu ⊢
+  by_cases hφ1 : (ival (idEnv k) (φ.subst (I.inst0 .one))).holds
+  · have hφe := entails_of_holds hφ1s hφ1
+    obtain ⟨lT, hT1⟩ := D.hT1 hW hφ1
+    have hTT1 := RT2.refl hW (tyCode_of_univ hW hT1) (by
+      have := D.rT1 hW hφ1 (ISub.id k); rwa [isub_id_of_closed (closed_of_ty hW hT1)] at this)
+    have g := RE2_glue_of_fiber hW hG1 hφe hTT1 (D.extU hW hψk hφ1)
+    exact RE2.expandL hW hGG hL (RE2.typed g).2.1 (stable_glueEl hW hL hφe) g
+  -- the face does not hold at the end: Glue eta for the right start
+  have hA1 := minimal_to_spec (H.hAr (r := .one) trivial)
+  have he1 : HasTy S k (cof .one (φ.subst (I.inst0 .one))) [] (e.dinst .one) (Tm.equiv (T.dinst .one) (A.dinst .one)) :=
+    minimal_to_spec (H.her (r := .one) trivial (X := cof .one (φ.subst (I.inst0 .one))) ⟨trivial, hφ1s⟩
+      (ent_and_left _ _) (ent_and_right _ _))
+  have hu'u' := RE2.trans hW hGG (RE2.symm hW hGG hu) hu
+  have hη := EqTm.glueEta (RE2.typed hu).2.1
+  have η := RE2_glue_eta hW hG1 hφ1 hu'u' hη hφ1s (ent_refl _) (ent_refl _) (EqTm.refl he1)
+    (fun k3 σ => D.A1L hW σ) (fun k3 σ hh => D.T1L hW σ hh) (fun k3 σ hh => D.e1L hW σ hh)
+  have hφu : ∀ {k3} (σ : ISub k3 k), (ival (idEnv k3) ((φ.subst (I.inst0 .one)).subst σ.τ)).holds →
+      (ival (idEnv k3) ((φ.subst σ.up.τ).subst (I.inst0 .one))).holds := fun σ hh => by rwa [I_phi1_isub] at hh
+  have g := RE2_glueEl_intro hW hG1 hφ1 ⟨hL, HasTy.eqR hη, eLu.trans hη⟩ (ent_refl _) (ent_refl _) (EqTm.refl he1) hGG
+    (fun k3 σ => D.A1L hW σ) (fun k3 σ hh => D.T1L hW σ hh) (fun k3 σ => ?_) (fun k3 σ hh => ?_)
+    (fun k3 σ hh => ?_) (fun k3 σ hh => ?_)
+  · exact RE2.trans hW hGG g (RE2.symm hW hGG η)
+  · have D' := D.isub hW σ
+    have hψσ := holds_isub hW H.hψ hψk σ
+    have hAA := D'.hAA1 hW
+    rw [(tg_isub A φ T e ψ u0 δ σ).2.2.2.2.2, isub_unglue, I_phi1_isub, dinst_isub_end _ (.inr rfl),
+      dinst_isub_end _ (.inr rfl)]
+    exact RE2.trans hW hAA (D'.a1ψ hW hψσ) (D'.a1'U hW hψσ)
+  · have D' := D.isub hW σ
+    have hψσ := holds_isub hW H.hψ hψk σ
+    rw [isub_fst, (tg_isub A φ T e ψ u0 δ σ).2.2.2.2.1, dinst_isub_end _ (.inr rfl)]
+    exact D'.extU hW hψσ (hφu σ hh)
+  · rw [isub_fst, (tg_isub A φ T e ψ u0 δ σ).2.2.2.2.2, (tg_isub A φ T e ψ u0 δ σ).2.2.2.2.1,
+      dinst_isub_end _ (.inr rfl), dinst_isub_end _ (.inr rfl)]
+    exact (D.isub hW σ).a1E hW (hφu σ hh)
+  · -- the unglued right start on the face
+    have hAA := D.A1L hW σ
+    have hGσ := HasTy.isubS hW hG1 σ
+    have huσ := RE2.isub hW hu σ
+    rw [isub_glue] at hGσ huσ
+    have heσ := HasTy.isubF hW (show (cof .one (φ.subst (I.inst0 .one))).Scoped k from ⟨trivial, hφ1s⟩) he1 σ
+    rw [isub_equiv] at heσ
+    have hφσe := entails_of_holds (I.scoped_subst hφ1s σ.sc) hh
+    have heσ1 := HasTy.restrict (Φ' := .one) trivial (ent_cof_one hW hφσe) heσ
+    have hUσ : HasTy S k3 .one [] (.unglue ((φ.subst (I.inst0 .one)).subst σ.τ) ((e.dinst .one).isub σ) (u0'.isub σ))
+        ((A.dinst .one).isub σ) :=
+      unglue_ty hW ⟨_, .inl hGσ⟩ ⟨_, HasTy.isubS hW hA1 σ, by
+        have := EqTm.isubF hW (show (cof .one (φ.subst (I.inst0 .one))).Scoped k from ⟨trivial, hφ1s⟩) (EqTm.refl he1) σ
+        rw [isub_equiv] at this; exact HasTy.eqL this⟩ (RE2.typed huσ).2.1
+    have st := stable_unglueFace hW hφσe hUσ (RE2.typed huσ).2.1 (HasTy.isubS hW hA1 σ) heσ1 (TyEq.refl _)
+    have hTσ := D.T1L hW σ hh
+    have hu0T := RE2_glue_fib hW hGσ hφσe hTσ huσ
+    have x := RE2_equiv_app hW (D.e1L hW σ hh) (RE2.trans hW hTσ (RE2.symm hW hTσ hu0T) hu0T)
+    rw [isub_unglue]
+    exact RE2.expandL hW hAA hUσ (RE2.typed x).1 st x
+
 end
 
 end
