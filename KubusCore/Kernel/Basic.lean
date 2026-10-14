@@ -875,18 +875,71 @@ def inferHcomp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u a : Tm) :
   let ⟨heq⟩ ← R.conv E1 A l (HasTy.rs E hφ hA) (u.dinst .zero) a hu0 (HasTy.rs E hφ ha)
   pure ⟨l, hA, hφ, hu, ha, heq, HasTy.hcomp hA hφ hu ha heq⟩
 
-/-- Record that `t` is typed, and so are the heads of its eliminations (`Meta.gen_elimHead`). -/
-def noteTyped (E : KCtx S Ψ Φ Γ) : Nat → (t : Tm) → (∃ T, HasTy S Ψ Φ Γ t T) → K S Unit
-  | 0, _, _ => pure ()
-  | n + 1, t, h => do
-    modify fun c => { c with typed := c.typed.insert Ψ Φ Γ [t] E.fs.get E.hfs (⟨h⟩ : PLift _) }
-    match E.sig.wf, hp : t.elimHead with
-    | some ⟨hS⟩, some p =>
-      noteTyped E n p (by
-        obtain ⟨T, h⟩ := h
-        obtain ⟨T', h'⟩ := Meta.gen_elimHead (Meta.spec_to_minimal hS h) hp
+/-- Record that `t` is typed in `Ψ; Φ; Γ` (with the faces `fs` of `Φ`), and so are the subterms
+that the generation lemmas show typed in the same restriction: the heads of eliminations, the
+type and base of compositions, the base of transports, the components of Π, Σ and path types
+(`Meta.gen_elimHead`, `gen_hcomp`, `gen_transpF`, `gen_pi`, `gen_sigma`, `gen_path`). -/
+def noteTypedIn (hS : WfSig S) (fs : List I.Face) (hfs : fs = Φ.faces) :
+    Nat → (Γ : Ctx) → (t : Tm) → (∃ T, HasTy S Ψ Φ Γ t T) → K S Unit
+  | 0, _, _, _ => pure ()
+  | n + 1, Γ, t, h => do
+    modify fun c => { c with typed := c.typed.insert Ψ Φ Γ [t] fs hfs (⟨h⟩ : PLift _) }
+    have h0 : ∃ T, Meta.HasTy0 S Ψ Φ Γ t T := by
+      obtain ⟨T, h⟩ := h; exact ⟨T, Meta.spec_to_minimal hS h⟩
+    match hp : t.elimHead with
+    | some p => noteTypedIn hS fs hfs n Γ p (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨T', h'⟩ := Meta.gen_elimHead h hp
         exact ⟨T', Meta.minimal_to_spec h'⟩)
-    | _, _ => pure ()
+    | none =>
+    match t with
+    | .hcomp A φ u a => do
+      noteTypedIn hS fs hfs n Γ a (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, _, _, ha, _⟩, _⟩ := Meta.gen_hcomp h rfl
+        exact ⟨A, Meta.minimal_to_spec ha⟩)
+      noteTypedIn hS fs hfs n Γ A (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨l, ⟨hA, _⟩, _⟩ := Meta.gen_hcomp h rfl
+        exact ⟨_, Meta.minimal_to_spec hA⟩)
+    | .transp A φ a => noteTypedIn hS fs hfs n Γ a (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, _, _, ha⟩, _⟩ := Meta.gen_transpF h rfl
+        exact ⟨_, Meta.minimal_to_spec ha⟩)
+    | .pi A B => do
+      noteTypedIn hS fs hfs n Γ A (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨hA, _⟩, _⟩ := Meta.gen_pi (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec hA⟩)
+      noteTypedIn hS fs hfs n (A :: Γ) B (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, hB⟩, _⟩ := Meta.gen_pi (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec hB⟩)
+    | .sigma A B => do
+      noteTypedIn hS fs hfs n Γ A (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨hA, _⟩, _⟩ := Meta.gen_sigma (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec hA⟩)
+      noteTypedIn hS fs hfs n (A :: Γ) B (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, hB⟩, _⟩ := Meta.gen_sigma (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec hB⟩)
+    | .path A a b => do
+      noteTypedIn hS fs hfs n Γ a (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, ha, _⟩, _⟩ := Meta.gen_path (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec ha⟩)
+      noteTypedIn hS fs hfs n Γ b (by
+        obtain ⟨T, h⟩ := h0
+        obtain ⟨_, ⟨_, _, hb⟩, _⟩ := Meta.gen_path (Meta.sigClosed_of_wfSig hS) h rfl
+        exact ⟨_, Meta.minimal_to_spec hb⟩)
+    | _ => pure ()
+
+/-- Record that `t` is typed (see `noteTypedIn`). -/
+def noteTyped (E : KCtx S Ψ Φ Γ) (n : Nat) (t : Tm) (h : ∃ T, HasTy S Ψ Φ Γ t T) : K S Unit :=
+  match E.sig.wf with
+  | some ⟨hS⟩ => noteTypedIn hS E.fs.get E.hfs n Γ t h
+  | none => modify fun c => { c with typed := c.typed.insert Ψ Φ Γ [t] E.fs.get E.hfs (⟨h⟩ : PLift _) }
 
 /-- The premises of a composition that is known to be typed. -/
 def hcompInfoOf (R : Rec S) (E : KCtx S Ψ Φ Γ) {A : Tm} {φ : I} {u a T : Tm}

@@ -270,7 +270,9 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
 
 /-- Reduce an elimination whose head is not a redex. -/
 def elimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
-    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (Option (Red S Ψ Φ Γ t A × Bool)) := do
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K S (Option (Red S Ψ Φ Γ t A × Bool)) := do
+  -- the heads of the elimination are typed: their inference can skip the premises
+  noteTyped E 16 t ⟨A, ht⟩
   let ⟨i, r⟩ ← mapErr (· ++ s!"\n  reducing {short t}") (R.whnfI E t)
   if r.tm = t then pure none
   else
@@ -383,7 +385,7 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
       -- the rule takes the typing of the base element as a premise
       let ⟨ha⟩ ← R.check E a1 A l hA
       pure (some (⟨a1, by obtain ⟨h1, h2⟩ := h; subst h1; subst h2; exact EqTm.glueBeta ht ha⟩, false))
-    else elimStep R E (.unglue φ e (.glueEl φ' e' t1 a1)) A l hA
+    else elimStep R E (.unglue φ e (.glueEl φ' e' t1 a1)) A l hA ht
   | .glueEl φ _ t1 _, ht =>
     if h : E.Ent φ then pure (some (⟨t1, EqTm.glueElFace h ht⟩, false)) else pure none
   | .const k, _ =>
@@ -396,11 +398,11 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .con d c ps args rs, ht => conBndStep E d c ps args rs A ht
   | .elim d ps P bs t, ht => dataElimStep R E d ps P bs t A l hA ht
   | .hcomp B φ u a, ht => hcompStep R E B φ u a A l hA ht
-  | .app f a, _ => elimStep R E (.app f a) A l hA
-  | .fst p, _ => elimStep R E (.fst p) A l hA
-  | .snd p, _ => elimStep R E (.snd p) A l hA
-  | .papp p r, _ => elimStep R E (.papp p r) A l hA
-  | .unglue φ e g, _ => elimStep R E (.unglue φ e g) A l hA
+  | .app f a, ht => elimStep R E (.app f a) A l hA ht
+  | .fst p, ht => elimStep R E (.fst p) A l hA ht
+  | .snd p, ht => elimStep R E (.snd p) A l hA ht
+  | .papp p r, ht => elimStep R E (.papp p r) A l hA ht
+  | .unglue φ e g, ht => elimStep R E (.unglue φ e g) A l hA ht
   | _, _ => pure none
 
 def whnfLoop (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)

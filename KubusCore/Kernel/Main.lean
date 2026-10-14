@@ -116,7 +116,10 @@ def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ 
   -- cheap cases, not worth a lookup
   if (match t with | .var _ | .const _ => true | _ => false) then return ← inferStep R E t
   if let some v := (← get).inf.find? Ψ Φ Γ [t] E.fs.get E.hfs E.hsc InfF.restr then return v
-  if ← trySmall E [t] then
+  -- a term known to be typed is inferred cheaply in its own context (the generation lemmas give
+  -- the premises), which the small context does not know
+  let known := ((← get).typed.find? Ψ Φ Γ [t] E.fs.get E.hfs E.hsc TypedF.restr).isSome
+  if !known && (← trySmall E [t]) then
     if let some (sc, [t']) ← smallCtx? R E [t] then
       if h : tmEq (t'.subst (rS sc.ρ) (rI sc.δ)) t = true then
         if let some i ← tryOpt (R.infer sc.E' t') then
@@ -178,6 +181,9 @@ def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
       smallFailed E [A, t, u]
   if let some msg := (← get).convFail.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc (fun _ _ _ => none) then
     throw msg
+  -- the heads of their eliminations are typed: their inference can skip the premises
+  noteTyped E 16 t ⟨A, ht⟩
+  noteTyped E 16 u ⟨A, hu⟩
   let v ← tryCatch (trail (fun _ => s!"comparing {short t} and {short u} at {short A}")
       (canonConvRaw R E A l hA t u ht hu)) fun e => do
     -- (a failure under a restricted strategy is not definitive)

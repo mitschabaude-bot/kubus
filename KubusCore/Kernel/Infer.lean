@@ -97,6 +97,25 @@ def toGlue (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ
     return ⟨A, T, e', ⟨hA, EqTm.trans eG e2⟩⟩
   | ⟨G', _⟩ => fail s!"kernel: expected a Glue type, got {short G'}"
 
+/-- Under `φ`, the Glue type `glue A φ T e` is `T`: rebuild it from the type of `e` and compare
+`G` with `T`. -/
+def toGlueFace (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ Φ Γ G (.univ l))
+    (φ : I) (e : Tm) (hφ : E.Ent φ) : K S ((A T : Tm) × PLift (HasTy S Ψ Φ Γ A (.univ l) ∧
+      EqTm S Ψ Φ Γ G (.glue A φ T e) (.univ l))) := do
+  let ⟨hsφ⟩ ← ensureScoped φ Ψ
+  let E1 := E.cof φ hsφ
+  let (T, A) ← guessEquivTy R E1 e
+  let ⟨hA⟩ ← checkType R E A l
+  let ⟨hT1⟩ ← checkType R E1 T l
+  let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A) l
+  let ⟨he⟩ ← R.check E1 e (Tm.equiv T A) l hq
+  have hGl := HasTy.glue hA hsφ hT1 he
+  have eF := EqTm.glueFace hφ hGl
+  let ⟨hc⟩ ← ensureEntE E (cof Φ φ)
+  let ⟨hU⟩ ← univTyK E l
+  let ⟨eGT⟩ ← R.conv E (.univ l) (l + 1) hU G T hG (HasTy.restrict E.hsc hc hT1)
+  return ⟨A, T, ⟨hA, EqTm.trans eGT (EqTm.symm eF)⟩⟩
+
 /-- The same, with a given equivalence `e`. -/
 def toGlueE (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S Ψ Φ Γ G (.univ l))
     (φ : I) (e : Tm) : K S ((A T : Tm) × PLift (HasTy S Ψ Φ Γ A (.univ l) ∧
@@ -111,26 +130,18 @@ def toGlueE (R : Rec S) (E : KCtx S Ψ Φ Γ) (G : Tm) (l : Nat) (hG : HasTy S �
     | _ => pure rG
   match rG with
   | ⟨.glue A φ' T e', eG⟩ =>
-    let ⟨hA⟩ ← checkType R E A l
-    let ⟨e2⟩ ← reglue R E A φ' T e' φ e l (HasTy.eqR eG) hA
-    return ⟨A, T, ⟨hA, EqTm.trans eG e2⟩⟩
+    let glueRoute : K S ((A T : Tm) × PLift (HasTy S Ψ Φ Γ A (.univ l) ∧
+        EqTm S Ψ Φ Γ G (.glue A φ T e) (.univ l))) := do
+      let ⟨hA⟩ ← checkType R E A l
+      let ⟨e2⟩ ← reglue R E A φ' T e' φ e l (HasTy.eqR eG) hA
+      return ⟨A, T, ⟨hA, EqTm.trans eG e2⟩⟩
+    -- under `φ`, `G` may be the fibre of a Glue type with face `φ`, itself a Glue type
+    if hφ : E.Ent φ then
+      tryCatch glueRoute (fun e1 => tryCatch (toGlueFace R E G l hG φ e hφ) (fun _ => throw e1))
+    else glueRoute
   | ⟨G', _⟩ =>
     -- under `φ` the Glue type may have reduced already: rebuild it from the type of `e`
-    if hφ : E.Ent φ then
-      let ⟨hsφ⟩ ← ensureScoped φ Ψ
-      let E1 := E.cof φ hsφ
-      let (T, A) ← guessEquivTy R E1 e
-      do
-        let ⟨hA⟩ ← checkType R E A l
-        let ⟨hT1⟩ ← checkType R E1 T l
-        let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A) l
-        let ⟨he⟩ ← R.check E1 e (Tm.equiv T A) l hq
-        have hGl := HasTy.glue hA hsφ hT1 he
-        have eF := EqTm.glueFace hφ hGl
-        let ⟨hc⟩ ← ensureEntE E (cof Φ φ)
-        let ⟨hU⟩ ← univTyK E l
-        let ⟨eGT⟩ ← R.conv E (.univ l) (l + 1) hU G T hG (HasTy.restrict E.hsc hc hT1)
-        return ⟨A, T, ⟨hA, EqTm.trans eGT (EqTm.symm eF)⟩⟩
+    if hφ : E.Ent φ then toGlueFace R E G l hG φ e hφ
     else fail s!"kernel: expected a Glue type, got {short G'}"
 
 /-- Context conversion for the last variable. -/
