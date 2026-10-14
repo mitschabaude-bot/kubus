@@ -65,5 +65,6 @@ import Model.Whnf.Valid2CompSigma
 import Model.Whnf.Valid2CompPi
 import Model.Whnf.Valid2CompPath
 import Model.Whnf.Valid2CompGlue
+import Model.Whnf.Valid2LineEquiv
 import Model.Whnf.Kan2Glue
 import Model.Whnf.Kan2DataT0

@@ -291,13 +291,6 @@ section
 variable (hK : KanOracle2 S)
 include hK
 
-theorem valid_hcompU_of {u u0 T : Tm} {φ : I} {l : ℕ}
-    (h : Valid2 S Ψ Φ Γ (.hcomp (.univ l) φ u u0) (.hcomp (.univ l) φ u u0) T)
-    (hu : HasTy0 S Ψ Φ Γ (Tm.hcompU φ u u0) T) :
-    Valid2 S Ψ Φ Γ (.hcomp (.univ l) φ u u0) (Tm.hcompU φ u u0) T := by
-  refine valid_redex hW h hu fun k c => ?_
-  simp only [CSub2.R]; rw [hcompU_subst]; exact hK.hcompU k _ _ _ _ _
-
 theorem valid_transpGlue_of {A T' e u0 T : Tm} {φ ψ δ : I} (hδ : δ.Scoped Ψ)
     (h1 : I.Entails δ φ.forall0) (h2 : I.Entails φ.forall0 δ)
     (h : Valid2 S Ψ Φ Γ (.transp (.glue A φ T' e) ψ u0) (.transp (.glue A φ T' e) ψ u0) T)
