@@ -166,6 +166,30 @@ def EM2 (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P M bs : Tm) (k1 : ℕ) (g
       (ecTm d C c (P.isub ρ) (M.isub ρ) (bs.isub ρ) X) (ecTm d C c (Q.isub ρ) (M'.isub ρ) (bs'.isub ρ) X')
 
 
+omit hW in
+theorem isub_elim {k' : ℕ} (d : ℕ) (ps M bs t : Tm) (σ : ISub k' k) :
+    (Tm.elim d ps M bs t).isub σ = .elim d (ps.isub σ) (M.isub σ) (bs.isub σ) (t.isub σ) := by
+  show Tm.elim d (ps.subst Tm.var σ.τ) (M.subst (Tm.up Tm.var) σ.τ) (bs.subst Tm.var σ.τ) (t.subst Tm.var σ.τ) = _
+  rw [up_var]; rfl
+
+omit hW in
+theorem ecTm_isub {k' : ℕ} (d : ℕ) (C : Ctor) (c : ℕ) {ps M bs : Tm} (hbs : bs = Tm.ofList bs.toList)
+    (X : List Tm) (σ : ISub k' k) :
+    (ecTm d C c ps M bs X).isub σ = ecTm d C c (ps.isub σ) (M.isub σ) (bs.isub σ) (X.map (·.isub σ)) := by
+  simp only [ecTm, ihsOf]
+  show (Tm.apps _ _).subst Tm.var σ.τ = _
+  rw [apps_subst, toList_isub hbs, List.map_append, List.map_map]
+  congr 1
+  · simp only [List.getD_eq_getElem?_getD, List.getElem?_map]
+    cases bs.toList[c]? <;> rfl
+  · congr 1
+    congr 1; funext j
+    simp only [Function.comp]
+    rw [show (Tm.elim d ps M bs (X.getD j .abort)).subst Tm.var σ.τ =
+      (Tm.elim d ps M bs (X.getD j .abort)).isub σ from rfl, isub_elim]
+    simp only [List.getD_eq_getElem?_getD, List.getElem?_map]
+    cases X[j]? <;> rfl
+
 section lit
 variable {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
   {K : ℕ} {P : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level)) (hPP : RT2 S K (.data d P) (.data d P))
@@ -244,6 +268,136 @@ theorem em2_con {k1 : ℕ} {g : Hom k1 K} {M bs A t t' ps qs qs' : Tm} {c : ℕ}
     rw [getD_eq_get' hW hD hH hP hPP (show j < args.length by omega),
       getD_eq_get' hW hD hH hP hPP (show j < args'.length by omega)]
     exact ihrec j (by omega) (by omega) hjr ρ rfl rfl Q M' bs' hER
+
+omit hW hD hH hP hPP in
+theorem data_isub_comp {k1 k2 : ℕ} (ρ : ISub k1 K) (κ : ISub k2 k1) :
+    (Tm.data d (P.isub ρ)).isub κ = .data d (P.isub (ρ.comp κ)) := by
+  show Tm.data d ((P.isub ρ).isub κ) = _; rw [Tm.isub_isub]
+
+/-- The intro case: eliminations of related elements, from the contracta of their normal forms at all
+restrictions. -/
+theorem em1_intro {M bs : Tm} (hRL : ElimRel S d D K P M bs P M bs) {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm}
+    (hdr : DR2 S d (dataD S d) (dataMem S (ΘK S D d K P) (Hom.id K)) (dataP2 S (ΘK S D d K P) (Hom.id K))
+      k1 g A x x')
+    (ih : ∀ k' (σ : ISub k' k1), EM2 S d D K P M bs k' (g.comp σ.hom) (A.isub σ) (x.isub σ) (x'.isub σ))
+    (ihc : ∀ k' (σ : ISub k' k1) w, RedW S (x.isub σ) w → ∀ k'' (ρ' : ISub k'' k'),
+      EM2 S d D K P M bs k'' (g.comp (σ.comp ρ').hom) (A.isub (σ.comp ρ')) (w.isub ρ') (x.isub (σ.comp ρ'))) :
+    EM1 S d D K P M bs k1 g A x x' := by
+  intro ρ hg hAe Q M' bs' hER
+  subst hg hAe
+  have tyB : ∀ {k4 : ℕ} {X Z : Tm}, RT2 S k4 X Z → TyEq S k4 X Z := fun h => (Comp2_ty_base h).2.2.2.2.2
+  -- the related elements
+  have hxx : RE2 S k1 (.data d (P.isub ρ)) x x' := by
+    have he : EqTm S k1 .one [] x x' (.data d (P.isub ρ)) := by cases hdr with | intro he => exact he
+    exact (RE2_dataLit_iff hW hD hP ρ).2 ⟨⟨HasTy.eqL he, HasTy.eqR he, he⟩, hdr⟩
+  have hxκ : ∀ {k4 : ℕ} (κ : ISub k4 k1), RE2 S k4 (.data d (P.isub (ρ.comp κ))) (x.isub κ) (x'.isub κ) := by
+    intro k4 κ
+    have := RE2.isub hW hxx κ
+    rwa [data_isub_comp] at this
+  -- the normal forms
+  have hw := fun k4 (κ : ISub k4 k1) => dataLit_argsU hW hD hH hP hPP (ρ.comp κ) (hxκ κ)
+  choose c C qs Z qs' Z' hC hZl hZ'l hr hr' hZ using hw
+  -- typings
+  have hxxs : ∀ {k4 : ℕ} (κ : ISub k4 k1), RE2 S k4 (.data d (P.isub (ρ.comp κ))) (x.isub κ) (x.isub κ) := by
+    intro k4 κ
+    have hPκ := RT2.isub hW (tyCode_of_univ hW hP) hPP (ρ.comp κ)
+    exact RE2.trans hW hPκ (hxκ κ) (RE2.symm hW hPκ (hxκ κ))
+  have eT : ∀ {k4 : ℕ} (κ : ISub k4 k1), ((M.isub ρ).inst x).isub κ = (M.isub (ρ.comp κ)).inst (x.isub κ) := by
+    intro k4 κ; rw [isub_inst, Tm.isub_isub]
+  have eL : ∀ {k4 : ℕ} (κ : ISub k4 k1),
+      (Tm.elim d (P.isub ρ) (M.isub ρ) (bs.isub ρ) x).isub κ =
+        .elim d (P.isub (ρ.comp κ)) (M.isub (ρ.comp κ)) (bs.isub (ρ.comp κ)) (x.isub κ) := by
+    intro k4 κ; rw [isub_elim, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]
+  have eR : ∀ {k4 : ℕ} (κ : ISub k4 k1),
+      (Tm.elim d (Q.isub ρ) (M'.isub ρ) (bs'.isub ρ) x').isub κ =
+        .elim d (Q.isub (ρ.comp κ)) (M'.isub (ρ.comp κ)) (bs'.isub (ρ.comp κ)) (x'.isub κ) := by
+    intro k4 κ; rw [isub_elim, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]
+  have hx'Q : ∀ {k4 : ℕ} (κ : ISub k4 k1), HasTy S k4 .one [] (x'.isub κ) (.data d (Q.isub (ρ.comp κ))) := fun κ =>
+    (RE2.typed (hxκ κ)).2.1.tyConv (tyB (hER.dat _ (ρ.comp κ)))
+  have hTT : ∀ {k4 : ℕ} (κ : ISub k4 k1), TyEq S k4 ((M'.isub (ρ.comp κ)).inst (x'.isub κ))
+      ((M.isub (ρ.comp κ)).inst (x.isub κ)) := fun κ => TyEq.symm (tyB (hER.mot _ (ρ.comp κ) _ _ (hxκ κ)))
+  obtain ⟨mL, hEL⟩ := hER.tyL k1 ρ
+  obtain ⟨mR, hER'⟩ := hER.tyR k1 ρ
+  have ht : HasTy S k1 .one [] (.elim d (P.isub ρ) (M.isub ρ) (bs.isub ρ) x) ((M.isub ρ).inst x) :=
+    minimal_to_spec (hEL.elim_ty (spec_to_minimal hW (RE2.typed hxx).1))
+  have ht' : HasTy S k1 .one [] (.elim d (Q.isub ρ) (M'.isub ρ) (bs'.isub ρ) x') ((M.isub ρ).inst x) := by
+    have h := minimal_to_spec (hER'.elim_ty (spec_to_minimal hW ((RE2.typed hxx).2.1.tyConv (tyB (hER.dat k1 ρ)))))
+    have := hTT (ISub.id k1)
+    rw [ISub.comp_id, isub_id_of_closed (closed_of_ty hW (RE2.typed hxx).1),
+      isub_id_of_closed (closed_of_ty hW (RE2.typed hxx).2.1)] at this
+    exact h.tyConv this
+  have hAA : RT2 S k1 ((M.isub ρ).inst x) ((M.isub ρ).inst x) := by
+    have := hRL.mot k1 ρ x x (RE2.trans hW (RT2.isub hW (tyCode_of_univ hW hP) hPP ρ) hxx
+      (RE2.symm hW (RT2.isub hW (tyCode_of_univ hW hP) hPP ρ) hxx))
+    exact this
+  refine RE2.expandBoth hW (tyCode_of_ty hW ht) hAA ht ht'
+    (fun k4 κ => ecTm d (C k4 κ) (c k4 κ) (P.isub (ρ.comp κ)) (M.isub (ρ.comp κ)) (bs.isub (ρ.comp κ)) (Z k4 κ))
+    (fun k4 κ => ecTm d (C k4 κ) (c k4 κ) (Q.isub (ρ.comp κ)) (M'.isub (ρ.comp κ)) (bs'.isub (ρ.comp κ)) (Z' k4 κ))
+    (fun k4 κ => ?_) (fun k4 κ => ?_) (fun k4 κ k5 κ' => ?_)
+  · obtain ⟨m4, hE4⟩ := hER.tyL k4 (ρ.comp κ)
+    rw [eL, eT]
+    exact elim_reduct hW hD hH hE4 (RE2.typed (hxκ κ)).1 (hC k4 κ) (hr k4 κ)
+  · obtain ⟨m4, hE4⟩ := hER.tyR k4 (ρ.comp κ)
+    rw [eR, eT]
+    have hr4 : RedE S k4 (.data d (Q.isub (ρ.comp κ))) (x'.isub κ)
+        (.con d (c k4 κ) (qs' k4 κ) (Tm.ofList (Z' k4 κ)) []) :=
+      ⟨(hr' k4 κ).1, (hr' k4 κ).2.tyConv (tyB (hER.dat _ (ρ.comp κ)))⟩
+    obtain ⟨r1, r2⟩ := elim_reduct hW hD hH hE4 (hx'Q κ) (hC k4 κ) hr4
+    exact ⟨r1, r2.tyConv (hTT κ)⟩
+  · have eT3 : (ρ.comp κ).comp κ' = ρ.comp (κ.comp κ') := ISub.comp_assoc _ _ _
+    have ecn : (Tm.con d (c k4 κ) (qs k4 κ) (Tm.ofList (Z k4 κ)) []).isub κ' =
+        .con d (c k4 κ) ((qs k4 κ).isub κ') (Tm.ofList ((Z k4 κ).map (·.isub κ'))) [] := by
+      show Tm.con d _ ((qs k4 κ).isub κ') ((Tm.ofList (Z k4 κ)).isub κ') [] = _; rw [ofList_isub]
+    -- the restricted normal form, against the element at the further restriction
+    have R0 : RE2 S k5 (.data d (P.isub (ρ.comp (κ.comp κ'))))
+        (.con d (c k4 κ) ((qs k4 κ).isub κ') (Tm.ofList ((Z k4 κ).map (·.isub κ'))) []) (x.isub (κ.comp κ')) := by
+      have r0 := RE2.isub hW (RE2_whnf_con hW hD hH hP hPP _ (hxxs κ) (hC k4 κ) (hr k4 κ)) κ'
+      rw [ecn, data_isub_comp, eT3, Tm.isub_isub] at r0
+      exact r0
+    -- the constructors agree
+    obtain ⟨c3, C3, q3, W, q3', W', hC3, -, -, hr3, hr3', -⟩ := dataLit_argsU hW hD hH hP hPP _ R0
+    have g1 := RedW.unique hr3.1 (redW_self (step_con_nonHIT hD hH (hC k4 κ) _ _ _))
+    have g2 := RedW.unique hr3'.1 (hr k5 (κ.comp κ')).1
+    simp only [Tm.con.injEq] at g1 g2
+    obtain ⟨-, rfl, -, -, -⟩ := g1
+    obtain ⟨-, hcc, -, -, -⟩ := g2
+    have hcc' : c k5 (κ.comp κ') = c k4 κ := by rw [← hcc]
+    have hCC : C k5 (κ.comp κ') = C k4 κ := by
+      have h1 := hC k5 (κ.comp κ'); rw [hcc', hC k4 κ] at h1; exact (Option.some.inj h1).symm
+    have RE1 : RedE S k5 (.data d (P.isub (ρ.comp (κ.comp κ'))))
+        (.con d (c k4 κ) ((qs k4 κ).isub κ') (Tm.ofList ((Z k4 κ).map (·.isub κ'))) [])
+        (.con d (c k4 κ) ((qs k4 κ).isub κ') (Tm.ofList ((Z k4 κ).map (·.isub κ'))) []) :=
+      ⟨redW_self (step_con_nonHIT hD hH (hC k4 κ) _ _ _), EqTm.refl (RE2.typed R0).1⟩
+    have RE2' : RedE S k5 (.data d (P.isub (ρ.comp (κ.comp κ')))) (x.isub (κ.comp κ'))
+        (.con d (c k4 κ) (qs k5 (κ.comp κ')) (Tm.ofList (Z k5 (κ.comp κ'))) []) := by
+      have h := hr k5 (κ.comp κ'); rw [hcc'] at h; exact h
+    have RE3 : RedE S k5 (.data d (P.isub (ρ.comp (κ.comp κ')))) (x'.isub (κ.comp κ'))
+        (.con d (c k4 κ) (qs' k5 (κ.comp κ')) (Tm.ofList (Z' k5 (κ.comp κ'))) []) := by
+      have h := hr' k5 (κ.comp κ'); rw [hcc'] at h; exact h
+    -- (R1) the restricted contractum, against the contractum at the further restriction
+    have T1 := ihc k4 κ _ (hr k4 κ).1 k5 κ'
+    rw [ecn, data_isub_comp] at T1
+    have R1 := T1 (ρ.comp (κ.comp κ')) (by simp only [ISub.hom_comp]) rfl P M bs hRL
+      (c k4 κ) (C k4 κ) _ _ _ _ (hC k4 κ) RE1 RE2'
+    -- (R2) the contracta at the further restriction
+    have T2 := ih k5 (κ.comp κ')
+    rw [data_isub_comp] at T2
+    have R2 := T2 (ρ.comp (κ.comp κ')) (by simp only [ISub.hom_comp]) rfl
+      Q M' bs' hER (c k4 κ) (C k4 κ) _ _ _ _ (hC k4 κ) RE2' RE3
+    -- the types
+    have hPκ2 := RT2.isub hW (tyCode_of_univ hW hP) hPP (ρ.comp (κ.comp κ'))
+    have R00 := RE2.trans hW hPκ2 R0 (RE2.symm hW hPκ2 R0)
+    have C1 := RE2.trans hW hPκ2 (conP_rel hW hD hH hP hPP _ R00 (hC k4 κ) RE1) R0
+    have C2 := conP_rel hW hD hH hP hPP _ (hxxs (κ.comp κ')) (hC k4 κ) RE2'
+    have R1' := RE2.conv hW (hRL.mot k5 _ _ _ C1) R1
+    have R2' := RE2.conv hW (hRL.mot k5 _ _ _ C2) R2
+    have hTg := hRL.mot k5 _ _ _ (hxxs (κ.comp κ'))
+    have hbs := (hER.tyL k4 (ρ.comp κ)).choose_spec.hbs
+    show RE2 S k5 _ ((ecTm d (C k4 κ) (c k4 κ) (P.isub (ρ.comp κ)) (M.isub (ρ.comp κ)) (bs.isub (ρ.comp κ))
+      (Z k4 κ)).isub κ') (ecTm d (C k5 (κ.comp κ')) (c k5 (κ.comp κ')) (Q.isub (ρ.comp (κ.comp κ')))
+        (M'.isub (ρ.comp (κ.comp κ'))) (bs'.isub (ρ.comp (κ.comp κ'))) (Z' k5 (κ.comp κ')))
+    rw [eT, ecTm_isub d (C k4 κ) (c k4 κ) hbs, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, eT3, hcc', hCC]
+    exact RE2.trans hW hTg R1' R2'
 
 end lit
 
