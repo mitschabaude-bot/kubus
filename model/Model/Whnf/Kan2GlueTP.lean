@@ -747,6 +747,81 @@ theorem TGD2.w0 (hδ : (ival (idEnv k) δ).holds) :
       exact RE2_equiv_app hW (D.rEL k5 _ (D.faceL hW hδ _)) (D.tf1 hW hδ (σ2.comp σ3))
     · exact absurd h3 (by simp only [I.subst]; decide)
 
+
+/-- The filler of the bases at the end of its line is the composition. -/
+theorem TGD2.fill1 {k' : ℕ} (τ : ISub k' k) :
+    RE2 S k' (A.isub (ISub.cons .one trivial τ)) ((Tm.fill A ψ (tgTube φ e u0) (tgA0 φ e u0)).isub (ISub.cons .one trivial τ))
+      ((tgA1' A φ e ψ u0).isub τ) := by
+  obtain ⟨hAc, -, -, -⟩ := D.closedL hW
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hA0 := D.rAA k (ISub.id k) .zero .zero trivial trivial (I_eq_refl _)
+  rw [isub_cons_id_of_closed hAc] at hA0
+  exact fill_one_pt hW H.hψ D.rAA (fun k3 Θ X' h => D.kAT k3 Θ X' h) (fun k3 Θ X' h => D.kAH k3 Θ X' h)
+    (minimal_to_spec H.ha1') (D.hF hW) (fun k5 σ r r' hr hr' he hh => D.tubeL hW σ hr hr' he hh)
+    (RE2.reflL hW hA0 (D.a0 hW))
+    (fun k5 σ hh => by
+      have x := D.tubeL hW σ (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _) hh
+      rw [tgTube_zero φ e u0]; rwa [tgTube_zero φ e u0] at x) τ
+
+/-- On `δ`, the body of `ω` at the end of the path is the composition in the bases. -/
+theorem TGD2.w1 (hδ : (ival (idEnv k) δ).holds) :
+    RE2 S k (A.dinst .one) ((tgBody A φ T e ψ u0).dinst .one) (tgA1' A φ e ψ u0) := by
+  obtain ⟨hAc, hTc, hec, -⟩ := D.closedL hW
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hδe := entails_of_holds D.hδs hδ
+  have hAA := D.rAA k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
+  have hb := HasTy.isubS hW (HasTy.restrict (Φ' := .one) trivial (ent_shift (ent_cof_one hW hδe))
+    (minimal_to_spec H.hbody)) (ISub.cons .one trivial (ISub.id k))
+  rw [dshift_isub_cons, isub_id_of_closed (closed_of_ty hW (minimal_to_spec (H.hAr (r := .one) trivial))),
+    isub_cons_id_of_closed (closed_ty H.hbody)] at hb
+  have hx := minimal_to_spec H.ha1'
+  rw [isub_cons_id_of_closed hAc] at hAA
+  rw [tgBody_dinst] at hb ⊢
+  have hface : I.Entails .one (I.or ψ (.or (.neg .one) .one)) :=
+    ent_trans (ent_refl _) (ent_trans (ent_or_right _ _) (ent_or_right _ _))
+  refine RE2.expandL hW hAA hb hx (stable_compFace hW hface hb) ?_
+  rw [subst_up_inst0_dinst (closed_ty H.hsys) (r := .one) (s := .one) trivial trivial]
+  have hχ : I.Entails .one (I.or (ψ.subst (ISub.id k).τ) (.or (.neg .one) .one)) := by
+    rw [I_subst_id H.hψ]; exact hface
+  have hsp := tgSys_ty hW H hδe (ISub.id k) (y := .one) trivial hχ (x := .one) trivial
+  unfold tgSys at hsp ⊢
+  rw [tgSys'_isub] at hsp ⊢
+  rw [← isub_id_of_closed (closed_ty H.ha1')] at hx ⊢
+  rw [← isub_cons_id_of_closed hAc .one trivial] at hAA hx ⊢
+  have rs : ∀ {k4 : ℕ} (σ2 : ISub k4 k) (X : Tm),
+      (X.isub (ISub.cons .one trivial (ISub.id k))).isub σ2 = X.isub (ISub.cons .one trivial σ2) :=
+    fun σ2 X => by rw [Tm.isub_isub, ISub.cons_comp, ISub.id_comp]; rfl
+  refine RE2_split_l hW (I.scoped_subst H.hψ (ISub.id k).sc) ⟨trivial, trivial⟩ hχ hAA hsp
+    hx
+    (fun k4 σ2 h => ?_) (fun k4 σ2 h => ?_)
+  · simp only [isub_app, isub_fst, rs, Tm.isub_isub, ISub.id_comp]
+    have hh : (ival (idEnv k4) (ψ.subst σ2.τ)).holds := by
+      rw [holds_iff_entails (I.scoped_subst H.hψ σ2.sc)]
+      rw [I_subst_id H.hψ] at h; exact h
+    have hAA2 := D.rAA k4 σ2 .one .one trivial trivial (I_eq_refl _)
+    have t := D.tubeE hW hδ σ2 (r := .one) trivial hh
+    rw [isub_up_dinst _ _ .one trivial] at t
+    have hc := HasTy.isubS hW (minimal_to_spec H.ha1') σ2
+    rw [dinst_isub_end _ (.inr rfl), isub_up_dinst _ _ .one trivial] at hc
+    have st := stable_compFace hW (entails_of_holds (I.scoped_subst H.hψ σ2.sc) hh)
+      (by unfold tgA1' at hc; rw [comp_isub] at hc; exact hc)
+    unfold tgA1'
+    rw [comp_isub]
+    rw [isub_up_dinst _ _ .one trivial] at st
+    exact RE2.expandR hW hAA2 (RE2.typed t).2.1 (by unfold tgA1' at hc; rwa [comp_isub] at hc) st
+      (RE2.symm hW hAA2 t)
+  · have hσ := HasTy.isubS hW hsp σ2
+    have hin := HasTy.eqR (EqTm.splitR h hσ)
+    have hAA2 := D.rAA k4 σ2 .one .one trivial trivial (I_eq_refl _)
+    simp only [← isub_eq_subst, isub_app, isub_fst, rs, Tm.isub_isub, ISub.id_comp] at hin ⊢
+    refine RE2_split_l hW trivial trivial (by simpa only [I.subst] using h) hAA2 hin
+      (by have := HasTy.isubS hW (minimal_to_spec H.ha1') σ2
+          rwa [dinst_isub_end _ (.inr rfl), isub_up_dinst _ _ .one trivial] at this)
+      (fun k5 σ3 h3 => ?_) (fun k5 σ3 _ => ?_)
+    · exact absurd h3 (by simp only [I.subst]; decide)
+    · simp only [← isub_eq_subst, isub_app, isub_fst, Tm.isub_isub, ISub.cons_comp, I.subst, ISub.id_comp]
+      exact D.fill1 hW (σ2.comp σ3)
+
 end
 
 end
