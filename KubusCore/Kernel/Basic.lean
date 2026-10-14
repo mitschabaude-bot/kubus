@@ -1,5 +1,7 @@
 import KubusCore.Kernel.Ctx
 import Std.Data.HashMap
+import KubusCore.Meta.Final
+import KubusCore.Meta.GenRedex
 
 /-!
 # Kernel: result types, the recursion record, and helpers
@@ -797,5 +799,24 @@ def inferHcomp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u a : Tm) :
     rwa [Tm.dshift_dinst] at this
   let ⟨heq⟩ ← R.conv E1 A l (HasTy.rs E hφ hA) (u.dinst .zero) a hu0 (HasTy.rs E hφ ha)
   pure ⟨l, hA, hφ, hu, ha, heq, HasTy.hcomp hA hφ hu ha heq⟩
+
+/-- The premises of a composition that is known to be typed: when the signature is known to be
+well-formed, they are read off the typing by the generation lemma (`Meta.gen_hcomp`, through
+the minimal judgments), without checking them again; only the level of `A` is inferred. -/
+def hcompInfoOf (R : Rec S) (E : KCtx S Ψ Φ Γ) {A : Tm} {φ : I} {u a T : Tm}
+    (ht : HasTy S Ψ Φ Γ (.hcomp A φ u a) T) : K S (HcompInfo S Ψ Φ Γ A φ u a) := do
+  match E.sig.wf with
+  | none => inferHcomp R E A φ u a
+  | some ⟨hS⟩ =>
+    let ⟨hφ⟩ ← ensureScoped φ Ψ
+    let ⟨l, ⟨hA⟩⟩ ← inferType R E A
+    have hg := Meta.gen_hcomp (Meta.spec_to_minimal hS ht) rfl
+    have hu : HasTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift := by
+      obtain ⟨_, ⟨_, _, h, _, _⟩, _⟩ := hg; exact Meta.minimal_to_spec h
+    have ha : HasTy S Ψ Φ Γ a A := by
+      obtain ⟨_, ⟨_, _, _, h, _⟩, _⟩ := hg; exact Meta.minimal_to_spec h
+    have heq : EqTm S Ψ (cof Φ φ) Γ (u.dinst .zero) a A := by
+      obtain ⟨_, ⟨_, _, _, _, h⟩, _⟩ := hg; exact Meta.minimal_to_spec_eq h
+    pure ⟨l, hA, hφ, hu, ha, heq, HasTy.hcomp hA hφ hu ha heq⟩
 
 end KubusCore.Kernel

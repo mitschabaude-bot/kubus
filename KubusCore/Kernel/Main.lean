@@ -304,6 +304,7 @@ def SigInfo.next (R : Rec S) (si : SigInfo S) : K S (Option (SigInfo S)) :=
     -- inductive types are not supported by the kernel yet: a placeholder level, never used
     pure (some
       { lv := si.lv ++ [0]
+        wf := si.wf
         closed := by
           intro k t A' hk hlt
           simp only [List.length_append, List.length_singleton] at hlt
@@ -323,6 +324,7 @@ def SigInfo.next (R : Rec S) (si : SigInfo S) : K S (Option (SigInfo S)) :=
       let ⟨l, ⟨hA⟩⟩ ← inferType R (KCtx.root si) A
       pure (some
         { lv := si.lv ++ [l]
+          wf := si.wf
           closed := by
             intro k t A' hk hlt
             simp only [List.length_append, List.length_singleton] at hlt
@@ -355,9 +357,10 @@ def SigInfo.build (R : Rec S) : Nat → SigInfo S → K S (SigInfo S)
     | some si' => SigInfo.build R n si'
 
 /-- The kernel and the empty context for the signature `S`. -/
-def setup (S : Sig) (fuel : Nat := defaultFuel) : K S (Rec S × KCtx S 0 .one []) := do
+def setup (S : Sig) (fuel : Nat := defaultFuel) (wf : Option (PLift (WfSig S)) := none) :
+    K S (Rec S × KCtx S 0 .one []) := do
   let R := rec S fuel
-  let si ← SigInfo.build R S.length (SigInfo.empty S)
+  let si ← SigInfo.build R S.length { SigInfo.empty S with wf }
   pure (R, KCtx.root si)
 
 /-- Lift the result of a pure computation. -/
@@ -380,10 +383,10 @@ def checkEntryK (S : Sig) (R : Rec S) (E : KCtx S 0 .one []) (t A : Tm) :
   else fail "kernel: the definition is not closed"
 
 /-- Check one definition `(t, A)` against the signature `S`. -/
-def checkEntry (S : Sig) (t A : Tm) (fuel : Nat := defaultFuel) :
+def checkEntry (S : Sig) (t A : Tm) (fuel : Nat := defaultFuel) (wf : Option (PLift (WfSig S)) := none) :
     Except String (PLift (t.closedB 0 0 = true ∧ A.closedB 0 0 = true ∧
       (∃ l, HasTy S 0 .one [] A (.univ l)) ∧ HasTy S 0 .one [] t A)) := runK do
-  let (R, E) ← setup S fuel
+  let (R, E) ← setup S fuel wf
   checkEntryK S R E t A
 
 theorem wfSig_append {S : Sig} {t A : Tm} (hS : WfSig S)
@@ -685,7 +688,7 @@ def CheckedSig.empty : CheckedSig := ⟨[], fun k _ _ h => by simp at h, fun k _
 /-- Check one more definition. -/
 def CheckedSig.extend (C : CheckedSig) (t A : Tm) (fuel : Nat := defaultFuel) :
     Except String CheckedSig := do
-  let ⟨h⟩ ← checkEntry C.sig t A fuel
+  let ⟨h⟩ ← checkEntry C.sig t A fuel (some ⟨C.wf⟩)
   pure ⟨C.sig ++ [.defn t A], wfSig_append C.wf h⟩
 
 /-- Check one more inductive type. -/
@@ -698,7 +701,7 @@ def CheckedSig.extendData (C : CheckedSig) (D : DataDecl) (fuel : Nat := default
 def checkSigAux (pre : Sig) (hpre : WfSig pre) : (rest : Sig) → Except String (PLift (WfSig (pre ++ rest)))
   | [] => pure ⟨by simpa using hpre⟩
   | .defn t A :: rest => do
-    let ⟨h⟩ ← checkEntry pre t A
+    let ⟨h⟩ ← checkEntry pre t A defaultFuel (some ⟨hpre⟩)
     let ⟨h'⟩ ← checkSigAux (pre ++ [.defn t A]) (wfSig_append hpre h) rest
     pure ⟨by simpa using h'⟩
   | .data D :: rest => do

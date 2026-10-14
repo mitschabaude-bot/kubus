@@ -121,11 +121,11 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
 (`hcompCon`): reduce the base to a constructor, and the tube (under `φ`) to the same
 constructor. -/
 def hcompDataK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps : Tm) (φ : I) (u a T : Tm)
-    (lT : Nat) (hT : HasTy S Ψ Φ Γ T (.univ lT)) :
+    (lT : Nat) (hT : HasTy S Ψ Φ Γ T (.univ lT)) (ht : HasTy S Ψ Φ Γ (.hcomp (.data d ps) φ u a) T) :
     K S (Option (Red S Ψ Φ Γ (.hcomp (.data d ps) φ u a) T)) := do
   let ⟨D, ⟨hS⟩⟩ ← lookupData S d
   if hH : D.isHIT = false then
-    let i ← inferHcomp R E (.data d ps) φ u a
+    let i ← hcompInfoOf R E ht
     -- the base, reduced
     let r ← R.whnf E a (.data d ps) i.l i.hA i.ha
     match hr : r.tm with
@@ -178,7 +178,7 @@ def hcompRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u 
     pure (some ⟨Tm.hcompGlue A ψ T' e φ u a, EqTm.hcompGlue ht hA he⟩)
   | .ipi A, ht => pure (some ⟨Tm.hcompIPi A φ u a, EqTm.hcompIPi ht⟩)
   | .univ _, ht => pure (some ⟨Tm.hcompU φ u a, EqTm.hcompU ht⟩)
-  | .data d ps, _ => hcompDataK R E d ps φ u a T lT hT
+  | .data d ps, ht => hcompDataK R E d ps φ u a T lT hT ht
   | _, _ => pure none
 
 /-- Transport in an inductive type with parameters computes on constructors and formal
@@ -246,7 +246,7 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
   let r ← whnfTy R E B l1 hB
   if r.tm = B then
     return (← hcompRule R E B φ u a A l hA ht).map (·, false)
-  let i ← inferHcomp R E B φ u a
+  let i ← hcompInfoOf R E ht
   let m := max l1 i.l
   let ⟨hm⟩ ← ensureLvl m
   have eB : EqTm S Ψ Φ Γ B r.tm (.univ m) := r.eq.liftLe (Nat.le_max_left _ _) hm

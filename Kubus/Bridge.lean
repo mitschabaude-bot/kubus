@@ -675,7 +675,7 @@ def translate (env : Env) (R : Rec S) (E : KCtx S 0 .one []) (ty body : Kubus.Tm
 failed translation; the outer one a rejection by the kernel. -/
 def translateCheck (env : Env) (C : CheckedSig) (ty body : Kubus.Tm) (verbose : Bool := false) :
     Except String (Except String (KTm × KTm × CheckedSig)) := runK do
-  let (R, E) ← setup C.sig
+  let (R, E) ← setup C.sig defaultFuel (some ⟨C.wf⟩)
   match ← tryCatch (Except.ok <$> translate env R E ty body) (fun e => pure (.error e)) with
   | .error e => return .error e
   | .ok (kty, kbody) =>
