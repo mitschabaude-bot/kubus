@@ -395,10 +395,19 @@ theorem VEq.pathCong' {L L' a a' b b' : Tm} {l : ℕ} (hL : VEq S (Ψ + 1) Φ.sh
   have e := EqTm0.path hL.eq ha.eq hb.eq
   exact ⟨e, valid_path hW hL.v ha.v hb.v (presup hW e).1 (presup hW e).2 e⟩
 
+theorem VEq.fstBeta' {a b T : Tm} (h : VTy S Ψ Φ Γ (.fst (.pair a b)) T) : VEq S Ψ Φ Γ (.fst (.pair a b)) a T := by
+  have e := EqTm0.fstBeta h.ty
+  exact ⟨e, valid_fstBeta hW h.v h.ty (presup hW e).2⟩
+
+theorem VEq.glueElFace' {e t a G : Tm} {φ : I} (hφ0 : I.Entails Φ φ) (h : VTy S Ψ Φ Γ (.glueEl φ e t a) G) :
+    VEq S Ψ Φ Γ (.glueEl φ e t a) t G := by
+  have e' := EqTm0.glueElFace hφ0 h.ty
+  exact ⟨e', valid_glueElFace hW hφ0 h.v h.ty (presup hW e').2⟩
+
 /-! ### The premises of the Glue transport -/
 
 structure VTG (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (δ : I)
-    (l : ℕ) : Prop where
+    (l l' : ℕ) : Prop where
   hKH : KHAll S
   hKT : KTAll S
   hA : VTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l)
@@ -408,13 +417,14 @@ structure VTG (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (T e : 
   hψ : ψ.Scoped Ψ
   hδ : δ.Scoped Ψ
   hδφ : I.Entails δ φ.forall0
-  hconst : VEq S (Ψ + 1) (cof Φ ψ).shift Γ.dshift (.glue A φ T e) ((Tm.glue A φ T e).dinst .zero).dshift (.univ l)
+  hGl : VTy S (Ψ + 1) Φ.shift Γ.dshift (.glue A φ T e) (.univ l')
+  hconst : VEq S (Ψ + 1) (cof Φ ψ).shift Γ.dshift (.glue A φ T e) ((Tm.glue A φ T e).dinst .zero).dshift (.univ l')
   hu0 : VTy S Ψ Φ Γ u0 ((Tm.glue A φ T e).dinst .zero)
 
 namespace VTG
 
-variable {A : Tm} {φ : I} {T e : Tm} {ψ : I} {u0 : Tm} {δ : I} {l : ℕ}
-  (H : VTG S Ψ Φ Γ A φ T e ψ u0 δ l)
+variable {A : Tm} {φ : I} {T e : Tm} {ψ : I} {u0 : Tm} {δ : I} {l l' : ℕ}
+  (H : VTG S Ψ Φ Γ A φ T e ψ u0 δ l l')
 include H
 
 theorem hS : SigClosed S := sigClosed_of_wfSig hW
@@ -476,15 +486,16 @@ theorem hZφ : I.Entails (cof Φ δ).shift φ :=
   ent_trans (ent_shift (ent_and_right Φ δ)) (ent_forall_shift H.hδφ)
 theorem hZs1 : (cof Φ δ).shift.Scoped (Ψ + 1) := KubusCore.I.scoped_shift (H.hZs hW)
 
-theorem hGT : VEq S (Ψ + 1) (cof Φ δ).shift Γ.dshift (.glue A φ T e) T (.univ l) :=
-  VEq.glueFace' hW (H.hZφ hW) (VTy.restrict' hW (H.hZs1 hW) (ent_shift (H.hZΦ hW)) (H.hG hW))
+theorem hGT : VEq S (Ψ + 1) (cof Φ δ).shift Γ.dshift (.glue A φ T e) T (.univ l') :=
+  VEq.glueFace' hW (H.hZφ hW) (VTy.restrict' hW (H.hZs1 hW) (ent_shift (H.hZΦ hW)) H.hGl)
 
 theorem hGTr {r : I} (hr : r.Scoped Ψ) :
-    VEq S Ψ (cof Φ δ) Γ ((Tm.glue A φ T e).dinst r) (T.dinst r) (.univ l) :=
-  VEq.glueFace' hW (H.hZφr hW r) (VTy.restrict' hW (H.hZs hW) (H.hZΦ hW) (H.hGr hW hr))
+    VEq S Ψ (cof Φ δ) Γ ((Tm.glue A φ T e).dinst r) (T.dinst r) (.univ l') := by
+  have hG : VTy S Ψ Φ Γ (.glue (A.dinst r) (φ.subst (I.inst0 r)) (T.dinst r) (e.dinst r)) (.univ l') :=
+    VTy.dsubst' hW r hr H.hGl
+  exact VEq.glueFace' hW (H.hZφr hW r) (VTy.restrict' hW (H.hZs hW) (H.hZΦ hW) hG)
 
-theorem hTZ : VTy S (Ψ + 1) (cof Φ δ).shift Γ.dshift T (.univ l) :=
-  VTy.restrict' hW (H.hZs1 hW) (ent_and_intro (ent_shift (H.hZΦ hW)) (H.hZφ hW)) H.hT
+theorem hTZ : VTy S (Ψ + 1) (cof Φ δ).shift Γ.dshift T (.univ l') := VEq.rty' hW (H.hGT hW)
 
 theorem heZ : VTy S (Ψ + 1) (cof Φ δ).shift Γ.dshift e (Tm.equiv T A) :=
   VTy.restrict' hW (H.hZs1 hW) (ent_and_intro (ent_shift (H.hZΦ hW)) (H.hZφ hW)) H.he
@@ -494,7 +505,7 @@ theorem hZψs1 : (cof (cof Φ δ) ψ).shift.Scoped (Ψ + 1) := KubusCore.I.scope
 theorem hZψΦψ : I.Entails (cof (cof Φ δ) ψ) (cof Φ ψ) := ent_and_mono (H.hZΦ hW) (ent_refl _)
 theorem hZψZ : I.Entails (cof (cof Φ δ) ψ) (cof Φ δ) := ent_and_left _ _
 
-theorem hconstT : VEq S (Ψ + 1) (cof (cof Φ δ) ψ).shift Γ.dshift T (T.dinst .zero).dshift (.univ l) := by
+theorem hconstT : VEq S (Ψ + 1) (cof (cof Φ δ) ψ).shift Γ.dshift T (T.dinst .zero).dshift (.univ l') := by
   have e1 := VEq.restrict' hW (H.hZψs1 hW) (ent_shift (H.hZψZ hW)) (H.hGT hW)
   have e2 := VEq.restrict' hW (H.hZψs1 hW) (ent_shift (H.hZψΦψ hW)) H.hconst
   have e3 := VEq.restrict' hW (H.hZψs1 hW) (ent_shift (H.hZψZ hW)) (VEq.dwk' hW (H.hGTr hW (r := .zero) trivial))
@@ -898,7 +909,7 @@ theorem hpd : VTy S Ψ (cof (cof Φ (φ.subst (I.inst0 .one))) δ) Γ
   exact VTy.pair' hW hf (VTy.restrict' hW (H.hWδs hW) (H.hWδZ hW) (H.ht1 hW))
     (by rw [P_inst]; exact VTy.restrict' hW (H.hWδs hW) (H.hWδZ hW) (H.hω hW))
 
-theorem hGψ1 : VEq S Ψ (cof Φ ψ) Γ ((Tm.glue A φ T e).dinst .one) ((Tm.glue A φ T e).dinst .zero) (.univ l) := by
+theorem hGψ1 : VEq S Ψ (cof Φ ψ) Γ ((Tm.glue A φ T e).dinst .one) ((Tm.glue A φ T e).dinst .zero) (.univ l') := by
   have := VEq.dsubst' hW .one trivial H.hconst
   rwa [dshift_dinst] at this
 
@@ -1203,6 +1214,85 @@ theorem typed : VTy S Ψ Φ Γ (Tm.transpGlueWith δ A φ T e ψ u0) ((Tm.glue A
   rw [transpGlueWith_eq, glue_dinst]
   exact VTy.glueEl' hW (H.hφr hW (r := .one) trivial) (H.hGr hW (r := .one) trivial) (H.he1 hW) (H.hfext hW)
     (H.ha1 hW) (H.hglueSide hW)
+
+/-! #### The contractum where the faces hold -/
+
+/-- Where `ψ` holds, the contractum is `u0` (Glue η and the faces of its components). -/
+theorem faceψ : VEq S Ψ (cof Φ ψ) Γ u0 (Tm.transpGlueWith δ A φ T e ψ u0) ((Tm.glue A φ T e).dinst .one) := by
+  have hZs : (cof Φ ψ).Scoped Ψ := ⟨H.hs hW, H.hψ⟩
+  have hφ1 : (φ.subst (I.inst0 .one)).Scoped Ψ := H.hφr hW (r := .one) trivial
+  have hu0G : VTy S Ψ (cof Φ ψ) Γ u0 (.glue (A.dinst .one) (φ.subst (I.inst0 .one)) (T.dinst .one) (e.dinst .one)) :=
+    VTy.conv' hW (VTy.restrict' hW hZs (ent_and_left _ _) H.hu0) (VEq.symm' hW (H.hGψ1 hW))
+  have hG1Z := VTy.restrict' hW hZs (ent_and_left _ _) (H.hGr hW (r := .one) trivial)
+  have hFs : (cof (cof Φ ψ) (φ.subst (I.inst0 .one))).Scoped Ψ := ⟨hZs, hφ1⟩
+  have hFW : I.Entails (cof (cof Φ ψ) (φ.subst (I.inst0 .one))) (cof Φ (φ.subst (I.inst0 .one))) :=
+    ent_and_mono (ent_and_left _ _) (ent_refl _)
+  have he1Z := H.he1W hW hFs hFW
+  have hη := VEq.glueEta' hW hφ1 hG1Z he1Z hu0G
+  -- the fibre component
+  have hFψ : I.Entails (cof (cof Φ ψ) (φ.subst (I.inst0 .one))) (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) :=
+    ent_and_intro hFW (ent_trans (ent_and_left _ _) (ent_and_right _ _))
+  have hextψ := VEq.restrict' hW hFs hFψ (H.hextψ hW)
+  rw [tgFib_eq] at hextψ
+  have hfe := VEq.fst' hW hextψ
+  have hfb := VEq.fstBeta' hW (VEq.rty' hW hfe)
+  have ht := VEq.symm' hW (VEq.trans' hW hfe hfb)
+  -- the base component
+  have hcU := VEq.compFace' hW (VTy.restrict' hW hZs (ent_and_left _ _) (H.ha1' hW)) (ent_and_right _ _)
+  rw [tgTube_dinst] at hcU
+  have ha1Z := VTy.restrict' hW hZs (ent_and_left _ _) (H.ha1 hW)
+  rw [tgA1_eq] at ha1Z
+  have hZχ : I.Entails (cof Φ ψ) (.or (φ.subst (I.inst0 .one)) ψ) := ent_trans (ent_and_right _ _) (ent_or_right _ _)
+  have b1 := VEq.hcompFace' hW hZχ ha1Z
+  rw [asys_dinst] at b1
+  have hs1 := VTy.dsubst' hW (Φ := cof Φ (.or (φ.subst (I.inst0 .one)) ψ)) .one trivial (H.hasys hW)
+  rw [dshift_dinst] at hs1
+  have hs1Z := VTy.restrict' hW hZs (ent_and_intro (ent_and_left _ _) hZχ) hs1
+  rw [asys_dinst] at hs1Z
+  have hWs : (cof (cof (cof Φ ψ) (φ.subst (I.inst0 .one))) ψ).Scoped Ψ := ⟨hFs, H.hψ⟩
+  have hWe : I.Entails (cof (cof (cof Φ ψ) (φ.subst (I.inst0 .one))) ψ) (cof (cof Φ (φ.subst (I.inst0 .one))) ψ) :=
+    ent_trans (ent_and_left _ _) hFψ
+  have hsx := VEq.papp' hW (VEq.restrict' hW hWs hWe (H.hsextψ hW)) (r := .neg .one) (r' := .neg .one) trivial trivial
+    (I_eq_refl _)
+  rw [dshift_dinst] at hsx
+  have hpb := VEq.pathBeta' hW (VEq.rty' hW hsx)
+  rw [dshift_dinst] at hpb
+  have b2 := VEq.splitR' hW hφ1 H.hψ (ent_and_right _ _) hs1Z
+    (VTy.restrict' hW ⟨hZs, H.hψ⟩ (ent_and_left _ _) (VTy.restrict' hW hZs (ent_and_left _ _) (H.ha1' hW)))
+    (VEq.trans' hW hsx hpb)
+  have ha := VEq.symm' hW (VEq.trans' hW b1 (VEq.trans' hW b2 hcU))
+  have hy := VTy.restrict' hW hZs (ent_and_left _ _) (H.typed hW)
+  rw [transpGlueWith_eq, glue_dinst] at hy ⊢
+  have hcong := VEq.glueEl' hW hφ1 hG1Z he1Z (VEq.rty' hW hη) hy ht ha
+  exact VEq.trans' hW hη hcong
+
+/-- Where `δ` holds, the contractum is the transport in `T`. -/
+theorem faceδ : VEq S Ψ (cof Φ δ) Γ (tgT1 T ψ u0) (Tm.transpGlueWith δ A φ T e ψ u0) ((Tm.glue A φ T e).dinst .one) := by
+  have hφ1 : (φ.subst (I.inst0 .one)).Scoped Ψ := H.hφr hW (r := .one) trivial
+  have hDφ1 : I.Entails (cof Φ δ) (φ.subst (I.inst0 .one)) := H.hZφr hW .one
+  have hDW : I.Entails (cof Φ δ) (cof Φ (φ.subst (I.inst0 .one))) := ent_and_intro (ent_and_left _ _) hDφ1
+  have hy := VTy.restrict' hW (H.hZs hW) (ent_and_left _ _) (H.typed hW)
+  rw [transpGlueWith_eq, glue_dinst] at hy
+  have g1 := VEq.glueElFace' hW hDφ1 hy
+  have hextD := VTy.restrict' hW (H.hZs hW) hDW (H.hext hW)
+  rw [tgExt_eq] at hextD
+  have hDχ : I.Entails (cof Φ δ) (.or δ ψ) := ent_trans (ent_and_right _ _) (ent_or_left _ _)
+  have f1 := VEq.hcompFace' hW hDχ hextD
+  rw [psys_dinst] at f1
+  have hs1 := VTy.dsubst' hW (Φ := cof (cof Φ (φ.subst (I.inst0 .one))) (.or δ ψ)) .one trivial (H.hpsys hW)
+  rw [dshift_dinst] at hs1
+  have hs1D := VTy.restrict' hW (H.hZs hW) (ent_and_intro hDW hDχ) hs1
+  rw [psys_dinst] at hs1D
+  have f2 := VEq.splitL' hW (ent_and_right _ _) hs1D
+  have f3 := VEq.pathCOne' hW (VTy.restrict' hW (H.hZs hW) (ent_and_intro hDW (ent_and_right _ _)) (H.hPd hW))
+  have f123 := VEq.trans' hW f1 (VEq.trans' hW f2 f3)
+  rw [tgFib_eq] at f123
+  have hfe := VEq.fst' hW f123
+  have hfb := VEq.fstBeta' hW (VEq.rty' hW hfe)
+  have hG1 := VEq.glueFace' hW hDφ1 (VTy.restrict' hW (H.hZs hW) (ent_and_left _ _) (H.hGr hW (r := .one) trivial))
+  have hfst := VEq.conv' hW (VEq.trans' hW hfe hfb) (VEq.symm' hW hG1)
+  rw [transpGlueWith_eq, glue_dinst]
+  exact VEq.symm' hW (VEq.trans' hW g1 hfst)
 
 end VTG
 
