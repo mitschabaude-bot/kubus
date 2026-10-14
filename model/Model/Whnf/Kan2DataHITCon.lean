@@ -47,7 +47,7 @@ theorem ieq_of_forall2 {rs rs' : List I} (h : List.Forall₂ I.Eq rs rs') :
 abbrev rsSub (rs : List I) : ℕ → I := fun i => rs.reverse.getD i (.var i)
 
 theorem rsSub_ieq {rs rs' : List I} (h : List.Forall₂ I.Eq rs rs') (i : ℕ) : I.Eq (rsSub rs i) (rsSub rs' i) :=
-  ieqL_getD (ieqL_reverse h) _ i
+  ieqL_getD (ieqL_reverse (ieqL_iff.2 h)) _ i
 
 /-- The interval arguments of a nested constructor, at related interval arguments. -/
 theorem forall2_map_subst (rs0 : List I) {rs rs' : List I} (h : List.Forall₂ I.Eq rs rs') :
@@ -74,7 +74,7 @@ theorem forall2_ieq_symm {rs rs' : List I} (h : List.Forall₂ I.Eq rs rs') : Li
 
 /-- The first boundary that holds is not affected by `I.Eq`-equal interval arguments. -/
 theorem firstBnd_eq {bnd : List (I × Tm)} {rs rs' : List I} (h : List.Forall₂ I.Eq rs rs') :
-    firstBnd bnd rs = firstBnd bnd rs' := firstBnd_near bnd h
+    firstBnd bnd rs = firstBnd bnd rs' := firstBnd_near bnd (ieqL_iff.2 h)
 
 theorem firstBnd_none {bnd : List (I × Tm)} {rs : List I} (h : firstBnd bnd rs = none) {kb : ℕ} {ψ : I} {b : Tm}
     (hb : bnd[kb]? = some (ψ, b)) : ¬ I.Entails .one (Ctor.cofAt ψ rs) := by

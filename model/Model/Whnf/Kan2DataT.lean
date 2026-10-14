@@ -1,11 +1,12 @@
 import Model.Whnf.Kan2DataTInd
 
 /-!
-# Transport along related lines whose normal forms are inductive types without path constructors
+# Transport along related lines whose normal forms are inductive types with parameters
 
 At every restriction, transport along a line reduces its line to its normal form `data d P1` (a literal
-line), where `kanT2_lit` applies; the restricted lines are robustly related through the normal forms
-of the restrictions of the lines (`kanT2_data`).
+line), where transport along literal lines applies (`kanT2_lit`, `kanT2_litH`, given as `hlit`); the
+restricted lines are robustly related through the normal forms of the restrictions of the lines
+(`kanT2_data`).
 -/
 
 set_option autoImplicit false
@@ -21,13 +22,14 @@ attribute [local instance] Classical.propDecidable
 variable {S : Sig} {k k' k'' : ℕ}
 
 section gen
-variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
-  (hp : D.params ≠ [])
-include hW hD hH hp
+variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hp : D.params ≠ [])
+  (hlit : ∀ {K : ℕ} {P Q : Tm}, HasTy S (K + 1) .one [] (.data d P) (.univ D.level) →
+    KanShape S (K + 1) (ΘK S D d (K + 1) P) → Rob S d K P P → Rob S d K P Q → KanT2 S K (.data d P) (.data d Q))
+include hW hD hp hlit
 
-/-- Transport along related lines whose normal forms are an inductive type without path constructors
-(with parameters). The Kan properties of the argument types are required at the literal lines related
-to the restrictions of `T`. -/
+/-- Transport along related lines whose normal forms are an inductive type with parameters, given
+transport along its literal lines. The Kan properties of the argument types are required at the
+literal lines related to the restrictions of `T`. -/
 theorem kanT2_data {T T' ps : Tm} (hTT : RT2 S (k + 1) T T') (hR : RedT S (k + 1) T (.data d ps))
     (hK : ∀ k1 (θ : ISub (k1 + 1) (k + 1)) P1, HasTy S (k1 + 1) .one [] (.data d P1) (.univ D.level) →
       RT2 S (k1 + 1) (.data d P1) (T.isub θ) →
@@ -175,7 +177,7 @@ theorem kanT2_data {T T' ps : Tm} (hTT : RT2 S (k + 1) T T') (hR : RedT S (k + 1
   have hP := HasTy.isubS hW (data_whnf_ty hW hD (hTK κ.up) (hw (k4 + 1) κ.up).1) κ'.up
   have hPT : RT2 S (k5 + 1) (.data d ((P1 (k4 + 1) κ.up).isub κ'.up)) (T.isub (κ.comp κ').up) := by
     have := NP (k4 + 1) κ.up (k5 + 1) κ'.up; rwa [← ISub.up_comp] at this
-  have K := kanT2_lit hW hD hH hp hP (hK k5 (κ.comp κ').up _ hP hPT) (RobPP κ κ') (RobPQ κ κ')
+  have K := hlit hP (hK k5 (κ.comp κ').up _ hP hPT) (RobPP κ κ') (RobPQ κ κ')
   have hPc : (Tm.data d ((P1 (k4 + 1) κ.up).isub κ'.up)).closedB 0 (k5 + 1) = true := closed_of_ty hW hP
   have eP : ∀ (r : I) (hr : r.Scoped k5),
       RT2 S k5 ((Tm.data d ((P1 (k4 + 1) κ.up).isub κ'.up)).dinst r) (T.isub (ISub.cons r hr (κ.comp κ'))) := by
@@ -222,19 +224,6 @@ theorem kanT2_data {T T' ps : Tm} (hTT : RT2 S (k + 1) T T') (hR : RedT S (k + 1
   exact RE2.conv hW (eP .one trivial) r
 
 end gen
-
-/-- Transport along related lines whose normal forms are an inductive type without path constructors, or
-without parameters. -/
-theorem kanT2_data' (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
-    (hHp : D.isHIT = false ∨ D.params = []) {T T' ps : Tm} (hTT : RT2 S (k + 1) T T')
-    (hR : RedT S (k + 1) T (.data d ps))
-    (hK : ∀ k1 (θ : ISub (k1 + 1) (k + 1)) P1, HasTy S (k1 + 1) .one [] (.data d P1) (.univ D.level) →
-      RT2 S (k1 + 1) (.data d P1) (T.isub θ) →
-      KanShape S (k1 + 1) (ΘK S D d (k1 + 1) P1)) :
-    KanT2 S k T T' := by
-  by_cases h0 : D.params = []
-  · exact kanT2_data0 hW hD h0 hTT hR
-  · exact kanT2_data hW hD (hHp.resolve_right h0) h0 hTT hR hK
 
 end
 
