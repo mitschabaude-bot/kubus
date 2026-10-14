@@ -513,6 +513,84 @@ theorem recKs {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) {k3 : 
   exact HC2.self H.hW hQQ (EqTm.refl hQT) e' (H.recU0 hj hrj τ) h
 
 
+/-- The fillers and the composite of a recursive argument: typing and judgmental equality. -/
+theorem recFill {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) :
+    HasTy S (k1 + 1) .one [] ((conFills d D c C (Q.isub ρ) φ u X).getD j .abort) (Tm.data d (Q.isub ρ)).dshift ∧
+    HasTy S (k1 + 1) .one [] ((conFills d D c C (Q'.isub ρ) φ' u' X').getD j .abort) (Tm.data d (Q.isub ρ)).dshift ∧
+    EqTm S (k1 + 1) .one [] ((conFills d D c C (Q.isub ρ) φ u X).getD j .abort)
+      ((conFills d D c C (Q'.isub ρ) φ' u' X').getD j .abort) (Tm.data d (Q.isub ρ)).dshift ∧
+    HasTy S k1 .one [] (.hcomp (.data d (Q.isub ρ)) φ ((tubeArgs d D c C (Q.isub ρ) u).getD j .abort) (X.getD j .abort))
+      (.data d (Q.isub ρ)) ∧
+    EqTm S (k1 + 1) (cof .one φ).shift [] ((tubeArgs d D c C (Q.isub ρ) u).getD j .abort)
+      ((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort) (Tm.data d (Q.isub ρ)).dshift := by
+  have hS := sigClosed_of_wfSig H.hW
+  have B := H.basic
+  obtain ⟨⟨G1, -, -, G4⟩, ⟨G1', -, -, G4'⟩⟩ := H.prem
+  have hXl := H.hXl
+  have hXl' := H.hXl'
+  have hdq1 : HasTy0 S (k1 + 1) .one [] (.data d (Q.isub ρ).dshift) (.univ D.level) :=
+    HasTy0.dwk hS (Φ := .one) (Γ := []) (spec_to_minimal H.hW B.hqT)
+  have H1 := PD.of H.hW H.hD H.hH hdq1
+  have hdq1' : HasTy0 S (k1 + 1) .one [] (.data d (Q'.isub ρ).dshift) (.univ D.level) :=
+    HasTy0.dwk hS (Φ := .one) (Γ := []) (spec_to_minimal H.hW B.hq'T)
+  have H1' := PD.of H.hW H.hD H.hH hdq1'
+  have Hq := PD.of H.hW H.hD H.hH (spec_to_minimal H.hW B.hqT)
+  have Hq' := PD.of H.hW H.hD H.hH (spec_to_minimal H.hW B.hq'T)
+  -- left
+  have hu : HasTy0 S (k1 + 1) (cof .one φ).shift [] ((tubeArgs d D c C (Q.isub ρ) u).getD j .abort)
+      (Tm.data d (Q.isub ρ)).dshift := by
+    have := tele_getD G1 (by simp [tubeArgs]; exact hj) (argTys_get hj)
+    rwa [argTy_rec_inst hrj H1.hpsL H1.hpl (by simp [tubeArgs]; omega)] at this
+  have hu0 : HasTy0 S k1 .one [] (X.getD j .abort) (.data d (Q.isub ρ)) := by
+    have := tele_getD B.hXq (by omega) (argTys_get hj)
+    rwa [argTy_rec_inst hrj Hq.hpsL Hq.hpl (by simp; omega)] at this
+  have hside : EqTm0 S k1 (cof .one φ) [] (((tubeArgs d D c C (Q.isub ρ) u).getD j .abort).dinst .zero)
+      (X.getD j .abort) (.data d (Q.isub ρ)) := by
+    have := G4 j (by omega)
+    rw [argTy_rec_inst hrj Hq.hpsL Hq.hpl (by simp; omega), ← getD_eq_get (by omega)] at this
+    rwa [H.tubeArgs_getD hj]
+  -- right
+  have hu' : HasTy0 S (k1 + 1) (cof .one φ').shift [] ((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort)
+      (Tm.data d (Q'.isub ρ)).dshift := by
+    have := tele_getD G1' (by simp [tubeArgs]; exact hj) (argTys_get hj)
+    rwa [argTy_rec_inst hrj H1'.hpsL H1'.hpl (by simp [tubeArgs]; omega)] at this
+  have hu0' : HasTy0 S k1 .one [] (X'.getD j .abort) (.data d (Q'.isub ρ)) := by
+    have := tele_getD B.hXq' (by omega) (argTys_get hj)
+    rwa [argTy_rec_inst hrj Hq'.hpsL Hq'.hpl (by simp; omega)] at this
+  have hside' : EqTm0 S k1 (cof .one φ') [] (((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort).dinst .zero)
+      (X'.getD j .abort) (.data d (Q'.isub ρ)) := by
+    have := G4' j (by omega)
+    rw [argTy_rec_inst hrj Hq'.hpsL Hq'.hpl (by simp; omega), ← getD_eq_get (by omega)] at this
+    rwa [H.tubeArgs_getD hj]
+  have hA := spec_to_minimal H.hW B.hqT
+  have hA' := spec_to_minimal H.hW B.hq'T
+  have hF := (hfill_typed hS hA B.hφs hu hu0 hside).1
+  have hF' := (hfill_typed hS hA' B.hφs' hu' hu0' hside').1
+  -- the types
+  have eQ'Q : TyEq S k1 (.data d (Q'.isub ρ)) (.data d (Q.isub ρ)) :=
+    (Comp2_ty_base (RT2.trans H.hW (RT2.tyCode_r H.hW B.hPQ' (tyCode_of_univ H.hW B.hpT))
+      (RT2.symm H.hW (tyCode_of_univ H.hW B.hpT) B.hPQ') B.hPQ)).2.2.2.2.2
+  obtain ⟨l1, e1⟩ := tyEq_eq H.hW eQ'Q ⟨_, B.hqT⟩
+  have e10 := spec_to_minimal_eq H.hW e1
+  have hF'L : HasTy0 S (k1 + 1) .one [] (Tm.hfill (.data d (Q'.isub ρ)) φ' ((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort)
+      (X'.getD j .abort)) (Tm.data d (Q.isub ρ)).dshift :=
+    HasTy0.conv hF' (EqTm0.dwk hS (Φ := .one) (Γ := []) e10)
+  have huu : EqTm0 S (k1 + 1) (cof .one φ).shift [] ((tubeArgs d D c C (Q.isub ρ) u).getD j .abort)
+      ((tubeArgs d D c C (Q'.isub ρ) u').getD j .abort) (Tm.data d (Q.isub ρ)).dshift := by
+    have := H.euu j hj
+    rwa [argTy_rec_inst hrj H1.hpsL H1.hpl (by simp [tubeArgs]; omega)] at this
+  have hv0 : EqTm0 S k1 .one [] (X.getD j .abort) (X'.getD j .abort) (.data d (Q.isub ρ)) := by
+    have := (RE2.typed (H.recU0 hj hrj (ISub.id k1))).2.2
+    rw [H.eQσ, ISub.comp_id, isub_id_of_closed (H.X_closed hj)] at this
+    have hX' : (X'.getD j .abort).closedB 0 k1 = true := closed_ty hu0'
+    rw [isub_id_of_closed hX'] at this
+    exact spec_to_minimal_eq H.hW this
+  have eF := hfill_cong H.hW hF hF'L (.inr ⟨_, EqTm0.symm e10⟩) huu hv0 H.h12 H.h21
+  rw [fills_get_rec _ _ _ _ hj hrj, fills_get_rec _ _ _ _ hj hrj]
+  exact ⟨minimal_to_spec hF, minimal_to_spec hF'L, minimal_to_spec_eq eF,
+    minimal_to_spec (HasTy0.hcomp hA B.hφs hu hu0 hside), minimal_to_spec_eq huu⟩
+
+
 end HCC
 
 end
