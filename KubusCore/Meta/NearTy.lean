@@ -1,22 +1,181 @@
-import Model.Whnf.Near
-import Model.Whnf.EquivCongr
+import KubusCore.Meta.Final
+import KubusCore.Meta.Near
 
 /-!
-# Near typed terms are judgmentally equal
+# Metatheory: near typed terms are judgmentally equal
 
-`near_ty`: if `t` is typed and `t'` is near `t` (`TmNear`: the same shape, interval points equal as
-elements of the De Morgan algebra, faces mutually entailing) and has its interval variables in scope,
-then `t ≡ t'`. By induction on the typing derivation, using the congruence rules; the right side's
-typing is rebuilt from its components.
+`near_ty`: if `t` is typed and `t'` is near `t` (`TmNear`: the same shape, interval terms equal in
+the free De Morgan algebra, cofibrations mutually entailing) and has its interval variables in
+scope, then `t ≡ t'` (so `t'` is typed). By induction on the typing derivation, using the
+congruence rules; the near side's typing is rebuilt from its components.
 -/
-
-set_option autoImplicit false
 
 namespace KubusCore.Meta
 
-open Tm Model.Whnf
+open Tm
 
 variable {S : Sig}
+
+theorem lookup_lt' : ∀ {Γ : Ctx} {x : Nat} {A : Tm}, Γ.lookup x = some A → x < Γ.length
+  | [], _, _, h => by simp [Ctx.lookup] at h
+  | _ :: _, 0, _, _ => by simp
+  | _ :: Γ, x + 1, A, h => by
+    simp only [Ctx.lookup, Option.map_eq_some_iff] at h
+    obtain ⟨B, hB, -⟩ := h
+    have := lookup_lt' hB; simp; omega
+
+theorem closedB_ofList' {n m : Nat} : ∀ {L : List Tm}, (∀ t ∈ L, t.closedB n m = true) → (Tm.ofList L).closedB n m = true
+  | [], _ => rfl
+  | t :: L, h => by
+    simp only [Tm.ofList, Tm.closedB, Bool.and_eq_true]
+    exact ⟨h t (List.mem_cons_self ..), closedB_ofList' fun t' ht' => h t' (List.mem_cons_of_mem _ ht')⟩
+
+theorem scopedB_of' {r : I} {m : Nat} (h : r.Scoped m) : r.scopedB m = true := (I.scopedB_iff m r).2 h
+
+
+mutual
+
+theorem ty_closedB {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → t.closedB Γ.length Ψ = true
+  | @HasTy0.var _ Ψ Φ Γ x A h0 h1 => by simp [Tm.closedB, lookup_lt' h1]
+  | @HasTy0.conv _ Ψ Φ Γ t A B l h0 h1 => ty_closedB h0
+  | @HasTy0.restrict _ Ψ Φ Φ' Γ t A h0 h1 h2 => ty_closedB h2
+  | @HasTy0.const _ Ψ Φ Γ k t A h0 h1 => rfl
+  | @HasTy0.univ _ Ψ Φ Γ l h0 h1 => rfl
+  | @HasTy0.cumul _ Ψ Φ Γ A l h0 h1 => ty_closedB h1
+  | @HasTy0.pi _ Ψ Φ Γ A B l h0 h1 => by
+    simp only [Tm.closedB, Bool.and_eq_true]; exact ⟨ty_closedB h0, by simpa using ty_closedB h1⟩
+  | @HasTy0.lam _ Ψ Φ Γ A B t l h0 h1 => by
+    have := ty_closedB h0
+    simp only [Tm.closedB, Bool.and_eq_true] at this ⊢; exact ⟨this.1, by simpa using ty_closedB h1⟩
+  | @HasTy0.app _ Ψ Φ Γ A B f a h0 h1 => by
+    simp only [Tm.closedB, Bool.and_eq_true]; exact ⟨ty_closedB h0, ty_closedB h1⟩
+  | @HasTy0.sigma _ Ψ Φ Γ A B l h0 h1 => by
+    simp only [Tm.closedB, Bool.and_eq_true]; exact ⟨ty_closedB h0, by simpa using ty_closedB h1⟩
+  | @HasTy0.pair _ Ψ Φ Γ A B a b l h0 h1 h2 => by
+    simp only [Tm.closedB, Bool.and_eq_true]; exact ⟨ty_closedB h1, ty_closedB h2⟩
+  | @HasTy0.fst _ Ψ Φ Γ A B p h0 => by simp only [Tm.closedB]; exact ty_closedB h0
+  | @HasTy0.snd _ Ψ Φ Γ A B p h0 => by simp only [Tm.closedB]; exact ty_closedB h0
+  | @HasTy0.path _ Ψ Φ Γ A a b l h0 h1 h2 => by
+    simp only [Tm.closedB, Bool.and_eq_true]
+    exact ⟨⟨by simpa [Ctx.dshift] using ty_closedB h0, ty_closedB h1⟩, ty_closedB h2⟩
+  | @HasTy0.plam _ Ψ Φ Γ A a b t l h0 h1 h2 h3 => by
+    simp only [Tm.closedB]; simpa [Ctx.dshift] using ty_closedB h1
+  | @HasTy0.papp _ Ψ Φ Γ A a b p r h0 h1 => by
+    simp only [Tm.closedB, Bool.and_eq_true]; exact ⟨ty_closedB h0, scopedB_of' h1⟩
+  | @HasTy0.ipi _ Ψ Φ Γ A l h0 h1 => by
+    simp only [Tm.closedB]; simpa [Ctx.dshift] using ty_closedB h1
+  | @HasTy0.ilam _ Ψ Φ Γ A t l h0 h1 => by
+    simp only [Tm.closedB]; simpa [Ctx.dshift] using ty_closedB h1
+  | @HasTy0.iapp _ Ψ Φ Γ A p r h0 h1 => by
+    simp only [Tm.closedB, Bool.and_eq_true]; exact ⟨ty_closedB h0, scopedB_of' h1⟩
+  | @HasTy0.split _ Ψ Φ Γ A φ ψ t u l h0 h1 h2 h3 h4 h5 h6 => by
+    simp only [Tm.closedB, Bool.and_eq_true]
+    exact ⟨⟨⟨scopedB_of' h0, ty_closedB h4⟩, scopedB_of' h1⟩, ty_closedB h5⟩
+  | @HasTy0.abort _ Ψ Φ Γ A l h0 h1 => rfl
+  | @HasTy0.transp _ Ψ Φ Γ A φ a l h0 h1 h2 h3 => by
+    simp only [Tm.closedB, Bool.and_eq_true]
+    exact ⟨⟨by simpa [Ctx.dshift] using ty_closedB h0, scopedB_of' h1⟩, ty_closedB h3⟩
+  | @HasTy0.hcomp _ Ψ Φ Γ A φ u a l h0 h1 h2 h3 h4 => by
+    simp only [Tm.closedB, Bool.and_eq_true]
+    exact ⟨⟨⟨ty_closedB h0, scopedB_of' h1⟩, by simpa [Ctx.dshift] using ty_closedB h2⟩, ty_closedB h3⟩
+  | @HasTy0.glue _ Ψ Φ Γ A φ T e l h0 h1 h2 h3 => by
+    simp only [Tm.closedB, Bool.and_eq_true]
+    exact ⟨⟨⟨ty_closedB h0, scopedB_of' h1⟩, ty_closedB h2⟩, ty_closedB h3⟩
+  | @HasTy0.glueEl _ Ψ Φ Γ A φ T e t a l h0 h1 h2 h3 h4 => by
+    have := ty_closedB h0
+    simp only [Tm.closedB, Bool.and_eq_true] at this ⊢
+    exact ⟨⟨⟨this.1.1.2, ty_closedB h1⟩, ty_closedB h2⟩, ty_closedB h3⟩
+  | @HasTy0.unglue _ Ψ Φ Γ A φ T e g l h0 h1 h2 h3 => by
+    have := ty_closedB h0
+    simp only [Tm.closedB, Bool.and_eq_true] at this ⊢
+    exact ⟨⟨this.1.1.2, ty_closedB h2⟩, ty_closedB h3⟩
+  | @HasTy0.data _ Ψ Φ Γ d D ps h0 h1 h2 => by simp only [Tm.closedB]; exact tele_closedB h2
+  | @HasTy0.con _ Ψ Φ Γ d D c C ps args rs h0 h1 h2 h3 h4 h5 h6 h7 => by
+    simp only [Tm.closedB, Bool.and_eq_true, List.all_eq_true]
+    exact ⟨⟨tele_closedB h4, tele_closedB h5⟩, fun r hr => scopedB_of' (h7 r hr)⟩
+  | @HasTy0.elim _ Ψ Φ Γ d D ps P bs t m h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => by
+    simp only [Tm.closedB, Bool.and_eq_true]
+    refine ⟨⟨⟨tele_closedB h3, by simpa using ty_closedB h4⟩, ?_⟩, ty_closedB h9⟩
+    rw [h5]
+    refine closedB_ofList' fun b hb => ?_
+    obtain ⟨c, hc, rfl⟩ := List.getElem_of_mem hb
+    obtain ⟨C, hC⟩ : ∃ C, D.ctors[c]? = some C :=
+      ⟨D.ctors[c]'(by omega), List.getElem?_eq_getElem _⟩
+    exact ty_closedB (h7 c C _ hC (List.getElem?_eq_getElem hc))
+
+theorem tele_closedB {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → ts.closedB Γ.length Ψ = true
+  | @HasTele0.nil _ Ψ Φ Γ prev h0 => rfl
+  | @HasTele0.cons _ Ψ Φ Γ a as A Δ prev h0 h1 => by
+    simp only [Tm.closedB, Bool.and_eq_true]; exact ⟨ty_closedB h0, tele_closedB h1⟩
+
+end
+
+/-! ## Congruence of the types of equivalences -/
+
+section
+variable {S : Sig} (hS : SigClosed S) (hT0 : SigTyped0 S) (hC0 : ContractaTyped S)
+include hS hT0 hC0
+
+omit hT0 hC0 in
+theorem pathC_congr0 {Ψ Φ Γ A A' a a' b b' l} (hA : EqTm0 S Ψ Φ Γ A A' (Tm.univ l)) (ha : EqTm0 S Ψ Φ Γ a a' A)
+    (hb : EqTm0 S Ψ Φ Γ b b' A) : EqTm0 S Ψ Φ Γ (Tm.pathC A a b) (Tm.pathC A' a' b') (Tm.univ l) := by
+  have hAd := EqTm0.dwk hS hA
+  exact EqTm0.path hAd (by rw [Meta.dshift_dinst]; exact ha) (by rw [Meta.dshift_dinst]; exact hb)
+
+theorem isContr_congr0 {Ψ Φ Γ X X' l} (hX : EqTm0 S Ψ Φ Γ X X' (Tm.univ l)) :
+    EqTm0 S Ψ Φ Γ (Tm.isContr X) (Tm.isContr X') (Tm.univ l) := by
+  have hXt := (pre_eq hS hT0 hC0 hX).1
+  have hX1t := HasTy0.wk hS hXt hXt
+  have hX1 := EqTm0.wk hS hXt hX
+  have hX2 := EqTm0.wk hS hX1t hX1
+  have hv1 : HasTy0 S Ψ Φ (X.shift :: X :: Γ) (Tm.var 1) X.shift.shift := HasTy0.var (Wf0.cons hX1t) rfl
+  have hv0 : HasTy0 S Ψ Φ (X.shift :: X :: Γ) (Tm.var 0) X.shift.shift := HasTy0.var (Wf0.cons hX1t) rfl
+  exact EqTm0.sigma hX (EqTm0.pi hX1 (pathC_congr0 hS hX2 (EqTm0.refl hv1) (EqTm0.refl hv0)))
+
+theorem fiber_congr0 {Ψ Φ Γ T T' A A' f f' y y' l} (hT : EqTm0 S Ψ Φ Γ T T' (Tm.univ l))
+    (hA : EqTm0 S Ψ Φ Γ A A' (Tm.univ l)) (hf : EqTm0 S Ψ Φ Γ f f' (Tm.arrow T A)) (hy : EqTm0 S Ψ Φ Γ y y' A) :
+    EqTm0 S Ψ Φ Γ (Tm.fiber T A f y) (Tm.fiber T' A' f' y') (Tm.univ l) := by
+  have hTt := (pre_eq hS hT0 hC0 hT).1
+  have hA1 := EqTm0.wk hS hTt hA
+  have hf1 := EqTm0.wk hS hTt hf
+  rw [Meta.arrow_shift] at hf1
+  have hv : HasTy0 S Ψ Φ (T :: Γ) (Tm.var 0) T.shift := HasTy0.var (Wf0.cons hTt) rfl
+  have happ := EqTm0.app hf1 (EqTm0.refl hv)
+  rw [Meta.shift_inst] at happ
+  exact EqTm0.sigma hT (pathC_congr0 hS hA1 happ (EqTm0.wk hS hTt hy))
+
+theorem isEquiv_congr0 {Ψ Φ Γ T T' A A' f f' l} (hT : EqTm0 S Ψ Φ Γ T T' (Tm.univ l))
+    (hA : EqTm0 S Ψ Φ Γ A A' (Tm.univ l)) (hf : EqTm0 S Ψ Φ Γ f f' (Tm.arrow T A)) :
+    EqTm0 S Ψ Φ Γ (Tm.isEquiv T A f) (Tm.isEquiv T' A' f') (Tm.univ l) := by
+  have hAt := (pre_eq hS hT0 hC0 hA).1
+  have hT1 := EqTm0.wk hS hAt hT
+  have hA1 := EqTm0.wk hS hAt hA
+  have hf1 := EqTm0.wk hS hAt hf
+  rw [Meta.arrow_shift] at hf1
+  have hv : HasTy0 S Ψ Φ (A :: Γ) (Tm.var 0) A.shift := HasTy0.var (Wf0.cons hAt) rfl
+  exact EqTm0.pi hA (isContr_congr0 hS hT0 hC0 (fiber_congr0 hS hT0 hC0 hT1 hA1 hf1 (EqTm0.refl hv)))
+
+theorem arrow_congr0 {Ψ Φ Γ T T' A A' l} (hT : EqTm0 S Ψ Φ Γ T T' (Tm.univ l)) (hA : EqTm0 S Ψ Φ Γ A A' (Tm.univ l)) :
+    EqTm0 S Ψ Φ Γ (Tm.arrow T A) (Tm.arrow T' A') (Tm.univ l) :=
+  EqTm0.pi hT (EqTm0.wk hS (pre_eq hS hT0 hC0 hT).1 hA)
+
+theorem equiv_congr0 {Ψ Φ Γ T T' A A' l} (hT : EqTm0 S Ψ Φ Γ T T' (Tm.univ l)) (hA : EqTm0 S Ψ Φ Γ A A' (Tm.univ l)) :
+    EqTm0 S Ψ Φ Γ (Tm.equiv T A) (Tm.equiv T' A') (Tm.univ l) := by
+  have hTA := arrow_congr0 hS hT0 hC0 hT hA
+  have hTAt := (pre_eq hS hT0 hC0 hTA).1
+  have hv : HasTy0 S Ψ Φ (Tm.arrow T A :: Γ) (Tm.var 0) (Tm.arrow T A).shift := HasTy0.var (Wf0.cons hTAt) rfl
+  rw [Meta.arrow_shift] at hv
+  exact EqTm0.sigma hTA (isEquiv_congr0 hS hT0 hC0 (EqTm0.wk hS hTAt hT) (EqTm0.wk hS hTAt hA) (EqTm0.refl hv))
+
+theorem piPath_congr0 {Ψ Φ Γ X X' c c' l} (hX : EqTm0 S Ψ Φ Γ X X' (Tm.univ l)) (hc : EqTm0 S Ψ Φ Γ c c' X) :
+    EqTm0 S Ψ Φ Γ (.pi X (Tm.pathC X.shift c.shift (.var 0))) (.pi X' (Tm.pathC X'.shift c'.shift (.var 0))) (Tm.univ l) := by
+  have hXt := (pre_eq hS hT0 hC0 hX).1
+  have hv : HasTy0 S Ψ Φ (X :: Γ) (Tm.var 0) X.shift := HasTy0.var (Wf0.cons hXt) rfl
+  exact EqTm0.pi hX (pathC_congr0 hS (EqTm0.wk hS hXt hX) (EqTm0.wk hS hXt hc) (EqTm0.refl hv))
+
+end
+
+/-! ## Near terms -/
 
 theorem ctx_dshift_length (Γ : Ctx) : Γ.dshift.length = Γ.length := List.length_map _
 
@@ -67,7 +226,7 @@ theorem near_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → ∀ {t'}, TmNear t t'
     | lam nA nt =>
       simp only [Tm.closedB, Bool.and_eq_true] at hc
       obtain ⟨l1, ⟨hA0, hB0⟩, -⟩ := gen_pi hS hP rfl
-      have hBc : B.closedB (Γ.length + 1) Ψ = true := by simpa using Model.Canon.closed_ty hB0
+      have hBc : B.closedB (Γ.length + 1) Ψ = true := by simpa using ty_closedB hB0
       have ePi := near_ty hP (TmNear.pi nA (TmNear.refl B)) (by simp [Tm.closedB, hc.1, hBc])
       have eA := EqTm0.piInjDom ePi
       have hA' := eqR0 hS hT hC eA
@@ -201,7 +360,7 @@ theorem near_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → ∀ {t'}, TmNear t t'
       have c1 : I.Entails (cof Φ φ') (cof Φ φ) := ent_and_mono (ent_refl _) eφ.2
       have eT1 := EqTm0.restrict hs1 c1 eT
       have eA1 := EqTm0.restrict hs1 (ent_and_left _ _) eA
-      have eqv := Model.Whnf.equiv_congr hS hT hC eT1 eA1
+      have eqv := equiv_congr0 hS hT hC eT1 eA1
       have hG' := HasTy0.glue (eqR0 hS hT hC eA) hφ' (eqR0 hS hT hC eT1)
         (HasTy0.conv (HasTy0.restrict hs1 c1 (eqR0 hS hT hC ee)) eqv)
       exact EqTm0.glue (HasTy0.glue hA hφ hT0 he) hG' eA eφ.1 eφ.2 eT ee
@@ -211,7 +370,7 @@ theorem near_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → ∀ {t'}, TmNear t t'
       simp only [Tm.closedB, Bool.and_eq_true] at hc
       have hφ' : φ'.Scoped Ψ := (I.scopedB_iff _ _).1 hc.1.1.1
       have hs : Φ.Scoped Ψ := scoped_of_ty ha
-      have hcG := Model.Canon.closed_ty hG
+      have hcG := ty_closedB hG
       simp only [Tm.closedB, Bool.and_eq_true] at hcG
       have eG := near_ty hG (TmNear.glue (TmNear.refl A) eφ (TmNear.refl T) ne)
         (by simp only [Tm.closedB, Bool.and_eq_true]; exact ⟨⟨⟨hcG.1.1.1, hc.1.1.1⟩, hcG.1.2⟩, hc.1.1.2⟩)
@@ -234,7 +393,7 @@ theorem near_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → ∀ {t'}, TmNear t t'
       simp only [Tm.closedB, Bool.and_eq_true] at hc
       have hφ' : φ'.Scoped Ψ := (I.scopedB_iff _ _).1 hc.1.1
       have hs : Φ.Scoped Ψ := scoped_of_ty hA
-      have hcG := Model.Canon.closed_ty hG
+      have hcG := ty_closedB hG
       simp only [Tm.closedB, Bool.and_eq_true] at hcG
       have eG := near_ty hG (TmNear.glue (TmNear.refl A) eφ (TmNear.refl T) ne)
         (by simp only [Tm.closedB, Bool.and_eq_true]; exact ⟨⟨⟨hcG.1.1.1, hc.1.1⟩, hcG.1.2⟩, hc.1.2⟩)
@@ -259,5 +418,6 @@ theorem near_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → ∀
 end
 
 end
+
 
 end KubusCore.Meta
