@@ -1,6 +1,7 @@
 import Model.Whnf.Valid2CompSigma
 import Model.Whnf.Valid2CompPi
 import Model.Whnf.Valid2CompPath
+import Model.Whnf.Valid2CompGlue
 
 /-!
 # The binary fundamental lemma
@@ -330,6 +331,81 @@ theorem fund2_unglueInv {Ψ Φ Γ s G} (hd : HasTy0 S' Ψ Φ Γ s G) :
 termination_by structural hd
 
 
+theorem fund2_glueTyInv {Ψ Φ Γ s G} (hd : HasTy0 S' Ψ Φ Γ s G) :
+    ∀ {A φ T e}, s = .glue A φ T e → GlueTyInv S Ψ Φ Γ A φ T e :=
+  match hd with
+  | .glue h0 h1 h2 h3 => fun hs => by
+    have a0 := fund2_ty h0; have a2 := fund2_ty h2; have a3 := fund2_ty h3
+    cases hs
+    exact ⟨_, h1, a0, a2, a3, sigwk_ty hpre h0, sigwk_ty hpre h2, sigwk_ty hpre h3⟩
+  | .conv h0 _ => fun hs => fund2_glueTyInv h0 hs
+  | .restrict h0 h1 h2 => fun hs => (fund2_glueTyInv h2 hs).restrict hW h0 h1
+  | .cumul _ h1 => fun hs => fund2_glueTyInv h1 hs
+  | .var _ _ => fun hs => by cases hs
+  | .const _ _ => fun hs => by cases hs
+  | .univ _ _ => fun hs => by cases hs
+  | .pi _ _ => fun hs => by cases hs
+  | .lam _ _ => fun hs => by cases hs
+  | .app _ _ => fun hs => by cases hs
+  | .sigma _ _ => fun hs => by cases hs
+  | .pair _ _ _ => fun hs => by cases hs
+  | .fst _ => fun hs => by cases hs
+  | .snd _ => fun hs => by cases hs
+  | .path _ _ _ => fun hs => by cases hs
+  | .plam _ _ _ _ => fun hs => by cases hs
+  | .papp _ _ => fun hs => by cases hs
+  | .ipi _ _ => fun hs => by cases hs
+  | .ilam _ _ => fun hs => by cases hs
+  | .iapp _ _ => fun hs => by cases hs
+  | .split _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .abort _ _ => fun hs => by cases hs
+  | .transp _ _ _ _ => fun hs => by cases hs
+  | .hcomp _ _ _ _ _ => fun hs => by cases hs
+  | .glueEl _ _ _ _ _ => fun hs => by cases hs
+  | .data _ _ _ => fun hs => by cases hs
+  | .con _ _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .elim _ _ _ _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .unglue _ _ _ _ => fun hs => by cases hs
+termination_by structural hd
+
+
+theorem fund2_hcompGlueInv {Ψ Φ Γ s G} (hd : HasTy0 S' Ψ Φ Γ s G) :
+    ∀ {A φ T e ψ u a}, s = .hcomp (.glue A φ T e) ψ u a → GlueTyInv S Ψ Φ Γ A φ T e :=
+  match hd with
+  | .hcomp h0 _ _ _ _ => fun hs => by
+    have a0 : ∀ {A φ T e}, _ = Tm.glue A φ T e → _ := fun hg => fund2_glueTyInv h0 hg
+    cases hs; exact a0 rfl
+  | .conv h0 _ => fun hs => fund2_hcompGlueInv h0 hs
+  | .restrict h0 h1 h2 => fun hs => (fund2_hcompGlueInv h2 hs).restrict hW h0 h1
+  | .cumul _ h1 => fun hs => fund2_hcompGlueInv h1 hs
+  | .var _ _ => fun hs => by cases hs
+  | .const _ _ => fun hs => by cases hs
+  | .univ _ _ => fun hs => by cases hs
+  | .pi _ _ => fun hs => by cases hs
+  | .lam _ _ => fun hs => by cases hs
+  | .app _ _ => fun hs => by cases hs
+  | .sigma _ _ => fun hs => by cases hs
+  | .pair _ _ _ => fun hs => by cases hs
+  | .fst _ => fun hs => by cases hs
+  | .snd _ => fun hs => by cases hs
+  | .path _ _ _ => fun hs => by cases hs
+  | .plam _ _ _ _ => fun hs => by cases hs
+  | .papp _ _ => fun hs => by cases hs
+  | .ipi _ _ => fun hs => by cases hs
+  | .ilam _ _ => fun hs => by cases hs
+  | .iapp _ _ => fun hs => by cases hs
+  | .split _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .abort _ _ => fun hs => by cases hs
+  | .transp _ _ _ _ => fun hs => by cases hs
+  | .glue _ _ _ _ => fun hs => by cases hs
+  | .glueEl _ _ _ _ _ => fun hs => by cases hs
+  | .data _ _ _ => fun hs => by cases hs
+  | .con _ _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .elim _ _ _ _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .unglue _ _ _ _ => fun hs => by cases hs
+termination_by structural hd
+
+
 theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     Valid2 S Ψ Φ Γ t u A :=
   match hd with
@@ -465,7 +541,8 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     valid_hcompSigma_rule hW hK.hcomp hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .hcompPath h0 =>
     valid_hcompPath_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
-  | .hcompGlue h0 h1 h2 => valid_hcompGlue_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompGlue h0 h1 h2)).2
+  | .hcompGlue h0 _ _ =>
+    valid_hcompGlue_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl) (fund2_hcompGlueInv h0 rfl)
   | .hcompU h0 => valid_hcompU_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompU h0)).2
   | .glueFace h0 h1 => valid_glueFace hW h0 (fund2_ty h1) (sigwk_ty hpre h1) (pre2 hW hpre (.glueFace h0 h1)).2
   | .glueElFace h0 h1 =>

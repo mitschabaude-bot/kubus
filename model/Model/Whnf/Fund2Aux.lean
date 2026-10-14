@@ -273,16 +273,23 @@ theorem glue_ty_of_el (hW : WfSig S) {g A T e : Tm} {φ : I} (h : HasTy0 S Ψ Φ
 
 /-! ### Computation rules from the oracle -/
 
+/-- The inverted formation of a Glue type, with validity of its components. -/
+def GlueTyInv (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (T e : Tm) : Prop :=
+  ∃ l, φ.Scoped Ψ ∧ Valid2 S Ψ Φ Γ A A (.univ l) ∧ Valid2 S Ψ (cof Φ φ) Γ T T (.univ l) ∧
+    Valid2 S Ψ (cof Φ φ) Γ e e (Tm.equiv T A) ∧ HasTy0 S Ψ Φ Γ A (.univ l) ∧
+    HasTy0 S Ψ (cof Φ φ) Γ T (.univ l) ∧ HasTy0 S Ψ (cof Φ φ) Γ e (Tm.equiv T A)
+
+theorem GlueTyInv.restrict {Φ' φ : I} {A T e : Tm} (hs : Φ'.Scoped Ψ) (he : I.Entails Φ' Φ)
+    (h : GlueTyInv S Ψ Φ Γ A φ T e) : GlueTyInv S Ψ Φ' Γ A φ T e := by
+  obtain ⟨l, h0, h1, h2, h3, t1, t2, t3⟩ := h
+  have hs' : (cof Φ' φ).Scoped Ψ := ⟨hs, h0⟩
+  have he' : I.Entails (cof Φ' φ) (cof Φ φ) := ent_and_mono he (ent_refl _)
+  exact ⟨l, h0, valid_restrict hW he h1, valid_restrict hW he' h2, valid_restrict hW he' h3,
+    HasTy0.restrict hs he t1, HasTy0.restrict hs' he' t2, HasTy0.restrict hs' he' t3⟩
+
 section
 variable (hK : KanOracle2 S)
 include hK
-
-theorem valid_hcompGlue_of {A T' e u u0 T : Tm} {φ ψ : I}
-    (h : Valid2 S Ψ Φ Γ (.hcomp (.glue A φ T' e) ψ u u0) (.hcomp (.glue A φ T' e) ψ u u0) T)
-    (hu : HasTy0 S Ψ Φ Γ (Tm.hcompGlue A φ T' e ψ u u0) T) :
-    Valid2 S Ψ Φ Γ (.hcomp (.glue A φ T' e) ψ u u0) (Tm.hcompGlue A φ T' e ψ u u0) T := by
-  refine valid_redex hW h hu fun k c => ?_
-  simp only [CSub2.R]; rw [hcompGlue_subst]; exact hK.hcompGlue k _ _ _ _ _ _ _ _
 
 theorem valid_hcompU_of {u u0 T : Tm} {φ : I} {l : ℕ}
     (h : Valid2 S Ψ Φ Γ (.hcomp (.univ l) φ u u0) (.hcomp (.univ l) φ u u0) T)
