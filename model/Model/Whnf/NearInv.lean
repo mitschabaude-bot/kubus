@@ -469,6 +469,92 @@ theorem ni2_univC {m l : ℕ} (ih : ∀ m' X, WF l m' X → NI2 S m' X) : NI2 S 
       rwa [isub_id_of_closed (closed_of_isTyK hW hTT.1.1)] at this
     exact (ih k _ hWF k (Hom.id k) t t' t'' t t' t'').1 hty hn (tyk (hu.tyConv hU))
 
+/-! ### Families of relations: invariance of the element relations -/
+
+/-- The element relation of a pack is invariant under near terms on the right, at types related to themselves. -/
+def NIel (S : Sig) (k : ℕ) (R : Pack2) : Prop :=
+  ∀ A t t' t'', R.ty A A → R.el A t t' → TmNear t' t'' → HasTy S k .one [] t'' A → R.el A t t''
+
+/-- A family of packs whose element relations are invariant under near terms. -/
+def FamNI (S : Sig) (n : ℕ) (P : (k' : ℕ) → ISub k' n → Pack2) : Prop := ∀ k' (σ : ISub k' n), NIel S k' (P k' σ)
+
+section fam
+variable {n : ℕ}
+
+theorem piF_ni {D Cf : (k' : ℕ) → ISub k' n → Pack2} (hD : FamOK S n D) (hC : FamOK S n Cf) (nC : FamNI S n Cf) :
+    FamNI S n (piF S D Cf) := by
+  intro k' σ X t t' t'' hXX h hn hu
+  obtain ⟨hE, hall⟩ := h
+  refine ⟨⟨hE.1, hu, hE.2.2.trans (eq_near hW hN hE.2.1 hn (good_of_ty hW hu))⟩, fun k'' σ' => ?_⟩
+  obtain ⟨A1, B1, hR, hel⟩ := hall k'' σ'
+  refine ⟨A1, B1, hR, fun a a' ha => ?_⟩
+  simp only [ISub.id_comp] at ha hel ⊢
+  have x := hel a a' ha
+  obtain ⟨A1x, B1x, A1y, B1y, hx, hy, -, h4⟩ := hXX.2 k'' σ'
+  obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
+    have := RedW.unique hx.1 hR.1; injection this; constructor <;> assumption
+  obtain ⟨rfl, rfl⟩ : A1y = A1x ∧ B1y = B1x := by
+    have := RedW.unique hy.1 hR.1; injection this; constructor <;> assumption
+  have hBB := (hC.per _ _).reflTy (h4 a a' ha)
+  have hx' := hC.elEB _ _ _ _ _ x
+  have ha' := (hD.elEB _ _ _ _ _ ha).2.1
+  have hn1 : TmNear (Tm.app (t'.isub σ') a') (Tm.app (t''.isub σ') a') := .app (hn.isub σ') (TmNear.refl _)
+  have hg : goodB S k'' (Tm.app (t''.isub σ') a') = true := by
+    simp only [goodB, Bool.and_eq_true]; exact ⟨good_isub (good_of_ty hW hu) σ', good_of_ty hW ha'⟩
+  exact nC _ _ _ _ _ _ hBB x hn1 (HasTy.near' hW hN hx'.2.1 hn1 hg)
+
+theorem sigF_ni {D Cf : (k' : ℕ) → ISub k' n → Pack2} (hD : FamOK S n D) (hC : FamOK S n Cf) (nD : FamNI S n D)
+    (nC : FamNI S n Cf) : FamNI S n (sigF S D Cf) := by
+  intro k' σ X t t' t'' hXX h hn hu
+  obtain ⟨hE, hall⟩ := h
+  refine ⟨⟨hE.1, hu, hE.2.2.trans (eq_near hW hN hE.2.1 hn (good_of_ty hW hu))⟩, fun k'' σ' => ?_⟩
+  obtain ⟨A1, B1, hR, hfst, hsnd⟩ := hall k'' σ'
+  simp only [ISub.id_comp] at hfst hsnd ⊢
+  obtain ⟨A1x, B1x, A1y, B1y, hx, hy, hAA, h4⟩ := hXX.2 k'' σ'
+  obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
+    have := RedW.unique hx.1 hR.1; injection this; constructor <;> assumption
+  obtain ⟨rfl, rfl⟩ : A1y = A1x ∧ B1y = B1x := by
+    have := RedW.unique hy.1 hR.1; injection this; constructor <;> assumption
+  have hg := good_isub (good_of_ty hW hu) σ'
+  have n1 : TmNear (Tm.fst (t'.isub σ')) (Tm.fst (t''.isub σ')) := .fst (hn.isub σ')
+  have n2 : TmNear (Tm.snd (t'.isub σ')) (Tm.snd (t''.isub σ')) := .snd (hn.isub σ')
+  have hf := hD.elEB _ _ _ _ _ hfst
+  have hs := hC.elEB _ _ _ _ _ hsnd
+  refine ⟨_, _, hR, nD _ _ _ _ _ _ ((hD.per _ _).reflTy hAA) hfst n1 (HasTy.near' hW hN hf.2.1 n1 hg),
+    nC _ _ _ _ _ _ ((hC.per _ _).reflTy (h4 _ _ hfst)) hsnd n2 (HasTy.near' hW hN hs.2.1 n2 hg)⟩
+
+theorem pathF_ni {AP : (k' : ℕ) → ISub k' n → Pack2} (hA : FamOK S n AP) (nA : FamNI S n AP) :
+    FamNI S n (pathF S AP) := by
+  intro k' σ X t t' t'' hXX h hn hu
+  obtain ⟨hE, hall⟩ := h
+  refine ⟨⟨hE.1, hu, hE.2.2.trans (eq_near hW hN hE.2.1 hn (good_of_ty hW hu))⟩, fun k'' σ' => ?_⟩
+  obtain ⟨L1, b0, b1, hR, hp, e0, e1⟩ := hall k'' σ'
+  refine ⟨L1, b0, b1, hR, fun r r' hr hr' he => ?_, e0, e1⟩
+  simp only [ISub.id_comp] at hp ⊢
+  have x := hp r r' hr hr' he
+  obtain ⟨L1x, b0x, b1x, L1y, b0y, b1y, hx, hy, -, hrr, -, -⟩ := hXX.2 k'' σ'
+  obtain ⟨rfl, -, -⟩ : L1x = L1 ∧ True ∧ True := by
+    have := RedW.unique hx.1 hR.1; injection this; exact ⟨by assumption, trivial, trivial⟩
+  obtain ⟨rfl, -, -⟩ : L1y = L1x ∧ True ∧ True := by
+    have := RedW.unique hy.1 hR.1; injection this; exact ⟨by assumption, trivial, trivial⟩
+  have hLL := (hA.per _ _).reflTy (hrr r r hr hr (I_eq_refl _))
+  have hx' := hA.elEB _ _ _ _ _ x
+  have hn1 : TmNear (Tm.papp (t'.isub σ') r') (Tm.papp (t''.isub σ') r') := .papp (hn.isub σ') (I_eq_refl _)
+  have hg : goodB S k'' (Tm.papp (t''.isub σ') r') = true := by
+    simp only [goodB, Bool.and_eq_true]; exact ⟨good_isub (good_of_ty hW hu) σ', sc_iff.2 hr'⟩
+  exact nA _ _ _ _ _ _ hLL x hn1 (HasTy.near' hW hN hx'.2.1 hn1 hg)
+
+theorem equivF_ni {TP AP : (k' : ℕ) → ISub k' n → Pack2} (hT : FamOK S n TP) (hA : FamOK S n AP)
+    (nT : FamNI S n TP) (nA : FamNI S n AP) : FamNI S n (equivF S TP AP) := by
+  have hF := sigF_ok hW hT (pathF_ok hW hA)
+  have nF := sigF_ni hW hN hT (pathF_ok hW hA) nT (pathF_ni hW hN hA nA)
+  exact sigF_ni hW hN (piF_ok hW hT hA) (piF_ok hW hA (sigF_ok hW hF (piF_ok hW hF (pathF_ok hW hF))))
+    (piF_ni hW hN hT hA nA)
+    (piF_ni hW hN hA (sigF_ok hW hF (piF_ok hW hF (pathF_ok hW hF)))
+      (sigF_ni hW hN hF (piF_ok hW hF (pathF_ok hW hF)) nF (piF_ni hW hN hF (pathF_ok hW hF) (pathF_ni hW hN hF nF))))
+
+end fam
+
 end
 
 end Model.Whnf
