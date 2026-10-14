@@ -140,6 +140,75 @@ theorem RE2_con_args {k3 : ℕ} (ρ' : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D.c
 
 end lit
 
+section wrap
+variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
+include hW hD hH
+
+theorem data_closed {k3 : ℕ} {P1 : Tm} {l : ℕ} (hP1 : HasTy S k3 .one [] (.data d P1) (.univ l)) :
+    P1.closedB 0 k3 = true := by
+  have := closed_of_ty hW hP1; simpa [Tm.closedB] using this
+
+/-- The argument types at related prefixes of arguments and related parameters are related. -/
+theorem argTy_rt2' {k3 : ℕ} {P1 Q2 : Tm} (hP1 : HasTy S k3 .one [] (.data d P1) (.univ D.level))
+    (hP1P1 : RT2 S k3 (.data d P1) (.data d P1)) (hQ2 : RT2 S k3 (.data d P1) (.data d Q2))
+    {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {j : ℕ} (hj : j < C.args.length) {A B : List Tm}
+    (hAl : A.length = j) (hBl : B.length = j)
+    (hrel : ∀ i (hi : i < j), RE2 S k3 ((C.argTy d D.params.length i).substList ((A.take i).reverse ++
+      P1.toList.reverse)) (A.getD i .abort) (B.getD i .abort)) :
+    RT2 S k3 ((C.argTy d D.params.length j).substList (A.reverse ++ P1.toList.reverse))
+      ((C.argTy d D.params.length j).substList (B.reverse ++ Q2.toList.reverse)) := by
+  have hdD := dataD_eq hW hD
+  have hP1c := data_closed hW hD hH hP1
+  have hQ2c : Q2.closedB 0 k3 = true := by
+    have := closed_of_isTyK hW (Comp2_ty_base hQ2).2.2.1; simpa [Tm.closedB] using this
+  have hPl : IsList P1 := by
+    have := (dataLit_rel hW hD hP1 hP1P1 (ISub.id k3)).2.2.2.2.2.1; rwa [isub_id_of_closed hP1c] at this
+  have hplen : P1.toList.length = D.params.length := by
+    have := data_len_of hW (⟨_, .inl hP1⟩ : IsTyK S k3 (.data d P1)); rwa [hdD] at this
+  have := argTy_rt2 hW hD hH hP1 hP1P1 hP1P1 hQ2 (ISub.id k3) hC hj hAl hBl (fun i hi => by
+    rw [isub_id_of_closed hP1c]
+    refine ⟨fun hri => ?_, fun hri => hrel i hi⟩
+    have h := hrel i hi
+    rwa [argTy_rec_inst hri hPl hplen (by simp; omega)] at h)
+  rwa [isub_id_of_closed hP1c, isub_id_of_closed hQ2c] at this
+
+/-- Transport along argument types at related prefixes of arguments and related parameters, from the
+Kan properties of the argument types' codes. -/
+theorem argLine_kanT {n' : ℕ} {P1 Q2 : Tm} (hP1 : HasTy S (n' + 1) .one [] (.data d P1) (.univ D.level))
+    (hP1P1 : RT2 S (n' + 1) (.data d P1) (.data d P1)) (hQ2 : RT2 S (n' + 1) (.data d P1) (.data d Q2))
+    (hArgK : ∀ c j n (g : Hom n (n' + 1)) pre, (ΘK S D d (n' + 1) P1).PtValid c n g pre →
+      KanP2 S n ((ΘK S D d (n' + 1) P1).ty c j n g pre))
+    {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {A B : List Tm} (hBl : B.length = A.length)
+    (hAl : A.length < C.args.length) (hrr : C.isRec A.length = false)
+    (hrel : ∀ i (hi : i < A.length), RE2 S (n' + 1) ((C.argTy d D.params.length i).substList ((A.take i).reverse ++
+      P1.toList.reverse)) (A.getD i .abort) (B.getD i .abort)) :
+    KanT2 S n' ((C.argTy d D.params.length A.length).substList (A.reverse ++ P1.toList.reverse))
+      ((C.argTy d D.params.length A.length).substList (B.reverse ++ Q2.toList.reverse)) := by
+  have hdD := dataD_eq hW hD
+  have hP1c := data_closed hW hD hH hP1
+  have hQ2c : Q2.closedB 0 (n' + 1) = true := by
+    have := closed_of_isTyK hW (Comp2_ty_base hQ2).2.2.1; simpa [Tm.closedB] using this
+  have hPl : IsList P1 := by
+    have := (dataLit_rel hW hD hP1 hP1P1 (ISub.id (n' + 1))).2.2.2.2.2.1; rwa [isub_id_of_closed hP1c] at this
+  have hplen : P1.toList.length = D.params.length := by
+    have := data_len_of hW (⟨_, .inl hP1⟩ : IsTyK S (n' + 1) (.data d P1)); rwa [hdD] at this
+  have hRR' := (dataLit_rel hW hD hP1 hQ2 (ISub.id (n' + 1))).1
+  rw [isub_id_of_closed hP1c, isub_id_of_closed hQ2c] at hRR'
+  have hRsem := semK_dataQ hW hD hP1 hP1P1 (ISub.id (n' + 1))
+  rw [isub_id_of_closed hP1c] at hRsem
+  have hA := argTy_code_rel hW hD hH hP1 (ISub.id (n' + 1)) hRR' hRsem hP1c hQ2c hC hBl
+    (fun i hi hi' hri => by
+      have h := hrel i hi
+      rwa [argTy_rec_inst hri hPl hplen (by simp; omega), getD_eq_get' hW hD hH hP1 hP1P1 hi,
+        getD_eq_get' hW hD hH hP1 hP1P1 hi'] at h)
+    (fun i hi hi' hri => by
+      have h := hrel i hi
+      rwa [getD_eq_get' hW hD hH hP1 hP1P1 hi, getD_eq_get' hW hD hH hP1 hP1P1 hi'] at h)
+    hAl hrr
+  exact (kan_tyLook hW hD hArgK _ c A.length _ hA).2 rfl
+
+end wrap
+
 end
 
 end Model.Whnf
