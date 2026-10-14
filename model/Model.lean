@@ -60,4 +60,5 @@ import Model.Whnf.Fund2
 import Model.Whnf.Valid2Sub
 import Model.Whnf.Valid2Comp
 import Model.Whnf.Valid2Pair
+import Model.Whnf.Valid2Fill
 import Model.Whnf.Valid2CompSigma

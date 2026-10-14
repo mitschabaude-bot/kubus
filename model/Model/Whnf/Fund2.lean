@@ -458,7 +458,8 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
   | .transpIPi h0 => valid_transpIPi_rule hW hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
   | .hcompIPi h0 => valid_hcompIPi_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .hcompPi h0 => valid_hcompPi_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
-  | .hcompSigma h0 => valid_hcompSigma_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompSigma h0)).2
+  | .hcompSigma h0 =>
+    valid_hcompSigma_rule hW hK.hcomp hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .hcompPath h0 => valid_hcompPath_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompPath h0)).2
   | .hcompGlue h0 h1 h2 => valid_hcompGlue_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompGlue h0 h1 h2)).2
   | .hcompU h0 => valid_hcompU_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompU h0)).2

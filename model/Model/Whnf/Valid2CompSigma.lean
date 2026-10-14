@@ -1,4 +1,4 @@
-import Model.Whnf.Valid2Pair
+import Model.Whnf.Valid2Fill
 
 /-!
 # Validity of the computation rules in `Σ`
@@ -108,6 +108,98 @@ theorem valid_transpSigma_rule (hKT : KTAll S) {A B u0 T : Tm} {φ : I}
     rw [e3]
     exact ⟨.step (step_transp_sigma hn) (.refl _), EqTm.transpSigma (c.ty hW h)⟩
   · exact ⟨.step (step_transp_face hf) (.refl _), EqTm.transpFace hf (c.ty hW h)⟩
+
+theorem valid_hcompSigma_rule (hKH : KHAll S) (hKT : KTAll S) {A B u u0 T : Tm} {φ : I}
+    (h : HasTy0 S Ψ Φ Γ (.hcomp (.sigma A B) φ u u0) T)
+    (hv : Valid2 S Ψ Φ Γ (.hcomp (.sigma A B) φ u u0) (.hcomp (.sigma A B) φ u u0) T)
+    (hinv : HcompInv S Ψ Φ Γ (.sigma A B) φ u u0 T) :
+    Valid2 S Ψ Φ Γ (.hcomp (.sigma A B) φ u u0) (Tm.hcompSigma A B φ u u0) T := by
+  obtain ⟨l, hφ, hSigV, huV, hu0V, hsV, htr, hSig, hu, hu0, hside⟩ := hinv
+  have hS := sigClosed_of_wfSig hW
+  have hs := scoped_of_ty hSig
+  have hX : (cof Φ φ).Scoped Ψ := ⟨hs, hφ⟩
+  have hXs : (cof Φ φ).shift.Scoped (Ψ + 1) := KubusCore.I.scoped_shift hX
+  have hSigp : VTy S Ψ Φ Γ (.sigma A B) (.univ l) := ⟨hSig, hSigV⟩
+  have hup : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (Tm.sigma A B).dshift := ⟨hu, huV⟩
+  have hu0p : VTy S Ψ Φ Γ u0 (.sigma A B) := ⟨hu0, hu0V⟩
+  have hsidep : VEq S Ψ (cof Φ φ) Γ (u.dinst .zero) u0 (.sigma A B) := ⟨hside, hsV⟩
+  have hA : VTy S Ψ Φ Γ A (.univ l) := ⟨HasTy0.sigmaDom hS hSig, valid_sigmaDom hW hSigV (HasTy0.sigmaDom hS hSig)⟩
+  have hB : VTy S Ψ Φ (A :: Γ) B (.univ l) :=
+    ⟨HasTy0.sigmaCod hS hSig, valid_sigmaCod hW hSigV (HasTy0.sigmaCod hS hSig)⟩
+  rw [sigma_dshift] at hup
+  have hfu := VTy.fst' hW hup
+  have hsu := VTy.snd' hW hup
+  have hfu0 := VTy.fst' hW hu0p
+  have hsu0 := VTy.snd' hW hu0p
+  have hsf : VEq S Ψ (cof Φ φ) Γ ((Tm.fst u).dinst .zero) (.fst u0) A := VEq.fst' hW hsidep
+  have hss := VEq.snd' hW hsidep
+  obtain ⟨hf, hf0, hf1, hfφ⟩ := VTy.hfill' hW hKH hA hφ hfu hfu0 hsf
+  have ha := VTy.hcompG hW hKH hA hφ hfu hfu0 hsf
+  -- the line of the second component
+  have hAd := VTy.dwk' hW hA
+  have hBd := VTy.dwk' hW hB
+  have hC : VTy S (Ψ + 1) Φ.shift Γ.dshift (B.dshift.inst (Tm.hfill A φ (.fst u) (.fst u0))) (.univ l) :=
+    VTy.subst' hW hAd hBd hf
+  -- the tube
+  have hAdX := VTy.restrict' hW (Φ' := (cof Φ φ).shift) hXs (ent_shift (ent_and_left Φ φ)) hAd
+  have hBdX := VTy.restrict' hW (Φ' := (cof Φ φ).shift) hXs (ent_shift (ent_and_left Φ φ)) hBd
+  have hu' : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift (.snd u) (B.dshift.inst (Tm.hfill A φ (.fst u) (.fst u0))) :=
+    VTy.conv' hW hsu (VTy.inst_congr' hW hAdX hBdX (VEq.symm' hW hfφ))
+  -- the base
+  have hf0t : VTy S Ψ Φ Γ ((Tm.hfill A φ (.fst u) (.fst u0)).dinst .zero) (A.dshift.dinst .zero) :=
+    VTy.dsubst' hW .zero trivial hf
+  rw [dshift_dinst] at hf0t
+  have hu0' : VTy S Ψ Φ Γ (.snd u0) ((B.dshift.inst (Tm.hfill A φ (.fst u) (.fst u0))).dinst .zero) := by
+    rw [inst_dshift_dinst]
+    exact VTy.conv' hW hsu0 (VTy.inst_congr' hW hA hB (VEq.symm' hW hf0))
+  -- the side condition
+  have hAX := VTy.restrict' hW hX (ent_and_left Φ φ) hA
+  have hBX := VTy.restrict' hW hX (ent_and_left Φ φ) hB
+  have hside' : VEq S Ψ (cof Φ φ) Γ ((Tm.snd u).dinst .zero) (.snd u0)
+      ((B.dshift.inst (Tm.hfill A φ (.fst u) (.fst u0))).dinst .zero) := by
+    rw [inst_dshift_dinst]
+    exact VEq.conv' hW hss (VTy.inst_congr' hW hAX hBX
+      (VEq.trans' hW hsf (VEq.symm' hW (VEq.restrict' hW hX (ent_and_left Φ φ) hf0))))
+  have hcomp' := VTy.comp' hW hKH hKT hC hφ hu' hu0' hside'
+  rw [inst_dshift_dinst] at hcomp'
+  have hb := VTy.conv' hW hcomp' (VTy.inst_congr' hW hA hB hf1)
+  have hy : VTy S Ψ Φ Γ (Tm.hcompSigma A B φ u u0) (.sigma A B) := by
+    rw [hcompSigma_eq]; exact VTy.pair' hW hSigp ha hb
+  have hT : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L T) (c.R T) := fun k c => (hv k c).1
+  have hyT := valid_conv_tr hy.v htr hT
+  -- where the face holds: the tube's end, by η and the faces of the components
+  have hX0Φ : I.Entails (cof Φ φ) Φ := ent_and_left _ _
+  have hφ0 : I.Entails (cof Φ φ) φ := ent_and_right _ _
+  have hu1 : VTy S Ψ (cof Φ φ) Γ (u.dinst .one) (.sigma A B) := by
+    refine ⟨?_, valid_tube_end hW hφ .one trivial huV hu hSig⟩
+    have := HasTy0.dsubst hS (Φ := cof Φ φ) hu (r := .one) trivial
+    rwa [dshift_dinst] at this
+  have hη := VEq.sigmaEta' hW hu1
+  have haX := VTy.restrict' hW hX hX0Φ ha
+  have e1 := VEq.hcompFace' hW hφ0 haX
+  have hfa : VEq S Ψ (cof Φ φ) Γ (.fst (u.dinst .one)) (.hcomp A φ (.fst u) (.fst u0)) A := VEq.symm' hW e1
+  have hcX := VTy.restrict' hW hX hX0Φ hcomp'
+  have e2 := VEq.hcompFace' hW hφ0 hcX
+  have hrhs : VTy S Ψ (cof Φ φ) Γ _ _ := ⟨(presup hW e2.eq).2, valid_trans hW (valid_symm hW e2.v) e2.v⟩
+  have e3 := VEq.transpFace' hW (ent_one _) hrhs
+  have e23 := VEq.trans' hW e2 e3
+  have hBe : VEq S Ψ (cof Φ φ) Γ (B.inst ((Tm.hfill A φ (.fst u) (.fst u0)).dinst .one)) (B.inst (.fst (u.dinst .one)))
+      (.univ l) :=
+    VTy.inst_congr' hW hAX hBX (VEq.trans' hW (VEq.restrict' hW hX hX0Φ hf1) e1)
+  have hb2 : VEq S Ψ (cof Φ φ) Γ (.snd (u.dinst .one))
+      (Tm.comp (B.dshift.inst (Tm.hfill A φ (.fst u) (.fst u0))) φ (.snd u) (.snd u0)) (B.inst (.fst (u.dinst .one))) :=
+    VEq.symm' hW (VEq.conv' hW e23 hBe)
+  have hpair := VEq.pair' hW (VTy.restrict' hW hX hX0Φ hSigp) hfa hb2
+  rw [← hcompSigma_eq] at hpair
+  have hb := valid_conv_tr (VEq.trans' hW hη hpair).v (htr.restrict hX0Φ)
+    fun k c => hT k (c.restrictTo hX0Φ)
+  refine valid_comp_rule hW hv hyT hb fun k c => ⟨fun hn => ?_, fun hf => ?_⟩
+  · have e4 : c.L (Tm.hcompSigma A B φ u u0) = Tm.hcompSigma (c.L A) (B.subst (Tm.up c.γ) c.σ.τ) (φ.subst c.σ.τ)
+        (u.subst (dupS c.γ) (I.up c.σ.τ)) (c.L u0) := hcompSigma_subst _ _ A B φ u u0
+    rw [e4]
+    exact ⟨.step (step_hcomp_sigma hn) (.refl _), EqTm.hcompSigma (c.ty hW h)⟩
+  · rw [CSub2.L_dinst hW]
+    exact ⟨.step (step_hcomp_face hf) (.refl _), EqTm.hcompFace hf (c.ty hW h)⟩
 
 end
 
