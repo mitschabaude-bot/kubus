@@ -76,6 +76,17 @@ def TMch (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : H
 def TM2H (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom k1 K) (A v v' : Tm) : Prop :=
   TMc S d D K P k1 g A v v' ∧ TMch S d D K P k1 g A v v'
 
+/-- A composition at an inductive type, retyped at equal parameters. -/
+theorem hcomp_data_retype (hW : WfSig S) {d : ℕ} {qs p u a : Tm} {χ : I} {l : ℕ}
+    (h : HasTy S k .one [] (.hcomp (.data d qs) χ u a) (.data d p)) (hp : HasTy S k .one [] (.data d p) (.univ l)) :
+    HasTy S k .one [] (.hcomp (.data d p) χ u a) (.data d p) ∧
+    EqTm S k .one [] (.hcomp (.data d qs) χ u a) (.hcomp (.data d p) χ u a) (.data d p) := by
+  obtain ⟨l1, ⟨hX0, -, -, -, -⟩, ch⟩ := gen_hcomp (spec_to_minimal hW h) rfl
+  obtain ⟨m, e⟩ := chain_eq hW ch hX0 rfl (spec_to_minimal hW hp) (fun k h => by cases h)
+  have e' : TyEq S k (.data d qs) (.data d p) := .inr ⟨m, minimal_to_spec_eq e⟩
+  obtain ⟨h1, h2⟩ := hcomp_retype hW h e'
+  exact ⟨h1.tyConv e', h2.tyConv e'⟩
+
 section ind
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = true)
   (hyp : HITHyp2 S) (hp : D.params ≠ []) {K : ℕ} {P : Tm} (hP : HasTy S (K + 1) .one [] (.data d P) (.univ D.level))
@@ -221,6 +232,235 @@ theorem tm2_conH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' : Tm} {c : ℕ} {C 
         rw [Tm.isub_isub, Tm.isub_isub, line_comp, line_comp, ISub.comp_up_tail]
         exact h }
   exact H.rel
+
+omit hyp in
+/-- The composition case: the `transpHcomp` contracta of related formal compositions are related. -/
+theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {χ χ' : I}
+    (hat : DR2At S d (dataD S d) (dataMem S (ΘK S D d K (P.dinst .zero)) (Hom.id K))
+      (dataP2 S (ΘK S D d K (P.dinst .zero)) (Hom.id K)) k1 g A t t')
+    (hA : RedT S k1 A (.data d ps))
+    (ht : RedE S k1 A t (.hcomp (.data d qs) χ u a)) (ht' : RedE S k1 A t' (.hcomp (.data d qs') χ' u' a'))
+    (iha : TM1H S d D K P k1 g (.data d ps) a a')
+    (ihu : ∀ k' (σ : ISub k' k1) (r : I), r.Scoped k' → (ival (idEnv k') (χ.subst σ.τ)).holds →
+      TM1H S d D K P k' (g.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r)) :
+    TM2H S d D K P k1 g A t t' := by
+  refine ⟨?_, fun ps2 hA2 => ⟨?_, ?_⟩⟩
+  rotate_left
+  · intro c2 C2 q2 X2 rs2 q2' X2' rs2' hC2 hr
+    have := RedW.unique hr.1 ht.1; cases this
+  · intro qs2 χ2 u2 a2 qs2' χ2' u2' a2' hr hr'
+    have e1 := RedW.unique hr.1 ht.1
+    have e2 := RedW.unique hr'.1 ht'.1
+    simp only [Tm.hcomp.injEq] at e1 e2
+    obtain ⟨-, rfl, rfl, rfl⟩ := e1
+    obtain ⟨-, -, rfl, rfl⟩ := e2
+    have ep := RedW.unique hA2.1 hA.1
+    simp only [Tm.data.injEq] at ep
+    obtain ⟨-, rfl⟩ := ep
+    exact ⟨iha, fun k' σ r hr0 hh => ihu k' σ r hr0 hh⟩
+  intro ρ hg hAe Q hQ y y' hy hy' hE h0 ψ ψ' hψs h12 h21 LC hty hty' heq w w' hr hr'
+  subst hg hAe
+  obtain rfl := RedW.unique hr.1 ht.1
+  obtain rfl := RedW.unique hr'.1 ht'.1
+  rw [tRedF_hcomp, tRedF_hcomp]
+  have hdD := dataD_eq hW hD
+  have hP0 := P0_ty hW hD hp hP hArgK hRL
+  have hP0P0 := P0_rt2 hW hD hp hP hArgK hRL
+  have hPP1 := PP1 hW hD hp hP hArgK hRL
+  have hPc := data_closed hW hD hP
+  obtain rfl : ps = (P.dinst .zero).isub ρ := redT_data_eq (Θ := ΘK S D d K (P.dinst .zero)) hA
+  have tyB : ∀ {k4 : ℕ} {X Z : Tm}, RT2 S k4 X Z → TyEq S k4 X Z := fun h => (Comp2_ty_base h).2.2.2.2.2
+  -- the relations of the bases and the tubes
+  obtain ⟨haa3, hu3⟩ : RE2 S k1 (.data d ((P.dinst .zero).isub ρ)) a a' ∧
+      ∀ k4 (σ : ISub k4 k1) (r : I), r.Scoped k4 → (ival (idEnv k4) (χ.subst σ.τ)).holds →
+        RE2 S k4 (.data d ((P.dinst .zero).isub (ρ.comp σ))) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r) := by
+    rcases DR2At_cases hW hD hP0 hP0P0 ρ hat with
+      ⟨_, _, _, _, _, _, _, _, -, -, -, hr3, -⟩ |
+      ⟨qs3, χ3, u3, a3, qs3', χ3', u3', a3', -, hr3, hr3', -, -, -, -, haa3, hu3⟩
+    · have := RedW.unique hr3.1 ht.1; cases this
+    · have e1 := RedW.unique hr3.1 ht.1
+      have e2 := RedW.unique hr3'.1 ht'.1
+      simp only [Tm.hcomp.injEq] at e1 e2
+      obtain ⟨-, rfl, rfl, rfl⟩ := e1
+      obtain ⟨-, -, rfl, rfl⟩ := e2
+      exact ⟨haa3, hu3⟩
+  have h123 : I.Entails χ χ' ∧ I.Entails χ' χ := by
+    rcases DR2At_cases hW hD hP0 hP0P0 ρ hat with
+      ⟨_, _, _, _, _, _, _, _, -, -, -, hr3, -⟩ |
+      ⟨qs3, χ3, u3, a3, qs3', χ3', u3', a3', -, hr3, hr3', -, -, h1, h2, -, -⟩
+    · have := RedW.unique hr3.1 ht.1; cases this
+    · have e1 := RedW.unique hr3.1 ht.1
+      have e2 := RedW.unique hr3'.1 ht'.1
+      simp only [Tm.hcomp.injEq] at e1 e2
+      obtain ⟨-, rfl, -, -⟩ := e1
+      obtain ⟨-, rfl, -, -⟩ := e2
+      exact ⟨h1, h2⟩
+  -- the starts and ends of the lines
+  have hXP0 : TyCode K (semK S K (.data d (P.dinst .zero))) := tyCode_of_univ hW hP0
+  have hPL0 := line_dinst hW hD hp hP hArgK hRL ρ y hy .zero trivial
+  have rel0 : RT2 S k1 (.data d ((P.dinst .zero).isub ρ)) (.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .zero)) := by
+    rw [P0_isub hW hD hp hP hArgK hRL, hPL0]
+    exact hRL k1 ρ .zero _ trivial _ (I_eq_symm h0)
+  have hQc : (Q.isub (ISub.cons y' hy' ρ.up.tail)).closedB 0 (k1 + 1) = true := by
+    obtain ⟨l', ⟨hLt', -, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty') rfl
+    have := closed_ty hLt'; simpa [Tm.closedB] using this
+  have hQL0 : (Q.isub (ISub.cons y' hy' ρ.up.tail)).dinst .zero = Q.isub (ISub.cons
+      (y'.subst (ISub.cons .zero trivial (ISub.id k1)).τ) (I.scoped_subst hy' (ISub.cons .zero trivial (ISub.id k1)).sc) ρ) := by
+    rw [← isub_cons_id_of_closed hQc .zero trivial, Tm.isub_isub, line_comp, ISub.comp_id]
+  have hy'0 : I.Eq (y'.subst (ISub.cons .zero trivial (ISub.id k1)).τ) .zero :=
+    I_eq_trans (I_eq_subst (I_eq_symm hE) _) h0
+  have rel0' : RT2 S k1 (.data d ((P.dinst .zero).isub ρ)) (.data d ((Q.isub (ISub.cons y' hy' ρ.up.tail)).dinst .zero)) := by
+    rw [P0_isub hW hD hp hP hArgK hRL, hQL0]
+    exact hQ k1 ρ .zero _ trivial _ (I_eq_symm hy'0)
+  have hPθc : (P.isub (ISub.cons y hy ρ.up.tail)).closedB 0 (k1 + 1) = true :=
+    data_closed hW hD (HasTy.isubS hW hP (ISub.cons y hy ρ.up.tail))
+  have e1' : TyEq S k1 (((Tm.data d Q).isub (ISub.cons y' hy' ρ.up.tail)).dinst .one)
+      (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one) := by
+    show TyEq S k1 ((Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))).dinst .one)
+      ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dinst .one)
+    rw [← isub_cons_id_of_closed (show (Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))).closedB 0 (k1 + 1) = true
+        by simpa [Tm.closedB] using hQc) .one trivial,
+      ← isub_cons_id_of_closed (show (Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).closedB 0 (k1 + 1) = true
+        by simpa [Tm.closedB] using hPθc) .one trivial]
+    show TyEq S k1 (Tm.data d ((Q.isub _).isub _)) (Tm.data d ((P.isub _).isub _))
+    rw [Tm.isub_isub, Tm.isub_isub, line_comp, line_comp, ISub.comp_id]
+    exact TyEq.symm (tyB (hQ k1 ρ _ _ _ _ (I_eq_subst hE _)))
+  have eLL : TyEq S (k1 + 1) (.data d (P.isub (ISub.cons y hy ρ.up.tail))) (.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))) := by
+    have h := Rob.line hQ ρ y y' hy hy' hE (k1 + 1) (ISub.id k1).up.tail (.var 0) (.var 0) (show 0 < k1 + 1 by omega)
+      (show 0 < k1 + 1 by omega) (I_eq_refl _)
+    rw [ISub.cons_var0_up_tail, isub_up_id_of_closed hPθc, isub_up_id_of_closed hQc] at h
+    exact tyB h
+  -- the compositions, retyped at the starts of the lines, and their transports
+  have hd0 : HasTy S k1 .one [] (.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .zero)) (.univ D.level) := by
+    rw [hPL0]; exact HasTy.isubS hW hP _
+  have hd0' : HasTy S k1 .one [] (.data d ((Q.isub (ISub.cons y' hy' ρ.up.tail)).dinst .zero)) (.univ D.level) :=
+    data_whnf_ty hW hD (Comp2_ty_base rel0').2.2.1 ⟨redW_self (step_data d _), TyEq.refl _⟩
+  have eb := ht.2.tyConv (tyB rel0)
+  have eb' := ht'.2.tyConv (tyB rel0')
+  have rb := transp_rebase hW hty eb
+  have rb' := transp_rebase hW hty' eb'
+  have hb0 := (hcomp_data_retype hW (HasTy.eqR eb) hd0).1
+  have hb0' := (hcomp_data_retype hW (HasTy.eqR eb') hd0').1
+  have eH := transpHcomp_eq (D := D) hD hp hH hb0 rb.1
+  have eH' := transpHcomp_eq (D := D) hD hp hH hb0' rb'.1
+  have htH := HasTy.eqR eH
+  have htH' := (HasTy.eqR eH').tyConv e1'
+  have heqH := eH.symm.trans (rb.2.symm.trans (heq.trans ((rb'.2.tyConv e1').trans (eH'.tyConv e1'))))
+  -- the end of the line, as a restriction of the line of types
+  have eE : (Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dinst .one = Tm.data d (P.isub (ISub.cons
+      (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) (I.scoped_subst hy (ISub.cons .one trivial (ISub.id k1)).sc) ρ)) :=
+    lineP_dinst hW hD hp hP hArgK hRL ρ y hy .one trivial
+  have hy1 := I.scoped_subst hy (ISub.cons .one trivial (ISub.id k1)).sc
+  have hTσ : ∀ {k4 : ℕ} (σ : ISub k4 k1), RT2 S k4
+      ((Tm.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))).isub σ)
+      ((Tm.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))).isub σ) := by
+    intro k4 σ
+    have := RT2.isub hW (tyCode_of_univ hW hP) hPP1 ((ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ).comp σ)
+    show RT2 S k4 (Tm.data d ((P.isub _).isub σ)) (Tm.data d ((P.isub _).isub σ))
+    rwa [Tm.isub_isub]
+  -- the tubes
+  have hχs : χ.Scoped k1 := (gen_hcomp (spec_to_minimal hW (HasTy.eqR ht.2)) rfl).choose_spec.1.2.1
+  have hχs' : χ'.Scoped k1 := (gen_hcomp (spec_to_minimal hW (HasTy.eqR ht'.2)) rfl).choose_spec.1.2.1
+  have htube : TubeD S k1 (.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))) χ
+      (.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u)
+      (.transp ((Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))).dsubst skipI) ψ'.shift u') := by
+    intro k' σ r hr0 hh
+    rw [tHc_tube_pt _ _ _ σ r hr0, tHc_tube_pt _ _ _ σ r hr0]
+    have hyσ := I.scoped_subst hy σ.up.sc
+    have hy'σ := I.scoped_subst hy' σ.up.sc
+    have eLσ : (Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).isub σ.up =
+        (Tm.data d P).isub (ISub.cons (y.subst σ.up.τ) hyσ (ρ.comp σ).up.tail) :=
+      line_isub_up (Tm.data d P) y hy ρ σ
+    have eL'σ : (Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))).isub σ.up =
+        (Tm.data d Q).isub (ISub.cons (y'.subst σ.up.τ) hy'σ (ρ.comp σ).up.tail) :=
+      line_isub_up (Tm.data d Q) y' hy' ρ σ
+    have hu := hu3 k' σ r hr0 hh
+    have huc := closed_of_ty hW (RE2.typed hu).1
+    have huc' := closed_of_ty hW (RE2.typed hu).2.1
+    have K1 := (ihu k' σ r hr0 hh).1 (ρ.comp σ) (by rw [ISub.hom_comp])
+      (by show Tm.data d (((P.dinst .zero).isub ρ).isub σ) = _; rw [Tm.isub_isub]) Q hQ k' (ISub.id k')
+      (y.subst σ.up.τ) (y'.subst σ.up.τ) hyσ hy'σ (I_eq_subst hE _) (ieq_zero_up h0 σ)
+    rw [ISub.comp_id, isub_id_of_closed huc, isub_id_of_closed huc'] at K1
+    -- the start of the restricted line
+    have rel0σ : RT2 S k' (.data d ((P.dinst .zero).isub (ρ.comp σ)))
+        (((Tm.data d P).isub (ISub.cons (y.subst σ.up.τ) hyσ (ρ.comp σ).up.tail)).dinst .zero) := by
+      rw [lineP_dinst hW hD hp hP hArgK hRL _ _ _ .zero trivial, P0_isub hW hD hp hP hArgK hRL]
+      exact hRL k' _ .zero _ trivial _ (I_eq_symm (ieq_zero_up h0 σ))
+    -- the typings of the transported tube points
+    have hhσ' : (ival (idEnv k') (χ'.subst σ.τ)).holds :=
+      (holds_iff_entails (I.scoped_subst hχs' σ.sc)).2
+        (ent_trans ((holds_iff_entails (I.scoped_subst hχs σ.sc)).1 hh) (ent_subst h123.1 _))
+    have tp : HasTy S k' .one [] (.transp ((Tm.data d P).isub (ISub.cons (y.subst σ.up.τ) hyσ (ρ.comp σ).up.tail))
+        (ψ.subst σ.τ) ((u.isub σ.up).dinst r))
+        (((Tm.data d P).isub (ISub.cons (y.subst σ.up.τ) hyσ (ρ.comp σ).up.tail)).dinst .one) := by
+      have hσ := HasTy.isubS hW htH σ
+      have h1 := hcomp_tube_typed' hW (T := (Tm.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .one)).isub σ)
+        (u := (Tm.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u).isub σ.up)
+        (a := (Tm.transp (Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))) ψ a).isub σ) (φ := χ.subst σ.τ) hσ r hr0 hh
+      rw [tHc_tube_pt _ _ _ σ r hr0, eLσ, isub_dinst, line_isub_up] at h1
+      exact h1
+    have tp' : HasTy S k' .one [] (.transp ((Tm.data d Q).isub (ISub.cons (y'.subst σ.up.τ) hy'σ (ρ.comp σ).up.tail))
+        (ψ'.subst σ.τ) ((u'.isub σ.up).dinst r))
+        (((Tm.data d P).isub (ISub.cons (y.subst σ.up.τ) hyσ (ρ.comp σ).up.tail)).dinst .one) := by
+      have hσ := HasTy.isubS hW htH' σ
+      have h1 := hcomp_tube_typed' hW (T := (Tm.data d ((Q.isub (ISub.cons y' hy' ρ.up.tail)).dinst .one)).isub σ)
+        (u := (Tm.transp ((Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))).dsubst skipI) ψ'.shift u').isub σ.up)
+        (a := (Tm.transp (Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))) ψ' a').isub σ) (φ := χ'.subst σ.τ) hσ r hr0 hhσ'
+      rw [tHc_tube_pt _ _ _ σ r hr0, eL'σ, isub_dinst, line_isub_up] at h1
+      exact h1
+    have eLσL : TyEq S (k' + 1) ((Tm.data d P).isub (ISub.cons (y.subst σ.up.τ) hyσ (ρ.comp σ).up.tail))
+        ((Tm.data d Q).isub (ISub.cons (y'.subst σ.up.τ) hy'σ (ρ.comp σ).up.tail)) := by
+      have := TyEq.isub hW σ.up eLL
+      rwa [eLσ, eL'σ] at this
+    have LCσ : LineConst S k' ((Tm.data d P).isub (ISub.cons (y.subst σ.up.τ) hyσ (ρ.comp σ).up.tail)) (ψ.subst σ.τ) := by
+      have := LineConst.isub LC σ; rwa [line_isub_up] at this
+    have R1 := K1 (fun k4 τ z z' hz hz' hEz => Rob.line hQ (ρ.comp σ) _ _ hyσ hy'σ (I_eq_subst hE _) k4 τ z z' hz hz' hEz)
+      (ψ.subst σ.τ) (ψ'.subst σ.τ) LCσ tp tp'
+      (eqTm_transp_of hW tp tp' eLσL (ent_subst h12 _) (ent_subst h21 _) ((RE2.typed hu).2.2.tyConv (tyB rel0σ)))
+      (ent_subst h12 _) (ent_subst h21 _) (RE2.conv hW rel0σ hu)
+    rw [lineP_dinst hW hD hp hP hArgK hRL _ _ _ .one trivial] at R1
+    have eY : (y.subst σ.up.τ).subst (ISub.cons .one trivial (ISub.id k')).τ =
+        (y.subst (ISub.cons .one trivial (ISub.id k1)).τ).subst σ.τ := by
+      rw [← I_subst_comp, ← I_subst_comp, ISub.up_comp_cons_id, ISub.cons_comp, ISub.id_comp]; rfl
+    rw [eLσ, eL'σ]
+    show RE2 S k' (Tm.data d ((P.isub _).isub σ)) _ _
+    rw [Tm.isub_isub, ISub.cons_comp]
+    exact RE2.conv hW (hRL k' (ρ.comp σ) _ _ _ _ (by rw [eY]; exact I_eq_refl _)) R1
+  have tS : TubeD S k1 (.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))) χ
+      (.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u)
+      (.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u) := by
+    intro k' σ r hr0 hh
+    have h := htube k' σ r hr0 hh
+    exact RE2.trans hW (hTσ σ) h (RE2.symm hW (hTσ σ) h)
+  have tS' : TubeD S k1 (.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))) χ'
+      (.transp ((Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))).dsubst skipI) ψ'.shift u')
+      (.transp ((Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))).dsubst skipI) ψ'.shift u') := by
+    intro k' σ r hr0 hh
+    have hh' : (ival (idEnv k') (χ.subst σ.τ)).holds :=
+      (holds_iff_entails (I.scoped_subst hχs σ.sc)).2
+        (ent_trans ((holds_iff_entails (I.scoped_subst hχs' σ.sc)).1 hh) (ent_subst h123.2 _))
+    have h := htube k' σ r hr0 hh'
+    exact RE2.trans hW (hTσ σ) (RE2.symm hW (hTσ σ) h) h
+  -- the bases
+  have hac := closed_of_ty hW (RE2.typed haa3).1
+  have hac' := closed_of_ty hW (RE2.typed haa3).2.1
+  have K0 := iha.1 ρ rfl rfl Q hQ k1 (ISub.id k1) y y' hy hy' hE h0
+  rw [ISub.comp_id, isub_id_of_closed hac, isub_id_of_closed hac'] at K0
+  obtain ⟨-, ⟨-, -, -, hta, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW
+    (htH : HasTy S k1 .one [] (.hcomp _ _ _ (.transp (Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))) ψ a)) _)) rfl
+  obtain ⟨-, ⟨-, -, -, hta', -⟩, -⟩ := gen_hcomp (spec_to_minimal hW
+    (HasTy.eqR eH' : HasTy S k1 .one [] (.hcomp _ _ _ (.transp (Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))) ψ' a')) _)) rfl
+  have hta1 : HasTy S k1 .one [] (.transp ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ a)
+      (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one) := minimal_to_spec hta
+  have hta1' : HasTy S k1 .one [] (.transp ((Tm.data d Q).isub (ISub.cons y' hy' ρ.up.tail)) ψ' a')
+      (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one) := (minimal_to_spec hta').tyConv e1'
+  have haa := K0 (Rob.line hQ ρ y y' hy hy' hE) ψ ψ' LC hta1 hta1'
+    (eqTm_transp_of hW hta1 hta1' eLL h12 h21 ((RE2.typed haa3).2.2.tyConv (tyB rel0))) h12 h21
+    (RE2.conv hW rel0 haa3)
+  have eE' : ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one = Tm.data d (P.isub (ISub.cons
+      (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ)) := eE
+  rw [eE'] at haa htH htH' heqH ⊢
+  exact hcomp_relD hW hD hH hP hPP1 _ htH htH' heqH h123.1 h123.2 htube tS tS' haa
 
 end ind
 
