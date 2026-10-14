@@ -296,8 +296,8 @@ theorem toMin_eq {Ψ Φ Γ t u A} : EqTm S Ψ Φ Γ t u A → EqTm0 S Ψ Φ Γ t
     EqTm0.glueElFace h0 (toMin_ty h1)
   | .unglueFace h0 h1 h2 h3 =>
     EqTm0.unglueFace h0 (toMin_ty h1) (toMin_ty h2) (toMin_ty h3)
-  | .glueBeta h0 h1 =>
-    EqTm0.glueBeta (toMin_ty h0) (toMin_ty h1)
+  | .glueBeta h0 h1 h2 =>
+    EqTm0.glueBeta (toMin_ty h0) (toMin_ty h1) (toMin_eq h2)
   | .glueEta h0 =>
     EqTm0.glueEta (toMin_ty h0)
   | .data h0 h1 h2 h3 =>
@@ -550,8 +550,8 @@ theorem toFull_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A → EqTm S Ψ Φ Γ 
     EqTm.glueElFace h0 (toFull_ty h1)
   | .unglueFace h0 h1 h2 h3 =>
     EqTm.unglueFace h0 (toFull_ty h1) (toFull_ty h2) (toFull_ty h3)
-  | .glueBeta h0 h1 =>
-    EqTm.glueBeta (toFull_ty h0) (toFull_ty h1)
+  | .glueBeta h0 h1 h2 =>
+    EqTm.glueBeta (toFull_ty h0) (toFull_ty h1) (toFull_eq h2)
   | .glueEta h0 =>
     EqTm.glueEta (toFull_ty h0)
   | .data h0 h1 h2 h3 =>

@@ -36,6 +36,70 @@ def transpConK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (D : DataDecl) {d : 
   let ⟨hc⟩ ← checkTele R E args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse
   return some ⟨_, EqTm.transpCon hS hp hC h1 h2 hc ht⟩
 
+/-- The coherence premise of `glueBeta`: under `φ`, the base of the glue element is the
+equivalence applied to its fibre element, at the type of the redex. `e.1 t` is typed from the
+typing of the equivalence (`e : Equiv T A` under `φ`; it may be a system, whose type is not
+inferable), then compared with the base. -/
+def glueBetaCoh (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e t a A T : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) (ha : HasTy S Ψ Φ Γ a A)
+    (he : HasTy S Ψ (cof Φ φ) Γ e (Tm.equiv T A)) :
+    K S (PLift (EqTm S Ψ (cof Φ φ) Γ a (.app (.fst e) t) A)) := do
+  let ⟨hφ⟩ ← ensureScoped φ Ψ
+  let E1 := E.cof φ hφ
+  have hA1 := HasTy.rs E hφ hA
+  let ⟨lT, ⟨hT⟩⟩ ← inferType R E1 T
+  let ⟨ht⟩ ← R.check E1 t T lT hT
+  have hfst : HasTy S Ψ (cof Φ φ) Γ (.fst e) (.pi T A.shift) := HasTy.fst he
+  have hf : HasTy S Ψ (cof Φ φ) Γ (.app (.fst e) t) A := by
+    have := HasTy.app hfst ht; rwa [Tm.shift_inst] at this
+  R.conv E1 A l hA1 a _ (HasTy.rs E hφ ha) hf
+
+/-! ## Typed reduction
+
+The contracta of the Kan operations eliminate the redex's components (`app u0 w`, `fst u0`, …).
+When such a component is an introduction form (λ, pair, path abstraction), its type cannot be
+re-inferred in the contractum: inference only yields a weak, non-dependent type. So before
+contracting, the kernel annotates the component with its type, which the redex's typing
+provides: the annotation `transp (_. X) 1 a` equals `a` (`transpFace`) and has the inferable
+type `X`, and it travels with the component through later substitutions. -/
+
+/-- Whether inference of `t` loses information (the type of `t` comes from its context). -/
+def weakInf : Tm → Bool
+  | .lam .. | .pair .. | .plam _ => true
+  | _ => false
+
+/-- The annotation `transp (_. X) 1 a` of `a : X`: equal to `a`, with the type `X` inferable. -/
+def annot (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) {X a : Tm} {l : Nat}
+    (hX : HasTy S Ψ Φ Γ X (.univ l)) (ha : HasTy S Ψ Φ Γ a X) :
+    K S (PLift (EqTm S Ψ Φ Γ a (.transp X.dshift .one a) X)) := do
+  let _ := R
+  let ⟨h1⟩ ← ensureScoped .one Ψ
+  have hX1 := HasTy.dwk hX
+  have hc : EqTm S (Ψ + 1) (cof Φ .one).shift Γ.dshift X.dshift (X.dshift.dinst .zero).dshift (.univ l) := by
+    rw [Tm.dshift_dinst]; exact EqTm.refl (HasTy.dwkCof E h1 hX)
+  have ha' : HasTy S Ψ Φ Γ a (X.dshift.dinst .zero) := by rw [Tm.dshift_dinst]; exact ha
+  have ht : HasTy S Ψ Φ Γ (.transp X.dshift .one a) X := by
+    have := HasTy.transp hX1 h1 hc ha'; rw [Tm.dshift_dinst] at this; exact this
+  pure ⟨EqTm.symm (EqTm.transpFace (I.entails_one Φ) ht)⟩
+
+/-- Whether `transp` along a line of this head computes by a CHM rule that eliminates the base. -/
+def chmLine : Tm → Bool
+  | .pi .. | .sigma .. | .path .. | .glue .. | .ipi _ => true
+  | _ => false
+
+/-- Typed reduction for `transp`: the contractum eliminates the base `a` (applies, projects,
+ungules it), and when `a` is an introduction form its type cannot be re-inferred there. So the
+base is first annotated with its type `L(0)`, known from the redex's typing. -/
+def annotTransp (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a A : Tm) (l : Nat)
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) :
+    K S ((a' : Tm) × PLift (EqTm S Ψ Φ Γ (.transp L φ a) (.transp L φ a') A)) := do
+  let i ← inferTransp R E L φ a
+  let ⟨ea⟩ ← annot R E (HasTy.dsubst (r := .zero) i.hA trivial) i.ha
+  have ht' := i.retype (HasTy.eqR ea)
+  have e := EqTm.transp i.ht ht' (EqTm.refl i.hA) (I.entails_refl φ) (I.entails_refl φ) ea
+  let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e
+  return ⟨_, ⟨e⟩⟩
+
 /-- Computation rule of `transp` for a line in weak-head normal form. -/
 def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a T : Tm)
     (ht : HasTy S Ψ Φ Γ (.transp L φ a) T) : K S (Option (Red S Ψ Φ Γ (.transp L φ a) T)) :=
@@ -75,11 +139,11 @@ def transpRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
 (`hcompCon`): reduce the base to a constructor, and the tube (under `φ`) to the same
 constructor. -/
 def hcompDataK (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d : Nat) (ps : Tm) (φ : I) (u a T : Tm)
-    (lT : Nat) (hT : HasTy S Ψ Φ Γ T (.univ lT)) :
+    (lT : Nat) (hT : HasTy S Ψ Φ Γ T (.univ lT)) (ht : HasTy S Ψ Φ Γ (.hcomp (.data d ps) φ u a) T) :
     K S (Option (Red S Ψ Φ Γ (.hcomp (.data d ps) φ u a) T)) := do
   let ⟨D, ⟨hS⟩⟩ ← lookupData S d
   if hH : D.isHIT = false then
-    let i ← inferHcomp R E (.data d ps) φ u a
+    let i ← hcompInfoOf R E ht
     -- the base, reduced
     let r ← R.whnf E a (.data d ps) i.l i.hA i.ha
     match hr : r.tm with
@@ -132,7 +196,7 @@ def hcompRule (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u 
     pure (some ⟨Tm.hcompGlue A ψ T' e φ u a, EqTm.hcompGlue ht hA he⟩)
   | .ipi A, ht => pure (some ⟨Tm.hcompIPi A φ u a, EqTm.hcompIPi ht⟩)
   | .univ _, ht => pure (some ⟨Tm.hcompU φ u a, EqTm.hcompU ht⟩)
-  | .data d ps, _ => hcompDataK R E d ps φ u a T lT hT
+  | .data d ps, ht => hcompDataK R E d ps φ u a T lT hT ht
   | _, _ => pure none
 
 /-- Transport in an inductive type with parameters computes on constructors and formal
@@ -144,7 +208,7 @@ def transpArgStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I)
   let ⟨ai, ar⟩ ← R.whnfI E a
   if ar.tm = a then return none
   let ⟨ea⟩ ← bridge R E ai.hty hA0 ar.eq
-  have ht2 := HasTy.transp i.hA i.hφ i.heq (HasTy.eqR ea)
+  have ht2 := i.retype (HasTy.eqR ea)
   have e := EqTm.transp i.ht ht2 (EqTm.refl i.hA) (I.entails_refl φ) (I.entails_refl φ) ea
   let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e
   return some (⟨_, e⟩, false)
@@ -154,9 +218,15 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ (.transp L φ a) A) :
     K S (Option (Red S Ψ Φ Γ (.transp L φ a) A × Bool)) := do
   if h : E.Ent φ then return some (⟨a, EqTm.transpFace h ht⟩, false)
+  noteTyped E 1 (.transp L φ a) ⟨A, ht⟩
   let ⟨l1, ⟨hL⟩⟩ ← inferType R E.dext L
   let r ← whnfTy R E.dext L l1 hL
   if r.tm = L then
+    if chmLine L && weakInf a then
+      let ⟨a', ⟨e⟩⟩ ← annotTransp R E L φ a A l hA
+      match ← transpRule R E L φ a' A (HasTy.eqR e) with
+      | some r2 => return some (⟨r2.tm, EqTm.trans e r2.eq⟩, false)
+      | none => pure ()
     match ← transpRule R E L φ a A ht with
     | some r2 => return some (r2, false)
     | none =>
@@ -170,13 +240,24 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
   have hL' := HasTy.eqR eL
   have e0 : EqTm S Ψ Φ Γ (L.dinst .zero) (r.tm.dinst .zero) (.univ m) := EqTm.dsubst eL trivial
   have e1 : EqTm S Ψ Φ Γ (L.dinst .one) (r.tm.dinst .one) (.univ m) := EqTm.dsubst eL trivial
-  have heq' : EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift r.tm (r.tm.dinst .zero).dshift (.univ m) :=
-    EqTm.trans (EqTm.symm (EqTm.rsd E i.hφ eL))
-      (EqTm.trans (i.heq.liftLe (Nat.le_max_right _ _) hm) (EqTm.dwkCof E i.hφ e0))
-  have ht' := HasTy.transp hL' i.hφ heq' (HasTy.conv i.ha e0)
+  have ht' : HasTy S Ψ Φ Γ (.transp r.tm φ a) (r.tm.dinst .one) := by
+    obtain ⟨l', hl', _, heq0⟩ := i.heq
+    have hM : max m l' ≤ maxLevel := Nat.max_le.2 ⟨hm, hl'⟩
+    have eLM := eL.liftLe (Nat.le_max_left m l') hM
+    have e0M : EqTm S Ψ Φ Γ (L.dinst .zero) (r.tm.dinst .zero) (.univ (max m l')) :=
+      EqTm.dsubst eLM trivial
+    have heq' : EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift r.tm (r.tm.dinst .zero).dshift (.univ (max m l')) :=
+      EqTm.trans (EqTm.symm (EqTm.rsd E i.hφ eLM))
+        (EqTm.trans (heq0.liftLe (Nat.le_max_right _ _) hM) (EqTm.dwkCof E i.hφ e0M))
+    exact HasTy.transp (HasTy.eqR eLM) i.hφ heq' (HasTy.conv i.ha e0M)
   have e := EqTm.transp i.ht (HasTy.conv ht' (EqTm.symm e1)) eL (I.entails_refl φ)
     (I.entails_refl φ) (EqTm.refl i.ha)
   let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e
+  if chmLine r.tm && weakInf a then
+    let ⟨a', ⟨e2⟩⟩ ← annotTransp R E r.tm φ a A l hA
+    match ← transpRule R E r.tm φ a' A (HasTy.eqR e2) with
+    | some r2 => return some (⟨r2.tm, EqTm.trans e (EqTm.trans e2 r2.eq)⟩, false)
+    | none => pure ()
   match ← transpRule R E r.tm φ a A (HasTy.eqR e) with
   | some r2 => return some (⟨r2.tm, EqTm.trans e r2.eq⟩, false)
   | none => return some (⟨.transp r.tm φ a, e⟩, false)
@@ -190,7 +271,7 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
   let r ← whnfTy R E B l1 hB
   if r.tm = B then
     return (← hcompRule R E B φ u a A l hA ht).map (·, false)
-  let i ← inferHcomp R E B φ u a
+  let i ← hcompInfoOf R E ht
   let m := max l1 i.l
   let ⟨hm⟩ ← ensureLvl m
   have eB : EqTm S Ψ Φ Γ B r.tm (.univ m) := r.eq.liftLe (Nat.le_max_left _ _) hm
@@ -207,7 +288,14 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
 
 /-- Reduce an elimination whose head is not a redex. -/
 def elimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
-    (hA : HasTy S Ψ Φ Γ A (.univ l)) : K S (Option (Red S Ψ Φ Γ t A × Bool)) := do
+    (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K S (Option (Red S Ψ Φ Γ t A × Bool)) := do
+  -- contract the β-redexes inside the elimination first (replacement, `Meta.beta_replace`):
+  -- a λ applied in head position has no informative inferred type
+  if let some ⟨hS⟩ := E.sig.wf then
+    if !tmEq t.betaIn t then
+      return some (⟨t.betaIn, Meta.HasTy.beta_replace hS ht⟩, false)
+  -- the heads of the elimination are typed: their inference can skip the premises
+  noteTyped E 16 t ⟨A, ht⟩
   let ⟨i, r⟩ ← mapErr (· ++ s!"\n  reducing {short t}") (R.whnfI E t)
   if r.tm = t then pure none
   else
@@ -316,11 +404,8 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .glue _ φ T _, ht =>
     if h : E.Ent φ then pure (some (⟨T, EqTm.glueFace h ht⟩, false)) else pure none
   | .unglue φ e (.glueEl φ' e' t1 a1), ht =>
-    if h : φ' = φ ∧ e' = e then do
-      -- the rule takes the typing of the base element as a premise
-      let ⟨ha⟩ ← R.check E a1 A l hA
-      pure (some (⟨a1, by obtain ⟨h1, h2⟩ := h; subst h1; subst h2; exact EqTm.glueBeta ht ha⟩, false))
-    else elimStep R E (.unglue φ e (.glueEl φ' e' t1 a1)) A l hA
+    -- `glueBeta` needs the Glue type of the element (for its coherence premise): `whnfI`
+    elimStep R E (.unglue φ e (.glueEl φ' e' t1 a1)) A l hA ht
   | .glueEl φ _ t1 _, ht =>
     if h : E.Ent φ then pure (some (⟨t1, EqTm.glueElFace h ht⟩, false)) else pure none
   | .const k, _ =>
@@ -333,11 +418,11 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .con d c ps args rs, ht => conBndStep E d c ps args rs A ht
   | .elim d ps P bs t, ht => dataElimStep R E d ps P bs t A l hA ht
   | .hcomp B φ u a, ht => hcompStep R E B φ u a A l hA ht
-  | .app f a, _ => elimStep R E (.app f a) A l hA
-  | .fst p, _ => elimStep R E (.fst p) A l hA
-  | .snd p, _ => elimStep R E (.snd p) A l hA
-  | .papp p r, _ => elimStep R E (.papp p r) A l hA
-  | .unglue φ e g, _ => elimStep R E (.unglue φ e g) A l hA
+  | .app f a, ht => elimStep R E (.app f a) A l hA ht
+  | .fst p, ht => elimStep R E (.fst p) A l hA ht
+  | .snd p, ht => elimStep R E (.snd p) A l hA ht
+  | .papp p r, ht => elimStep R E (.papp p r) A l hA ht
+  | .unglue φ e g, ht => elimStep R E (.unglue φ e g) A l hA ht
   | _, _ => pure none
 
 def whnfLoop (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
@@ -540,7 +625,7 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
       have e1 := EqTm.unglueFace hφ hg hA1 (HasTy.restrict E.hsc hc he)
       let r2 ← R.whnf E _ A1 gi.lvl inf.hty (HasTy.eqR e1)
       return ⟨inf, ⟨r2.tm, EqTm.trans e1 r2.eq⟩⟩
-    if gr.tm = g then return ⟨inf, ⟨_, EqTm.refl inf.htm⟩⟩
+    if gr.tm = g ∧ !(g matches .glueEl ..) then return ⟨inf, ⟨_, EqTm.refl inf.htm⟩⟩
     have eg := EqTm.conv gr.eq eG
     have e1 : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e gr.tm) A1 :=
       EqTm.unglue inf.htm (HasTy.unglue hG hA1 he (HasTy.eqR eg)) (I.entails_refl φ) (I.entails_refl φ) (EqTm.refl he) eg
@@ -550,10 +635,37 @@ def whnfIStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t : Tm) :
         have e1' : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e (.glueEl φ e t1 a1)) A1 := by
           rw [h, hφ'.1, hφ'.2] at e1; exact e1
         let ⟨ha⟩ ← R.check E a1 A1 gi.lvl inf.hty
-        have e2 := EqTm.glueBeta (HasTy.eqR e1') ha
+        let some ⟨hc⟩ ← tryOpt (glueBetaCoh R E φ e t1 a1 A1 T gi.lvl inf.hty ha he)
+          | return ⟨inf, ⟨_, h ▸ e1⟩⟩
+        have e2 := EqTm.glueBeta (HasTy.eqR e1') ha hc
         let r3 ← R.whnf E a1 A1 gi.lvl inf.hty (HasTy.eqR e2)
         return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩
-      else return ⟨inf, ⟨_, h ▸ e1⟩⟩
+      else tryCatch (do
+        -- the element's face or equivalence differs syntactically from `unglue`'s: align it
+        -- by the congruence of glue elements, then contract
+        let ⟨hφ⟩ ← ensureScoped φ Ψ
+        let ⟨h1⟩ ← ensureEnt φ φ'
+        let ⟨h2⟩ ← ensureEnt φ' φ
+        let E1 := E.cof φ hφ
+        have hT : HasTy S Ψ (cof Φ φ) Γ T (.univ gi.lvl) := HasTy.glueFib hG
+        let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A1) gi.lvl
+        let ⟨he'⟩ ← R.check E1 e' _ gi.lvl hq
+        let ⟨ht1⟩ ← R.check E1 t1 T gi.lvl hT
+        let ⟨ha⟩ ← R.check E a1 A1 gi.lvl inf.hty
+        let ⟨hc⟩ ← glueBetaCoh R E φ e t1 a1 A1 T gi.lvl inf.hty ha he
+        have ef := EqTm.symm hc
+        let ⟨ee⟩ ← R.conv E1 _ gi.lvl hq e e' he he'
+        have eg' : EqTm S Ψ Φ Γ g (.glueEl φ' e' t1 a1) (.glue A1 φ T e) := h ▸ eg
+        have hgl := HasTy.glueEl hG ht1 ha ef
+        have ea := EqTm.glueEl hgl (HasTy.eqR eg') h1 h2 ee (EqTm.refl ht1) (EqTm.refl ha)
+        have eg2 := EqTm.trans eg' (EqTm.symm ea)
+        have e1' : EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ e (.glueEl φ e t1 a1)) A1 :=
+          EqTm.unglue inf.htm (HasTy.unglue hG hA1 he hgl) (I.entails_refl φ) (I.entails_refl φ)
+            (EqTm.refl he) eg2
+        have e2 := EqTm.glueBeta (HasTy.eqR e1') ha hc
+        let r3 ← R.whnf E a1 A1 gi.lvl inf.hty (HasTy.eqR e2)
+        return ⟨inf, ⟨r3.tm, EqTm.trans e1' (EqTm.trans e2 r3.eq)⟩⟩) fun _ =>
+        return ⟨inf, ⟨_, h ▸ e1⟩⟩
     | g' => return ⟨inf, ⟨.unglue φ e g', h ▸ e1⟩⟩
   | t => whnfIDefault R E t
 

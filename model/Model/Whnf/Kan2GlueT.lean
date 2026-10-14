@@ -270,7 +270,7 @@ theorem LineRob.at {C C' : Tm} (h : LineRob S k C C') (σ : ISub k' (k + 1)) : R
   rwa [ISub.cons_tail] at this
 
 /-- `unglue` along restrictions of the Glue lines. -/
-theorem TGD2.ugAt {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+theorem TGD2.ugAt {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I} (hCW : GlueCohW S)
     (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ') (σ : ISub k' (k + 1)) {g g' : Tm}
     (h : RE2 S k' ((Tm.glue A φ T e).isub σ) g g') :
     RE2 S k' (A.isub σ) (.unglue (φ.subst σ.τ) (e.isub σ) g) (.unglue (φ'.subst σ.τ) (e'.isub σ) g') := by
@@ -296,7 +296,7 @@ theorem TGD2.ugAt {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
     (Comp2_ty_base (D.rG.at σ)).2.2.2.2.2
   have hu' := (unglue_ty hW ⟨l', .inl hG'σ⟩ ⟨lA', hA0', he0'⟩ ((RE2.typed h).2.1.tyConv eGG)).tyConv
     (TyEq.symm (Comp2_ty_base hAσ).2.2.2.2.2)
-  exact RE2_unglue_gen hW hGσ h hu hu' hφs' (ent_subst D.f12 σ.τ) (ent_subst D.f21 σ.τ) ee'
+  exact RE2_unglue_gen hW hCW hGσ h hu hu' hφs' (ent_subst D.f12 σ.τ) (ent_subst D.f21 σ.τ) ee'
     (fun k3 τ => by rw [Tm.isub_isub]; exact D.rAA.at _)
     (fun k3 τ hh => by rw [Tm.isub_isub]; exact D.rTT k3 _ (hc τ hh)) hE
 

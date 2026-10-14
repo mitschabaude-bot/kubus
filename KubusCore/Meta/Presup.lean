@@ -428,7 +428,7 @@ theorem pre_eq {Ψ Φ Γ t u A} : EqTm0 S Ψ Φ Γ t u A →
         rw [shift_inst] at happ
         exact ⟨hu, happ, .inl ⟨_, h2⟩⟩
       · cases hG
-  | @EqTm0.glueBeta _ Ψ Φ Γ φ e t a G h0 h1 =>
+  | @EqTm0.glueBeta _ Ψ Φ Γ φ e t a G h0 h1 _ =>
     ⟨h0, h1, pre_ty h0⟩
   | @EqTm0.glueEta _ Ψ Φ Γ A φ T e g h0 =>
     by

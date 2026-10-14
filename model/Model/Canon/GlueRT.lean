@@ -1,6 +1,7 @@
 import Model.Canon.GlueEquiv
 import Model.Canon.GlueBasic
 import Model.Canon.Statement
+import Model.Whnf.Sound
 
 /-!
 # Canonicity: computable Glue types and their elements
@@ -106,8 +107,29 @@ theorem glue_data {A T e : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] (.glue
   obtain ⟨l', ⟨hA0, hφ, -, he0⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) (spec_to_minimal hW hG) rfl
   exact ⟨hφ, l', minimal_to_spec hA0, minimal_to_spec he0⟩
 
+/-- A glue element of a closed Glue type whose face does not hold is coherent at the base of that
+Glue type: its own coherence premise is at the base of its annotation, which the compatibility of
+Glue types (`GlueCompat`) identifies with the base (the annotation cannot be a universe, whose
+code differs from a Glue code). -/
+theorem glueEl_coh (hGC : GlueCompat S) {A T e t a : Tm} {φ : I} {l : ℕ}
+    (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) (hn : ¬ (ival (idEnv k) φ).holds)
+    (hg : HasTy S k .one [] (.glueEl φ e t a) (.glue A φ T e)) :
+    EqTm S k (cof .one φ) [] a (.app (.fst e) t) A := by
+  obtain ⟨A2, T2, l2, ⟨hG2, hcoh⟩, ch⟩ := gen_glueEl_coh (spec_to_minimal hW hg) rfl
+  have r := Model.Whnf.chain_rel hW ch (Rel.refl hG2 (Model.Whnf.lvl_bound hW hG2))
+  obtain ⟨-, ⟨-, hφs, -, -⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) (spec_to_minimal hW hG) rfl
+  rcases r with ⟨m, -, eG⟩ | ⟨l0, m, -, eU⟩
+  · have hA := (hGC k A2 A T2 T e e φ φ m (minimal_to_spec_eq eG)
+      (fun h => hn ((holds_iff_entails hφs).2 h)) (I.entails_refl _) (I.entails_refl _)).1
+    exact (EqTm.conv (minimal_to_spec_eq hcoh) (EqTm.restrict ⟨trivial, hφs⟩ (ent_and_left _ _) hA)).symm
+  · exfalso
+    have hn' : ¬ Cof.holds (ival (idEnv k) φ).face := by rwa [← DM.holds_iff_face_holds]
+    have hs := semK_eq hW (minimal_to_spec_eq eU)
+    rw [semK_glueT hW (minimal_to_spec hG2)] at hs
+    exact glueC_ne_univC _ _ _ hn' (isCof_ival_face _ _) l0 hs
+
 /-- A Glue introduction is computable when its base and (on the face) fiber components are. -/
-theorem RE_glueEl_intro {A T e t a : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] (.glue A φ T e) (.univ l))
+theorem RE_glueEl_intro (hGC : GlueCompat S) {A T e t a : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] (.glue A φ T e) (.univ l))
     (hn : ¬ (ival (idEnv k) φ).holds) (hg : HasTy S k .one [] (.glueEl φ e t a) (.glue A φ T e))
     (ha : ∀ k' (σ : ISub k' k), RE S k' (A.isub σ) (a.isub σ))
     (ht : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → RE S k' (T.isub σ) (t.isub σ)) :
@@ -118,7 +140,8 @@ theorem RE_glueEl_intro {A T e t a : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one
   · have hgσ := HasTy.isubS hW hg σ
     rw [isub_glue] at hgσ
     have hu := unglue_ty hW (by rw [← isub_glue]; exact hGK.isub hW σ) (glueData_isub hW hφ hdata σ) hgσ
-    exact (ha k' σ).conv hW (TyEq.refl _) (EqTm.glueBeta hu (Comp_el_typed (ha k' σ)).1).symm
+    have hc := EqTm.isubF hW (show (cof .one φ).Scoped k from ⟨trivial, hφ⟩) (glueEl_coh hW hGC hG hn hg) σ
+    exact (ha k' σ).conv hW (TyEq.refl _) (EqTm.glueBeta hu (Comp_el_typed (ha k' σ)).1 hc).symm
   · have hgσ := HasTy.isubS hW hg σ
     rw [isub_glue] at hgσ
     have hent := entails_of_holds (I.scoped_subst hφ σ.sc) hh

@@ -596,7 +596,7 @@ def main():
     outdir = args.keep or tempfile.mkdtemp(prefix="kubus-fuzz-")
     os.makedirs(outdir, exist_ok=True)
     cases = [args.case] if args.case is not None else range(args.cases)
-    stats = {"cases": 0, "mutants": 0, "fail": 0, "timeout": 0, "kernel": 0, "skipped": 0}
+    stats = {"cases": 0, "mutants": 0, "fail": 0, "timeout": 0, "kernel": 0, "skipped": 0, "kstress": 0}
     kinds = {}
     for c in cases:
         text, sites = generate(args.seed, c, args.defs)
@@ -606,9 +606,16 @@ def main():
         stats["cases"] += 1
         code, out = run(bin_, path, args.timeout, ["--selfcheck-main", "--budget", str(args.budget)])
         if code is None:
-            stats["timeout"] += 1
-            print(f"TIMEOUT case {c}: {path}")
-            continue
+            # elaborated fine, but the kernel did not finish: a stress case for the kernel
+            code2, out2 = run(bin_, path, args.timeout, ["--no-kernel", "--selfcheck-main", "--budget", str(args.budget)])
+            if code2 == 0 and not VIOLATION.search(out2):
+                stats["kstress"] += 1
+                print(f"KERNEL-STRESS case {c}: {path}")
+                code, out = code2, out2
+            else:
+                stats["timeout"] += 1
+                print(f"TIMEOUT case {c}: {path}")
+                continue
         if code != 0 and not VIOLATION.search(out) and "kernel: REJECTED" in out:
             # accepted by the elaborator, rejected by the certified kernel: a gap between Kubus
             # and the specification (or in the bridge), reported separately
@@ -653,7 +660,8 @@ def main():
                 os.remove(mpath)
     print(f"fuzz seed {args.seed}: {stats['cases']} cases, {stats['mutants']} mutants, "
           f"{stats['fail']} failures, {stats['timeout']} timeouts, "
-          f"{stats['kernel']} rejected only by the kernel, {stats['skipped']} with kernel skips (files in {outdir})")
+          f"{stats['kernel']} rejected only by the kernel, {stats['skipped']} with kernel skips, "
+          f"{stats['kstress']} kernel stress timeouts (files in {outdir})")
     if kinds:
         print("mutants: " + ", ".join(f"{k} {n}" for k, n in sorted(kinds.items())))
     sys.exit(1 if stats["fail"] else 0)

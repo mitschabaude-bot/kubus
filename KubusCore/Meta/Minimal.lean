@@ -302,7 +302,8 @@ inductive EqTm0 (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       HasTy0 S Ψ Φ Γ A (univ l) → HasTy0 S Ψ Φ Γ e (equiv T A) →
       EqTm0 S Ψ Φ Γ (unglue φ e g) (app (fst e) g) A
   | glueBeta {Ψ Φ Γ φ e t a G} : HasTy0 S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) G →
-      HasTy0 S Ψ Φ Γ a G → EqTm0 S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
+      HasTy0 S Ψ Φ Γ a G → EqTm0 S Ψ (cof Φ φ) Γ a (app (fst e) t) G →
+      EqTm0 S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
   | glueEta {Ψ Φ Γ A φ T e g} : HasTy0 S Ψ Φ Γ g (glue A φ T e) →
       EqTm0 S Ψ Φ Γ g (glueEl φ e g (unglue φ e g)) (glue A φ T e)
   /- inductive types: congruence -/

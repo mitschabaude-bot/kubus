@@ -221,4 +221,88 @@ theorem gen_glueEl {Ψ Φ Γ s G} (h : HasTy0 S Ψ Φ Γ s G) {φ e t a} (ht : s
   | .con _ _ _ _ _ _ _ _ => by cases ht
   | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
 
+/-- A glue element is coherent at the base of its own Glue annotation. -/
+theorem gen_glueEl_coh {Ψ Φ Γ s G} (h : HasTy0 S Ψ Φ Γ s G) {φ e t a} (ht : s = .glueEl φ e t a) :
+    ∃ A T l, (HasTy0 S Ψ Φ Γ (glue A φ T e) (univ l) ∧
+      EqTm0 S Ψ (cof Φ φ) Γ (app (fst e) t) a A) ∧ TyChainC S Ψ Φ Γ (glue A φ T e) G :=
+  match h with
+  | .var _ _ => by cases ht
+  | .conv h0 h1 => by
+    obtain ⟨A, T, l, x, ch⟩ := gen_glueEl_coh h0 ht
+    exact ⟨A, T, l, x, ch.snoc h1⟩
+  | .restrict hs he h2 => by
+    obtain ⟨A, T, l, ⟨h0, h4⟩, ch⟩ := gen_glueEl_coh h2 ht
+    have hφ := scoped_cof_right (scoped_of_eq h4)
+    have hs' : (cof _ φ).Scoped Ψ := ⟨hs, hφ⟩
+    exact ⟨A, T, l, ⟨HasTy0.restrict hs he h0, EqTm0.restrict hs' (ent_and_mono he (ent_refl _)) h4⟩,
+      ch.restrict hs he⟩
+  | .const _ _ => by cases ht
+  | .univ _ _ => by cases ht
+  | .cumul h0 h1 => by
+    obtain ⟨A, T, l, x, ch⟩ := gen_glueEl_coh h1 ht
+    exact ⟨A, T, l, x, ch.cumul h0⟩
+  | .pi _ _ => by cases ht
+  | .lam _ _ => by cases ht
+  | .app _ _ => by cases ht
+  | .sigma _ _ => by cases ht
+  | .pair _ _ _ => by cases ht
+  | .fst _ => by cases ht
+  | .snd _ => by cases ht
+  | .path _ _ _ => by cases ht
+  | .plam _ _ _ _ => by cases ht
+  | .papp _ _ => by cases ht
+  | .ipi _ _ => by cases ht
+  | .ilam _ _ => by cases ht
+  | .iapp _ _ => by cases ht
+  | .split _ _ _ _ _ _ _ => by cases ht
+  | .abort _ _ => by cases ht
+  | .transp _ _ _ _ => by cases ht
+  | .hcomp _ _ _ _ _ => by cases ht
+  | .glue _ _ _ _ => by cases ht
+  | .glueEl h0 _ _ _ h4 => by cases ht; exact ⟨_, _, _, ⟨h0, h4⟩, .refl _⟩
+  | .unglue _ _ _ _ => by cases ht
+  | .data _ _ _ => by cases ht
+  | .con _ _ _ _ _ _ _ _ => by cases ht
+  | .elim _ _ _ _ _ _ _ _ _ _ => by cases ht
+/-- The head of an elimination (the eliminated term). -/
+def _root_.KubusCore.Tm.elimHead : Tm → Option Tm
+  | .app f _ | .fst f | .snd f | .papp f _ | .unglue _ _ f | .elim _ _ _ _ f => some f
+  | _ => none
+
+/-- The head of a typed elimination is typed. -/
+theorem gen_elimHead {Ψ Φ Γ s T} (h : HasTy0 S Ψ Φ Γ s T) {p} (ht : s.elimHead = some p) :
+    ∃ T', HasTy0 S Ψ Φ Γ p T' :=
+  match h with
+  | .var _ _ => by simp [Tm.elimHead] at ht
+  | .conv h0 _ => gen_elimHead h0 ht
+  | .restrict hs he h2 => by
+    obtain ⟨T', h'⟩ := gen_elimHead h2 ht
+    exact ⟨T', HasTy0.restrict hs he h'⟩
+  | .const _ _ => by simp [Tm.elimHead] at ht
+  | .univ _ _ => by simp [Tm.elimHead] at ht
+  | .cumul _ h1 => gen_elimHead h1 ht
+  | .pi _ _ => by simp [Tm.elimHead] at ht
+  | .lam _ _ => by simp [Tm.elimHead] at ht
+  | .app h0 _ => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h0⟩
+  | .sigma _ _ => by simp [Tm.elimHead] at ht
+  | .pair _ _ _ => by simp [Tm.elimHead] at ht
+  | .fst h0 => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h0⟩
+  | .snd h0 => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h0⟩
+  | .path _ _ _ => by simp [Tm.elimHead] at ht
+  | .plam _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .papp h0 _ => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h0⟩
+  | .ipi _ _ => by simp [Tm.elimHead] at ht
+  | .ilam _ _ => by simp [Tm.elimHead] at ht
+  | .iapp h0 _ => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h0⟩
+  | .split _ _ _ _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .abort _ _ => by simp [Tm.elimHead] at ht
+  | .transp _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .hcomp _ _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .glue _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .glueEl _ _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .unglue _ _ _ h3 => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h3⟩
+  | .data _ _ _ => by simp [Tm.elimHead] at ht
+  | .con _ _ _ _ _ _ _ _ => by simp [Tm.elimHead] at ht
+  | .elim _ _ _ _ _ _ _ _ _ h9 => by simp [Tm.elimHead] at ht; subst ht; exact ⟨_, h9⟩
+
 end KubusCore.Meta
