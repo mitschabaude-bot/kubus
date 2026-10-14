@@ -448,6 +448,94 @@ theorem good_pt {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
     rwa [isub_cons_id_of_closed hcj] at h
   exact ⟨G1, G2, G3, G4, G5, G6, G7, G8⟩
 
+/-- The facts about a recursive argument. -/
+theorem good_rec {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true)
+    (ih : ∀ i, i < j → Good S k d D PL QL φ φ' C X X' i) : Good S k d D PL QL φ φ' C X X' j := by
+  have hW := H.hW
+  obtain ⟨-, -, -, -, hXl, hX'l, hPl, hQl, hPlen, hQlen, hPc, hQc⟩ := H.basic
+  obtain ⟨lj, hLj, htyO, htyF, htyXj, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty hj
+  obtain ⟨lj', hLj', htyO', htyF', htyXj', -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty' hj
+  have eL := tl_rec (d := d) hPl hPlen φ X hj.le hrj
+  have eL' := tl_rec (d := d) hQl hQlen φ' X' hj.le hrj
+  rw [eL] at hLj htyO htyF htyXj
+  rw [eL'] at hLj' htyO' htyF' htyXj'
+  have hP0 : PL.isub (ISub.cons .zero trivial (ISub.id k)) = PL.dinst .zero := isub_cons_id_of_closed hPc .zero trivial
+  have hP1 : PL.isub (ISub.cons .one trivial (ISub.id k)) = PL.dinst .one := isub_cons_id_of_closed hPc .one trivial
+  have hPl0 : IsList (PL.dinst .zero) := isList_subst hPl _ _
+  have hPl1 : IsList (PL.dinst .one) := isList_subst hPl _ _
+  have hPlen0 : (PL.dinst .zero).toList.length = D.params.length := by
+    rw [show PL.dinst .zero = PL.subst Tm.var (I.inst0 .zero) from rfl, toList_subst hPl]; simp [hPlen]
+  have hPlen1 : (PL.dinst .one).toList.length = D.params.length := by
+    rw [show PL.dinst .one = PL.subst Tm.var (I.inst0 .one) from rfl, toList_subst hPl]; simp [hPlen]
+  have s0 := H.hRLσ (ISub.cons .zero trivial (ISub.id k))
+  have s1 := H.hRLσ (ISub.cons .one trivial (ISub.id k))
+  rw [hP0] at s0
+  rw [hP1] at s1
+  have G5 : RT2 S k ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ (PL.dinst .zero).toList.reverse))
+      ((Tm.data d PL).dinst .zero) := by
+    rw [argTy_rec_inst hrj hPl0 hPlen0 (by simp; omega)]; exact s0
+  have B := RE2.conv hW G5 (H.hargs0 j hj)
+  have hLC : LineConst S k (Tm.data d PL) φ := H.hLC
+  have G2 : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped k3) (hy' : y'.Scoped k3), I.Eq y y' →
+      RT2 S k3 ((Tm.data d PL).isub (ISub.cons y hy τ)) ((Tm.data d QL).isub (ISub.cons y' hy' τ)) := H.hR
+  have G3 : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped k3) (hy' : y'.Scoped k3), I.Eq y y' →
+      RT2 S k3 ((Tm.data d PL).isub (ISub.cons y hy τ)) ((Tm.data d PL).isub (ISub.cons y' hy' τ)) := H.hRL
+  have G8 := H.hrecT j hj hrj
+  have G1 := tfill_rel hW hLj H.hφs H.h12 H.h21 G2 G3 hLC G8 htyF htyF' B
+  have hcj : (Tm.data d PL).closedB 0 (k + 1) = true := closed_ty (spec_to_minimal hW hLj)
+  have hcj' : (Tm.data d QL).closedB 0 (k + 1) = true := closed_ty (spec_to_minimal hW hLj')
+  have G6 : RE2 S k ((Tm.data d PL).dinst .one) (.transp (Tm.data d PL) φ (X.getD j .abort))
+      (.transp (Tm.data d QL) φ' (X'.getD j .abort)) := by
+    have K0 := G8 k (ISub.id k) (.var 0) (.var 0) (show 0 < k + 1 by omega) (show 0 < k + 1 by omega) (I_eq_refl _)
+    rw [ISub.cons_var0_up_tail, isub_up_id_of_closed hcj, isub_up_id_of_closed hcj',
+      isub_id_of_closed (closed_of_ty hW htyXj), isub_id_of_closed (closed_of_ty hW htyXj')] at K0
+    have r1 := G2 k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
+    rw [isub_cons_id_of_closed hcj, isub_cons_id_of_closed hcj'] at r1
+    have r2 := G2 (k + 1) (ISub.id k).up.tail (.var 0) (.var 0) (show 0 < k + 1 by omega) (show 0 < k + 1 by omega)
+      (I_eq_refl _)
+    rw [ISub.cons_var0_up_tail, isub_up_id_of_closed hcj, isub_up_id_of_closed hcj'] at r2
+    have htyO'' := htyO'.tyConv (TyEq.symm (Comp2_ty_base r1).2.2.2.2.2)
+    exact K0 G2 φ φ' hLC htyO htyO'' (eqTm_transp_of hW htyO htyO'' (Comp2_ty_base r2).2.2.2.2.2 H.h12 H.h21
+      (RE2.typed B).2.2) H.h12 H.h21 B
+  have G7 : RT2 S k ((Tm.data d PL).dinst .one) ((C.argTy d D.params.length j).substList
+      (((tOuts d D C PL φ X).take j).reverse ++ (PL.dinst .one).toList.reverse)) := by
+    rw [argTy_rec_inst hrj hPl1 hPlen1 (by simp [tOuts_length]; omega)]; exact s1
+  unfold Good
+  rw [eL, eL']
+  exact ⟨G1, G2, G3, hLC, G5, G6, G7, G8⟩
+
+/-- The facts about all arguments. -/
+theorem good_all : ∀ j, j < C.args.length → Good S k d D PL QL φ φ' C X X' j := by
+  intro j
+  induction j using Nat.strong_induction_on with
+  | _ j ihj =>
+    intro hj
+    have ih : ∀ i, i < j → Good S k d D PL QL φ φ' C X X' i := fun i hi => ihj i hi (by omega)
+    cases hrj : C.isRec j
+    · exact H.good_pt hj hrj ih
+    · exact H.good_rec hj hrj ih
+
+/-- Transport of related constructors along related literal lines: the contracta are related. -/
+theorem rel : RE2 S k (.data d (PL.dinst .one)) (tCon d D c C PL φ X) (tCon d D c C QL φ' X') := by
+  have hW := H.hW
+  obtain ⟨eT, eT', -, -, hXl, hX'l, hPl, hQl, hPlen, hQlen, hPc, hQc⟩ := H.basic
+  have hP1 : PL.isub (ISub.cons .one trivial (ISub.id k)) = PL.dinst .one := isub_cons_id_of_closed hPc .one trivial
+  have hd1 : HasTy S k .one [] (.data d (PL.dinst .one)) (.univ D.level) := by
+    have := HasTy.isubS hW H.hPL (ISub.cons .one trivial (ISub.id k)); rwa [show (Tm.data d PL).isub
+      (ISub.cons .one trivial (ISub.id k)) = .data d (PL.isub (ISub.cons .one trivial (ISub.id k))) from rfl, hP1] at this
+  have s1 := H.hRLσ (ISub.cons .one trivial (ISub.id k))
+  rw [hP1] at s1
+  have hc1 : (PL.dinst .one).closedB 0 k = true := data_closed hW H.hD H.hH hd1
+  have he := eT.symm.trans (H.heq.trans eT')
+  have hcT := HasTy.eqR eT
+  have key := RE2_con_args hW H.hD H.hH hd1 s1 (ISub.id k) H.hC (Y := tOuts d D C PL φ X) (Y' := tOuts d D C QL φ' X')
+    (q := PL.dinst .one) (q' := QL.dinst .one) (tOuts_length _ _ _ _ _ _) (tOuts_length _ _ _ _ _ _)
+    (by rw [isub_id_of_closed hc1]; exact hcT) (by rw [isub_id_of_closed hc1]; exact he) (fun i hi => by
+      rw [isub_id_of_closed hc1, tOuts_getD d D C PL φ X hi, tOuts_getD d D C QL φ' X' hi]
+      have G := H.good_all i hi
+      exact RE2.conv hW G.2.2.2.2.2.2.1 G.2.2.2.2.2.1)
+  rwa [isub_id_of_closed hc1] at key
+
 end TC
 
 end
