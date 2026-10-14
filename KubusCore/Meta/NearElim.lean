@@ -792,6 +792,85 @@ theorem bnd_hyps (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c :
     simp only [bσ]
     rw [List.getD_eq_getElem?_getD, this]; rfl
 
+theorem simpleArgs_isList (ctors : List Ctor) (d np c n : Nat) (C C' : Ctor) :
+    ∀ (t : Tm) (k : Nat), Ctor.simpleArgs ctors d np c n C C' k t = true → t = Tm.ofList t.toList
+  | .tcons a as, k, h => by
+    simp only [Ctor.simpleArgs, Bool.and_eq_true] at h
+    simp only [Tm.toList, Tm.ofList]; rw [← simpleArgs_isList ctors d np c n C C' as (k + 1) h.2]
+  | .tnil, _, _ => rfl
+  | .var _, _, h | .const _, _, h | .univ _, _, h | .pi _ _, _, h | .lam _ _, _, h | .app _ _, _, h
+  | .sigma _ _, _, h | .pair _ _, _, h | .fst _, _, h | .snd _, _, h | .path _ _ _, _, h | .plam _, _, h
+  | .papp _ _, _, h | .ipi _, _, h | .split _ _ _ _, _, h | .abort, _, h | .transp _ _ _, _, h
+  | .hcomp _ _ _ _, _, h | .glue _ _ _ _, _, h | .glueEl _ _ _ _, _, h | .unglue _ _ _, _, h
+  | .data _ _, _, h | .con _ _ _ _ _, _, h | .elim _ _ _ _ _, _, h => by simp [Ctor.simpleArgs] at h
+
+theorem bndElimArgs_eq (D : DataDecl) (C : Ctor) (ps bs : Tm) (C' : Ctor) :
+    ∀ (L : List Tm) (k : Nat), D.bndElimArgs C ps bs C' k (Tm.ofList L) =
+      ((List.range L.length).filter (fun j => C'.isRec (k + j))).map
+        (fun j => D.bndElim C ps bs (L.getD j .abort))
+  | [], k => by simp [Tm.ofList, DataDecl.bndElimArgs]
+  | a :: L, k => by
+    simp only [Tm.ofList, DataDecl.bndElimArgs, bndElimArgs_eq D C ps bs C' L (k + 1)]
+    rw [List.length_cons, List.range_succ_eq_map, List.filter_cons, List.filter_map]
+    have e : ((fun j => C'.isRec (k + j)) ∘ Nat.succ) = fun j => C'.isRec (k + 1 + j) := by
+      funext j; simp only [Function.comp]; congr 1; omega
+    rw [e]
+    by_cases hr : C'.isRec k = true
+    · simp [hr, List.map_map, Function.comp_def, List.getD_cons_succ]
+    · simp [hr, List.map_map, Function.comp_def, List.getD_cons_succ]
+
+theorem recPos_eq_filter (C : Ctor) : C.recPos = (List.range C.args.length).filter (fun j => C.isRec (0 + j)) := by
+  simp [Ctor.recPos]
+
+theorem ivars_rev (m : Nat) : (fun i => (ivars m).reverse.getD i (I.var i)) = I.var := by
+  funext i
+  by_cases h : i < m
+  · rw [List.getD_eq_getElem?_getD, List.getElem?_reverse (by simp [ivars]; omega)]
+    simp only [ivars, List.length_map, List.length_range]
+    rw [List.getElem?_map, List.getElem?_range (by omega)]
+    simp only [Option.map_some, Option.getD_some]; congr 1; omega
+  · rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none (by simp [ivars]; omega)]; rfl
+
+theorem bndPoint_eq {C : Ctor} {ps : Tm} (hps : IsList ps) {np : Nat} (hpl : ps.toList.length = np)
+    {a : Tm} (ha : a.closedB (np + C.args.length) C.dims = true) :
+    DataDecl.bndPoint C ps a = a.subst (bσ (argVars C.recPos.length C.args.length)
+      (ps.wkN (C.recPos.length + C.args.length) C.dims)) I.var := by
+  unfold DataDecl.bndPoint
+  apply closed_subst_eq a _ _ _ _ _ _ ha
+  · intro j hj
+    simp only [bσ, wkN_toList hps]
+    split
+    · rename_i h
+      rw [List.getD_eq_getElem?_getD, List.getElem?_append_left (by simp only [List.length_reverse, argVars_length]; exact h),
+        List.getElem?_reverse (by simp only [argVars_length]; exact h)]
+      simp only [argVars, List.length_map, List.length_range]
+      rw [List.getElem?_map, List.getElem?_range (by omega)]
+      simp only [Option.map_some, Option.getD_some]; congr 1; omega
+    · rename_i h
+      conv => rhs; rw [List.getD_eq_getElem?_getD, List.getElem?_append_right (by simp only [List.length_reverse, argVars_length]; omega)]
+      rw [List.getD_eq_getElem?_getD]
+      simp only [argVars_length, List.length_reverse, ← List.map_reverse, List.getElem?_map]
+      rw [List.getElem?_eq_getElem (by simp [hpl]; omega)]
+      simp only [Option.map_some, Option.getD_some]
+      rw [wkN_eq, wkN_eq]
+      exact subst_congr (fun x => by congr 1; omega) (fun _ => rfl) _
+  · intro i _; rfl
+
+theorem EqTeleS.ofList_of {Ψ Φ Γ} (hw : Wf0 S Ψ Φ Γ) : ∀ (as as' Δ prev : List Tm), as.length = Δ.length →
+    as'.length = Δ.length →
+    (∀ (k : Nat) (a a' A : Tm), as[k]? = some a → as'[k]? = some a' → Δ[k]? = some A →
+      EqTm0 S Ψ Φ Γ a a' (A.substList ((as.take k).reverse ++ prev))) →
+    EqTeleS S Ψ Φ Γ (Tm.ofList as) (Tm.ofList as') Δ prev
+  | [], [], [], _, _, _, _ => .nil hw
+  | a :: as, a' :: as', A :: Δ, prev, hl, hl', h => by
+    refine .cons (by simpa using h 0 a a' A rfl rfl rfl)
+      (EqTeleS.ofList_of hw as as' Δ (a :: prev) (by simpa using hl) (by simpa using hl') ?_)
+    intro k b b' B hb hb' hB
+    have := h (k + 1) b b' B (by simpa using hb) (by simpa using hb') (by simpa using hB)
+    simpa using this
+  | [], _, _ :: _, _, hl, _, _ | _ :: _, _, [], _, hl, _, _ => by simp at hl
+  | _ :: _, [], _ :: _, _, _, hl', _ | [], _ :: _, [], _, _, hl', _ => by simp at hl'
+
 section
 variable (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
   (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
