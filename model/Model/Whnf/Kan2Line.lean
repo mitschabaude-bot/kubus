@@ -32,7 +32,7 @@ theorem lineKan_of (D D' : ∀ k3, ISub k3 (k + 1) → Tm)
       RT2 S k3 (D k3 (ISub.cons y hy τ)) (D' k3 (ISub.cons y' hy' τ)))
     (IH : ∀ k1 (σ1 : ISub k1 (k + 1)) k2 (ρ' : ISub (k2 + 1) k1) X', RT2 S (k2 + 1) ((D k1 σ1).isub ρ') X' →
       KanT2 S k2 ((D k1 σ1).isub ρ') X')
-    {k1 k1' k3 : ℕ} (σ1 : ISub k1 (k + 1)) (σ1' : ISub k1' (k + 1)) (Θ1 : ISub (k3 + 1) k1)
+    (k1 k1' k3 : ℕ) (σ1 : ISub k1 (k + 1)) (σ1' : ISub k1' (k + 1)) (Θ1 : ISub (k3 + 1) k1)
     (Θ1' : ISub (k3 + 1) k1') (σ0 : ISub k3 k) (y y' : I) (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1))
     (hE : I.Eq y y') (e1 : σ1.comp Θ1 = ISub.cons y hy σ0.up.tail) (e1' : σ1'.comp Θ1' = ISub.cons y' hy' σ0.up.tail) :
     KanT2 S k3 ((D k1 σ1).isub Θ1) ((D' k1' σ1').isub Θ1') ∧
@@ -84,7 +84,7 @@ theorem lineConst_of (D : ∀ k3, ISub k3 (k + 1) → Tm)
     (hXD : ∀ k3 (σ : ISub k3 (k + 1)), TyCode k3 (semK S k3 (D k3 σ)))
     (cohD : ∀ k1 (σ1 : ISub k1 (k + 1)) k2 (θ : ISub k2 k1) (σ2 : ISub k2 (k + 1)), σ1.comp θ = σ2 →
       RT2 S k2 ((D k1 σ1).isub θ) (D k2 σ2))
-    {k1 k3 : ℕ} (σ0 : ISub k3 k) (σ1 : ISub k1 (k + 1)) (Θ1 : ISub (k3 + 1) k1) (y : I)
+    (k1 k3 : ℕ) (σ0 : ISub k3 k) (σ1 : ISub k1 (k + 1)) (Θ1 : ISub (k3 + 1) k1) (y : I)
     (hy : y.Scoped (k3 + 1)) (e1 : σ1.comp Θ1 = ISub.cons y hy σ0.up.tail) (ψ : I) (hψ : ψ.Scoped k3)
     (hmid : ∀ k4 (τ2 : ISub k4 k3) (z : I) (hz : z.Scoped k4), I.Entails .one (ψ.subst τ2.τ) →
       RT2 S k4 (D k4 (ISub.cons (y.subst (ISub.cons z hz τ2).τ) (I.scoped_subst hy (ISub.cons z hz τ2).sc)

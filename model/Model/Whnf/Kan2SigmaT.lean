@@ -24,8 +24,63 @@ theorem step_transp_sigma {A B a : Tm} {φ : I} (hn : ¬ I.Entails .one φ) :
   have hn' : I.entails .one φ = false := by simpa [I.Entails] using hn
   simp [step, hn']
 
+theorem ISub.up_tail_comp_up {k3 : ℕ} (σ : ISub k3 k) (τ : ISub k'' k3) :
+    (σ.up.tail).comp τ.up = (σ.comp τ).up.tail := by
+  ext i
+  show ((σ.τ i).shift).subst (I.up τ.τ) = ((σ.τ i).subst τ.τ).shift
+  exact I_shift_subst_up _ _
+
+theorem isub_bindAnd {k3 : ℕ} (X : Tm) (x : I) (hx : x.Scoped k3) (τ : ISub k3 k') :
+    (X.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))).isub (ISub.cons x hx τ).up =
+      X.isub (ISub.cons (.and x.shift (.var 0)) ⟨KubusCore.I.scoped_shift hx, (show (0 : ℕ) < k3 + 1 by omega)⟩
+        τ.up.tail) := by
+  simp only [Tm.dsubst, Tm.isub, subst_subst]
+  refine subst_congr (fun _ => rfl) (fun i => ?_) X
+  rcases i with _ | i
+  · rfl
+  · rfl
+
+theorem isub_bindAnd_up (X : Tm) (τ : ISub k'' k') :
+    (X.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))).isub τ.up.up =
+      X.isub (ISub.cons (.and (.var 1) (.var 0)) ⟨show 1 < k'' + 2 by omega, show 0 < k'' + 2 by omega⟩
+        τ.up.tail.up.tail) := by
+  simp only [Tm.dsubst, Tm.isub, subst_subst]
+  refine subst_congr (fun _ => rfl) (fun i => ?_) X
+  rcases i with _ | i
+  · rfl
+  · rfl
+
+theorem dsubst_bindAnd_closed {X : Tm} (hX : X.closedB 0 (k + 1) = true) :
+    X.dsubst (Tm.bind2 (.and (.var 1) (.var 0))) =
+      X.isub (ISub.cons (.and (.var 1) (.var 0)) ⟨show 1 < k + 2 by omega, show 0 < k + 2 by omega⟩
+        (ISub.id k).up.tail.up.tail) := by
+  simp only [Tm.dsubst, Tm.isub]
+  refine closed_subst_eq X 0 (k + 1) _ _ _ _ hX (fun _ h => absurd h (Nat.not_lt_zero _)) fun i hi => ?_
+  rcases i with _ | i
+  · rfl
+  · show I.var (i + 2) = (((ISub.id k).τ i).shift).shift
+    simp [ISub.id, show i < k by omega, I.shift, I.ren, I.subst]
+
 variable (hW : WfSig S)
 include hW
+
+/-- A transport is typed at the end of its line. -/
+theorem transp_canon_typed {X T b : Tm} {ψ : I} (h : HasTy S k .one [] (.transp X ψ b) T) :
+    HasTy S k .one [] (.transp X ψ b) (X.dinst .one) := by
+  obtain ⟨l0, ⟨hL, hφ, hc, ha⟩, -⟩ := gen_transpF (Φ := .one) (Γ := []) (spec_to_minimal hW h) rfl
+  exact minimal_to_spec (HasTy0.transp hL hφ hc ha)
+
+/-- The typing of the transport filler of the first projection, along a line of Σ-types. -/
+theorem transpSigma_fill_typed {T A B a0 : Tm} {φ : I} (hty : HasTy S k .one [] (.transp T φ a0) (T.dinst .one))
+    (hR : RedT S (k + 1) T (.sigma A B)) :
+    HasTy S (k + 1) .one [] (Tm.transpFill A φ (.fst a0)) A := by
+  have hS := sigClosed_of_wfSig hW
+  have h1 := HasTy.eqR (eq_transp_ty hW hty hR.2)
+  obtain ⟨l0, ⟨hL, hφ, hc, ha⟩, -⟩ := gen_transpF (Φ := .one) (Γ := []) (spec_to_minimal hW h1) rfl
+  have hA0 := HasTy0.sigmaDom hS hL
+  have hcD := EqTm0.sigmaInjDom (A' := (A.dinst .zero).dshift) hc
+  rw [sigma_dinst] at ha
+  exact minimal_to_spec (transpFill_typed hS hA0 hφ hcD (HasTy0.fst ha)).1
 
 /-- The first projection of a transport along a line of Σ-types whose face does not hold. -/
 theorem fst_transp_sigma {T A2 B2 a0 : Tm} {φ : I} (hn : ¬ I.Entails .one φ)
@@ -247,6 +302,235 @@ theorem kanT2_sigma_fst {T T' : Tm} (hTT : RT2 S (k + 1) T T') (hP : SigmaStr S 
     refine hIHA (k' + 1) ρ.up _ _ (hw _ ρ.up).1 k'' ρ'.up _ ?_
     have c := G3 (k' + 1) ρ.up (k'' + 1) ρ'.up (ρ.comp ρ').up (ISub.up_comp ρ ρ').symm
     exact RT2.trans hW (RT2.tyCode_l hW c (hXA _ _)) c (hw (k'' + 1) (ρ.comp ρ').up).2.2.1
+
+
+/-- The second projections of transports along related lines of Σ-types. -/
+theorem kanT2_sigma_snd {T T' : Tm} (hTT : RT2 S (k + 1) T T') (hP : SigmaStr S (k + 1) T T')
+    (hLR : LineRob S k T T')
+    (hIHA : ∀ k1 (ρ : ISub k1 (k + 1)) A1 B1, RedT S k1 (T.isub ρ) (.sigma A1 B1) →
+      ∀ k2 (ρ' : ISub (k2 + 1) k1) X', RT2 S (k2 + 1) (A1.isub ρ') X' → KanT2 S k2 (A1.isub ρ') X')
+    (hIHB : ∀ k1 (ρ : ISub k1 (k + 1)) A1 B1, RedT S k1 (T.isub ρ) (.sigma A1 B1) → ∀ b, RE2 S k1 A1 b b →
+      ∀ k2 (ρ' : ISub (k2 + 1) k1) X', RT2 S (k2 + 1) ((B1.inst b).isub ρ') X' → KanT2 S k2 ((B1.inst b).isub ρ') X')
+    {φ φ' : I} {a0 a0' : Tm} (hC : LineConst S k T φ)
+    (hty : HasTy S k .one [] (.transp T φ a0) (T.dinst .one))
+    (hty' : HasTy S k .one [] (.transp T' φ' a0') (T.dinst .one))
+    (heq : EqTm S k .one [] (.transp T φ a0) (.transp T' φ' a0') (T.dinst .one))
+    (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (ha0 : RE2 S k (T.dinst .zero) a0 a0')
+    {A1 B1 : Tm} (hR1 : RedT S k (T.dinst .one) (.sigma A1 B1)) :
+    RE2 S k (B1.inst (.fst (.transp T φ a0))) (.snd (.transp T φ a0)) (.snd (.transp T' φ' a0')) := by
+  have FST := kanT2_sigma_fst hW hTT hP hLR hIHA hC hty hty' heq h12 h21 ha0 hR1
+  obtain ⟨l0, ⟨hTl, hφs, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty) rfl
+  have hTl' : HasTy S (k + 1) .one [] T (.univ l0) := minimal_to_spec hTl
+  have hTc : T.closedB 0 (k + 1) = true := closed_ty hTl
+  have hXT : TyCode (k + 1) (semK S (k + 1) T) := tyCode_of_univ hW hTl'
+  have hTK : ∀ k3 (σ : ISub k3 (k + 1)), IsTyK S k3 (T.isub σ) := fun k3 σ => ⟨l0, .inl (HasTy.isubS hW hTl' σ)⟩
+  have hXTσ : ∀ k3 (σ : ISub k3 (k + 1)), TyCode k3 (semK S k3 (T.isub σ)) := fun k3 σ => by
+    rw [semK_isubTy hW (hTK (k + 1) (ISub.id (k + 1)) |> fun _ => ⟨l0, .inl hTl'⟩) σ]; exact hXT.res _
+  choose A2 B2 A2' B2' hw using hP.whnf
+  have hXA : ∀ k3 (σ : ISub k3 (k + 1)), TyCode k3 (semK S k3 (A2 k3 σ)) := fun k3 σ => by
+    obtain ⟨l, h⟩ := sigmaW_typed hW (hTK k3 σ) (hw k3 σ).1
+    exact tyCode_of_univ hW (HasTy.sigmaDom h)
+  have hBpt : ∀ k3 (σ : ISub k3 (k + 1)) a, HasTy S k3 .one [] a (A2 k3 σ) →
+      TyCode k3 (semK S k3 ((B2 k3 σ).inst a)) := fun k3 σ a ha => by
+    obtain ⟨l, hpi⟩ := sigmaW_typed hW (hTK k3 σ) (hw k3 σ).1
+    exact tyCode_of_univ hW (minimal_to_spec (HasTy0.subst (sigClosed_of_wfSig hW)
+      (HasTy0.sigmaCod (sigClosed_of_wfSig hW) (spec_to_minimal hW hpi)) (spec_to_minimal hW ha)))
+  have hBpt' : ∀ k3 (σ : ISub k3 (k + 1)) a, HasTy S k3 .one [] a (A2' k3 σ) →
+      TyCode k3 (semK S k3 ((B2' k3 σ).inst a)) := fun k3 σ a ha => by
+    obtain ⟨l, hpi⟩ := sigmaW_typed hW (Comp2_ty_base (RT2.isub hW hXT hTT σ)).2.2.1 (hw k3 σ).2.1
+    exact tyCode_of_univ hW (minimal_to_spec (HasTy0.subst (sigClosed_of_wfSig hW)
+      (HasTy0.sigmaCod (sigClosed_of_wfSig hW) (spec_to_minimal hW hpi)) (spec_to_minimal hW ha)))
+  -- coherence of the normal forms of the restrictions
+  have G3 : ∀ k1 (σ1 : ISub k1 (k + 1)) k2 (θ : ISub k2 k1) (σ2 : ISub k2 (k + 1)), σ1.comp θ = σ2 →
+      RT2 S k2 ((A2 k1 σ1).isub θ) (A2 k2 σ2) ∧ ∀ a a', RE2 S k2 ((A2 k1 σ1).isub θ) a a' →
+        RT2 S k2 (((B2 k1 σ1).isub θ).inst a) ((B2 k2 σ2).inst a') := by
+    intro k1 σ1 k2 θ σ2 h; subst h
+    exact hP.coh k1 σ1 k2 θ _ _ _ _ (hw k1 σ1).1 (hw k2 _).1
+  have G3' : ∀ k1 (σ1 : ISub k1 (k + 1)) k2 (θ : ISub k2 k1) (σ2 : ISub k2 (k + 1)), σ1.comp θ = σ2 →
+      RT2 S k2 ((A2' k1 σ1).isub θ) (A2' k2 σ2) ∧ ∀ a a', RE2 S k2 ((A2' k1 σ1).isub θ) a a' →
+        RT2 S k2 (((B2' k1 σ1).isub θ).inst a) ((B2' k2 σ2).inst a') := by
+    intro k1 σ1 k2 θ σ2 h; subst h
+    exact hP.coh' k1 σ1 k2 θ _ _ _ _ (hw k1 σ1).2.1 (hw k2 _).2.1
+  -- robustness in the line coordinate
+  have G1 : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped k3) (hy' : y'.Scoped k3), I.Eq y y' →
+      RT2 S k3 (A2 k3 (ISub.cons y hy τ)) (A2' k3 (ISub.cons y' hy' τ)) ∧
+      ∀ a a', RE2 S k3 (A2 k3 (ISub.cons y hy τ)) a a' →
+        RT2 S k3 ((B2 k3 (ISub.cons y hy τ)).inst a) ((B2' k3 (ISub.cons y' hy' τ)).inst a') :=
+    fun k3 τ y y' hy hy' hE => sigmaW_rel hW (hLR k3 τ y y' hy hy' hE) (hw _ _).1 (hw _ _).2.1
+  have G1L : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped k3) (hy' : y'.Scoped k3), I.Eq y y' →
+      RT2 S k3 (A2 k3 (ISub.cons y hy τ)) (A2 k3 (ISub.cons y' hy' τ)) ∧
+      ∀ a a', RE2 S k3 (A2 k3 (ISub.cons y hy τ)) a a' →
+        RT2 S k3 ((B2 k3 (ISub.cons y hy τ)).inst a) ((B2 k3 (ISub.cons y' hy' τ)).inst a') := by
+    intro k3 τ y y' hy hy' hE
+    have m1 := hLR k3 τ y y' hy hy' hE
+    have m2 := hLR k3 τ y' y' hy' hy' (I_eq_refl _)
+    have m := RT2.trans hW (hXTσ k3 _) m1 (RT2.symm hW (hXTσ k3 _) m2)
+    exact sigmaW_rel hW m (hw _ _).1 (hw _ _).1
+  have G2 : ∀ k3 (τ : ISub k3 k) (y : I) (hy : y.Scoped k3), (ival (idEnv k3) (φ.subst τ.τ)).holds →
+      RT2 S k3 (A2 k3 (ISub.cons y hy τ)) (A2 k3 (ISub.cons .zero trivial τ)) ∧
+      ∀ a a', RE2 S k3 (A2 k3 (ISub.cons y hy τ)) a a' →
+        RT2 S k3 ((B2 k3 (ISub.cons y hy τ)).inst a) ((B2 k3 (ISub.cons .zero trivial τ)).inst a') :=
+    fun k3 τ y hy hh => sigmaW_rel hW (hC k3 τ y hy hh) (hw _ _).1 (hw _ _).1
+  -- the generic lemmas on lines of domains
+  have lk := lineKan_of hW A2 A2' hXA (fun k1 σ1 k2 θ σ2 h => (G3 k1 σ1 k2 θ σ2 h).1)
+    (fun k1 σ1 k2 θ σ2 h => (G3' k1 σ1 k2 θ σ2 h).1) (fun k3 τ y y' hy hy' hE => (G1 k3 τ y y' hy hy' hE).1)
+    (fun k1 σ1 k2 ρ' X' h => hIHA k1 σ1 _ _ (hw k1 σ1).1 k2 ρ' X' h)
+  have lkL := lineKan_of hW A2 A2 hXA (fun k1 σ1 k2 θ σ2 h => (G3 k1 σ1 k2 θ σ2 h).1)
+    (fun k1 σ1 k2 θ σ2 h => (G3 k1 σ1 k2 θ σ2 h).1) (fun k3 τ y y' hy hy' hE => (G1L k3 τ y y' hy hy' hE).1)
+    (fun k1 σ1 k2 ρ' X' h => hIHA k1 σ1 _ _ (hw k1 σ1).1 k2 ρ' X' h)
+  have LCgen := lineConst_of hW A2 hXA (fun k1 σ1 k2 θ σ2 h => (G3 k1 σ1 k2 θ σ2 h).1)
+  -- the endpoint `T(1)`
+  let ι1 : ISub k (k + 1) := ISub.cons .one trivial (ISub.id k)
+  have hR1' : RedT S k (T.isub ι1) (.sigma A1 B1) := by rw [isub_cons_id_of_closed hTc]; exact hR1
+  obtain ⟨hA1e, hB1e⟩ : A2 k ι1 = A1 ∧ B2 k ι1 = B1 := by
+    have := RedW.unique (hw k ι1).1.1 hR1'.1; injection this; constructor <;> assumption
+  have Aend : ∀ k' (ρ : ISub k' k), RT2 S k' (A1.isub ρ) (A2 k' (ISub.cons .one trivial ρ)) ∧
+      ∀ a a', RE2 S k' (A1.isub ρ) a a' → RT2 S k' ((B1.isub ρ).inst a) ((B2 k' (ISub.cons .one trivial ρ)).inst a') := by
+    intro k' ρ; rw [← hA1e, ← hB1e]; exact G3 k ι1 k' ρ _ (cons_one_comp ρ)
+  have Apt : ∀ k' (ρ : ISub k' k) (e : I) (he : e.Scoped k'),
+      RT2 S k' ((A2 (k' + 1) ρ.up).dinst e) (A2 k' (ISub.cons e he ρ)) ∧
+      ∀ a a', RE2 S k' ((A2 (k' + 1) ρ.up).dinst e) a a' →
+        RT2 S k' (((B2 (k' + 1) ρ.up).dinst e).inst a) ((B2 k' (ISub.cons e he ρ)).inst a') := by
+    intro k' ρ e he
+    obtain ⟨l, hsig⟩ := sigmaW_typed hW (hTK _ ρ.up) (hw _ ρ.up).1
+    have hcl := closed_of_ty hW hsig
+    simp only [Tm.closedB, Bool.and_eq_true] at hcl
+    rw [← isub_cons_id_of_closed hcl.1 e he, ← isub_cons_id_of_closed hcl.2 e he]
+    exact G3 (k' + 1) ρ.up k' _ _ (by rw [ISub.up_comp_cons, ISub.comp_id])
+  have Apt' : ∀ k' (ρ : ISub k' k) (e : I) (he : e.Scoped k'),
+      RT2 S k' ((A2' (k' + 1) ρ.up).dinst e) (A2' k' (ISub.cons e he ρ)) ∧
+      ∀ a a', RE2 S k' ((A2' (k' + 1) ρ.up).dinst e) a a' →
+        RT2 S k' (((B2' (k' + 1) ρ.up).dinst e).inst a) ((B2' k' (ISub.cons e he ρ)).inst a') := by
+    intro k' ρ e he
+    obtain ⟨l, hsig⟩ := sigmaW_typed hW (Comp2_ty_base (RT2.isub hW hXT hTT ρ.up)).2.2.1 (hw _ ρ.up).2.1
+    have hcl := closed_of_ty hW hsig
+    simp only [Tm.closedB, Bool.and_eq_true] at hcl
+    rw [← isub_cons_id_of_closed hcl.1 e he, ← isub_cons_id_of_closed hcl.2 e he]
+    exact G3' (k' + 1) ρ.up k' _ _ (by rw [ISub.up_comp_cons, ISub.comp_id])
+  have tyB : ∀ {k3 : ℕ} {X Z : Tm}, RT2 S k3 X Z → TyEq S k3 X Z := fun h => (Comp2_ty_base h).2.2.2.2.2
+  have hT0 : ∀ {k3 : ℕ} (σ : ISub k3 k), (T.dinst .zero).isub σ = T.isub (ISub.cons .zero trivial σ) := fun σ => by
+    rw [isub_dinst]; exact isub_up_dinst T σ .zero trivial
+  have hXA1 : TyCode k (semK S k A1) := by rw [← hA1e]; exact hXA _ _
+  have hA1K : IsTyK S k A1 := isTyK_of_ty hW (RE2.typed FST).1
+  have hXA1ρ : ∀ k' (ρ : ISub k' k), TyCode k' (semK S k' (A1.isub ρ)) := fun k' ρ => by
+    rw [semK_isubTy hW hA1K ρ]; exact hXA1.res _
+  have hA1A1 : RT2 S k A1 A1 := by
+    have := (hw k ι1).2.2.1; rw [hA1e] at this; exact RT2.refl hW hXA1 this
+  have hA1ρ : ∀ k' (ρ : ISub k' k), RT2 S k' (A1.isub ρ) (A1.isub ρ) := fun k' ρ => RT2.isub hW hXA1 hA1A1 ρ
+  -- the first projections
+  have Fρ : ∀ k' (ρ : ISub k' k), RE2 S k' (A1.isub ρ) ((Tm.fst (.transp T φ a0)).isub ρ)
+      ((Tm.fst (.transp T' φ' a0')).isub ρ) := fun k' ρ => RE2.isub hW FST ρ
+  have Fs : ∀ k' (ρ : ISub k' k), RE2 S k' (A1.isub ρ) ((Tm.fst (.transp T φ a0)).isub ρ)
+      ((Tm.fst (.transp T φ a0)).isub ρ) := fun k' ρ =>
+    RE2.trans hW (hA1ρ k' ρ) (Fρ k' ρ) (RE2.symm hW (hA1ρ k' ρ) (Fρ k' ρ))
+  -- the codomain of the endpoint at related arguments
+  have hB11 : ∀ k' (ρ : ISub k' k) a a', RE2 S k' (A1.isub ρ) a a' →
+      RT2 S k' ((B1.isub ρ).inst a) ((B1.isub ρ).inst a') := by
+    intro k' ρ a a' h
+    have h' := RE2.trans hW (hA1ρ k' ρ) (RE2.symm hW (hA1ρ k' ρ) h) h
+    have c1 := (Aend k' ρ).2 a a' h
+    have c2 := (Aend k' ρ).2 a' a' h'
+    have u := hBpt k' _ _ (RE2.typed (RE2.conv hW (Aend k' ρ).1 h)).2.1
+    exact RT2.trans hW (RT2.tyCode_l hW c1 u) c1 (RT2.symm hW (RT2.tyCode_l hW c2 u) c2)
+  -- the type of the second projections
+  have ht0 : HasTy S k .one [] (.snd (.transp T φ a0)) (B1.inst (.fst (.transp T φ a0))) :=
+    HasTy.snd (hty.tyConv hR1.2)
+  have hX : TyCode k (semK S k (B1.inst (.fst (.transp T φ a0)))) := tyCode_of_ty hW ht0
+  have hYY : RT2 S k (B1.inst (.fst (.transp T φ a0))) (B1.inst (.fst (.transp T φ a0))) := by
+    have hFF : RE2 S k (A2 k ι1) (.fst (.transp T φ a0)) (.fst (.transp T φ a0)) := by
+      rw [hA1e]; exact RE2.trans hW hA1A1 FST (RE2.symm hW hA1A1 FST)
+    have := (hw k ι1).2.2.2 _ _ hFF
+    rw [hB1e] at this; exact RT2.refl hW hX this
+  -- typings at restrictions
+  have hρT : ∀ k' (ρ : ISub k' k), HasTy S k' .one [] (.transp (T.isub ρ.up) (φ.subst ρ.τ) (a0.isub ρ))
+      ((T.isub ρ.up).dinst .one) := fun k' ρ => by
+    have := HasTy.isubS hW hty ρ; rwa [isub_dinst] at this
+  have hρT' : ∀ k' (ρ : ISub k' k), HasTy S k' .one [] (.transp (T'.isub ρ.up) (φ'.subst ρ.τ) (a0'.isub ρ))
+      ((T'.isub ρ.up).dinst .one) := fun k' ρ => by
+    have := (HasTy.isubS hW hty' ρ).tyConv ((tyEq_dinst hW hP.tyEq (r := .one) trivial).isub hW ρ)
+    rwa [isub_dinst] at this
+  have eTF : ∀ k' (ρ : ISub k' k), TyEq S k' ((T.isub ρ.up).dinst .one) (.sigma (A1.isub ρ) (B1.isub ρ)) := by
+    intro k' ρ; have := hR1.2.isub hW ρ; rw [isub_dinst, isub_sigma] at this; exact this
+  have Cd1 : ∀ k' (ρ : ISub k' k), RT2 S k' ((A2 (k' + 1) ρ.up).dinst .one) (A1.isub ρ) := fun k' ρ =>
+    RT2.trans hW (RT2.tyCode_l hW (Apt k' ρ .one trivial).1 (hXA _ _)) (Apt k' ρ .one trivial).1
+      (RT2.symm hW (hXA1ρ k' ρ) (Aend k' ρ).1)
+  -- the bases, at the domains
+  have a0e : ∀ k' (ρ : ISub k' k), RE2 S k' (A2 k' (ISub.cons .zero trivial ρ)) (.fst (a0.isub ρ)) (.fst (a0'.isub ρ)) ∧
+      RE2 S k' ((B2 k' (ISub.cons .zero trivial ρ)).inst (.fst (a0.isub ρ))) (.snd (a0.isub ρ)) (.snd (a0'.isub ρ)) := by
+    intro k' ρ
+    have h0 := RE2.isub hW ha0 ρ
+    rw [hT0] at h0
+    exact hP.elim k' _ _ _ _ _ (hw k' _).1 h0
+  have a0s : ∀ k' (ρ : ISub k' k), RE2 S k' (A2 k' (ISub.cons .zero trivial ρ)) (.fst (a0.isub ρ)) (.fst (a0.isub ρ)) :=
+    fun k' ρ => RE2.trans hW (hw _ _).2.2.1 (a0e k' ρ).1 (RE2.symm hW (hw _ _).2.2.1 (a0e k' ρ).1)
+  -- the first projection of the transport, against a transport of the first projection
+  have Gfill : ∀ k3 (σ : ISub k3 k) k1 (σ1 : ISub k1 (k + 1)) (Θ1 : ISub (k3 + 1) k1) (y : I)
+      (hy : y.Scoped (k3 + 1)), I.Eq y (.var 0) → σ1.comp Θ1 = ISub.cons y hy σ.up.tail → ∀ (ψ : I), ψ.Scoped k3 →
+      I.Entails ψ (φ.subst σ.τ) → I.Entails (φ.subst σ.τ) ψ →
+      HasTy S k3 .one [] (.transp ((A2 k1 σ1).isub Θ1) ψ (.fst (a0.isub σ))) (A1.isub σ) →
+      LineConst S k3 ((A2 k1 σ1).isub Θ1) ψ →
+      RE2 S k3 (A1.isub σ) ((Tm.fst (.transp T φ a0)).isub σ) (.transp ((A2 k1 σ1).isub Θ1) ψ (.fst (a0.isub σ))) := by
+    intro k3 σ k1 σ1 Θ1 y hy hyE e1 ψ hψ hψ1 hψ2 htyX hLCX
+    refine RE2.expandH hW (hA1ρ k3 σ) (RE2.typed (Fs k3 σ)).1 htyX fun k4 τ => ?_
+    have hν : ((Tm.fst (.transp T φ a0)).isub σ).isub τ = .fst (.transp (T.isub (σ.comp τ).up)
+        (φ.subst (σ.comp τ).τ) (a0.isub (σ.comp τ))) := by rw [Tm.isub_isub]; rfl
+    have eX : (Tm.transp ((A2 k1 σ1).isub Θ1) ψ (.fst (a0.isub σ))).isub τ =
+        .transp ((A2 k1 σ1).isub (Θ1.comp τ.up)) (ψ.subst τ.τ) (.fst (a0.isub (σ.comp τ))) := by
+      show Tm.transp (((A2 k1 σ1).isub Θ1).isub τ.up) _ (.fst ((a0.isub σ).isub τ)) = _
+      rw [Tm.isub_isub, Tm.isub_isub]
+    have htyR := HasTy.isubS hW htyX τ
+    rw [eX, Tm.isub_isub] at htyR
+    rw [hν, eX, Tm.isub_isub]
+    show ∃ u, Red S _ u ∧ EqTm S k4 .one [] _ u (A1.isub (σ.comp τ)) ∧ RE2 S k4 (A1.isub (σ.comp τ)) u _
+    have hφν : I.Entails (φ.subst (σ.comp τ).τ) (ψ.subst τ.τ) := by rw [I_subst_comp]; exact ent_subst hψ2 _
+    have hψν : I.Entails (ψ.subst τ.τ) (φ.subst (σ.comp τ).τ) := by rw [I_subst_comp]; exact ent_subst hψ1 _
+    by_cases hf : I.Entails .one (φ.subst (σ.comp τ).τ)
+    · refine ⟨.fst (a0.isub (σ.comp τ)), red_fst (.step (step_transp_face hf) (.refl _)),
+        EqTm.fst ((EqTm.transpFace hf (hρT k4 _)).tyConv (eTF k4 _)), ?_⟩
+      have hst := stable_transpFace hW (ent_trans hf hφν) htyR
+      have hCν := hC k4 (σ.comp τ) .one trivial ((holds_iff_entails (I.scoped_subst hφs (σ.comp τ).sc)).2 hf)
+      have hT1 := RT2.trans hW (hXTσ _ _) hCν (RT2.symm hW (hXTσ _ _) hCν)
+      have h0 := RE2.isub hW ha0 (σ.comp τ)
+      rw [hT0] at h0
+      have h1 := RE2.conv' hW hCν h0 (hXTσ _ _)
+      have el := (hP.elim k4 _ _ _ _ _ (hw k4 _).1 h1).1
+      have hA := (hw k4 (ISub.cons .one trivial (σ.comp τ))).2.2.1
+      have ell := RE2.trans hW hA el (RE2.symm hW hA el)
+      have hf1 := RE2.conv' hW (Aend k4 _).1 ell (hXA1ρ _ _)
+      exact RE2.expandR hW (hA1ρ k4 _) (RE2.typed hf1).1 htyR hst hf1
+    · obtain ⟨a, b⟩ := fst_transp_sigma hW hf (hρT k4 _) (hw (k4 + 1) (σ.comp τ).up).1
+      refine ⟨_, a, b.tyConv (tyB (Cd1 k4 _)), ?_⟩
+      have hcl := closed_of_isTyK hW (Comp2_ty_base (hw (k4 + 1) (σ.comp τ).up).2.2.1).2.1
+      have eL := isub_up_id_of_closed hcl
+      have e1L : (σ.comp τ).up.comp (ISub.id k4).up =
+          ISub.cons (.var 0) (show (0 : ℕ) < k4 + 1 by omega) (σ.comp τ).up.tail := by
+        rw [← ISub.up_comp, ISub.comp_id, ISub.cons_var0_up_tail]
+      have hyτ : (y.subst τ.up.τ).Scoped (k4 + 1) := I.scoped_subst hy τ.up.sc
+      have e1R : σ1.comp (Θ1.comp τ.up) = ISub.cons (y.subst τ.up.τ) hyτ (σ.comp τ).up.tail := by
+        rw [← ISub.comp_assoc, e1, ISub.cons_comp, ISub.up_tail_comp_up]
+      have hEy : I.Eq (.var 0) (y.subst τ.up.τ) := I_eq_symm (I_eq_subst hyE _)
+      have K := lkL (k4 + 1) k1 k4 (σ.comp τ).up σ1 (ISub.id k4).up (Θ1.comp τ.up) (σ.comp τ) (.var 0) _ _ hyτ
+        hEy e1L e1R
+      have hφνs : (φ.subst (σ.comp τ).τ).Scoped k4 := I.scoped_subst hφs (σ.comp τ).sc
+      have LCL := LCgen (k4 + 1) k4 (σ.comp τ) (σ.comp τ).up (ISub.id k4).up (.var 0) _ e1L _ hφνs
+        (fun k5 τ2 z hz he => by
+          have hh2 := (holds_iff_entails (I.scoped_subst hφs ((σ.comp τ).comp τ2).sc)).2 (ent_comp_inv he)
+          exact RT2.trans hW (hXA _ _) (G2 k5 _ z hz hh2).1 (RT2.symm hW (hXA _ _) (G2 k5 _ .zero trivial hh2).1))
+      have htyL := transp_canon_typed hW (HasTy.eqR b)
+      rw [← eL] at htyL
+      have c1 := K.2.2.1 .one trivial
+      have tL1 : TyEq S k4 (A1.isub (σ.comp τ))
+          (((A2 (k4 + 1) (σ.comp τ).up).isub (ISub.id k4).up).dinst .one) :=
+        TyEq.trans hW (tyB (Aend k4 _).1) (TyEq.symm (tyB c1))
+      have htyR' := htyR.tyConv tL1
+      have c0 := K.2.2.1 .zero trivial
+      have hb := RE2.conv' hW c0 (a0s k4 _) (RT2.tyCode_l hW c0 (hXA _ _))
+      have heqK := eqTm_transp_of hW htyL htyR' (tyB K.2.2.2.1) hφν hψν (RE2.typed hb).2.2
+      have r := K.1 K.2.1 _ _ _ _ LCL htyL htyR' heqK hφν hψν hb
+      have tr := RT2.trans hW (RT2.tyCode_l hW c1 (hXA _ _)) c1 (RT2.symm hW (hXA1ρ _ _) (Aend k4 _).1)
+      rw [eL] at r tr
+      exact RE2.conv hW tr r
+  sorry
 
 end
 
