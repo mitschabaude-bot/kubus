@@ -484,7 +484,7 @@ theorem near_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → ∀ {t'}, TmNear t t'
         have he : I.Entails (cof (Φ.ren (· + C.dims)) ψ) (Φ.subst (wkIv C.dims)) := by
           rw [← I_ren_add_eq]; exact ent_and_left _ _
         have eA := branchApp_congr hS hW h0 hC hpres h3 es edata eP (eb c C b b' hC hb hb') hw he
-        have eB := bndElim_congr hS hW h0 hC hpres h3 es edata eP h5 hbs' hbl.symm eb hk hw he (ent_and_right _ _)
+        have eB := bndElim_congr hS hW h0 hC hpres h3 es edata eP h5 hbs' hbl.symm h6 eb hk hw he (ent_and_right _ _)
         have X := EqTm0.trans (EqTm0.symm eA) (EqTm0.trans hco eB)
         have T := ctxConv_branch hS hW h0 hC hpres h3 es edata eP hΞ he
         have X' := (sub_eq hS X).2 T

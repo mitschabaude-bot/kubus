@@ -1217,7 +1217,7 @@ theorem branchApp_congr {b b' : Tm} (eb : EqTm0 S Ψ Φ Γ b b' (D.branchTy d c 
 include eP in
 /-- The eliminator on a boundary, at near data. -/
 theorem bndElim_congr {bs bs' : Tm} (hbs : bs = Tm.ofList bs.toList) (hbs' : bs' = Tm.ofList bs'.toList)
-    (hbl : bs.toList.length = bs'.toList.length)
+    (hbl : bs.toList.length = bs'.toList.length) (hbsl : bs.toList.length = D.ctors.length)
     (ebs : ∀ (c' : Nat) (C' : Ctor) (b b' : Tm), D.ctors[c']? = some C' → bs.toList[c']? = some b →
       bs'.toList[c']? = some b' → EqTm0 S Ψ Φ Γ b b' (D.branchTy d c' C' ps P))
     {k : Nat} {e : Tm} {ψ : I} (hk : C.bnd[k]? = some (ψ, e)) {Ξ : I}
@@ -1225,7 +1225,132 @@ theorem bndElim_congr {bs bs' : Tm} (hbs : bs = Tm.ofList bs.toList) (hbs' : bs'
     (he : I.Entails Ξ (Φ.subst (wkIv C.dims))) (hψ : I.Entails Ξ ψ) :
     EqTm0 S (Ψ + C.dims) Ξ (ctxWkI C.dims (ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length ++ Γ))
       (D.bndElim C ps bs e) (D.bndElim C ps' bs' e) (DataDecl.branchBody d c C ps P) := by
-  sorry
+  have hpsL := tele_isList ht
+  have hpsL' := es.isList'
+  have hpl : ps.toList.length = D.params.length := by simpa using tele_length ht
+  have hpl' : ps'.toList.length = D.params.length := by simpa using es.length'
+  obtain ⟨-, -, hctors⟩ := hW.2 d D hD
+  obtain ⟨-, hbndW, -⟩ := hctors c C hC
+  obtain ⟨-, hbcl, hsimp, -, hbt⟩ := hbndW k ψ e hk
+  let E := ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length
+  have hEl : E.length = C.recPos.length + C.args.length := by simp [E, ihCtxB_length, argCtxB_length]
+  obtain ⟨tw, esw, edw⟩ := params_wk hS hD ht es edata E C.dims hw he
+  simp only [hEl] at tw esw edw
+  have hl := (hW.2 d D hD).1
+  have hdw := HasTy0.data hD hl tw
+  have tw' := params_tele hS hW hD hpres tw esw
+  have hdw' := HasTy0.data hD hl tw'
+  have hxs := argvars_tele hS hD hC hpsL hpl (ihCtxB C P C.recPos.length) C.dims hw
+  rw [ihCtxB_length] at hxs
+  have hxs' : HasTele0 S (Ψ + C.dims) Ξ (ctxWkI C.dims (E ++ Γ)) (Tm.ofList (argVars C.recPos.length C.args.length))
+      (C.argTys d D.params.length) (ps'.wkN (C.recPos.length + C.args.length) C.dims).toList.reverse := by
+    have hty : ∀ i, i < C.args.length → HasTy0 S (Ψ + C.dims) Ξ (ctxWkI C.dims (E ++ Γ))
+        ((argVars C.recPos.length C.args.length).getD i .abort)
+        ((C.argTy d D.params.length i).substList (((argVars C.recPos.length C.args.length).take i).reverse ++
+          (ps.wkN (C.recPos.length + C.args.length) C.dims).toList.reverse)) := by
+      intro i hi
+      have := argvars_hty hS hD hC hpsL hpl (ihCtxB C P C.recPos.length) C.dims C.args.length hw hi
+      rw [ihCtxB_length] at this
+      exact this
+    obtain ⟨-, -, -, Tel⟩ := pts_near hS hW hD hC hpres tw esw edw C.args.length (Nat.le_refl _)
+      (by simp [argVars_length]) (by simp [argVars_length]) hty (fun i hi => EqTm0.refl (hty i hi))
+      C.args.length (Nat.le_refl _)
+    apply HasTele0.ofList_of hw _ _ _ (by simp [argVars_length, argTys_length])
+    intro j a A ha hA
+    have hj : j < C.args.length := by
+      have := (List.getElem?_eq_some_iff.1 hA).1; rwa [argTys_length] at this
+    rw [argTys_get hj] at hA; cases hA
+    have := Tel j hj
+    rw [List.getD_eq_getElem?_getD, ha] at this
+    exact this
+  have hτ : ∀ i < C.dims, (I.var i).Scoped (Ψ + C.dims) := fun i hi => show i < Ψ + C.dims by omega
+  obtain ⟨σp, hσ, hag, hlook, hpv⟩ := bnd_hyps hS hW hD hC tw hxs hτ hψ
+  obtain ⟨σp', hσ', hag', hlook', hpv'⟩ := bnd_hyps hS hW hD hC tw' hxs' hτ hψ
+  have hσσ : ∀ j, j < C.args.length →
+      bσ (argVars C.recPos.length C.args.length) (ps.wkN (C.recPos.length + C.args.length) C.dims) j =
+      bσ (argVars C.recPos.length C.args.length) (ps'.wkN (C.recPos.length + C.args.length) C.dims) j := by
+    intro j hj
+    simp only [bσ, List.getD_eq_getElem?_getD]
+    rw [List.getElem?_append_left (by simp [argVars_length]; omega),
+      List.getElem?_append_left (by simp [argVars_length]; omega)]
+  -- the branches, weakened
+  have T0 := tySub_wkE (S := S) (Γ := Γ) (Φ := Φ) E C.dims hw he
+  let Pw := P.subst (Tm.up fun j => .var (j + (C.recPos.length + C.args.length))) (wkIv C.dims)
+  have hσw : (fun j => Tm.var (j + E.length)) = fun j => Tm.var (j + (C.recPos.length + C.args.length)) := by
+    rw [hEl]
+  have hpsw : ps.subst (fun j => Tm.var (j + (C.recPos.length + C.args.length))) (wkIv C.dims) =
+      ps.wkN (C.recPos.length + C.args.length) C.dims := by rw [wkN_eq]; rfl
+  have hbw : ∀ (c' : Nat) (C' : Ctor) (b b' : Tm), D.ctors[c']? = some C' → bs.toList[c']? = some b →
+      bs'.toList[c']? = some b' →
+      EqTm0 S (Ψ + C.dims) Ξ (ctxWkI C.dims (E ++ Γ)) (b.wkN (C.args.length + C.recPos.length) C.dims)
+        (b'.wkN (C.args.length + C.recPos.length) C.dims)
+        (D.branchTy d c' C' (ps.wkN (C.recPos.length + C.args.length) C.dims) Pw) := by
+    intro c' C' b b' hc' hb hb'
+    have := (sub_eq hS (ebs c' C' b b' hc' hb hb')).2 T0
+    rw [branchTy_subst _ _ hS hD hc' hpsL hpl, hσw, hpsw] at this
+    have hwk : ∀ q : Tm, q.subst (fun j => Tm.var (j + (C.recPos.length + C.args.length))) (wkIv C.dims) =
+        q.wkN (C.args.length + C.recPos.length) C.dims := by
+      intro q; rw [wkN_eq]; apply subst_congr
+      · intro x; show Tm.var _ = Tm.var _; congr 1; omega
+      · intro i; rfl
+    rw [hwk, hwk] at this
+    exact this
+  -- the hypothesis variables
+  have hih := ihvars_tele (S := S) (d := d) (np := D.params.length) (ps := ps) (P := P) C.dims hw
+  have hvar : ∀ j s, j < C.args.length → C.recPos.idxOf? (C.args.length - 1 - j) = some s →
+      HasTy0 S (Ψ + C.dims) Ξ (ctxWkI C.dims (E ++ Γ)) (.var (C.recPos.length - 1 - s))
+        (Pw.inst (bσ (argVars C.recPos.length C.args.length) (ps.wkN (C.recPos.length + C.args.length) C.dims) j)) := by
+    intro j s hj hidx
+    obtain ⟨hs, hget, -⟩ := List.idxOf?_eq_some_iff.1 hidx
+    have hgs : C.recPos.getD s 0 = C.args.length - 1 - j := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; exact hget
+    have hv := tele_get hih s (.var (C.recPos.length - 1 - s)) (DataDecl.branchIhTy C Pw s)
+      (by rw [toList_ofList]; simp [ihVars, hs]) (by simp [List.getElem?_map, List.getElem?_range hs, Pw])
+    rw [toList_ofList, branchIhTy_substList Pw hs (by simp [ihVars_length]; omega) (argVars_length _ _), hgs,
+      argVars_get _ _ (by omega)] at hv
+    have hb : bσ (argVars C.recPos.length C.args.length) (ps.wkN (C.recPos.length + C.args.length) C.dims) j =
+        .var (C.recPos.length + C.args.length - 1 - (C.args.length - 1 - j)) := by
+      simp only [bσ, List.getD_eq_getElem?_getD]
+      rw [List.getElem?_append_left (by simp [argVars_length]; omega), List.getElem?_reverse (by simp [argVars_length]; omega)]
+      simp only [argVars_length]
+      rw [show C.args.length - 1 - j = C.args.length - 1 - j by rfl]
+      simp [argVars, show C.args.length - 1 - j < C.args.length by omega]
+    rw [hb]; exact hv
+  have hdim : C.dims ≤ Ψ + C.dims := by omega
+  have R := bnd_eq_rec (c := c) hS (htrE_of_wf hW hD) hD (isList_wkN hpsL _ _) (isList_wkN hpsL' _ _) hdw tw hdw' tw'
+    edw esw hσ hag hlook hpv hσ' hag' hlook' hpv' hσσ hτ hdim
+    (fun a ha => bndPoint_eq hpsL hpl ha) (fun a ha => bndPoint_eq hpsL' hpl' ha)
+    hbsl (by rw [← hbl]; exact hbsl) hbw hvar e
+  have eB := (R.1 hsimp hbt hbcl).2
+  -- the type: the boundary and the constructor
+  have hivs : (ivars C.dims).length = C.dims := by simp [ivars]
+  have hivsc : ∀ r ∈ ivars C.dims, r.Scoped (Ψ + C.dims) := by
+    intro r hr; simp only [ivars, List.mem_map, List.mem_range] at hr
+    obtain ⟨j, hj, rfl⟩ := hr; show C.dims - 1 - j < Ψ + C.dims; omega
+  have hcon := HasTy0.con hD hC (isList_wkN hpsL _ _) hdw tw hxs hivs hivsc
+  have hcof : I.Entails Ξ (Ctor.cofAt ψ (ivars C.dims)) := by
+    unfold Ctor.cofAt; rw [ivars_rev, I_subst_var]; exact hψ
+  have ecb := EqTm0.conBnd hD hC hk hcof (isList_wkN hpsL _ _) (by rw [toList_ofList]) hcon
+  have hbA : Ctor.bndAt e (ps.wkN (C.recPos.length + C.args.length) C.dims).toList
+      (Tm.ofList (argVars C.recPos.length C.args.length)).toList (ivars C.dims) =
+      e.subst (bσ (argVars C.recPos.length C.args.length) (ps.wkN (C.recPos.length + C.args.length) C.dims)) I.var := by
+    unfold Ctor.bndAt; rw [toList_ofList, ivars_rev]; rfl
+  rw [hbA] at ecb
+  have hP := hpres (EqTm0.symm eP)
+  have T1 := T0.up' hS (A := data d ps) (by simp only [Tm.subst]; rw [hσw, hpsw]; exact hdw)
+  have hPw := (sub_ty hS hP).2.1 T1
+  rw [hσw] at hPw
+  simp only [Tm.subst] at hPw
+  rw [hpsw] at hPw
+  have eT := HasTy0.inst_congr hS hPw hcon (hpres ecb) ecb
+  have hbody : DataDecl.branchBody d c C ps P =
+      Pw.inst (con d c (ps.wkN (C.recPos.length + C.args.length) C.dims)
+        (Tm.ofList (argVars C.recPos.length C.args.length)) (ivars C.dims)) := by
+    rw [branchBody_eq d c C ps P E hEl, inst_up_eq, hσw]
+    rw [show ps.wkN (C.args.length + C.recPos.length) C.dims = ps.wkN (C.recPos.length + C.args.length) C.dims by
+      rw [Nat.add_comm]]
+  rw [hbody]
+  exact EqTm0.conv eB (EqTm0.symm eT)
 
 end
 
