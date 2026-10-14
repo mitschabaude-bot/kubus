@@ -221,6 +221,72 @@ theorem coh_side {k1 : ℕ} (ρ : ISub k1 K) {Q1 : Tm} (hQ1 : RT2 S K (.data d P
       rw [conOuts_eq_tele _ _ _ _ hXl']
       exact e
 
+/-- The relation of compositions at all restrictions, from the induction hypotheses at the components
+and coherence data of the relation of the base. -/
+theorem mot1_intro {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm} (he : EqTm S k1 .one [] x x' A)
+    (ih : ∀ k' (σ : ISub k' k1), DM2 S d D P k' (g.comp σ.hom) (A.isub σ) (x.isub σ) (x'.isub σ))
+    (ihc : ∀ k' (σ : ISub k' k1) w, RedW S (x.isub σ) w → ∀ k'' (ρ' : ISub k'' k'),
+      DM2 S d D P k'' (g.comp (σ.comp ρ').hom) (A.isub (σ.comp ρ')) (w.isub ρ') (x.isub (σ.comp ρ')))
+    (ihc' : ∀ k' (σ : ISub k' k1) w, RedW S (x'.isub σ) w → ∀ k'' (ρ' : ISub k'' k'),
+      DM2 S d D P k'' (g.comp (σ.comp ρ').hom) (A.isub (σ.comp ρ')) (w.isub ρ') (x'.isub (σ.comp ρ'))) :
+    DM1 S d P k1 g A x x' := by
+  intro ρ hg hA Q Q' hQ hQ' K2 σ φ φ' u u' hty hty' heq hteq h12 h21 htube hxx hbd hbd'
+  subst hg hA
+  have hXP := tyCode_of_univ hW hP
+  have eP := fun (R : Tm) {k3 : ℕ} (σ1 : ISub k3 K2) => eDσ hW hD hH hP hPP hArgK R (ρ.comp σ) σ1
+  have hPρσ := RT2.isub hW hXP hPP (ρ.comp σ)
+  have hpσ : ∀ {k3 : ℕ} (κ : ISub k3 K2), RT2 S k3 ((Tm.data d (P.isub (ρ.comp σ))).isub κ)
+      ((Tm.data d (P.isub (ρ.comp σ))).isub κ) := fun κ => by
+    rw [eP]; exact RT2.isub hW hXP hPP ((ρ.comp σ).comp κ)
+  obtain ⟨l0, ⟨-, hφs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
+  obtain ⟨l0', ⟨-, hφs', -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty') rfl
+  have hφ'φ : ∀ {k3 : ℕ} (κ : ISub k3 K2), (ival (idEnv k3) (φ'.subst κ.τ)).holds →
+      (ival (idEnv k3) (φ.subst κ.τ)).holds := fun κ hh => by
+    rw [holds_iff_entails (I.scoped_subst hφs κ.sc)]
+    exact ent_trans ((holds_iff_entails (I.scoped_subst hφs' κ.sc)).1 hh) (ent_subst h21 κ.τ)
+  -- the elements related to themselves
+  have hxx' := RE2.trans hW hPρσ (RE2.symm hW hPρσ hxx) hxx
+  have hx0 := RE2.trans hW hPρσ hxx (RE2.symm hW hPρσ hxx)
+  refine (RE2_dataLit_iff hW hD hP (ρ.comp σ)).2 ⟨⟨hty, hty', heq⟩, .intro heq (fun K3 τ => ?_) ?_ ?_⟩
+  · -- each stage
+    have h1 := ih K3 (σ.comp τ) (ρ.comp (σ.comp τ)) (ISub.hom_comp _ _).symm
+      (eDσ hW hD hH hP hPP hArgK P ρ (σ.comp τ)) Q Q' hQ hQ'
+    rw [← ISub.hom_comp] at h1
+    have h1' : HC2R S K3 ((Tm.data d (P.isub (ρ.comp σ))).isub τ) ((Tm.data d (Q.isub (ρ.comp σ))).isub τ)
+        ((Tm.data d (Q'.isub (ρ.comp σ))).isub τ) ((x.isub σ).isub τ) ((x'.isub σ).isub τ)
+        (DR2At S d (dataD S d) (dataMem S (ΘK S D d K P) (Hom.id K)) (dataP2 S (ΘK S D d K P) (Hom.id K)) K3
+          ((ρ.comp σ).hom.comp τ.hom) ((Tm.data d (P.isub (ρ.comp σ))).isub τ)) := by
+      rw [eP P τ, eP Q τ, eP Q' τ, Tm.isub_isub x, Tm.isub_isub x', ← ISub.hom_comp, ISub.comp_assoc]
+      exact h1
+    exact HC2R_isub hW τ h1' φ φ' u u' hty hty' heq hteq h12 h21 htube hxx hbd hbd'
+  · -- the coherence of the left side
+    intro K3 τ w hw K4 ρ'
+    refine coh_side hW hD hH hP hPP hArgK (ρ.comp σ) hQ hx0 (fun k' τ1 w1 hw1 k'' ρ1 => ?_) hty
+      (fun k3 κ r r' hr hr' hE hh => RE2.trans hW (hpσ κ) (htube k3 κ r r' hr hr' hE hh)
+        (RE2.symm hW (hpσ κ) (htube k3 κ r' r' hr' hr' (I_eq_refl _) hh)))
+      (fun k3 κ hh => RE2.trans hW (hpσ κ) (hbd k3 κ hh) (RE2.symm hW (hpσ κ) (RE2.isub hW hxx κ))) τ w hw ρ'
+    rw [Tm.isub_isub] at hw1
+    have h1 := ihc k' (σ.comp τ1) w1 hw1 k'' ρ1
+    rw [eDσ hW hD hH hP hPP hArgK P ρ ((σ.comp τ1).comp ρ1), ← ISub.hom_comp] at h1
+    rw [Tm.isub_isub, ← ISub.hom_comp]
+    simp only [ISub.comp_assoc] at h1 ⊢
+    exact h1
+  · -- the coherence of the right side
+    intro K3 τ w hw K4 ρ'
+    have hty'P : HasTy S K2 .one [] (.hcomp (.data d (Q'.isub (ρ.comp σ))) φ' u' (x'.isub σ)) (.data d (P.isub (ρ.comp σ))) :=
+      hty'
+    refine coh_side hW hD hH hP hPP hArgK (ρ.comp σ) hQ' hxx' (fun k' τ1 w1 hw1 k'' ρ1 => ?_) hty'P
+      (fun k3 κ r r' hr hr' hE hh => RE2.trans hW (hpσ κ)
+        (RE2.symm hW (hpσ κ) (htube k3 κ r r hr hr (I_eq_refl _) (hφ'φ κ hh))) (htube k3 κ r r' hr hr' hE (hφ'φ κ hh)))
+      (fun k3 κ hh => RE2.symm hW (hpσ κ) (RE2.trans hW (hpσ κ) (RE2.symm hW (hpσ κ) (RE2.isub hW hxx κ))
+        (hbd' k3 κ (hφ'φ κ hh)))) τ w hw ρ'
+    rw [Tm.isub_isub] at hw1
+    have h1 := ihc' k' (σ.comp τ1) w1 hw1 k'' ρ1
+    rw [eDσ hW hD hH hP hPP hArgK P ρ ((σ.comp τ1).comp ρ1), ← ISub.hom_comp] at h1
+    rw [Tm.isub_isub, ← ISub.hom_comp]
+    simp only [ISub.comp_assoc] at h1 ⊢
+    exact h1
+
 end side
 
 end
