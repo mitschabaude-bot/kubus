@@ -385,4 +385,159 @@ theorem near_transpGlueWith {A A' T T' e e' a a' : Tm} {δ δ' φ φ' ψ ψ' : I
     TmNear (Tm.transpGlueWith δ A φ T e ψ a) (Tm.transpGlueWith δ' A' φ' T' e' ψ' a') := by
   simp only [Tm.transpGlueWith, Tm.fiber, Tm.pathC]; near
 
+theorem rel_map {o o' : Option Tm} (h : Option.Rel TmNear o o') {f g : Tm → Tm}
+    (hfg : ∀ x x', TmNear x x' → TmNear (f x) (g x')) : Option.Rel TmNear (o.map f) (o'.map g) := by
+  cases h with
+  | none => exact .none
+  | some h => exact .some (hfg _ _ h)
+
+theorem rel_isNone {o o' : Option Tm} (h : Option.Rel TmNear o o') : o = none ↔ o' = none := by
+  cases h <;> simp
+
+theorem step_app_eq (S : Sig) (f a : Tm) (hf : ∀ A t, f ≠ .lam A t) :
+    step S (.app f a) = (step S f).map (.app · a) := by
+  cases f <;> simp_all [step]
+
+theorem step_fst_eq (S : Sig) (p : Tm) (hp : ∀ a b, p ≠ .pair a b) : step S (.fst p) = (step S p).map .fst := by
+  cases p <;> simp_all [step]
+
+theorem step_snd_eq (S : Sig) (p : Tm) (hp : ∀ a b, p ≠ .pair a b) : step S (.snd p) = (step S p).map .snd := by
+  cases p <;> simp_all [step]
+
+theorem step_papp_eq (S : Sig) (p : Tm) (r : I) (hp : ∀ t, p ≠ .plam t) :
+    step S (.papp p r) = (step S p).map (.papp · r) := by
+  cases p <;> simp_all [step]
+
+theorem near_lam_iff {f f' : Tm} (h : TmNear f f') : (∃ A t, f = .lam A t) ↔ (∃ A t, f' = .lam A t) := by
+  cases h <;> simp
+
+theorem near_pair_iff {f f' : Tm} (h : TmNear f f') : (∃ a b, f = .pair a b) ↔ (∃ a b, f' = .pair a b) := by
+  cases h <;> simp
+
+theorem near_plam_iff {f f' : Tm} (h : TmNear f f') : (∃ t, f = .plam t) ↔ (∃ t, f' = .plam t) := by
+  cases h <;> simp
+
+theorem rel_refl (o : Option Tm) : Option.Rel TmNear o o := by
+  cases o with
+  | none => exact .none
+  | some x => exact .some (TmNear.refl x)
+
+/-- Reduction respects nearness. -/
+theorem step_near (S : Sig) {t t' : Tm} (h : TmNear t t') : Option.Rel TmNear (step S t) (step S t') := by
+  induction h with
+  | var => exact rel_refl _
+  | const => exact rel_refl _
+  | univ => exact rel_refl _
+  | abort => exact rel_refl _
+  | tnil => exact rel_refl _
+  | pi => exact .none
+  | lam => exact .none
+  | sigma => exact .none
+  | pair => exact .none
+  | path => exact .none
+  | plam => exact .none
+  | ipi => exact .none
+  | tcons => exact .none
+  | data => exact .none
+  | @app f f' a a' hf ha ihf _ =>
+    by_cases hl : ∃ A t, f = .lam A t
+    · obtain ⟨A, t, rfl⟩ := hl
+      cases hf with | lam _ ht => exact .some (ht.inst ha)
+    · have hl' : ¬ ∃ A t, f' = .lam A t := fun h => hl ((near_lam_iff hf).2 h)
+      rw [step_app_eq S f a (fun A t e => hl ⟨A, t, e⟩), step_app_eq S f' a' (fun A t e => hl' ⟨A, t, e⟩)]
+      exact rel_map ihf fun x x' hx => .app hx ha
+  | @fst p p' hp ihp =>
+    by_cases hl : ∃ a b, p = .pair a b
+    · obtain ⟨a, b, rfl⟩ := hl
+      cases hp with | pair h1 _ => exact .some h1
+    · have hl' : ¬ ∃ a b, p' = .pair a b := fun h => hl ((near_pair_iff hp).2 h)
+      rw [step_fst_eq S p (fun a b e => hl ⟨a, b, e⟩), step_fst_eq S p' (fun a b e => hl' ⟨a, b, e⟩)]
+      exact rel_map ihp fun x x' hx => .fst hx
+  | @snd p p' hp ihp =>
+    by_cases hl : ∃ a b, p = .pair a b
+    · obtain ⟨a, b, rfl⟩ := hl
+      cases hp with | pair _ h2 => exact .some h2
+    · have hl' : ¬ ∃ a b, p' = .pair a b := fun h => hl ((near_pair_iff hp).2 h)
+      rw [step_snd_eq S p (fun a b e => hl ⟨a, b, e⟩), step_snd_eq S p' (fun a b e => hl' ⟨a, b, e⟩)]
+      exact rel_map ihp fun x x' hx => .snd hx
+  | @papp p p' r r' hp hr ihp =>
+    by_cases hl : ∃ t, p = .plam t
+    · obtain ⟨t, rfl⟩ := hl
+      cases hp with | plam ht => exact .some (ht.dinst hr)
+    · have hl' : ¬ ∃ t, p' = .plam t := fun h => hl ((near_plam_iff hp).2 h)
+      rw [step_papp_eq S p r (fun t e => hl ⟨t, e⟩), step_papp_eq S p' r' (fun t e => hl' ⟨t, e⟩)]
+      exact rel_map ihp fun x x' hx => .papp hx hr
+  | @split φ φ' ψ ψ' t t' u u' e1 ht e2 hu _ _ =>
+    show Option.Rel TmNear (if I.entails .one φ then some t else if I.entails .one ψ then some u else none)
+      (if I.entails .one φ' then some t' else if I.entails .one ψ' then some u' else none)
+    rw [e1.entails, e2.entails]
+    split_ifs
+    · exact .some ht
+    · exact .some hu
+    · exact .none
+  | @glue A A' T T' e e' φ φ' _ hφ hT _ _ _ _ =>
+    show Option.Rel TmNear (if I.entails .one φ then some T else none) (if I.entails .one φ' then some T' else none)
+    rw [hφ.entails]
+    split_ifs
+    · exact .some hT
+    · exact .none
+  | @glueEl e e' t t' a a' φ φ' hφ _ ht _ _ _ _ =>
+    show Option.Rel TmNear (if I.entails .one φ then some t else none) (if I.entails .one φ' then some t' else none)
+    rw [hφ.entails]
+    split_ifs
+    · exact .some ht
+    · exact .none
+  | @unglue e e' g g' φ φ' hφ he hg _ ihg =>
+    simp only [step]
+    rw [hφ.entails]
+    split_ifs
+    · exact .some (.app (.fst he) hg)
+    · generalize step S g = o at ihg ⊢
+      generalize step S g' = o' at ihg ⊢
+      cases ihg with
+      | some hx => exact .some (.unglue hφ he hx)
+      | none =>
+        cases hg with
+        | glueEl _ _ _ h4 => exact .some h4
+        | _ => exact .none
+  | @transp A A' a a' φ φ' hA hφ ha ihA _ =>
+    simp only [step]
+    rw [hφ.entails]
+    split_ifs
+    · exact .some ha
+    · generalize step S A = o at ihA ⊢
+      generalize step S A' = o' at ihA ⊢
+      cases ihA with
+      | some hx => exact .some (.transp hx hφ ha)
+      | none =>
+        cases hA with
+        | univ => exact .some ha
+        | pi h1 h2 => exact .some (near_transpPi h1 h2 hφ ha)
+        | sigma h1 h2 => exact .some (near_transpSigma h1 h2 hφ ha)
+        | path h1 h2 h3 => exact .some (near_transpPath h1 h2 h3 hφ ha)
+        | ipi h1 => exact .some (near_transpIPi h1 hφ ha)
+        | glue h1 h2 h3 h4 => exact .some (near_transpGlueWith h2.forall0 h1 h2 h3 h4 hφ ha)
+        | data hps => sorry
+        | _ => exact .none
+  | @hcomp A A' u u' a a' φ φ' hA hφ hu ha ihA _ _ =>
+    simp only [step]
+    rw [hφ.entails]
+    split_ifs
+    · exact .some (hu.dinst (I_eq_refl _))
+    · generalize step S A = o at ihA ⊢
+      generalize step S A' = o' at ihA ⊢
+      cases ihA with
+      | some hx => exact .some (.hcomp hx hφ hu ha)
+      | none =>
+        cases hA with
+        | univ => exact .some (near_hcompU hφ hu ha)
+        | pi h1 h2 => exact .some (near_hcompPi h1 h2 hφ hu ha)
+        | sigma h1 h2 => exact .some (near_hcompSigma h1 h2 hφ hu ha)
+        | path h1 h2 h3 => exact .some (near_hcompPath h1 h2 h3 hφ hu ha)
+        | ipi h1 => exact .some (near_hcompIPi h1 hφ hu ha)
+        | glue h1 h2 h3 h4 => exact .some (near_hcompGlue h1 h2 h3 h4 hφ hu ha)
+        | data hps => sorry
+        | _ => exact .none
+  | _ => sorry
+
 end Model.Whnf
