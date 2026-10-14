@@ -30,7 +30,7 @@ structure Obl2 (S : Sig) : Prop where
 /-- **The compatibility of Glue annotations**, from the binary fundamental lemma. -/
 theorem glueCompat_of (hW : WfSig S) (O : Obl2 S) : GlueCompat S := by
   intro k A A' T T' e e' φ φ' l h hn h12 h21
-  obtain ⟨-, hr⟩ := fund2_closed hW (kanOracle2 hW O.hit) O.data (spec_to_minimal_eq hW h)
+  obtain ⟨-, hr⟩ := fund2_closed hW (kanOracle2 hW O.hit) O.hit O.data (spec_to_minimal_eq hW h)
   have hGG' := RE2_univ_ty hW hr
   have hG := HasTy.eqL h
   have hG' := HasTy.eqR h
