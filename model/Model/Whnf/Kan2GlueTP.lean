@@ -44,6 +44,23 @@ theorem tgTube_zero (φ : I) (e u0 : Tm) (σ : ISub k' k) :
       (u0.isub σ)
   rw [I_end_isub φ (.inl rfl), dinst_isub_end _ (.inl rfl), dshift_isub_up_dinst]
 
+theorem sk2_cons (X : Tm) {k4 : ℕ} (τ : ISub k4 (k + 1)) (z : I) (hz : z.Scoped k4) :
+    (X.dsubst (sk (.var 0) 2)).isub (ISub.cons z hz τ) = X.isub (ISub.cons z hz τ.tail) := by
+  conv_lhs => rw [← ISub.cons_tail τ]
+  rw [sk2_isub]
+
+theorem sk2_closed {X : Tm} (hX : X.closedB 0 (k + 1) = true) :
+    X.dsubst (sk (.var 0) 2) = X.isub (ISub.cons (.var 0) (show 0 < k + 1 + 1 by omega) (ISub.wk (k + 1)).tail) := by
+  simp only [Tm.dsubst, Tm.isub]
+  refine closed_subst_eq X 0 (k + 1) _ _ _ _ hX (fun _ h => absurd h (Nat.not_lt_zero _)) fun i hi => ?_
+  rcases i with _ | i
+  · rfl
+  · show I.var (i + 2) = (ISub.wk (k + 1)).τ (i + 1); simp [ISub.wk, show i < k by omega]
+
+theorem dshift_isub_tail (t : Tm) {k4 : ℕ} (τ : ISub k4 (k + 1)) : t.dshift.isub τ = t.isub τ.tail := by
+  conv_lhs => rw [← ISub.cons_tail τ]
+  rw [dshift_isub_cons]
+
 variable (hW : WfSig S)
 include hW
 
@@ -560,6 +577,64 @@ theorem TGD2.sysZ (hδ : (ival (idEnv k) δ).holds) {k3 : ℕ} (σ0 : ISub k3 k)
       simp only [← ISub.comp_assoc] at this ⊢
       exact this
 
+
+/-- On `δ`, the bodies of `ω`. -/
+theorem TGD2.body (hδ : (ival (idEnv k) δ).holds) :
+    RE2 S (k + 1) (A.dinst .one).dshift (tgBody A φ T e ψ u0) (tgBody A' φ' T' e' ψ' u0') := by
+  obtain ⟨hAc, -, hec, -⟩ := D.closedL hW
+  obtain ⟨hAc', -, hec', -⟩ := D.closedR hW
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hδe := ent_cof_one hW (entails_of_holds D.hδs hδ)
+  have hδe' := ent_cof_one hW (entails_of_holds D.hδs' (D.hδ' hδ))
+  have hb := HasTy.restrict (Φ' := .one) trivial (ent_shift hδe) (minimal_to_spec H.hbody)
+  have hb' := HasTy.restrict (Φ' := .one) trivial (ent_shift hδe') (minimal_to_spec H'.hbody)
+  have hA1 := D.rA k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
+  rw [isub_cons_id_of_closed hAc, isub_cons_id_of_closed hAc'] at hA1
+  have hX1 : TyCode k (semK S k (A.dinst .one)) := tyCode_of_univ hW (minimal_to_spec (H.hAr (r := .one) trivial))
+  have eT := (Comp2_ty_base (RT2.dshift hW hX1 hA1)).2.2.2.2.2
+  have hb'' := hb'.tyConv eT.symm
+  rw [← L_C1] at hb hb'' ⊢
+  unfold tgBody at hb hb'' ⊢
+  have hχs : (tgChi ψ).Scoped (k + 1) :=
+    ⟨KubusCore.I.scoped_shift H.hψ, show 0 < k + 1 by omega, show 0 < k + 1 by omega⟩
+  have hθ : ∀ {k4 : ℕ} (σ0 : ISub k4 k) (y : I) (hy : y.Scoped k4),
+      (ival (idEnv k4) ((tgChi ψ).subst (ISub.cons y hy σ0).τ)).holds →
+      I.Entails .one (I.or (ψ.subst σ0.τ) (.or (.neg y) y)) := fun σ0 y hy hh => by
+    have := entails_of_holds (I.scoped_subst hχs (ISub.cons y hy σ0).sc) hh
+    simpa only [tgChi, I.subst, I_shift_cons] using this
+  refine comp2r hW (fun k4 τ z z' hz hz' he => ?_) (fun k4 τ z z' hz hz' he => ?_) (fun k3 Θ X' h => ?_)
+    (fun X' h => ?_) hb hb'' ?_ ?_ (fun k3 σ r r' hr hr' he hh => ?_) ?_ (fun k3 σ hh => ?_) (fun k3 σ hh => ?_)
+  · rw [sk2_cons, sk2_cons]; exact D.rA k4 τ.tail z z' hz hz' he
+  · rw [sk2_cons, sk2_cons]; exact D.rAA k4 τ.tail z z' hz hz' he
+  · rw [sk2_closed hAc, Tm.isub_isub] at h ⊢; exact D.kAT k3 _ X' h
+  · have e1 : (A.dinst .one).dshift = A.isub (ISub.cons .one trivial (ISub.wk k)) := by
+      rw [← dshift_eq_isub_closed (closed_of_ty hW (minimal_to_spec (H.hAr (r := .one) trivial))),
+        dinst_isub_end _ (.inr rfl), isub_up_dinst _ _ .one trivial]
+    rw [L_C1, e1] at h ⊢; exact D.kAH (k + 1) _ X' h
+  · exact ent_or_elim (ent_trans (ent_shift D.p12) (ent_or_left _ _)) (ent_or_right _ _)
+  · exact ent_or_elim (ent_trans (ent_shift D.p21) (ent_or_left _ _)) (ent_or_right _ _)
+  · obtain ⟨y, hy, σ0, rfl⟩ : ∃ y hy σ0, σ = ISub.cons y hy σ0 := ⟨_, _, _, (ISub.cons_tail σ).symm⟩
+    rw [sk2_cons, isub_up_dinst _ _ _ hr, isub_up_dinst _ _ _ hr', ISub.tail_cons]
+    exact D.sysAt hW hδ σ0 hy hr hr' he hh
+  · rw [L_C0]
+    have x := RE2.dshift hW (D.eu0 hW hδ (ISub.id k) (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _) (.inr rfl))
+    rw [isub_cons_id_of_closed hAc, isub_cons_id_of_closed hec, isub_cons_id_of_closed hec',
+      isub_id_of_closed (closed_ty H.hu0), isub_id_of_closed (closed_ty H'.hu0)] at x
+    exact x
+  · obtain ⟨y, hy, σ0, rfl⟩ : ∃ y hy σ0, σ = ISub.cons y hy σ0 := ⟨_, _, _, (ISub.cons_tail σ).symm⟩
+    rw [sk2_cons, isub_up_dinst _ _ .zero trivial, isub_app, isub_fst, dshift_isub_tail, dshift_isub_tail,
+      dinst_isub_end _ (.inl rfl), isub_up_dinst _ _ .zero trivial, ISub.tail_cons]
+    exact D.sysZ hW hδ σ0 hy (hθ σ0 y hy hh)
+  · obtain ⟨y, hy, σ0, rfl⟩ : ∃ y hy σ0, σ = ISub.cons y hy σ0 := ⟨_, _, _, (ISub.cons_tail σ).symm⟩
+    rw [sk2_cons, isub_up_dinst _ _ .zero trivial, isub_app, isub_fst, dshift_isub_tail, dshift_isub_tail,
+      dinst_isub_end _ (.inl rfl), isub_up_dinst _ _ .zero trivial, ISub.tail_cons]
+    have hAA := D.rAA k3 σ0 .zero .zero trivial trivial (I_eq_refl _)
+    have z := D.sysZ hW hδ σ0 hy (hθ σ0 y hy hh)
+    have b := D.eu0 hW hδ σ0 (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _) (.inr rfl)
+    have a := D.sysAt hW hδ σ0 hy (x := .zero) (x' := .zero) trivial trivial (I_eq_refl _) hh
+    have zb := RE2.trans hW hAA z (RE2.symm hW hAA b)
+    exact RE2.trans hW hAA (RE2.symm hW hAA zb) a
 end
 
 end
