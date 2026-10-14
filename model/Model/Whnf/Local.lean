@@ -15,13 +15,12 @@ include hW
 
 /-- Two terms over a face are equal if all their restrictions where the face holds are. -/
 theorem eq_of_restr {k : ℕ} {φ : I} (hφs : φ.Scoped k) {X t t' : Tm} {l : ℕ}
-    (hX : HasTy S k (cof .one φ) [] X (.univ l)) (ht : HasTy S k (cof .one φ) [] t X)
+    (hX : HasTy S k (cof .one φ) [] X (.univ l) ∨ X = .univ l) (ht : HasTy S k (cof .one φ) [] t X)
     (ht' : HasTy S k (cof .one φ) [] t' X)
     (h : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       EqTm S k' .one [] (t.isub σ) (t'.isub σ) (X.isub σ)) :
     EqTm S k (cof .one φ) [] t t' X := by
   have hS := sigClosed_of_wfSig hW
-  have hX0 := spec_to_minimal hW hX
   have ht0 := spec_to_minimal hW ht
   have ht'0 := spec_to_minimal hW ht'
   have hΦs : (cof .one φ).Scoped k := ⟨trivial, hφs⟩
@@ -43,12 +42,19 @@ theorem eq_of_restr {k : ℕ} {φ : I} (hφs : φ.Scoped k) {X t t' : Tm} {l : �
       I_subst_congr_scoped (fun i hi => by show faceSub α i = (if i < k then faceSub α i else .zero); rw [if_pos hi]) hφs
     rwa [e3] at h2
   have e := spec_to_minimal_eq hW (h k ρ hface)
-  rw [isub_ofFun (closed_ty ht0), isub_ofFun (closed_ty ht'0), isub_ofFun (closed_ty hX0)] at e
+  rw [isub_ofFun (closed_ty ht0), isub_ofFun (closed_ty ht'0)] at e
   have eΞ := EqTm0.restrict hΞs (ent_one _) e
-  have hXΞ := HasTy0.restrict hΞs (ent_and_left _ _) hX0
-  have e_t := face_all hW (.inl hXΞ) (HasTy0.restrict hΞs (ent_and_left _ _) ht0) α hsc (ent_and_right _ _)
-  have e_t' := face_all hW (.inl hXΞ) (HasTy0.restrict hΞs (ent_and_left _ _) ht'0) α hsc (ent_and_right _ _)
-  have e_X := face_all hW (l := l) (.inr rfl) hXΞ α hsc (ent_and_right _ _)
-  exact e_t.trans ((EqTm0.conv eΞ (EqTm0.symm e_X)).trans (EqTm0.symm e_t'))
+  rcases hX with hX | rfl
+  · have hX0 := spec_to_minimal hW hX
+    rw [isub_ofFun (closed_ty hX0)] at eΞ
+    have hXΞ := HasTy0.restrict hΞs (ent_and_left _ _) hX0
+    have e_t := face_all hW (.inl hXΞ) (HasTy0.restrict hΞs (ent_and_left _ _) ht0) α hsc (ent_and_right _ _)
+    have e_t' := face_all hW (.inl hXΞ) (HasTy0.restrict hΞs (ent_and_left _ _) ht'0) α hsc (ent_and_right _ _)
+    have e_X := face_all hW (l := l) (.inr rfl) hXΞ α hsc (ent_and_right _ _)
+    exact e_t.trans ((EqTm0.conv eΞ (EqTm0.symm e_X)).trans (EqTm0.symm e_t'))
+  · have e_t := face_all hW (l := l) (.inr rfl) (HasTy0.restrict hΞs (ent_and_left _ _) ht0) α hsc (ent_and_right _ _)
+    have e_t' := face_all hW (l := l) (.inr rfl) (HasTy0.restrict hΞs (ent_and_left _ _) ht'0) α hsc
+      (ent_and_right _ _)
+    exact e_t.trans (eΞ.trans (EqTm0.symm e_t'))
 
 end Model.Whnf

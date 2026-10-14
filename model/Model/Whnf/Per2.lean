@@ -1,5 +1,6 @@
 import Model.Whnf.Data2
 import Model.Whnf.Pack2
+import Model.Whnf.GlueAux2
 import Model.Canon.KanDerived
 
 /-!
@@ -21,8 +22,6 @@ attribute [local instance] Classical.propDecidable
 
 variable {S : Sig} {k k' k'' m : ℕ}
 
-/-- The PER properties for a code at all its restrictions. -/
-def PER2 (S : Sig) (m : ℕ) (X : V) : Prop := ∀ k (f : Hom k m), PERP (Comp2 S X m k f)
 
 variable (hW : WfSig S)
 include hW
@@ -220,6 +219,120 @@ theorem per2_univC {l : ℕ} (ih : ∀ m' X, WF l m' X → PER2 S m' X) : PER2 S
     exact ⟨he.trans he', hmem, hm, P.transTy hty hty'⟩
   · obtain ⟨he, hmem, hm, hty⟩ := ht
     exact ⟨he.conv hT.1.2.2.2.2, hmem, hm, hty⟩
+
+theorem per2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
+    (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
+    (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f))
+    (ihA : PER2 S m A) (krA : KR2 S m A)
+    (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → PER2 S k (dat Tp k f))
+    (krT : ∀ k (f : Hom k m), (φ.restr f).holds → KR2 S k (dat Tp k f)) :
+    PER2 S m (glueC m A φ Tp ep) := by
+  intro k f
+  rw [Comp2_glueC_at hφ hTp hTkv f]
+  by_cases hf : (φ.restr f).holds
+  · rw [if_pos hf]; exact ihT k f hf k (Hom.id k)
+  rw [if_neg hf, Comp2_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr f) hf]
+  simp only [Comp2_res (IsKV.ne_empty hA), dat_res, Cof.restr_restr]
+  -- the relation of the equivalences, between two decompositions
+  have equivTy : ∀ {k' : ℕ} (σ : ISub k' k) {X X' A1 T1 e1 A1' T1' e1' : Tm} {φ1 φ1' : I},
+      IsTyK S k' X → IsTyK S k' X' →
+      RedT S k' X (.glue A1 φ1 T1 e1) → RedT S k' X' (.glue A1' φ1' T1' e1') →
+      (ival (idEnv k') φ1).face = φ.restr (f.comp σ.hom) → (ival (idEnv k') φ1').face = φ.restr (f.comp σ.hom) →
+      (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' →
+      ∀ {k'' : ℕ} (σ' : ISub k'' k') (hh' : (φ.restr (f.comp (σ.comp σ').hom)).holds),
+      (Comp2 S (dat Tp k'' (f.comp (σ.comp σ').hom)) k'' k'' (Hom.id k'')).ty (T1.isub σ') (T1'.isub σ') →
+      (equivF S (fun k3 σ3 => Comp2 S (dat Tp k'' (f.comp (σ.comp σ').hom)) k'' k3 σ3.hom)
+        (fun k3 σ3 => Comp2 S A m k3 (f.comp ((σ.comp σ').comp σ3).hom)) k'' (ISub.id k'')).ty
+        (Tm.equiv (T1.isub σ') (A1.isub σ')) (Tm.equiv (T1'.isub σ') (A1'.isub σ')) := by
+    intro k' σ X X' A1 T1 e1 A1' T1' e1' φ1 φ1' hX hX' r1 r1' f1 f1' hAA k'' σ' hh' hTT
+    have FT := famOK_comp2_id (ihT k'' _ hh') (krT k'' _ hh')
+    have FA := famOK_comp2 ihA krA f (σ.comp σ')
+    obtain ⟨l1, hA1, s1, hT1, -⟩ := glue_parts hW r1 hX
+    obtain ⟨l2, hA1', s1', hT1', -⟩ := glue_parts hW r1' hX'
+    have hh1 : (ival (idEnv k'') (φ1.subst σ'.τ)).holds :=
+      holds_of_face f1 σ' (by rwa [Cof.restr_restr, ISub.comp_hom])
+    have hTT' : (Comp2 S (dat Tp k'' (f.comp (σ.comp σ').hom)) k'' k'' (ISub.id k'').hom).ty (T1.isub σ')
+        (T1'.isub σ') := by rw [ISub.hom_id]; exact hTT
+    have hAA' := (krA k' (f.comp σ.hom) k'' σ' A1 A1' A1 A1).1 hAA
+    have hAA'' : (Comp2 S A m k'' (f.comp ((σ.comp σ').comp (ISub.id k'')).hom)).ty (A1.isub σ') (A1'.isub σ') := by
+      rw [ISub.comp_id, ← ISub.comp_hom]; exact hAA'
+    have eT := eqTop hW (Comp2_ty_base hTT).2.2.2.2.2 (face_ty hW s1 hT1 σ' hh1)
+    have eA := eqTop hW (Comp2_ty_base hAA').2.2.2.2.2 (HasTy.isubS hW hA1 σ')
+    exact equivF_ty hW FT FA eT eA hTT' hAA''
+  refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
+    fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
+  · -- symmetry of types
+    obtain ⟨hb, hall⟩ := hT
+    refine ⟨base_symm hb, fun k' σ => ?_⟩
+    have h := hall k' σ
+    split_ifs at h ⊢ with hh
+    · exact (ihT k' _ hh k' (Hom.id k')).symTy h
+    obtain ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', r1, r1', s1, s1', f1, f1', hAA, hrest⟩ := h
+    refine ⟨A1', φ1', T1', e1', A1, φ1, T1, e1, r1', r1, s1', s1, f1', f1, (ihA k' _).symTy hAA,
+      fun k'' σ' hh' => ?_⟩
+    obtain ⟨hTT, hee⟩ := hrest k'' σ' hh'
+    have hEq := equivTy σ (hb.1.isub hW σ) (hb.2.1.isub hW σ) r1 r1' f1 f1' hAA σ' hh' hTT
+    have P := (equivF_ok hW _ _ (famOK_comp2_id (ihT k'' _ hh') (krT k'' _ hh'))
+      (famOK_comp2 ihA krA f (σ.comp σ'))).per k'' (ISub.id k'')
+    exact ⟨(ihT k'' _ hh' k'' (Hom.id k'')).symTy hTT, P.conv hEq (P.symEl hEq hee)⟩
+  · -- transitivity of types
+    obtain ⟨hb, hall⟩ := hT
+    obtain ⟨hb', hall'⟩ := hT'
+    refine ⟨base_trans hW hb hb', fun k' σ => ?_⟩
+    have h := hall k' σ
+    have h' := hall' k' σ
+    split_ifs at h h' ⊢ with hh
+    · exact (ihT k' _ hh k' (Hom.id k')).transTy h h'
+    obtain ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', r1, r1', s1, s1', f1, f1', hAA, hrest⟩ := h
+    obtain ⟨A2, φ2, T2, e2, A2', φ2', T2', e2', r2, r2', s2, s2', f2, f2', hAA', hrest'⟩ := h'
+    obtain ⟨rfl, rfl, rfl, rfl⟩ : A1' = A2 ∧ φ1' = φ2 ∧ T1' = T2 ∧ e1' = e2 := by
+      have := RedW.unique r1'.1 r2.1; injection this with e1 e2 e3 e4; exact ⟨e1, e2, e3, e4⟩
+    refine ⟨A1, φ1, T1, e1, A2', φ2', T2', e2', r1, r2', s1, s2', f1, f2', (ihA k' _).transTy hAA hAA',
+      fun k'' σ' hh' => ?_⟩
+    obtain ⟨hTT, hee⟩ := hrest k'' σ' hh'
+    obtain ⟨hTT', hee'⟩ := hrest' k'' σ' hh'
+    have hEq := equivTy σ (hb.1.isub hW σ) (hb.2.1.isub hW σ) r1 r1' f1 f1' hAA σ' hh' hTT
+    have P := (equivF_ok hW _ _ (famOK_comp2_id (ihT k'' _ hh') (krT k'' _ hh'))
+      (famOK_comp2 ihA krA f (σ.comp σ'))).per k'' (ISub.id k'')
+    exact ⟨(ihT k'' _ hh' k'' (Hom.id k'')).transTy hTT hTT', P.transEl hEq hee (P.conv (P.symTy hEq) hee')⟩
+  · -- symmetry of elements
+    obtain ⟨he, hmem, -, hall⟩ := ht
+    refine ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm, fun k' σ => ?_⟩
+    have h := hall k' σ
+    have hTσ := hT.2 k' σ
+    split_ifs at h hTσ ⊢ with hh
+    · exact (ihT k' _ hh k' (Hom.id k')).symEl hTσ h
+    obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', h1, h2, h3, h4, he0, he0', ha⟩ := h
+    obtain ⟨A2, φ2, T2, e2, A2', φ2', T2', e2', r2, -, -, -, -, -, hAA, -⟩ := hTσ
+    have e := RedW.unique r2.1 r1.1
+    simp only [Tm.glue.injEq] at e
+    obtain ⟨rfl, rfl, rfl, rfl⟩ := e
+    exact ⟨_, _, _, _, ψ', e0', t0', a0', ψ, e0, t0, a0, r1, rg', rg, h3, h4, h1, h2, he0', he0,
+      (ihA k' _).symEl hAA ha⟩
+  · -- transitivity of elements
+    obtain ⟨he, hmem, -, hall⟩ := ht
+    obtain ⟨he', -, -, hall'⟩ := ht'
+    refine ⟨he.trans he', hmem, he.trans he', fun k' σ => ?_⟩
+    have h := hall k' σ
+    have h' := hall' k' σ
+    have hTσ := hT.2 k' σ
+    split_ifs at h h' hTσ ⊢ with hh
+    · exact (ihT k' _ hh k' (Hom.id k')).transEl hTσ h h'
+    obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', h1, h2, h3, h4, he0, he0', ha⟩ := h
+    obtain ⟨A3, φ3, T3, e3, χ, f0, s0, b0, χ', f0', s0', b0', r3, rh, rh', -, -, h7, h8, -, hf0', hb⟩ := h'
+    have e := RedW.unique r3.1 r1.1
+    simp only [Tm.glue.injEq] at e
+    obtain ⟨rfl, rfl, rfl, rfl⟩ := e
+    have e' := RedW.unique rh.1 rg'.1
+    simp only [Tm.glueEl.injEq] at e'
+    obtain ⟨rfl, rfl, rfl, rfl⟩ := e'
+    obtain ⟨A2, φ2, T2, e2, A2', φ2', T2', e2', r2, -, -, -, -, -, hAA, -⟩ := hTσ
+    have e'' := RedW.unique r2.1 r3.1
+    simp only [Tm.glue.injEq] at e''
+    obtain ⟨rfl, rfl, rfl, rfl⟩ := e''
+    exact ⟨_, _, _, _, ψ, e0, t0, a0, χ', f0', s0', b0', r3, rg, rh', h1, h2, h7, h8, he0, hf0',
+      (ihA k' _).transEl hAA ha hb⟩
+  · sorry
 
 end
 

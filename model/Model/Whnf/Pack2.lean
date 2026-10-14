@@ -26,6 +26,9 @@ structure PERP (R : Pack2) : Prop where
   transEl : ∀ {A A' t t' t''}, R.ty A A' → R.el A t t' → R.el A t' t'' → R.el A t t''
   conv : ∀ {A A' t t'}, R.ty A A' → R.el A t t' → R.el A' t t'
 
+/-- The PER properties for a code at all its restrictions. -/
+def PER2 (S : Sig) (m : ℕ) (X : V) : Prop := ∀ k (f : Hom k m), PERP (Comp2 S X m k f)
+
 namespace PERP
 variable {R : Pack2} (h : PERP R)
 include h
