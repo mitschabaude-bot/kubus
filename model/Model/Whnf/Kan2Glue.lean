@@ -1,4 +1,4 @@
-import Model.Whnf.Kan2Comp
+import Model.Whnf.Kan2GlueEq
 import Model.Whnf.Valid2GlueEta
 import Model.Canon.KanGlue
 
