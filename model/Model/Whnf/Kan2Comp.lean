@@ -62,6 +62,43 @@ theorem compTube_eq (hS : SigClosed S) {Ψ Φ Γ C C' ψ ψ' u u' u0 u0' l}
     rwa [ctxI_add1, sk_one1] at e
   exact EqTm0.conv et eC1'
 
+/-- The tube of the end of a filler is judgmentally the tube of the composition. -/
+theorem hfill1_tube_eq (hS : SigClosed S) {Ψ Φ Γ A φ u u0 l} (hA : HasTy0 S Ψ Φ Γ A (univ l))
+    (hφ : φ.Scoped Ψ) (hu : HasTy0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift)
+    (hu0 : HasTy0 S Ψ Φ Γ u0 A) (hside : EqTm0 S Ψ (cof Φ φ) Γ (u.dinst .zero) u0 A) :
+    EqTm0 S (Ψ + 1) (cof Φ (.or φ (.neg .one))).shift Γ.dshift
+      ((fillTube φ u u0).subst Tm.var (I.up (I.inst0 .one))) u A.dshift := by
+  have hs := scoped_of_ty hA
+  have hw0 := wf_of_ty hA
+  have hv0 : (I.var 0).Scoped (Ψ + 1) := show 0 < Ψ + 1 by omega
+  have hF := (hfill_typed hS hA hφ hu hu0 hside).1
+  rw [hfill_eq] at hF
+  obtain ⟨_, ⟨_, _, htube, _, _⟩, _⟩ := gen_hcomp hF rfl
+  have hX : (cof Φ (.or φ (.neg .one))).Scoped Ψ := ⟨hs, ⟨hφ, trivial⟩⟩
+  have hXe : I.Entails (cof Φ (.or φ (.neg .one))).shift (cof Φ φ).shift :=
+    ent_shift (ent_and_mono (ent_refl _) (ent_neg_one φ))
+  have hXs : (cof Φ (.or φ (.neg .one))).shift.Scoped (Ψ + 1) := scoped_shift hX
+  have htyped := HasTy0.isub hS (τ := I.up (I.inst0 .one)) (Φ' := (cof Φ (.or φ (.neg .one))).shift)
+    htube (Iup_scoped (fun i hi => by
+      rcases i with _ | i
+      · trivial
+      · exact show i < Ψ by omega))
+    (by rw [fillR_up1]; exact ent_refl _)
+    (by rw [ctxI_up_inst0]; exact (Wf0.dwk hS hw0).restrict hXs (ent_shift (ent_and_left _ _)))
+  rw [ctxI_up_inst0, dshift2_up_inst0, fillTube_up1'] at htyped
+  rw [fillTube_up1']
+  have e1 := EqTm0.splitL (ent_trans (ent_and_right _ _) (ent_shift (ent_neg_one φ))) htyped
+  have e2 := HasTy0.ieq hS (Φ' := (cof Φ (.or φ (.neg .one))).shift) (τ1 := sk (.and .one (.var 0)) 1)
+    (τ2 := sk (.var 0) 1) hu (sk_scoped ⟨trivial, hv0⟩ (by omega)) (sk_scoped hv0 (by omega))
+    (show I.Entails _ (.and _ _) from ent_and_intro (ent_sk1 _ (ent_trans hXe (ent_and_left _ _)))
+      (ent_sk1 _ (ent_trans hXe (ent_and_right _ _))))
+    (show I.Entails _ (.and _ _) from ent_and_intro (ent_sk1 _ (ent_trans hXe (ent_and_left _ _)))
+      (ent_sk1 _ (ent_trans hXe (ent_and_right _ _))))
+    (ieq_sk (I_eq_and_one_l _) 1) (by rw [ctxI_sk1, ctxI_sk1])
+    (by rw [ctxI_sk1]; exact (wf_of_ty hu).restrict hXs hXe)
+  rw [ctxI_sk1, dshift_sk, subst_add1, sk_var1] at e2
+  exact EqTm0.trans e1 e2
+
 end KubusCore.Meta
 
 namespace Model.Whnf
@@ -301,6 +338,153 @@ theorem comp2 {C C' u u' u0 u0' : Tm} {ψ ψ' : I} (hLR : LineRob S k C C') (hLR
     have heqw := eqTm_transp_of hW ty1 ty2 (tyB L.2.2.2) (ent_refl _) (ent_refl _) (RE2.typed hbase).2.2
     have R := L.1 L.2.1 .zero .zero _ _ (LC0 _ _) ty1 ty2 heqw (ent_refl _) (ent_refl _) hbase
     exact RE2.conv hW (endT σ (.var 0) hv (I_eq_refl _)) R
+
+omit hW in
+theorem hfill_isub_cons (A : Tm) (φ : I) (v v0 : Tm) {k3 : ℕ} (τ : ISub k3 k) (r : I) (hr : r.Scoped k3) :
+    (Tm.hfill A φ v v0).isub (ISub.cons r hr τ) = .hcomp (A.isub τ) (.or (φ.subst τ.τ) (.neg r))
+      ((KubusCore.Meta.fillTube φ v v0).isub (ISub.cons r hr τ).up) (v0.isub τ) := by
+  show Tm.hcomp (A.dshift.isub (ISub.cons r hr τ)) (.or (φ.shift.subst (ISub.cons r hr τ).τ) (.neg r))
+    ((KubusCore.Meta.fillTube φ v v0).isub (ISub.cons r hr τ).up) (v0.dshift.isub (ISub.cons r hr τ)) = _
+  rw [dshift_isub_cons, dshift_isub_cons, I_shift_cons]
+
+/-- A filler at a point where the face of its composition holds. -/
+theorem hfill_face_pt {A v v0 : Tm} {φ : I} (hφs : φ.Scoped k) (hX : TyCode k (semK S k A)) (hAA : RT2 S k A A)
+    (htyF : HasTy S (k + 1) .one [] (Tm.hfill A φ v v0) A.dshift) (htube : Tube2 S k A φ v v)
+    {k3 : ℕ} (τ : ISub k3 k) (r : I) (hr : r.Scoped k3) (hh : (ival (idEnv k3) (φ.subst τ.τ)).holds) :
+    RE2 S k3 (A.isub τ) ((Tm.hfill A φ v v0).isub (ISub.cons r hr τ)) ((v.isub τ.up).dinst r) := by
+  have hAτ := RT2.isub hW hX hAA τ
+  have hf : I.Entails .one (φ.subst τ.τ) := (holds_iff_entails (I.scoped_subst hφs τ.sc)).1 hh
+  have hH := HasTy.isubS hW htyF (ISub.cons r hr τ)
+  rw [hfill_isub_cons, dshift_isub_cons] at hH
+  rw [hfill_isub_cons]
+  have hor : I.Entails .one (.or (φ.subst τ.τ) (.neg r)) := ent_trans hf (ent_or_left _ _)
+  have s1 := stable_hcompFace hW hor hH
+  have hsp := hcomp_tube_typed' hW hH .one trivial
+    ((holds_iff_entails (show (I.or (φ.subst τ.τ) (.neg r)).Scoped k3 from ⟨I.scoped_subst hφs τ.sc, hr⟩)).2 hor)
+  rw [fillTube_isub_dinst, ISub.tail_cons] at hsp s1
+  have s2 := stable_splitL hW hf hsp
+  have base := htube k3 τ (.and r .one) r ⟨hr, trivial⟩ hr (ieq_and_one_right r) hh
+  have e1 := RE2.expandL hW hAτ hsp (RE2.typed base).2.1 s2 base
+  exact RE2.expandL hW hAτ hH (RE2.typed base).2.1 s1 e1
+
+/-- A filler at the start of its line. -/
+theorem hfill_zero_pt {A v v0 : Tm} {φ : I} (hφs : φ.Scoped k) (hX : TyCode k (semK S k A)) (hAA : RT2 S k A A)
+    (htyF : HasTy S (k + 1) .one [] (Tm.hfill A φ v v0) A.dshift) (htube : Tube2 S k A φ v v)
+    (hv0 : RE2 S k A v0 v0)
+    (hbd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (A.isub σ) ((v.isub σ.up).dinst .zero) (v0.isub σ))
+    {k3 : ℕ} (τ : ISub k3 k) :
+    RE2 S k3 (A.isub τ) ((Tm.hfill A φ v v0).isub (ISub.cons .zero trivial τ)) (v0.isub τ) := by
+  have hAτ := RT2.isub hW hX hAA τ
+  have hH := HasTy.isubS hW htyF (ISub.cons .zero trivial τ)
+  rw [hfill_isub_cons, dshift_isub_cons] at hH
+  rw [hfill_isub_cons]
+  have hor : I.Entails .one (.or (φ.subst τ.τ) (.neg .zero)) :=
+    ent_trans (show I.Entails .one (.neg .zero) by decide) (ent_or_right _ _)
+  have s1 := stable_hcompFace hW hor hH
+  have hsp := hcomp_tube_typed' hW hH .one trivial
+    ((holds_iff_entails (show (I.or (φ.subst τ.τ) (.neg .zero)).Scoped k3 from ⟨I.scoped_subst hφs τ.sc, trivial⟩)).2 hor)
+  rw [fillTube_isub_dinst, ISub.tail_cons] at hsp s1
+  have hv0τ := RE2.isub hW hv0 τ
+  have e1 := RE2_split_l hW (I.scoped_subst hφs τ.sc) (show (I.neg I.zero).Scoped k3 from trivial) hor hAτ hsp
+    (RE2.typed hv0τ).1 (fun k4 σ4 h => ?_) (fun k4 σ4 h => ?_)
+  · exact RE2.expandL hW hAτ hH (RE2.typed hv0τ).1 s1 e1
+  · rw [dinst_up_isub, Tm.isub_isub, Tm.isub_isub]
+    have hh4 : (ival (idEnv k4) (φ.subst (τ.comp σ4).τ)).holds :=
+      (holds_iff_entails (I.scoped_subst hφs (τ.comp σ4).sc)).2 (ent_comp_inv h)
+    have hA4 := RT2.isub hW hX hAA (τ.comp σ4)
+    exact RE2.trans hW hA4 (htube k4 (τ.comp σ4) _ .zero (I.scoped_subst (show (I.and I.zero I.one).Scoped k3 from
+      ⟨trivial, trivial⟩) σ4.sc) trivial (fun _ => rfl) hh4) (hbd k4 _ hh4)
+  · rw [Tm.isub_isub, Tm.isub_isub]
+    exact RE2.isub hW hv0 _
+
+omit hW in
+theorem up_inst0_one_isub (X : Tm) {k3 : ℕ} (τ : ISub k3 k) :
+    (X.subst Tm.var (I.up (I.inst0 .one))).isub τ.up = X.isub (ISub.cons .one trivial τ).up := by
+  simp only [Tm.isub, subst_subst]
+  refine subst_congr (fun _ => rfl) (fun i => ?_) X
+  rcases i with _ | _ | i
+  · rfl
+  · rfl
+  · show ((I.var i).shift).subst (I.up τ.τ) = _
+    rw [I_shift_subst_up]; rfl
+
+/-- The end of a filler, against its composition. -/
+theorem hfill_one_pt {A v v0 : Tm} {φ : I} (hφs : φ.Scoped k) (hX : TyCode k (semK S k A)) (hAA : RT2 S k A A)
+    (hK : ∀ k3 (τ : ISub k3 k), KanH2 S k3 (A.isub τ) (A.isub τ))
+    (htyH : HasTy S k .one [] (.hcomp A φ v v0) A)
+    (htyF : HasTy S (k + 1) .one [] (Tm.hfill A φ v v0) A.dshift) (htube : Tube2 S k A φ v v)
+    (hv0 : RE2 S k A v0 v0)
+    (hbd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (A.isub σ) ((v.isub σ.up).dinst .zero) (v0.isub σ))
+    {k3 : ℕ} (τ : ISub k3 k) :
+    RE2 S k3 (A.isub τ) ((Tm.hfill A φ v v0).isub (ISub.cons .one trivial τ)) ((Tm.hcomp A φ v v0).isub τ) := by
+  have hS := sigClosed_of_wfSig hW
+  have hAτ := RT2.isub hW hX hAA τ
+  obtain ⟨l0, ⟨hA0, hφ0, hu0', hv00, hside⟩, -⟩ := gen_hcomp (spec_to_minimal hW htyH) rfl
+  have hH := HasTy.isubS hW htyF (ISub.cons .one trivial τ)
+  rw [hfill_isub_cons, dshift_isub_cons] at hH
+  have hH' := HasTy.isubS hW htyH τ
+  have heq := EqTm.isubS hW (minimal_to_spec_eq (hfill_typed hS hA0 hφ0 hu0' hv00 hside).2.2.1) τ
+  rw [isub_dinst] at heq
+  change EqTm S k3 .one [] (((Tm.hfill A φ v v0).isub τ.up).dinst .one) _ _ at heq
+  rw [isub_up_dinst _ τ .one trivial, hfill_isub_cons] at heq
+  have hsc1 : (I.or φ (.neg .one)).Scoped k := ⟨hφs, trivial⟩
+  have ht := EqTm.cofIsub hW hsc1 (minimal_to_spec_eq (hfill1_tube_eq hS hA0 hφ0 hu0' hv00 hside)) τ
+  rw [up_inst0_one_isub, isub_dshift] at ht
+  rw [hfill_isub_cons]
+  have hholds : ∀ {k4 : ℕ} (σ2 : ISub k4 k3), (ival (idEnv k4) ((I.or (φ.subst τ.τ) (.neg .one)).subst σ2.τ)).holds →
+      (ival (idEnv k4) (φ.subst (τ.comp σ2).τ)).holds ∧ I.Entails .one (φ.subst (τ.comp σ2).τ) := by
+    intro k4 σ2 hh
+    have h1 := (holds_iff_entails (I.scoped_subst (show (I.or (φ.subst τ.τ) (.neg .one)).Scoped k3 from
+      ⟨I.scoped_subst hφs τ.sc, trivial⟩) σ2.sc)).1 hh
+    have h2 : I.Entails .one (φ.subst (τ.comp σ2).τ) := by
+      rw [I_subst_comp]; exact ent_trans h1 (ent_neg_one _)
+    exact ⟨(holds_iff_entails (I.scoped_subst hφs (τ.comp σ2).sc)).2 h2, h2⟩
+  have pts : ∀ {k4 : ℕ} (σ2 : ISub k4 k3) (x : I),
+      (((KubusCore.Meta.fillTube φ v v0).isub (ISub.cons .one trivial τ).up).isub σ2.up).dinst x =
+        .split (φ.subst (τ.comp σ2).τ) ((v.isub (τ.comp σ2).up).dinst (.and .one x)) (.neg .one) (v0.isub (τ.comp σ2)) := by
+    intro k4 σ2 x
+    rw [Tm.isub_isub, ← ISub.up_comp, ISub.cons_comp, fillTube_isub_dinst, ISub.tail_cons]; rfl
+  have nen1 : ∀ {k4 k5 : ℕ} (σ4 : ISub k5 k4), ¬ I.Entails .one ((I.neg I.one).subst σ4.τ) :=
+    fun σ4 => by show ¬ I.Entails .one (I.neg .one); decide
+  refine hK k3 τ _ _ _ _ _ _ hH hH' heq ht (ent_neg_one _) (ent_or_left _ _) (fun k4 σ2 x x' hx hx' hEx hh => ?_)
+    (RE2.isub hW hv0 τ) (fun k4 σ2 hh => ?_) (fun k4 σ2 hh => ?_)
+  · have hA4 := RT2.isub hW hX hAA (τ.comp σ2)
+    obtain ⟨hh4, hf4⟩ := hholds σ2 hh
+    have hsp : HasTy S k4 .one [] ((((KubusCore.Meta.fillTube φ v v0).isub (ISub.cons .one trivial τ).up).isub
+        σ2.up).dinst x) ((A.isub τ).isub σ2) := hcomp_tube_typed' hW (HasTy.isubS hW hH σ2) x hx hh
+    rw [pts, Tm.isub_isub] at hsp
+    change RE2 S k4 _ _ (((v.isub τ.up).isub σ2.up).dinst x')
+    rw [pts, Tm.isub_isub A, Tm.isub_isub v, ← ISub.up_comp]
+    have r := htube k4 (τ.comp σ2) x x' hx hx' hEx hh4
+    refine RE2_split_l hW (I.scoped_subst hφs (τ.comp σ2).sc) (show (I.neg I.one).Scoped k4 from trivial)
+      (ent_trans hf4 (ent_or_left _ _)) hA4 hsp (RE2.typed r).2.1 (fun k5 σ4 h => ?_) (fun k5 σ4 h => ?_)
+    · rw [dinst_up_isub, dinst_up_isub, Tm.isub_isub]
+      exact htube k5 _ _ _ (I.scoped_subst (show (I.and I.one x).Scoped k4 from ⟨trivial, hx⟩) σ4.sc)
+        (I.scoped_subst hx' σ4.sc) (I_eq_subst (I_eq_trans (I_eq_and_one_l x) hEx) _)
+        ((holds_iff_entails (I.scoped_subst hφs ((τ.comp σ2).comp σ4).sc)).2 (ent_comp_inv h))
+    · exact absurd h (nen1 σ4)
+  · have hA4 := RT2.isub hW hX hAA (τ.comp σ2)
+    obtain ⟨hh4, hf4⟩ := hholds σ2 hh
+    have hsp : HasTy S k4 .one [] ((((KubusCore.Meta.fillTube φ v v0).isub (ISub.cons .one trivial τ).up).isub
+        σ2.up).dinst .zero) ((A.isub τ).isub σ2) := hcomp_tube_typed' hW (HasTy.isubS hW hH σ2) .zero trivial hh
+    rw [pts, Tm.isub_isub] at hsp
+    change RE2 S k4 _ _ ((v0.isub τ).isub σ2)
+    rw [pts, Tm.isub_isub A, Tm.isub_isub v0]
+    have r := hbd k4 (τ.comp σ2) hh4
+    refine RE2_split_l hW (I.scoped_subst hφs (τ.comp σ2).sc) (show (I.neg I.one).Scoped k4 from trivial)
+      (ent_trans hf4 (ent_or_left _ _)) hA4 hsp (RE2.typed r).2.1 (fun k5 σ4 h => ?_) (fun k5 σ4 h => ?_)
+    · rw [dinst_up_isub, Tm.isub_isub, Tm.isub_isub]
+      have hh5 := (holds_iff_entails (I.scoped_subst hφs ((τ.comp σ2).comp σ4).sc)).2 (ent_comp_inv h)
+      exact RE2.trans hW (RT2.isub hW hX hAA _) (htube k5 _ _ .zero
+        (I.scoped_subst (show (I.and I.one I.zero).Scoped k4 from ⟨trivial, trivial⟩) σ4.sc) trivial
+        (fun _ => rfl) hh5) (hbd k5 _ hh5)
+    · exact absurd h (nen1 σ4)
+  · obtain ⟨hh4, -⟩ := hholds σ2 hh
+    change RE2 S k4 _ ((v0.isub τ).isub σ2) (((v.isub τ.up).isub σ2.up).dinst .zero)
+    rw [Tm.isub_isub A, Tm.isub_isub v0, Tm.isub_isub v, ← ISub.up_comp]
+    exact RE2.symm hW (RT2.isub hW hX hAA _) (hbd k4 (τ.comp σ2) hh4)
 
 end
 
