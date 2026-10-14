@@ -271,6 +271,11 @@ def hcompStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (B : Tm) (φ : I) (u 
 /-- Reduce an elimination whose head is not a redex. -/
 def elimStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K S (Option (Red S Ψ Φ Γ t A × Bool)) := do
+  -- contract the β-redexes inside the elimination first (replacement, `Meta.beta_replace`):
+  -- a λ applied in head position has no informative inferred type
+  if let some ⟨hS⟩ := E.sig.wf then
+    if !tmEq t.betaIn t then
+      return some (⟨t.betaIn, Meta.HasTy.beta_replace hS ht⟩, false)
   -- the heads of the elimination are typed: their inference can skip the premises
   noteTyped E 16 t ⟨A, ht⟩
   let ⟨i, r⟩ ← mapErr (· ++ s!"\n  reducing {short t}") (R.whnfI E t)

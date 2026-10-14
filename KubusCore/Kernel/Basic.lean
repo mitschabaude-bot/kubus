@@ -2,6 +2,7 @@ import KubusCore.Kernel.Ctx
 import Std.Data.HashMap
 import KubusCore.Meta.Final
 import KubusCore.Meta.GenRedex
+import KubusCore.Meta.Replace
 
 /-!
 # Kernel: result types, the recursion record, and helpers
