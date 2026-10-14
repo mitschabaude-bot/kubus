@@ -99,6 +99,42 @@ theorem hfill1_tube_eq (hS : SigClosed S) {Ψ Φ Γ A φ u u0 l} (hA : HasTy0 S 
   rw [ctxI_sk1, dshift_sk, subst_add1, sk_var1] at e2
   exact EqTm0.trans e1 e2
 
+/-- The first components of a composition in a Σ-type. -/
+theorem hcomp_sigma_parts (hS : SigClosed S) {Ψ Φ Γ A B φ u a T}
+    (h : HasTy0 S Ψ Φ Γ (hcomp (sigma A B) φ u a) T) :
+    HasTy0 S Ψ Φ Γ (hcomp A φ (fst u) (fst a)) A ∧
+    HasTy0 S (Ψ + 1) Φ.shift Γ.dshift (hfill A φ (fst u) (fst a)) A.dshift ∧
+    HasTy0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift (fst u) A.dshift ∧
+    EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift (hfill A φ (fst u) (fst a)) (fst u) A.dshift ∧
+    EqTm0 S Ψ Φ Γ ((hfill A φ (fst u) (fst a)).dinst .one) (hcomp A φ (fst u) (fst a)) A := by
+  obtain ⟨l, ⟨hsig, hφ, hu, ha, hside⟩, -⟩ := gen_hcomp h rfl
+  have hA := HasTy0.sigmaDom hS hsig
+  have hu' := HasTy0.fst hu
+  have ha' := HasTy0.fst ha
+  have hside' := EqTm0.fst hside
+  have F := hfill_typed hS hA hφ hu' ha' hside'
+  exact ⟨HasTy0.hcomp hA hφ hu' ha' hside', F.1, hu', F.2.2.2, F.2.2.1⟩
+
+/-- Congruence of fillers. -/
+theorem hfill_cong (hW : WfSig S) {Ψ : Nat} {A A' v v' v0 v0' : Tm} {φ φ' : I}
+    (h : HasTy0 S (Ψ + 1) .one [] (hfill A φ v v0) A.dshift)
+    (h' : HasTy0 S (Ψ + 1) .one [] (hfill A' φ' v' v0') A.dshift)
+    (hAA : A = A' ∨ ∃ l, EqTm0 S Ψ .one [] A A' (univ l))
+    (huu : EqTm0 S (Ψ + 1) (cof .one φ).shift [] v v' A.dshift) (hv0 : EqTm0 S Ψ .one [] v0 v0' A)
+    (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) :
+    EqTm0 S (Ψ + 1) .one [] (hfill A φ v v0) (hfill A' φ' v' v0') A.dshift := by
+  have hS := sigClosed_of_wfSig hW
+  have ht := fillTube_eq hW h h' hAA huu hv0 h12
+  obtain ⟨l1, ⟨hA1, -, -, -, -⟩, -⟩ := gen_hcomp h rfl
+  obtain ⟨l, eA⟩ : ∃ l, EqTm0 S (Ψ + 1) .one [] A.dshift A'.dshift (univ l) := by
+    rcases hAA with rfl | ⟨l, e⟩
+    · exact ⟨l1, EqTm0.refl hA1⟩
+    · exact ⟨l, EqTm0.restrict (Φ' := .one) trivial (ent_one _) (EqTm0.dwk hS e)⟩
+  have hb := EqTm0.restrict (Φ' := .one) trivial (ent_one _) (EqTm0.dwk hS hv0)
+  rw [hfill_eq] at h h' ⊢
+  exact EqTm0.hcomp h h' eA (ent_or_elim (ent_trans (ent_shift h12) (ent_or_left _ _)) (ent_or_right _ _))
+    (ent_or_elim (ent_trans (ent_shift h21) (ent_or_left _ _)) (ent_or_right _ _)) ht hb
+
 end KubusCore.Meta
 
 namespace Model.Whnf
@@ -128,6 +164,10 @@ theorem compTube_pt (C u : Tm) {k3 : ℕ} (σ : ISub k3 k) (r : I) (hr : r.Scope
   show Tm.transp ((C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))).isub (ISub.cons r hr σ).up) r
     (u.isub (ISub.cons r hr σ)) = _
   rw [isub_bindOr, isub_up_dinst _ σ r hr]
+
+theorem comp_isub (C : Tm) (ψ : I) (u u0 : Tm) (σ : ISub k' k) :
+    (Tm.comp C ψ u u0).isub σ = Tm.comp (C.isub σ.up) (ψ.subst σ.τ) (u.isub σ.up) (u0.isub σ) :=
+  comp_substI C ψ u u0 σ.τ
 
 variable (hW : WfSig S)
 include hW
