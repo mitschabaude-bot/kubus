@@ -711,9 +711,12 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
         (fund2_tele h5) (fund2_ty h6) (fund2_transpInv h6 rfl)
     exact hDa.transpCon h0 hH h1 h2 h3 h4 (sigwk_tele hpre h5) (sigwk_ty hpre h6)
       (pre2 hW hpre (.transpCon h0 h1 h2 h3 h4 h5 h6)).2 (fund2_tele h5) (fund2_ty h6)
-  | .transpHcomp h0 h1 h2 h3 h4 =>
-    valid_transpHcomp hW (hpre _ _ h0) h1 h2 hK (sigwk_ty hpre h3) (sigwk_ty hpre h4)
-      (pre2 hW hpre (.transpHcomp h0 h1 h2 h3 h4)).2 (fund2_ty h4) (fund2_transpInv h4 rfl) (fund2_hcompInv h3 rfl)
+  | .transpHcomp h0 h1 h2 h3 h4 => by
+    have hti := fund2_transpInv h4 rfl
+    exact valid_transpHcomp hW (hpre _ _ h0) h1 h2
+      (fun k c => hK.transp k _ _ (hti.choose_spec.2.1.ty hW (c.up hW)))
+      (sigwk_ty hpre h3) (sigwk_ty hpre h4) (pre2 hW hpre (.transpHcomp h0 h1 h2 h3 h4)).2 (fund2_ty h4) hti
+      (fund2_hcompInv h3 rfl)
 termination_by structural hd
 
 end

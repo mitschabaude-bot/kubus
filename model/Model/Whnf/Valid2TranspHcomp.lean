@@ -7,7 +7,8 @@ import Model.Whnf.Kan2DataHITRel
 
 The binary validity of `transpHcomp` (higher inductive types with parameters): the transport of a formal
 composition is related to the composition of the transports of its tube and base. Formal compositions
-are related by `hcomp_relD` from tubes related pointwise; the transports are related by the Kan oracle.
+are related by `hcomp_relD` from tubes related pointwise; the transports are related by the Kan property of the
+instances of the line (a hypothesis).
 -/
 
 set_option autoImplicit false
@@ -57,7 +58,8 @@ include hW
 variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
 /-- Transport along a valid line, at a related substitution, of related elements of the start. -/
-theorem transp_rel_at (hK : KanOracle2 S) {A : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+theorem transp_rel_at {A : Tm} (hKT : ∀ k (c : CSub2 S Ψ Φ Γ k), KanT2 S k ((c.up hW).L A) ((c.up hW).R A))
+    {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
     (hLV : Valid2 S (Ψ + 1) Φ.shift Γ.dshift A A (.univ l))
     (hCV : Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l))
     (hL : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (.univ l))
@@ -101,12 +103,13 @@ theorem transp_rel_at (hK : KanOracle2 S) {A : Tm} {φ : I} {l : ℕ} (hφ : φ.
   have hty' : HasTy S k .one [] (.transp ((c.up hW).R A) (φ.subst c.σ'.τ) b') (((c.up hW).L A).dinst .one) :=
     (HasTy.transp hLt' hφR hcR hb0').tyConv (TyEq.symm (tyB hT1))
   have heq := EqTm.transp hty hty' eLR (c.ent_LR (ent_refl φ)) (c.ent_RL (ent_refl φ)) (RE2.typed hb).2.2
-  exact hK.transp k _ _ (hLV.ty hW (c.up hW)) (lineRob_of_valid hW hLV c) _ _ b b' (lineConst_of_valid hW hφ hCV c)
+  exact hKT k c (lineRob_of_valid hW hLV c) _ _ b b' (lineConst_of_valid hW hφ hCV c)
     hty hty' heq (c.ent_LR (ent_refl φ)) (c.ent_RL (ent_refl φ)) hb
 
 /-- The tube of the `transpHcomp` contractum at a related substitution, related at each point where its
 face holds. -/
-theorem tube_rel (hK : KanOracle2 S) {A u : Tm} {φ ψ : I} {l : ℕ} (hφ : φ.Scoped Ψ) (hψs : ψ.Scoped Ψ)
+theorem tube_rel {A u : Tm} (hKT : ∀ k (c : CSub2 S Ψ Φ Γ k), KanT2 S k ((c.up hW).L A) ((c.up hW).R A))
+    {φ ψ : I} {l : ℕ} (hφ : φ.Scoped Ψ) (hψs : ψ.Scoped Ψ)
     (hLV : Valid2 S (Ψ + 1) Φ.shift Γ.dshift A A (.univ l))
     (hCV : Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l))
     (hL : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (.univ l))
@@ -136,13 +139,14 @@ theorem tube_rel (hK : KanOracle2 S) {A u : Tm} {φ ψ : I} {l : ℕ} (hφ : φ.
   rw [show (((c.restr hW σ).up hW).L (A.dinst .zero).dshift).dinst r = (c.restr hW σ).L (A.dinst .zero) by
     show ((A.dinst .zero).dshift.subst (dupS (c.restr hW σ).γ) (I.up (c.restr hW σ).σ.τ)).dinst r = _
     rw [dshift_dup_subst, dshift_dinst]] at b
-  exact transp_rel_at hW hK hφ hLV hCV hL hc (c.restr hW σ) b
+  exact transp_rel_at hW hKT hφ hLV hCV hL hc (c.restr hW σ) b
 
 variable {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hp : D.params ≠ []) (hH : D.isHIT = true)
 include hD hp hH
 
 /-- **Transport of a formal composition** in a higher inductive type with parameters. -/
-theorem valid_transpHcomp (hK : KanOracle2 S) {ps qs u a T : Tm} {φ ψ : I}
+theorem valid_transpHcomp {ps qs u a T : Tm} {φ ψ : I}
+    (hKT : ∀ k (c : CSub2 S Ψ Φ Γ k), KanT2 S k ((c.up hW).L (.data d ps)) ((c.up hW).R (.data d ps)))
     (h3 : HasTy0 S Ψ Φ Γ (.hcomp (.data d (ps.dinst .zero)) ψ u a) (.data d (ps.dinst .zero)))
     (h4 : HasTy0 S Ψ Φ Γ (.transp (.data d ps) φ (.hcomp (.data d qs) ψ u a)) T)
     (hyT : HasTy0 S Ψ Φ Γ (.hcomp (.data d (ps.dinst .one)) ψ (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u)
@@ -198,10 +202,10 @@ theorem valid_transpHcomp (hK : KanOracle2 S) {ps qs u a T : Tm} {φ ψ : I}
       rw [← e] at h; exact h
     have hPc : (c.L (ps.dinst .one)).closedB 0 k = true := data_closed hW hD hPk
     have e0 : (c.L (ps.dinst .one)).isub (ISub.id k) = c.L (ps.dinst .one) := isub_id_of_closed hPc
-    have htube := tube_rel hW hK hφ hψ hLV hCV hL hc huV c
+    have htube := tube_rel hW hKT hφ hψ hLV hCV hL hc huV c
     have hpre : ∀ {k' : ℕ} (σ : ISub k' k), RT2 S k' ((c.L ((Tm.data d ps).dinst .one)).isub σ)
         ((c.L ((Tm.data d ps).dinst .one)).isub σ) := fun σ => RT2.isub hW (tyCode_of_univ hW hPk) hPPk σ
-    have tS := tube_rel hW hK hφ hψ hLV hCV hL hc huV (c.diagL hW)
+    have tS := tube_rel hW hKT hφ hψ hLV hCV hL hc huV (c.diagL hW)
     have hψL := I.scoped_subst hψ c.σ.sc
     have hψR := I.scoped_subst hψ c.σ'.sc
     have tS' : TubeD S k (c.L ((Tm.data d ps).dinst .one)) (ψ.subst c.σ'.τ)
@@ -211,7 +215,7 @@ theorem valid_transpHcomp (hK : KanOracle2 S) {ps qs u a T : Tm} {φ ψ : I}
         rw [holds_iff_entails (I.scoped_subst hψL σ.sc)]
         exact ent_trans ((holds_iff_entails (I.scoped_subst hψR σ.sc)).1 hh) (ent_subst (c.ent_RL (ent_refl ψ)) σ.τ)
       exact RE2.trans hW (hpre σ) (RE2.symm hW (hpre σ) (htube k' σ r hr hh')) (htube k' σ r hr hh')
-    have haa := transp_rel_at hW hK hφ hLV hCV hL hc c (haV k c).2
+    have haa := transp_rel_at hW hKT hφ hLV hCV hL hc c (haV k c).2
     have R := hcomp_relD hW hD hH hPk hPPk (ISub.id k) (Q1 := c.L (ps.dinst .one)) (Q2 := c.R (ps.dinst .one))
       (φ := ψ.subst c.σ.τ) (φ' := ψ.subst c.σ'.τ)
       (u := (c.up hW).L (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u))
@@ -280,7 +284,7 @@ theorem valid_transpHcomp (hK : KanOracle2 S) {ps qs u a T : Tm} {φ ψ : I}
         RE2 S k' ((c.L ((Tm.data d ps).dinst .one)).isub σ) x y := by
       intro k' σ x y h
       exact RE2.conv hW (RT2.symm hW (hX1 σ) (r10 σ)) h
-    have htubeY := tube_rel hW hK hφ hψ hLV hCV hL hc huV c
+    have htubeY := tube_rel hW hKT hφ hψ hLV hCV hL hc huV c
     -- the tubes
     have htube : TubeD S k (c.L ((Tm.data d ps).dinst .one)) (ψ.subst c.σ.τ) ((c.up hW).L u)
         ((c.up hW).R (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u)) := by
@@ -314,7 +318,7 @@ theorem valid_transpHcomp (hK : KanOracle2 S) {ps qs u a T : Tm} {φ ψ : I}
         ((c.up hW).R (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u)) := fun k' σ r hr hh =>
       RE2.trans hW (hpre σ) (RE2.symm hW (hpre σ) (htube k' σ r hr (hψRL σ hh))) (htube k' σ r hr (hψRL σ hh))
     -- the bases
-    have haR := transp_rel_at hW hK hφ hLV hCV hL hc c (haV k c).2
+    have haR := transp_rel_at hW hKT hφ hLV hCV hL hc c (haV k c).2
     have hD0 : HasTy0 S Ψ Φ Γ ((Tm.data d ps).dinst .zero) (.univ D.level) := HasTy0.dsubst hS hLD (r := .zero) trivial
     have c1 : (c.L ((Tm.data d ps).dinst .one)).closedB 0 k = true := closed_of_ty hW (c.ty hW hD1)
     have c0 : (c.L ((Tm.data d ps).dinst .zero)).closedB 0 k = true := closed_of_ty hW (c.ty hW hD0)
@@ -382,7 +386,7 @@ theorem valid_transpHcomp (hK : KanOracle2 S) {ps qs u a T : Tm} {φ ψ : I}
       rw [show (((c.up hW).L ((Tm.data d ps).dinst .zero).dshift).dinst .one) = c.L ((Tm.data d ps).dinst .zero) by
         show (((Tm.data d ps).dinst .zero).dshift.subst (dupS c.γ) (I.up c.σ.τ)).dinst .one = _
         rw [dshift_dup_subst, dshift_dinst]] at b
-      have r := htr k c _ _ (transp_rel_at hW hK hφ hLV hCV hL hc c b)
+      have r := htr k c _ _ (transp_rel_at hW hKT hφ hLV hCV hL hc c b)
       have e1 := (c.diagL hW).eq hW heqT
       have e2 : EqTm S k .one [] (c.L (.hcomp (.data d (ps.dinst .one)) ψ (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u)
           (.transp (.data d ps) φ a)))
