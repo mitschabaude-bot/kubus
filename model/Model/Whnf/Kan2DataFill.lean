@@ -20,17 +20,21 @@ attribute [local instance] Classical.propDecidable
 
 variable {S : Sig} {k k' k'' : ℕ}
 
-/-- Composition in related types relates related tubes over the given related bases. -/
-def KanH2At (S : Sig) (k : ℕ) (A A' a a' : Tm) : Prop :=
-  ∀ (φ φ' : I) (u u' : Tm), HasTy S k .one [] (.hcomp A φ u a) A → HasTy S k .one [] (.hcomp A' φ' u' a') A →
-    EqTm S k .one [] (.hcomp A φ u a) (.hcomp A' φ' u' a') A →
+/-- Compositions in the types `L` and `L'` over the given bases, related at the type `A`, relate
+related tubes. -/
+def HC2 (S : Sig) (k : ℕ) (A L L' a a' : Tm) : Prop :=
+  ∀ (φ φ' : I) (u u' : Tm), HasTy S k .one [] (.hcomp L φ u a) A → HasTy S k .one [] (.hcomp L' φ' u' a') A →
+    EqTm S k .one [] (.hcomp L φ u a) (.hcomp L' φ' u' a') A →
     EqTm S (k + 1) (cof .one φ).shift [] u u' A.dshift →
     I.Entails φ φ' → I.Entails φ' φ → Tube2 S k A φ u u' → RE2 S k A a a' →
     (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (A.isub σ) ((u.isub σ.up).dinst .zero) (a'.isub σ)) →
     (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (A.isub σ) (a.isub σ) ((u'.isub σ.up).dinst .zero)) →
-    RE2 S k A (.hcomp A φ u a) (.hcomp A' φ' u' a')
+    RE2 S k A (.hcomp L φ u a) (.hcomp L' φ' u' a')
+
+/-- Composition in related types relates related tubes over the given related bases. -/
+abbrev KanH2At (S : Sig) (k : ℕ) (A A' a a' : Tm) : Prop := HC2 S k A A A' a a'
 
 theorem KanH2.at {A A' : Tm} (h : KanH2 S k A A') (a a' : Tm) : KanH2At S k A A' a a' :=
   fun φ φ' u u' => h φ φ' u u' a a'
@@ -40,6 +44,21 @@ theorem KanH2.of_at {A A' : Tm} (h : ∀ a a', KanH2At S k A A' a a') : KanH2 S 
 
 variable (hW : WfSig S)
 include hW
+
+/-- Compositions related at a type are related at a related type. -/
+theorem HC2.conv {A B L L' a a' : Tm} (hAB : RT2 S k A B) (hX : TyCode k (semK S k A)) (h : HC2 S k A L L' a a') :
+    HC2 S k B L L' a a' := by
+  intro φ φ' u u' hty hty' heq hteq h12 h21 htube haa hbd hbd'
+  have hXB : TyCode k (semK S k B) := RT2.tyCode_r hW hAB hX
+  have hBA : RT2 S k B A := RT2.symm hW hX hAB
+  have eBA : TyEq S k B A := (Comp2_ty_base hBA).2.2.2.2.2
+  obtain ⟨l0, ⟨-, hφs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
+  have hBAσ : ∀ k' (σ : ISub k' k), RT2 S k' (B.isub σ) (A.isub σ) := fun k' σ => RT2.isub hW hXB hBA σ
+  have hABσ : ∀ k' (σ : ISub k' k), RT2 S k' (A.isub σ) (B.isub σ) := fun k' σ => RT2.isub hW hX hAB σ
+  refine RE2.conv hW hAB (h φ φ' u u' (hty.tyConv eBA) (hty'.tyConv eBA) (heq.tyConv eBA)
+    (EqTm.cofConv hφs hteq eBA) h12 h21 (fun k' σ r r' hr hr' hE hh => ?_) (RE2.conv hW hBA haa)
+    (fun k' σ hh => RE2.conv hW (hBAσ k' σ) (hbd k' σ hh)) (fun k' σ hh => RE2.conv hW (hBAσ k' σ) (hbd' k' σ hh)))
+  exact RE2.conv hW (hBAσ k' σ) (htube k' σ r r' hr hr' hE hh)
 
 /-- The fillers of related compositions are related, at pointwise equal restrictions. -/
 theorem hfill_relAt {A A' u u' u0 u0' : Tm} {φ φ' : I} (hφs : φ.Scoped k)
