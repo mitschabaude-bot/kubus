@@ -175,7 +175,7 @@ inductive DR2At {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m 
     (k : ℕ) → Hom k m → Tm → Tm → Tm → Prop
   | con {k : ℕ} {f : Hom k m} {A t t' ps qs qs' : Tm} {c : ℕ} {C : Ctor} {args args' : List Tm}
       {rs rs' : List I} :
-      Mem k f t → Mem k f t' → D.ctors[c]? = some C → RedT S k A (.data d ps) → ps = Tm.ofList ps.toList →
+      Mem k f t → Mem k f t' → EqTm S k .one [] t t' A → D.ctors[c]? = some C → RedT S k A (.data d ps) → ps = Tm.ofList ps.toList →
       RedE S k A t (.con d c qs (Tm.ofList args) rs) → RedE S k A t' (.con d c qs' (Tm.ofList args') rs') →
       rs.length = C.dims → rs'.length = C.dims →
       (∀ (i : ℕ) (r r' : I), rs[i]? = some r → rs'[i]? = some r' → I.Eq r r') →
@@ -188,7 +188,7 @@ inductive DR2At {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m 
           ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ ps.toList.reverse)) args[j] args'[j]) →
       DR2At d D Mem P k f A t t'
   | hcomp {k : ℕ} {f : Hom k m} {A t t' ps qs qs' u u' a a' : Tm} {φ φ' : I} :
-      Mem k f t → Mem k f t' → D.isHIT = true → RedT S k A (.data d ps) → ps = Tm.ofList ps.toList →
+      Mem k f t → Mem k f t' → EqTm S k .one [] t t' A → D.isHIT = true → RedT S k A (.data d ps) → ps = Tm.ofList ps.toList →
       RedE S k A t (.hcomp (.data d qs) φ u a) → RedE S k A t' (.hcomp (.data d qs') φ' u' a') →
       φ.Scoped k → φ'.Scoped k → I.Entails φ φ' → I.Entails φ' φ →
       DR2 d D Mem P k f (.data d ps) a a' →

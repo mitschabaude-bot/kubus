@@ -36,17 +36,17 @@ theorem DR2.rebase {k : ℕ} {f' : Hom k k0} {A t t' : Tm}
       DR2At S d D (dataMem S Θ (f.comp h)) (dataP2 S Θ (f.comp h)) k g A t t') ?_ ?_ ?_ hr
   · intro k f' A t t' _ ih k1 h g e
     exact .intro fun k' σ => ih k' σ h (g.comp σ.hom) (by rw [e, Hom.comp_assoc])
-  · intro k f' A t t' ps qs qs' c C args args' rs rs' hm hm' hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
+  · intro k f' A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
       hrec hpt ihrec k1 h g e
     subst e
-    refine .con ?_ ?_ hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
+    refine .con ?_ ?_ heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
       (fun j hj hj' hr => ihrec j hj hj' hr h g rfl) (fun j hj hj' hr => ?_)
     · unfold dataMem at hm ⊢; rwa [Hom.comp_assoc]
     · unfold dataMem at hm' ⊢; rwa [Hom.comp_assoc]
     · have := hpt j hj hj' hr; unfold dataP2 at this ⊢; rwa [Hom.comp_assoc]
-  · intro k f' A t t' ps qs qs' u u' a a' φ φ' hm hm' hH hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu k1 h g e
+  · intro k f' A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu k1 h g e
     subst e
-    refine .hcomp ?_ ?_ hH hA hpl ht ht' hs hs' h12 h21 (iha h g rfl)
+    refine .hcomp ?_ ?_ heq hH hA hpl ht ht' hs hs' h12 h21 (iha h g rfl)
       (fun k' σ r hr hh => ihu k' σ r hr hh h _ (by rw [Hom.comp_assoc]))
     · unfold dataMem at hm ⊢; rwa [Hom.comp_assoc]
     · unfold dataMem at hm' ⊢; rwa [Hom.comp_assoc]
@@ -58,14 +58,14 @@ theorem DR2.unbase {k k1 : ℕ} {h : Hom k1 k0} {g : Hom k k1} {A t t' : Tm}
     (motive_2 := fun k g A t t' _ => DR2At S d D (dataMem S Θ f) (dataP2 S Θ f) k (h.comp g) A t t') ?_ ?_ ?_ hr
   · intro k g A t t' _ ih
     exact .intro fun k' σ => by have := ih k' σ; simp only at this; rwa [Hom.comp_assoc]
-  · intro k g A t t' ps qs qs' c C args args' rs rs' hm hm' hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
+  · intro k g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
       hrec hpt ihrec
-    refine .con ?_ ?_ hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' ihrec (fun j hj hj' hr => ?_)
+    refine .con ?_ ?_ heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' ihrec (fun j hj hj' hr => ?_)
     · unfold dataMem at hm ⊢; rwa [← Hom.comp_assoc]
     · unfold dataMem at hm' ⊢; rwa [← Hom.comp_assoc]
     · have := hpt j hj hj' hr; unfold dataP2 at this ⊢; rwa [← Hom.comp_assoc]
-  · intro k g A t t' ps qs qs' u u' a a' φ φ' hm hm' hH hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu
-    refine .hcomp ?_ ?_ hH hA hpl ht ht' hs hs' h12 h21 iha (fun k' σ r hr hh => ?_)
+  · intro k g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu
+    refine .hcomp ?_ ?_ heq hH hA hpl ht ht' hs hs' h12 h21 iha (fun k' σ r hr hh => ?_)
     · unfold dataMem at hm ⊢; rwa [← Hom.comp_assoc]
     · unfold dataMem at hm' ⊢; rwa [← Hom.comp_assoc]
     · have := ihu k' σ r hr hh; simp only at this; rwa [Hom.comp_assoc]
