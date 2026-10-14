@@ -141,6 +141,8 @@ def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K S (Red S Ψ Φ Γ t A) := do
   if t.rigid then return ⟨t, EqTm.refl ht⟩
   if let some v := (← get).wh.find? Ψ Φ Γ [t, A] E.fs.get E.hfs E.hsc WhF.restr then return v
+  -- the heads of its eliminations are typed: their inference can skip the premises
+  noteTyped E 16 t ⟨A, ht⟩
   let v ← canonWhnfRaw R E t A l hA ht
   modify fun c => { c with wh := c.wh.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
   noteTyped E 16 v.tm ⟨A, HasTy.eqR v.eq⟩
@@ -178,7 +180,10 @@ def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     throw msg
   let v ← tryCatch (trail (fun _ => s!"comparing {short t} and {short u} at {short A}")
       (canonConvRaw R E A l hA t u ht hu)) fun e => do
-    modify fun c => { c with convFail := c.convFail.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs e }
+    -- (a failure under a restricted strategy is not definitive)
+    let c ← get
+    if !c.noSplit && !c.congFirst then
+      modify fun c => { c with convFail := c.convFail.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs e }
     throw e
   modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }
   return v

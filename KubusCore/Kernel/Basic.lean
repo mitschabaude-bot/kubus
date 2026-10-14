@@ -773,21 +773,62 @@ structure TranspInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) 
   l : Nat
   hA : HasTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l)
   hφ : φ.Scoped Ψ
-  heq : EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l)
+  /-- the line is constant on `φ` (at some level: the generation lemma does not say which) -/
+  heq : ∃ l', l' ≤ maxLevel ∧ HasTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l') ∧
+    EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l')
   ha : HasTy S Ψ Φ Γ a (A.dinst .zero)
   ht : HasTy S Ψ Φ Γ (.transp A φ a) (A.dinst .one)
 
-def inferTransp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (a : Tm) :
-    K S (TranspInfo S Ψ Φ Γ A φ a) := do
+/-- The same transport with another base. -/
+theorem TranspInfo.retype {Ψ Φ Γ A φ a a'} (i : TranspInfo S Ψ Φ Γ A φ a)
+    (ha' : HasTy S Ψ Φ Γ a' (A.dinst .zero)) : HasTy S Ψ Φ Γ (.transp A φ a') (A.dinst .one) := by
+  obtain ⟨_, _, hA', heq'⟩ := i.heq
+  exact HasTy.transp hA' i.hφ heq' ha'
+
+/-- Typed types have levels below `maxLevel` (presupposition and generation for universes). -/
+theorem HasTy.lvl_le (hS : WfSig S) {Ψ Φ Γ A l} (h : HasTy S Ψ Φ Γ A (.univ l)) : l ≤ maxLevel := by
+  have h0 := Meta.spec_to_minimal hS h
+  rcases Meta.pre_ty (Meta.sigClosed_of_wfSig hS) (Meta.wf_typed _ S rfl hS).1
+      (Meta.wf_typed _ S rfl hS).2 h0 with ⟨_, hu⟩ | ⟨_, he, hl⟩
+  · have := Meta.gen_univ hu rfl; omega
+  · cases he; exact hl
+
+/-- The premises of a transport known to be typed, read off its typing by the generation lemma
+(`Meta.gen_transpF`); only the level of the line is inferred. -/
+def transpInfoEx (R : Rec S) (E : KCtx S Ψ Φ Γ) (hS : WfSig S) {A : Tm} {φ : I} {a : Tm}
+    (hex : ∃ T, HasTy S Ψ Φ Γ (.transp A φ a) T) : K S (TranspInfo S Ψ Φ Γ A φ a) := do
   let ⟨hφ⟩ ← ensureScoped φ Ψ
   let ⟨l, ⟨hA⟩⟩ ← inferType R E.dext A
+  have heq : ∃ l', l' ≤ maxLevel ∧ HasTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l') ∧
+      EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l') := by
+    obtain ⟨T, ht⟩ := hex
+    obtain ⟨l', ⟨h1, _, h3, _⟩, _⟩ := Meta.gen_transpF (Meta.spec_to_minimal hS ht) rfl
+    have h1' := Meta.minimal_to_spec h1
+    exact ⟨l', HasTy.lvl_le hS h1', h1', Meta.minimal_to_spec_eq h3⟩
+  have ha : HasTy S Ψ Φ Γ a (A.dinst .zero) := by
+    obtain ⟨T, ht⟩ := hex
+    obtain ⟨_, ⟨_, _, _, h4⟩, _⟩ := Meta.gen_transpF (Meta.spec_to_minimal hS ht) rfl
+    exact Meta.minimal_to_spec h4
+  have ht : HasTy S Ψ Φ Γ (.transp A φ a) (A.dinst .one) := by
+    obtain ⟨_, _, hA', heq'⟩ := heq
+    exact HasTy.transp hA' hφ heq' ha
+  pure ⟨l, hA, hφ, heq, ha, ht⟩
+
+def inferTransp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (a : Tm) :
+    K S (TranspInfo S Ψ Φ Γ A φ a) := do
+  if let some ⟨hS⟩ := E.sig.wf then
+    if let some ⟨hex⟩ := (← get).typed.find? Ψ Φ Γ [.transp A φ a] E.fs.get E.hfs E.hsc TypedF.restr then
+      return ← transpInfoEx R E hS hex
+  let ⟨hφ⟩ ← ensureScoped φ Ψ
+  let ⟨l, ⟨hA⟩⟩ ← inferType R E.dext A
+  let ⟨hl⟩ ← ensureLvl l
   let hA0 : HasTy S Ψ Φ Γ (A.dinst .zero) (.univ l) := HasTy.dsubst hA trivial
   let ⟨ha⟩ ← R.check E a (A.dinst .zero) l hA0
   let E' := (E.cof φ hφ).dext
   let ⟨hU⟩ ← univTyK E' l
   let ⟨heq⟩ ← R.conv E' (.univ l) (l + 1) hU A (A.dinst .zero).dshift
     (HasTy.rsd E hφ hA) (HasTy.dwkCof E hφ hA0)
-  pure ⟨l, hA, hφ, heq, ha, HasTy.transp hA hφ heq ha⟩
+  pure ⟨l, hA, hφ, ⟨l, hl, hA, heq⟩, ha, HasTy.transp hA hφ heq ha⟩
 
 structure HcompInfo (S : Sig) (Ψ : Nat) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (u a : Tm) where
   l : Nat

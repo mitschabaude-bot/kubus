@@ -77,7 +77,7 @@ def annotTransp (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (
     K S ((a' : Tm) × PLift (EqTm S Ψ Φ Γ (.transp L φ a) (.transp L φ a') A)) := do
   let i ← inferTransp R E L φ a
   let ⟨ea⟩ ← annot R E (HasTy.dsubst (r := .zero) i.hA trivial) i.ha
-  have ht' := HasTy.transp i.hA i.hφ i.heq (HasTy.eqR ea)
+  have ht' := i.retype (HasTy.eqR ea)
   have e := EqTm.transp i.ht ht' (EqTm.refl i.hA) (I.entails_refl φ) (I.entails_refl φ) ea
   let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e
   return ⟨_, ⟨e⟩⟩
@@ -190,7 +190,7 @@ def transpArgStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I)
   let ⟨ai, ar⟩ ← R.whnfI E a
   if ar.tm = a then return none
   let ⟨ea⟩ ← bridge R E ai.hty hA0 ar.eq
-  have ht2 := HasTy.transp i.hA i.hφ i.heq (HasTy.eqR ea)
+  have ht2 := i.retype (HasTy.eqR ea)
   have e := EqTm.transp i.ht ht2 (EqTm.refl i.hA) (I.entails_refl φ) (I.entails_refl φ) ea
   let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e
   return some (⟨_, e⟩, false)
@@ -200,6 +200,7 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ (.transp L φ a) A) :
     K S (Option (Red S Ψ Φ Γ (.transp L φ a) A × Bool)) := do
   if h : E.Ent φ then return some (⟨a, EqTm.transpFace h ht⟩, false)
+  noteTyped E 1 (.transp L φ a) ⟨A, ht⟩
   let ⟨l1, ⟨hL⟩⟩ ← inferType R E.dext L
   let r ← whnfTy R E.dext L l1 hL
   if r.tm = L then
@@ -221,10 +222,16 @@ def transpStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (L : Tm) (φ : I) (a
   have hL' := HasTy.eqR eL
   have e0 : EqTm S Ψ Φ Γ (L.dinst .zero) (r.tm.dinst .zero) (.univ m) := EqTm.dsubst eL trivial
   have e1 : EqTm S Ψ Φ Γ (L.dinst .one) (r.tm.dinst .one) (.univ m) := EqTm.dsubst eL trivial
-  have heq' : EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift r.tm (r.tm.dinst .zero).dshift (.univ m) :=
-    EqTm.trans (EqTm.symm (EqTm.rsd E i.hφ eL))
-      (EqTm.trans (i.heq.liftLe (Nat.le_max_right _ _) hm) (EqTm.dwkCof E i.hφ e0))
-  have ht' := HasTy.transp hL' i.hφ heq' (HasTy.conv i.ha e0)
+  have ht' : HasTy S Ψ Φ Γ (.transp r.tm φ a) (r.tm.dinst .one) := by
+    obtain ⟨l', hl', _, heq0⟩ := i.heq
+    have hM : max m l' ≤ maxLevel := Nat.max_le.2 ⟨hm, hl'⟩
+    have eLM := eL.liftLe (Nat.le_max_left m l') hM
+    have e0M : EqTm S Ψ Φ Γ (L.dinst .zero) (r.tm.dinst .zero) (.univ (max m l')) :=
+      EqTm.dsubst eLM trivial
+    have heq' : EqTm S (Ψ + 1) (cof Φ φ).shift Γ.dshift r.tm (r.tm.dinst .zero).dshift (.univ (max m l')) :=
+      EqTm.trans (EqTm.symm (EqTm.rsd E i.hφ eLM))
+        (EqTm.trans (heq0.liftLe (Nat.le_max_right _ _) hM) (EqTm.dwkCof E i.hφ e0M))
+    exact HasTy.transp (HasTy.eqR eLM) i.hφ heq' (HasTy.conv i.ha e0M)
   have e := EqTm.transp i.ht (HasTy.conv ht' (EqTm.symm e1)) eL (I.entails_refl φ)
     (I.entails_refl φ) (EqTm.refl i.ha)
   let ⟨e⟩ ← bridge R E (HasTy.dsubst (r := .one) i.hA trivial) hA e

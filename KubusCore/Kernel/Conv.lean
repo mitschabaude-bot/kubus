@@ -419,8 +419,8 @@ def convStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     let ⟨e2⟩ ← R.conv (E.cof ψ hψ) A l (HasTy.rs E hψ hA) t u (HasTy.rs E hψ ht) (HasTy.rs E hψ hu)
     pure ⟨EqTm.local hφ hψ hcov ht hu e1 e2⟩
 
-def convNeUnglue (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : Tm) (φ' : I) (g' : Tm) :
-    K S ((i : Inf S Ψ Φ Γ (.unglue φ e g)) × PLift (EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ' e g') i.ty)) := do
+def convNeUnglue (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : Tm) (φ' : I) (e' g' : Tm) :
+    K S ((i : Inf S Ψ Φ Γ (.unglue φ e g)) × PLift (EqTm S Ψ Φ Γ (.unglue φ e g) (.unglue φ' e' g') i.ty)) := do
   let ⟨gi, ⟨eg⟩⟩ ← R.convNe E g g'
   let ⟨A1, T, ⟨hA1, eG⟩⟩ ← toGlueE R E gi.ty gi.lvl gi.hty φ e
   have hG := HasTy.eqR eG
@@ -428,11 +428,17 @@ def convNeUnglue (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (φ : I) (e g : Tm
   let ⟨h1⟩ ← ensureEnt φ φ'
   let ⟨h2⟩ ← ensureEnt φ' φ
   let ⟨he⟩ ← checkEquiv R E A1 φ T e gi.lvl
-  let ⟨he'⟩ ← checkEquiv R E A1 φ' T e gi.lvl
-  let ⟨eG'⟩ ← reglue R E A1 φ T e φ' e gi.lvl hG hA1
+  let ⟨he'⟩ ← checkEquiv R E A1 φ' T e' gi.lvl
+  -- the equivalences may differ syntactically (e.g. in cofibrations inside them)
+  let ⟨hφ⟩ ← ensureScoped φ Ψ
+  let E1 := E.cof φ hφ
+  let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A1) gi.lvl
+  let ⟨hc⟩ ← ensureEnt (cof Φ φ) (cof Φ φ')
+  let ⟨ee⟩ ← R.conv E1 (Tm.equiv T A1) gi.lvl hq e e' he (HasTy.restrict E1.hsc hc he')
+  let ⟨eG'⟩ ← reglue R E A1 φ T e φ' e' gi.lvl hG hA1
   have hu := HasTy.unglue (HasTy.eqR eG') hA1 he' (HasTy.conv (HasTy.eqR eg2) eG')
   return ⟨⟨A1, gi.lvl, hA1, HasTy.unglue hG hA1 he (HasTy.conv gi.htm eG)⟩,
-    ⟨EqTm.unglue (HasTy.unglue hG hA1 he (HasTy.conv gi.htm eG)) hu h1 h2 (EqTm.refl he) eg2⟩⟩
+    ⟨EqTm.unglue (HasTy.unglue hG hA1 he (HasTy.conv gi.htm eG)) hu h1 h2 ee eg2⟩⟩
 
 def convNeCon (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (d c : Nat) (ps args : Tm) (rs : List I)
     (ps' args' : Tm) (rs' : List I) :
@@ -571,9 +577,7 @@ def convNeStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t u : Tm) :
     let ⟨ea⟩ ← R.conv E A ti.l ti.hA a a' ti.ha (HasTy.conv ui.ha (EqTm.symm eA))
     return ⟨⟨A, ti.l, ti.hA, ti.ht⟩,
       ⟨EqTm.hcomp ti.ht (HasTy.conv ui.ht (EqTm.symm eA)) eA h1 h2 ev ea⟩⟩
-  | .unglue φ e g, .unglue φ' e' g' =>
-    if he : e' = e then by subst he; exact convNeUnglue R E φ _ g φ' g'
-    else fail s!"kernel: unglue with different equivalences:\n  {short e}\n  {short e'}"
+  | .unglue φ e g, .unglue φ' e' g' => convNeUnglue R E φ e g φ' e' g'
   | .glueEl φ e t a, .glueEl φ' e' t' a' => do
     -- congruence: the base, and under `φ` the equivalence and the fibre element
     let i ← R.infer E (.glueEl φ e t a)
