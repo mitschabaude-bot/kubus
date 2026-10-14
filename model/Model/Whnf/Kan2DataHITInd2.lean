@@ -109,6 +109,139 @@ theorem tcon_faceH (H : TC S k d D PL PL φ φ c C q q X X rs rs) (hH : D.isHIT 
 
 end TC
 
+section whnf
+variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = true)
+  (hyp : HITHyp2 S) {K : ℕ} {P : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level))
+  (hPP : RT2 S K (.data d P) (.data d P))
+include hW hD hH hyp hP hPP
+
+/-- The normal form of an element of a literal higher inductive type: related to itself and to the
+element. -/
+theorem whnf_data {k3 : ℕ} (ρ' : ISub k3 K) {x x' : Tm} (h : RE2 S k3 (.data d (P.isub ρ')) x x') :
+    ∃ W, RedE S k3 (.data d (P.isub ρ')) x W ∧ WhnfF d D W ∧ RE2 S k3 (.data d (P.isub ρ')) W W ∧
+      RE2 S k3 (.data d (P.isub ρ')) W x := by
+  have hPρ := RT2.isub hW (tyCode_of_univ hW hP) hPP ρ'
+  have hdD := dataD_eq hW hD
+  have hDR := DR2.at_id hW (Θ := ΘK S D d K P) ((RE2_dataLit_iff hW hD hP ρ').1 h).2
+  rcases DR2At_cases hW hD hP hPP ρ' hDR with
+    ⟨c, C, qs, Z, rs, qs', Z', rs', hC, hZl, hZ'l, hr, -, hrsl, hrsl', hreq, -, -, hZ⟩ |
+    ⟨qs, χ, u, a, qs', χ', u', a', -, hr, hr', hχs, -, -, -, haa, hu⟩
+  · have hf : firstBnd C.bnd rs = none := by
+      have := hr.1.2; simp [IsWhnf, step, hD, hC] at this; exact this
+    have hWW : RE2 S k3 (.data d (P.isub ρ')) (.con d c qs (Tm.ofList Z) rs) (.con d c qs (Tm.ofList Z) rs) :=
+      con_rel hW hD hP hPP hH hyp c ρ' hC (HasTy.eqR hr.2) (HasTy.eqR hr.2) (forall2_ieq_refl _)
+        (fun i hi => (args_self hW hD hP hPP ρ' hC hZl hZ'l hZ i hi).2.1)
+    exact ⟨_, hr, .inl ⟨c, C, qs, Z, rs, hC, rfl, hZl, hf⟩, hWW, RE2_whnf hW hD hP hPP ρ' h hr hWW⟩
+  · have hχ : ¬ I.Entails .one χ := by
+      intro hc
+      have := hr.1.2
+      simp [IsWhnf, step, show I.entails .one χ = true from hc] at this
+    have hty := HasTy.eqR hr.2
+    have hPρ' : RT2 S k3 (.data d (P.isub ρ')) (.data d (P.isub ρ')) := hPρ
+    have hT : ∀ {k4 : ℕ} (σ : ISub k4 k3), RT2 S k4 (.data d (P.isub (ρ'.comp σ))) (.data d (P.isub (ρ'.comp σ))) :=
+      fun σ => RT2.isub hW (tyCode_of_univ hW hP) hPP _
+    have tS : TubeD S k3 (.data d (P.isub ρ')) χ u u := by
+      intro k4 σ r hr0 hh
+      have h1 := hu k4 σ r hr0 hh
+      rw [show (Tm.data d (P.isub ρ')).isub σ = .data d (P.isub (ρ'.comp σ)) by
+        show Tm.data d ((P.isub ρ').isub σ) = _; rw [Tm.isub_isub]]
+      exact RE2.trans hW (hT σ) h1 (RE2.symm hW (hT σ) h1)
+    have hWW := hcomp_relD hW hD hH hP hPP ρ' hty hty (EqTm.refl hty) (ent_refl _) (ent_refl _) tS tS tS
+      (RE2.trans hW hPρ haa (RE2.symm hW hPρ haa))
+    exact ⟨_, hr, .inr ⟨qs, χ, u, a, rfl, hχ⟩, hWW, RE2_whnf hW hD hP hPP ρ' h hr hWW⟩
+
+end whnf
+
+section face
+variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = true)
+  (hp : D.params ≠ []) {K : ℕ} {P : Tm} (hP : HasTy S (K + 1) .one [] (.data d P) (.univ D.level))
+  (hArgK : KanShape S (K + 1) (ΘK S D d (K + 1) P))
+  (hRL : Rob S d K P P)
+include hW hD hH hp hP hArgK hRL
+
+/-- Where the face of a transport of a formal composition holds, its `transpHcomp` contractum is related to
+the composition. -/
+theorem hcomp_faceH {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Scoped (k1 + 1)) {ψ χ : I} {qs u a : Tm}
+    (hψs : ψ.Scoped k1) (hψ : I.Entails .one ψ)
+    (LC : LineConst S k1 ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ)
+    (hT : HasTy S k1 .one [] (.transp ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ (.hcomp (.data d qs) χ u a))
+      (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one))
+    (hU : ∀ k' (σ : ISub k' k1) (r : I), r.Scoped k' → (ival (idEnv k') (χ.subst σ.τ)).holds →
+      RE2 S k' ((((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .zero).isub σ) ((u.isub σ.up).dinst r)
+        ((u.isub σ.up).dinst r))
+    (hA : RE2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .zero) a a) :
+    RE2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one)
+      (tHc d (P.isub (ISub.cons y hy ρ.up.tail)) ψ χ u a) (.hcomp (.data d qs) χ u a) := by
+  have hPP1 := PP1 hW hD hp hP hArgK hRL
+  have tyB : ∀ {k4 : ℕ} {X Z : Tm}, RT2 S k4 X Z → TyEq S k4 X Z := fun h => (Comp2_ty_base h).2.2.2.2.2
+  have hLt : HasTy S (k1 + 1) .one [] ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) (.univ D.level) :=
+    HasTy.isubS hW hP _
+  have hXL : ∀ {k4 : ℕ} (θ : ISub k4 (k1 + 1)), TyCode k4
+      (semK S k4 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).isub θ)) := fun θ =>
+    tyCode_of_univ hW (HasTy.isubS hW hLt θ)
+  have eLr : ∀ {k4 : ℕ} (σ : ISub k4 k1) (r : I) (hr : r.Scoped k4), r.subst σ.τ = r →
+      ((((Tm.data d P).isub (ISub.cons y hy ρ.up.tail))).dinst r).isub σ =
+        ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).isub (ISub.cons r hr σ) := by
+    intro k4 σ r hr hrr
+    rw [isub_dinst, hrr]; exact isub_up_dinst _ σ r hr
+  have conv01 : ∀ {k4 : ℕ} (σ : ISub k4 k1), RT2 S k4
+      ((((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .zero).isub σ)
+      ((((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one).isub σ) := by
+    intro k4 σ
+    rw [eLr σ .zero trivial rfl, eLr σ .one trivial rfl]
+    have hh : (ival (idEnv k4) (ψ.subst σ.τ)).holds :=
+      (holds_iff_entails (I.scoped_subst hψs σ.sc)).2 (ent_one_subst hψ σ.τ)
+    exact RT2.symm hW (hXL _) (LC k4 σ .one trivial hh)
+  have conv01' : RT2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .zero)
+      (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one) := by
+    have := conv01 (ISub.id k1)
+    rwa [isub_id_of_closed (closed_of_ty hW (HasTy.isubS hW hLt (ISub.cons .zero trivial (ISub.id k1)) |>
+      fun h => by rwa [isub_cons_id_of_closed (closed_ty (spec_to_minimal hW hLt))] at h)),
+      isub_id_of_closed (closed_of_ty hW (HasTy.isubS hW hLt (ISub.cons .one trivial (ISub.id k1)) |>
+      fun h => by rwa [isub_cons_id_of_closed (closed_ty (spec_to_minimal hW hLt))] at h))] at this
+  obtain ⟨_, ⟨-, -, -, hb⟩, -⟩ := gen_transpF (spec_to_minimal hW hT) rfl
+  have hc1 : ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).closedB 0 (k1 + 1) = true := closed_ty (spec_to_minimal hW hLt)
+  have hd0 : HasTy S k1 .one [] (.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .zero)) (.univ D.level) := by
+    have := HasTy.isubS hW hLt (ISub.cons .zero trivial (ISub.id k1))
+    rwa [isub_cons_id_of_closed hc1] at this
+  have hb0 := (hcomp_data_retype hW (minimal_to_spec hb : HasTy S k1 .one [] _
+    (.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .zero))) hd0).1
+  have eHc := transpHcomp_eq (D := D) hD hp hH hb0 hT
+  have eF := EqTm.transpFace hψ hT
+  have htH := HasTy.eqR eHc
+  have hWty1 := HasTy.eqR eF
+  have heqHW := eHc.symm.trans eF
+  have htube : TubeD S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one) χ
+      (.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u) u := by
+    intro k' σ r hr0 hh
+    rw [tHc_tube_pt _ _ _ σ r hr0]
+    have hσ := HasTy.isubS hW htH σ
+    have htp := hcomp_tube_typed' hW (T := (Tm.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .one)).isub σ)
+      (u := (Tm.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u).isub σ.up)
+      (a := (Tm.transp (Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))) ψ a).isub σ) (φ := χ.subst σ.τ) hσ r hr0 hh
+    rw [tHc_tube_pt _ _ _ σ r hr0] at htp
+    have hU1 := RE2.conv hW (conv01 σ) (hU k' σ r hr0 hh)
+    have hst := stable_transpFace hW (ent_one_subst hψ σ.τ) htp
+    exact RE2.expandL hW (RT2.refl' hW (RE2.tyCode hW (hU k' σ r hr0 hh)) (conv01 σ)) htp (RE2.typed hU1).1 hst hU1
+  have tS : TubeD S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one) χ
+      (.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u)
+      (.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u) := by
+    intro k' σ r hr0 hh
+    have h := htube k' σ r hr0 hh
+    have hT1 := RT2.refl' hW (RE2.tyCode hW (hU k' σ r hr0 hh)) (conv01 σ)
+    exact RE2.trans hW hT1 h (RE2.symm hW hT1 h)
+  have tS' : TubeD S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one) χ u u :=
+    fun k' σ r hr0 hh => RE2.conv hW (conv01 σ) (hU k' σ r hr0 hh)
+  obtain ⟨_, ⟨-, -, -, hta, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW htH) rfl
+  have hst := stable_transpFace hW hψ (minimal_to_spec hta)
+  have hA1 := RE2.conv hW conv01' hA
+  have haa := RE2.expandL hW (RT2.refl' hW (RE2.tyCode hW hA) conv01') (minimal_to_spec hta) (RE2.typed hA1).1 hst hA1
+  have eE := lineP_dinst hW hD hp hP hArgK hRL ρ y hy .one trivial
+  rw [eE] at htH htube tS tS' haa hWty1 heqHW ⊢
+  exact hcomp_relD hW hD hH hP hPP1 _ htH hWty1 heqHW (ent_refl _) (ent_refl _) htube tS tS' haa
+
+end face
+
 end
 
 end Model.Whnf
