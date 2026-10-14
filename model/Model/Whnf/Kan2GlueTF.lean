@@ -60,6 +60,28 @@ theorem pathC_elim0 {F c p X Y : Tm} (h : RE2 S k (Tm.pathC F c p) X Y) : RE2 S 
   have := (RE2_path_elim hW h).2.1
   rwa [dshift_dinst] at this
 
+theorem pathC_elim1 {F c p X Y : Tm} (h : RE2 S k (Tm.pathC F c p) X Y) : RE2 S k F (.papp X .one) p := by
+  unfold Tm.pathC at h
+  have := (RE2_path_elim hW h).2.2
+  rwa [dshift_dinst] at this
+
+/-- A point of the second component of a pair whose second component is a path abstraction. -/
+theorem stable_pappSnd {L x y a t : Tm} {s : I} (hs : s.Scoped k)
+    (hsn : HasTy S k .one [] (.snd (.pair a (.plam t))) (.path L x y)) :
+    StableE S k (L.dinst s) (.papp (.snd (.pair a (.plam t))) s) (t.dinst s) := by
+  intro k' σ
+  have hσ := HasTy.isubS hW hsn σ
+  rw [isub_path] at hσ
+  have hsσ := I.scoped_subst hs σ.sc
+  have e1 : EqTm S k' .one [] (.snd (.pair (a.isub σ) (.plam (t.isub σ.up)))) (.plam (t.isub σ.up))
+      (.path (L.isub σ.up) (x.isub σ) (y.isub σ)) := EqTm.sndBeta hσ
+  have e2 := EqTm.papp e1 hsσ hsσ (I_eq_refl _)
+  have e3 := EqTm.pathBeta (HasTy.papp (HasTy.eqR e1) hsσ)
+  rw [isub_dinst, isub_dinst]
+  refine ⟨?_, e2.trans e3⟩
+  show Red S (.papp (.snd (.pair (a.isub σ) (.plam (t.isub σ.up)))) (s.subst σ.τ)) _
+  exact .step (t' := .papp (.plam (t.isub σ.up)) (s.subst σ.τ)) (by simp [step]) (.step (by simp [step]) (.refl _))
+
 theorem HasTy.top {X : Tm} {l : ℕ} (h : HasTy S k .one [] X (.univ l)) : HasTy S k .one [] X (.univ maxLevel) :=
   h.cumulTo (lvl_of_ty hW h) le_rfl
 
@@ -744,6 +766,72 @@ theorem TGD2.ext : RE2 S k (tgFib A φ T e ψ u0) (tgExt A φ T e ψ u0 δ) (tgE
   · have hAA := RT2.isub hW hX hFF σ
     exact RE2.trans hW hAA (RE2.symm hW hAA (D.sys0 hW hφ1 σ hh))
       (D.sysAt2 hW hφ1 σ hh (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _))
+
+
+omit hW D hφ1 in
+theorem pairQ_isub (A : Tm) (φ : I) (e : Tm) (ψ : I) (u0 : Tm) (τ : ISub k' k) :
+    (Tm.pair u0 (.plam (tgA1' A φ e ψ u0).dshift)).isub τ =
+      .pair (u0.isub τ) (.plam (tgA1' (A.isub τ.up) (φ.subst τ.up.τ) (e.isub τ.up) (ψ.subst τ.τ) (u0.isub τ)).dshift) := by
+  show Tm.pair (u0.isub τ) (.plam ((tgA1' A φ e ψ u0).dshift.isub τ.up)) = _
+  rw [isub_dshift, tgA1'_isub]
+
+theorem TGD2.Pd1Pt (τ : ISub k' k) (hδτ : (ival (idEnv k') (δ.subst τ.τ)).holds)
+    (hψτ : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+    RE2 S k' ((tgFib A φ T e ψ u0).isub τ) (.papp ((tgPd A φ T e ψ u0).isub τ) .one)
+      ((Tm.pair u0 (.plam (tgA1' A φ e ψ u0).dshift)).isub τ) := by
+  have D' := D.isub hW τ
+  have h1 := D.φ1isub hW hφ1 τ
+  have y := pathC_elim1 hW (D'.Pd hW h1 hδτ)
+  have z := D'.pairPQ hW h1 hδτ hψτ
+  have hF := D'.hfib hW h1
+  have hFF := RT2.refl hW (tyCode_of_univ hW hF) (D'.rFib hW h1)
+  obtain ⟨eF, -, eP, -, -, -⟩ := tg_isub A φ T e ψ u0 δ τ
+  rw [eF, eP, pairQ_isub]
+  exact RE2.trans hW hFF y z
+
+theorem TGD2.Ppsi1Pt (τ : ISub k' k) (hψτ : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+    RE2 S k' ((tgFib A φ T e ψ u0).isub τ) (.papp ((tgPpsi A φ e ψ u0).isub τ) .one)
+      ((Tm.pair u0 (.plam (tgA1' A φ e ψ u0).dshift)).isub τ) := by
+  have y := pathC_elim1 hW ((D.isub hW τ).Ppsi hW (D.φ1isub hW hφ1 τ) hψτ)
+  obtain ⟨eF, -, -, eP, -, -⟩ := tg_isub A φ T e ψ u0 δ τ
+  rw [eF, eP, pairQ_isub]
+  exact y
+
+/-- On `ψ`, the extension to the left fibre is the pair `(u0, ⟨_⟩ a1')`. -/
+theorem TGD2.extQ (hψk : (ival (idEnv k) ψ).holds) :
+    RE2 S k (tgFib A φ T e ψ u0) (tgExt A φ T e ψ u0 δ) (.pair u0 (.plam (tgA1' A φ e ψ u0).dshift)) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hφs : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have hent1 := ent_cof_one hW (entails_of_holds hφs hφ1)
+  have hext := HasTy.restrict (Φ' := .one) trivial hent1 (minimal_to_spec H.hext)
+  have hQ := HasTy.restrict (Φ' := .one) trivial (ent_and_intro hent1 (entails_of_holds H.hψ hψk))
+    (minimal_to_spec H.hpψ)
+  have hfib := D.hfib hW hφ1
+  have hX := tyCode_of_univ hW hfib
+  have hFF := RT2.refl hW hX (D.rFib hW hφ1)
+  have hor : I.Entails .one (I.or δ ψ) := ent_trans (entails_of_holds H.hψ hψk) (ent_or_right _ _)
+  have hh : (ival (idEnv k) ((I.or δ ψ).subst (ISub.id k).τ)).holds := by
+    rw [I_subst_id (show (I.or δ ψ).Scoped k from ⟨D.hδs, H.hψ⟩),
+      holds_iff_entails (show (I.or δ ψ).Scoped k from ⟨D.hδs, H.hψ⟩)]
+    exact hor
+  have hsp := psysTy hW H hφ1 (ISub.id k) hh (r := .one) trivial
+  have hFc := closed_of_ty hW hfib
+  have hQc := closed_of_ty hW hQ
+  rw [isub_id_of_closed hFc] at hsp
+  rw [tgExt_eq] at hext ⊢
+  refine RE2.expandL hW hFF hext hQ (stable_hcompFace hW hor hext) ?_
+  rw [← isub_up_id_of_closed (closed_ty H.hpsys), psys_isub]
+  rw [← isub_id_of_closed hQc] at hQ ⊢
+  rw [← isub_id_of_closed hFc] at hFF hsp hQ ⊢
+  refine RE2_split_l hW (I.scoped_subst D.hδs (ISub.id k).sc) (I.scoped_subst H.hψ (ISub.id k).sc)
+    (entails_of_holds (I.scoped_subst (show (I.or δ ψ).Scoped k from ⟨D.hδs, H.hψ⟩) (ISub.id k).sc) hh) hFF hsp hQ
+    (fun k2 σ2 h => ?_) (fun k2 σ2 h => ?_) <;>
+  simp only [isub_papp, Tm.isub_isub, I.subst]
+  · exact D.Pd1Pt hW hφ1 ((ISub.id k).comp σ2)
+      ((holds_iff_entails (I.scoped_subst D.hδs ((ISub.id k).comp σ2).sc)).2 (by rw [I_subst_comp]; exact h))
+      (holds_isub hW H.hψ hψk _)
+  · exact D.Ppsi1Pt hW hφ1 ((ISub.id k).comp σ2)
+      ((holds_iff_entails (I.scoped_subst H.hψ ((ISub.id k).comp σ2).sc)).2 (by rw [I_subst_comp]; exact h))
 
 end
 
