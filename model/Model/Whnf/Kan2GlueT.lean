@@ -2,6 +2,7 @@ import Model.Whnf.Kan2Glue
 import Model.Whnf.Kan2IPiT
 import Model.Canon.KanGlueT
 import Model.Whnf.NearEquiv
+import Model.Whnf.Kan2Rel
 
 /-!
 # Binary Kan lemma: transport along lines of Glue types
@@ -107,12 +108,12 @@ structure TGD2 (S : Sig) (k : ℕ) (A : Tm) (φ : I) (T e A' : Tm) (φ' : I) (T'
     RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e.isub σ)
   f12 : I.Entails φ φ'
   f21 : I.Entails φ' φ
-  kAH : ∀ k' (σ : ISub k' (k + 1)) X', RT2 S k' (A.isub σ) X' → KanH2 S k' (A.isub σ) X'
-  kAT : ∀ k' (Θ : ISub (k' + 1) (k + 1)) X', RT2 S (k' + 1) (A.isub Θ) X' → KanT2 S k' (A.isub Θ) X'
-  kTH : ∀ k' (σ : ISub k' (k + 1)), (ival (idEnv k') (φ.subst σ.τ)).holds → ∀ X', RT2 S k' (T.isub σ) X' →
-    KanH2 S k' (T.isub σ) X'
-  kTT : ∀ k' (Θ : ISub (k' + 1) (k + 1)), (ival (idEnv (k' + 1)) (φ.subst Θ.τ)).holds → ∀ X',
-    RT2 S (k' + 1) (T.isub Θ) X' → KanT2 S k' (T.isub Θ) X'
+  kAR : KHRel S (k + 1) A
+  kATR : KTRel S (k + 1) A
+  kTR : ∀ k' (σ : ISub k' (k + 1)), (ival (idEnv k') (φ.subst σ.τ)).holds → ∀ X X', RT2 S k' (T.isub σ) X →
+    RT2 S k' X X' → KanH2 S k' X X'
+  kTTR : ∀ k' (Θ : ISub (k' + 1) (k + 1)), (ival (idEnv (k' + 1)) (φ.subst Θ.τ)).holds → ∀ X X',
+    RT2 S (k' + 1) (T.isub Θ) X → RT2 S (k' + 1) X X' → KanT2 S k' X X'
   hδs : δ.Scoped k
   hδ1 : I.Entails δ φ.forall0
   hδ2 : I.Entails φ.forall0 δ
@@ -142,7 +143,7 @@ theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
       (ival (idEnv k3) (φ.subst (ρ.up.comp σ).τ)).holds := fun σ h => by rwa [I_subst_comp]
   refine ⟨⟨l, HasTy.isubS hW hG ρ.up⟩, ⟨l', HasTy.isubS hW hG' ρ.up⟩, D.rA.isub ρ, D.rAA.isub ρ,
     fun k3 σ hh => ?_, fun k3 σ hh => ?_, fun k3 σ hh => ?_, fun k3 σ hh => ?_, ent_subst D.f12 _,
-    ent_subst D.f21 _, fun k3 σ X' h => ?_, fun k3 Θ X' h => ?_, fun k3 σ hh X' h => ?_, fun k3 Θ hh X' h => ?_,
+    ent_subst D.f21 _, D.kAR.isub ρ.up, D.kATR.isub ρ.up, fun k3 σ hh X X' h => ?_, fun k3 Θ hh X X' h => ?_,
     I.scoped_subst D.hδs ρ.sc, ent_trans (ent_subst D.hδ1 ρ.τ) (forall0_subst φ ρ.τ).1,
     ent_trans (forall0_subst φ ρ.τ).2 (ent_subst D.hδ2 ρ.τ), I.scoped_subst D.hδs' ρ.sc,
     ent_trans (ent_subst D.hδ1' ρ.τ) (forall0_subst φ' ρ.τ).1, ent_trans (forall0_subst φ' ρ.τ).2 (ent_subst D.hδ2' ρ.τ),
@@ -151,10 +152,8 @@ theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
   · rw [Tm.isub_isub]; exact D.rTT k3 _ (hc σ hh)
   · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]; exact D.rE k3 _ (hc σ hh)
   · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]; exact D.rEL k3 _ (hc σ hh)
-  · rw [Tm.isub_isub] at h ⊢; exact D.kAH k3 _ X' h
-  · rw [Tm.isub_isub] at h ⊢; exact D.kAT k3 _ X' h
-  · rw [Tm.isub_isub] at h ⊢; exact D.kTH k3 _ (hc σ hh) X' h
-  · rw [Tm.isub_isub] at h ⊢; exact D.kTT k3 _ (hc Θ hh) X' h
+  · rw [Tm.isub_isub] at h; exact D.kTR k3 _ (hc σ hh) X X' h
+  · rw [Tm.isub_isub] at h; exact D.kTTR k3 _ (hc Θ hh) X X' h
   · have := HasTy.isubS hW D.hty ρ
     rwa [transp_isub, dinst_isub_end _ (.inr rfl)] at this
   · have := HasTy.isubS hW D.hty' ρ
@@ -163,6 +162,35 @@ theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
     rwa [transp_isub, transp_isub, dinst_isub_end _ (.inr rfl)] at this
   · have := RE2.isub hW D.ha0 ρ
     rwa [dinst_isub_end _ (.inl rfl)] at this
+
+omit hW in
+theorem TGD2.kAH {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+    (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ') (k' : ℕ) (σ : ISub k' (k + 1)) (X' : Tm)
+    (h : RT2 S k' (A.isub σ) X') : KanH2 S k' (A.isub σ) X' := by
+  have := D.rAA k' σ.tail (σ.τ 0) (σ.τ 0) (σ.sc 0 (by omega)) (σ.sc 0 (by omega)) (I_eq_refl _)
+  rw [ISub.cons_tail] at this
+  exact D.kAR k' σ _ X' this h
+
+omit hW in
+theorem TGD2.kAT {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+    (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ') (k' : ℕ) (Θ : ISub (k' + 1) (k + 1)) (X' : Tm)
+    (h : RT2 S (k' + 1) (A.isub Θ) X') : KanT2 S k' (A.isub Θ) X' := by
+  have := D.rAA (k' + 1) Θ.tail (Θ.τ 0) (Θ.τ 0) (Θ.sc 0 (by omega)) (Θ.sc 0 (by omega)) (I_eq_refl _)
+  rw [ISub.cons_tail] at this
+  exact D.kATR k' Θ _ X' this h
+
+omit hW in
+theorem TGD2.kTH {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+    (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ') (k' : ℕ) (σ : ISub k' (k + 1))
+    (hh : (ival (idEnv k') (φ.subst σ.τ)).holds) (X' : Tm) (h : RT2 S k' (T.isub σ) X') : KanH2 S k' (T.isub σ) X' :=
+  D.kTR k' σ hh _ X' (D.rTT k' σ hh) h
+
+omit hW in
+theorem TGD2.kTT {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+    (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ') (k' : ℕ) (Θ : ISub (k' + 1) (k + 1))
+    (hh : (ival (idEnv (k' + 1)) (φ.subst Θ.τ)).holds) (X' : Tm) (h : RT2 S (k' + 1) (T.isub Θ) X') :
+    KanT2 S k' (T.isub Θ) X' :=
+  D.kTTR k' Θ hh _ X' (D.rTT (k' + 1) Θ hh) h
 
 omit hW in
 theorem near_cons (X : Tm) {τ : ISub k' k} {r r' : I} (hr : r.Scoped k') (hr' : r'.Scoped k') (he : I.Eq r r') :

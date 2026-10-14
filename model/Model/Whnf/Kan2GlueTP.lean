@@ -57,10 +57,6 @@ theorem sk2_closed {X : Tm} (hX : X.closedB 0 (k + 1) = true) :
   · rfl
   · show I.var (i + 2) = (ISub.wk (k + 1)).τ (i + 1); simp [ISub.wk, show i < k by omega]
 
-theorem dshift_isub_tail (t : Tm) {k4 : ℕ} (τ : ISub k4 (k + 1)) : t.dshift.isub τ = t.isub τ.tail := by
-  conv_lhs => rw [← ISub.cons_tail τ]
-  rw [dshift_isub_cons]
-
 theorem subst_up_inst0_dinst {X : Tm} {n : ℕ} (hX : X.closedB n (k + 2) = true) {r s : I} (hr : r.Scoped k)
     (hs : s.Scoped k) :
     (X.subst Tm.var (I.up (I.inst0 r))).dinst s = X.isub (ISub.cons s hs (ISub.cons r hr (ISub.id k))) := by
