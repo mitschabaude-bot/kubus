@@ -83,7 +83,7 @@ theorem tfill_rel {L L' a a' : Tm} {φ φ' : I} {l : ℕ} (hL : HasTy S (k + 1) 
       RT2 S k3 (L.isub (ISub.cons y hy τ)) (L.isub (ISub.cons y' hy' τ)))
     (hLC : LineConst S k L φ)
     (hT : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1)), I.Eq y y' →
-      KanT2At S k3 (L.isub (ISub.cons y hy τ.up.tail)) (L'.isub (ISub.cons y' hy' τ.up.tail)) (a.isub τ) (a'.isub τ))
+      I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero → KanT2At S k3 (L.isub (ISub.cons y hy τ.up.tail)) (L'.isub (ISub.cons y' hy' τ.up.tail)) (a.isub τ) (a'.isub τ))
     (htyF : HasTy S (k + 1) .one [] (Tm.transpFill L φ a) L)
     (htyF' : HasTy S (k + 1) .one [] (Tm.transpFill L' φ' a') L')
     (ha : RE2 S k (L.dinst .zero) a a') :
@@ -104,7 +104,7 @@ theorem tfill_rel {L L' a a' : Tm} {φ φ' : I} {l : ℕ} (hL : HasTy S (k + 1) 
   have hyx' := scoped_andShift hx'
   have hEy : I.Eq (I.and x.shift (.var 0)) (I.and x'.shift (.var 0)) :=
     ieq_and_congr (fun ρ0 => by simp only [I.shift, eval_ren]; exact e0 _) (I_eq_refl _)
-  have K := hT k3 τ _ _ hyx hyx' hEy
+  have K := hT k3 τ _ _ hyx hyx' hEy (by rw [andShift_subst]; exact ieq_and_zero_right _)
   -- robustness of the restricted lines
   have LR : LineRob S k3 (L.isub (ISub.cons _ hyx τ.up.tail)) (L'.isub (ISub.cons _ hyx' τ.up.tail)) := by
     intro k4 τ2 z z' hz hz' hEz
@@ -212,7 +212,7 @@ theorem tfill_one {L L' a a' : Tm} {φ φ' : I} {l : ℕ} (hL : HasTy S (k + 1) 
       RT2 S k3 (L.isub (ISub.cons y hy τ)) (L.isub (ISub.cons y' hy' τ)))
     (hLC : LineConst S k L φ)
     (hT : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1)), I.Eq y y' →
-      KanT2At S k3 (L.isub (ISub.cons y hy τ.up.tail)) (L'.isub (ISub.cons y' hy' τ.up.tail)) (a.isub τ) (a'.isub τ))
+      I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero → KanT2At S k3 (L.isub (ISub.cons y hy τ.up.tail)) (L'.isub (ISub.cons y' hy' τ.up.tail)) (a.isub τ) (a'.isub τ))
     (htyF : HasTy S (k + 1) .one [] (Tm.transpFill L φ a) L)
     (htyO' : HasTy S k .one [] (.transp L' φ' a') (L.dinst .one))
     (ha : RE2 S k (L.dinst .zero) a a')
@@ -231,7 +231,7 @@ theorem tfill_one {L L' a a' : Tm} {φ φ' : I} {l : ℕ} (hL : HasTy S (k + 1) 
   have hy0 : (I.var 0).Scoped (k3 + 1) := show 0 < k3 + 1 by omega
   have hone : ∀ (z : I), I.Eq (I.and .one z) z := fun z ρ0 => by simp only [I.eval]; cases z.eval ρ0 <;> rfl
   have hEy : I.Eq (I.and I.one.shift (.var 0)) (.var 0) := hone _
-  have K := hT k3 τ _ _ hy1 hy0 hEy
+  have K := hT k3 τ _ _ hy1 hy0 hEy (by rw [andShift_subst]; exact ieq_and_zero_right _)
   have eR : (L'.isub τ.up) = L'.isub (ISub.cons (.var 0) hy0 τ.up.tail) := by rw [ISub.cons_var0_up_tail]
   have LR : LineRob S k3 (L.isub (ISub.cons _ hy1 τ.up.tail)) (L'.isub (ISub.cons _ hy0 τ.up.tail)) := by
     intro k4 τ2 z z' hz hz' hEz
