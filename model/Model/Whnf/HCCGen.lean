@@ -1,4 +1,4 @@
-import Model.Whnf.Kan2DataHC5
+import Model.Whnf.Kan2DataHCBase
 
 /-!
 # Composition of constructors along arbitrary tube lists
