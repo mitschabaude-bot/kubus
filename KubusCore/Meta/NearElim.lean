@@ -706,6 +706,92 @@ theorem near_list : ∀ (L : List Tm) {t' : Tm}, TmNear (Tm.ofList L) t' →
       | zero => simp [Tm.toList] at hb hb'; subst hb hb'; exact na
       | succ i => simp [Tm.toList] at hb hb'; exact h3 i b b' hb hb'
 
+/-! ## Boundaries in the branch context -/
+
+/-- The instantiation of a boundary at argument terms and parameters. -/
+def bσ (xs : List Tm) (psw : Tm) : Nat → Tm := fun j => (xs.reverse ++ psw.toList.reverse).getD j (.var j)
+
+theorem htrE_of_wf (hW : WfSig S) {d : Nat} {D : DataDecl} (hD : S[d]? = some (.data D)) :
+    ∀ {Ψ' Φ' Γ' t u A}, EqTm (S.take d) Ψ' Φ' Γ' t u A → EqTm0 S Ψ' Φ' Γ' t u A := by
+  intro Ψ' Φ' Γ' t u A e
+  have hd : d < S.length := (List.getElem?_eq_some_iff.1 hD).1
+  obtain ⟨hT', hC'⟩ := wf_typed d (S.take d) (by simp [List.length_take]; omega) (wfSig_take hW d)
+  have hinc : ∀ (j : Nat) (e : Entry), (S.take d)[j]? = some e → S[j]? = some e :=
+    fun j e h => (getElem?_take_some h).2
+  exact sigwk_eq hinc (spec_to_minimal_eq_of (wfSig_take hW d) hT' hC' e)
+
+/-- The hypotheses of `bnd_rec` for a boundary instantiated at argument terms and parameters. -/
+theorem bnd_hyps (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {Ψ' X Θ} {psw : Tm} {xs : List Tm}
+    (hpt : HasTele0 S Ψ' X Θ psw D.params [])
+    (hat : HasTele0 S Ψ' X Θ (Tm.ofList xs) (C.argTys d D.params.length) psw.toList.reverse)
+    {ψ : I} (hτ : ∀ i < C.dims, (I.var i).Scoped Ψ') (hent : I.Entails X ψ) :
+    ∃ σp, TySub S C.dims ψ (D.pointCtx d C C.args.length) Ψ' X Θ σp I.var ∧
+      (∀ Y, C.mentionsRec C.args.length Y = false →
+        (Y.ren (C.pointRen C.args.length) id).subst σp I.var = Y.subst (bσ xs psw) I.var) ∧
+      (∀ j T, j < C.args.length → (D.argCtx d C C.args.length).lookup j = some T →
+        HasTy0 S Ψ' X Θ (bσ xs psw j) (T.subst (bσ xs psw) I.var)) ∧
+      (Ctor.paramVars D.params.length C.args.length).subst (bσ xs psw) I.var = psw := by
+  have hps := tele_isList hpt
+  have hpl : psw.toList.length = D.params.length := by simpa using tele_length hpt
+  have hal : xs.length = C.args.length := by
+    have := tele_length hat; rwa [toList_ofList, argTys_length] at this
+  have hw := wf_of_tele hpt
+  have h0 : ∀ σ, TySub S C.dims ψ [] Ψ' X Θ σ I.var :=
+    fun σ => tySub_nil hτ (by rw [I_subst_var]; exact hent) hw
+  have hP := tySub_params hS hD hpt (C.args.length + D.params.length) h0 _ (Nat.le_refl _)
+  rw [List.take_of_length_le (by omega)] at hP
+  have hσ := tySub_points hS hW hD hC hP hat hpl _ (Nat.le_refl _)
+  rw [toList_ofList] at hσ
+  refine ⟨_, hσ, ?_, ?_, ?_⟩
+  · intro Y hm
+    rw [subst_ren]
+    apply subst_freeIn_congr
+    intro y hy
+    have hc : y < C.args.length → C.isRec (C.args.length - 1 - y) = false := by
+      intro hy'
+      simp only [Ctor.mentionsRec, List.any_eq_false, List.mem_range] at hm
+      have := hm y hy'
+      cases h : C.isRec (C.args.length - 1 - y)
+      · rfl
+      · simp [h, hy] at this
+    have := pt_agree C (R := psw.toList.reverse) hal hc
+    rw [List.length_reverse, hpl] at this
+    exact this
+  · intro j T hj hT
+    rw [lookup_of_get _ _ _ (argCtx_get D d C hj), Option.some.injEq] at hT
+    subst hT
+    have hkl : C.args.length - 1 - j < xs.length := by omega
+    have hak : (Tm.ofList xs).toList[C.args.length - 1 - j]? = some xs[C.args.length - 1 - j] := by
+      rw [toList_ofList]; exact List.getElem?_eq_getElem hkl
+    have ha := tele_get hat _ _ (C.argTy d D.params.length (C.args.length - 1 - j)) hak
+      (argTys_get (by omega))
+    rw [toList_ofList] at ha
+    have hcl := argTy_closed hS hD hC (C.args.length - 1 - j)
+    have hx : bσ xs psw j = xs[C.args.length - 1 - j] := by
+      simp only [bσ]
+      rw [List.getD_eq_getElem?_getD, List.getElem?_append_left (by simp; omega),
+        List.getElem?_reverse (by omega)]
+      simp only [hal, List.getElem?_eq_getElem hkl, Option.getD_some]
+    rw [hx, subst_ren]
+    rw [substList_eq_lsub, closed_subst_eq _ _ 0 _
+      (fun y => bσ xs psw (y + (j + 1))) _ (fun i => I.var (id i)) hcl (fun y hy => ?_) (fun i hi => by omega)] at ha
+    · exact ha
+    · have := rev_shift xs psw.toList.reverse (C.args.length - 1 - j) y
+      rw [show xs.length - (C.args.length - 1 - j) = j + 1 by omega] at this
+      have hyl : y < ((xs.take (C.args.length - 1 - j)).reverse ++ psw.toList.reverse).length := by
+        simp [hpl, hal]; omega
+      show _ = bσ xs psw (y + (j + 1))
+      simp only [bσ]
+      rw [lsub_lt hyl, List.getD_eq_getElem?_getD, this, List.getElem?_eq_getElem hyl]
+      rfl
+  · rw [paramVars_subst hpl, ← hps]
+    intro p hp
+    have := getElem?_params (X := xs.reverse) hp
+    rw [List.length_reverse, hal, hpl] at this
+    simp only [bσ]
+    rw [List.getD_eq_getElem?_getD, this]; rfl
+
 section
 variable (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
   (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
