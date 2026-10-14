@@ -618,7 +618,7 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     exact valid_unglueFace hW h0 (valid_unglue hW hφ (fund2_ty h2) he0
       (valid_restrict hW (ent_and_left _ _) (fund2_ty h3)) (fund2_ty h1) p.1) p.1 g1 (sigwk_ty hpre h2)
       (sigwk_ty hpre h3) p.2
-  | .glueBeta h0 h1 => by
+  | .glueBeta h0 h1 _ => by
     obtain ⟨A, T, l, hφ, hG, hA, he0, he, hAv, htr, hgl⟩ := fund2_unglueInv h0 rfl
     obtain ⟨A2, T2, l2, -, hg2, hG2, he2, hev2, htv, hav, hatv, htr2⟩ := hgl _ _ rfl
     exact hGB (sigwk_ty hpre h0) (sigwk_ty hpre h1) (fund2_ty h0) (fund2_ty h1) hG hA he0 he hAv htr hg2 hG2 he2 hev2
