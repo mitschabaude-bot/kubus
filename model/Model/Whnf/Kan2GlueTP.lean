@@ -1,0 +1,145 @@
+import Model.Whnf.Kan2GlueT
+
+/-!
+# Binary transport in Glue types: the pieces
+
+The parts of `transpGlueWith` (`tgA0`, `tgTube`, `tgA1'`, `tgT1`, `tgOmega`, `tgC`, `tgExt`, `tgA1`) at a pair
+of related Glue lines are related, as in the unary `KanGlueT`. Near points (from faces equivalent up to
+entailment) are handled by near invariance (`RE2_near`).
+-/
+
+set_option autoImplicit false
+
+namespace Model.Whnf
+
+open KubusCore KubusCore.Meta Model.Canon
+
+noncomputable section
+
+variable {S : Sig} {k k' k'' : ℕ}
+
+theorem I_subst_cons_id {φ : I} (hφ : φ.Scoped (k + 1)) (r : I) (hr : r.Scoped k) :
+    φ.subst (ISub.cons r hr (ISub.id k)).τ = φ.subst (I.inst0 r) :=
+  I_subst_congr_scoped (fun i hi => by
+    rcases i with _ | i
+    · rfl
+    · show (ISub.id k).τ i = .var i; simp [ISub.id, show i < k by omega]) hφ
+
+theorem I_end_isub (φ : I) {d : I} (hd : d = .zero ∨ d = .one) (σ : ISub k' k) :
+    (φ.subst (I.inst0 d)).subst σ.τ = (φ.subst σ.up.τ).subst (I.inst0 d) := by
+  rw [I_subst_subst, I_subst_subst]; congr 1; funext i; rcases i with _ | i
+  · rcases hd with rfl | rfl <;> rfl
+  · show σ.τ i = ((σ.τ i).shift).subst _; rw [I_shift_inst0]
+
+theorem tgTube_zero (φ : I) (e u0 : Tm) (σ : ISub k' k) :
+    ((tgTube φ e u0).isub σ.up).dinst .zero = (tgA0 φ e u0).isub σ := by
+  show Tm.unglue (((φ.subst σ.up.τ)).subst (I.inst0 .zero)) ((e.isub σ.up).dinst .zero)
+      ((u0.dshift.isub σ.up).dinst .zero) = Tm.unglue ((φ.subst (I.inst0 .zero)).subst σ.τ) ((e.dinst .zero).isub σ)
+      (u0.isub σ)
+  rw [I_end_isub φ (.inl rfl), dinst_isub_end _ (.inl rfl), dshift_isub_up_dinst]
+
+variable (hW : WfSig S)
+include hW
+
+/-- A term typed under a face in a line, at a point of a restriction where the face holds. -/
+theorem ty_line_at {t X : Tm} {ψ : I} (hψ : ψ.Scoped k) (h : HasTy S (k + 1) (cof .one ψ).shift [] t X)
+    (τ : ISub k' k) (r : I) (hr : r.Scoped k') (hh : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+    HasTy S k' .one [] (t.isub (ISub.cons r hr τ)) (X.isub (ISub.cons r hr τ)) := by
+  have h1 := HasTy.isubF hW (KubusCore.I.scoped_shift ⟨trivial, hψ⟩ : (cof .one ψ).shift.Scoped (k + 1)) h
+    (ISub.cons r hr τ)
+  rw [I_shift_cons] at h1
+  exact HasTy.restrict (Φ' := .one) trivial (ent_cof_one hW (entails_of_holds (I.scoped_subst hψ τ.sc) hh)) h1
+
+section
+variable {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+  (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ')
+include D
+
+theorem TGD2.closedL : A.closedB 0 (k + 1) = true ∧ T.closedB 0 (k + 1) = true ∧ e.closedB 0 (k + 1) = true ∧
+    φ.Scoped (k + 1) := by
+  obtain ⟨l, hG⟩ := D.hG
+  have hc := closed_of_ty hW hG
+  simp only [Tm.closedB, Bool.and_eq_true] at hc
+  exact ⟨hc.1.1.1, hc.1.2, hc.2, (glue_data hW hG).1⟩
+
+theorem TGD2.closedR : A'.closedB 0 (k + 1) = true ∧ T'.closedB 0 (k + 1) = true ∧ e'.closedB 0 (k + 1) = true ∧
+    φ'.Scoped (k + 1) := by
+  obtain ⟨l, hG⟩ := D.hG'
+  have hc := closed_of_ty hW hG
+  simp only [Tm.closedB, Bool.and_eq_true] at hc
+  exact ⟨hc.1.1.1, hc.1.2, hc.2, (glue_data hW hG).1⟩
+
+/-- The bases of the starts. -/
+theorem TGD2.a0 : RE2 S k (A.dinst .zero) (tgA0 φ e u0) (tgA0 φ' e' u0') := by
+  obtain ⟨hA, -, he, hφ⟩ := D.closedL hW
+  obtain ⟨-, -, he', hφ'⟩ := D.closedR hW
+  obtain ⟨l, hG⟩ := D.hG
+  have hGc := closed_of_ty hW hG
+  have h0 : RE2 S k ((Tm.glue A φ T e).isub (ISub.cons .zero trivial (ISub.id k))) u0 u0' := by
+    rw [isub_cons_id_of_closed hGc]; exact D.ha0
+  have := D.ugAt hW (ISub.cons .zero trivial (ISub.id k)) h0
+  rwa [isub_cons_id_of_closed hA, isub_cons_id_of_closed he, isub_cons_id_of_closed he', I_subst_cons_id hφ,
+    I_subst_cons_id hφ'] at this
+
+/-- The tubes of the compositions in the bases, at near points where `ψ` holds. -/
+theorem TGD2.tube (τ : ISub k' k) {r r' : I} (hr : r.Scoped k') (hr' : r'.Scoped k') (he : I.Eq r r')
+    (hh : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+    RE2 S k' (A.isub (ISub.cons r hr τ)) (((tgTube φ e u0).isub τ.up).dinst r)
+      (((tgTube φ' e' u0').isub τ.up).dinst r') := by
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  obtain ⟨-, -, -, hφ'⟩ := D.closedR hW
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  rw [isub_up_dinst _ _ _ hr, isub_up_dinst _ _ _ hr']
+  -- the starts, at the Glue line at `r`
+  have h0 := RE2.isub hW D.ha0 τ
+  rw [dinst_isub_end _ (.inl rfl), isub_up_dinst _ _ .zero trivial] at h0
+  have hGr := HasTy.isubS hW hG (ISub.cons r hr τ)
+  have hc := D.cG k' τ r hr hh
+  have hg : RE2 S k' ((Tm.glue A φ T e).isub (ISub.cons r hr τ)) (u0.isub τ) (u0'.isub τ) :=
+    RE2.conv hW (RT2.symm hW (tyCode_of_univ hW hGr) hc) h0
+  have x := D.ugAt hW (ISub.cons r hr τ) hg
+  -- the right side at the near point
+  have hψ' : (ival (idEnv k') (ψ'.subst τ.τ)).holds := by
+    rw [holds_iff_entails (I.scoped_subst H'.hψ τ.sc)]
+    exact ent_trans (entails_of_holds (I.scoped_subst H.hψ τ.sc) hh) (ent_subst D.p12 τ.τ)
+  have ht' := ty_line_at hW H'.hψ (minimal_to_spec H'.htube) τ r' hr' hψ'
+  have hAA' := (Comp2_ty_base (D.rA k' τ r r' hr hr' he)).2.2.2.2.2
+  have n : TmNear (Tm.unglue (φ'.subst (ISub.cons r hr τ).τ) (e'.isub (ISub.cons r hr τ)) (u0'.isub τ))
+      ((tgTube φ' e' u0').isub (ISub.cons r' hr' τ)) := by
+    show TmNear _ (Tm.unglue (φ'.subst (ISub.cons r' hr' τ).τ) (e'.isub (ISub.cons r' hr' τ))
+      (u0'.dshift.isub (ISub.cons r' hr' τ)))
+    rw [dshift_isub_cons]
+    refine .unglue (FEq.of_eq (I_eq_subst_congr (fun i => ?_) φ')) (near_cons e' hr hr' he) (TmNear.refl _)
+    rcases i with _ | i
+    · exact he
+    · exact I_eq_refl _
+  have y := RE2_near hW (D.rAA k' τ r r hr hr (I_eq_refl _)) x n (ht'.tyConv hAA'.symm)
+  show RE2 S k' _ (Tm.unglue (φ.subst (ISub.cons r hr τ).τ) (e.isub (ISub.cons r hr τ))
+    (u0.dshift.isub (ISub.cons r hr τ))) _
+  rw [dshift_isub_cons]
+  exact y
+
+/-- The compositions in the bases. -/
+theorem TGD2.a1' : RE2 S k (A.dinst .one) (tgA1' A φ e ψ u0) (tgA1' A' φ' e' ψ' u0') := by
+  obtain ⟨hA, -, -, -⟩ := D.closedL hW
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hAA' := (Comp2_ty_base (D.rA k (ISub.id k) .one .one trivial trivial (I_eq_refl _))).2.2.2.2.2
+  rw [isub_cons_id_of_closed hA, isub_cons_id_of_closed (D.closedR hW).1] at hAA'
+  refine comp2r hW D.rA D.rAA (fun k3 Θ X' h => D.kAT k3 Θ X' h) (fun X' h => ?_) (minimal_to_spec H.ha1')
+    ((minimal_to_spec H'.ha1').tyConv hAA'.symm) D.p12 D.p21 (fun k3 σ r r' hr hr' he hh => D.tube hW σ hr hr' he hh)
+    (D.a0 hW) (fun k3 σ hh => ?_) (fun k3 σ hh => ?_)
+  · rw [← isub_cons_id_of_closed hA .one trivial] at h ⊢
+    exact D.kAH k (ISub.cons .one trivial (ISub.id k)) X' h
+  · have x := D.tube hW σ (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _) hh
+    rwa [tgTube_zero φ' e' u0'] at x
+  · have x := D.tube hW σ (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _) hh
+    rwa [tgTube_zero φ e u0] at x
+
+end
+
+end
+
+end Model.Whnf
