@@ -499,6 +499,28 @@ theorem unglue_base_eq {A1 T1 e1 g e0 t0 a0 : Tm} {φ1 ψ : I} {l : ℕ}
   exact e1'.trans (e2.trans e3)
 
 
+/-- `GlueCohW` holds given the compatibility of Glue annotations (`Canon.glueEl_coh`). -/
+theorem glueCohW_of_glueCompat (hGC : GlueCompat S) : GlueCohW S := by
+  intro k A1 T1 e1 g e0 t0 a0 φ1 ψ l hG hg q12 q21 ee hn
+  obtain ⟨l', ⟨hA1, -, hT1, -⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) (spec_to_minimal hW hG) rfl
+  have hw := HasTy.eqR hg
+  obtain ⟨A', T', lw, ⟨hGw, -, -, -⟩, -⟩ := gen_glueEl (spec_to_minimal hW hw) rfl
+  obtain ⟨-, ⟨-, hψ, -, -⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) hGw rfl
+  have c21 : I.Entails (cof .one ψ) (cof .one φ1) :=
+    ent_and_intro (ent_and_left _ _) (ent_trans (ent_and_right _ _) q12)
+  have hψs : (cof .one ψ).Scoped k := ⟨trivial, hψ⟩
+  have hG2 : HasTy S k .one [] (.glue A1 ψ T1 e0) (.univ l') :=
+    HasTy.glue (minimal_to_spec hA1) hψ (HasTy.restrict hψs c21 (minimal_to_spec hT1))
+      (HasTy.restrict hψs c21 (HasTy.eqL ee))
+  have hlv := lvl_of_ty hW hG
+  have hlv' := lvl_of_ty hW hG2
+  have eG : EqTm S k .one [] (.glue A1 φ1 T1 e1) (.glue A1 ψ T1 e0) (.univ (max l l')) :=
+    EqTm.glue (hG.cumulTo (le_max_left _ _) (max_le hlv hlv')) (hG2.cumulTo (le_max_right _ _) (max_le hlv hlv'))
+      (EqTm.refl ((minimal_to_spec hA1).cumulTo (le_max_right _ _) (max_le hlv hlv'))) q21 q12
+      (EqTm.refl (minimal_to_spec (HasTy0.cumulTo hT1 (le_max_right _ _) (max_le hlv hlv')))) ee.symm
+  have hw2 : HasTy S k .one [] (.glueEl ψ e0 t0 a0) (.glue A1 ψ T1 e0) := hw.conv eG
+  exact glueEl_coh hW hGC hG2 (fun h => hn (ent_trans ((holds_iff_entails hψ).1 h) q12)) hw2
+
 /-- Related equivalences, applied to related elements. -/
 theorem RE2_equiv_app {T A e e' x x' : Tm} (he : RE2 S k (Tm.equiv T A) e e') (hx : RE2 S k T x x') :
     RE2 S k A (.app (.fst e) x) (.app (.fst e') x') := by
