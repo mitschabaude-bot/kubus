@@ -530,6 +530,62 @@ theorem RT2_dataLit {P Q : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.u
     exact parRel2_of hW hD hH hP hpl (σ.comp σ') ((hrel k'' (σ.comp σ')).right hW hD hH)
       (ListEq.of_parRel2 hW (hrel k'' (σ.comp σ'))).2
 
+/-! ### Formation -/
+
+omit hW hD hH in
+theorem VTele2.get {Ψ : ℕ} {Φ : I} {Γ : Ctx} : ∀ {ts ts' : Tm} {Δ prev : List Tm}, VTele2 S Ψ Φ Γ ts ts' Δ prev →
+    ∀ j (hj : j < ts.toList.length) (hj' : j < ts'.toList.length) (hΔ : j < Δ.length),
+      Valid2 S Ψ Φ Γ ts.toList[j] ts'.toList[j] (Δ[j].substList ((ts.toList.take j).reverse ++ prev))
+  | .tcons a as, .tcons a' as', A :: Δ, prev, ⟨h1, h2⟩ => fun j hj hj' hΔ => by
+    cases j with
+    | zero => simpa [Tm.toList] using h1
+    | succ j =>
+      have := VTele2.get h2 j (by simp [Tm.toList] at hj; omega) (by simp [Tm.toList] at hj'; omega)
+        (by simp at hΔ; omega)
+      simpa [Tm.toList, List.take_succ_cons, List.reverse_cons, List.append_assoc] using this
+  | .tnil, _, [], _, _ => fun j hj => by simp [Tm.toList] at hj
+  | .tnil, .tnil, _ :: _, _, h => h.elim
+  | .tnil, .tcons _ _, _, _, h => by cases h
+  | .tcons _ _, .tnil, _, _, h => by cases h
+  | .tcons _ _, .tcons _ _, [], _, h => h.elim
+
+/-- Valid parameters instantiate to related parameter lists. -/
+theorem parRel2_of_vtele {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' : Tm} (ht : HasTele0 S Ψ Φ Γ ps D.params [])
+    (ht' : HasTele0 S Ψ Φ Γ ps' D.params []) (hv : VTele2 S Ψ Φ Γ ps ps' D.params []) (c : CSub2 S Ψ Φ Γ k) :
+    ParRel2 S k D (c.L ps).toList (c.R ps').toList := by
+  have hpl := tele_isList ht
+  have hpl' := tele_isList ht'
+  have hlen := tele_length ht
+  have hlen' := tele_length ht'
+  have e1 : (c.L ps).toList = ps.toList.map c.L := toList_subst hpl _ _
+  have e2 : (c.R ps').toList = ps'.toList.map c.R := toList_subst hpl' _ _
+  refine ⟨by rw [e1]; simpa using hlen, by rw [e2]; simpa using hlen', fun j hj hj' hjD => ?_⟩
+  have hj0 : j < ps.toList.length := by rw [e1] at hj; simpa using hj
+  have hj0' : j < ps'.toList.length := by rw [e2] at hj'; simpa using hj'
+  have h := (VTele2.get hv j hj0 hj0' hjD k c).2
+  have hcl : (D.params[j]).closedB (((ps.toList.take j).reverse ++ [])).length 0 = true := by
+    have := params_closed (sigClosed_of_wfSig hW) hD j _ (List.getElem?_eq_getElem hjD)
+    simpa [Nat.min_eq_left hj0.le] using this
+  have e3 : c.L ((D.params[j]).substList ((ps.toList.take j).reverse ++ [])) =
+      (D.params[j]).substList ((c.L ps).toList.take j).reverse := by
+    show ((D.params[j]).substList _).subst c.γ c.σ.τ = _
+    rw [substList_subst hcl, e1, List.append_nil, List.map_reverse, List.map_take]
+  rw [e3, e1] at h
+  simp only [e1, e2, List.getElem_map]
+  exact h
+
+/-- **Formation**: a data type at valid parameters is valid. -/
+theorem valid_data {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps : Tm} (hlev : D.level + 1 ≤ maxLevel)
+    (ht : HasTele0 S Ψ Φ Γ ps D.params []) (hv : VTele2 S Ψ Φ Γ ps ps D.params []) :
+    Valid2 S Ψ Φ Γ (.data d ps) (.data d ps) (.univ D.level) := by
+  have hty := HasTy0.data hD hlev ht
+  have hpl := tele_isList ht
+  refine valid_univ_of hW hty hty (.refl hty) fun k c => ?_
+  refine RT2_dataLit hW hD hH (P := c.L ps) (Q := c.R ps) (c.ty hW hty) (c.tyR' hW hty)
+    (.inr ⟨_, c.eqLR hW hty⟩) (isList_subst hpl _ _) (isList_subst hpl _ _) fun k' σ => ?_
+  rw [← CSub2.restr_L hW c σ ps, ← CSub2.restr_R hW c σ ps]
+  exact parRel2_of_vtele hW hD hH ht ht hv (c.restr hW σ)
+
 end
 
 end Model.Whnf
