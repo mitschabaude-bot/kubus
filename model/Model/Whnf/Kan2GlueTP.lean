@@ -822,6 +822,82 @@ theorem TGD2.w1 (hδ : (ival (idEnv k) δ).holds) :
     · simp only [← isub_eq_subst, isub_app, isub_fst, Tm.isub_isub, ISub.cons_comp, I.subst, ISub.id_comp]
       exact D.fill1 hW (σ2.comp σ3)
 
+
+/-- On `δ`, the bodies of `ω` at near points of restrictions. -/
+theorem TGD2.bodyAt (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (σ : ISub k' k) {r r' : I} (hr : r.Scoped k')
+    (hr' : r'.Scoped k') (he : I.Eq r r') :
+    RE2 S k' ((A.dinst .one).isub σ) (((tgBody A φ T e ψ u0).isub σ.up).dinst r)
+      (((tgBody A' φ' T' e' ψ' u0').isub σ.up).dinst r') := by
+  have hb := D.body hW hδ
+  have x := RE2.isub hW hb (ISub.cons r hr σ)
+  have hR := HasTy.isubS hW (RE2.typed hb).2.1 (ISub.cons r' hr' σ)
+  rw [dshift_isub_cons] at x hR
+  have hAA : RT2 S k' ((A.dinst .one).isub σ) ((A.dinst .one).isub σ) := by
+    rw [dinst_isub_end _ (.inr rfl), isub_up_dinst _ _ .one trivial]
+    exact D.rAA k' σ .one .one trivial trivial (I_eq_refl _)
+  rw [isub_up_dinst _ _ _ hr, isub_up_dinst _ _ _ hr']
+  exact RE2_near hW hAA x (near_cons _ hr hr' he) hR
+
+/-- On `δ`, the paths `ω`. -/
+theorem TGD2.omega (hδ : (ival (idEnv k) δ).holds) :
+    RE2 S k (Tm.pathC (A.dinst .one) (.app (.fst (e.dinst .one)) (tgT1 T ψ u0)) (tgA1' A φ e ψ u0))
+      (tgOmega A φ T e ψ u0) (tgOmega A' φ' T' e' ψ' u0') := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hentδ : I.Entails .one (cof .one δ) := ent_cof_one hW (entails_of_holds D.hδs hδ)
+  have hω := HasTy.restrict (Φ' := .one) trivial hentδ (minimal_to_spec H.hω)
+  obtain ⟨lp, hpT⟩ := ty_of_tyEq hW (isTyK_of_ty hW hω) (TyEq.refl _) (fun l h => by cases h)
+  have hb := D.body hW hδ
+  have hbc := closed_ty H.hbody
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hbc' := closed_ty H'.hbody
+  have hAc : (A.dinst .one).closedB 0 k = true := closed_of_ty hW (minimal_to_spec (H.hAr (r := .one) trivial))
+  have hpt : ∀ (d : I) (hd : d.Scoped k), RE2 S k (A.dinst .one) ((tgBody A φ T e ψ u0).dinst d)
+      ((tgBody A' φ' T' e' ψ' u0').dinst d) := fun d hd => by
+    have x := D.bodyAt hW hδ (ISub.id k) hd hd (I_eq_refl _)
+    rwa [isub_id_of_closed hAc, isub_up_id_of_closed hbc, isub_up_id_of_closed hbc'] at x
+  have hw0 := D.w0 hW hδ
+  have hw1 := D.w1 hW hδ
+  unfold Tm.pathC at hω hpT ⊢
+  have hωR : HasTy S k .one [] (tgOmega A' φ' T' e' ψ' u0') (.path (A.dinst .one).dshift
+      (.app (.fst (e.dinst .one)) (tgT1 T ψ u0)) (tgA1' A φ e ψ u0)) := by
+    refine HasTy.plam hpT (RE2.typed hb).2.1 ?_ ?_ <;> rw [dshift_dinst]
+    · exact (RE2.typed (hpt .zero trivial)).2.2.symm.trans (RE2.typed hw0).2.2
+    · exact (RE2.typed (hpt .one trivial)).2.2.symm.trans (RE2.typed hw1).2.2
+  have hpb : ∀ {k' : ℕ} (σ : ISub k' k) {r : I} (hr : r.Scoped k') {X : Tm} (hX : HasTy S k .one [] X
+      (.path (A.dinst .one).dshift (.app (.fst (e.dinst .one)) (tgT1 T ψ u0)) (tgA1' A φ e ψ u0))),
+      HasTy S k' .one [] (.papp (X.isub σ) r) ((A.dinst .one).isub σ) := fun σ r hr X hX => by
+    have h1 := HasTy.isubS hW hX σ
+    rw [isub_path] at h1
+    have := HasTy.papp h1 hr
+    rwa [isub_up_dinst _ _ _ hr, dshift_isub_cons] at this
+  refine RE2_path_intro hW hpT ⟨hω, hωR, EqTm.plam hpT hω hωR (RE2.typed hb).2.2⟩
+    (fun k' σ r r' hr hr' he => ?_) ?_ ?_
+  · rw [isub_up_dinst _ _ _ hr, dshift_isub_cons]
+    have hAA : RT2 S k' ((A.dinst .one).isub σ) ((A.dinst .one).isub σ) := by
+      rw [dinst_isub_end _ (.inr rfl), isub_up_dinst _ _ .one trivial]
+      exact D.rAA k' σ .one .one trivial trivial (I_eq_refl _)
+    have hL := hpb σ hr hω
+    have hR := hpb σ hr' hωR
+    unfold tgOmega at hL hR ⊢
+    rw [isub_plam] at hL hR ⊢
+    refine RE2.expandL hW hAA hL hR (stable_pathBeta hW hL) ?_
+    exact RE2.expandR hW hAA (RE2.typed (D.bodyAt hW hδ σ hr hr' he)).1 hR (stable_pathBeta hW hR)
+      (D.bodyAt hW hδ σ hr hr' he)
+  · have hL := hpb (ISub.id k) (r := .zero) trivial hω
+    rw [isub_id_of_closed hAc, isub_id_of_closed (closed_of_ty hW hω)] at hL
+    rw [dshift_dinst]
+    have hAA := (D.rAA k (ISub.id k) .one .one trivial trivial (I_eq_refl _))
+    rw [isub_cons_id_of_closed (closed_ty H.hA)] at hAA
+    unfold tgOmega at hL ⊢
+    exact RE2.expandL hW hAA hL (RE2.typed hw0).2.1 (stable_pathBeta hW hL) hw0
+  · have hL := hpb (ISub.id k) (r := .one) trivial hω
+    rw [isub_id_of_closed hAc, isub_id_of_closed (closed_of_ty hW hω)] at hL
+    rw [dshift_dinst]
+    have hAA := (D.rAA k (ISub.id k) .one .one trivial trivial (I_eq_refl _))
+    rw [isub_cons_id_of_closed (closed_ty H.hA)] at hAA
+    unfold tgOmega at hL ⊢
+    exact RE2.expandL hW hAA hL (RE2.typed hw1).2.1 (stable_pathBeta hW hL) hw1
+
 end
 
 end
