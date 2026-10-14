@@ -166,6 +166,207 @@ theorem argCtx_inst (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (
     List.getElem?_eq_getElem (show y + (x + 1) < ((Y.take n).reverse ++ R).length by simp; omega)]
   rfl
 
+/-! ### The boundary instances -/
+
+section inst
+variable {d : ℕ} {D : DataDecl} {C : Ctor} {P1 : Tm} {Y : List Tm} {rs : List I} {τ : ℕ → I}
+  (hYl : Y.length = C.args.length) (hPl : P1.toList.length = D.params.length)
+  (hτ : ∀ i < C.dims, τ i = rsSub rs i)
+
+include hYl in
+/-- The instance through the point context of a term over the arguments mentioning no recursive argument. -/
+theorem inst_pt {t : Tm} (hm : C.mentionsRec C.args.length t = false) :
+    (t.ren (C.pointRen C.args.length) id).subst (lsub (ptL C Y P1.toList.reverse C.args.length) 0) τ =
+      t.subst (lsub (Y.reverse ++ P1.toList.reverse) 0) τ := by
+  rw [pt_inst_gen hm (by omega), List.take_of_length_le (by omega)]
+
+include hYl hPl hτ in
+/-- On terms over the parameters, arguments and interval variables of a constructor, the instance is the
+boundary instance `Ctor.bndAt`. -/
+theorem inst_bndAt {t : Tm} (hcl : t.closedB (D.params.length + C.args.length) C.dims = true) :
+    t.subst (lsub (Y.reverse ++ P1.toList.reverse) 0) τ = Ctor.bndAt t P1.toList Y rs := by
+  unfold Ctor.bndAt
+  refine closed_subst_eq t _ _ _ _ _ _ hcl (fun x hx => ?_) (fun i hi => hτ i hi)
+  have hx' : x < (Y.reverse ++ P1.toList.reverse).length := by simp; omega
+  rw [lsub_lt hx']
+  simp only [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hx', Option.getD_some]
+
+include hYl hPl in
+/-- The parameter variables instantiate to the parameters. -/
+theorem inst_paramVars :
+    (Ctor.paramVars D.params.length C.args.length).toList.reverse.map
+      (·.subst (lsub (Y.reverse ++ P1.toList.reverse) 0) τ) = P1.toList.reverse := by
+  rw [List.map_reverse, ← toList_subst (by unfold IsList Ctor.paramVars; rw [toList_ofList])]
+  rw [paramVars_subst (ps := P1.toList) hPl (fun p hp => ?_), toList_ofList]
+  have hL : C.args.length + D.params.length - 1 - p < (Y.reverse ++ P1.toList.reverse).length := by
+    simp; omega
+  rw [lsub_lt hL, List.getElem_append_right (by simp; omega), List.getElem_reverse]
+  congr 1; simp; omega
+
+end inst
+
+/-! ### From the boundary equations to the boundary relation -/
+
+section main
+variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) {c : ℕ} {C : Ctor}
+  (hC : D.ctors[c]? = some C) {ψ : I} {P1 : Tm} {Y : List Tm} {rs : List I} {τ : ℕ → I}
+  (hYl : Y.length = C.args.length) (hPl : P1.toList.length = D.params.length)
+  (hτ : ∀ i < C.dims, τ i = rsSub rs i)
+  (hRT : ∀ T T', EqTm (S.take d) C.dims ψ (D.pointCtx d C C.args.length) T T' (.univ D.level) →
+    RT2 S k (T.subst (lsub (ptL C Y P1.toList.reverse C.args.length) 0) τ)
+      (T'.subst (lsub (ptL C Y P1.toList.reverse C.args.length) 0) τ))
+include hW hD hC hYl hPl hτ hRT
+
+set_option linter.unusedSectionVars false
+
+mutual
+theorem bndRel_of : ∀ (b : Tm),
+    Ctor.bndTyped (S.take d) C.dims ψ (D.argCtx d C C.args.length) C (D.pointCtx d C C.args.length) D.level
+      D.ctors d D.params.length b →
+    b.closedB (D.params.length + C.args.length) C.dims = true →
+    Ctor.simpleB D.ctors d D.params.length c C.args.length C b = true →
+    bndRel S k d D.params.length C.args.length C D.ctors P1 P1 Y Y rs b
+  | .con d' c' ps as rs', hT, hcl, hs => by
+    unfold bndRel
+    unfold Ctor.bndTyped at hT
+    unfold Ctor.simpleB at hs
+    obtain ⟨-, hacl, -⟩ := closedB_con hcl
+    cases hC' : D.ctors[c']? with
+    | none => trivial
+    | some C' =>
+      rw [hC'] at hT hs
+      simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at hs
+      obtain ⟨⟨⟨-, -⟩, rfl⟩, ⟨hal, -⟩, hsa⟩ := hs
+      simp only
+      have := bndRelArgs_of hC' as 0 [] hT hacl hsa (by omega) rfl (by simp)
+      simpa using this
+  | .var _, _, _, _ | .const _, _, _, _ | .univ _, _, _, _ | .pi _ _, _, _, _ | .lam _ _, _, _, _
+  | .app _ _, _, _, _ | .sigma _ _, _, _, _ | .pair _ _, _, _, _ | .fst _, _, _, _ | .snd _, _, _, _
+  | .path _ _ _, _, _, _ | .plam _, _, _, _ | .papp _ _, _, _, _ | .ipi _, _, _, _ | .split _ _ _ _, _, _, _
+  | .abort, _, _, _ | .transp _ _ _, _, _, _ | .hcomp _ _ _ _, _, _, _ | .glue _ _ _ _, _, _, _
+  | .glueEl _ _ _ _, _, _, _ | .unglue _ _ _, _, _, _ | .data _ _, _, _, _ | .elim _ _ _ _ _, _, _, _
+  | .tcons _ _, _, _, _ | .tnil, _, _, _ => by unfold bndRel; trivial
+
+theorem bndRelArgs_of {c' : ℕ} {C' : Ctor} (hC' : D.ctors[c']? = some C') : ∀ (as : Tm) (j : ℕ) (prev : List Tm),
+    Ctor.bndTypedArgs (S.take d) C.dims ψ (D.argCtx d C C.args.length) C (D.pointCtx d C C.args.length) D.level
+      D.ctors d D.params.length C' (Ctor.paramVars D.params.length C.args.length) j prev as →
+    as.closedB (D.params.length + C.args.length) C.dims = true →
+    Ctor.simpleArgs D.ctors d D.params.length c C.args.length C C' j as = true →
+    j + as.toList.length = C'.args.length → prev.length = j →
+    (∀ t ∈ prev, t.closedB (D.params.length + C.args.length) C.dims = true) →
+    bndRelArgs S k d D.params.length C.args.length C D.ctors P1 P1 Y Y rs C' j
+      (prev.map (Ctor.bndAt · P1.toList Y rs)) as
+  | .tcons a as, j, prev, hT, hcl, hs, hlen, hpl, hpc => by
+    unfold Ctor.bndTypedArgs at hT
+    obtain ⟨hT1, hT2, hT3⟩ := hT
+    simp only [Tm.closedB, Bool.and_eq_true] at hcl
+    unfold Ctor.simpleArgs at hs
+    simp only [Bool.and_eq_true] at hs
+    obtain ⟨hs1, hs2⟩ := hs
+    simp only [Tm.toList, List.length_cons] at hlen
+    unfold bndRelArgs
+    refine ⟨fun x hax hr hx => ?_, fun hr => ?_, ?_⟩
+    · subst hax
+      rw [hr] at hs1
+      simp only [Bool.false_eq_true, ↓reduceIte, Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true'] at hs1
+      obtain ⟨T, hlk, hTe⟩ := argCtx_inst hW hD hC hx hs1.2 hYl (R := P1.toList.reverse) (by simp [hPl]) τ
+      obtain ⟨hm1, hm2, heq⟩ := hT1 x T rfl hr hlk
+      have h := hRT _ _ heq
+      rw [List.take_of_length_le (by omega)] at hTe
+      rw [inst_pt hYl hm1, inst_pt hYl hm2, hTe] at h
+      obtain ⟨A0, hA0⟩ := point_of_not_rec (show j < C'.args.length by omega) hr
+      have hAk : C'.argTy d D.params.length j = A0 := by simp [Ctor.argTy, hA0]
+      obtain ⟨hA0c, -⟩ := ((hW.2 d D hD).2.2 c' C' hC').1 j A0 hA0
+      rw [hAk, substList_subst (by
+          rw [List.length_append, hpl, List.length_reverse, paramVars_toList, List.length_map, List.length_range,
+            Nat.add_comm]; exact hA0c), List.map_append, inst_paramVars hYl hPl,
+        List.map_congr_left (fun t ht => inst_bndAt hYl hPl hτ (hpc t ht))] at h
+      rwa [hAk]
+    · rw [hr] at hs1
+      simp only [↓reduceIte] at hs1
+      exact bndRel_of a (hT2 hr) hcl.1 hs1
+    · have := bndRelArgs_of hC' as (j + 1) (a :: prev) hT3 hcl.2 hs2 (by omega) (by simp [hpl])
+        (fun t ht => by
+          rcases List.mem_cons.1 ht with rfl | ht
+          · exact hcl.1
+          · exact hpc t ht)
+      simpa using this
+  | .var _, _, _, _, _, _, _, _, _ | .const _, _, _, _, _, _, _, _, _ | .univ _, _, _, _, _, _, _, _, _
+  | .pi _ _, _, _, _, _, _, _, _, _ | .lam _ _, _, _, _, _, _, _, _, _ | .app _ _, _, _, _, _, _, _, _, _
+  | .sigma _ _, _, _, _, _, _, _, _, _ | .pair _ _, _, _, _, _, _, _, _, _ | .fst _, _, _, _, _, _, _, _, _
+  | .snd _, _, _, _, _, _, _, _, _ | .path _ _ _, _, _, _, _, _, _, _, _ | .plam _, _, _, _, _, _, _, _, _
+  | .papp _ _, _, _, _, _, _, _, _, _ | .ipi _, _, _, _, _, _, _, _, _ | .split _ _ _ _, _, _, _, _, _, _, _, _
+  | .abort, _, _, _, _, _, _, _, _ | .transp _ _ _, _, _, _, _, _, _, _, _ | .hcomp _ _ _ _, _, _, _, _, _, _, _, _
+  | .glue _ _ _ _, _, _, _, _, _, _, _, _ | .glueEl _ _ _ _, _, _, _, _, _, _, _, _
+  | .unglue _ _ _, _, _, _, _, _, _, _, _ | .data _ _, _, _, _, _, _, _, _, _ | .con _ _ _ _ _, _, _, _, _, _, _, _, _
+  | .elim _ _ _ _ _, _, _, _, _, _, _, _, _ | .tnil, _, _, _, _, _, _, _, _ => by unfold bndRelArgs; trivial
+end
+
+end main
+
+/-! ### `HITHyp2.bndTy` from validity at the signature prefix -/
+
+/-- A literal inductive type related to itself has parameters related to themselves. -/
+theorem parRel2_self (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) {P1 : Tm} {l : ℕ}
+    (hP1 : HasTy S k .one [] (.data d P1) (.univ l)) (hPP : RT2 S k (.data d P1) (.data d P1)) :
+    ParRel2 S k D P1.toList P1.toList := by
+  obtain ⟨D', hD', hpt⟩ := gen_data_tele (spec_to_minimal hW hP1) rfl
+  rw [hD] at hD'; cases hD'
+  have hpl := tele_isList hpt
+  have hPl : P1.toList.length = D.params.length := Meta.tele_length hpt
+  have hpc : P1.closedB 0 k = true := by have := closed_of_ty hW hP1; simpa [Tm.closedB] using this
+  have hpar := parRel2_of_RT2 hW hD hP1 hPP (ISub.id k)
+  rw [isub_id_of_closed hpc] at hpar
+  refine ⟨hPl, hPl, fun j hj _ hjD => ?_⟩
+  have hty : ∀ t ∈ (P1.isub (ISub.id k)).toList, ∃ T, HasTy S k .one [] t T := by
+    rw [isub_id_of_closed hpc]
+    intro t ht
+    obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ht
+    exact ⟨_, minimal_to_spec (tele_get hpt i _ _ (List.getElem?_eq_getElem hi)
+      (List.getElem?_eq_getElem (show i < D.params.length by omega)))⟩
+  have hLj : (P1.isub (ISub.id k)).toList[j]? = some P1.toList[j] := by
+    rw [isub_id_of_closed hpc]; exact List.getElem?_eq_getElem hj
+  have h := parRel2_inv hW hD hP1 hpl (ISub.id k) (by rwa [isub_id_of_closed hpc]) hty hLj
+    (List.getElem?_eq_getElem hj) (List.getElem?_eq_getElem hjD) fun kk hk => by
+      have := tele_get hpt j _ _ (List.getElem?_eq_getElem hj) (List.getElem?_eq_getElem hjD)
+      rw [hk] at this
+      exact EqTm.refl (minimal_to_spec this)
+  rwa [isub_id_of_closed hpc] at h
+
+/-- **`HITHyp2.bndTy` at an inductive type `d`** from the validity of the derivations of the signature
+before `d` (the binary fundamental lemma at that prefix) and of the declared types up to `d`. -/
+theorem bndTy_of_valid (hW : WfSig S) {d : ℕ}
+    (hV : ∀ {Ψ Φ Γ t u A}, EqTm0 (S.take d) Ψ Φ Γ t u A → Valid2 S Ψ Φ Γ t u A) (hDH : DeclHyp2 S (d + 1))
+    {D : DataDecl} {c : ℕ} {C : Ctor} {P1 : Tm} {Y : List Tm} {rs : List I} {kb : ℕ} {ψ : I} {b : Tm}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) (hb : C.bnd[kb]? = some (ψ, b))
+    (hent : I.Entails .one (Ctor.cofAt ψ rs))
+    (hP1 : HasTy S k .one [] (.data d P1) (.univ D.level)) (hPP : RT2 S k (.data d P1) (.data d P1))
+    (hYl : Y.length = C.args.length)
+    (hcon : HasTy S k .one [] (.con d c P1 (Tm.ofList Y) rs) (.data d P1))
+    (hY : ∀ i, i < C.args.length → RE2 S k ((C.argTy d D.params.length i).substList
+      ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y.getD i .abort)) :
+    bndRel S k d D.params.length C.args.length C D.ctors P1 P1 Y Y rs b := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨-, -, -, hrsl, hsc, -⟩ := con_inv hW hD hC hcon hP1
+  obtain ⟨hψs, hbcl, hsimp, -, hbt⟩ := ((hW.2 d D hD).2.2 c C hC).2.1 kb ψ b hb
+  have hpar := parRel2_self hW hD hP1 hPP
+  -- the related substitution out of the point context
+  obtain ⟨cs0, hγ, hγ', -, -⟩ := csub2_points hW hD hDH hC hpar.1 hpar.1 hpar.2.2 (le_of_eq hYl) rfl
+    (fun i hi _ _ => by
+      have := hY i (by omega)
+      simp only [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi, Option.getD_some] at this
+      exact this) C.args.length (by omega)
+  obtain ⟨σ, hστ⟩ : ∃ σ : ISub k C.dims, ∀ i < C.dims, σ.τ i = rsSub rs i := by
+    rw [← hrsl]; exact ⟨rsI rs hsc, fun i hi => rsI_eq rs hsc hi⟩
+  have hface : I.Entails .one (ψ.subst σ.τ) := by
+    rw [Meta.subst_scoped_eq hψs hστ]; exact hent
+  let cs := cs0.reindex hS (wf_pointCtx hW hD hC _ le_rfl) σ hface
+  refine bndRel_of hW hD hC hYl hpar.1 hστ (fun T T' heq => ?_) b hbt hbcl hsimp
+  have hv := (hV (spec_to_minimal_eq (wfSig_take hW d) heq) k cs).2
+  have h := RE2_univ_ty hW hv
+  change RT2 S k (T.subst cs0.γ σ.τ) (T'.subst cs0.γ' σ.τ) at h
+  rwa [hγ, hγ'] at h
+
 end
 
 end Model.Whnf
