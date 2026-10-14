@@ -83,6 +83,72 @@ theorem stepRec {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true) :
     rw [hrecTy]
     exact this
 
+/-- The invariant at a point argument. -/
+theorem stepPt {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
+    (hV : ∀ i, i < j → Inv S d D Q Q' ρ c C X X' φ φ' u u' i) :
+    Inv S d D Q Q' ρ c C X X' φ φ' u u' j := by
+  obtain ⟨htyF, htyF', heqF, htyC, -, -, hteq⟩ := H.ptFill hj hrj hV
+  rw [fills_get_pt _ _ _ _ hj hrj] at htyF htyF'
+  rw [fills_get_pt _ _ _ _ hj hrj, fills_get_pt _ _ _ _ hj hrj] at heqF
+  rw [outs_get_pt _ _ _ _ hj hrj] at htyC
+  have B := H.basic
+  have hLRL := H.ptLRL hj hV
+  have hKT := H.ptKT hj hrj hV
+  have hKH := H.ptKH hj hrj hV
+  have hu0 := H.ptU0 hj hrj hV
+  have hX0 : TyCode k1 (semK S k1 ((conLine d D c C (Q.isub ρ) φ u X j).dinst .zero)) := RE2.tyCode H.hW hu0
+  have hRT0 : RT2 S k1 ((conLine d D c C (Q.isub ρ) φ u X j).dinst .zero)
+      ((conLine d D c C (Q.isub ρ) φ u X j).dinst .zero) := by
+    have := hLRL k1 (ISub.id k1) .zero .zero trivial trivial (I_eq_refl _)
+    rwa [isub_cons_id_of_closed (H.line_closed hj hrj)] at this
+  have hu0s := RE2.trans H.hW hRT0 hu0 (RE2.symm H.hW hRT0 hu0)
+  have htubes := fun k3 σ r r' hr hr' hE hh => H.ptTubes (k3 := k3) hj hV σ r r' hr hr' hE hh
+  have hbds := fun k3 σ hh => H.ptBds (k3 := k3) hj hrj hV σ hh
+  refine ⟨fun k3 τ r r' hr hr' hE => ?_, fun k3 τ r hr hh => ?_, fun k3 τ => ?_, ?_, fun k3 τ r r' hr hr' hE hh => ?_,
+    fun k3 τ r r' hr hr' hE hh => ?_⟩
+  · have := fill_rel H.hW B.hφs (H.ptLR hj hV) hLRL hKT hKH htyF htyF' heqF hteq H.h12 H.h21
+      (fun k3 σ r r' hr hr' hE hh => H.ptTube hj hV σ r r' hr hr' hE hh) hu0
+      (fun k3 σ hh => H.ptBd hj hV σ hh) (fun k3 σ hh => H.ptBd' hj hV σ hh)
+      (ISub.cons r hr τ) (ISub.cons r' hr' τ) rfl hE
+    rw [H.lineσ hj.le τ r hr] at this
+    rw [fills_get_pt _ _ _ _ hj hrj, fills_get_pt _ _ _ _ hj hrj]
+    exact this
+  · have := fill_face_pt H.hW B.hφs hLRL htyF htubes τ r hr hh
+    rw [H.lineσ hj.le τ r hr, isub_up_dinst _ τ r hr] at this
+    rw [fills_get_pt _ _ _ _ hj hrj]
+    exact this
+  · have := fill_zero_pt H.hW B.hφs hLRL htyF htubes hu0s hbds τ
+    rw [H.lineσ hj.le τ .zero trivial] at this
+    rw [fills_get_pt _ _ _ _ hj hrj]
+    exact this
+  · have := fill_one_pt H.hW B.hφs hLRL hKT hKH htyC htyF htubes hu0s hbds (ISub.id k1)
+    rw [H.lineσ hj.le (ISub.id k1) .one trivial, isub_id_of_closed (closed_of_ty H.hW htyC)] at this
+    rw [fills_get_pt _ _ _ _ hj hrj, outs_get_pt _ _ _ _ hj hrj]
+    exact this
+  · have := H.ptTubes hj hV τ r r' hr hr' hE hh
+    rw [H.lineσ hj.le τ r hr, isub_up_dinst _ τ r hr, isub_up_dinst _ τ r' hr'] at this
+    exact this
+  · have := H.ptTube hj hV τ r r' hr hr' hE hh
+    rw [H.lineσ hj.le τ r hr, isub_up_dinst _ τ r hr, isub_up_dinst _ τ r' hr'] at this
+    exact this
+
+/-- The invariant along all arguments. -/
+theorem inv : ∀ i, i < C.args.length → Inv S d D Q Q' ρ c C X X' φ φ' u u' i := by
+  have key : ∀ j, j ≤ C.args.length → ∀ i, i < j → Inv S d D Q Q' ρ c C X X' φ φ' u u' i := by
+    intro j
+    induction j with
+    | zero => intro _ i hi; omega
+    | succ j ih =>
+      intro hj i hi
+      by_cases hij : i < j
+      · exact ih (by omega) i hij
+      obtain rfl : i = j := by omega
+      cases hri : C.isRec i
+      · exact H.stepPt (by omega) hri (ih (by omega))
+      · exact H.stepRec (by omega) hri
+  exact key C.args.length (Nat.le_refl _)
+
+
 end HCC
 
 end
