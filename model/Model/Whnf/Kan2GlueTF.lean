@@ -38,6 +38,36 @@ include hW
 theorem HasTy.top {X : Tm} {l : ℕ} (h : HasTy S k .one [] X (.univ l)) : HasTy S k .one [] X (.univ maxLevel) :=
   h.cumulTo (lvl_of_ty hW h) le_rfl
 
+/-- The contraction of a contractible type to a point. -/
+theorem RE2_contr {X c c' p p' : Tm} (hc : RE2 S k (Tm.isContr X) c c') (hp : RE2 S k X p p') :
+    RE2 S k (Tm.pathC X (.fst c) p) (.app (.snd c) p) (.app (.snd c') p') := by
+  unfold Tm.isContr at hc
+  have h := (RE2_sigma_elim hW hc).2
+  rw [K_inst] at h
+  have h2 := RE2_pi_elim hW h hp
+  rwa [pathC_var0_inst] at h2
+
+/-- Pairs of related components. -/
+theorem RE2_pair_intro {A B a a' b b' : Tm} {l : ℕ} (hsig : HasTy S k .one [] (.sigma A B) (.univ l))
+    (hp : HasTy S k .one [] (.pair a b) (.sigma A B)) (hp' : HasTy S k .one [] (.pair a' b') (.sigma A B))
+    (hLL : RT2 S k (.sigma A B) (.sigma A B)) (ha : RE2 S k A a a') (hb : RE2 S k (B.inst a) b b') :
+    RE2 S k (.sigma A B) (.pair a b) (.pair a' b') := by
+  have hI := RT2_sigma_inv hW hLL
+  have hAA := hI.1
+  have hfL := HasTy.fst hp
+  have hfR := HasTy.fst hp'
+  have h1 : RE2 S k A (.fst (.pair a b)) (.fst (.pair a' b')) :=
+    RE2.expand2 hW hAA hfL hfR (stable_fstBeta hW hfL) (stable_fstBeta hW hfR) ha
+  have haf : RE2 S k A a (.fst (.pair a b)) :=
+    RE2.expandR hW hAA (RE2.typed ha).1 hfL (stable_fstBeta hW hfL) (RE2.reflL hW hAA ha)
+  have hT := hI.2 _ _ haf
+  have hb' := RE2.conv hW hT hb
+  have hXX := RT2.refl' hW (RE2.tyCode hW hb) hT
+  have hsL := HasTy.snd hp
+  have hsR := (HasTy.snd hp').tyConv (TyEq.symm (Comp2_ty_base (hI.2 _ _ h1)).2.2.2.2.2)
+  have h2 := RE2.expand2 hW hXX hsL hsR (stable_sndBeta hW hsL) (stable_sndBeta hW hsR) hb'
+  exact RE2_sigma_intro hW hsig ⟨hp, hp', EqTm.pair hsig (RE2.typed ha).2.2 (RE2.typed hb).2.2⟩ h1 h2
+
 section
 variable {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
   (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ')
@@ -206,6 +236,44 @@ theorem TGD2.fibK : KanH2 S k (tgFib A φ T e ψ u0) (tgFib A' φ' T' e' ψ' u0'
        first
        | exact khRel_pathC hW hp (KH ρ1) k2 ρ2 X X' hX hXX'
        | exact ktRel_pathC hW hp (KH ρ1) (KT ρ1) k2 ρ2 X X' hX hXX')
+
+
+/-- The fibres, typed. -/
+theorem TGD2.hfib : HasTy S k .one [] (tgFib A φ T e ψ u0) (.univ maxLevel) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hφs : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  exact HasTy.top hW (HasTy.restrict (Φ' := .one) trivial (ent_cof_one hW (entails_of_holds hφs hφ1))
+    (minimal_to_spec H.hfib))
+
+/-- A term of the right fibre is one of the left fibre. -/
+theorem TGD2.fibConv {p : Tm} (h : HasTy S k .one [] p (tgFib A' φ' T' e' ψ' u0')) :
+    HasTy S k .one [] p (tgFib A φ T e ψ u0) :=
+  h.tyConv (TyEq.symm (Comp2_ty_base (D.rFib hW hφ1)).2.2.2.2.2)
+
+/-- On `δ`, the pairs `(t1', ω)` in the fibres. -/
+theorem TGD2.pairD (hδ : (ival (idEnv k) δ).holds) :
+    RE2 S k (tgFib A φ T e ψ u0) (.pair (tgT1 T ψ u0) (tgOmega A φ T e ψ u0))
+      (.pair (tgT1 T' ψ' u0') (tgOmega A' φ' T' e' ψ' u0')) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hφs : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have hφs' : (φ'.subst (I.inst0 .one)).Scoped k := H'.hφr (r := .one) trivial
+  have hent : I.Entails .one (cof (cof .one (φ.subst (I.inst0 .one))) δ) :=
+    ent_and_intro (ent_cof_one hW (entails_of_holds hφs hφ1)) (entails_of_holds D.hδs hδ)
+  have hent' : I.Entails .one (cof (cof .one (φ'.subst (I.inst0 .one))) δ') :=
+    ent_and_intro (ent_cof_one hW (entails_of_holds hφs' (D.φ1R hW hφ1))) (entails_of_holds D.hδs' (D.hδ' hδ))
+  have hp := HasTy.restrict (Φ' := .one) trivial hent (minimal_to_spec H.hpd)
+  have hp' := D.fibConv hW hφ1 (HasTy.restrict (Φ' := .one) trivial hent' (minimal_to_spec H'.hpd))
+  have hfib := D.hfib hW hφ1
+  have hLL := RT2.refl hW (tyCode_of_univ hW hfib) (D.rFib hW hφ1)
+  rw [tgFib_eq] at hfib hp hp' hLL ⊢
+  exact RE2_pair_intro hW hfib hp hp' hLL (D.t1' hW hδ) (by rw [P_inst]; exact D.omega hW hδ)
+
+/-- On `δ`, the contractions to `(t1', ω)`. -/
+theorem TGD2.Pd (hδ : (ival (idEnv k) δ).holds) :
+    RE2 S k (Tm.pathC (tgFib A φ T e ψ u0) (.fst (tgC A φ e ψ u0)) (.pair (tgT1 T ψ u0) (tgOmega A φ T e ψ u0)))
+      (tgPd A φ T e ψ u0) (tgPd A' φ' T' e' ψ' u0') :=
+  RE2_contr hW (D.c hW hφ1) (D.pairD hW hφ1 hδ)
 
 end
 
