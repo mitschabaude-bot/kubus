@@ -5,8 +5,8 @@ import Model.Whnf.Kan2DataHITBT
 
 As for inductive types without path constructors (`Kan2DataTInd.lean`), elements related at the start of a
 literal line of a higher inductive type are transported along related lines by induction on their
-relation. The motives: `TM1H` (for the relation, at all restrictions: the transports are related, `TM1`, and
-the transport of the left element is related to the contractum of the transport of its normal form, `TR`),
+relation. The motives: `TM1H` (for the relation, at all restrictions: the transports are related, `TM1`, also for the left
+element with itself, and the transport of the left element is related to the contractum of the transport of its normal form, `TR`),
 and `TM2H` (for one stage: the contracta `tRedF` of related normal forms are related, `TMc`, and the motive
 holds for the immediate subterms, `TMch`).
 -/
@@ -39,7 +39,7 @@ def TR (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom
 
 /-- The motive at the relation of the start of a line. -/
 def TM1H (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom k1 K) (A x x' : Tm) : Prop :=
-  TM1 S d K P k1 g A x x' ∧ TR S d D K P k1 g A x
+  TM1 S d K P k1 g A x x' ∧ TM1 S d K P k1 g A x x ∧ TR S d D K P k1 g A x
 
 /-- The contracta of the transports of related normal forms are related. -/
 def TMc (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom k1 K) (A v v' : Tm) : Prop :=
