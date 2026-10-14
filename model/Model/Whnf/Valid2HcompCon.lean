@@ -258,6 +258,92 @@ theorem hcgAt (hK : KanOracle2 S) {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {C : Cto
     rw [prjEq σ .zero trivial hj, ← getD_map_isub]
     exact projRel hW hD hH hP hPP (ρ.comp σ) hC (RE2.symm hW (hPσ σ) b) hj
 
+/-- The contractum of the rule at the tube arguments `Ys` is related to the composition of a
+constructor. -/
+theorem rel_hcompCon (hK : KanOracle2 S) {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
+    {u qs : Tm} {φ : I} {X Ys : List Tm} (hYl : Ys.length = C.args.length)
+    (hty : HasTy S k1 .one [] (.hcomp (.data d (P.isub ρ)) φ u (.con d c qs (Tm.ofList X) [])) (.data d (P.isub ρ)))
+    (hrr : RE2 S k1 (.data d (P.isub ρ)) (.hcomp (.data d (P.isub ρ)) φ u (.con d c qs (Tm.ofList X) []))
+      (.hcomp (.data d (P.isub ρ)) φ u (.con d c qs (Tm.ofList X) [])))
+    (hYe : ∀ k2 (κ : ISub k2 k1), EqTm0 S (k2 + 1) (cof .one (φ.subst κ.τ)).shift [] (u.isub κ.up)
+      (.con d c (P.isub (ρ.comp κ)).dshift (Tm.ofList (Ys.map (·.isub κ.up))) []) (.data d (P.isub (ρ.comp κ)).dshift))
+    (hYr : ∀ k3 (σ : ISub k3 k1) (r r' : I) (hr : r.Scoped k3) (hr' : r'.Scoped k3), I.Eq r r' →
+      (ival (idEnv k3) (φ.subst σ.τ)).holds →
+      RE2 S k3 (.data d (P.isub (ρ.comp σ)))
+        (.con d c (P.isub (ρ.comp σ)) (Tm.ofList (Ys.map (·.isub (ISub.cons r hr σ)))) []) ((u.isub σ.up).dinst r'))
+    (hub : ∀ k3 (σ : ISub k3 k1), (ival (idEnv k3) (φ.subst σ.τ)).holds →
+      RE2 S k3 (.data d (P.isub (ρ.comp σ))) ((u.isub σ.up).dinst .zero) ((Tm.con d c qs (Tm.ofList X) []).isub σ))
+    (hbb : RE2 S k1 (.data d (P.isub ρ)) (.con d c qs (Tm.ofList X) []) (.con d c qs (Tm.ofList X) []))
+    (he : EqTm S k1 .one [] (.con d c (P.isub ρ) (Tm.ofList (gOuts d D C (P.isub ρ) φ Ys X)) [])
+      (.hcomp (.data d (P.isub ρ)) φ u (.con d c qs (Tm.ofList X) [])) (.data d (P.isub ρ))) :
+    RE2 S k1 (.data d (P.isub ρ)) (.con d c (P.isub ρ) (Tm.ofList (gOuts d D C (P.isub ρ) φ Ys X)) [])
+      (.hcomp (.data d (P.isub ρ)) φ u (.con d c qs (Tm.ofList X) [])) := by
+  have hpT : HasTy S k1 .one [] (.data d (P.isub ρ)) (.univ D.level) := HasTy.isubS hW hP ρ
+  obtain ⟨l0, ⟨-, hφs, -, hb, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
+  obtain ⟨-, -, -, hXl⟩ := con_retype hW hD hH hC (EqTm.refl (minimal_to_spec hb)) (TyEq.refl _) hpT
+  have hpl := (dataLit_rel hW hD hP hPP ρ).2.2.2.2.2.1
+  have hplen : (P.isub ρ).toList.length = D.params.length := by
+    have := data_len_of hW (⟨_, .inl hpT⟩ : IsTyK S k1 (.data d (P.isub ρ))); rwa [dataD_eq hW hD] at this
+  refine RE2_conW hW hD hH hP hPP ρ hC (HasTy.eqL he) hrr he fun k2 κ => ?_
+  have eP : (P.isub ρ).isub κ = P.isub (ρ.comp κ) := Tm.isub_isub _ _ _
+  have eX : (Tm.con d c qs (Tm.ofList X) []).isub κ = .con d c (qs.isub κ) (Tm.ofList (X.map (·.isub κ))) [] := by
+    show Tm.con d c (qs.isub κ) ((Tm.ofList X).isub κ) [] = _; rw [ofList_isub]
+  have eR : (Tm.hcomp (.data d (P.isub ρ)) φ u (.con d c qs (Tm.ofList X) [])).isub κ =
+      .hcomp (.data d (P.isub (ρ.comp κ))) (φ.subst κ.τ) (u.isub κ.up)
+        (.con d c (qs.isub κ) (Tm.ofList (X.map (·.isub κ))) []) := by
+    rw [← eX, ← eP]; rfl
+  rw [gCon_isub hW hD hC hpl hplen φ hYl hXl κ, eP, eR]
+  have hty2 := HasTy.isubS hW hty κ
+  rw [eR, show (Tm.data d (P.isub ρ)).isub κ = .data d (P.isub (ρ.comp κ)) by
+    show Tm.data d ((P.isub ρ).isub κ) = _; rw [eP]] at hty2
+  have he2 := EqTm.isubS hW he κ
+  rw [gCon_isub hW hD hC hpl hplen φ hYl hXl κ, eP, eR, show (Tm.data d (P.isub ρ)).isub κ = .data d (P.isub (ρ.comp κ)) by
+    show Tm.data d ((P.isub ρ).isub κ) = _; rw [eP]] at he2
+  have hPσ : ∀ {k3 : ℕ} (σ : ISub k3 k2), RT2 S k3 (.data d (P.isub ((ρ.comp κ).comp σ)))
+      (.data d (P.isub ((ρ.comp κ).comp σ))) := fun σ => RT2.isub hW (tyCode_of_univ hW hP) hPP _
+  have hYr2 : ∀ k3 (σ : ISub k3 k2) (r r' : I) (hr : r.Scoped k3) (hr' : r'.Scoped k3), I.Eq r r' →
+      (ival (idEnv k3) ((φ.subst κ.τ).subst σ.τ)).holds →
+      RE2 S k3 (.data d (P.isub ((ρ.comp κ).comp σ)))
+        (.con d c (P.isub ((ρ.comp κ).comp σ)) (Tm.ofList ((Ys.map (·.isub κ.up)).map (·.isub (ISub.cons r hr σ))))
+          []) (((u.isub κ.up).isub σ.up).dinst r') := by
+    intro k3 σ r r' hr hr' hE hh
+    have h := hYr k3 (κ.comp σ) r r' hr hr' hE (by rw [I_subst_comp]; exact hh)
+    rw [ISub.comp_assoc, List.map_map]
+    rw [show ((u.isub κ.up).isub σ.up) = u.isub (κ.comp σ).up by rw [Tm.isub_isub, ISub.up_comp]]
+    rw [show ((·.isub (ISub.cons r hr σ)) ∘ (·.isub κ.up) : Tm → Tm) = (·.isub (ISub.cons r hr (κ.comp σ))) by
+      funext t; simp only [Function.comp, Tm.isub_isub, ISub.up_comp_cons]]
+    exact h
+  have hub2 : ∀ k3 (σ : ISub k3 k2), (ival (idEnv k3) ((φ.subst κ.τ).subst σ.τ)).holds →
+      RE2 S k3 (.data d (P.isub ((ρ.comp κ).comp σ))) (((u.isub κ.up).isub σ.up).dinst .zero)
+        ((Tm.con d c (qs.isub κ) (Tm.ofList (X.map (·.isub κ))) []).isub σ) := by
+    intro k3 σ hh
+    have h := hub k3 (κ.comp σ) (by rw [I_subst_comp]; exact hh)
+    rw [ISub.comp_assoc, show ((u.isub κ.up).isub σ.up) = u.isub (κ.comp σ).up by rw [Tm.isub_isub, ISub.up_comp],
+      ← eX, Tm.isub_isub]
+    exact h
+  have hbb2 := RE2.isub hW hbb κ
+  rw [eX, show (Tm.data d (P.isub ρ)).isub κ = .data d (P.isub (ρ.comp κ)) by
+    show Tm.data d ((P.isub ρ).isub κ) = _; rw [eP]] at hbb2
+  have H := hcgAt hW hD hH hP hPP hK (ρ.comp κ) hC (u := u.isub κ.up) (qs := qs.isub κ) (φ := φ.subst κ.τ)
+    (X := X.map (·.isub κ)) (Ys := Ys.map (·.isub κ.up)) (by simp [hYl]) hty2 (hYe k2 κ) hYr2 hub2 hbb2 he2
+  have R := H.conRel
+  have hXl2 : (X.map (·.isub κ)).length = C.args.length := by simp [hXl]
+  by_cases hf : I.Entails .one (φ.subst κ.τ)
+  · have htube : Tube2 S k2 (.data d (P.isub (ρ.comp κ))) (φ.subst κ.τ) (u.isub κ.up) (u.isub κ.up) := by
+      intro k3 σ r r' hr hr' hE hh
+      rw [show (Tm.data d (P.isub (ρ.comp κ))).isub σ = .data d (P.isub ((ρ.comp κ).comp σ)) by
+        show Tm.data d ((P.isub (ρ.comp κ)).isub σ) = _; rw [Tm.isub_isub]]
+      exact RE2.trans hW (hPσ σ) (RE2.symm hW (hPσ σ) (hYr2 k3 σ r r hr hr (I_eq_refl _) hh))
+        (hYr2 k3 σ r r' hr hr' hE hh)
+    have F := face_con hW hD hH hP hPP hPP (ρ.comp κ) hC hf hty2 htube
+    have F' := DR2.at_id hW (Θ := ΘK S D d K P) ((RE2_dataLit_iff hW hD hP (ρ.comp κ)).1 F).2
+    have F'' := DR2At.expandR hW F' (.step (step_hcomp_face hf) (.refl _)) (EqTm.hcompFace hf hty2)
+    exact DR2At_trans hW (Hom.id K) (perP_ΘK hW hD hP) R F'' (argRelH_lit hW hD hH hP hPP (ρ.comp κ))
+  · have hs := step_hcompCon (S := S) hD hH hC (ps := P.isub (ρ.comp κ)) (u := u.isub κ.up) (qs := qs.isub κ) hf
+      (X.map (·.isub κ))
+    rw [gOuts_eq d D C _ _ (by simp) hXl2] at hs
+    exact DR2At.expandR hW R (.step hs (.refl _)) (he2.symm.trans H.eLR)
+
 end lit
 
 end
