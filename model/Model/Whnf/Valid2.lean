@@ -698,6 +698,219 @@ theorem valid_ipiInj {L L' : Tm} {r : I} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.ipi 
   exact (RT2_ipi_inv hW (h.ty hW c)).2 _ _ (I.scoped_subst hr c.σ.sc) (I.scoped_subst hr c.σ'.sc)
     (c.ieq_subst (I_eq_refl r))
 
+
+/-! ### Systems -/
+
+/-- Head expansion with a reduct chosen at each restriction. -/
+theorem RE2.expandH {A t t' : Tm} (hAA : RT2 S k A A) (ht : HasTy S k .one [] t A) (ht' : HasTy S k .one [] t' A)
+    (h : ∀ k' (σ : ISub k' k), ∃ u, Red S (t.isub σ) u ∧ EqTm S k' .one [] (t.isub σ) u (A.isub σ) ∧
+      RE2 S k' (A.isub σ) u (t'.isub σ)) : RE2 S k A t t' := by
+  have hb := Comp2_ty_base hAA
+  refine (he2_tyCode hW (tyCode_of_ty hW ht) k (Hom.id k) A A t t').2 hAA ht ht' fun k' σ => ?_
+  obtain ⟨u, h1, h2, h3⟩ := h k' σ
+  refine ⟨u, h1, h2, ?_⟩
+  rw [Hom.id_comp, Comp2_eq_res hb.1, ← semK_isubTy hW hb.2.1 σ]
+  exact h3
+
+omit hW in
+/-- The disjunction property of faces at the generic point of a stage. -/
+theorem ent_or_cases {φ ψ : I} (hφ : φ.Scoped k) (hψ : ψ.Scoped k) (h : I.Entails .one (.or φ ψ)) :
+    I.Entails .one φ ∨ I.Entails .one ψ := by
+  have hh := entails_holds h (ρ := idEnv k) (by rw [ival_one]; rfl)
+  rcases holds_or hh with h1 | h1
+  · exact .inl (entails_of_holds hφ h1)
+  · exact .inr (entails_of_holds hψ h1)
+
+omit hW in
+theorem ent_one_subst {φ : I} (h : I.Entails .one φ) (τ : ℕ → I) : I.Entails .one (φ.subst τ) :=
+  ent_subst h τ
+
+theorem stable_splitL {X t u : Tm} {φ ψ : I} (hφ : I.Entails .one φ)
+    (hsp : HasTy S k .one [] (.split φ t ψ u) X) : StableE S k X (.split φ t ψ u) t := by
+  intro k' σ
+  have hσ : HasTy S k' .one [] (.split (φ.subst σ.τ) (t.isub σ) (ψ.subst σ.τ) (u.isub σ)) (X.isub σ) :=
+    HasTy.isubS hW hsp σ
+  have hφσ := ent_one_subst hφ σ.τ
+  refine ⟨.step ?_ (.refl _), EqTm.splitL hφσ hσ⟩
+  show step S (.split (φ.subst σ.τ) (t.isub σ) (ψ.subst σ.τ) (u.isub σ)) = some (t.isub σ)
+  simp only [step, show I.entails .one (φ.subst σ.τ) = true from hφσ, if_true]
+
+/-- A system is related to `x` if each branch is, wherever its face holds. -/
+theorem RE2_split_l {A x t u : Tm} {φ ψ : I} (hφ : φ.Scoped k) (hψ : ψ.Scoped k)
+    (hor : I.Entails .one (.or φ ψ)) (hAA : RT2 S k A A) (hsp : HasTy S k .one [] (.split φ t ψ u) A)
+    (hx : HasTy S k .one [] x A)
+    (ht : ∀ k' (σ : ISub k' k), I.Entails .one (φ.subst σ.τ) → RE2 S k' (A.isub σ) (t.isub σ) (x.isub σ))
+    (hu : ∀ k' (σ : ISub k' k), I.Entails .one (ψ.subst σ.τ) → RE2 S k' (A.isub σ) (u.isub σ) (x.isub σ)) :
+    RE2 S k A (.split φ t ψ u) x := by
+  refine RE2.expandH hW hAA hsp hx fun k' σ => ?_
+  have hσ : HasTy S k' .one [] (.split (φ.subst σ.τ) (t.isub σ) (ψ.subst σ.τ) (u.isub σ)) (A.isub σ) :=
+    HasTy.isubS hW hsp σ
+  show ∃ u', Red S (.split (φ.subst σ.τ) (t.isub σ) (ψ.subst σ.τ) (u.isub σ)) u' ∧ _
+  by_cases hφσ : I.Entails .one (φ.subst σ.τ)
+  · refine ⟨t.isub σ, .step ?_ (.refl _), EqTm.splitL hφσ hσ, ht k' σ hφσ⟩
+    simp only [step, show I.entails .one (φ.subst σ.τ) = true from hφσ, if_true]
+  · have hψσ : I.Entails .one (ψ.subst σ.τ) := by
+      rcases ent_or_cases (I.scoped_subst hφ σ.sc) (I.scoped_subst hψ σ.sc) (ent_one_subst hor σ.τ) with h | h
+      · exact absurd h hφσ
+      · exact h
+    refine ⟨u.isub σ, .step ?_ (.refl _), EqTm.splitR hψσ hσ, hu k' σ hψσ⟩
+    have hf : I.entails .one (φ.subst σ.τ) = false := by
+      cases e : I.entails .one (φ.subst σ.τ)
+      · rfl
+      · exact absurd e hφσ
+    simp only [step, hf, show I.entails .one (ψ.subst σ.τ) = true from hψσ, if_true, Bool.false_eq_true, if_false]
+
+theorem RE2_split_r {A x t u : Tm} {φ ψ : I} (hφ : φ.Scoped k) (hψ : ψ.Scoped k)
+    (hor : I.Entails .one (.or φ ψ)) (hAA : RT2 S k A A) (hsp : HasTy S k .one [] (.split φ t ψ u) A)
+    (hx : HasTy S k .one [] x A)
+    (ht : ∀ k' (σ : ISub k' k), I.Entails .one (φ.subst σ.τ) → RE2 S k' (A.isub σ) (x.isub σ) (t.isub σ))
+    (hu : ∀ k' (σ : ISub k' k), I.Entails .one (ψ.subst σ.τ) → RE2 S k' (A.isub σ) (x.isub σ) (u.isub σ)) :
+    RE2 S k A x (.split φ t ψ u) := by
+  have hX := tyCode_of_ty hW hx
+  refine RE2.symm hW hAA (RE2_split_l hW hφ hψ hor hAA hsp hx (fun k' σ h => ?_) (fun k' σ h => ?_))
+  · exact RE2.symm hW (RT2.isub hW hX hAA σ) (ht k' σ h)
+  · exact RE2.symm hW (RT2.isub hW hX hAA σ) (hu k' σ h)
+
+
+omit hW in
+theorem CSub2.restr_face (c : CSub2 S Ψ Φ Γ k) {φ : I} {ρ : ISub k' k}
+    (h : I.Entails .one ((φ.subst c.σ.τ).subst ρ.τ)) : I.Entails .one (φ.subst (c.σ.comp ρ).τ) := by
+  rw [I_subst_subst] at h; exact h
+
+omit hW in
+theorem CSub2.face_RL (c : CSub2 S Ψ Φ Γ k) {φ : I} {ρ : ISub k' k}
+    (h : I.Entails .one ((φ.subst c.σ'.τ).subst ρ.τ)) : I.Entails .one ((φ.subst c.σ.τ).subst ρ.τ) :=
+  ent_trans h (eq_ent (I_eq_subst (I_eq_symm (c.ieq_subst (I_eq_refl φ))) ρ.τ))
+
+omit hW in
+theorem ent_comp {k'' : ℕ} {φ : I} {ρ : ISub k' k} {ρ' : ISub k'' k'} (h : I.Entails .one (φ.subst ρ.τ)) :
+    I.Entails .one (φ.subst (ρ.comp ρ').τ) := by
+  have := ent_one_subst h ρ'.τ
+  rw [I_subst_subst] at this; exact this
+
+omit hW in
+theorem ent_comp_inv {k'' : ℕ} {φ : I} {ρ : ISub k' k} {ρ' : ISub k'' k'} (h : I.Entails .one ((φ.subst ρ.τ).subst ρ'.τ)) :
+    I.Entails .one (φ.subst (ρ.comp ρ').τ) := by
+  rw [I_subst_subst] at h; exact h
+
+theorem valid_split {A t t' u u' : Tm} {φ ψ : I} (hφ : φ.Scoped Ψ) (hψ : ψ.Scoped Ψ)
+    (hor : I.Entails Φ (.or φ ψ)) (htt : Valid2 S Ψ (cof Φ φ) Γ t t' A) (huu : Valid2 S Ψ (cof Φ ψ) Γ u u' A)
+    (htu' : Valid2 S Ψ (cof (cof Φ φ) ψ) Γ t' u' A) (hsp : HasTy0 S Ψ Φ Γ (.split φ t ψ u) A)
+    (hsp' : HasTy0 S Ψ Φ Γ (.split φ t' ψ u') A) :
+    Valid2 S Ψ Φ Γ (.split φ t ψ u) (.split φ t' ψ u') A := by
+  intro k c
+  -- the branches, at restrictions where their faces hold
+  have T : ∀ k' (ρ : ISub k' k), I.Entails .one (φ.subst (c.σ.comp ρ).τ) →
+      RE2 S k' ((c.L A).isub ρ) ((c.L t).isub ρ) ((c.R t').isub ρ) := by
+    intro k' ρ h
+    have e : RE2 S k' ((c.restr hW ρ).L A) ((c.restr hW ρ).L t) ((c.restr hW ρ).R t') :=
+      (htt k' ((c.restr hW ρ).cof h)).2
+    rwa [CSub2.restr_L, CSub2.restr_L, CSub2.restr_R] at e
+  have U : ∀ k' (ρ : ISub k' k), I.Entails .one (ψ.subst (c.σ.comp ρ).τ) →
+      RE2 S k' ((c.L A).isub ρ) ((c.L u).isub ρ) ((c.R u').isub ρ) := by
+    intro k' ρ h
+    have e : RE2 S k' ((c.restr hW ρ).L A) ((c.restr hW ρ).L u) ((c.restr hW ρ).R u') :=
+      (huu k' ((c.restr hW ρ).cof h)).2
+    rwa [CSub2.restr_L, CSub2.restr_L, CSub2.restr_R] at e
+  have TU : ∀ k' (ρ : ISub k' k) (h1 : I.Entails .one (φ.subst (c.σ.comp ρ).τ)),
+      I.Entails .one (ψ.subst (c.σ.comp ρ).τ) →
+      RE2 S k' ((c.L A).isub ρ) ((c.R t').isub ρ) ((c.R u').isub ρ) := by
+    intro k' ρ h1 h2
+    have e : RE2 S k' ((c.restr hW ρ).L A) ((c.restr hW ρ).R t') ((c.restr hW ρ).R u') :=
+      htu'.right hW (((c.restr hW ρ).cof h1).cof h2)
+    rwa [CSub2.restr_L, CSub2.restr_R, CSub2.restr_R] at e
+  -- the type
+  have hφL := I.scoped_subst hφ c.σ.sc
+  have hψL := I.scoped_subst hψ c.σ.sc
+  have hφR := I.scoped_subst hφ c.σ'.sc
+  have hψR := I.scoped_subst hψ c.σ'.sc
+  have horL : I.Entails .one (.or (φ.subst c.σ.τ) (ψ.subst c.σ.τ)) := ent_trans c.face (ent_subst hor c.σ.τ)
+  have horR : I.Entails .one (.or (φ.subst c.σ'.τ) (ψ.subst c.σ'.τ)) := ent_trans c.face' (ent_subst hor c.σ'.τ)
+  have hTy : RT2 S k (c.L A) (c.R A) ∧ RT2 S k (c.L A) (c.L A) := by
+    rcases ent_or_cases hφL hψL horL with h | h
+    · exact ⟨(htt k (c.cof h)).1, htt.tyLL hW (c.cof h)⟩
+    · exact ⟨(huu k (c.cof h)).1, huu.tyLL hW (c.cof h)⟩
+  refine ⟨hTy.1, ?_⟩
+  have hAA := hTy.2
+  have hsL : HasTy S k .one [] (.split (φ.subst c.σ.τ) (c.L t) (ψ.subst c.σ.τ) (c.L u)) (c.L A) := c.ty hW hsp
+  have hsR : HasTy S k .one [] (.split (φ.subst c.σ'.τ) (c.R t') (ψ.subst c.σ'.τ) (c.R u')) (c.L A) :=
+    c.tyR' hW hsp'
+  have hX := tyCode_of_ty hW hsL
+  refine RE2_split_l hW hφL hψL horL hAA hsL hsR (fun k' ρ hρ => ?_) (fun k' ρ hρ => ?_)
+  · -- the left system is at its first branch
+    have hAρ := RT2.isub hW hX hAA ρ
+    have hsRρ : HasTy S k' .one [] (.split ((φ.subst c.σ'.τ).subst ρ.τ) ((c.R t').isub ρ)
+        ((ψ.subst c.σ'.τ).subst ρ.τ) ((c.R u').isub ρ)) ((c.L A).isub ρ) := HasTy.isubS hW hsR ρ
+    show RE2 S k' _ _ (.split ((φ.subst c.σ'.τ).subst ρ.τ) ((c.R t').isub ρ) ((ψ.subst c.σ'.τ).subst ρ.τ)
+      ((c.R u').isub ρ))
+    have hx := (RE2.typed (T k' ρ (c.restr_face hρ))).1
+    refine RE2_split_r hW (I.scoped_subst hφR ρ.sc) (I.scoped_subst hψR ρ.sc) (ent_one_subst horR ρ.τ) hAρ
+      hsRρ hx (fun k'' ρ' h => ?_) (fun k'' ρ' h => ?_)
+    · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]
+      exact T k'' (ρ.comp ρ') (c.restr_face (c.face_RL (ent_comp_inv h)))
+    · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]
+      have h1 : I.Entails .one (φ.subst (c.σ.comp (ρ.comp ρ')).τ) := c.restr_face (ent_comp (ρ' := ρ') hρ)
+      have h2 : I.Entails .one (ψ.subst (c.σ.comp (ρ.comp ρ')).τ) := c.restr_face (c.face_RL (ent_comp_inv h))
+      have hA2 := RT2.isub hW hX hAA (ρ.comp ρ')
+      exact RE2.trans hW hA2 (T k'' _ h1) (TU k'' _ h1 h2)
+  · -- the left system is at its second branch
+    have hAρ := RT2.isub hW hX hAA ρ
+    have hsRρ : HasTy S k' .one [] (.split ((φ.subst c.σ'.τ).subst ρ.τ) ((c.R t').isub ρ)
+        ((ψ.subst c.σ'.τ).subst ρ.τ) ((c.R u').isub ρ)) ((c.L A).isub ρ) := HasTy.isubS hW hsR ρ
+    show RE2 S k' _ _ (.split ((φ.subst c.σ'.τ).subst ρ.τ) ((c.R t').isub ρ) ((ψ.subst c.σ'.τ).subst ρ.τ)
+      ((c.R u').isub ρ))
+    have hx := (RE2.typed (U k' ρ (c.restr_face hρ))).1
+    refine RE2_split_r hW (I.scoped_subst hφR ρ.sc) (I.scoped_subst hψR ρ.sc) (ent_one_subst horR ρ.τ) hAρ
+      hsRρ hx (fun k'' ρ' h => ?_) (fun k'' ρ' h => ?_)
+    · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]
+      have h1 : I.Entails .one (φ.subst (c.σ.comp (ρ.comp ρ')).τ) := c.restr_face (c.face_RL (ent_comp_inv h))
+      have h2 : I.Entails .one (ψ.subst (c.σ.comp (ρ.comp ρ')).τ) := c.restr_face (ent_comp (ρ' := ρ') hρ)
+      have hA2 := RT2.isub hW hX hAA (ρ.comp ρ')
+      exact RE2.trans hW hA2 (U k'' _ h2) (RE2.symm hW hA2 (TU k'' _ h1 h2))
+    · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]
+      exact U k'' (ρ.comp ρ') (c.restr_face (c.face_RL (ent_comp_inv h)))
+
+
+theorem valid_splitL {A t u : Tm} {φ ψ : I} (hφ0 : I.Entails Φ φ)
+    (h : Valid2 S Ψ Φ Γ (.split φ t ψ u) (.split φ t ψ u) A) (hsp : HasTy0 S Ψ Φ Γ (.split φ t ψ u) A)
+    (ht : HasTy0 S Ψ Φ Γ t A) : Valid2 S Ψ Φ Γ (.split φ t ψ u) t A :=
+  valid_redR hW h ht fun k c => stable_splitL hW (ent_trans c.face' (ent_subst hφ0 c.σ'.τ)) (c.tyR' hW hsp)
+
+theorem valid_splitR {A t u : Tm} {φ ψ : I} (hφ : φ.Scoped Ψ) (hψ : ψ.Scoped Ψ) (hψ0 : I.Entails Φ ψ)
+    (huu : Valid2 S Ψ (cof Φ ψ) Γ u u A) (htu : Valid2 S Ψ (cof (cof Φ φ) ψ) Γ t u A)
+    (hsp : HasTy0 S Ψ Φ Γ (.split φ t ψ u) A) (hu : HasTy0 S Ψ Φ Γ u A) :
+    Valid2 S Ψ Φ Γ (.split φ t ψ u) u A := by
+  intro k c
+  have hψc : I.Entails .one (ψ.subst c.σ.τ) := ent_trans c.face (ent_subst hψ0 c.σ.τ)
+  have hTy := huu k (c.cof hψc)
+  refine ⟨hTy.1, ?_⟩
+  have hAA := huu.tyLL hW (c.cof hψc)
+  have hsL : HasTy S k .one [] (.split (φ.subst c.σ.τ) (c.L t) (ψ.subst c.σ.τ) (c.L u)) (c.L A) := c.ty hW hsp
+  refine RE2_split_l hW (I.scoped_subst hφ c.σ.sc) (I.scoped_subst hψ c.σ.sc)
+    (ent_trans hψc (ent_or_right _ _)) hAA hsL (c.tyR' hW hu) (fun k' ρ hρ => ?_) (fun k' ρ hρ => ?_)
+  · have h2 : I.Entails .one (ψ.subst (c.σ.comp ρ).τ) := c.restr_face (ent_one_subst hψc ρ.τ)
+    have e : RE2 S k' ((c.restr hW ρ).L A) ((c.restr hW ρ).L t) ((c.restr hW ρ).R u) :=
+      (htu k' (((c.restr hW ρ).cof (c.restr_face hρ)).cof h2)).2
+    rwa [CSub2.restr_L, CSub2.restr_L, CSub2.restr_R] at e
+  · have e : RE2 S k' ((c.restr hW ρ).L A) ((c.restr hW ρ).L u) ((c.restr hW ρ).R u) :=
+      (huu k' ((c.restr hW ρ).cof (c.restr_face hρ))).2
+    rwa [CSub2.restr_L, CSub2.restr_L, CSub2.restr_R] at e
+
+omit hW in
+theorem valid_local {t u A : Tm} {φ ψ : I} (hφ : φ.Scoped Ψ) (hψ : ψ.Scoped Ψ) (hor : I.Entails Φ (.or φ ψ))
+    (h1 : Valid2 S Ψ (cof Φ φ) Γ t u A) (h2 : Valid2 S Ψ (cof Φ ψ) Γ t u A) : Valid2 S Ψ Φ Γ t u A := by
+  intro k c
+  rcases ent_or_cases (I.scoped_subst hφ c.σ.sc) (I.scoped_subst hψ c.σ.sc)
+    (ent_trans c.face (ent_subst hor c.σ.τ)) with h | h
+  · exact h1 k (c.cof h)
+  · exact h2 k (c.cof h)
+
+omit hW in
+theorem valid_absurd {t u A : Tm} (hz : I.Entails Φ .zero) : Valid2 S Ψ Φ Γ t u A := by
+  intro k c
+  exact absurd (entails_holds (ent_trans c.face (ent_subst hz c.σ.τ)) (ρ := idEnv k) (by rw [ival_one]; rfl))
+    not_holds_zero
+
 end
 
 end Model.Whnf
