@@ -417,7 +417,86 @@ theorem prefix_conv {k : ℕ} {g : Hom k k0} {ps ps' : Tm} (hR : argRelH Θ f S 
     unfold dataP2 at x ⊢
     exact (hP (f.comp g) c j _).conv hty x
 
+/-- Composition of argument clauses. -/
+theorem argRelH_comp {k : ℕ} {g : Hom k k0} {ps ps' ps'' : Tm} (r1 : argRelH Θ f S k g ps ps')
+    (d : argRelH Θ f S k g ps ps) (d' : argRelH Θ f S k g ps' ps') (r2 : argRelH Θ f S k g ps' ps'')
+    (hT : IsTyK S k (.data Θ.idx ps)) (hT' : IsTyK S k (.data Θ.idx ps')) (hT'' : IsTyK S k (.data Θ.idx ps''))
+    (hpl' : ps' = Tm.ofList ps'.toList)
+    (hdd : TyEq S k (.data Θ.idx ps) (.data Θ.idx ps')) : argRelH Θ f S k g ps ps'' := by
+  intro k'' σ' c C args args'' hC hl hl'' hr hrec hpt
+  have r1σ := argRelH_isub Θ f r1 σ'
+  have dσ := argRelH_isub Θ f d σ'
+  have d'σ := argRelH_isub Θ f d' σ'
+  have r2σ := argRelH_isub Θ f r2 σ'
+  have hcl : ∀ {X : Tm}, IsTyK S k (.data Θ.idx X) → (X.isub σ').closedB 0 k'' = true := fun h => by
+    have := closed_of_isTyK hW (h.isub hW σ'); simpa [Tm.closedB] using this
+  obtain ⟨hrecd, hptd⟩ := prefix_refl hW f hP dσ (hcl hT) hC hl.le hl'' hrec hpt
+  have a := argRelH_id f r1σ (hcl hT) (hcl hT') (args := args) (args' := args) hC hl rfl hr
+    (fun i hi _ hri => hrecd i hi hri) (fun i hi _ hri => hptd i hi hri)
+  obtain ⟨hrec', hpt'⟩ := prefix_conv hW f hP r1σ dσ d'σ (hcl hT) (hcl hT') (isList_subst hpl' _ _)
+    (hdd.isub hW σ') hC hl.le hl'' hrec hpt
+  have b := argRelH_id f r2σ (hcl hT') (hcl hT'') (args := args) (args' := args'') hC hl hl'' hr hrec' hpt'
+  exact (hP _ c args.length _).transTy a b
+
 end dr
+
+theorem per2_dataC (hW : WfSig S) {Θ : SData m}
+    (ih : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → PER2 S n (Θ.ty c j n g pre)) :
+    PER2 S m (dataC Θ) := by
+  intro k f
+  have hP : ∀ {n : ℕ} (h : Hom n m) (c j : ℕ) (pre : List V),
+      PERP (Comp2 S (tyLook (shapeV (Θ.restr h)) c j pre) n n (Hom.id n)) := fun h c j pre => perP_tyLook ih h c j pre
+  rw [Comp2_dataC]
+  -- the diagonal clause of a related type, at its normal forms
+  have diagOf : ∀ {T T' : Tm}, (∀ k' (σ : ISub k' k), ∃ ps ps',
+      RedT S k' (T.isub σ) (.data Θ.idx ps) ∧ RedT S k' (T'.isub σ) (.data Θ.idx ps') ∧
+      ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
+      argRel2 S Θ f k' σ ps ps' ∧ argRel2 S Θ f k' σ ps' ps ∧ argRel2 S Θ f k' σ ps ps ∧
+      argRel2 S Θ f k' σ ps' ps') →
+      ∀ k' (σ : ISub k' k) ps, RedT S k' (T.isub σ) (.data Θ.idx ps) →
+        argRelH Θ f S k' ((Hom.id k).comp σ.hom) ps ps := by
+    intro T T' h k' σ ps hps
+    obtain ⟨ps0, -, h1, -, -, -, -, -, hd, -⟩ := h k' σ
+    obtain rfl : ps = ps0 := by have := RedW.unique hps.1 h1.1; injection this
+    rw [Hom.id_comp]; exact (argRel2_iff Θ σ).1 hd
+  refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
+    fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
+  · obtain ⟨hb, hall⟩ := hT
+    refine ⟨base_symm hb, fun k' σ => ?_⟩
+    obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d'⟩ := hall k' σ
+    exact ⟨ps', ps, h2, h1, hl', hl, r21, r12, d', d⟩
+  · obtain ⟨hb, hall⟩ := hT
+    obtain ⟨hb', hall'⟩ := hT'
+    refine ⟨base_trans hW hb hb', fun k' σ => ?_⟩
+    obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d'⟩ := hall k' σ
+    obtain ⟨ps2, ps'', g1, g2, hl2, hl'', r12', r21', d2, d''⟩ := hall' k' σ
+    obtain rfl : ps2 = ps' := by have := RedW.unique g1.1 h2.1; injection this
+    have hTd : IsTyK S k' (.data Θ.idx ps) := (hb.1.isub hW σ).of_tyEq h1.2
+    have hTd' : IsTyK S k' (.data Θ.idx ps2) := (hb.2.1.isub hW σ).of_tyEq h2.2
+    have hTd'' : IsTyK S k' (.data Θ.idx ps'') := (hb'.2.1.isub hW σ).of_tyEq g2.2
+    have hdd : TyEq S k' (.data Θ.idx ps) (.data Θ.idx ps2) :=
+      (h1.2.symm.trans hW (hb.2.2.2.2.isub hW σ)).trans hW h2.2
+    have hdd' : TyEq S k' (.data Θ.idx ps'') (.data Θ.idx ps2) :=
+      (g2.2.symm.trans hW (hb'.2.2.2.2.isub hW σ).symm).trans hW g1.2
+    rw [argRel2_iff] at r12 r21 d d' r12' r21' d2 d''
+    exact ⟨ps, ps'', h1, g2, hl, hl'', (argRel2_iff Θ σ).2 (argRelH_comp hW f hP r12 d d' r12' hTd hTd' hTd'' hl' hdd),
+      (argRel2_iff Θ σ).2 (argRelH_comp hW f hP r21' d'' d' r21 hTd'' hTd' hTd hl' hdd'), (argRel2_iff Θ σ).2 d,
+      (argRel2_iff Θ σ).2 d''⟩
+  · obtain ⟨he, hmem, -, hdr⟩ := ht
+    exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm, DR2_symm hW f hP hdr (diagOf hT.2)⟩
+  · obtain ⟨he, hmem, -, hdr⟩ := ht
+    obtain ⟨he', -, -, hdr'⟩ := ht'
+    exact ⟨he.trans he', hmem, he.trans he', DR2_trans hW f hP hdr hdr' (diagOf hT.2)⟩
+  · obtain ⟨he, hmem, -, hdr⟩ := ht
+    have hTT := hT.1.2.2.2.2
+    refine ⟨he.conv hTT, hmem, he.conv hTT, DR2_conv hW f hP hdr hTT (fun k' σ ps ps' h1 h2 => ?_) (fun k' σ => ?_)⟩
+    · obtain ⟨ps0, ps0', g1, g2, -, -, r12, -, d, d'⟩ := hT.2 k' σ
+      obtain rfl : ps = ps0 := by have := RedW.unique h1.1 g1.1; injection this
+      obtain rfl : ps' = ps0' := by have := RedW.unique h2.1 g2.1; injection this
+      rw [Hom.id_comp]
+      exact ⟨(argRel2_iff Θ σ).1 r12, (argRel2_iff Θ σ).1 d, (argRel2_iff Θ σ).1 d'⟩
+    · obtain ⟨ps0, ps0', -, g2, -, hl', -⟩ := hT.2 k' σ
+      exact ⟨ps0', g2, hl'⟩
 
 end
 
