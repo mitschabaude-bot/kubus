@@ -383,6 +383,169 @@ theorem GHD.fib {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
   rw [isub_id_of_closed hc.1.2, isub_id_of_closed hc'.1.2] at h
   exact (D.fibKD hW hφe).kan h
 
+
+/-- `unglue` of related elements of the left Glue type, with the respective annotations. -/
+theorem GHD.ug0 {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') {g g' : Tm} (h : RE2 S k (.glue A φ T e) g g') :
+    RE2 S k A (.unglue φ e g) (.unglue φ' e' g') := by
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
+  obtain ⟨hφs', lA', hA0', he0'⟩ := glue_data hW hG'
+  have hXA : TyCode k (semK S k A) := tyCode_of_univ hW hA0
+  have hAA' : TyEq S k A A' := (Comp2_ty_base D.hA).2.2.2.2.2
+  have hu := unglue_ty hW ⟨l, .inl hG⟩ ⟨lA, hA0, he0⟩ (RE2.typed h).1
+  have hu' := (unglue_ty hW ⟨l', .inl hG'⟩ ⟨lA', hA0', he0'⟩ ((RE2.typed h).2.1.tyConv D.gG)).tyConv
+    (TyEq.symm hAA')
+  exact RE2_unglue_gen hW hG h hu hu' hφs' D.f12 D.f21 D.ee (fun k' σ => RT2.isub hW hXA (RT2.refl hW hXA D.hA) σ)
+    (fun k' σ hh => RT2.refl hW (tyCode_of_univ hW (glue_fiber_ty hW hG σ hh).choose_spec.1) (D.hT k' σ hh)) D.hE
+
+/-- `unglue` of related elements of the left Glue type, at a restriction. -/
+theorem GHD.ug {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (σ : ISub k' k) {g g' : Tm}
+    (h : RE2 S k' ((Tm.glue A φ T e).isub σ) g g') :
+    RE2 S k' (A.isub σ) (.unglue (φ.subst σ.τ) (e.isub σ) g) (.unglue (φ'.subst σ.τ) (e'.isub σ) g') :=
+  (D.isub hW σ).ug0 hW h
+
+/-- Fillers of the fibers at points, where the face of the Glue type holds. -/
+theorem GHD.fillPt {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (hφe : I.Entails .one φ) {r r' : I}
+    (hr : r.Scoped k) (hr' : r'.Scoped k) (hE : I.Eq r r') :
+    RE2 S k T ((Tm.hfill T ψ u a0).dinst r) ((Tm.hfill T' ψ' u' a0').dinst r') :=
+  (D.fibKD hW hφe).fillPt hW (D.fibRel hW hφe).2 (D.fibRel hW hφe).1 hr hr' hE
+
+
+omit hW in
+/-- A related tube is related to itself. -/
+theorem KD.tubeL {X X' : Tm} {ψ ψ' : I} {u u' a0 a0' : Tm} (hW : WfSig S) (D : KD S k X X' ψ ψ' u u' a0 a0')
+    (hXX : RT2 S k X X') : Tube2 S k X ψ u u := by
+  have hXc : TyCode k (semK S k X) := RE2.tyCode hW D.ha0
+  intro k' σ r r' hr hr' hE hh
+  have hXσ := RT2.isub hW hXc hXX σ
+  exact RE2.trans hW hXσ (D.tube k' σ r r' hr hr' hE hh)
+    (RE2.symm hW hXσ (D.tube k' σ r' r' hr' hr' (I_eq_refl _) hh))
+
+/-- A filler at a point where its face holds. -/
+theorem KD.facePt {X X' : Tm} {ψ ψ' : I} {u u' a0 a0' : Tm} (D : KD S k X X' ψ ψ' u u' a0 a0')
+    (hXX : RT2 S k X X') (hψe : I.Entails .one ψ) {r : I} (hr : r.Scoped k) :
+    RE2 S k X ((Tm.hfill X ψ u a0).dinst r) (u.dinst r) := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l1, ⟨hX0, hψs, hu, ha, hside⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty) rfl
+  have hXc : TyCode k (semK S k X) := RE2.tyCode hW D.ha0
+  have F := hfill_typed hS hX0 hψs hu ha hside
+  have hF : HasTy S (k + 1) .one [] (Tm.hfill X ψ u a0) X.dshift := minimal_to_spec F.1
+  have h := hfill_face_pt hW hψs hXc (RT2.refl hW hXc hXX) hF (D.tubeL hW hXX) (ISub.id k) r hr
+    (by rw [I_subst_id hψs]; exact (holds_iff_entails hψs).2 hψe)
+  have hc := closed_of_ty hW D.hty
+  simp only [Tm.closedB, Bool.and_eq_true] at hc
+  rw [isub_id_of_closed (closed_of_isTyK hW (isTyK_of_ty hW D.hty)), isub_cons_id_dinst hW (closed_of_ty hW hF) r hr,
+    isub_up_id_of_closed hc.1.2] at h
+  exact h
+
+
+/-- The tubes at a point, where their face holds. -/
+theorem GHD.tube0 {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (hψe : I.Entails .one ψ) {r r' : I}
+    (hr : r.Scoped k) (hr' : r'.Scoped k) (hE : I.Eq r r') :
+    RE2 S k (.glue A φ T e) (u.dinst r) (u'.dinst r') := by
+  obtain ⟨-, ⟨-, hψs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty) rfl
+  have h := D.tube k (ISub.id k) r r' hr hr' hE (by rw [I_subst_id hψs]; exact (holds_iff_entails hψs).2 hψe)
+  have hc := closed_of_ty hW D.hty
+  have hc' := closed_of_ty hW D.hty'
+  simp only [Tm.closedB, Bool.and_eq_true] at hc hc'
+  obtain ⟨l, hG⟩ := D.hG
+  rw [isub_id_of_closed (closed_of_ty hW hG), isub_up_id_of_closed hc.1.2, isub_up_id_of_closed hc'.1.2] at h
+  exact h
+
+/-- The tube of the base composition at a point, where its face holds. -/
+theorem GHD.tubePt {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (hor : I.Entails .one (.or ψ φ)) {r r' : I}
+    (hr : r.Scoped k) (hr' : r'.Scoped k) (hE : I.Eq r r') :
+    RE2 S k A (.split ψ (.unglue φ e (u.dinst r)) φ (.app (.fst e) ((Tm.hfill T ψ u a0).dinst r)))
+      (.split ψ' (.unglue φ' e' (u'.dinst r')) φ' (.app (.fst e') ((Tm.hfill T' ψ' u' a0').dinst r'))) := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l', hG'⟩ := D.hG'
+  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
+  have hφs' := (glue_data hW hG').1
+  obtain ⟨-, ⟨-, hψs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty) rfl
+  obtain ⟨l1', ⟨hG'0, hψs', hu', ha0', hside'⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty') rfl
+  have hXA : TyCode k (semK S k A) := tyCode_of_univ hW hA0
+  have hAA : RT2 S k A A := RT2.refl hW hXA D.hA
+  have hAA' : TyEq S k A A' := (Comp2_ty_base D.hA).2.2.2.2.2
+  have parts := hcompGlue_parts hS (spec_to_minimal hW D.hty) (spec_to_minimal hW hG)
+  have parts' := hcompGlue_parts hS (HasTy0.hcomp hG'0 hψs' hu' ha0' hside') (spec_to_minimal hW hG')
+  have hor' : I.Entails .one (.or ψ' φ') :=
+    ent_trans hor (ent_or_elim (ent_trans D.p12 (ent_or_left _ _)) (ent_trans D.f12 (ent_or_right _ _)))
+  have hsp := hcomp_tube_typed' hW (minimal_to_spec parts.2.1) r hr
+    ((holds_iff_entails (show (I.or ψ φ).Scoped k from ⟨hψs, hφs⟩)).2 hor)
+  have hsp' := hcomp_tube_typed' hW ((minimal_to_spec parts'.2.1).tyConv (TyEq.symm hAA')) r' hr'
+    ((holds_iff_entails (show (I.or ψ' φ').Scoped k from ⟨hψs', hφs'⟩)).2 hor')
+  rw [glueTube_d] at hsp hsp'
+  have hhold : ∀ {k'} {x : I} (σ : ISub k' k), x.Scoped k → I.Entails .one (x.subst σ.τ) →
+      (ival (idEnv k') (x.subst σ.τ)).holds := fun σ hx h => (holds_iff_entails (I.scoped_subst hx σ.sc)).2 h
+  have hrσ : ∀ {k'} (σ : ISub k' k), (r.subst σ.τ).Scoped k' := fun σ => I.scoped_subst hr σ.sc
+  have hrσ' : ∀ {k'} (σ : ISub k' k), (r'.subst σ.τ).Scoped k' := fun σ => I.scoped_subst hr' σ.sc
+  have tubeσ : ∀ {k'} (σ : ISub k' k), I.Entails .one (ψ.subst σ.τ) →
+      RE2 S k' ((Tm.glue A φ T e).isub σ) ((u.dinst r).isub σ) ((u'.dinst r').isub σ) := fun σ h => by
+    rw [isub_dinst, isub_dinst]
+    exact D.tube _ σ _ _ (hrσ σ) (hrσ' σ) (I_eq_subst hE σ.τ) (hhold σ hψs h)
+  refine RE2_sys2 hW hψs hψs' hφs hφs' D.p12 D.p21 D.f12 D.f21 hor hAA hsp hsp'
+    (fun k' σ hψσ => D.ug hW σ (tubeσ σ hψσ)) (fun k' σ hψσ hφσ => ?_) (fun k' σ hψσ hφσ => ?_)
+    (fun k' σ hφσ => ?_)
+  · -- both faces: the left `unglue` against the right fiber image
+    have Dσ := D.isub hW σ
+    have hGσ : HasTy S k' .one [] (.glue (A.isub σ) (φ.subst σ.τ) (T.isub σ) (e.isub σ)) (.univ l) :=
+      HasTy.isubS hW hG σ
+    have hAσ := RT2.isub hW hXA hAA σ
+    have hpp := D.ug hW σ (tubeσ σ hψσ)
+    have hTσ := (Dσ.fibRel hW hφσ).1
+    have hTTσ := RT2.refl hW (RE2.tyCode hW ((Dσ.fibKD hW hφσ).ha0)) hTσ
+    have x1 := RE2_glue_fib hW hGσ hφσ hTTσ (tubeσ σ hψσ)
+    rw [isub_dinst] at x1
+    have x2 := (Dσ.fibKD hW hφσ).facePt hW hTσ hψσ (hrσ σ)
+    have x3 := Dσ.fillPt hW hφσ (hrσ σ) (hrσ' σ) (I_eq_subst hE σ.τ)
+    have x := RE2.trans hW hTTσ (RE2.symm hW hTTσ x2) x3
+    have happ := RE2_equiv_app hW (D.hE k' σ (hhold σ hφs hφσ)) x
+    have heσ : HasTy S k' .one [] (e.isub σ) (Tm.equiv (T.isub σ) (A.isub σ)) := by
+      have := face_ty hW hφs he0 σ (hhold σ hφs hφσ); rwa [isub_equiv] at this
+    have hst := stable_unglueFace hW hφσ (RE2.typed hpp).1 (RE2.typed (tubeσ σ hψσ)).1 (HasTy.isubS hW hA0 σ) heσ
+      (TyEq.refl _)
+    simp only [isub_unglue, isub_app, isub_fst, isub_dinst, isub_hfill]
+    simp only [isub_dinst] at hpp
+    rw [isub_dinst] at hst
+    exact RE2.expandL hW hAσ (RE2.typed hpp).1 (RE2.typed happ).2.1 hst happ
+  · -- both faces: the left fiber image against the right `unglue`
+    have Dσ := D.isub hW σ
+    have hGσ : HasTy S k' .one [] (.glue (A.isub σ) (φ.subst σ.τ) (T.isub σ) (e.isub σ)) (.univ l) :=
+      HasTy.isubS hW hG σ
+    have hAσ := RT2.isub hW hXA hAA σ
+    have hpp := D.ug hW σ (tubeσ σ hψσ)
+    have hTσ := (Dσ.fibRel hW hφσ).1
+    have hTTσ := RT2.refl hW (RE2.tyCode hW ((Dσ.fibKD hW hφσ).ha0)) hTσ
+    have x1 := RE2_glue_fib hW hGσ hφσ hTTσ (tubeσ σ hψσ)
+    rw [isub_dinst, isub_dinst] at x1
+    have x2 := (Dσ.fibKD hW hφσ).facePt hW hTσ hψσ (hrσ σ)
+    have x := RE2.trans hW hTTσ x2 x1
+    have happ := RE2_equiv_app hW (D.hE k' σ (hhold σ hφs hφσ)) x
+    have hφσ' : I.Entails .one (φ'.subst σ.τ) := ent_trans hφσ (ent_subst D.f12 σ.τ)
+    have ee'σ : EqTm S k' (cof .one (φ.subst σ.τ)) [] (e'.isub σ) (e.isub σ) (Tm.equiv (T.isub σ) (A.isub σ)) :=
+      Dσ.ee
+    obtain ⟨l2, hG2, eG2⟩ := glue_annot_eq hW hGσ (I.scoped_subst hφs' σ.sc) (ent_subst D.f12 σ.τ)
+      (ent_subst D.f21 σ.τ) ee'σ
+    have he'σ : HasTy S k' .one [] (e'.isub σ) (Tm.equiv (T.isub σ) (A.isub σ)) := by
+      have := face_ty hW hφs (HasTy.eqL D.ee) σ (hhold σ hφs hφσ); rwa [isub_equiv] at this
+    have hg2 := (RE2.typed (tubeσ σ hψσ)).2.1.conv eG2
+    rw [isub_dinst] at hg2
+    simp only [isub_dinst] at hpp
+    have hst := stable_unglueFace hW hφσ' (RE2.typed hpp).2.1 hg2 (HasTy.isubS hW hA0 σ) he'σ (TyEq.refl _)
+    simp only [isub_unglue, isub_app, isub_fst, isub_dinst, isub_hfill]
+    exact RE2.expandR hW hAσ (RE2.typed happ).1 (RE2.typed hpp).2.1 hst happ
+  · -- the fiber images
+    simp only [isub_app, isub_fst, isub_dinst, isub_hfill]
+    exact RE2_equiv_app hW (D.hE k' σ (hhold σ hφs hφσ))
+      ((D.isub hW σ).fillPt hW hφσ (hrσ σ) (hrσ' σ) (I_eq_subst hE σ.τ))
+
 end
 
 end Model.Whnf
