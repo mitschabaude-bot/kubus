@@ -305,6 +305,43 @@ theorem TGD2.a1ψ : RE2 S k (A.dinst .one) (tgA1 A φ T e ψ u0 δ) (tgA1' A φ 
   · have D' := D.isub hW σ2
     exact RE2.reflL hW (D'.hAA1 hW) (D'.a1' hW)
 
+
+/-- On `ψ`, the composition in the base is the right start unglued. -/
+theorem TGD2.a1'U : RE2 S k (A.dinst .one) (tgA1' A φ e ψ u0)
+    (.unglue (φ.subst (I.inst0 .one)) (e.dinst .one) u0') := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hφs : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have hψe := entails_of_holds H.hψ hψk
+  have hAA := D.hAA1 hW
+  have hG1 := minimal_to_spec (H.hGr (r := .one) trivial)
+  have hA1 := minimal_to_spec (H.hAr (r := .one) trivial)
+  have he1 : HasTy S k (cof .one (φ.subst (I.inst0 .one))) [] (e.dinst .one) (Tm.equiv (T.dinst .one) (A.dinst .one)) :=
+    minimal_to_spec (H.her (r := .one) trivial (X := cof .one (φ.subst (I.inst0 .one))) ⟨trivial, hφs⟩
+      (ent_and_left _ _) (ent_and_right _ _))
+  have hu := D.u0G1 hW hψk
+  rw [glue_dinst] at hu
+  have hGK : IsTyK S k (.glue (A.dinst .one) (φ.subst (I.inst0 .one)) (T.dinst .one) (e.dinst .one)) := ⟨_, .inl hG1⟩
+  have x := RE2_unglue_gen hW hG1 hu (unglue_ty hW hGK ⟨_, hA1, he1⟩ (RE2.typed hu).1)
+    (unglue_ty hW hGK ⟨_, hA1, he1⟩ (RE2.typed hu).2.1) hφs (ent_refl _) (ent_refl _) (EqTm.refl he1)
+    (fun k3 σ => D.A1L hW σ) (fun k3 σ hh => D.T1L hW σ hh) (fun k3 σ hh => D.e1L hW σ hh)
+  have hty := minimal_to_spec H.ha1'
+  have st := stable_compFace hW hψe hty
+  rw [tgTube_dinst] at st
+  exact RE2.expandL hW hAA hty (RE2.typed x).2.1 st x
+
+/-- On `ψ` and `φ(1)`, the first component of the extension is the right start. -/
+theorem TGD2.extU (hφ1 : (ival (idEnv k) (φ.subst (I.inst0 .one))).holds) :
+    RE2 S k (T.dinst .one) (.fst (tgExt A φ T e ψ u0 δ)) u0' := by
+  obtain ⟨lT, hT1⟩ := D.hT1 hW hφ1
+  have hTT1 := RT2.refl hW (tyCode_of_univ hW hT1) (by
+    have := D.rT1 hW hφ1 (ISub.id k); rwa [isub_id_of_closed (closed_of_ty hW hT1)] at this)
+  have x := D.extQ hW hφ1 hψk
+  rw [tgFib_eq] at x
+  have y := (RE2_sigma_elim hW x).1
+  have u := D.u0T1 hW hφ1 hψk
+  have z := RE2.reduceR hW hTT1 y (stable_fstBeta hW (RE2.typed y).2.1) (RE2.typed u).1
+  exact RE2.trans hW hTT1 z u
+
 end
 
 end
