@@ -581,4 +581,84 @@ theorem body_congr (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c
   rw [branchBody_eq d c C ps P E hEl, branchBody_eq d c C ps' P' E hEl]
   exact EqTm0.trans e1 e2
 
+/-! ## Branch types -/
+
+theorem take_range_map_rev (f : Nat → Tm) {n k : Nat} (h : k ≤ n) :
+    (((List.range n).map f).take k).reverse = (List.range k).reverse.map f := by
+  rw [← List.map_take, List.take_range, Nat.min_eq_left h, List.map_reverse]
+
+theorem argCtxB_succ (d np : Nat) (C : Ctor) (ps : Tm) (k : Nat) :
+    argCtxB d np C ps (k + 1) = DataDecl.branchArgTy d np C ps k :: argCtxB d np C ps k := by
+  simp [argCtxB, List.range_succ]
+
+theorem ihCtxB_succ (C : Ctor) (P : Tm) (s : Nat) :
+    ihCtxB C P (s + 1) = DataDecl.branchIhTy C P s :: ihCtxB C P s := by
+  simp [ihCtxB, List.range_succ]
+
+section
+variable (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+  (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
+  (hpres : ∀ {Ψ Φ Γ t u A}, EqTm0 S Ψ Φ Γ t u A → HasTy0 S Ψ Φ Γ u A)
+  {Ψ : Nat} {Φ : I} {Γ : Ctx} {ps ps' P P' : Tm} {l mP : Nat}
+  (ht : HasTele0 S Ψ Φ Γ ps D.params []) (es : EqTeleS S Ψ Φ Γ ps ps' D.params [])
+  (edata : EqTm0 S Ψ Φ Γ (data d ps) (data d ps') (univ l))
+  (eP : EqTm0 S Ψ Φ (data d ps :: Γ) P P' (univ mP))
+include hS hW hD hC hpres ht es edata
+
+theorem argCtxB_wf : ∀ k, k ≤ C.args.length → Wf0 S Ψ Φ (argCtxB d D.params.length C ps k ++ Γ)
+  | 0, _ => by simpa [argCtxB] using wf_of_tele ht
+  | k + 1, hk => by
+    have ih := argCtxB_wf k (by omega)
+    have e := argTy_congr hS hW hD hC hpres ht es edata (by omega) ih
+    rw [argCtxB_succ, List.cons_append]
+    exact Wf0.cons (hpres (EqTm0.symm e))
+
+include eP in
+theorem ihCtxB_wf : ∀ s, s ≤ C.recPos.length →
+    Wf0 S Ψ Φ (ihCtxB C P s ++ argCtxB d D.params.length C ps C.args.length ++ Γ)
+  | 0, _ => by simpa [ihCtxB] using argCtxB_wf hS hW hD hC hpres ht es edata _ (Nat.le_refl _)
+  | s + 1, hs => by
+    have ih := ihCtxB_wf s (by omega)
+    have e := ihTy_congr hS hD hC (tele_isList ht) (by simpa using tele_length ht) eP (by omega) ih
+    rw [ihCtxB_succ, List.cons_append, List.cons_append]
+    exact Wf0.cons (hpres (EqTm0.symm e))
+
+include eP in
+theorem branchTy_congr (hmP : mP ≤ maxLevel) :
+    EqTm0 S Ψ Φ Γ (D.branchTy d c C ps P) (D.branchTy d c C ps' P') (univ (max D.level mP)) := by
+  have hpsL := tele_isList ht
+  have hpl : ps.toList.length = D.params.length := by simpa using tele_length ht
+  have hL : max D.level mP ≤ maxLevel := Nat.max_le.2 ⟨Nat.le_of_succ_le (hW.2 d D hD).1, hmP⟩
+  rw [branchTy_eq, branchTy_eq]
+  apply pis_congr _ _ (by simp)
+  · intro k hk hk'
+    simp only [List.length_map, List.length_range] at hk
+    rw [take_range_map_rev _ (Nat.le_of_lt hk)]
+    simp only [List.getElem_map, List.getElem_range]
+    exact (argTy_congr hS hW hD hC hpres ht es edata hk
+      (argCtxB_wf hS hW hD hC hpres ht es edata k (Nat.le_of_lt hk))).lift (Nat.le_max_left _ _) hL
+  · rw [← List.map_reverse]
+    show EqTm0 S Ψ Φ (argCtxB d D.params.length C ps C.args.length ++ Γ) _ _ _
+    apply pis_congr _ _ (by simp)
+    · intro s hs hs'
+      simp only [List.length_map, List.length_range] at hs
+      rw [take_range_map_rev _ (Nat.le_of_lt hs)]
+      simp only [List.getElem_map, List.getElem_range]
+      have := ihTy_congr hS hD hC hpsL hpl eP hs
+        (ihCtxB_wf hS hW hD hC hpres ht es edata eP s (Nat.le_of_lt hs))
+      rw [List.append_assoc] at this
+      exact this.lift (Nat.le_max_right _ _) hL
+    · rw [← List.map_reverse]
+      have hw := ihCtxB_wf hS hW hD hC hpres ht es edata eP _ (Nat.le_refl _)
+      have hwm : Wf0 S (Ψ + C.dims) (Φ.subst (wkIv C.dims))
+          (ctxWkI C.dims (ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length ++ Γ)) :=
+        ((wfAll_of_wf hS hw).wk C.dims (ent_refl _)).wf
+          (scoped_subst (scoped_of_wf hw) fun i hi => show i + C.dims < Ψ + C.dims by omega)
+      have := ipis_congr hS C.dims hw
+        ((body_congr hS hW hD hC hpres ht es edata eP hwm (ent_refl _)).lift (Nat.le_max_right _ _) hL)
+      rw [List.append_assoc] at this
+      exact this
+
+end
+
 end KubusCore.Meta
