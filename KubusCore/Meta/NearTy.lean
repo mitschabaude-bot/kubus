@@ -520,5 +520,13 @@ end
 
 end
 
+/-- Near terms in the spec: a closed typed term is judgmentally equal to every scoped near term,
+under any restriction. -/
+def NearTy (S : Sig) : Prop :=
+  ∀ {k Φ t t' A}, HasTy S k Φ [] t A → TmNear t t' → t'.closedB 0 k = true → EqTm S k Φ [] t t' A
+
+theorem nearTy_of_wfSig (hW : WfSig S) : NearTy S := fun h hn hc =>
+  minimal_to_spec_eq (near_ty (sigClosed_of_wfSig hW) (wf_typed _ S rfl hW).1 (wf_typed _ S rfl hW).2 hW
+    (spec_to_minimal hW h) hn hc)
 
 end KubusCore.Meta
