@@ -24,6 +24,15 @@ theorem step_hcomp_sigma {A B u a : Tm} {φ : I} (hn : ¬ I.Entails .one φ) :
 variable (hW : WfSig S)
 include hW
 
+/-- First projections of judgmentally equal tubes. -/
+theorem eqCof_fst {ψ : I} (hψ : ψ.Scoped k) {f f' X A B : Tm} {l : ℕ}
+    (hf : EqTm S (k + 1) (cof .one ψ).shift [] f f' X.dshift) (hX : TyEq S k X (.sigma A B))
+    (hsig : HasTy S k .one [] (.sigma A B) (.univ l)) :
+    EqTm S (k + 1) (cof .one ψ).shift [] (.fst f) (.fst f') (A.isub (ISub.wk k)) := by
+  have e1 := EqTm.cofConv hψ hf hX
+  rw [← dshift_eq_isub_closed (closed_of_ty hW hsig), isub_sigma] at e1
+  exact EqTm.fst e1
+
 /-- The first projection of a composition in a Σ-type whose face does not hold. -/
 theorem fst_hcomp_sigma {T A2 B2 u a0 : Tm} {φ : I} (hn : ¬ I.Entails .one φ)
     (hty : HasTy S k .one [] (.hcomp T φ u a0) T) (hR : RedT S k T (.sigma A2 B2)) :
@@ -65,6 +74,7 @@ theorem kanH2_sigma_fst {T T' : Tm} (hP : SigmaStr S k T T')
     {φ φ' : I} {u u' a0 a0' : Tm} (hty : HasTy S k .one [] (.hcomp T φ u a0) T)
     (hty' : HasTy S k .one [] (.hcomp T' φ' u' a0') T)
     (heq : EqTm S k .one [] (.hcomp T φ u a0) (.hcomp T' φ' u' a0') T)
+    (hteq : EqTm S (k + 1) (cof .one φ).shift [] u u' T.dshift)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : Tube2 S k T φ u u') (ha0 : RE2 S k T a0 a0')
     (hbd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (T.isub σ) ((u.isub σ.up).dinst .zero) (a0'.isub σ))
@@ -112,7 +122,7 @@ theorem kanH2_sigma_fst {T T' : Tm} (hP : SigmaStr S k T T')
     (fun k' ρ => A2 k' ρ) (fun k' ρ => A2' k' ρ)
     (fun k' ρ => .fst (u.isub ρ.up)) (fun k' ρ => .fst (u'.isub ρ.up))
     (fun k' ρ => .fst (a0.isub ρ)) (fun k' ρ => .fst (a0'.isub ρ))
-    (fun k' ρ => φ.subst ρ.τ) (fun k' ρ => φ'.subst ρ.τ)
+    (fun k' ρ => φ.subst ρ.τ) (fun k' ρ => φ'.subst ρ.τ) (fun k' ρ => I.scoped_subst hφs ρ.sc)
     hX hYY (HasTy.fst (hty.tyConv hR.2)) (HasTy.eqR hE0) hE0
     (fun k' ρ k'' ρ' x => rfl) (fun k' ρ k'' ρ' x => rfl)
     (fun k' ρ => ?_) (fun k' ρ => ?_)
@@ -139,6 +149,20 @@ theorem kanH2_sigma_fst {T T' : Tm} (hP : SigmaStr S k T T')
     (fun k' ρ k'' ρ' _ => by
       show RE2 S k'' _ (.fst ((a0.isub ρ).isub ρ')) _
       rw [Tm.isub_isub]; exact hel k'' (ρ.comp ρ') _ _ (RE2.isub hW ha0 _))
+    (fun k' ρ k'' ρ' _ => by
+      show EqTm S (k'' + 1) (cof .one ((φ.subst ρ.τ).subst ρ'.τ)).shift []
+        ((Tm.fst (u.isub ρ.up)).isub ρ'.up) (Tm.fst (u'.isub (ρ.comp ρ').up)) (A1.isub (ρ.comp ρ')).dshift
+      have hfσ := EqTm.cofIsub hW hφs hteq (ρ.comp ρ')
+      rw [isub_dshift] at hfσ
+      obtain ⟨lσ, hσ⟩ := ty_of_tyEq hW (isTyK_of_ty hW (HasTy.isubS hW hty (ρ.comp ρ'))) (hw k'' (ρ.comp ρ')).1.2
+        (fun l h => by cases h)
+      have e := eqCof_fst hW (I.scoped_subst hφs (ρ.comp ρ').sc) hfσ (hw k'' (ρ.comp ρ')).1.2 hσ
+      rw [dshift_eq_isub_closed (closed_of_ty hW (HasTy.sigmaDom hσ))] at e
+      have e' := EqTm.cofConv (I.scoped_subst hφs (ρ.comp ρ').sc) e
+        (TyEq.symm (Comp2_ty_base (hCY k'' (ρ.comp ρ'))).2.2.2.2.2)
+      show EqTm S (k'' + 1) _ [] (Tm.fst ((u.isub ρ.up).isub ρ'.up)) _ _
+      rw [Tm.isub_isub, ← ISub.up_comp, ← I_subst_comp]
+      exact e')
     (fun k' ρ k'' ρ' _ k3 σ3 hh => by
       show RE2 S k3 _ ((((Tm.fst (u.isub ρ.up)).isub ρ'.up).isub σ3.up).dinst .zero)
         (.fst ((a0'.isub (ρ.comp ρ')).isub σ3))

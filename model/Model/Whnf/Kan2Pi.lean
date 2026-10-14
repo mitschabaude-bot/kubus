@@ -107,6 +107,19 @@ theorem up_dinst_one_isub (u : Tm) (ρ : ISub k' k) (τ : ISub k'' k') :
     ((u.isub ρ.up).dinst .one).isub τ = (u.isub (ρ.comp τ).up).dinst .one := by
   rw [isub_dinst, Tm.isub_isub, ← ISub.up_comp]; rfl
 
+/-- Applying judgmentally equal tubes to judgmentally equal arguments. -/
+theorem eqCof_app {ψ : I} (hψ : ψ.Scoped k) {f f' X A B a a' : Tm} {l : ℕ}
+    (hf : EqTm S (k + 1) (cof .one ψ).shift [] f f' X.dshift) (hX : TyEq S k X (.pi A B))
+    (hpi : HasTy S k .one [] (.pi A B) (.univ l)) (ha : EqTm S k .one [] a a' A) :
+    EqTm S (k + 1) (cof .one ψ).shift [] (.app f a.dshift) (.app f' a'.dshift) ((B.inst a).isub (ISub.wk k)) := by
+  have e1 := EqTm.cofConv hψ hf hX
+  rw [← dshift_eq_isub_closed (closed_of_ty hW hpi), isub_pi] at e1
+  have ea := EqTm.toCof hψ (EqTm.isubS hW ha (ISub.wk k))
+  rw [dshift_eq_isub_closed (closed_of_ty hW (HasTy.eqL ha)), dshift_eq_isub_closed (closed_of_ty hW (HasTy.eqR ha))] at ea
+  have e2 := EqTm.app e1 ea
+  rw [isub_inst, dshift_eq_isub_closed (closed_of_ty hW (HasTy.eqL ha))]
+  exact e2
+
 /-- Composition in Π-types, applied to related arguments. -/
 theorem kanH2_pi_core {T T' : Tm} (hP : PiStr S k T T')
     (hIH : ∀ k' (ρ : ISub k' k) A1 B1, RedT S k' (T.isub ρ) (.pi A1 B1) → ∀ b, RE2 S k' A1 b b →
@@ -114,6 +127,7 @@ theorem kanH2_pi_core {T T' : Tm} (hP : PiStr S k T T')
     {φ φ' : I} {u u' a0 a0' : Tm} (hty : HasTy S k .one [] (.hcomp T φ u a0) T)
     (hty' : HasTy S k .one [] (.hcomp T' φ' u' a0') T)
     (heq : EqTm S k .one [] (.hcomp T φ u a0) (.hcomp T' φ' u' a0') T)
+    (hteq : EqTm S (k + 1) (cof .one φ).shift [] u u' T.dshift)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : Tube2 S k T φ u u') (ha0 : RE2 S k T a0 a0')
     (hbd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (T.isub σ) ((u.isub σ.up).dinst .zero) (a0'.isub σ))
@@ -291,8 +305,22 @@ theorem kanH2_pi_core {T T' : Tm} (hP : PiStr S k T T')
     rw [hL] at htyL
     rw [hR'] at htyR
     rw [hL, hR']
+    -- the tubes, applied, are judgmentally equal
+    have htub : EqTm S (k'' + 1) (cof .one ((φ.subst ρ.τ).subst ρ'.τ)).shift []
+        ((Tm.app (u.isub ρ.up) (a.isub ρ).dshift).isub ρ'.up) (.app (u'.isub (ρ.comp ρ').up) (a'.isub (ρ.comp ρ')).dshift)
+        ((((B2 k' ρ).inst (a.isub ρ)).isub ρ').dshift) := by
+      have hfσ := EqTm.cofIsub hW hφs hteq (ρ.comp ρ')
+      rw [isub_dshift] at hfσ
+      obtain ⟨lσ, hpiσ⟩ := ty_of_tyEq hW (isTyK_of_ty hW (HasTy.isubS hW hty (ρ.comp ρ'))) (hw k'' (ρ.comp ρ')).1.2
+        (fun l h => by cases h)
+      have e := eqCof_app hW (I.scoped_subst hφs (ρ.comp ρ').sc) hfσ (hw k'' (ρ.comp ρ')).1.2 hpiσ (RE2.typed (hrel2 k'' _)).2.2
+      have hcl := closed_of_isTyK hW (Comp2_ty_base hX1).2.2.1
+      rw [dshift_eq_isub_closed hcl] at e
+      have e' := EqTm.cofConv (I.scoped_subst hφs (ρ.comp ρ').sc) e (TyEq.symm (Comp2_ty_base hX1).2.2.2.2.2)
+      rw [isub_app, Tm.isub_isub, ← ISub.up_comp, isub_dshift, Tm.isub_isub, ← I_subst_comp]
+      exact e'
     refine RE2.conv hW hXY (hK _ _ _ _ _ _ (htyL.tyConv (TyEq.symm hTyXY)) (htyR.tyConv (TyEq.symm hTyXY))
-      (Eall.tyConv (TyEq.symm hTyXY)) ?_ ?_ (fun k3 σ3 r r' hr hr' hE hh => ?_) ?_ (fun k3 σ3 hh => ?_)
+      (Eall.tyConv (TyEq.symm hTyXY)) htub ?_ ?_ (fun k3 σ3 r r' hr hr' hE hh => ?_) ?_ (fun k3 σ3 hh => ?_)
       (fun k3 σ3 hh => ?_))
     · rw [I_subst_subst]; exact ent_subst h12 (ρ.comp ρ').τ
     · rw [I_subst_subst]; exact ent_subst h21 (ρ.comp ρ').τ
@@ -386,10 +414,13 @@ theorem kanH2_pi {T T' : Tm} (hP : PiStr S k T T')
     (hintro : ∀ t t', EB S k T t t' → (∀ k' (ρ : ISub k' k) A1 B1, RedT S k' (T.isub ρ) (.pi A1 B1) →
       ∀ a a', RE2 S k' A1 a a' → RE2 S k' (B1.inst a) (.app (t.isub ρ) a) (.app (t'.isub ρ) a')) →
       RE2 S k T t t') : KanH2 S k T T' := by
-  intro φ φ' u u' a0 a0' hty hty' heq h12 h21 htube ha0 hbd hbd'
+  intro φ φ' u u' a0 a0' hty hty' heq hteq h12 h21 htube ha0 hbd hbd'
+  obtain ⟨l0, ⟨-, hφs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
   refine hintro _ _ ⟨hty, hty', heq⟩ fun k' ρ A1 B1 hR a a' ha => ?_
+  have hteqρ := EqTm.cofIsub hW hφs hteq ρ
+  rw [isub_dshift] at hteqρ
   refine kanH2_pi_core hW (hP.isub hW ρ) (fun k1 ρ1 A3 B3 h3 b hb k2 ρ2 X' hX' => ?_) (HasTy.isubS hW hty ρ)
-    (HasTy.isubS hW hty' ρ) (EqTm.isubS hW heq ρ) (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ)
+    (HasTy.isubS hW hty' ρ) (EqTm.isubS hW heq ρ) hteqρ (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ)
     (RE2.isub hW ha0 ρ) (bdry_isub hbd ρ) (bdry_isub' hbd' ρ) hR ha
   rw [Tm.isub_isub] at h3
   exact hIH k1 (ρ.comp ρ1) A3 B3 h3 b hb k2 ρ2 X' hX'

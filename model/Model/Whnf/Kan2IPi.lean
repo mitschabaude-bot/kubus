@@ -40,6 +40,18 @@ theorem Comp2_ty_tyCode {m : ℕ} {X : V} {g : Hom k m} {A A' : Tm} (h : (Comp2 
 variable (hW : WfSig S)
 include hW
 
+/-- Points of judgmentally equal tubes. -/
+theorem eqCof_iapp {ψ : I} (hψ : ψ.Scoped k) {f f' X L : Tm} {l : ℕ} {r r' : I}
+    (hf : EqTm S (k + 1) (cof .one ψ).shift [] f f' X.dshift) (hX : TyEq S k X (.ipi L))
+    (hipi : HasTy S k .one [] (.ipi L) (.univ l)) (hr : r.Scoped k) (hr' : r'.Scoped k) (hE : I.Eq r r') :
+    EqTm S (k + 1) (cof .one ψ).shift [] (.papp f r.shift) (.papp f' r'.shift) ((L.dinst r).isub (ISub.wk k)) := by
+  have e1 := EqTm.cofConv hψ hf hX
+  rw [← dshift_eq_isub_closed (closed_of_ty hW hipi), isub_ipi] at e1
+  have e2 := EqTm.iapp e1 (KubusCore.I.scoped_shift hr) (KubusCore.I.scoped_shift hr')
+    (fun ρ0 => by simp only [I.shift, eval_ren]; exact hE _)
+  rw [isub_dinst, I_subst_wk hr]
+  exact e2
+
 theorem RT2.dinst {A B : Tm} (hX : TyCode (k + 1) (semK S (k + 1) A)) (h : RT2 S (k + 1) A B) (s : I)
     (hs : s.Scoped k) : RT2 S k (A.dinst s) (B.dinst s) := by
   have hb := Comp2_ty_base h
@@ -155,6 +167,7 @@ theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')
     {φ φ' : I} {u u' a0 a0' : Tm} (hty : HasTy S k .one [] (.hcomp T φ u a0) T)
     (hty' : HasTy S k .one [] (.hcomp T' φ' u' a0') T)
     (heq : EqTm S k .one [] (.hcomp T φ u a0) (.hcomp T' φ' u' a0') T)
+    (hteq : EqTm S (k + 1) (cof .one φ).shift [] u u' T.dshift)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : Tube2 S k T φ u u') (ha0 : RE2 S k T a0 a0')
     (hbd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (T.isub σ) ((u.isub σ.up).dinst .zero) (a0'.isub σ))
@@ -203,7 +216,7 @@ theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')
     (fun k' ρ => (L2 k' ρ).dinst (r.subst ρ.τ)) (fun k' ρ => (L2' k' ρ).dinst (r'.subst ρ.τ))
     (fun k' ρ => .papp (u.isub ρ.up) (r.subst ρ.τ).shift) (fun k' ρ => .papp (u'.isub ρ.up) (r'.subst ρ.τ).shift)
     (fun k' ρ => .papp (a0.isub ρ) (r.subst ρ.τ)) (fun k' ρ => .papp (a0'.isub ρ) (r'.subst ρ.τ))
-    (fun k' ρ => φ.subst ρ.τ) (fun k' ρ => φ'.subst ρ.τ)
+    (fun k' ρ => φ.subst ρ.τ) (fun k' ρ => φ'.subst ρ.τ) (fun k' ρ => I.scoped_subst hφs ρ.sc)
     hX hYY (by simp only [hrid]; exact HasTy.iapp hpT hr) (by simp only [hrid']; exact HasTy.eqR hE0)
     (by simp only [hrid, hrid']; exact hE0)
     (fun k' ρ k'' ρ' x => by
@@ -240,6 +253,26 @@ theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')
       rw [show (Tm.papp (a0.isub ρ) (r.subst ρ.τ)).isub ρ' = Tm.papp (a0.isub (ρ.comp ρ')) (r.subst (ρ.comp ρ').τ) by
         show Tm.papp ((a0.isub ρ).isub ρ') ((r.subst ρ.τ).subst ρ'.τ) = _; rw [Tm.isub_isub, I_subst_comp]]
       exact hel k'' (ρ.comp ρ') _ _ (RE2.isub hW ha0 _))
+    (fun k' ρ k'' ρ' _ => by
+      show EqTm S (k'' + 1) (cof .one ((φ.subst ρ.τ).subst ρ'.τ)).shift []
+        ((Tm.papp (u.isub ρ.up) (r.subst ρ.τ).shift).isub ρ'.up)
+        (Tm.papp (u'.isub (ρ.comp ρ').up) (r'.subst (ρ.comp ρ').τ).shift) ((L1.dinst r).isub (ρ.comp ρ')).dshift
+      have hfσ := EqTm.cofIsub hW hφs hteq (ρ.comp ρ')
+      rw [isub_dshift] at hfσ
+      obtain ⟨lσ, hσ⟩ := ty_of_tyEq hW (isTyK_of_ty hW (HasTy.isubS hW hty (ρ.comp ρ'))) (hw k'' (ρ.comp ρ')).1.2
+        (fun l h => by cases h)
+      have e := eqCof_iapp hW (I.scoped_subst hφs (ρ.comp ρ').sc) hfσ (hw k'' (ρ.comp ρ')).1.2 hσ
+        (hsc k'' (ρ.comp ρ')) (hsc' k'' (ρ.comp ρ')) (hEρ k'' (ρ.comp ρ'))
+      have hcl := closed_of_isTyK hW (Comp2_ty_base (hCY k'' (ρ.comp ρ'))).2.2.1
+      rw [dshift_eq_isub_closed hcl] at e
+      have e' := EqTm.cofConv (I.scoped_subst hφs (ρ.comp ρ').sc) e
+        (TyEq.symm (Comp2_ty_base (hCY k'' (ρ.comp ρ'))).2.2.2.2.2)
+      have eL : (Tm.papp (u.isub ρ.up) (r.subst ρ.τ).shift).isub ρ'.up =
+          Tm.papp (u.isub (ρ.comp ρ').up) (r.subst (ρ.comp ρ').τ).shift := by
+        show Tm.papp ((u.isub ρ.up).isub ρ'.up) (((r.subst ρ.τ).shift).subst (I.up ρ'.τ)) = _
+        rw [Tm.isub_isub, ← ISub.up_comp, I_shift_subst_up, I_subst_comp]
+      rw [eL, ← I_subst_comp]
+      exact e')
     (fun k' ρ k'' ρ' _ k3 σ3 hh => by
       show RE2 S k3 _ ((((Tm.papp (u.isub ρ.up) (r.subst ρ.τ).shift).isub ρ'.up).isub σ3.up).dinst .zero)
         ((Tm.papp (a0'.isub (ρ.comp ρ')) (r'.subst (ρ.comp ρ').τ)).isub σ3)
@@ -319,11 +352,13 @@ theorem kanH2_ipi {T T' L : Tm} {l : ℕ} (hTT : RT2 S k T T') (hR : RedT S k T 
       ∀ k'' (ρ' : ISub k'' k') X', RT2 S k'' ((L1.dinst s).isub ρ') X' → KanH2 S k'' ((L1.dinst s).isub ρ') X') :
     KanH2 S k T T' := by
   have hP := IPiStr_of hW hTT hR hipi
-  intro φ φ' u u' a0 a0' hty hty' heq h12 h21 htube ha0 hbd hbd'
+  intro φ φ' u u' a0 a0' hty hty' heq hteq h12 h21 htube ha0 hbd hbd'
+  obtain ⟨l0, ⟨-, hφs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
   have hXT : TyCode k (semK S k T) := tyCode_of_ty hW hty
   refine RE2_ipiW_intro hW (RT2.refl hW hXT hTT) hR hipi ⟨hty, hty', heq⟩ fun k' ρ L1 h1 r r' hr hr' hE => ?_
   refine kanH2_ipi_core hW (hP.isub hW ρ) (fun k1 ρ1 L3 h3 s hs k2 ρ2 X' hX' => ?_) (HasTy.isubS hW hty ρ)
-    (HasTy.isubS hW hty' ρ) (EqTm.isubS hW heq ρ) (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ)
+    (HasTy.isubS hW hty' ρ) (EqTm.isubS hW heq ρ) (by have := EqTm.cofIsub hW hφs hteq ρ; rwa [isub_dshift] at this)
+    (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ)
     (RE2.isub hW ha0 ρ) (bdry_isub hbd ρ) (bdry_isub' hbd' ρ) h1 hr hr' hE
   rw [Tm.isub_isub] at h3
   exact hIH k1 (ρ.comp ρ1) L3 h3 s hs k2 ρ2 X' hX'

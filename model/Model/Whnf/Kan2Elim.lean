@@ -30,6 +30,7 @@ composition reduces to the tube's end where the face holds, and otherwise to a c
 theorem kanH2_elim_core {T T' Y u u' a0 a0' : Tm} {φ φ' : I} (hφs : φ.Scoped k)
     (E E' : ∀ k' (_ : ISub k' k), Tm → Tm)
     (C C' U U' A0 A0' : ∀ k' (_ : ISub k' k), Tm) (Ψ Ψ' : ∀ k' (_ : ISub k' k), I)
+    (hΨsc : ∀ k' (ρ : ISub k' k), (Ψ k' ρ).Scoped k')
     (hX : TyCode k (semK S k Y)) (hYY : RT2 S k Y Y)
     (ht : HasTy S k .one [] (E k (ISub.id k) (.hcomp T φ u a0)) Y)
     (ht' : HasTy S k .one [] (E' k (ISub.id k) (.hcomp T' φ' u' a0')) Y)
@@ -67,6 +68,9 @@ theorem kanH2_elim_core {T T' Y u u' a0 a0' : Tm} {φ φ' : I} (hφs : φ.Scoped
       Tube2 S k'' (Y.isub (ρ.comp ρ')) ((Ψ k' ρ).subst ρ'.τ) ((U k' ρ).isub ρ'.up) (U' k'' (ρ.comp ρ')))
     (hA0r : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), ¬ I.Entails .one (φ.subst (ρ.comp ρ').τ) →
       RE2 S k'' (Y.isub (ρ.comp ρ')) ((A0 k' ρ).isub ρ') (A0' k'' (ρ.comp ρ')))
+    (hUEq : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), ¬ I.Entails .one (φ.subst (ρ.comp ρ').τ) →
+      EqTm S (k'' + 1) (cof .one ((Ψ k' ρ).subst ρ'.τ)).shift [] ((U k' ρ).isub ρ'.up) (U' k'' (ρ.comp ρ'))
+        (Y.isub (ρ.comp ρ')).dshift)
     (hUb : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'), ¬ I.Entails .one (φ.subst (ρ.comp ρ').τ) →
       ∀ k3 (σ3 : ISub k3 k''), (ival (idEnv k3) (((Ψ k' ρ).subst ρ'.τ).subst σ3.τ)).holds →
       RE2 S k3 ((Y.isub (ρ.comp ρ')).isub σ3) ((((U k' ρ).isub ρ'.up).isub σ3.up).dinst .zero)
@@ -152,7 +156,8 @@ theorem kanH2_elim_core {T T' Y u u' a0 a0' : Tm} {φ φ' : I} (hφs : φ.Scoped
     rw [hL, hR']
     obtain ⟨e12, e21⟩ := hΨΨ k' ρ k'' ρ' hf2
     refine RE2.conv hW hXY (hIH k' ρ k'' ρ' hf2 _ _ _ _ _ _ (htyL.tyConv (TyEq.symm hTyXY))
-      (htyR.tyConv (TyEq.symm hTyXY)) (Eall.tyConv (TyEq.symm hTyXY)) e12 e21
+      (htyR.tyConv (TyEq.symm hTyXY)) (Eall.tyConv (TyEq.symm hTyXY))
+      (EqTm.cofConv (I.scoped_subst (hΨsc k' ρ) ρ'.sc) (hUEq k' ρ k'' ρ' hf2) (TyEq.symm hTyXY)) e12 e21
       (fun k3 σ3 r r' hr hr' hE hh => ?_) ?_ (fun k3 σ3 hh => ?_) (fun k3 σ3 hh => ?_))
     · have h1 := hTU k' ρ k'' ρ' hf2 k3 σ3 r r' hr hr' hE hh
       have hXY3 := RT2.isub hW hXcode hXY σ3

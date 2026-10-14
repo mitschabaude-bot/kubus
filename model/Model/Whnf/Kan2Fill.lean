@@ -97,7 +97,8 @@ theorem hcomp_tube_typed' {X T u a : Tm} {φ : I} (hty : HasTy S k .one [] (.hco
 
 /-- The fillers of related compositions are related. -/
 theorem hfill_rel {A A' u u' u0 u0' : Tm} {φ φ' : I} (hφs : φ.Scoped k)
-    (hK : KanH2 S (k + 1) A.dshift A'.dshift) (hAA : RT2 S k A A)
+    (hK : KanH2 S (k + 1) A.dshift A'.dshift) (hAA : RT2 S k A A) (hTA : TyEq S k A A')
+    (hteq : EqTm S (k + 1) (cof .one φ).shift [] u u' A.dshift)
     (htyF : HasTy S (k + 1) .one [] (Tm.hfill A φ u u0) A.dshift)
     (htyF' : HasTy S (k + 1) .one [] (Tm.hfill A' φ' u' u0') A.dshift)
     (heqF : EqTm S (k + 1) .one [] (Tm.hfill A φ u u0) (Tm.hfill A' φ' u' u0') A.dshift)
@@ -143,7 +144,13 @@ theorem hfill_rel {A A' u u' u0 u0' : Tm} {φ φ' : I} (hφs : φ.Scoped k)
     show I.Entails .one (I.or (φ.subst σ.tail.τ) (.neg (σ.τ 0)))
     rw [← shift_subst_tail]; exact this
   have hσ0 : ∀ k3 (σ : ISub k3 (k + 1)), (σ.τ 0).Scoped k3 := fun k3 σ => σ.sc 0 (by omega)
-  refine hK _ _ _ _ _ _ htyF htyF' heqF hface hface' (fun k3 σ x x' hx hx' hEx hh => ?_) (RE2.dshift hW hu0)
+  have hAA' : A = A' ∨ ∃ l, EqTm0 S k .one [] A A' (.univ l) := by
+    rcases hTA with e | ⟨l, e⟩
+    · exact .inl e
+    · exact .inr ⟨l, spec_to_minimal_eq hW e⟩
+  have htEqF := minimal_to_spec_eq (fillTube_eq hW (spec_to_minimal hW htyF) (spec_to_minimal hW htyF') hAA'
+    (spec_to_minimal_eq hW hteq) (spec_to_minimal_eq hW (RE2.typed hu0).2.2) h12)
+  refine hK _ _ _ _ _ _ htyF htyF' heqF htEqF hface hface' (fun k3 σ x x' hx hx' hEx hh => ?_) (RE2.dshift hW hu0)
     (fun k3 σ hh => ?_) (fun k3 σ hh => ?_)
   · -- the tubes of the fillers
     have hσF : HasTy S k3 .one [] (.hcomp (A.dshift.isub σ) ((I.or φ.shift (.neg (.var 0))).subst σ.τ)

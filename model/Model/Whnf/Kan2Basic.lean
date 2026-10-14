@@ -28,6 +28,7 @@ def Tube2 (S : Sig) (k : ℕ) (A : Tm) (φ : I) (u u' : Tm) : Prop :=
 def KanH2 (S : Sig) (k : ℕ) (A A' : Tm) : Prop :=
   ∀ (φ φ' : I) (u u' a a' : Tm), HasTy S k .one [] (.hcomp A φ u a) A → HasTy S k .one [] (.hcomp A' φ' u' a') A →
     EqTm S k .one [] (.hcomp A φ u a) (.hcomp A' φ' u' a') A →
+    EqTm S (k + 1) (cof .one φ).shift [] u u' A.dshift →
     I.Entails φ φ' → I.Entails φ' φ → Tube2 S k A φ u u' → RE2 S k A a a' →
     (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (A.isub σ) ((u.isub σ.up).dinst .zero) (a'.isub σ)) →
@@ -57,6 +58,34 @@ def KanT2 (S : Sig) (k : ℕ) (A A' : Tm) : Prop :=
 def KanP2 (S : Sig) (m : ℕ) (X : V) : Prop :=
   (∀ k (f : Hom k m) (A A' : Tm), (Comp2 S X m k f).ty A A' → KanH2 S k A A') ∧
   (∀ k (f : Hom (k + 1) m) (A A' : Tm), (Comp2 S X m (k + 1) f).ty A A' → KanT2 S k A A')
+
+theorem I_subst_wk {r : I} (hr : r.Scoped k) : r.subst (ISub.wk k).τ = r.shift :=
+  I_subst_congr_scoped (τ := fun i => .var (i + 1)) (fun i hi => by simp [ISub.wk, hi]) hr
+
+/-- Restricting a judgmental equality of tubes. -/
+theorem EqTm.cofIsub (hW : WfSig S) {u u' X : Tm} {φ : I} (hφ : φ.Scoped k)
+    (h : EqTm S (k + 1) (cof .one φ).shift [] u u' X) (σ : ISub k' k) :
+    EqTm S (k' + 1) (cof .one (φ.subst σ.τ)).shift [] (u.isub σ.up) (u'.isub σ.up) (X.isub σ.up) := by
+  have hS := sigClosed_of_wfSig hW
+  have h0 := spec_to_minimal_eq hW h
+  refine minimal_to_spec_eq (EqTm0.isub hS h0 σ.up.sc ?_ (Wf0.nil ⟨trivial, KubusCore.I.scoped_shift
+    (I.scoped_subst hφ σ.sc)⟩))
+  show I.Entails (I.and .one (φ.subst σ.τ).shift) (I.and (I.one.shift.subst σ.up.τ) ((φ.shift).subst σ.up.τ))
+  rw [show (φ.shift).subst σ.up.τ = (φ.subst σ.τ).shift from I_shift_subst_up _ _]
+  exact ent_refl _
+
+/-- A judgmental equality restricted to a face. -/
+theorem EqTm.toCof {t t' X : Tm} {φ : I} (hφ : φ.Scoped k) (h : EqTm S (k + 1) .one [] t t' X) :
+    EqTm S (k + 1) (cof .one φ).shift [] t t' X :=
+  EqTm.restrict ⟨trivial, KubusCore.I.scoped_shift hφ⟩ (ent_trans (ent_and_left _ _) (ent_refl _)) h
+
+/-- Converting the type of a judgmental equality of tubes. -/
+theorem EqTm.cofConv {u u' A B : Tm} {φ : I} (hφ : φ.Scoped k)
+    (h : EqTm S (k + 1) (cof .one φ).shift [] u u' A.dshift) (e : TyEq S k A B) :
+    EqTm S (k + 1) (cof .one φ).shift [] u u' B.dshift := by
+  rcases e with rfl | ⟨l, e⟩
+  · exact h
+  · exact EqTm.conv h (EqTm.toCof hφ (EqTm.dwk e))
 
 /-- A composition whose face does not hold reduces its type first. -/
 theorem red_hcomp_ty {φ : I} {T W u a : Tm} (hn : ¬ I.Entails .one φ) (h : Red S T W) :

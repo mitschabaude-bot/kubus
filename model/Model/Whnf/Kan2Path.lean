@@ -1,4 +1,4 @@
-import Model.Whnf.Kan2IPi
+import Model.Whnf.Kan2PathEq
 import Model.Canon.KanPath
 
 /-!
@@ -162,10 +162,6 @@ theorem ent_neg_absurd {x : I} (hx : x.Scoped k) (h1 : I.Entails .one x) (h2 : I
   simp [I.eval] at this
 
 omit hW in
-theorem ieq_neg {x x' : I} (h : I.Eq x x') : I.Eq (.neg x) (.neg x') := fun ρ => by
-  simp only [I.eval]; rw [h ρ]
-
-omit hW in
 theorem ent_one_ieq {x x' : I} (e : I.Eq x x') (h : I.Entails .one x) : I.Entails .one x' := ent_trans h (eq_ent e)
 
 /-- A term related to a system `[φ ↦ p, ¬x ↦ a, x ↦ b]` on its faces. -/
@@ -275,6 +271,14 @@ def sysP (φ r : I) (u c0 c1 : Tm) : Tm :=
   .split φ.shift (.papp u r.shift) (.or (.neg r.shift) r.shift) (.split (.neg r.shift) c0.dshift r.shift c1.dshift)
 
 omit hW in
+theorem sysP_isub (φ r : I) (u c0 c1 : Tm) (θ : ISub k' k) :
+    (sysP φ r u c0 c1).isub θ.up = sysP (φ.subst θ.τ) (r.subst θ.τ) (u.isub θ.up) (c0.isub θ) (c1.isub θ) := by
+  show Tm.split (φ.shift.subst (I.up θ.τ)) (.papp (u.isub θ.up) (r.shift.subst (I.up θ.τ)))
+    (.or (.neg (r.shift.subst (I.up θ.τ))) (r.shift.subst (I.up θ.τ)))
+    (.split (.neg (r.shift.subst (I.up θ.τ))) (c0.dshift.isub θ.up) (r.shift.subst (I.up θ.τ)) (c1.dshift.isub θ.up)) = _
+  rw [isub_dshift, isub_dshift, I_shift_subst_up, I_shift_subst_up]; rfl
+
+omit hW in
 theorem sysP_isub_dinst (φ r : I) (u c0 c1 : Tm) (θ : ISub k' k) (x : I) :
     ((sysP φ r u c0 c1).isub θ.up).dinst x = .split (φ.subst θ.τ) (.papp ((u.isub θ.up).dinst x) (r.subst θ.τ))
       (.or (.neg (r.subst θ.τ)) (r.subst θ.τ)) (.split (.neg (r.subst θ.τ)) (c0.isub θ) (r.subst θ.τ) (c1.isub θ)) := by
@@ -352,13 +356,6 @@ theorem dinst_up_isub (u : Tm) (w : ISub k' k) (x : I) (σ : ISub k'' k') :
 omit hW in
 theorem not_ent_zero : ¬ I.Entails .one .zero := by decide
 
-omit hW in
-theorem ent_or3 {φ φ' x x' : I} (h : I.Entails φ φ') (e : I.Eq x x') :
-    I.Entails (.or φ (.or (.neg x) x)) (.or φ' (.or (.neg x') x')) :=
-  ent_or_elim (ent_trans h (ent_or_left _ _))
-    (ent_trans (ent_or_elim (ent_trans (eq_ent (ieq_neg e)) (ent_or_left _ _))
-      (ent_trans (eq_ent e) (ent_or_right _ _))) (ent_or_right _ _))
-
 /-- Composition in path types, at related points. -/
 theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
     (hIH : ∀ k' (ρ : ISub k' k) L1 b0 b1, RedT S k' (T.isub ρ) (.path L1 b0 b1) → ∀ (s : I), s.Scoped k' →
@@ -366,6 +363,7 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
     {φ φ' : I} {u u' a0 a0' : Tm} (hty : HasTy S k .one [] (.hcomp T φ u a0) T)
     (hty' : HasTy S k .one [] (.hcomp T' φ' u' a0') T)
     (heq : EqTm S k .one [] (.hcomp T φ u a0) (.hcomp T' φ' u' a0') T)
+    (hteq : EqTm S (k + 1) (cof .one φ).shift [] u u' T.dshift)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : Tube2 S k T φ u u') (ha0 : RE2 S k T a0 a0')
     (hbd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (T.isub σ) ((u.isub σ.up).dinst .zero) (a0'.isub σ))
@@ -595,6 +593,43 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
   have pR1 : ∀ k4 (v : ISub k4 k) f g, RE2 S k4 (T.isub v) g f → I.Eq (r.subst v.τ) .one →
       RE2 S k4 ((L1.dinst r).isub v) (.papp f (r'.subst v.τ)) (c1 k4 v) :=
     fun k4 v f g h e => toY1 k4 v e (hpE1 k4 v f _ (reflR k4 v h) (hsc' k4 v) (I_eq_trans (I_eq_symm (hEρ k4 v)) e))
+  -- the judgmental equality of the eliminated tubes
+  have hUEqP : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k'),
+      EqTm S (k'' + 1) (cof .one ((I.or (φ.subst ρ.τ) (.or (.neg (r.subst ρ.τ)) (r.subst ρ.τ))).subst ρ'.τ)).shift []
+        ((sysP (φ.subst ρ.τ) (r.subst ρ.τ) (u.isub ρ.up) (c0 k' ρ) (c1 k' ρ)).isub ρ'.up)
+        (sysP (φ'.subst (ρ.comp ρ').τ) (r'.subst (ρ.comp ρ').τ) (u'.isub (ρ.comp ρ').up) (c0' k'' (ρ.comp ρ'))
+          (c1' k'' (ρ.comp ρ'))) ((L1.dinst r).isub (ρ.comp ρ')).dshift := by
+    intro k' ρ k'' ρ'
+    show EqTm S (k'' + 1) (cof .one (.or ((φ.subst ρ.τ).subst ρ'.τ)
+      (.or (.neg ((r.subst ρ.τ).subst ρ'.τ)) ((r.subst ρ.τ).subst ρ'.τ)))).shift [] _ _ _
+    rw [sysP_isub, Tm.isub_isub, ← ISub.up_comp, ← I_subst_comp, ← I_subst_comp]
+    have e1 : TyEq S k'' (T.isub (ρ.comp ρ')) ((Tm.path (L2 k' ρ) (c0 k' ρ) (c1 k' ρ)).isub ρ') := by
+      have := (hw k' ρ).1.2.isub hW ρ'; rwa [Tm.isub_isub] at this
+    have e2 : TyEq S k'' (T'.isub (ρ.comp ρ')) (.path (L2' k'' (ρ.comp ρ')) (c0' k'' (ρ.comp ρ'))
+        (c1' k'' (ρ.comp ρ'))) := (hw k'' (ρ.comp ρ')).2.1.2
+    have htρ := HasTy.isubS hW hty (ρ.comp ρ')
+    have htρ' := (HasTy.isubS hW hty' (ρ.comp ρ')).tyConv (hP.tyEq.isub hW (ρ.comp ρ'))
+    have h1 := spec_to_minimal hW (HasTy.eqR (eq_hcomp_ty hW htρ e1))
+    have h2 := spec_to_minimal hW (HasTy.eqR (eq_hcomp_ty hW htρ' e2))
+    have ePP : TyEq S k'' ((Tm.path (L2 k' ρ) (c0 k' ρ) (c1 k' ρ)).isub ρ') (.path (L2' k'' (ρ.comp ρ'))
+        (c0' k'' (ρ.comp ρ')) (c1' k'' (ρ.comp ρ'))) :=
+      TyEq.trans hW (TyEq.symm e1) (TyEq.trans hW (hP.tyEq.isub hW (ρ.comp ρ')) e2)
+    have hPP : (Tm.path (L2 k' ρ) (c0 k' ρ) (c1 k' ρ)).isub ρ' = .path (L2' k'' (ρ.comp ρ'))
+        (c0' k'' (ρ.comp ρ')) (c1' k'' (ρ.comp ρ')) ∨ ∃ l, EqTm0 S k'' .one [] ((Tm.path (L2 k' ρ) (c0 k' ρ) (c1 k' ρ)).isub ρ')
+        (.path (L2' k'' (ρ.comp ρ')) (c0' k'' (ρ.comp ρ')) (c1' k'' (ρ.comp ρ'))) (.univ l) := by
+      rcases ePP with e | ⟨l, e⟩
+      · exact .inl e
+      · exact .inr ⟨l, spec_to_minimal_eq hW e⟩
+    have huu := EqTm.cofIsub hW hφs hteq (ρ.comp ρ')
+    rw [isub_dshift] at huu
+    have huu' := spec_to_minimal_eq hW (EqTm.cofConv (I.scoped_subst hφs (ρ.comp ρ').sc) huu e1)
+    have E := minimal_to_spec_eq (hcompPath_sysr_eq hW h1 h2 hPP huu' (ent_subst h12 _) (hsc k'' (ρ.comp ρ'))
+      (hsc' k'' (ρ.comp ρ')) (hEρ k'' (ρ.comp ρ')))
+    have eY : TyEq S k'' (((L2 k' ρ).isub ρ'.up).dinst (r.subst (ρ.comp ρ').τ)) ((L1.dinst r).isub (ρ.comp ρ')) := by
+      have c := (Comp2_ty_base (hcoh k' ρ k'' ρ')).2.2.2.2.2
+      rw [isub_dinst, ← I_subst_comp] at c
+      exact TyEq.trans hW c (TyEq.symm (Comp2_ty_base (hCY k'' (ρ.comp ρ'))).2.2.2.2.2)
+    exact EqTm.cofConv ⟨I.scoped_subst hφs (ρ.comp ρ').sc, hsc k'' (ρ.comp ρ'), hsc k'' (ρ.comp ρ')⟩ E eY
   have H := kanH2_elim_core hW hφs (fun k' ρ x => .papp x (r.subst ρ.τ)) (fun k' ρ x => .papp x (r'.subst ρ.τ))
     (fun k' ρ => (L2 k' ρ).dinst (r.subst ρ.τ)) (fun k' ρ => (L2' k' ρ).dinst (r'.subst ρ.τ))
     (fun k' ρ => sysP (φ.subst ρ.τ) (r.subst ρ.τ) (u.isub ρ.up) (c0 k' ρ) (c1 k' ρ))
@@ -602,7 +637,7 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
     (fun k' ρ => .papp (a0.isub ρ) (r.subst ρ.τ)) (fun k' ρ => .papp (a0'.isub ρ) (r'.subst ρ.τ))
     (fun k' ρ => .or (φ.subst ρ.τ) (.or (.neg (r.subst ρ.τ)) (r.subst ρ.τ)))
     (fun k' ρ => .or (φ'.subst ρ.τ) (.or (.neg (r'.subst ρ.τ)) (r'.subst ρ.τ)))
-    hX hYY (by simp only [hrid]; exact HasTy.papp hpT hr) (by simp only [hrid']; exact HasTy.eqR hE0)
+    (fun k' ρ => ⟨I.scoped_subst hφs ρ.sc, hsc k' ρ, hsc k' ρ⟩) hX hYY (by simp only [hrid]; exact HasTy.papp hpT hr) (by simp only [hrid']; exact HasTy.eqR hE0)
     (by simp only [hrid, hrid']; exact hE0)
     (fun k' ρ k'' ρ' x => by
       show Tm.papp (x.isub ρ') ((r.subst ρ.τ).subst ρ'.τ) = Tm.papp (x.isub ρ') (r.subst (ρ.comp ρ').τ)
@@ -631,6 +666,7 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
       rw [show (Tm.papp (a0.isub ρ) (r.subst ρ.τ)).isub ρ' = Tm.papp (a0.isub (ρ.comp ρ')) (r.subst (ρ.comp ρ').τ) by
         show Tm.papp ((a0.isub ρ).isub ρ') ((r.subst ρ.τ).subst ρ'.τ) = _; rw [Tm.isub_isub, I_subst_comp]]
       exact hel k'' (ρ.comp ρ') _ _ (RE2.isub hW ha0 _))
+    (fun k' ρ k'' ρ' _ => hUEqP k' ρ k'' ρ')
     (fun k' ρ k'' ρ' hnf k3 σ3 hh => ?_) (fun k' ρ k'' ρ' hnf k3 σ3 hh => ?_)
     (fun k' ρ k'' ρ' _ => ?_) (fun k' ρ k'' ρ' _ => ?_) h12 h21
   · simpa only [hrid, hrid'] using H
@@ -1116,8 +1152,9 @@ theorem kanH2_path {T T' L a b : Tm} {l : ℕ} (hTT : RT2 S k T T') (hR : RedT S
       ∀ k'' (ρ' : ISub k'' k') X', RT2 S k'' ((L1.dinst s).isub ρ') X' → KanH2 S k'' ((L1.dinst s).isub ρ') X') :
     KanH2 S k T T' := by
   have hP := PathStr_of hW hTT hR hpath
-  intro φ φ' u u' a0 a0' hty hty' heq h12 h21 htube ha0 hbd hbd'
+  intro φ φ' u u' a0 a0' hty hty' heq hteq h12 h21 htube ha0 hbd hbd'
   have hXT : TyCode k (semK S k T) := tyCode_of_ty hW hty
+  obtain ⟨l0, ⟨-, hφs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
   refine RE2_pathW_intro hW (RT2.refl hW hXT hTT) hR hpath ⟨hty, hty', heq⟩ fun k' ρ L1 b0 b1 h1 => ?_
   have hPρ := hP.isub hW ρ
   have hTTρ := RT2.isub hW hXT hTT ρ
@@ -1127,8 +1164,10 @@ theorem kanH2_path {T T' L a b : Tm} {l : ℕ} (hTT : RT2 S k T T') (hR : RedT S
     intro k1 ρ1 L3 c0 c1 h3 s hs k2 ρ2 X' hX'
     rw [Tm.isub_isub] at h3
     exact hIH k1 (ρ.comp ρ1) L3 c0 c1 h3 s hs k2 ρ2 X' hX'
+  have hteqρ := EqTm.cofIsub hW hφs hteq ρ
+  rw [isub_dshift] at hteqρ
   exact ⟨fun r r' hr hr' hE => kanH2_path_core hW hPρ hTTρ hIHρ (HasTy.isubS hW hty ρ) (HasTy.isubS hW hty' ρ)
-      (EqTm.isubS hW heq ρ) (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ) (RE2.isub hW ha0 ρ)
+      (EqTm.isubS hW heq ρ) hteqρ (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) (htube.isub ρ) (RE2.isub hW ha0 ρ)
       (bdry_isub hbd ρ) (bdry_isub' hbd' ρ) h1 hr hr' hE,
     hcomp_path_end0 hW hPρ hTTρ (HasTy.isubS hW hty ρ) (htube.isub ρ) (RE2.isub hW ha0 ρ) h1,
     hcomp_path_end1 hW hPρ hTTρ (HasTy.isubS hW hty ρ) (htube.isub ρ) (RE2.isub hW ha0 ρ) h1⟩
