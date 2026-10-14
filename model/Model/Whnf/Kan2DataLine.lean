@@ -309,6 +309,29 @@ theorem argTy_rt2 {Q1 Q2 : Tm} (hQ1 : RT2 S K (.data d P) (.data d Q1)) (hQ2 : R
       rw [semK_isubTy hW (Comp2_ty_base hQ1).2.1 ρ3]; exact h)) (RT2.symm hW (by
       rw [semK_isubTy hW (Comp2_ty_base hQ1).2.1 ρ3]; exact hXP.res _) h1) h2
 
+include hH hPP in
+/-- The normal forms of related elements of a literal inductive type, with their arguments related at
+the argument types. -/
+theorem dataLit_argsU {k3 : ℕ} (ρ3 : ISub k3 K) {x x' : Tm} (hx : RE2 S k3 (.data d (P.isub ρ3)) x x') :
+    ∃ c C qs Z qs' Z', D.ctors[c]? = some C ∧ Z.length = C.args.length ∧ Z'.length = C.args.length ∧
+      RedE S k3 (.data d (P.isub ρ3)) x (.con d c qs (Tm.ofList Z) []) ∧
+      RedE S k3 (.data d (P.isub ρ3)) x' (.con d c qs' (Tm.ofList Z') []) ∧
+      ∀ i (hi : i < C.args.length), RE2 S k3 ((C.argTy d D.params.length i).substList
+        ((Z.take i).reverse ++ (P.isub ρ3).toList.reverse)) (Z.getD i .abort) (Z'.getD i .abort) := by
+  have hdD := dataD_eq hW hD
+  have hTP : IsTyK S k3 (.data d (P.isub ρ3)) := ⟨_, .inl (HasTy.isubS hW hP ρ3)⟩
+  have hPl := (dataLit_rel hW hD hP hPP ρ3).2.2.2.2.2.1
+  have hplen : (P.isub ρ3).toList.length = D.params.length := by
+    have := data_len_of hW hTP; rwa [hdD] at this
+  obtain ⟨c, C, qs, Z, qs', Z', hC, hZl, hZ'l, ht, ht', hrecZ, hptZ⟩ := dataLit_args hW hD hH hP hPP ρ3 hx
+  refine ⟨c, C, qs, Z, qs', Z', hC, hZl, hZ'l, ht, ht', fun i hi => ?_⟩
+  rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by omega), List.getD_eq_getElem?_getD,
+    List.getElem?_eq_getElem (by omega)]
+  simp only [Option.getD_some]
+  cases hri : C.isRec i
+  · exact hptZ i (by omega) (by omega) hri
+  · rw [argTy_rec_inst hri hPl hplen (by simp; omega)]; exact hrecZ i (by omega) (by omega) hri
+
 end lit
 
 end
