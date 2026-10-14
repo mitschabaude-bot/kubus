@@ -266,6 +266,117 @@ theorem DR2_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
         rw [Hom.comp_assoc, ← ISub.hom_comp]
         exact argRelH_isub Θ f hR (σ.comp σ')
 
+/-- A related prefix of arguments is related to itself. -/
+theorem prefix_refl {k : ℕ} {g : Hom k k0} {ps : Tm} (hR : argRelH Θ f S k g ps ps) (hpc : ps.closedB 0 k = true)
+    {c : ℕ} {C : Ctor} (hC : (dataD S Θ.idx).ctors[c]? = some C) {args args' : List Tm}
+    (hl : args.length = C.args.length) (hl' : args'.length = C.args.length)
+    (hrec : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g (.data Θ.idx ps) args[j] args'[j])
+    (hpt : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
+      dataP2 S Θ f k g c j ((args.take j).map (semK S k))
+        ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps.toList.reverse))
+        args[j] args'[j]) :
+    (∀ j (hj : j < args.length), C.isRec j = true →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g (.data Θ.idx ps) args[j] args[j]) ∧
+    (∀ j (hj : j < args.length), C.isRec j = false →
+      dataP2 S Θ f k g c j ((args.take j).map (semK S k))
+        ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps.toList.reverse))
+        args[j] args[j]) := by
+  refine ⟨fun j hj hr => ?_, fun j hj hr => ?_⟩
+  · have h1 := hrec j hj (by omega) hr
+    exact DR2_trans hW f hP h1 (DR2_symm hW f hP h1 (hypData f hR)) (hypData f hR)
+  · have hlj : (args.take j).length = j := by simp; omega
+    have hty := argRelH_id f hR hpc hpc (args := args.take j) (args' := args'.take j) hC
+      (by rw [hlj]; omega) (by simp; omega) (by rw [hlj]; exact hr)
+      (fun i hi hi' hri => by
+        simp only [List.getElem_take]; exact hrec i (by simp at hi; omega) (by simp at hi'; omega) hri)
+      (fun i hi hi' hri => by
+        simp only [List.getElem_take, List.take_take]
+        rw [Nat.min_eq_left (by simp at hi; omega)]
+        exact hpt i (by simp at hi; omega) (by simp at hi'; omega) hri)
+    rw [hlj] at hty
+    have x := hpt j hj (by omega) hr
+    unfold dataP2 at x ⊢
+    exact (hP (f.comp g) c j _).reflEl hty x
+
+/-- Related elements of an inductive type, at a related type. -/
+theorem DR2_conv : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
+    DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A t t' → ∀ {A' : Tm}, TyEq S k A A' →
+    (∀ k' (σ : ISub k' k) ps ps', RedT S k' (A.isub σ) (.data Θ.idx ps) → RedT S k' (A'.isub σ) (.data Θ.idx ps') →
+      argRelH Θ f S k' (g.comp σ.hom) ps ps' ∧ argRelH Θ f S k' (g.comp σ.hom) ps ps ∧
+      argRelH Θ f S k' (g.comp σ.hom) ps' ps') →
+    (∀ k' (σ : ISub k' k), ∃ ps', RedT S k' (A'.isub σ) (.data Θ.idx ps') ∧ ps' = Tm.ofList ps'.toList) →
+    DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A' t t' := by
+  intro k g A t t' hr
+  refine DR2.rec (motive_1 := fun k g A t t' _ => ∀ {A' : Tm}, TyEq S k A A' →
+      (∀ k' (σ : ISub k' k) ps ps', RedT S k' (A.isub σ) (.data Θ.idx ps) → RedT S k' (A'.isub σ) (.data Θ.idx ps') →
+        argRelH Θ f S k' (g.comp σ.hom) ps ps' ∧ argRelH Θ f S k' (g.comp σ.hom) ps ps ∧
+        argRelH Θ f S k' (g.comp σ.hom) ps' ps') →
+      (∀ k' (σ : ISub k' k), ∃ ps', RedT S k' (A'.isub σ) (.data Θ.idx ps') ∧ ps' = Tm.ofList ps'.toList) →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A' t t')
+    (motive_2 := fun k g A t t' _ => ∀ {A' ps' : Tm}, TyEq S k A A' → RedT S k A' (.data Θ.idx ps') →
+      ps' = Tm.ofList ps'.toList →
+      (∀ ps, RedT S k A (.data Θ.idx ps) →
+        argRelH Θ f S k g ps ps' ∧ argRelH Θ f S k g ps ps ∧ argRelH Θ f S k g ps' ps') →
+      DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g A' t t') ?_ ?_ ?_ hr
+  · intro k g A t t' he _ ih A' hE hyp hex
+    refine .intro (he.tyConv hE) fun k' σ => ?_
+    obtain ⟨ps', hps', hpl'⟩ := hex k' σ
+    exact ih k' σ (hE.isub hW σ) hps' hpl' fun ps hps => hyp k' σ ps ps' hps hps'
+  · intro k g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
+      hrec hpt ihrec A' ps' hE hA' hpl' hyp
+    obtain ⟨hR, hRd, hRd'⟩ := hyp ps hA
+    have hpc : ps.closedB 0 k = true := ps_closed hW hA (isTyK_of_ty hW (HasTy.eqL heq))
+    have hpc' : ps'.closedB 0 k = true := ps_closed hW hA' ((isTyK_of_ty hW (HasTy.eqL heq)).of_tyEq hE)
+    have hdd : TyEq S k (.data Θ.idx ps) (.data Θ.idx ps') := (hA.2.symm.trans hW hE).trans hW hA'.2
+    refine .con hm hm' (heq.tyConv hE) hC hA' hpl' ⟨ht.1, ht.2.tyConv hE⟩ ⟨ht'.1, ht'.2.tyConv hE⟩ hrs hrs' hreq
+      hsc hsc' hl hl' (fun j hj hj' hr => ?_) (fun j hj hj' hr => ?_)
+    · refine ihrec j hj hj' hr hdd (fun k' σ ps2 ps2' h1 h2 => ?_) (fun k' σ => ⟨ps'.isub σ,
+        ⟨redW_self rfl, TyEq.refl _⟩, isList_subst hpl' _ _⟩)
+      obtain rfl := redT_data_eq h1
+      obtain rfl := redT_data_eq h2
+      exact ⟨argRelH_isub Θ f hR σ, argRelH_isub Θ f hRd σ, argRelH_isub Θ f hRd' σ⟩
+    · obtain ⟨hrecd, hptd⟩ := prefix_refl hW f hP hRd hpc hC hl hl' hrec hpt
+      have hlj : (args.take j).length = j := by simp; omega
+      have hty := argRelH_id f hR hpc hpc' (args := args.take j) (args' := args.take j) hC
+        (by rw [hlj]; omega) rfl (by rw [hlj]; exact hr)
+        (fun i hi _ hri => by
+          simp only [List.getElem_take]; exact hrecd i (by simp at hi; omega) hri)
+        (fun i hi _ hri => by
+          simp only [List.getElem_take, List.take_take]
+          rw [Nat.min_eq_left (by simp at hi; omega)]
+          exact hptd i (by simp at hi; omega) hri)
+      rw [hlj] at hty
+      have x := hpt j hj hj' hr
+      unfold dataP2 at x ⊢
+      exact (hP (f.comp g) c j _).conv hty x
+  · intro k g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu A' ps' hE hA'
+      hpl' hyp
+    obtain ⟨hR, hRd, hRd'⟩ := hyp ps hA
+    have hdd : TyEq S k (.data Θ.idx ps) (.data Θ.idx ps') := (hA.2.symm.trans hW hE).trans hW hA'.2
+    have hyp2 : ∀ k' (σ : ISub k' k) ps2 ps2', RedT S k' ((Tm.data Θ.idx ps).isub σ) (.data Θ.idx ps2) →
+        RedT S k' ((Tm.data Θ.idx ps').isub σ) (.data Θ.idx ps2') →
+        argRelH Θ f S k' (g.comp σ.hom) ps2 ps2' ∧ argRelH Θ f S k' (g.comp σ.hom) ps2 ps2 ∧
+        argRelH Θ f S k' (g.comp σ.hom) ps2' ps2' := by
+      intro k' σ ps2 ps2' h1 h2
+      obtain rfl := redT_data_eq h1
+      obtain rfl := redT_data_eq h2
+      exact ⟨argRelH_isub Θ f hR σ, argRelH_isub Θ f hRd σ, argRelH_isub Θ f hRd' σ⟩
+    have hex2 : ∀ k' (σ : ISub k' k), ∃ ps2', RedT S k' ((Tm.data Θ.idx ps').isub σ) (.data Θ.idx ps2') ∧
+        ps2' = Tm.ofList ps2'.toList := fun k' σ =>
+      ⟨ps'.isub σ, ⟨redW_self rfl, TyEq.refl _⟩, isList_subst hpl' _ _⟩
+    refine .hcomp hm hm' (heq.tyConv hE) hH hA' hpl' ⟨ht.1, ht.2.tyConv hE⟩ ⟨ht'.1, ht'.2.tyConv hE⟩ hs hs' h12 h21
+      (iha hdd hyp2 hex2) (fun k' σ r hr hh => ihu k' σ r hr hh (hdd.isub hW σ) ?_ ?_)
+    · intro k'' σ' ps2 ps2' h1 h2
+      rw [Tm.isub_isub] at h1 h2
+      obtain rfl := redT_data_eq h1
+      obtain rfl := redT_data_eq h2
+      rw [Hom.comp_assoc, ← ISub.hom_comp]
+      exact ⟨argRelH_isub Θ f hR (σ.comp σ'), argRelH_isub Θ f hRd (σ.comp σ'), argRelH_isub Θ f hRd' (σ.comp σ')⟩
+    · intro k'' σ'
+      rw [Tm.isub_isub]
+      exact ⟨ps'.isub (σ.comp σ'), ⟨redW_self rfl, TyEq.refl _⟩, isList_subst hpl' _ _⟩
+
 end dr
 
 end
