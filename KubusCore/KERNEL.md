@@ -46,6 +46,8 @@ Glue types have no inversion rules for the base and the equivalence, so the kern
 
 At a given type: β for Π, Σ (`fst`/`snd`), paths; path endpoints `p 0`, `p 1` (also for interval terms equal to 0/1, and after substituting endpoints that the restriction fixes, by the face rule); systems (`splitL`/`splitR`); δ-unfolding of constants; `transpFace`, `hcompFace`, `glueFace`, `glueElFace`, `unglueFace`, `glueBeta`; the CHM computation rules `transpU/Pi/Sigma/Path/Glue/IPi` and `hcompPi/Sigma/Path/Glue/IPi`, after reducing the line (resp. type) to weak-head normal form with the congruence rules. Eliminations reduce their head first.
 
+Typed reduction: the contracta of `transp` along Π, Σ, path, Glue and `(i : I) → A` lines eliminate the base (`app u0 w`, `fst u0`, `unglue u0`, …). When the base is an introduction form (λ, pair, path abstraction), inference in the contractum would only give it a weak, non-dependent type, so before contracting the kernel annotates it with the type `L(0)` known from the redex's typing: `transp (_. L(0)) 1 u0`, which equals `u0` by `transpFace` and has an inferable type. The annotation is a spec term, so it survives the substitutions that later act on the contractum. `unglue φ e (glue [φ' ↦ t] a)` with `φ'`, `e'` equal to `φ`, `e` only up to the interval laws resp. conversion is aligned by the congruence of glue elements before `glueBeta`.
+
 ### Conversion
 
 1. Syntactically equal terms are equal.
