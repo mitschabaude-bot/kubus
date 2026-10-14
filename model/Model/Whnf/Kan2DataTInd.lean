@@ -409,6 +409,26 @@ theorem tm1_intro {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm}
       rw [line_isub_up, Tm.isub_isub]
     rw [e, eL κ .one] at h
     exact h
+  have heqκ : ∀ {k4 : ℕ} (κ : ISub k4 k3), EqTm S k4 .one []
+      (.transp ((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+        (ψ.subst κ.τ) (x.isub (σ.comp κ)))
+      (.transp ((Tm.data d Q).isub (ISub.cons (y'.subst κ.up.τ) (I.scoped_subst hy' κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+        (ψ'.subst κ.τ) (x'.isub (σ.comp κ)))
+      (((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail)).dinst .one) := by
+    intro k4 κ
+    have h := EqTm.isubS hW heq κ
+    have e : (Tm.transp ((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)) ψ (x.isub σ)).isub κ =
+        .transp ((Tm.data d P).isub (ISub.cons (y.subst κ.up.τ) (I.scoped_subst hy κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+          (ψ.subst κ.τ) (x.isub (σ.comp κ)) := by
+      show Tm.transp (((Tm.data d P).isub _).isub κ.up) _ ((x.isub σ).isub κ) = _
+      rw [line_isub_up, Tm.isub_isub]
+    have e' : (Tm.transp ((Tm.data d Q).isub (ISub.cons y' hy' (ρ.comp σ).up.tail)) ψ' (x'.isub σ)).isub κ =
+        .transp ((Tm.data d Q).isub (ISub.cons (y'.subst κ.up.τ) (I.scoped_subst hy' κ.up.sc) ((ρ.comp σ).comp κ).up.tail))
+          (ψ'.subst κ.τ) (x'.isub (σ.comp κ)) := by
+      show Tm.transp (((Tm.data d Q).isub _).isub κ.up) _ ((x'.isub σ).isub κ) = _
+      rw [line_isub_up, Tm.isub_isub]
+    rw [e, e', eL κ .one] at h
+    exact h
   -- the end of the line is related to itself
   have hcL : ((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)).closedB 0 (k3 + 1) = true :=
     closed_of_ty hW (HasTy.isubS hW hP _)
@@ -552,7 +572,76 @@ theorem tm1_intro {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm}
       have hb2' := RE2.conv hW hc hb2
       have hA1 := RT2.refl' hW (RE2.tyCode hW R0) hc
       exact RE2.trans hW hA1 TF (RE2.trans hW hA1 R0' hb2')
-    sorry
+    -- the face does not hold at the further restriction: the contracta
+    rw [if_neg hf2']
+    have hf2n : ¬ I.Entails .one (ψ.subst (κ.comp κ').τ) := fun h => hf2' (ent_trans h (ent_subst h12 _))
+    have eA : ∀ (σ2 : ISub k5 k1), (Tm.data d ((P.dinst .zero).isub ρ)).isub σ2 = Tm.data d ((P.dinst .zero).isub (ρ.comp σ2)) :=
+      fun σ2 => by show Tm.data d (((P.dinst .zero).isub ρ).isub σ2) = _; rw [Tm.isub_isub]
+    have eT3 : (ρ.comp σ).comp (κ.comp κ') = ρ.comp (σ.comp (κ.comp κ')) := ISub.comp_assoc _ _ _
+    -- the start of the line, against the type of the bases
+    have hAeq : TyEq S k5 (.data d (P.isub (ISub.cons ((y.subst (κ.comp κ').up.τ).subst (ISub.cons .zero trivial (ISub.id k5)).τ)
+        (I.scoped_subst (I.scoped_subst hy (κ.comp κ').up.sc) (ISub.cons .zero trivial (ISub.id k5)).sc)
+        ((ρ.comp σ).comp (κ.comp κ')))))
+        ((Tm.data d ((P.dinst .zero).isub ρ)).isub (σ.comp (κ.comp κ'))) := by
+      rw [eA, P0_isub hW hD hH hp hP hArgK hRL, ← eT3]
+      exact tyB (hRL k5 _ _ _ _ _ (ieq_zero_up h0 (κ.comp κ')))
+    -- the constructors agree
+    have R0P := R0
+    rw [hPend (κ.comp κ') .zero trivial] at R0P
+    obtain ⟨c3, C3, q3, W, q3', W', hC3, -, -, hr3, hr3', -, -⟩ := dataLit_args hW hD hH hP hPP1 _ R0P
+    have g1 := RedW.unique hr3.1 (redW_self (step_con_nonHIT hD hH (hC k4 κ) _ _ _))
+    have g2 := RedW.unique hr3'.1 (hr k5 (κ.comp κ')).1
+    simp only [Tm.con.injEq] at g1 g2
+    obtain ⟨-, rfl, -, -, -⟩ := g1
+    obtain ⟨-, hcc, -, -, -⟩ := g2
+    have hcc' : c k5 (κ.comp κ') = c k4 κ := by rw [← hcc]
+    have hCC : C k5 (κ.comp κ') = C k4 κ := by
+      have h1 := hC k5 (κ.comp κ'); rw [hcc', hC k4 κ] at h1; exact (Option.some.inj h1).symm
+    have hAeq2 : TyEq S k5 (((Tm.data d P).isub (ISub.cons (y.subst (κ.comp κ').up.τ) (I.scoped_subst hy (κ.comp κ').up.sc)
+        ((ρ.comp σ).comp (κ.comp κ')).up.tail)).dinst .zero)
+        ((Tm.data d ((P.dinst .zero).isub ρ)).isub (σ.comp (κ.comp κ'))) := by
+      rw [hPend (κ.comp κ') .zero trivial]; exact hAeq
+    -- (R1) the restricted normal form of the left base, against the left base, along the left line
+    have T1 := ihc k4 (σ.comp κ) _ (hr k4 κ).1 k5 κ'
+    rw [ISub.comp_assoc σ κ κ', show (Tm.con d (c k4 κ) (qs k4 κ) (Tm.ofList (Z k4 κ)) []).isub κ' =
+      Tm.con d (c k4 κ) ((qs k4 κ).isub κ') (Tm.ofList ((Z k4 κ).map (·.isub κ'))) [] by
+        show Tm.con d _ ((qs k4 κ).isub κ') ((Tm.ofList (Z k4 κ)).isub κ') [] = _; rw [ofList_isub]] at T1
+    have hcon := (RE2.typed R0).1.tyConv hAeq2
+    have RE1 : RedE S k5 ((Tm.data d ((P.dinst .zero).isub ρ)).isub (σ.comp (κ.comp κ')))
+        (Tm.con d (c k4 κ) ((qs k4 κ).isub κ') (Tm.ofList ((Z k4 κ).map (·.isub κ'))) [])
+        (Tm.con d (c k4 κ) ((qs k4 κ).isub κ') (Tm.ofList ((Z k4 κ).map (·.isub κ'))) []) :=
+      ⟨redW_self (step_con_nonHIT hD hH (hC k4 κ) _ _ _), EqTm.refl hcon⟩
+    have RE2' : RedE S k5 ((Tm.data d ((P.dinst .zero).isub ρ)).isub (σ.comp (κ.comp κ'))) (x.isub (σ.comp (κ.comp κ')))
+        (Tm.con d (c k4 κ) (qs k5 (κ.comp κ')) (Tm.ofList (Z k5 (κ.comp κ'))) []) := by
+      have h := hr k5 (κ.comp κ'); rw [hcc'] at h; exact ⟨h.1, h.2.tyConv hAeq⟩
+    have RE3 : RedE S k5 ((Tm.data d ((P.dinst .zero).isub ρ)).isub (σ.comp (κ.comp κ'))) (x'.isub (σ.comp (κ.comp κ')))
+        (Tm.con d (c k4 κ) (qs' k5 (κ.comp κ')) (Tm.ofList (Z' k5 (κ.comp κ'))) []) := by
+      have h := hr' k5 (κ.comp κ'); rw [hcc'] at h; exact ⟨h.1, h.2.tyConv hAeq⟩
+    have LCm := LC2
+    have htyA := rb.1
+    have htyB := htyκ (κ.comp κ')
+    have htyB' := htyκ' (κ.comp κ')
+    have heqAB := rb.2.symm
+    have heqm := heqκ (κ.comp κ')
+    rw [eT3] at LCm htyA htyB htyB' heqAB heqm
+    have R1 := T1 (ρ.comp (σ.comp (κ.comp κ'))) (by simp only [ISub.hom_comp]) (eA _) P hRL _ _
+      (I.scoped_subst hy (κ.comp κ').up.sc) (I.scoped_subst hy (κ.comp κ').up.sc) (I_eq_refl _) (ieq_zero_up h0 (κ.comp κ'))
+      (c k4 κ) (C k4 κ) _ _ _ _ (hC k4 κ) RE1 RE2' (ψ.subst (κ.comp κ').τ) (ψ.subst (κ.comp κ').τ)
+      (I.scoped_subst hψs (κ.comp κ').sc) (ent_refl _) (ent_refl _) LCm htyA htyB heqAB
+    -- (R2) the bases at the further restriction
+    have T2 := ih k5 (σ.comp (κ.comp κ'))
+    have R2 := T2 (ρ.comp (σ.comp (κ.comp κ'))) (by simp only [ISub.hom_comp]) (eA _) Q hQ _ _
+      (I.scoped_subst hy (κ.comp κ').up.sc) (I.scoped_subst hy' (κ.comp κ').up.sc) (I_eq_subst hE _)
+      (ieq_zero_up h0 (κ.comp κ')) (c k4 κ) (C k4 κ) _ _ _ _ (hC k4 κ) RE2' RE3 (ψ.subst (κ.comp κ').τ)
+      (ψ'.subst (κ.comp κ').τ) (I.scoped_subst hψs (κ.comp κ').sc) (ent_subst h12 _) (ent_subst h21 _) LCm htyB htyB' heqm
+    rw [← eT3] at R1 R2
+    rw [hcc', hCC]
+    have hA1 : RT2 S k5 (((Tm.data d P).isub (ISub.cons (y.subst (κ.comp κ').up.τ) (I.scoped_subst hy (κ.comp κ').up.sc)
+        ((ρ.comp σ).comp (κ.comp κ')).up.tail)).dinst .one)
+        (((Tm.data d P).isub (ISub.cons (y.subst (κ.comp κ').up.τ) (I.scoped_subst hy (κ.comp κ').up.sc)
+        ((ρ.comp σ).comp (κ.comp κ')).up.tail)).dinst .one) := by
+      rw [hPend (κ.comp κ') .one trivial]; exact hRL k5 _ _ _ _ _ (I_eq_refl _)
+    exact RE2.trans hW hA1 R1 R2
 
 end ind
 
