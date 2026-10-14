@@ -106,6 +106,12 @@ omit hN in
 theorem good_whnf {T W : Tm} (h : RedT S k T W) (hg : goodB S k T = true) : goodB S k W = true :=
   red_good hW h.1.1 hg
 
+omit hN in
+theorem RedT.isTyK {T W : Tm} (h : RedT S k T W) (hT : IsTyK S k T) : IsTyK S k W := by
+  rcases h.2 with e | ⟨l, e⟩
+  · exact e ▸ hT
+  · exact ⟨l, .inl (HasTy.eqR e)⟩
+
 /-! ### `Π` types -/
 
 section pi
@@ -469,6 +475,21 @@ theorem ni2_univC {m l : ℕ} (ih : ∀ m' X, WF l m' X → NI2 S m' X) : NI2 S 
       rwa [isub_id_of_closed (closed_of_isTyK hW hTT.1.1)] at this
     exact (ih k _ hWF k (Hom.id k) t t' t'' t t' t'').1 hty hn (tyk (hu.tyConv hU))
 
+omit hW hN in
+/-- Mutually entailing cofibrations have the same face. -/
+theorem face_eq_of_feq {φ ψ : I} (h : FEq φ ψ) : (ival (idEnv k) φ).face = (ival (idEnv k) ψ).face := by
+  have hK : ∀ p : Pt k, p.IsK3 → Meta.K3Asg (Pt.rev p) := by
+    intro p hp i
+    simp only [Pt.rev]
+    split
+    · exact hp _
+    · simp [Meta.isK3]
+  ext p
+  simp only [DM.face, Set.mem_setOf_eq, ival_idEnv_fn]
+  constructor
+  · rintro ⟨h3, hv⟩; exact ⟨h3, Meta.entails_iff.1 h.1 _ (hK p h3) hv⟩
+  · rintro ⟨h3, hv⟩; exact ⟨h3, Meta.entails_iff.1 h.2 _ (hK p h3) hv⟩
+
 /-! ### Families of relations: invariance of the element relations -/
 
 /-- The element relation of a pack is invariant under near terms on the right, at types related to themselves. -/
@@ -554,6 +575,184 @@ theorem equivF_ni {TP AP : (k' : ℕ) → ISub k' n → Pack2} (hT : FamOK S n T
       (sigF_ni hW hN hF (piF_ok hW hF (pathF_ok hW hF)) nF (piF_ni hW hN hF (pathF_ok hW hF) (pathF_ni hW hN hF nF))))
 
 end fam
+
+omit hW hN in
+theorem famNI_comp2 {m n0 n : ℕ} {X : V} (ni : NI2 S m X) (g : Hom n0 m) (ρ : ISub n n0) :
+    FamNI S n fun k3 σ3 => Comp2 S X m k3 (g.comp (ρ.comp σ3).hom) :=
+  fun k3 σ3 A t t' t'' hAA h hn hu => (ni k3 _ A A A t t' t'').2 hAA h hn hu
+
+omit hW hN in
+theorem famNI_comp2_id {n : ℕ} {X : V} (ni : NI2 S n X) : FamNI S n fun k3 σ3 => Comp2 S X n k3 σ3.hom :=
+  fun k3 σ3 A t t' t'' hAA h hn hu => (ni k3 _ A A A t t' t'').2 hAA h hn hu
+
+/-! ### Glue types -/
+
+section glue
+variable {m : ℕ} {A Tp : V} {φ : Cof m} (perA : PER2 S m A) (krA : KR2 S m A) (niA : NI2 S m A)
+  (perT : ∀ k (f : Hom k m), (φ.restr f).holds → PER2 S k (dat Tp k f))
+  (krT : ∀ k (f : Hom k m), (φ.restr f).holds → KR2 S k (dat Tp k f))
+  (niT : ∀ k (f : Hom k m), (φ.restr f).holds → NI2 S k (dat Tp k f)) (f : Hom k m)
+include perA krA niA perT krT niT
+
+theorem glueLocT_near {k' : ℕ} (σ : ISub k' k) {Y Z Z'' : Tm} (hY : IsTyK S k' Y) (hZ : IsTyK S k' Z)
+    (hZ'' : IsTyK S k' Z'') (h : glueLocT S A Tp φ f k' σ Y Z) (hn : TmNear Z Z'') : glueLocT S A Tp φ f k' σ Y Z'' := by
+  unfold glueLocT at h ⊢
+  split_ifs at h ⊢ with hh
+  · exact NI2.tyR (niT k' _ hh) h hn hZ''
+  obtain ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', h1, h2, s1, s2, f1, f2, hAA, hT⟩ := h
+  obtain ⟨W, h2'', hw⟩ := RedT.near hW hN h2 hZ hn (good_of_isTyK hW hZ'')
+  cases hw with | glue nA nφ nT ne =>
+  have g := good_whnf hW h2'' (good_of_isTyK hW hZ'')
+  simp only [goodB, Bool.and_eq_true] at g
+  have hA1 := (tyEq_near hW hN (Comp2_ty_base hAA).2.2.1 nA g.1.1.1).2
+  refine ⟨A1, φ1, T1, e1, _, _, _, _, h1, h2'', s1, sc_iff.1 g.1.1.2, f1, (face_eq_of_feq nφ).symm.trans f2,
+    NI2.tyR niA hAA nA hA1, fun k'' σ' hh' => ?_⟩
+  obtain ⟨c1, c2⟩ := hT k'' σ' hh'
+  have hT1 := (tyEq_near hW hN (Comp2_ty_base c1).2.2.1 (nT.isub σ') (good_isub g.1.2 σ')).2
+  refine ⟨NI2.tyR (niT k'' _ hh') c1 (nT.isub σ') hT1, ?_⟩
+  have FT := famOK_comp2_id (perT k'' _ hh') (krT k'' _ hh')
+  have FA := famOK_comp2 perA krA f (σ.comp σ')
+  have hE := glue_equivTy hW perA krA perT krT f σ hY hY h1 h1 f1 f1 ((perA _ _).reflTy hAA) σ' hh'
+    ((perT k'' _ hh' _ _).reflTy c1)
+  have hx := ((equivF_ok hW _ _ FT FA).elEB _ _ _ _ _ c2)
+  exact equivF_ni hW hN FT FA (famNI_comp2_id (niT k'' _ hh')) (famNI_comp2 niA f (σ.comp σ')) k'' (ISub.id k'')
+    _ _ _ _ ((equivF_ok hW _ _ FT FA).per _ _ |>.reflTy hE) c2 (ne.isub σ')
+    (HasTy.near' hW hN hx.2.1 (ne.isub σ') (good_isub g.2 σ'))
+
+theorem glueLocE_near {k' : ℕ} (σ : ISub k' k) {X g g' g'' : Tm} (hX : glueLocT S A Tp φ f k' σ X X)
+    (h : glueLocE S A Tp φ f k' σ X g g') (hn : TmNear g' g'') (hu : HasTy S k' .one [] g'' X) :
+    glueLocE S A Tp φ f k' σ X g g'' := by
+  unfold glueLocT at hX
+  unfold glueLocE at h ⊢
+  split_ifs at h hX ⊢ with hh
+  · exact NI2.elR (perT k' _ hh) (niT k' _ hh) hX h hn hu
+  obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', i1, i2, i3, i4, E0, E0', ha, hrest⟩ := h
+  obtain ⟨A1x, φ1x, T1x, e1x, A1y, φ1y, T1y, e1y, hx1, hx2, -, -, -, -, hAA, hTT⟩ := hX
+  obtain ⟨rfl, rfl, rfl, rfl⟩ : A1x = A1 ∧ φ1x = φ1 ∧ T1x = T1 ∧ e1x = e1 := by
+    have := RedW.unique hx1.1 r1.1; injection this; exact ⟨by assumption, by assumption, by assumption, by assumption⟩
+  obtain ⟨w, rg'', hw⟩ := RedE.near hW hN rg' (HasTy.eqL rg'.2) hn (good_of_ty hW hu)
+  cases hw with | glueEl nψ ne0 nt0 na0 =>
+  have g := red_good hW rg''.1.1 (good_of_ty hW hu)
+  simp only [goodB, Bool.and_eq_true] at g
+  have ht0 := HasTy.eqL E0'
+  have E0'' := (hN ht0 ne0 (closed_of_near_good ne0 (closed_ty (spec_to_minimal hW ht0)) g.1.1.2)).symm.trans E0'
+  have hAr := (perA _ _).reflTy hAA
+  have ha' := (Comp2_el ha).1
+  refine ⟨A1x, φ1x, T1x, e1x, ψ, e0, t0, a0, _, _, _, _, r1, rg, rg'', i1, i2, ent_trans nψ.2 i3, ent_trans i4 nψ.1,
+    E0, E0'', NI2.elR perA niA hAr ha na0 (HasTy.near' hW hN ha'.2.1 na0 g.2), fun k'' σ' hh' => ?_⟩
+  obtain ⟨c1, c2, c3⟩ := hrest k'' σ' hh'
+  have hT1 := (perT k'' _ hh' _ _).reflTy (hTT k'' σ' hh').1
+  have hA1 : (Comp2 S A m k'' (f.comp (σ.comp σ').hom)).ty (A1x.isub σ') (A1x.isub σ') := by
+    have := (krA k' (f.comp σ.hom) k'' σ' A1x A1x A1x A1x).1 hAr
+    rwa [ISub.comp_hom] at this
+  have x1 := (Comp2_el c1).1
+  have x3 := (Comp2_el c3).1
+  have na := na0.isub σ'
+  have nt := nt0.isub σ'
+  have napp := TmNear.app (.fst (TmNear.refl (e1x.isub σ'))) nt
+  have ge1 : goodB S k'' (e1x.isub σ') = true := by
+    have := good_whnf hW hx1 (good_of_isTyK hW (isTyK_of_ty hW (HasTy.eqL rg.2)))
+    simp only [goodB, Bool.and_eq_true] at this
+    exact good_isub this.2 σ'
+  refine ⟨NI2.elR (perT k'' _ hh') (niT k'' _ hh') hT1 c1 nt (HasTy.near' hW hN x1.2.1 nt (good_isub g.1.2 σ')), c2,
+    NI2.el2 perA niA hA1 c3 na (HasTy.near' hW hN x3.1 na (good_isub g.2 σ')) napp
+      (HasTy.near' hW hN x3.2.1 napp ?_)⟩
+  simp only [goodB, Bool.and_eq_true]
+  exact ⟨ge1, good_isub g.1.2 σ'⟩
+
+omit niA niT in
+/-- Where the face does not hold, the normal forms of the right side of related Glue types are types. -/
+theorem glueLocT_whnfR {k' : ℕ} (σ : ISub k' k) {Y Z W : Tm} (hh : ¬ (φ.restr (f.comp σ.hom)).holds)
+    (h : glueLocT S A Tp φ f k' σ Y Z) (hZ : IsTyK S k' Z) (hw : RedW S Z W) : IsTyK S k' W := by
+  unfold glueLocT at h
+  rw [if_neg hh] at h
+  obtain ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', _, h2, _⟩ := h
+  rw [RedW.unique hw h2.1]
+  exact RedT.isTyK hW h2 hZ
+
+theorem glueLocT_near2 {k' : ℕ} (σ : ISub k' k) {Y Y' Z Z' : Tm} (hY : IsTyK S k' Y) (hY' : IsTyK S k' Y')
+    (hZ : IsTyK S k' Z) (hZ' : IsTyK S k' Z') (h : glueLocT S A Tp φ f k' σ Y Z) (hnY : TmNear Y Y')
+    (hnZ : TmNear Z Z') : glueLocT S A Tp φ f k' σ Y' Z' := by
+  have h1 := glueLocT_near hW hN perA krA niA perT krT niT f σ hY hZ hZ' h hnZ
+  have h2 := glueLocT_symm hW perA krA perT krT f σ hY hZ' h1
+  exact glueLocT_symm hW perA krA perT krT f σ hZ' hY'
+    (glueLocT_near hW hN perA krA niA perT krT niT f σ hZ' hY hY' h2 hnY)
+
+omit niA niT in
+/-- Where the face does not hold, the normal forms of the right side of related Glue elements are typed. -/
+theorem glueLocE_whnfR {k' : ℕ} (σ : ISub k' k) {X g g' w : Tm} (hh : ¬ (φ.restr (f.comp σ.hom)).holds)
+    (h : glueLocE S A Tp φ f k' σ X g g') (hw : RedW S g' w) : HasTy S k' .one [] w X := by
+  unfold glueLocE at h
+  rw [if_neg hh] at h
+  obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', _, _, rg', _⟩ := h
+  rw [RedW.unique hw rg'.1]
+  exact HasTy.eqR rg'.2
+
+theorem glueLocE_near2 {k' : ℕ} (σ : ISub k' k) {X g g' u u' : Tm} (hX : glueLocT S A Tp φ f k' σ X X)
+    (h : glueLocE S A Tp φ f k' σ X g u) (hg : TmNear g g') (hg' : HasTy S k' .one [] g' X) (hu : TmNear u u')
+    (hu' : HasTy S k' .one [] u' X) : glueLocE S A Tp φ f k' σ X g' u' := by
+  have h1 := glueLocE_near hW hN perA krA niA perT krT niT f σ hX h hu hu'
+  have h2 := glueLocE_symm hW perA krA perT krT f σ hX h1
+  exact glueLocE_symm hW perA krA perT krT f σ hX (glueLocE_near hW hN perA krA niA perT krT niT f σ hX h2 hg hg')
+
+variable (hA : IsKV m A) (hφ : φ.IsCof)
+  (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
+  (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f))
+include hA hφ hTp hTkv
+
+theorem niTy_glueC {ep : V} {T T' T'' : Tm} (h : (Comp2 S (glueC m A φ Tp ep) m k f).ty T T') (hn : TmNear T' T'')
+    (hT'' : IsTyK S k T'') : (Comp2 S (glueC m A φ Tp ep) m k f).ty T T'' := by
+  by_cases hf : (φ.restr f).holds
+  · rw [Comp2_glueC_at hφ hTp hTkv f, if_pos hf] at h ⊢
+    exact NI2.tyR (niT k f hf) h hn hT''
+  rw [Comp2_glueC_f hA hφ hTp hTkv f hf] at h ⊢
+  obtain ⟨hb, hall, hc, hc'⟩ := h
+  have hT' := hb.2.1
+  have hall'' : ∀ k' (σ : ISub k' k), glueLocT S A Tp φ f k' σ (T.isub σ) (T''.isub σ) := fun k' σ =>
+    glueLocT_near hW hN perA krA niA perT krT niT f σ (hb.1.isub hW σ) (hT'.isub hW σ) (hT''.isub hW σ) (hall k' σ)
+      (hn.isub σ)
+  refine ⟨base_near hW hN hb hn hT'', hall'', hc, fun k' σ hnot W hWr k'' ρ => ?_⟩
+  obtain ⟨W', hW', w⟩ := redW_near hWr (hn.symm.isub σ)
+  have tW := glueLocT_whnfR hW hN perA krA perT krT f σ hnot (hall'' k' σ) (hT''.isub hW σ) hWr
+  have tW' := glueLocT_whnfR hW hN perA krA perT krT f σ hnot (hall k' σ) (hT'.isub hW σ) hW'
+  have x := hc' k' σ hnot W' hW' k'' ρ
+  rw [← Tm.isub_isub] at x ⊢
+  exact glueLocT_near2 hW hN perA krA niA perT krT niT f (σ.comp ρ) (tW'.isub hW ρ) (tW.isub hW ρ)
+    ((hT'.isub hW σ).isub hW ρ) ((hT''.isub hW σ).isub hW ρ) x (w.symm.isub ρ) ((hn.isub σ).isub ρ)
+
+theorem niEl_glueC {ep : V} {T g g' g'' : Tm} (hTT : (Comp2 S (glueC m A φ Tp ep) m k f).ty T T)
+    (h : (Comp2 S (glueC m A φ Tp ep) m k f).el T g g') (hn : TmNear g' g'') (hu : HasTy S k .one [] g'' T) :
+    (Comp2 S (glueC m A φ Tp ep) m k f).el T g g'' := by
+  by_cases hf : (φ.restr f).holds
+  · rw [Comp2_glueC_at hφ hTp hTkv f, if_pos hf] at h hTT ⊢
+    exact (niT k f hf k (Hom.id k) T T T g g' g'').2 hTT h hn hu
+  rw [Comp2_glueC_f hA hφ hTp hTkv f hf] at h hTT ⊢
+  obtain ⟨hE, hmem, -, hall, hc, hc'⟩ := h
+  have hE' : EB S k T g g'' := ⟨hE.1, hu, hE.2.2.trans (eq_near hW hN hE.2.1 hn (good_of_ty hW hu))⟩
+  have hall'' : ∀ k' (σ : ISub k' k), glueLocE S A Tp φ f k' σ (T.isub σ) (g.isub σ) (g''.isub σ) := fun k' σ =>
+    glueLocE_near hW hN perA krA niA perT krT niT f σ (hTT.2.1 k' σ) (hall k' σ) (hn.isub σ) (HasTy.isubS hW hu σ)
+  refine ⟨hE', hmem, hE', hall'', hc, fun k' σ hnot w hw k'' ρ => ?_⟩
+  obtain ⟨w', hw', nw⟩ := redW_near hw (hn.symm.isub σ)
+  have x := hc' k' σ hnot w' hw' k'' ρ
+  have tw := glueLocE_whnfR hW hN perA krA perT krT f σ hnot (hall'' k' σ) hw
+  have gw := red_good hW hw.1 (good_isub (good_of_ty hW hu) σ)
+  have hu2 := HasTy.isubS hW hu (σ.comp ρ)
+  refine ⟨fun hh ψ e0 t0 a0 hwe => ?_, fun hh => ?_⟩
+  · subst hwe
+    cases nw with | glueEl nψ ne0 nt0 na0 =>
+    have y := x.1 hh _ _ _ _ rfl
+    have hTr := hTT.2.1 k'' (σ.comp ρ)
+    unfold glueLocT at hTr; rw [if_pos hh] at hTr
+    have hy := (Comp2_el y).1
+    simp only [goodB, Bool.and_eq_true] at gw
+    exact NI2.el2 (perT k'' _ hh) (niT k'' _ hh) hTr y (nt0.isub ρ).symm
+      (HasTy.near' hW hN hy.1 (nt0.isub ρ).symm (good_isub gw.1.2 ρ)) (hn.isub (σ.comp ρ)) hu2
+  · have tw2 := HasTy.isubS hW tw ρ
+    rw [Tm.isub_isub] at tw2
+    exact glueLocE_near2 hW hN perA krA niA perT krT niT f (σ.comp ρ) (hTT.2.1 k'' (σ.comp ρ)) (x.2 hh)
+      (nw.symm.isub ρ) tw2 (hn.isub (σ.comp ρ)) hu2
+
+end glue
 
 end
 
