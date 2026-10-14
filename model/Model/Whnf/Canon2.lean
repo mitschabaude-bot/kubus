@@ -9,9 +9,7 @@ judgmental equality of closed types. At an equality of Glue types whose face doe
 relation of Glue normal forms relates their bases and equivalences, which gives the compatibility of
 Glue annotations (`glueCompat_of`), the hypothesis of `canonicity_of_glueCompat`.
 
-The remaining obligations of the binary development are bundled in `Obl2`: transport along lines of
-higher inductive types with parameters (`HITHyp2`: the boundaries of constructors, and the argument types of
-their nested constructors) and the rules of higher inductive types (`DataHyp2`).
+The remaining obligations of the binary development are bundled in `Obl2`: the boundaries of the constructors of higher inductive types and the argument types of their nested constructors (`HITHyp2`), and the rules of higher inductive types (`DataHyp2`).
 -/
 
 set_option autoImplicit false
