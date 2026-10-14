@@ -138,6 +138,73 @@ theorem TGD2.a1' : RE2 S k (A.dinst .one) (tgA1' A φ e ψ u0) (tgA1' A' φ' e' 
   · have x := D.tube hW σ (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _) hh
     rwa [tgTube_zero φ e u0] at x
 
+
+/-- On `δ`, the face of the left line holds everywhere along it. -/
+theorem TGD2.faceL (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (σ : ISub k' (k + 1)) :
+    (ival (idEnv k') (φ.subst σ.τ)).holds := by
+  obtain ⟨-, -, -, hφ⟩ := D.closedL hW
+  have h1 : I.Entails .one φ := ent_trans (ent_shift (entails_of_holds D.hδs hδ)) (ent_forall_shift D.hδ1)
+  rw [holds_iff_entails (I.scoped_subst hφ σ.sc)]
+  exact ent_subst h1 σ.τ
+
+omit hW in
+theorem TGD2.hδ' (hδ : (ival (idEnv k) δ).holds) : (ival (idEnv k) δ').holds := by
+  rw [holds_iff_entails D.hδs']
+  exact ent_trans (ent_trans (ent_trans (entails_of_holds D.hδs hδ) D.hδ1) (FEq.forall0 ⟨D.f12, D.f21⟩).1) D.hδ2'
+
+/-- Where the face holds, the left Glue line and its fiber are related. -/
+theorem TGD2.fibG {k' : ℕ} (σ : ISub k' (k + 1)) (hh : (ival (idEnv k') (φ.subst σ.τ)).holds) :
+    RT2 S k' (T.isub σ) ((Tm.glue A φ T e).isub σ) := by
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨-, -, -, hφ⟩ := D.closedL hW
+  have hGσ := HasTy.isubS hW hG σ
+  rw [isub_glue] at hGσ ⊢
+  exact RT2_glue_fib0 hW hGσ (entails_of_holds (I.scoped_subst hφ σ.sc) hh) (D.rTT k' σ hh)
+
+/-- On `δ`, the fiber line is constant on `ψ`. -/
+theorem TGD2.cT (hδ : (ival (idEnv k) δ).holds) : LineConst S k T ψ := by
+  intro k' σ r hr hh
+  obtain ⟨l, hG⟩ := D.hG
+  have h1 := D.fibG hW (ISub.cons r hr σ) (D.faceL hW hδ _)
+  have h0 := D.fibG hW (ISub.cons .zero trivial σ) (D.faceL hW hδ _)
+  have hX := tyCode_of_univ hW (glue_fiber_ty hW hG _ (D.faceL hW hδ (ISub.cons r hr σ))).choose_spec.1
+  have hX0 := tyCode_of_univ hW (glue_fiber_ty hW hG _ (D.faceL hW hδ (ISub.cons .zero trivial σ))).choose_spec.1
+  exact RT2.trans hW hX (RT2.trans hW hX h1 (D.cG k' σ r hr hh))
+    (RT2.symm hW hX0 h0)
+
+/-- On `δ`, the fiber lines are related at near points. -/
+theorem TGD2.rTL (hδ : (ival (idEnv k) δ).holds) : LineRob S k T T' := fun k' τ r r' hr hr' he =>
+  D.rTN hW τ hr hr' he (D.faceL hW hδ _)
+
+/-- On `δ`, the transports in the fibers. -/
+theorem TGD2.t1' (hδ : (ival (idEnv k) δ).holds) : RE2 S k (T.dinst .one) (tgT1 T ψ u0) (tgT1 T' ψ' u0') := by
+  obtain ⟨hA, hT, -, -⟩ := D.closedL hW
+  obtain ⟨-, hT', -, -⟩ := D.closedR hW
+  obtain ⟨l, hG⟩ := D.hG
+  have hGc := closed_of_ty hW hG
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hδe := ent_cof_one hW (entails_of_holds D.hδs hδ)
+  have hδe' := ent_cof_one hW (entails_of_holds D.hδs' (D.hδ' hδ))
+  have ht := HasTy.restrict (Φ' := .one) trivial hδe (minimal_to_spec H.ht1)
+  have ht' := HasTy.restrict (Φ' := .one) trivial hδe' (minimal_to_spec H'.ht1)
+  have hTT1 := D.rTN hW (ISub.id k) (r := .one) (r' := .one) trivial trivial (I_eq_refl _) (D.faceL hW hδ _)
+  rw [isub_cons_id_of_closed hT, isub_cons_id_of_closed hT'] at hTT1
+  have ht'' := ht'.tyConv (Comp2_ty_base hTT1).2.2.2.2.2.symm
+  have hTT := D.rT (k + 1) (ISub.id (k + 1)) (D.faceL hW hδ _)
+  rw [isub_id_of_closed hT, isub_id_of_closed hT'] at hTT
+  have hK := D.kTT k (ISub.id (k + 1)) (D.faceL hW hδ _) T' (by rw [isub_id_of_closed hT]; exact hTT)
+  rw [isub_id_of_closed hT] at hK
+  -- the starts, at the fiber
+  have h0 : RE2 S k (T.dinst .zero) u0 u0' := by
+    have g := D.fibG hW (ISub.cons .zero trivial (ISub.id k)) (D.faceL hW hδ _)
+    rw [isub_cons_id_of_closed hT, isub_cons_id_of_closed hGc] at g
+    have hX := tyCode_of_univ hW (glue_fiber_ty hW hG _ (D.faceL hW hδ (ISub.cons .zero trivial (ISub.id k)))).choose_spec.1
+    rw [isub_cons_id_of_closed hT] at hX
+    exact RE2.conv hW (RT2.symm hW hX g) D.ha0
+  exact hK (D.rTL hW hδ) ψ ψ' u0 u0' (D.cT hW hδ) ht ht''
+    (eqTm_transp_of hW ht ht'' (Comp2_ty_base hTT).2.2.2.2.2 D.p12 D.p21 (RE2.typed h0).2.2) D.p12 D.p21 h0
+
 end
 
 end
