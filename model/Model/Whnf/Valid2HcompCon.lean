@@ -346,6 +346,170 @@ theorem rel_hcompCon (hK : KanOracle2 S) {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {
 
 end lit
 
+section valid
+variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
+include hW hD hH
+variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
+
+/-- **Composition of a constructor** of an inductive type without path constructors. -/
+theorem valid_hcompCon (hK : KanOracle2 S) {c : ℕ} {C : Ctor} {ps u qs uargs args T : Tm} {φ : I}
+    (hC : D.ctors[c]? = some C) (hps : ps = Tm.ofList ps.toList) (hargs : args = Tm.ofList args.toList)
+    (huargs : uargs = Tm.ofList uargs.toList)
+    (h6 : HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
+    (h7 : HasTele0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift uargs (C.argTys d D.params.length) ps.dshift.toList.reverse)
+    (h8 : EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (.con d c ps.dshift uargs []) (.data d ps.dshift))
+    (h9 : EqTele0 S Ψ (cof Φ φ) Γ (uargs.dinst .zero) args (C.argTys d D.params.length) ps.toList.reverse)
+    (hv8 : Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (.con d c ps.dshift uargs []) (.data d ps.dshift))
+    (hv : Valid2 S Ψ Φ Γ (.hcomp (.data d ps) φ u (.con d c qs args []))
+      (.hcomp (.data d ps) φ u (.con d c qs args [])) T)
+    (hinv : HcompInv S Ψ Φ Γ (.data d ps) φ u (.con d c qs args []) T) :
+    Valid2 S Ψ Φ Γ (.hcomp (.data d ps) φ u (.con d c qs args []))
+      (.con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (.data d ps) ps.dshift.toList φ 0 []
+        uargs.toList args.toList)) []) T := by
+  obtain ⟨l, hφ, hAV, huV, haV, hsV, htr, hA, hu, ha, hside⟩ := hinv
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨D2, hD2, hpt⟩ := gen_data_tele hA rfl
+  rw [hD] at hD2; cases hD2
+  have hdD : HasTy0 S Ψ Φ Γ (.data d ps) (.univ D.level) := HasTy0.data hD (hW.2 d D hD).1 hpt
+  have hty0 : HasTy0 S Ψ Φ Γ (.hcomp (.data d ps) φ u (.con d c qs args [])) (.data d ps) :=
+    HasTy0.hcomp hA hφ hu ha hside
+  have heqD := EqTm0.hcompCon hD hH hC hps hargs huargs h6 h7 h8 h9 hty0
+  have hvD := valid_hcomp hW hφ (ent_refl _) (ent_refl _) hAV huV haV hsV hsV hty0 hty0 (EqTm0.refl hty0)
+    (EqTm0.refl hu) (fun k c => hK.hcomp k _ _ (hAV.ty hW c))
+  intro k γ
+  refine ⟨(hv k γ).1, ?_⟩
+  have key : RE2 S k (.data d (γ.R ps)) (γ.R (.con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length)
+      (.data d ps) ps.dshift.toList φ 0 [] uargs.toList args.toList)) []))
+      (γ.R (.hcomp (.data d ps) φ u (.con d c qs args []))) := by
+    have hXR : γ.R args = Tm.ofList (args.toList.map γ.R) := by
+      show args.subst γ.γ' γ.σ'.τ = _; conv_lhs => rw [hargs]
+      exact ofList_subst _ _ _
+    have hYR : (γ.up hW).R uargs = Tm.ofList (uargs.toList.map (γ.up hW).R) := by
+      show uargs.subst _ _ = _; conv_lhs => rw [huargs]
+      exact ofList_subst _ _ _
+    have hYl : (uargs.toList.map (γ.up hW).R).length = C.args.length := by
+      simpa [Ctor.argTys] using Meta.tele_length h7
+    have hXl : (args.toList.map γ.R).length = C.args.length := by
+      simpa [Ctor.argTys] using Meta.tele_length h6
+    have hpsl : ps.toList.length = D.params.length := by simpa using Meta.tele_length hpt
+    have eRedex : γ.R (.hcomp (.data d ps) φ u (.con d c qs args [])) = .hcomp (.data d (γ.R ps)) (φ.subst γ.σ'.τ)
+        ((γ.up hW).R u) (.con d c (γ.R qs) (Tm.ofList (args.toList.map γ.R)) []) := by
+      rw [← hXR]; rfl
+    have eCon : γ.R (.con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length) (.data d ps)
+        ps.dshift.toList φ 0 [] uargs.toList args.toList)) []) =
+        .con d c (γ.R ps) (Tm.ofList (gOuts d D C (γ.R ps) (φ.subst γ.σ'.τ) (uargs.toList.map (γ.up hW).R)
+          (args.toList.map γ.R))) [] := by
+      rw [← gOuts_eq d D C _ _ hYl hXl]
+      show Tm.con d c (γ.R ps) ((Tm.ofList _).subst γ.γ' γ.σ'.τ) [] = _
+      rw [ofList_subst]
+      have hps1 : IsList ps.dshift := by rw [dshift_eq]; exact isList_subst hps _ _
+      have h := hcompTele_subst (σ := γ.γ') (τ := γ.σ'.τ) (C := C) (argTy := C.argTy d D.params.length)
+        (dataT := .data d ps) (np := D.params.length) (fun j => argTy_closed hW hD hC j) (psL := ps.dshift.toList)
+        (by rw [dshift_eq, toList_subst hps]; simp [hpsl]) φ uargs.toList args.toList 0 [] rfl
+      rw [h, ← toList_subst hps1, dshift_dup_subst]
+      rfl
+    let cR := γ.diagR hW
+    have hPT : HasTy S k .one [] (.data d (γ.R ps)) (.univ D.level) := cR.ty hW hdD
+    have hPP : RT2 S k (.data d (γ.R ps)) (.data d (γ.R ps)) := hAV.ty hW cR
+    have hPc : (γ.R ps).closedB 0 k = true := data_closed hW hD hPT
+    have e0 : (γ.R ps).isub (ISub.id k) = γ.R ps := isub_id_of_closed hPc
+    have hty : HasTy S k .one [] (.hcomp (.data d (γ.R ps)) (φ.subst γ.σ'.τ) ((γ.up hW).R u)
+        (.con d c (γ.R qs) (Tm.ofList (args.toList.map γ.R)) [])) (.data d (γ.R ps)) := by
+      have := cR.ty hW hty0; rw [← eRedex]; exact this
+    have hrr := (hvD k cR).2
+    change RE2 S k (.data d (γ.R ps)) (γ.R _) (γ.R _) at hrr
+    rw [eRedex] at hrr
+    have hbb := (haV k cR).2
+    change RE2 S k (.data d (γ.R ps)) (.con d c (γ.R qs) (γ.R args) []) (.con d c (γ.R qs) (γ.R args) []) at hbb
+    rw [hXR] at hbb
+    have he := (cR.eq hW heqD).symm
+    change EqTm S k .one [] (γ.R _) (γ.R _) (.data d (γ.R ps)) at he
+    rw [eCon, eRedex] at he
+    have eUp : ∀ (t : Tm), (cR.up hW).R t = (γ.up hW).R t := fun t => rfl
+    have eConUp : ∀ {k2 : ℕ} (κ : ISub k2 k), ((γ.up hW).R (.con d c ps.dshift uargs [])).isub κ.up =
+        .con d c ((γ.R ps).isub κ).dshift (Tm.ofList ((uargs.toList.map (γ.up hW).R).map (·.isub κ.up))) [] := by
+      intro k2 κ
+      show Tm.con d c ((ps.dshift.subst (dupS γ.γ') (I.up γ.σ'.τ)).isub κ.up) (((γ.up hW).R uargs).isub κ.up) [] = _
+      rw [dshift_dup_subst, hYR, ofList_isub]
+      show Tm.con d c ((γ.R ps).dshift.isub κ.up) _ [] = _
+      rw [isub_dshift]
+    have eDataUp : ∀ {k2 : ℕ} (κ : ISub k2 k), ((γ.up hW).R (.data d ps.dshift)).isub κ.up =
+        .data d ((γ.R ps).isub κ).dshift := by
+      intro k2 κ
+      show Tm.data d ((ps.dshift.subst (dupS γ.γ') (I.up γ.σ'.τ)).isub κ.up) = _
+      rw [dshift_dup_subst]
+      show Tm.data d ((γ.R ps).dshift.isub κ.up) = _
+      rw [isub_dshift]
+    have hYe : ∀ k2 (κ : ISub k2 k), EqTm0 S (k2 + 1) (cof .one ((φ.subst γ.σ'.τ).subst κ.τ)).shift []
+        (((γ.up hW).R u).isub κ.up)
+        (.con d c ((γ.R ps).isub κ).dshift (Tm.ofList ((uargs.toList.map (γ.up hW).R).map (·.isub κ.up))) [])
+        (.data d ((γ.R ps).isub κ).dshift) := by
+      intro k2 κ
+      have hφ' : (φ.subst (cR.restr hW κ).σ.τ).Scoped k2 := I.scoped_subst hφ (cR.restr hW κ).σ.sc
+      have E := (sub_eq hS h8).2 (((cR.restr hW κ).tySubRCof hW hφ').dup hS)
+      change EqTm0 S (k2 + 1) (cof .one (φ.subst (γ.σ'.comp κ).τ)).shift [] (((cR.restr hW κ).up hW).R u)
+        (((cR.restr hW κ).up hW).R (.con d c ps.dshift uargs [])) (((cR.restr hW κ).up hW).R (.data d ps.dshift)) at E
+      rw [CSub2.up_restr_R, CSub2.up_restr_R, CSub2.up_restr_R, eUp, eUp, eUp, eConUp, eDataUp, I_subst_comp] at E
+      exact E
+    have hXPR := tyCode_of_univ hW hPT
+    have hPRσ : ∀ {k3 : ℕ} (σ : ISub k3 k), RT2 S k3 (.data d ((γ.R ps).isub σ)) (.data d ((γ.R ps).isub σ)) :=
+      fun σ => RT2.isub hW hXPR hPP σ
+    have hfσ : ∀ {k3 : ℕ} (σ : ISub k3 k), (ival (idEnv k3) ((φ.subst γ.σ'.τ).subst σ.τ)).holds →
+        I.Entails .one (φ.subst (cR.restr hW σ).σ.τ) := by
+      intro k3 σ hh
+      change I.Entails .one (φ.subst (γ.σ'.comp σ).τ)
+      rw [I_subst_comp]
+      exact (holds_iff_entails (I.scoped_subst (I.scoped_subst hφ γ.σ'.sc) σ.sc)).1 hh
+    have hYr : ∀ k3 (σ : ISub k3 k) (r r' : I) (hr : r.Scoped k3) (hr' : r'.Scoped k3), I.Eq r r' →
+        (ival (idEnv k3) ((φ.subst γ.σ'.τ).subst σ.τ)).holds →
+        RE2 S k3 (.data d ((γ.R ps).isub σ))
+          (.con d c ((γ.R ps).isub σ) (Tm.ofList ((uargs.toList.map (γ.up hW).R).map (·.isub (ISub.cons r hr σ)))) [])
+          ((((γ.up hW).R u).isub σ.up).dinst r') := by
+      intro k3 σ r r' hr hr' hE hh
+      have h := (hv8 k3 (((cR.restr hW σ).cof (hfσ σ hh)).cons r' r hr' hr (I_eq_symm hE))).2
+      rw [CSub2.L_cons hW, CSub2.L_cons hW, CSub2.R_cons hW] at h
+      change RE2 S k3 ((((cR.restr hW σ).up hW).L (.data d ps.dshift)).dinst r') ((((cR.restr hW σ).up hW).L u).dinst r')
+        ((((cR.restr hW σ).up hW).R (.con d c ps.dshift uargs [])).dinst r) at h
+      rw [CSub2.up_restr_L, CSub2.up_restr_L, CSub2.up_restr_R] at h
+      change RE2 S k3 ((((γ.up hW).R (.data d ps.dshift)).isub σ.up).dinst r') ((((γ.up hW).R u).isub σ.up).dinst r')
+        ((((γ.up hW).R (.con d c ps.dshift uargs [])).isub σ.up).dinst r) at h
+      rw [eConUp, eDataUp] at h
+      have e1 : (Tm.data d ((γ.R ps).isub σ).dshift).dinst r' = .data d ((γ.R ps).isub σ) := by
+        show Tm.data d (((γ.R ps).isub σ).dshift.dinst r') = _; rw [dshift_dinst]
+      have e2 : (Tm.con d c ((γ.R ps).isub σ).dshift
+          (Tm.ofList ((uargs.toList.map (γ.up hW).R).map (·.isub σ.up))) []).dinst r =
+          .con d c ((γ.R ps).isub σ) (Tm.ofList ((uargs.toList.map (γ.up hW).R).map (·.isub (ISub.cons r hr σ)))) [] := by
+        show Tm.con d c (((γ.R ps).isub σ).dshift.dinst r) ((Tm.ofList _).subst _ _) [] = _
+        rw [dshift_dinst, ofList_subst, List.map_map]
+        congr 3; funext t; exact isub_up_dinst t σ r hr
+      rw [e1, e2] at h
+      exact RE2.symm hW (hPRσ σ) h
+    have hub : ∀ k3 (σ : ISub k3 k), (ival (idEnv k3) ((φ.subst γ.σ'.τ).subst σ.τ)).holds →
+        RE2 S k3 (.data d ((γ.R ps).isub σ)) ((((γ.up hW).R u).isub σ.up).dinst .zero)
+          ((Tm.con d c (γ.R qs) (Tm.ofList (args.toList.map γ.R)) []).isub σ) := by
+      intro k3 σ hh
+      have h := (hsV k3 ((cR.restr hW σ).cof (hfσ σ hh))).2
+      change RE2 S k3 ((cR.restr hW σ).L (.data d ps)) ((cR.restr hW σ).L (u.dinst .zero))
+        ((cR.restr hW σ).R (.con d c qs args [])) at h
+      rw [CSub2.L_dinst hW, CSub2.up_restr_L, CSub2.restr_L, CSub2.restr_R] at h
+      change RE2 S k3 ((Tm.data d (γ.R ps)).isub σ) ((((γ.up hW).R u).isub σ.up).dinst (I.zero.subst _))
+        ((Tm.con d c (γ.R qs) (γ.R args) []).isub σ) at h
+      rw [hXR, show (Tm.data d (γ.R ps)).isub σ = .data d ((γ.R ps).isub σ) from rfl] at h
+      exact h
+    have R := rel_hcompCon hW hD hH hPT hPP hK (ISub.id k) hC (u := (γ.up hW).R u) (qs := γ.R qs)
+      (φ := φ.subst γ.σ'.τ) (X := args.toList.map γ.R) (Ys := uargs.toList.map (γ.up hW).R) hYl
+      (by rw [e0]; exact hty) (by rw [e0]; exact hrr) (fun k2 κ => by rw [ISub.id_comp]; exact hYe k2 κ)
+      (fun k3 σ r r' hr hr' hE hh => by rw [ISub.id_comp]; exact hYr k3 σ r r' hr hr' hE hh)
+      (fun k3 σ hh => by rw [ISub.id_comp]; exact hub k3 σ hh) (by rw [e0]; exact hbb) (by rw [e0]; exact he)
+    rw [e0] at R
+    rw [eCon, eRedex]
+    exact R
+  have hX := hv.tyCode hW γ
+  have k2 := htr k (γ.diagR hW) _ _ (RE2.symm hW (hAV.ty hW (γ.diagR hW)) key)
+  exact RE2.trans hW (hv.tyLL hW γ) (hv k γ).2 (RE2.conv hW (RT2.symm hW hX (hv k γ).1) k2)
+
+end valid
+
 end
 
 end Model.Whnf
