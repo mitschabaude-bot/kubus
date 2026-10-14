@@ -1000,6 +1000,70 @@ theorem GHD.bdry {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
       (HasTy.isubS hW hA0 σ) heσ (TyEq.refl _)
     exact RE2.expandL hW (hAAσ k' σ) (RE2.typed hugσ).1 (RE2.typed happ).2.1 st happ
 
+
+/-- A composition at a type, retyped at an equal type. -/
+theorem hcomp_retype {X Y Z u a : Tm} {ψ : I} (h : HasTy S k .one [] (.hcomp X ψ u a) Z) (e : TyEq S k X Y) :
+    HasTy S k .one [] (.hcomp Y ψ u a) X ∧ EqTm S k .one [] (.hcomp X ψ u a) (.hcomp Y ψ u a) X := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l1, ⟨hX0, hψs, hu, ha, hside⟩, -⟩ := gen_hcomp (spec_to_minimal hW h) rfl
+  have hX : HasTy S k .one [] (.hcomp X ψ u a) X := minimal_to_spec (HasTy0.hcomp hX0 hψs hu ha hside)
+  rcases e with rfl | ⟨l, eXY⟩
+  · exact ⟨hX, EqTm.refl hX⟩
+  have e0 := spec_to_minimal_eq hW eXY
+  have hc : (cof .one ψ).shift.Scoped (k + 1) := KubusCore.I.scoped_shift ⟨trivial, hψs⟩
+  have hY : HasTy0 S k .one [] (.hcomp Y ψ u a) Y :=
+    HasTy0.hcomp (HasTy.eqR eXY |> spec_to_minimal hW) hψs
+      (HasTy0.conv hu (EqTm0.restrict hc (ent_one _) (EqTm0.dwk hS e0))) (HasTy0.conv ha e0)
+      (EqTm0.conv hside (EqTm0.restrict (show (cof .one ψ).Scoped k from ⟨trivial, hψs⟩) (ent_one _) e0))
+  have hYX : HasTy S k .one [] (.hcomp Y ψ u a) X := (minimal_to_spec hY).conv eXY.symm
+  exact ⟨hYX, EqTm.hcomp hX hYX eXY (ent_refl _) (ent_refl _) (EqTm.refl (minimal_to_spec hu))
+    (EqTm.refl (minimal_to_spec ha))⟩
+
+/-- Composition data, at a related type. -/
+theorem KD.retype {X X' Y : Tm} {ψ ψ' : I} {u u' a0 a0' : Tm} (D : KD S k X X' ψ ψ' u u' a0 a0')
+    (hXY : RT2 S k X Y) : KD S k Y X' ψ ψ' u u' a0 a0' := by
+  obtain ⟨-, ⟨-, hψs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty) rfl
+  have hXc : TyCode k (semK S k X) := RE2.tyCode hW D.ha0
+  have e : TyEq S k X Y := (Comp2_ty_base hXY).2.2.2.2.2
+  have r := hcomp_retype hW D.hty e
+  have cv : ∀ k' (σ : ISub k' k) {t t' : Tm}, RE2 S k' (X.isub σ) t t' → RE2 S k' (Y.isub σ) t t' :=
+    fun k' σ t t' h => RE2.conv hW (RT2.isub hW hXc hXY σ) h
+  exact ⟨r.1.tyConv e, D.hty'.tyConv e, (r.2.symm.trans D.heq).tyConv e, EqTm.cofConv hψs D.hteq e, D.p12, D.p21,
+    fun k' σ r r' hr hr' hE hh => cv k' σ (D.tube k' σ r r' hr hr' hE hh), RE2.conv hW hXY D.ha0,
+    fun k' σ hh => cv k' σ (D.bd k' σ hh), fun k' σ hh => cv k' σ (D.bd' k' σ hh)⟩
+
+/-- The data of a composition at a Glue normal form, from composition data at it and a related type with a
+Glue normal form. -/
+theorem GHD_mk {X' A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm} {l l' : ℕ}
+    (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) (hn : ¬ I.Entails .one φ)
+    (hG' : HasTy S k .one [] (.glue A' φ' T' e') (.univ l')) (hn' : ¬ I.Entails .one φ')
+    (hGX : RT2 S k (.glue A φ T e) X') (hR' : RedT S k X' (.glue A' φ' T' e'))
+    (kA : ∀ k' (σ : ISub k' k) X'', RT2 S k' (A.isub σ) X'' → KanH2 S k' (A.isub σ) X'')
+    (kT : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → ∀ X'', RT2 S k' (T.isub σ) X'' →
+      KanH2 S k' (T.isub σ) X'')
+    (K : KD S k (.glue A φ T e) X' ψ ψ' u u' a0 a0') :
+    GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0' := by
+  have hGc := tyCode_of_univ hW hG
+  have hGG := RT2.refl hW hGc hGX
+  have inv := RT2_glueW_inv hW hG hG' hn hn' hGX (redT_glue_self hn) hR'
+  have invL := RT2_glueW_inv hW hG hG hn hn hGG (redT_glue_self hn) (redT_glue_self hn)
+  have fc := RT2_glueW_face hW hG hG' hn hGX (redT_glue_self hn) hR'
+  have eGX : TyEq S k (.glue A φ T e) X' := (Comp2_ty_base hGX).2.2.2.2.2
+  have r := hcomp_retype hW K.hty' hR'.2
+  refine ⟨⟨l, hG⟩, ⟨l', hG'⟩, TyEq.trans hW eGX hR'.2, hGG, inv.1, fun k' σ hh => (inv.2 k' σ hh).1,
+    fun k' σ hh => (inv.2 k' σ hh).2, fun k' σ hh => (invL.2 k' σ hh).2, fc.1, fc.2,
+    glue_ee hW hG hG' fc.1 inv.1 (fun k' σ hh => (inv.2 k' σ hh).1) (fun k' σ hh => (inv.2 k' σ hh).2), kA, kT,
+    K.hty, r.1.tyConv (TyEq.symm eGX), K.heq.trans (r.2.tyConv (TyEq.symm eGX)), K.hteq, K.p12, K.p21, K.tube,
+    K.ha0, K.bd, K.bd'⟩
+
+omit hW in
+theorem hcompGlue_isub (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u a0 : Tm) (σ : ISub k' k) :
+    (Tm.hcompGlue A φ T e ψ u a0).isub σ =
+      Tm.hcompGlue (A.isub σ) (φ.subst σ.τ) (T.isub σ) (e.isub σ) (ψ.subst σ.τ) (u.isub σ.up) (a0.isub σ) := by
+  rw [KubusCore.Meta.hcompGlue_eq, KubusCore.Meta.hcompGlue_eq, isub_glueEl, isub_hcomp, isub_hcomp, glueTube_isub,
+    isub_unglue]
+  rfl
+
 end
 
 end Model.Whnf
