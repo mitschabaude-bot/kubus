@@ -240,6 +240,43 @@ theorem hcomp_faceH {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Scoped (k1 + 1))
   rw [eE] at htH htube tS tS' haa hWty1 heqHW ⊢
   exact hcomp_relD hW hD hH hP hPP1 _ htH hWty1 heqHW (ent_refl _) (ent_refl _) htube tS tS' haa
 
+/-- The data of the transport of a constructor normal form along a line, with itself. -/
+theorem tc_node (hyp : HITHyp2 S) {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Scoped (k1 + 1))
+    (h0 : I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k1)).τ) .zero) {ψ : I} (hψs : ψ.Scoped k1)
+    (LC : LineConst S k1 ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ)
+    {c : ℕ} {C : Ctor} {q : Tm} {Z : List Tm} {rs : List I} (hC : D.ctors[c]? = some C)
+    (hZl : Z.length = C.args.length)
+    (hty : HasTy S k1 .one [] (.transp ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ (.con d c q (Tm.ofList Z) rs))
+      (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one))
+    (hZ : ∀ i (hi : i < C.args.length), RE2 S k1 ((C.argTy d D.params.length i).substList
+      ((Z.take i).reverse ++ ((P.dinst .zero).isub ρ).toList.reverse)) (Z.getD i .abort) (Z.getD i .abort))
+    (hrec : ∀ j (hj : j < Z.length), C.isRec j = true → TM1 S d K P k1 ρ.hom (.data d ((P.dinst .zero).isub ρ)) Z[j] Z[j]) :
+    TC S k1 d D (P.isub (ISub.cons y hy ρ.up.tail)) (P.isub (ISub.cons y hy ρ.up.tail)) ψ ψ c C q q Z Z rs rs := by
+  have hP0 := P0_ty hW hD hp hP hArgK hRL
+  have hP0P0 := P0_rt2 hW hD hp hP hArgK hRL
+  have hXP0 : TyCode K (semK S K (.data d (P.dinst .zero))) := tyCode_of_univ hW hP0
+  have hP0ρ : RT2 S k1 (.data d ((P.dinst .zero).isub ρ)) (.data d ((P.dinst .zero).isub ρ)) := RT2.isub hW hXP0 hP0P0 ρ
+  have hPL0 := line_dinst hW hD hp hP hArgK hRL ρ y hy .zero trivial
+  have rel0 : RT2 S k1 (.data d ((P.dinst .zero).isub ρ)) (.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .zero)) := by
+    rw [P0_isub hW hD hp hP hArgK hRL, hPL0]
+    exact hRL k1 ρ .zero _ trivial _ (I_eq_symm h0)
+  have hRL' := Rob.line hRL ρ y y hy hy (I_eq_refl _)
+  refine ⟨hW, hD, hp, hC, HasTy.isubS hW hP _, hRL', hRL', argK_restr hArgK _, hψs, ent_refl _, ent_refl _, LC, hty,
+    hty, EqTm.refl hty, fun i hi => ?_, fun i hi hri k3 τ z z' hz hz' hEz hz0 => ?_,
+    conR_hit hW hD hH hyp hC (HasTy.isubS hW hP _) hRL' (forall2_ieq_refl _)⟩
+  · have T := argTy_rt2' hW hD (HasTy.isubS hW hP0 ρ) hP0ρ rel0 hC hi (A := Z.take i) (B := Z.take i)
+      (by simp; omega) (by simp; omega) (fun l hl0 => by
+        rw [List.take_take, Nat.min_eq_left hl0.le, getD_take_lt hl0]
+        exact hZ l (by omega))
+    exact RE2.conv hW T (hZ i hi)
+  · have h := hrec i (by omega) hri ρ rfl rfl P hRL k3 τ _ _
+      (I.scoped_subst hy (ISub.cons z hz τ.up.tail).sc) (I.scoped_subst hy (ISub.cons z' hz' τ.up.tail).sc)
+      (ieq_subst_cons (I_eq_refl y) hEz hz hz' τ.up.tail) (ieq_zero_comp hy h0 hz hz0 τ)
+    rw [getD_eq_get' (show i < Z.length by omega)]
+    show KanT2At S k3 (Tm.data d ((P.isub _).isub _)) (Tm.data d ((P.isub _).isub _)) _ _
+    rw [Tm.isub_isub, Tm.isub_isub, line_comp, line_comp, ISub.comp_up_tail]
+    exact h
+
 end face
 
 end
