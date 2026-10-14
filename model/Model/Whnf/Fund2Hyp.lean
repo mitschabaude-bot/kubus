@@ -48,8 +48,6 @@ structure KanOracle2 (S : Sig) : Prop where
   hcomp : ∀ k (A A' : Tm), RT2 S k A A' → KanH2 S k A A'
   transp : ∀ k (A A' : Tm), RT2 S (k + 1) A A' → KanT2 S k A A'
   transpPi : ∀ k (X A B : Tm) (φ : I) (u0 : Tm), RedexOK S k X (.transp (.pi A B) φ u0) (Tm.transpPi A B φ u0)
-  transpSigma : ∀ k (X A B : Tm) (φ : I) (u0 : Tm),
-    RedexOK S k X (.transp (.sigma A B) φ u0) (Tm.transpSigma A B φ u0)
   transpPath : ∀ k (X A a b : Tm) (φ : I) (p0 : Tm),
     RedexOK S k X (.transp (.path A a b) φ p0) (Tm.transpPath A a b φ p0)
   transpGlue : ∀ k (X A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (δ : I), δ.Scoped k →

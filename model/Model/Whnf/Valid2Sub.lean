@@ -112,26 +112,31 @@ theorem dsubISub_lt {n m Ψ0 : ℕ} (τ : ℕ → I) (hτ : ∀ i < n, (τ i).Sc
     (hτs : ∀ i, τ (i + n) = .var (i + m)) (σ0 : ISub k (Ψ0 + m)) {i : ℕ} (hi : i < Ψ0 + n) :
     (dsubISub τ hτ hτs σ0).τ i = (τ i).subst σ0.τ := if_pos hi
 
-/-- Pulling a related substitution back along an interval substitution of the innermost variables. -/
-def CSub2.dsub {n m Ψ0 : ℕ} {Φ0 Φ' : I} {Γ0 : Ctx} (τ : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
-    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hΦ0 : Φ0.Scoped Ψ0)
-    (hent : I.Entails Φ' ((Φ0.ren (· + n)).subst τ)) (c : CSub2 S (Ψ0 + m) Φ' (Ctx.dren m Γ0) k) :
-    CSub2 S (Ψ0 + n) (Φ0.ren (· + n)) (Ctx.dren n Γ0) k where
+/-- Pulling a related substitution back along two pointwise equal interval substitutions of the innermost
+variables. -/
+def CSub2.dsub2 {n m Ψ0 : ℕ} {Φs Φ' : I} {Γ0 : Ctx} (τ τ' : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
+    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hτ' : ∀ i < n, (τ' i).Scoped (Ψ0 + m))
+    (hτs' : ∀ i, τ' (i + n) = .var (i + m)) (heq : ∀ i < n, I.Eq (τ i) (τ' i)) (hΦs : Φs.Scoped (Ψ0 + n))
+    (hent : I.Entails Φ' (Φs.subst τ)) (c : CSub2 S (Ψ0 + m) Φ' (Ctx.dren m Γ0) k) :
+    CSub2 S (Ψ0 + n) Φs (Ctx.dren n Γ0) k where
   σ := dsubISub τ hτ hτs c.σ
-  σ' := dsubISub τ hτ hτs c.σ'
+  σ' := dsubISub τ' hτ' hτs' c.σ'
   hσ i := by
-    show I.Eq (if i < Ψ0 + n then (τ i).subst c.σ.τ else .zero) (if i < Ψ0 + n then (τ i).subst c.σ'.τ else .zero)
+    show I.Eq (if i < Ψ0 + n then (τ i).subst c.σ.τ else .zero) (if i < Ψ0 + n then (τ' i).subst c.σ'.τ else .zero)
     split
-    · exact I_eq_subst_congr c.hσ _
+    · rename_i hi
+      refine I_eq_trans (I_eq_subst_congr c.hσ _) (I_eq_subst ?_ _)
+      by_cases hin : i < n
+      · exact heq i hin
+      · obtain ⟨j, rfl⟩ : ∃ j, i = j + n := ⟨i - n, by omega⟩
+        rw [hτs, hτs']; exact I_eq_refl _
     · exact I_eq_refl _
   γ := c.γ
   γ' := c.γ'
   hγ := c.hγ
   hγ' := c.hγ'
   face := by
-    have hsc : (Φ0.ren (· + n)).Scoped (Ψ0 + n) := by
-      rw [I_ren_eq]; exact I.scoped_subst hΦ0 fun i hi => show i + n < Ψ0 + n by omega
-    rw [I_subst_congr_scoped (fun i hi => dsubISub_lt τ hτ hτs c.σ hi) hsc, ← I_subst_subst]
+    rw [I_subst_congr_scoped (fun i hi => dsubISub_lt τ hτ hτs c.σ hi) hΦs, ← I_subst_subst]
     exact ent_trans c.face (ent_subst hent c.σ.τ)
   look x A h := by
     rw [Ctx.lookup_dren, Option.map_eq_some_iff] at h
@@ -169,33 +174,70 @@ def CSub2.dsub {n m Ψ0 : ℕ} {Φ0 Φ' : I} {Γ0 : Ctx} (τ : ℕ → I) (hτ :
     rw [subst_ren, subst_ren] at this ⊢
     rwa [hsh, hsh] at this
 
-theorem CSub2.dsub_L {n m Ψ0 : ℕ} {Φ0 Φ' : I} {Γ0 : Ctx} (τ : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
-    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hΦ0 : Φ0.Scoped Ψ0)
-    (hent : I.Entails Φ' ((Φ0.ren (· + n)).subst τ)) (c : CSub2 S (Ψ0 + m) Φ' (Ctx.dren m Γ0) k)
+/-- Pulling a related substitution back along an interval substitution of the innermost variables. -/
+abbrev CSub2.dsub {n m Ψ0 : ℕ} {Φs Φ' : I} {Γ0 : Ctx} (τ : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
+    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hΦs : Φs.Scoped (Ψ0 + n))
+    (hent : I.Entails Φ' (Φs.subst τ)) (c : CSub2 S (Ψ0 + m) Φ' (Ctx.dren m Γ0) k) :
+    CSub2 S (Ψ0 + n) Φs (Ctx.dren n Γ0) k :=
+  c.dsub2 τ τ hτ hτs hτ hτs (fun _ _ => I_eq_refl _) hΦs hent
+
+theorem CSub2.dsub_L {n m Ψ0 : ℕ} {Φs Φ' : I} {Γ0 : Ctx} (τ : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
+    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hΦs : Φs.Scoped (Ψ0 + n))
+    (hent : I.Entails Φ' (Φs.subst τ)) (c : CSub2 S (Ψ0 + m) Φ' (Ctx.dren m Γ0) k)
     {t : Tm} {N : ℕ} (ht : t.closedB N (Ψ0 + n) = true) :
-    (c.dsub τ hτ hτs hΦ0 hent).L t = c.L (t.dsubst τ) := by
+    (c.dsub τ hτ hτs hΦs hent).L t = c.L (t.dsubst τ) := by
   simp only [CSub2.L, CSub2.dsub, Tm.dsubst, subst_subst]
   exact closed_subst_eq t N (Ψ0 + n) _ _ _ _ ht (fun x _ => rfl) fun i hi => dsubISub_lt τ hτ hτs c.σ hi
 
-theorem CSub2.dsub_R {n m Ψ0 : ℕ} {Φ0 Φ' : I} {Γ0 : Ctx} (τ : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
-    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hΦ0 : Φ0.Scoped Ψ0)
-    (hent : I.Entails Φ' ((Φ0.ren (· + n)).subst τ)) (c : CSub2 S (Ψ0 + m) Φ' (Ctx.dren m Γ0) k)
+theorem CSub2.dsub_R {n m Ψ0 : ℕ} {Φs Φ' : I} {Γ0 : Ctx} (τ : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
+    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hΦs : Φs.Scoped (Ψ0 + n))
+    (hent : I.Entails Φ' (Φs.subst τ)) (c : CSub2 S (Ψ0 + m) Φ' (Ctx.dren m Γ0) k)
     {t : Tm} {N : ℕ} (ht : t.closedB N (Ψ0 + n) = true) :
-    (c.dsub τ hτ hτs hΦ0 hent).R t = c.R (t.dsubst τ) := by
+    (c.dsub τ hτ hτs hΦs hent).R t = c.R (t.dsubst τ) := by
   simp only [CSub2.R, CSub2.dsub, Tm.dsubst, subst_subst]
   exact closed_subst_eq t N (Ψ0 + n) _ _ _ _ ht (fun x _ => rfl) fun i hi => dsubISub_lt τ hτ hτs c.σ' hi
 
 /-- Validity along an interval substitution of the innermost interval variables. -/
-theorem valid_dsub {n m Ψ0 : ℕ} {Φ0 Φ' : I} {Γ0 : Ctx} (τ : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
-    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hΦ0 : Φ0.Scoped Ψ0)
-    (hent : I.Entails Φ' ((Φ0.ren (· + n)).subst τ)) {t u A : Tm} {N : ℕ}
+theorem valid_dsub {n m Ψ0 : ℕ} {Φs Φ' : I} {Γ0 : Ctx} (τ : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
+    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hΦs : Φs.Scoped (Ψ0 + n))
+    (hent : I.Entails Φ' (Φs.subst τ)) {t u A : Tm} {N : ℕ}
     (ht : t.closedB N (Ψ0 + n) = true) (hu : u.closedB N (Ψ0 + n) = true) (hA : A.closedB N (Ψ0 + n) = true)
-    (h : Valid2 S (Ψ0 + n) (Φ0.ren (· + n)) (Ctx.dren n Γ0) t u A) :
+    (h : Valid2 S (Ψ0 + n) Φs (Ctx.dren n Γ0) t u A) :
     Valid2 S (Ψ0 + m) Φ' (Ctx.dren m Γ0) (t.dsubst τ) (u.dsubst τ) (A.dsubst τ) := by
   intro k c
-  have := h k (c.dsub τ hτ hτs hΦ0 hent)
-  rwa [CSub2.dsub_L τ hτ hτs hΦ0 hent c ht, CSub2.dsub_L τ hτ hτs hΦ0 hent c hA,
-    CSub2.dsub_R τ hτ hτs hΦ0 hent c hu, CSub2.dsub_R τ hτ hτs hΦ0 hent c hA] at this
+  have := h k (c.dsub τ hτ hτs hΦs hent)
+  rwa [CSub2.dsub_L τ hτ hτs hΦs hent c ht, CSub2.dsub_L τ hτ hτs hΦs hent c hA,
+    CSub2.dsub_R τ hτ hτs hΦs hent c hu, CSub2.dsub_R τ hτ hτs hΦs hent c hA] at this
+
+theorem CSub2.dsub2_R {n m Ψ0 : ℕ} {Φs Φ' : I} {Γ0 : Ctx} (τ τ' : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
+    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hτ' : ∀ i < n, (τ' i).Scoped (Ψ0 + m))
+    (hτs' : ∀ i, τ' (i + n) = .var (i + m)) (heq : ∀ i < n, I.Eq (τ i) (τ' i)) (hΦs : Φs.Scoped (Ψ0 + n))
+    (hent : I.Entails Φ' (Φs.subst τ)) (c : CSub2 S (Ψ0 + m) Φ' (Ctx.dren m Γ0) k)
+    {t : Tm} {N : ℕ} (ht : t.closedB N (Ψ0 + n) = true) :
+    (c.dsub2 τ τ' hτ hτs hτ' hτs' heq hΦs hent).R t = c.R (t.dsubst τ') := by
+  simp only [CSub2.R, CSub2.dsub2, Tm.dsubst, subst_subst]
+  exact closed_subst_eq t N (Ψ0 + n) _ _ _ _ ht (fun x _ => rfl) fun i hi => dsubISub_lt τ' hτ' hτs' c.σ' hi
+
+/-- Validity along two pointwise equal interval substitutions of the innermost interval variables. -/
+theorem valid_dsub2 {n m Ψ0 : ℕ} {Φs Φ' : I} {Γ0 : Ctx} (τ τ' : ℕ → I) (hτ : ∀ i < n, (τ i).Scoped (Ψ0 + m))
+    (hτs : ∀ i, τ (i + n) = .var (i + m)) (hτ' : ∀ i < n, (τ' i).Scoped (Ψ0 + m))
+    (hτs' : ∀ i, τ' (i + n) = .var (i + m)) (heq : ∀ i < n, I.Eq (τ i) (τ' i)) (hΦs : Φs.Scoped (Ψ0 + n))
+    (hent : I.Entails Φ' (Φs.subst τ)) {t u A : Tm} {N : ℕ}
+    (ht : t.closedB N (Ψ0 + n) = true) (hu : u.closedB N (Ψ0 + n) = true) (hA : A.closedB N (Ψ0 + n) = true)
+    (h : Valid2 S (Ψ0 + n) Φs (Ctx.dren n Γ0) t u A) :
+    Valid2 S (Ψ0 + m) Φ' (Ctx.dren m Γ0) (t.dsubst τ) (u.dsubst τ') (A.dsubst τ) := by
+  intro k c
+  have := h k (c.dsub2 τ τ' hτ hτs hτ' hτs' heq hΦs hent)
+  have eL : ∀ {x : Tm}, x.closedB N (Ψ0 + n) = true →
+      (c.dsub2 τ τ' hτ hτs hτ' hτs' heq hΦs hent).L x = c.L (x.dsubst τ) := fun hx => by
+    simp only [CSub2.L, CSub2.dsub2, Tm.dsubst, subst_subst]
+    exact closed_subst_eq _ N (Ψ0 + n) _ _ _ _ hx (fun x _ => rfl) fun i hi => dsubISub_lt τ hτ hτs c.σ hi
+  have hA' : RT2 S k (c.L (A.dsubst τ)) ((c.dsub2 τ τ' hτ hτs hτ' hτs' heq hΦs hent).R A) := by
+    have := this.1; rwa [eL hA] at this
+  rw [eL ht, eL hA, CSub2.dsub2_R τ τ' hτ hτs hτ' hτs' heq hΦs hent c hu] at this
+  refine ⟨?_, this.2⟩
+  have h1 := (h k (c.dsub τ hτ hτs hΦs hent)).1
+  rwa [CSub2.dsub_L τ hτ hτs hΦs hent c hA, CSub2.dsub_R τ hτ hτs hΦs hent c hA] at h1
 
 /-! ### Common instances of `valid_dsub` -/
 
@@ -207,48 +249,46 @@ theorem I_shift_inst0 (Φ : I) (r : I) : Φ.shift.subst (I.inst0 r) = Φ := by
 theorem valid_dwk' {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A : Tm} {N : ℕ}
     (ht : t.closedB N Ψ = true) (hu : u.closedB N Ψ = true) (hA : A.closedB N Ψ = true) (hΦ : Φ.Scoped Ψ)
     (h : Valid2 S Ψ Φ Γ t u A) : Valid2 S (Ψ + 1) Φ.shift Γ.dshift t.dshift u.dshift A.dshift := by
-  have h' : Valid2 S (Ψ + 0) (Φ.ren (· + 0)) (Ctx.dren 0 Γ) t u A := by rwa [I_ren_add0, Ctx.dren_zero]
+  have h' : Valid2 S (Ψ + 0) Φ (Ctx.dren 0 Γ) t u A := by rwa [Ctx.dren_zero]
   have := valid_dsub (n := 0) (m := 1) (fun i => .var (i + 1)) (fun i hi => absurd hi (Nat.not_lt_zero _))
-    (fun i => rfl) hΦ (by rw [I_ren_add0]; exact ent_refl _) ht hu hA h'
+    (fun i => rfl) hΦ (ent_refl _) ht hu hA h'
   simpa only [Tm.dsubst, dshift_eq] using this
 
 theorem valid_dinst' {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A : Tm} {N : ℕ} (r : I) (hr : r.Scoped Ψ)
     (ht : t.closedB N (Ψ + 1) = true) (hu : u.closedB N (Ψ + 1) = true) (hA : A.closedB N (Ψ + 1) = true)
     (hΦ : Φ.Scoped Ψ) (h : Valid2 S (Ψ + 1) Φ.shift Γ.dshift t u A) :
     Valid2 S Ψ Φ Γ (t.dinst r) (u.dinst r) (A.dinst r) := by
-  have := valid_dsub (n := 1) (m := 0) (Ψ0 := Ψ) (Φ0 := Φ) (Φ' := Φ) (Γ0 := Γ) (I.inst0 r)
+  have := valid_dsub (n := 1) (m := 0) (Ψ0 := Ψ) (Φs := Φ.shift) (Φ' := Φ) (Γ0 := Γ) (I.inst0 r)
     (fun i hi => by rcases Nat.lt_one_iff.1 hi with rfl; exact hr)
-    (fun i => rfl) hΦ (by rw [show Φ.ren (· + 1) = Φ.shift from rfl, I_shift_inst0]; exact ent_refl _)
+    (fun i => rfl) (KubusCore.I.scoped_shift hΦ) (by rw [I_shift_inst0]; exact ent_refl _)
     ht hu hA h
   rwa [Ctx.dren_zero] at this
 
-theorem valid_dsub11 {Ψ : ℕ} {Φ Φ' : I} {Γ : Ctx} {t u A : Tm} {N : ℕ} (τ : ℕ → I) (hτ0 : (τ 0).Scoped (Ψ + 1))
-    (hτs : ∀ i, τ (i + 1) = .var (i + 1)) (hΦ : Φ.Scoped Ψ) (hent : I.Entails Φ' (Φ.shift.subst τ))
+theorem valid_dsub11 {Ψ : ℕ} {Φs Φ' : I} {Γ : Ctx} {t u A : Tm} {N : ℕ} (τ : ℕ → I) (hτ0 : (τ 0).Scoped (Ψ + 1))
+    (hτs : ∀ i, τ (i + 1) = .var (i + 1)) (hΦs : Φs.Scoped (Ψ + 1)) (hent : I.Entails Φ' (Φs.subst τ))
     (ht : t.closedB N (Ψ + 1) = true) (hu : u.closedB N (Ψ + 1) = true) (hA : A.closedB N (Ψ + 1) = true)
-    (h : Valid2 S (Ψ + 1) Φ.shift Γ.dshift t u A) :
+    (h : Valid2 S (Ψ + 1) Φs Γ.dshift t u A) :
     Valid2 S (Ψ + 1) Φ' Γ.dshift (t.dsubst τ) (u.dsubst τ) (A.dsubst τ) :=
   valid_dsub (n := 1) (m := 1) (Ψ0 := Ψ) (Γ0 := Γ) τ (fun i hi => by rcases Nat.lt_one_iff.1 hi with rfl; exact hτ0)
-    hτs hΦ hent ht hu hA h
+    hτs hΦs hent ht hu hA h
 
-theorem valid_dsub12 {Ψ : ℕ} {Φ Φ' : I} {Γ : Ctx} {t u A : Tm} {N : ℕ} (τ : ℕ → I) (hτ0 : (τ 0).Scoped (Ψ + 2))
-    (hτs : ∀ i, τ (i + 1) = .var (i + 2)) (hΦ : Φ.Scoped Ψ) (hent : I.Entails Φ' (Φ.shift.subst τ))
+theorem valid_dsub12 {Ψ : ℕ} {Φs Φ' : I} {Γ : Ctx} {t u A : Tm} {N : ℕ} (τ : ℕ → I) (hτ0 : (τ 0).Scoped (Ψ + 2))
+    (hτs : ∀ i, τ (i + 1) = .var (i + 2)) (hΦs : Φs.Scoped (Ψ + 1)) (hent : I.Entails Φ' (Φs.subst τ))
     (ht : t.closedB N (Ψ + 1) = true) (hu : u.closedB N (Ψ + 1) = true) (hA : A.closedB N (Ψ + 1) = true)
-    (h : Valid2 S (Ψ + 1) Φ.shift Γ.dshift t u A) :
+    (h : Valid2 S (Ψ + 1) Φs Γ.dshift t u A) :
     Valid2 S (Ψ + 1 + 1) Φ' Γ.dshift.dshift (t.dsubst τ) (u.dsubst τ) (A.dsubst τ) := by
   have := valid_dsub (n := 1) (m := 2) (Ψ0 := Ψ) (Γ0 := Γ) τ (fun i hi => by rcases Nat.lt_one_iff.1 hi with rfl; exact hτ0)
-    hτs hΦ hent ht hu hA h
+    hτs hΦs hent ht hu hA h
   rwa [Ctx.dren_two] at this
 
-theorem valid_dsub22 {Ψ : ℕ} {Φ Φ' : I} {Γ : Ctx} {t u A : Tm} {N : ℕ} (τ : ℕ → I)
-    (hτ : ∀ i < 2, (τ i).Scoped (Ψ + 2)) (hτs : ∀ i, τ (i + 2) = .var (i + 2)) (hΦ : Φ.Scoped Ψ)
-    (hent : I.Entails Φ' (Φ.shift.shift.subst τ))
+theorem valid_dsub22 {Ψ : ℕ} {Φs Φ' : I} {Γ : Ctx} {t u A : Tm} {N : ℕ} (τ : ℕ → I)
+    (hτ : ∀ i < 2, (τ i).Scoped (Ψ + 2)) (hτs : ∀ i, τ (i + 2) = .var (i + 2)) (hΦs : Φs.Scoped (Ψ + 2))
+    (hent : I.Entails Φ' (Φs.subst τ))
     (ht : t.closedB N (Ψ + 2) = true) (hu : u.closedB N (Ψ + 2) = true) (hA : A.closedB N (Ψ + 2) = true)
-    (h : Valid2 S (Ψ + 1 + 1) Φ.shift.shift Γ.dshift.dshift t u A) :
+    (h : Valid2 S (Ψ + 1 + 1) Φs Γ.dshift.dshift t u A) :
     Valid2 S (Ψ + 1 + 1) Φ' Γ.dshift.dshift (t.dsubst τ) (u.dsubst τ) (A.dsubst τ) := by
-  have h' : Valid2 S (Ψ + 2) (Φ.ren (· + 2)) (Ctx.dren 2 Γ) t u A := by
-    rw [Ctx.dren_two, show Φ.ren (· + 2) = Φ.shift.shift from I_add2 Φ]; exact h
-  have := valid_dsub (n := 2) (m := 2) (Ψ0 := Ψ) (Γ0 := Γ) τ hτ hτs hΦ
-    (by rw [show Φ.ren (· + 2) = Φ.shift.shift from I_add2 Φ]; exact hent) ht hu hA h'
+  have h' : Valid2 S (Ψ + 2) Φs (Ctx.dren 2 Γ) t u A := by rw [Ctx.dren_two]; exact h
+  have := valid_dsub (n := 2) (m := 2) (Ψ0 := Ψ) (Γ0 := Γ) τ hτ hτs hΦs hent ht hu hA h'
   rwa [Ctx.dren_two] at this
 
 /-! ### Instantiation of the innermost term variable -/

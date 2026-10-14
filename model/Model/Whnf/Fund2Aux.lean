@@ -284,13 +284,6 @@ theorem valid_transpPi_of {A B u0 T : Tm} {φ : I}
   refine valid_redex hW h hu fun k c => ?_
   simp only [CSub2.R]; rw [transpPi_subst]; exact hK.transpPi k _ _ _ _ _
 
-theorem valid_transpSigma_of {A B u0 T : Tm} {φ : I}
-    (h : Valid2 S Ψ Φ Γ (.transp (.sigma A B) φ u0) (.transp (.sigma A B) φ u0) T)
-    (hu : HasTy0 S Ψ Φ Γ (Tm.transpSigma A B φ u0) T) :
-    Valid2 S Ψ Φ Γ (.transp (.sigma A B) φ u0) (Tm.transpSigma A B φ u0) T := by
-  refine valid_redex hW h hu fun k c => ?_
-  simp only [CSub2.R]; rw [transpSigma_subst]; exact hK.transpSigma k _ _ _ _ _
-
 theorem valid_transpPath_of {A a b p0 T : Tm} {φ : I}
     (h : Valid2 S Ψ Φ Γ (.transp (.path A a b) φ p0) (.transp (.path A a b) φ p0) T)
     (hu : HasTy0 S Ψ Φ Γ (Tm.transpPath A a b φ p0) T) :

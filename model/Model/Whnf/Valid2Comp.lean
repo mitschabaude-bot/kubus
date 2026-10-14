@@ -84,6 +84,17 @@ theorem valid_piCod {A B : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.pi A B) (.pi A
   simp only [CSub2.ren, subst_up_inst_eq, consT_succ_eq] at hh
   exact hh
 
+theorem valid_sigmaDom {A B : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.sigma A B) (.sigma A B) (.univ l))
+    (hA : HasTy0 S Ψ Φ Γ A (.univ l)) : Valid2 S Ψ Φ Γ A A (.univ l) :=
+  valid_univ_of hW hA hA (EqTm0.refl hA) fun k c => (RT2_sigma_inv hW (h.ty hW c)).1
+
+theorem valid_sigmaCod {A B : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.sigma A B) (.sigma A B) (.univ l))
+    (hB : HasTy0 S Ψ Φ (A :: Γ) B (.univ l)) : Valid2 S Ψ Φ (A :: Γ) B B (.univ l) := by
+  refine valid_univ_of hW hB hB (EqTm0.refl hB) fun k c => ?_
+  have hh := (RT2_sigma_inv hW (h.ty hW (c.ren (· + 1) lookup_shift_ren))).2 _ _ c.head_rel
+  simp only [CSub2.ren, subst_up_inst_eq, consT_succ_eq] at hh
+  exact hh
+
 /-! ### The endpoint of a tube -/
 
 /-- The end of a valid tube. -/
@@ -96,13 +107,8 @@ theorem valid_tube_end {u A : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ) (r : I
   have hc := closed_ty hut
   have hcA := closed_ty (HasTy0.dwk hS hA)
   simp only [Ctx.dshift, List.length_map] at hc hcA
-  have := valid_dsub (n := 1) (m := 0) (Ψ0 := Ψ) (Φ0 := cof Φ φ) (Φ' := cof Φ φ) (Γ0 := Γ) (I.inst0 r)
-    (fun i hi => by obtain rfl : i = 0 := by omega
-                    exact hr)
-    (fun i => rfl) hs (by rw [show (cof Φ φ).ren (· + 1) = (cof Φ φ).shift from rfl, I_shift_inst0]; exact ent_refl _)
-    hc hc hcA hu
-  rw [Ctx.dren_zero, show A.dshift.dsubst (I.inst0 r) = A from dshift_dinst A r] at this
-  exact this
+  have := valid_dinst' (Φ := cof Φ φ) r hr hc hc hcA hs hu
+  rwa [show A.dshift.dinst r = A from dshift_dinst A r] at this
 
 /-! ### `hcomp` in `Π` -/
 
@@ -288,8 +294,9 @@ theorem valid_hcompIPi_rule (hK : ∀ k (X X' : Tm), RT2 S k X X' → KanH2 S k 
     have := HasTy0.isub hS (τ := Tm.bind2 (.var 0)) hu hb2 (ent_bind2_shift _ (ent_refl _))
       (by rw [ctxI_bind2]; exact hw2)
     rwa [ctxI_bind2] at this
-  have hu2V := valid_dsub12 (Γ := Γ) (Φ := cof Φ φ) (Φ' := (cof Φ φ).shift.shift) (Tm.bind2 (.var 0))
-    (show 0 < Ψ + 2 by omega) (fun i => rfl) hs' (ent_bind2_shift _ (ent_refl _)) hcu hcu hcIdc huV
+  have hu2V := valid_dsub12 (Γ := Γ) (Φs := (cof Φ φ).shift) (Φ' := (cof Φ φ).shift.shift) (Tm.bind2 (.var 0))
+    (show 0 < Ψ + 2 by omega) (fun i => rfl) (KubusCore.I.scoped_shift hs') (ent_bind2_shift _ (ent_refl _))
+    hcu hcu hcIdc huV
   have hv1 : (I.var 1).Scoped (Ψ + 1 + 1) := show 1 < Ψ + 1 + 1 by omega
   have hU := HasTy0.iapp (A := (A.ren id (Tm.upRen Nat.succ)).subst Tm.var (I.up (Tm.bind2 (.var 0)))) hu2 hv1
   have hUV := valid_iapp hW (L := (A.ren id (Tm.upRen Nat.succ)).subst Tm.var (I.up (Tm.bind2 (.var 0))))
@@ -386,7 +393,8 @@ theorem valid_transpIPi_rule (hK : ∀ k (X X' : Tm), RT2 S (k + 1) X X' → Kan
   have hcA := closed_ty hA
   simp only [Ctx.dshift, List.length_map] at hcA
   have hA' := HasTy0.swap hS hA
-  have hA'V := valid_dsub22 (Φ := Φ) swapI hsw (fun i => rfl) hs (by rw [I_shift2_swap]; exact ent_refl _)
+  have hA'V := valid_dsub22 (Φs := Φ.shift.shift) swapI hsw (fun i => rfl)
+    (KubusCore.I.scoped_shift (KubusCore.I.scoped_shift hs)) (by rw [I_shift2_swap]; exact ent_refl _)
     hcA hcA rfl hAV
   rw [univ_dsubst] at hA'
   -- constancy of the swapped line
@@ -407,7 +415,8 @@ theorem valid_transpIPi_rule (hK : ∀ k (X X' : Tm), RT2 S (k + 1) X X' → Kan
   have hcil := closed_ty (presup hW hci).1
   have hcir := closed_ty (presup hW hci).2
   simp only [Ctx.dshift, List.length_map] at hcil hcir
-  have hcsV := valid_dsub22 (Φ := cof Φ φ) swapI hsw (fun i => rfl) hs' (by rw [I_shift2_swap]; exact ent_refl _)
+  have hcsV := valid_dsub22 (Φs := (cof Φ φ).shift.shift) swapI hsw (fun i => rfl)
+    (KubusCore.I.scoped_shift (KubusCore.I.scoped_shift hs')) (by rw [I_shift2_swap]; exact ent_refl _)
     hcil hcir rfl hciV
   rw [ipi_c3, univ_dsubst] at hcs hcsV
   -- the base
