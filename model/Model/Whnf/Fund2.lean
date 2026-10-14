@@ -5,6 +5,7 @@ import Model.Whnf.Valid2CompGlue
 import Model.Whnf.Valid2LineEquiv
 import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Valid2Data
+import Model.Whnf.NearAll
 
 /-!
 # The binary fundamental lemma
@@ -697,10 +698,15 @@ theorem valid_closed0 {t u A : Tm} (h : Valid2 S 0 .one [] t u A) (ht : t.closed
   simp only [CSub2.L, CSub2.R] at this
   simp only [closed0_subst ht, closed0_subst hu, closed0_subst hA] at this; exact this
 
+/-- Element relations are invariant under near terms on the left (`RE2_near`). -/
+theorem nearEl2_of (hW : WfSig S) : NearEl2 S := by
+  intro k X t t' u hXX h hn ht'
+  exact RE2.symm hW hXX (RE2_near hW hXX (RE2.symm hW hXX h) hn ht')
+
 /-- The definitions of every prefix of the signature are related, and the declared types of its inductive
 types are valid, by induction on the prefix. -/
 theorem hyps_take (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S (S.take n)) (hGB : GlueBetaHyp2 S)
-    (hN : NearEl2 S) : ∀ n, DefHyp2 S (S.take n) ∧ DeclHyp2 S n := by
+    : ∀ n, DefHyp2 S (S.take n) ∧ DeclHyp2 S n := by
   intro n
   induction n with
   | zero => exact ⟨fun i t A h => by simp at h, ⟨fun d hd => absurd hd (Nat.not_lt_zero _),
@@ -710,7 +716,7 @@ theorem hyps_take (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S (S
       fun j e h => (getElem?_take_some h).2
     have hDe : DeclHyp2 S (S.take n).length := ih.2.mono (by simp)
     have hfund := fun {Ψ Φ Γ t A} (h : HasTy0 (S.take n) Ψ Φ Γ t A) =>
-      fund2_ty hW hpre ih.1 hK (hDa n) hGB hN hDe h
+      fund2_ty hW hpre ih.1 hK (hDa n) hGB (nearEl2_of hW) hDe h
     refine ⟨fun i t A h => ?_, ⟨fun d hd D hD j A hA k c => ?_, fun d hd D hD c' C hC i A hA k cs => ?_⟩⟩
     · obtain ⟨hi, hS⟩ := getElem?_take_some h
       by_cases hin : i < n
@@ -738,20 +744,20 @@ theorem hyps_take (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S (S
 
 /-- **The binary fundamental lemma**, for derivations in the whole signature. -/
 theorem fund2 (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S (S.take n)) (hGB : GlueBetaHyp2 S)
-    (hN : NearEl2 S) {Ψ Φ Γ t u A} (h : EqTm0 S Ψ Φ Γ t u A) : Valid2 S Ψ Φ Γ t u A := by
-  have hH := hyps_take hW hK hDa hGB hN S.length
+    {Ψ Φ Γ t u A} (h : EqTm0 S Ψ Φ Γ t u A) : Valid2 S Ψ Φ Γ t u A := by
+  have hH := hyps_take hW hK hDa hGB S.length
   have hD := hH.1
   rw [List.take_length] at hD
   have := hDa S.length
   rw [List.take_length] at this
-  exact fund2_eq hW (fun _ _ h => h) hD hK this hGB hN hH.2 h
+  exact fund2_eq hW (fun _ _ h => h) hD hK this hGB (nearEl2_of hW) hH.2 h
 
 /-- The binary fundamental lemma for closed terms at stage `k`. -/
 theorem fund2_closed (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S (S.take n)) (hGB : GlueBetaHyp2 S)
-    (hN : NearEl2 S) {t u A : Tm} (h : EqTm0 S k .one [] t u A) : RT2 S k A A ∧ RE2 S k A t u := by
+    {t u A : Tm} (h : EqTm0 S k .one [] t u A) : RT2 S k A A ∧ RE2 S k A t u := by
   obtain ⟨ht, hu⟩ := presup hW h
-  have hA := RE2.typed ((fund2 hW hK hDa hGB hN (EqTm0.refl ht)) k (CSub2.idS S k)).2
-  refine valid_closed (fund2 hW hK hDa hGB hN h) (closed_ty ht) (closed_ty hu) ?_
+  have hA := RE2.typed ((fund2 hW hK hDa hGB (EqTm0.refl ht)) k (CSub2.idS S k)).2
+  refine valid_closed (fund2 hW hK hDa hGB h) (closed_ty ht) (closed_ty hu) ?_
   rcases pre_ty (sigClosed_of_wfSig hW) (wf_typed _ S rfl hW).1 (wf_typed _ S rfl hW).2 ht with ⟨l, hl⟩ | ⟨l, rfl, -⟩
   · exact closed_ty hl
   · rfl

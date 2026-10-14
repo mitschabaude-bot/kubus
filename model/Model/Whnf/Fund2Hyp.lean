@@ -16,8 +16,9 @@ derivations in a prefix `S'` of the signature `S`. It is parametrized by:
 - `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'`;
 - `GlueBetaHyp2 S`: the validity of `glueBeta`, from the data that inverting the typing of its redex
   gives (see the remark at `GlueBetaHyp2`);
-- `NearEl2 S` (`Valid2TranspGlue.lean`): element relations are invariant under near terms (for the
-  `transpGlue` rule, whose reduct's `∀i. φ` commutes with substitution only up to equivalence).
+
+The `transpGlue` rule, whose reduct's `∀i. φ` commutes with substitution only up to equivalence, uses
+that element relations are invariant under near terms (`NearEl2`, from `RE2_near`).
 -/
 
 set_option autoImplicit false
