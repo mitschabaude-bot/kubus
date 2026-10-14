@@ -62,15 +62,19 @@ def sigmaE2 (dom : ElR2 k) (cod : (k' : ℕ) → ISub k' k → Tm → ElR2 k') :
     cod k'' (σ.comp σ') (.fst (t.isub σ')) k'' (ISub.id k'') (B1.inst (.fst (t.isub σ')))
       (.snd (t.isub σ')) (.snd (t'.isub σ'))
 
+/-- Elements of path types: related at equal interval terms, and the left side at the endpoints
+is related to the type's endpoints. -/
 def pathE2 (line : ElR2 (k + 1)) : ElR2 k := fun k' σ A t t' =>
   EB S k' A t t' ∧ ∀ k'' (σ' : ISub k'' k'), ∃ L1 b0 b1, RedT S k'' (A.isub σ') (.path L1 b0 b1) ∧
-    ∀ (r : I) (hr : r.Scoped k''),
-      line k'' (ISub.cons r hr (σ.comp σ')) (L1.dinst r) (.papp (t.isub σ') r) (.papp (t'.isub σ') r)
+    (∀ (r r' : I) (hr : r.Scoped k'') (hr' : r'.Scoped k''), I.Eq r r' →
+      line k'' (ISub.cons r hr (σ.comp σ')) (L1.dinst r) (.papp (t.isub σ') r) (.papp (t'.isub σ') r')) ∧
+    line k'' (ISub.cons .zero trivial (σ.comp σ')) (L1.dinst .zero) (.papp (t.isub σ') .zero) b0 ∧
+    line k'' (ISub.cons .one trivial (σ.comp σ')) (L1.dinst .one) (.papp (t.isub σ') .one) b1
 
 def ipiE2 (line : ElR2 (k + 1)) : ElR2 k := fun k' σ A t t' =>
   EB S k' A t t' ∧ ∀ k'' (σ' : ISub k'' k'), ∃ L1, RedT S k'' (A.isub σ') (.ipi L1) ∧
-    ∀ (r : I) (hr : r.Scoped k''),
-      line k'' (ISub.cons r hr (σ.comp σ')) (L1.dinst r) (.papp (t.isub σ') r) (.papp (t'.isub σ') r)
+    ∀ (r r' : I) (hr : r.Scoped k'') (hr' : r'.Scoped k''), I.Eq r r' →
+      line k'' (ISub.cons r hr (σ.comp σ')) (L1.dinst r) (.papp (t.isub σ') r) (.papp (t'.isub σ') r')
 
 /-! ### Relations of families of types -/
 
@@ -108,6 +112,8 @@ def pathT (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (A A' : Tm) : Prop :=
   ∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
     RedT S k' (A.isub σ) (.path L1 b0 b1) ∧ RedT S k' (A'.isub σ) (.path L1' b0' b1') ∧
     (Lp (k' + 1) σ.up).ty L1 L1' ∧
+    (∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+      (Lp k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r')) ∧
     (Lp k' (ISub.cons .zero trivial σ)).el (L1.dinst .zero) b0 b0' ∧
     (Lp k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1'
 
@@ -246,6 +252,8 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
       { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
             RedT S k' (A.isub σ) (.path L1 b0 b1) ∧ RedT S k' (A'.isub σ) (.path L1' b0' b1') ∧
             (RL (k' + 1) σ.up).ty L1 L1' ∧
+            (∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+              (RL k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r')) ∧
             (RL k' (ISub.cons .zero trivial σ)).el (L1.dinst .zero) b0 b0' ∧
             (RL k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1') ∧ coh A ∧ coh A'
         el := pathE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
@@ -254,7 +262,9 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
         RedT S k' (A.isub σ) (.ipi L1) → RedT S k'' (A.isub (σ.comp σ')) (.ipi L2) →
         (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2
       { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ L1 L1',
-            RedT S k' (A.isub σ) (.ipi L1) ∧ RedT S k' (A'.isub σ) (.ipi L1') ∧ (RL (k' + 1) σ.up).ty L1 L1') ∧
+            RedT S k' (A.isub σ) (.ipi L1) ∧ RedT S k' (A'.isub σ) (.ipi L1') ∧ (RL (k' + 1) σ.up).ty L1 L1' ∧
+            ∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+              (RL k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r')) ∧
             coh A ∧ coh A'
         el := ipiE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
   else if π1 sh = natZ tUniv then

@@ -122,6 +122,8 @@ theorem Comp2_pathC (L a0 a1 : V) (hL : L ≠ ∅) (f : Hom k m) :
           semK S k T' = res f (pathC m L a0 a1) ∧ TyEq S k T T') ∧ (∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
           RedT S k' (T.isub σ) (.path L1 b0 b1) ∧ RedT S k' (T'.isub σ) (.path L1' b0' b1') ∧
           (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1' ∧
+          (∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+            (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L1.dinst r) (L1'.dinst r')) ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .zero trivial σ).hom)).el (L1.dinst .zero) b0 b0' ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .one trivial σ).hom)).el (L1.dinst .one) b1 b1') ∧
           cohPath S L f T ∧ cohPath S L f T',
@@ -137,7 +139,10 @@ theorem Comp2_ipiC (L : V) (hL : L ≠ ∅) (f : Hom k m) :
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (ipiC m L) ∧
           semK S k T' = res f (ipiC m L) ∧ TyEq S k T T') ∧ (∀ k' (σ : ISub k' k), ∃ L1 L1',
           RedT S k' (T.isub σ) (.ipi L1) ∧ RedT S k' (T'.isub σ) (.ipi L1') ∧
-          (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1') ∧ cohIPi S L f T ∧ cohIPi S L f T',
+          (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1' ∧
+          ∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+            (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L1.dinst r) (L1'.dinst r')) ∧
+          cohIPi S L f T ∧ cohIPi S L f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (ipiC m L)) (Hom.id k) ∧
           ipiE2 S (fun k' σ => (Comp2 S L (m + 1) k' ((Hom.lift f).comp σ.hom)).el) k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show ipiC m L ≠ ∅ from mkKV_ne_empty _)]

@@ -113,18 +113,20 @@ theorem kr2_pathC {L a0 a1 : V} (hX : Fib (pathC m L a0 a1) m) (hL : L ≠ ∅) 
   · rintro ⟨hb, hall, hc, hc'⟩
     refine ⟨?_, fun k'' σ' => ?_, cohPath_isub hc σ, cohPath_isub hc' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
-    · obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := hall k'' (σ.comp σ')
-      refine ⟨L1, b0, b1, L1', b0', b1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_, ?_, ?_⟩
+    · obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, hrr, h4, h5⟩ := hall k'' (σ.comp σ')
+      refine ⟨L1, b0, b1, L1', b0', b1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_, ?_, ?_, ?_⟩
       · rw [lift_hom_comp]; exact h3
+      · intro r r' hr hr' he; rw [lift_cons]; exact hrr r r' hr hr' he
       · rw [lift_cons]; exact h4
       · rw [lift_cons]; exact h5
   · rintro ⟨he, hmem, -, hall⟩
     refine ⟨he.isub hW σ, mem_isub hW hX he.1 hmem σ, he.isub hW σ, fun k'' σ' => ?_⟩
-    obtain ⟨L1, b0, b1, h1, h2⟩ := hall k'' (σ.comp σ')
-    refine ⟨L1, b0, b1, by rw [Tm.isub_isub]; exact h1, fun r hr => ?_⟩
-    have := h2 r hr
-    simp only [ISub.id_comp] at this ⊢
-    rw [lift_cons, Tm.isub_isub, Tm.isub_isub]; exact this
+    obtain ⟨L1, b0, b1, h1, h2, h3, h4⟩ := hall k'' (σ.comp σ')
+    simp only [ISub.id_comp] at h2 h3 h4 ⊢
+    refine ⟨L1, b0, b1, by rw [Tm.isub_isub]; exact h1, fun r r' hr hr' he => ?_, ?_, ?_⟩
+    · rw [lift_cons, Tm.isub_isub, Tm.isub_isub]; exact h2 r r' hr hr' he
+    · rw [lift_cons, Tm.isub_isub]; exact h3
+    · rw [lift_cons, Tm.isub_isub]; exact h4
 
 theorem kr2_ipiC {L : V} (hX : Fib (ipiC m L) m) (hL : L ≠ ∅) : KR2 S m (ipiC m L) := by
   intro k f k' σ T T' t t'
@@ -133,14 +135,15 @@ theorem kr2_ipiC {L : V} (hX : Fib (ipiC m L) m) (hL : L ≠ ∅) : KR2 S m (ipi
   · rintro ⟨hb, hall, hc, hc'⟩
     refine ⟨?_, fun k'' σ' => ?_, cohIPi_isub hc σ, cohIPi_isub hc' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
-    · obtain ⟨L1, L1', h1, h2, h3⟩ := hall k'' (σ.comp σ')
-      refine ⟨L1, L1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_⟩
-      rw [lift_hom_comp]; exact h3
+    · obtain ⟨L1, L1', h1, h2, h3, hrr⟩ := hall k'' (σ.comp σ')
+      refine ⟨L1, L1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_, ?_⟩
+      · rw [lift_hom_comp]; exact h3
+      · intro r r' hr hr' he; rw [lift_cons]; exact hrr r r' hr hr' he
   · rintro ⟨he, hmem, -, hall⟩
     refine ⟨he.isub hW σ, mem_isub hW hX he.1 hmem σ, he.isub hW σ, fun k'' σ' => ?_⟩
     obtain ⟨L1, h1, h2⟩ := hall k'' (σ.comp σ')
-    refine ⟨L1, by rw [Tm.isub_isub]; exact h1, fun r hr => ?_⟩
-    have := h2 r hr
+    refine ⟨L1, by rw [Tm.isub_isub]; exact h1, fun r r' hr hr' he => ?_⟩
+    have := h2 r r' hr hr' he
     simp only [ISub.id_comp] at this ⊢
     rw [lift_cons, Tm.isub_isub, Tm.isub_isub]; exact this
 

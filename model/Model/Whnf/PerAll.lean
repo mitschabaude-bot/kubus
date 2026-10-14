@@ -39,8 +39,9 @@ theorem kr2_per2_he2_wf : ∀ l, l ≤ maxLevel → ∀ m X, WF l m X → KR2 S 
   · intro l m L a0 a1 hL h0 h1 ihL
     have hLne := IsKV.ne_empty hL.fib.kv
     have krX := kr2_pathC hW (WF.fib (show WF l m (pathC m L a0 a1) from WFI.path hL h0 h1)) hLne
-    refine ⟨krX, per2_pathC hW hLne ihL.1 ihL.2.1, fun k f T T' t t' => ?_⟩
-    exact ⟨heTy_pathC hLne hW ihL.2.1 krX, heEl_pathC hLne hW ihL.2.1 ihL.1 ihL.2.2⟩
+    have perX := per2_pathC hW hLne ihL.1 ihL.2.1 (a0 := a0) (a1 := a1)
+    refine ⟨krX, perX, fun k f T T' t t' => ?_⟩
+    exact ⟨heTy_pathC hLne hW ihL.2.1 krX, heEl_pathC hLne hW ihL.2.1 ihL.1 ihL.2.2 perX krX⟩
   · intro l m L hL ihL
     have hLne := IsKV.ne_empty hL.fib.kv
     have krX := kr2_ipiC hW (WF.fib (show WF l m (ipiC m L) from WFI.ipi hL)) hLne
