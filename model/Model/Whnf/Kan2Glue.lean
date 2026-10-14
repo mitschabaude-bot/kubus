@@ -900,6 +900,75 @@ theorem GHD.core {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
   exact RE2.trans hW hAσ (RE2.symm hW hAσ (ha k' σ))
     (RE2.trans hW hAσ (hat k' σ hh) (RE2_equiv_app hW (D.hEL k' σ hh) (ht k' σ hh)))
 
+
+/-- `hcompGlue` is its tube's end, where the face of the composition holds. -/
+theorem GHD.bdry {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
+    (D : GHD S k A T e A' T' e' φ φ' ψ ψ' u u' a0 a0') (hn : ¬ (ival (idEnv k) φ).holds)
+    (hψe : I.Entails .one ψ) :
+    RE2 S k (.glue A φ T e) (Tm.hcompGlue A φ T e ψ u a0) (u.dinst .one) := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
+  obtain ⟨-, ⟨-, hψs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW D.hty) rfl
+  have hXA : TyCode k (semK S k A) := tyCode_of_univ hW hA0
+  have hAA : RT2 S k A A := RT2.refl hW hXA D.hA
+  have hAAσ : ∀ k' (σ : ISub k' k), RT2 S k' (A.isub σ) (A.isub σ) := fun k' σ => RT2.isub hW hXA hAA σ
+  have hTT : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → RT2 S k' (T.isub σ) (T.isub σ) :=
+    fun k' σ hh => RT2.refl hW (tyCode_of_univ hW (glue_fiber_ty hW hG σ hh).choose_spec.1) (D.hT k' σ hh)
+  have hhold : ∀ {k'} {x : I} (σ : ISub k' k), x.Scoped k → (ival (idEnv k') (x.subst σ.τ)).holds →
+      I.Entails .one (x.subst σ.τ) := fun σ hx h => (holds_iff_entails (I.scoped_subst hx σ.sc)).1 h
+  have t1 := D.tube0 hW hψe (r := .one) (r' := .one) trivial trivial (I_eq_refl _)
+  have hyG := RE2.trans hW D.hGG t1 (RE2.symm hW D.hGG t1)
+  have hy := (RE2.typed hyG).1
+  have parts := hcompGlue_parts hS (spec_to_minimal hW D.hty) (spec_to_minimal hW hG)
+  have eG := EqTm.hcompGlue D.hty hA0 he0
+  rw [KubusCore.Meta.hcompGlue_eq] at eG ⊢
+  have eF := EqTm.hcompFace hψe D.hty
+  have eEta := EqTm.glueEta hy
+  have eta := RE2_glue_eta hW hG hn hyG eEta hφs (ent_refl _) (ent_refl _) (EqTm.refl he0) hAAσ hTT D.hEL
+  -- the base against the `unglue` of the tube's end
+  have hug := RE2_unglue_gen hW hG hyG (unglue_ty hW ⟨l, .inl hG⟩ ⟨lA, hA0, he0⟩ hy)
+    (unglue_ty hW ⟨l, .inl hG⟩ ⟨lA, hA0, he0⟩ hy) hφs (ent_refl _) (ent_refl _) (EqTm.refl he0) hAAσ hTT D.hEL
+  have hor : I.Entails .one (.or ψ φ) := ent_trans hψe (ent_or_left _ _)
+  have htyb := minimal_to_spec parts.2.1
+  have hsp := hcomp_tube_typed' hW htyb .one trivial
+    ((holds_iff_entails (show (I.or ψ φ).Scoped k from ⟨hψs, hφs⟩)).2 hor)
+  have s1 := stable_hcompFace hW hor htyb
+  rw [glueTube_d] at hsp s1
+  have s2 := stable_splitL hW hψe hsp
+  have hb : RE2 S k A (.hcomp A (.or ψ φ) (KubusCore.Meta.glueTube φ T e ψ u a0) (.unglue φ e a0))
+      (.unglue φ e (u.dinst .one)) :=
+    RE2.expandL hW hAA htyb (RE2.typed hug).1 s1 (RE2.expandL hW hAA hsp (RE2.typed hug).1 s2 hug)
+  have intro := RE2_glueEl_intro hW hG hn ⟨HasTy.eqR eG, HasTy.eqR eEta, eG.symm.trans (eF.trans eEta)⟩
+    (ent_refl _) (ent_refl _) (EqTm.refl he0) D.hGG hAAσ hTT (fun k' σ => RE2.isub hW hb σ)
+    (fun k' σ hh => ?_) (fun k' σ hh => ?_) (fun k' σ hh => ?_)
+  · exact RE2.trans hW D.hGG intro (RE2.symm hW D.hGG eta)
+  · -- the fiber composition, against the tube's end
+    have hφσ := hhold σ hφs hh
+    have K := (D.isub hW σ).fibKD hW hφσ
+    have hGσ : HasTy S k' .one [] (.glue (A.isub σ) (φ.subst σ.τ) (T.isub σ) (e.isub σ)) (.univ l) :=
+      HasTy.isubS hW hG σ
+    have yy := RE2_glue_fib hW hGσ hφσ (hTT k' σ hh) (RE2.isub hW hyG σ)
+    have st := stable_hcompFace hW (ent_one_subst hψe σ.τ) K.hty
+    simp only [isub_dinst, I.subst] at yy
+    simp only [isub_hcomp, isub_dinst, I.subst]
+    exact RE2.expandL hW (hTT k' σ hh) K.hty (RE2.typed yy).1 st yy
+  · have := (D.isub hW σ).hat hW (hhold σ hφs hh)
+    rw [isub_hcomp, isub_hcomp, glueTube_isub, isub_unglue]
+    exact this
+  · -- the `unglue` of the tube's end, against the image of the tube's end
+    have hφσ := hhold σ hφs hh
+    have hGσ : HasTy S k' .one [] (.glue (A.isub σ) (φ.subst σ.τ) (T.isub σ) (e.isub σ)) (.univ l) :=
+      HasTy.isubS hW hG σ
+    have yy := RE2_glue_fib hW hGσ hφσ (hTT k' σ hh) (RE2.isub hW hyG σ)
+    have happ := RE2_equiv_app hW (D.hEL k' σ hh) yy
+    have heσ : HasTy S k' .one [] (e.isub σ) (Tm.equiv (T.isub σ) (A.isub σ)) := by
+      have := face_ty hW hφs he0 σ hh; rwa [isub_equiv] at this
+    have hugσ := RE2.isub hW hug σ
+    have st := stable_unglueFace hW hφσ (RE2.typed hugσ).1 (RE2.typed (RE2.isub hW hyG σ)).1
+      (HasTy.isubS hW hA0 σ) heσ (TyEq.refl _)
+    exact RE2.expandL hW (hAAσ k' σ) (RE2.typed hugσ).1 (RE2.typed happ).2.1 st happ
+
 end
 
 end Model.Whnf
