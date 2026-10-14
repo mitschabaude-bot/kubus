@@ -13,7 +13,7 @@ derivations in a prefix `S'` of the signature `S`. It is parametrized by:
   lemma by induction on codes (the computation rules of `transp`/`hcomp` are proven, from the typing
   derivations of their contracta with validity, `Valid2Comp*.lean`, `Valid2LineEquiv.lean`,
   `Valid2TranspGlue.lean`);
-- `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'` (formation, injectivity, `transpData0`, and the rules of types without path constructors are proven: `Valid2Data.lean`, `Valid2Elim.lean`, `Valid2TranspCon.lean`, `Valid2HcompCon.lean`);
+- `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'` (formation, injectivity, `transpData0`, and the rules of types without path constructors are proven: `Valid2Data.lean`, `Valid2Elim.lean`, `Valid2TranspCon.lean`, `Valid2TranspConH.lean`, `Valid2HcompCon.lean`);
 
 The `transpGlue` rule, whose reduct's `∀i. φ` commutes with substitution only up to equivalence, uses
 that element relations are invariant under near terms (`NearEl2`, from `RE2_near`).
@@ -113,17 +113,6 @@ structure DataHyp2 (S S' : Sig) : Prop where
     Valid2 S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a))
       (Tm.comp (P.subst (consSub (Tm.hfill (.data d ps) φ u a)) (fun i => .var (i + 1))) φ
         (.elim d ps.dshift P.dshift bs.dshift u) (.elim d ps P bs a)) T
-  transpCon : ∀ {Ψ Φ Γ d D c C ps φ qs args rs T}, S'[d]? = some (.data D) → D.isHIT = true → D.params ≠ [] →
-    D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
-    HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →
-    HasTy0 S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T →
-    HasTy0 S Ψ Φ Γ (.con d c (ps.dinst .one)
-      (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T →
-    VTele2 S Ψ Φ Γ args args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →
-    Valid2 S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) (.transp (.data d ps) φ (.con d c qs args rs)) T →
-    Valid2 S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs))
-      (.con d c (ps.dinst .one)
-        (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
 
 end
 

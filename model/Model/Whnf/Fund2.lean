@@ -7,6 +7,7 @@ import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Valid2Data
 import Model.Whnf.Valid2Elim
 import Model.Whnf.Valid2TranspCon
+import Model.Whnf.Valid2TranspConH
 import Model.Whnf.Valid2HcompCon
 import Model.Whnf.Valid2TranspHcomp
 import Model.Whnf.Valid2ConH
@@ -36,6 +37,13 @@ open KubusCore KubusCore.Meta Model.Canon
 noncomputable section
 
 variable {S S' : Sig} {k : ℕ}
+
+/-- The Kan properties at the argument types of an inductive type, from the Kan oracle. -/
+theorem kanShape_of_oracle (hK : KanOracle2 S) {n0 : ℕ} (Λ : SData n0) : KanShape S n0 Λ := by
+  intro n h c j pre A A' hT
+  have hb := Comp2_ty_base hT
+  have hAA : RT2 S n A A' := (Comp2_ty_iff hb.1 hb.2.2.2.1).1 hT
+  exact ⟨hK.hcomp n A A' hAA, fun {n'} e => by subst e; exact hK.transp n' A A' hAA⟩
 
 section
 variable (hW : WfSig S) (hpre : ∀ (j : ℕ) (e : Entry), S'[j]? = some e → S[j]? = some e)
@@ -738,7 +746,9 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     hDa.elimHcomp h0 h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (pre2 hW hpre (.elimHcomp h0 h1 h2 h3)).2
       (fund2_ty h2) (fund2_ty h3)
   | .hcompCon h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 =>
-    valid_hcompCon hW (hpre _ _ h0) h1 hK h2 h3 h4 h5 (sigwk_tele hpre h6) (sigwk_tele hpre h7) (sigwk_eq hpre h8)
+    valid_hcompCon hW (hpre _ _ h0) h1
+      (fun _ _ => kanShape_of_oracle hK _)
+      (fun _ _ _ _ _ _ _ h => hK.hcomp _ _ _ h) h2 h3 h4 h5 (sigwk_tele hpre h6) (sigwk_tele hpre h7) (sigwk_eq hpre h8)
       (sigwk_eqtele hpre h9) (fund2_eq h8) (fund2_ty h10) (fund2_hcompInv h10 rfl)
   | .transpData0 h0 h1 h2 =>
     valid_transpData0 hW (hpre _ _ h0) h1 (pre2 hW hpre (.transpData0 h0 h1 h2)).2
@@ -746,11 +756,17 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
   | .transpCon h0 h1 h2 h3 h4 h5 h6 => by
     rename_i D _ _ _ _ _ _ _
     cases hH : D.isHIT
-    · exact valid_transpCon hW (hpre _ _ h0) hH h1 hK h2 h3 (sigwk_ty hpre h6)
+    · exact valid_transpCon hW (hpre _ _ h0) hH h1
+        (fun _ _ => kanShape_of_oracle hK _)
+        (fun _ c k3 τ y y' hy hy' hE => hK.transp k3 _ _
+          (lineRob_of_valid hW (fund2_transpInv h6 rfl).choose_spec.2.1 c (k3 + 1) τ.up.tail y y' hy hy' hE)) h2 h3 (sigwk_ty hpre h6)
         (pre2 hW hpre (.transpCon h0 h1 h2 h3 h4 h5 h6)).2 (sigwk_eq hpre (.transpCon h0 h1 h2 h3 h4 h5 h6))
         (fund2_tele h5) (fund2_ty h6) (fund2_transpInv h6 rfl)
-    exact hDa.transpCon h0 hH h1 h2 h3 h4 (sigwk_tele hpre h5) (sigwk_ty hpre h6)
-      (pre2 hW hpre (.transpCon h0 h1 h2 h3 h4 h5 h6)).2 (fund2_tele h5) (fund2_ty h6)
+    exact valid_transpConH hW (hpre _ _ h0) hH hHIT h1
+      (fun _ _ => kanShape_of_oracle hK _)
+      (fun _ c k3 τ y y' hy hy' hE => hK.transp k3 _ _
+        (lineRob_of_valid hW (fund2_transpInv h6 rfl).choose_spec.2.1 c (k3 + 1) τ.up.tail y y' hy hy' hE))
+      h2 h3 (fund2_tele h5) (fund2_ty h6) (fund2_transpInv h6 rfl)
   | .transpHcomp h0 h1 h2 h3 h4 => by
     have hti := fund2_transpInv h4 rfl
     exact valid_transpHcomp hW (hpre _ _ h0) h1 h2
