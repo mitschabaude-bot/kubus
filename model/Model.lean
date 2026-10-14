@@ -47,3 +47,4 @@ import Model.Whnf.Kan2Sigma
 import Model.Whnf.Kan2SigmaT
 import Model.Whnf.Kan2SigmaH
 import Model.Whnf.Kan2Fill
+import Model.Whnf.Kan2Comp
