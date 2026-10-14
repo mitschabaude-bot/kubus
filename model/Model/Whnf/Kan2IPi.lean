@@ -29,6 +29,9 @@ structure IPiStr (S : Sig) (k : ℕ) (T T' : Tm) : Prop where
     TyCode k' (semK S k' (L1.dinst s))
   elim : ∀ k' (ρ : ISub k' k) L1 f f', RedT S k' (T.isub ρ) (.ipi L1) → RE2 S k' (T.isub ρ) f f' →
     ∀ (r r' : I), r.Scoped k' → r'.Scoped k' → I.Eq r r' → RE2 S k' (L1.dinst r) (.papp f r) (.papp f' r')
+  coh' : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k') L1 L2, RedT S k' (T'.isub ρ) (.ipi L1) →
+    RedT S k'' (T'.isub (ρ.comp ρ')) (.ipi L2) → ∀ (s : I), s.Scoped k'' →
+    RT2 S k'' ((L1.isub ρ'.up).dinst s) (L2.dinst s)
 
 theorem Comp2_ty_tyCode {m : ℕ} {X : V} {g : Hom k m} {A A' : Tm} (h : (Comp2 S X m k g).ty A A')
     (hX : TyCode m X) : TyCode k (semK S k A) := by
@@ -52,10 +55,13 @@ theorem IPiStr_of {T T' L : Tm} {l : ℕ} (h : RT2 S k T T') (hR : RedT S k T (.
   have hT := h
   unfold RT2 at hT
   rw [hX, Comp2_ipiC _ hLne] at hT
-  obtain ⟨hbase, hall, hcoh, -⟩ := hT
+  obtain ⟨hbase, hall, hcoh, hcoh'⟩ := hT
   have hLc := tyCode_of_univ hW hL0
   refine ⟨hbase.2.2.2.2, fun k' ρ => ?_, fun k1 ρ k2 ρ' L1 L2 h1 h2 s hs => ?_, fun k' ρ L1 h1 s hs => ?_,
-    fun k' ρ L1 f f' h1 hf => ?_⟩
+    fun k' ρ L1 f f' h1 hf => ?_, fun k1 ρ k2 ρ' L1 L2 h1 h2 s hs => ?_⟩
+  rotate_right
+  · have c := hcoh' k1 ρ k2 ρ' L1 L2 h1 h2
+    exact RT2.dinst hW (Comp2_ty_tyCode c hLc) (Comp2_ty_RT2 c) s hs
   · obtain ⟨L1, L1', h1, h2, h3, h4⟩ := hall k' ρ
     exact ⟨L1, L1', h1, h2, Comp2_ty_RT2 h3, fun r r' hr hr' hE => Comp2_ty_RT2 (h4 r r' hr hr' hE)⟩
   · have c := hcoh k1 ρ k2 ρ' L1 L2 h1 h2
@@ -137,6 +143,10 @@ theorem IPiStr.isub {T T' : Tm} (hP : IPiStr S k T T') (σ : ISub k' k) : IPiStr
   elim k1 ρ L1 f f' h1 h2 := by
     rw [Tm.isub_isub] at h1 h2
     exact hP.elim k1 (σ.comp ρ) L1 f f' h1 h2
+  coh' k1 ρ k2 ρ' L1 L2 h1 h2 := by
+    rw [Tm.isub_isub] at h1 h2
+    rw [← ISub.comp_assoc] at h2
+    exact hP.coh' k1 (σ.comp ρ) k2 ρ' L1 L2 h1 h2
 
 /-- Composition in interval Π-types, at related points. -/
 theorem kanH2_ipi_core {T T' : Tm} (hP : IPiStr S k T T')

@@ -24,6 +24,50 @@ variable {S : Sig} {k k' k'' : ℕ}
 variable (hW : WfSig S)
 include hW
 
+theorem tyEq_dinst {A B : Tm} (h : TyEq S (k + 1) A B) {r : I} (hr : r.Scoped k) :
+    TyEq S k (A.dinst r) (B.dinst r) := by
+  rcases h with rfl | ⟨l, e⟩
+  · exact TyEq.refl _
+  · exact .inr ⟨l, minimal_to_spec_eq (EqTm0.dsubst (sigClosed_of_wfSig hW) (Ψ := k) (Φ := .one) (Γ := [])
+      (spec_to_minimal_eq hW e) (r := r) hr)⟩
+
+/-- A transport along an equal line. -/
+theorem eq_transp_ty {T W a : Tm} {φ : I} (hty : HasTy S k .one [] (.transp T φ a) (T.dinst .one))
+    (e : TyEq S (k + 1) T W) : EqTm S k .one [] (.transp T φ a) (.transp W φ a) (T.dinst .one) := by
+  rcases e with rfl | ⟨l, e⟩
+  · exact EqTm.refl hty
+  obtain ⟨l1, ⟨hL, hφ, hc, ha⟩, -⟩ := gen_transpF (spec_to_minimal hW hty) rfl
+  have H := HasTy0.transp hL hφ hc ha
+  have e0 := spec_to_minimal_eq hW e
+  have hl0 := lvl_bound_eq hW e0
+  have hl1 := lvl_bound hW hL
+  have e0' := e0.lift (le_max_left l l1) (max_le hl0 hl1)
+  have hc' := hc.lift (le_max_right l l1) (max_le hl0 hl1)
+  exact minimal_to_spec_eq (EqTm0.transp H (transp_retype0 hW hφ hc' ha e0') e0' (ent_refl _) (ent_refl _)
+    (EqTm0.refl ha))
+
+omit hW in
+theorem cons_one_comp (ρ : ISub k' k) :
+    (ISub.cons .one trivial (ISub.id k)).comp ρ = ISub.cons .one trivial ρ := by
+  ext i
+  rcases i with _ | i
+  · rfl
+  · show ((ISub.id k).τ i).subst ρ.τ = ρ.τ i
+    by_cases h : i < k
+    · simp [ISub.id, h, I.subst]
+    · simp [ISub.id, h, I.subst]; rw [ρ.hi i (by omega)]
+
+omit hW in
+theorem cons_comp_gen (r : I) (hr : r.Scoped k) (ρ : ISub k' k) :
+    (ISub.cons r hr (ISub.id k)).comp ρ = ISub.cons (r.subst ρ.τ) (I.scoped_subst hr ρ.sc) ρ := by
+  ext i
+  rcases i with _ | i
+  · rfl
+  · show ((ISub.id k).τ i).subst ρ.τ = ρ.τ i
+    by_cases h : i < k
+    · simp [ISub.id, h, I.subst]
+    · simp [ISub.id, h, I.subst]; rw [ρ.hi i (by omega)]
+
 /-- The generic core of transport through an elimination. -/
 theorem kanT2_elim_core {T T' Y a0 a0' : Tm} {φ φ' : I}
     (E E' : ∀ k' (_ : ISub k' k), Tm → Tm)

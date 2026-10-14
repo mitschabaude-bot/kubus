@@ -38,3 +38,5 @@ import Model.Whnf.Kan2Pi
 import Model.Whnf.Kan2Elim
 import Model.Whnf.Kan2IPi
 import Model.Whnf.Kan2Path
+import Model.Whnf.Kan2ElimT
+import Model.Whnf.Kan2IPiT
