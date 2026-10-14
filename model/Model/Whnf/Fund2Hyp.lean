@@ -9,12 +9,15 @@ derivations in a prefix `S'` of the signature `S`. It is parametrized by:
 
 - `DefHyp2 S S'`: the definitions of `S'` are related to themselves (outer induction on the
   signature);
-- `KanOracle2 S`: the Kan property of related types (`KanH2`, `KanT2`) and the closed instances of the
-  computation rules of `transp`/`hcomp` per type former (`RedexOK`), to be discharged by the Kan lemma
-  by induction on codes;
+- `KanOracle2 S`: the Kan property of related types (`KanH2`, `KanT2`), to be discharged by the Kan
+  lemma by induction on codes (the computation rules of `transp`/`hcomp` are proven, from the typing
+  derivations of their contracta with validity, `Valid2Comp*.lean`, `Valid2LineEquiv.lean`,
+  `Valid2TranspGlue.lean`);
 - `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'`;
 - `GlueBetaHyp2 S`: the validity of `glueBeta`, from the data that inverting the typing of its redex
-  gives (see the remark at `GlueBetaHyp2`).
+  gives (see the remark at `GlueBetaHyp2`);
+- `NearEl2 S` (`Valid2TranspGlue.lean`): element relations are invariant under near terms (for the
+  `transpGlue` rule, whose reduct's `∀i. φ` commutes with substitution only up to equivalence).
 -/
 
 set_option autoImplicit false
@@ -42,8 +45,7 @@ def ElTr2 (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (X Y : Tm) : Prop :=
 def DefHyp2 (S S' : Sig) : Prop :=
   ∀ (i : ℕ) (t A : Tm), S'[i]? = some (.defn t A) → ∀ k, RT2 S k A A ∧ RE2 S k A t t
 
-/-- The Kan oracle: composition and transport in related types, and the closed instances of the
-computation rules of the Kan operations. -/
+/-- The Kan oracle: composition and transport in related types. -/
 structure KanOracle2 (S : Sig) : Prop where
   hcomp : ∀ k (A A' : Tm), RT2 S k A A' → KanH2 S k A A'
   transp : ∀ k (A A' : Tm), RT2 S (k + 1) A A' → KanT2 S k A A'

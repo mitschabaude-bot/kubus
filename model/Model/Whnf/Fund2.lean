@@ -13,8 +13,9 @@ Every derivation of the minimal judgments in a prefix `S'` of the signature `S` 
 induction on the derivations, given the hypotheses of `Fund2Hyp.lean`. The premises of the rules that
 the validity lemmas need beyond the rule's own premises (the agreement of a system's branches, a
 composition's tube with its base, a transport's line with its constancy, the components of
-Glue terms) come from inverting the typing derivations of the rule's subjects, within the same
-induction (`fund2_split`, `fund2_hcompInv`, `fund2_transpInv`, `fund2_glueElInv`, `fund2_unglueInv`).
+Glue terms and types) come from inverting the typing derivations of the rule's subjects, within the
+same induction (`fund2_split`, `fund2_hcompInv`, `fund2_transpInv`, `fund2_glueElInv`, `fund2_unglueInv`,
+`fund2_glueTyInv`, `fund2_hcompGlueInv`, `fund2_transpGlueInv`).
 -/
 
 set_option autoImplicit false
