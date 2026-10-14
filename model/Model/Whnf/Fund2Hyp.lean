@@ -73,10 +73,7 @@ def GlueBetaHyp2 (S : Sig) : Prop :=
 /-- The validity of the rules of the inductive types of `S'` (judgments in `S`), given the validity of
 their premises. -/
 structure DataHyp2 (S S' : Sig) : Prop where
-  data : ∀ {Ψ Φ Γ d D ps}, S'[d]? = some (.data D) → D.level + 1 ≤ maxLevel →
-    HasTele0 S Ψ Φ Γ ps D.params [] → VTele2 S Ψ Φ Γ ps ps D.params [] →
-    Valid2 S Ψ Φ Γ (.data d ps) (.data d ps) (.univ D.level)
-  con : ∀ {Ψ Φ Γ d D c C ps args rs}, S'[d]? = some (.data D) → D.ctors[c]? = some C →
+  con : ∀ {Ψ Φ Γ d D c C ps args rs}, S'[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C →
     ps = Tm.ofList ps.toList → HasTy0 S Ψ Φ Γ (.data d ps) (.univ D.level) →
     HasTele0 S Ψ Φ Γ ps D.params [] →
     HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
@@ -106,12 +103,6 @@ structure DataHyp2 (S S' : Sig) : Prop where
         (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P)) →
     Valid2 S Ψ Φ Γ t t (.data d ps) →
     Valid2 S Ψ Φ Γ (.elim d ps P bs t) (.elim d ps P bs t) (P.inst t)
-  dataEq : ∀ {Ψ Φ Γ d D ps ps'}, S'[d]? = some (.data D) →
-    HasTy0 S Ψ Φ Γ (.data d ps) (.univ D.level) → HasTy0 S Ψ Φ Γ (.data d ps') (.univ D.level) →
-    EqTele0 S Ψ Φ Γ ps ps' D.params [] →
-    Valid2 S Ψ Φ Γ (.data d ps) (.data d ps) (.univ D.level) →
-    Valid2 S Ψ Φ Γ (.data d ps') (.data d ps') (.univ D.level) → VTele2 S Ψ Φ Γ ps ps' D.params [] →
-    Valid2 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ D.level)
   conEq : ∀ {Ψ Φ Γ d D c C ps ps' args args' rs rs'}, S'[d]? = some (.data D) → D.ctors[c]? = some C →
     HasTy0 S Ψ Φ Γ (.con d c ps args rs) (.data d ps) →
     HasTy0 S Ψ Φ Γ (.con d c ps' args' rs') (.data d ps) →

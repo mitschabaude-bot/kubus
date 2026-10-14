@@ -1,4 +1,4 @@
-import Model.Whnf.Fund2
+import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Kan2DataBasic
 import Model.Whnf.Kan2DataTArgs
 
@@ -28,6 +28,9 @@ structure DeclHyp2 (S : Sig) (n : ℕ) : Prop where
   points : ∀ d < n, ∀ (D : DataDecl), S[d]? = some (.data D) → ∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C →
     ∀ (i : ℕ) (A : Tm), C.args[i]? = some (.point A) →
     ∀ k (cs : CSub2 S 0 .one (D.pointCtx d C i) k), RT2 S k (cs.L (A.ren (C.pointRen i) id)) (cs.R (A.ren (C.pointRen i) id))
+
+theorem DeclHyp2.mono {n m : ℕ} (h : DeclHyp2 S n) (hm : m ≤ n) : DeclHyp2 S m :=
+  ⟨fun d hd => h.params d (by omega), fun d hd => h.points d (by omega)⟩
 
 /-- The interval substitution out of the empty interval context. -/
 def ISub.none0 (k : ℕ) : ISub k 0 := ⟨fun _ => .zero, fun _ h => absurd h (Nat.not_lt_zero _), fun _ _ => rfl⟩
