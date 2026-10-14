@@ -215,4 +215,52 @@ theorem pts_near (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c :
         exact HasTy0.conv (hpres e) edata
       · exact Tel i (by omega)
 
+/-! ## Weakening into extended contexts -/
+
+theorem lookup_append (Γ : Ctx) (x : Nat) : ∀ E : Ctx,
+    (E ++ Γ).lookup (x + E.length) = (Γ.lookup x).map (·.ren (· + E.length) id)
+  | [] => by
+    simp only [List.nil_append, List.length_nil, Nat.add_zero]
+    cases Γ.lookup x with
+    | none => rfl
+    | some A =>
+      simp only [Option.map_some, Option.some.injEq]; rw [ren_eq_subst]
+      exact (subst_id_of (fun _ => rfl) (fun _ => rfl) A).symm
+  | B :: E => by
+    simp only [List.cons_append, List.length_cons]
+    rw [show x + (E.length + 1) = (x + E.length) + 1 by omega]
+    simp only [Ctx.lookup, lookup_append Γ x E, Option.map_map]
+    cases Γ.lookup x with
+    | none => rfl
+    | some A =>
+      simp only [Option.map_some, Function.comp, Tm.shift, ren_ren]
+      congr 1
+
+theorem tySub_wkE {Ψ Φ Γ} (E : Ctx) (m : Nat) {X : I}
+    (hw : Wf0 S (Ψ + m) X (ctxWkI m (E ++ Γ))) (he : I.Entails X (Φ.subst (wkIv m))) :
+    TySub S Ψ Φ Γ (Ψ + m) X (ctxWkI m (E ++ Γ)) (fun j => .var (j + E.length)) (wkIv m) where
+  bound := fun i hi => show i + m < Ψ + m by omega
+  hscoped := scoped_of_wf hw
+  ent := he
+  wf := hw
+  look := fun x A hx => by
+    refine HasTy0.var hw ?_
+    rw [lookup_wkI, lookup_append, hx]
+    simp only [Option.map_some, Option.some.injEq]
+    rw [ren_eq_subst, subst_subst]
+    rfl
+
+theorem EqTeleS.sub (hS : SigClosed S) {Ψ Φ Γ Ψ' Φ' Δ σ τ} (hσ : TySub S Ψ Φ Γ Ψ' Φ' Δ σ τ) :
+    ∀ {ts ts' Δt prev}, EqTeleS S Ψ Φ Γ ts ts' Δt prev →
+    (∀ (k : Nat) (A : Tm), Δt[k]? = some A → A.closedB (prev.length + k) 0 = true) →
+    EqTeleS S Ψ' Φ' Δ (ts.subst σ τ) (ts'.subst σ τ) Δt (prev.map (·.subst σ τ))
+  | _, _, _, _, .nil _, _ => .nil hσ.wf
+  | _, _, _, _, .cons (A := A) (prev := prev) ha hs, hcl => by
+    have h1 := (sub_eq hS ha).2 hσ
+    rw [substList_subst (by simpa using hcl 0 A rfl)] at h1
+    refine .cons h1 ?_
+    have := EqTeleS.sub hS hσ hs (fun k B hB => by
+      have := hcl (k + 1) B (by simpa using hB); simp only [List.length_cons]; rwa [Nat.add_assoc, Nat.add_comm 1 k])
+    simpa using this
+
 end KubusCore.Meta
