@@ -669,7 +669,79 @@ theorem kanH2_path_core {T T' : Tm} (hP : PathStr S k T T') (hTT : RT2 S k T T')
       exact tr _ (pR1 k3 _ _ _ (htube k3 _ .one .one trivial trivial (I_eq_refl _) (hφw k3 σ3)) e1)
         (sy _ (cL1 k' ρ k3 (ρ'.comp σ3) e1))
   · -- the tubes, where the face does not hold
-    sorry
+    intro k3 σ3 x x' hx hx' hEx hh
+    have hf : ¬ I.Entails .one (φ.subst ρ.τ) := fun h => hnf (ent_comp h)
+    have hf' : ¬ I.Entails .one (φ'.subst (ρ.comp ρ').τ) := fun h => hnf (ent_trans h (ent_subst h21 _))
+    have hsφ : (I.or (φ.subst ρ.τ) (.or (.neg (r.subst ρ.τ)) (r.subst ρ.τ))).Scoped k' :=
+      ⟨I.scoped_subst hφs ρ.sc, hsc k' ρ, hsc k' ρ⟩
+    have hh1 : (ival (idEnv k3)
+        ((I.or (φ.subst ρ.τ) (.or (.neg (r.subst ρ.τ)) (r.subst ρ.τ))).subst (ρ'.comp σ3).τ)).holds := by
+      rw [I_subst_comp]; exact hh
+    have hor : I.Entails .one (I.or (φ.subst (ρ.comp (ρ'.comp σ3)).τ)
+        (.or (.neg (r.subst (ρ.comp (ρ'.comp σ3)).τ)) (r.subst (ρ.comp (ρ'.comp σ3)).τ))) := by
+      have := (holds_iff_entails (I.scoped_subst hsφ (ρ'.comp σ3).sc)).1 hh1
+      have e := ent_comp_inv (φ := I.or φ (.or (.neg r) r)) (ρ := ρ) (ρ' := ρ'.comp σ3) this
+      exact e
+    have hor' : I.Entails .one (I.or (φ'.subst (ρ.comp (ρ'.comp σ3)).τ)
+        (.or (.neg (r'.subst (ρ.comp (ρ'.comp σ3)).τ)) (r'.subst (ρ.comp (ρ'.comp σ3)).τ))) :=
+      ent_trans hor (ent_or3 (ent_subst h12 _) (hEρ k3 _))
+    have hh2 : (ival (idEnv k3) ((I.or (φ'.subst (ρ.comp ρ').τ)
+        (.or (.neg (r'.subst (ρ.comp ρ').τ)) (r'.subst (ρ.comp ρ').τ))).subst σ3.τ)).holds := by
+      have hs' : (I.or φ' (.or (.neg r') r')).Scoped k := ⟨by
+        obtain ⟨l1, ⟨-, h, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty') rfl; exact h, hr', hr'⟩
+      refine (holds_iff_entails (I.scoped_subst (I.scoped_subst hs' (ρ.comp ρ').sc) σ3.sc)).2 ?_
+      have e : I.Entails .one ((I.or φ' (.or (.neg r') r')).subst ((ρ.comp ρ').comp σ3).τ) := by
+        rw [ISub.comp_assoc]; exact hor'
+      rw [I_subst_comp] at e; exact e
+    have hT := hsysT k' ρ k3 (ρ'.comp σ3) x hx hf hh1
+    have hT' := hsysT' k'' (ρ.comp ρ') k3 σ3 x' hx' hf' hh2
+    show RE2 S k3 (((L1.dinst r).isub (ρ.comp ρ')).isub σ3)
+      ((((sysP (φ.subst ρ.τ) (r.subst ρ.τ) (u.isub ρ.up) (c0 k' ρ) (c1 k' ρ)).isub ρ'.up).isub σ3.up).dinst x)
+      (((sysP (φ'.subst (ρ.comp ρ').τ) (r'.subst (ρ.comp ρ').τ) (u'.isub (ρ.comp ρ').up) (c0' k'' (ρ.comp ρ'))
+        (c1' k'' (ρ.comp ρ'))).isub σ3.up).dinst x')
+    rw [Tm.isub_isub (sysP _ _ _ _ _), ← ISub.up_comp, sysP_isub_dinst, sysP_isub_dinst]
+    rw [sysP_isub_dinst] at hT hT'
+    simp only [Tm.isub_isub, ← ISub.up_comp, ← I_subst_comp, ISub.comp_assoc] at hT hT' ⊢
+    have hφs' : φ'.Scoped k := by
+      obtain ⟨l1, ⟨-, h, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty') rfl; exact h
+    -- passing to a further restriction
+    have toV : ∀ {k4 : ℕ} (σ4 : ISub k4 k3) {ψ : I}, I.Entails .one ((ψ.subst (ρ.comp (ρ'.comp σ3)).τ).subst σ4.τ) →
+        I.Entails .one (ψ.subst (ρ.comp (ρ'.comp (σ3.comp σ4))).τ) := fun σ4 ψ h => by
+      have := ent_comp_inv h; simpa only [ISub.comp_assoc] using this
+    have tube : ∀ {k4 : ℕ} (σ4 : ISub k4 k3), I.Entails .one ((φ.subst (ρ.comp (ρ'.comp σ3)).τ).subst σ4.τ) →
+        RE2 S k4 (T.isub (ρ.comp (ρ'.comp (σ3.comp σ4))))
+          ((u.isub (ρ.comp (ρ'.comp (σ3.comp σ4))).up).dinst (x.subst σ4.τ))
+          ((u'.isub (ρ.comp (ρ'.comp (σ3.comp σ4))).up).dinst (x'.subst σ4.τ)) := fun σ4 h =>
+      htube _ _ _ _ (I.scoped_subst hx σ4.sc) (I.scoped_subst hx' σ4.sc) (I_eq_subst hEx _)
+        ((holds_iff_entails (I.scoped_subst hφs (ρ.comp (ρ'.comp (σ3.comp σ4))).sc)).2 (toV σ4 h))
+    have assoc : ∀ {k4 : ℕ} (σ4 : ISub k4 k3), (ρ.comp ρ').comp (σ3.comp σ4) = ρ.comp (ρ'.comp (σ3.comp σ4)) :=
+      fun σ4 => ISub.comp_assoc _ _ _
+    refine RE2_pathSys hW (I.scoped_subst hφs (ρ.comp (ρ'.comp σ3)).sc) (I.scoped_subst hφs' (ρ.comp (ρ'.comp σ3)).sc) (hsc k3 _) (hsc' k3 _) (hEρ k3 _)
+      (ent_subst h12 _) (ent_subst h21 _) hor (hYv k3 _) hT hT'
+      (fun k4 σ4 h => ?_) (fun k4 σ4 h h' => ?_) (fun k4 σ4 h h' => ?_) (fun k4 σ4 h h' => ?_)
+      (fun k4 σ4 h h' => ?_) (fun k4 σ4 h' => ?_) (fun k4 σ4 h' => ?_) <;>
+      simp only [papp_dinst_isub, Tm.isub_isub, ← I_subst_comp, ISub.comp_assoc]
+    · exact hel k4 _ _ _ (tube σ4 h)
+    · have e0 := eq0 (hsc k4 _) (toV σ4 (ψ := .neg r) h')
+      have c := cR0 k'' (ρ.comp ρ') k4 (σ3.comp σ4) (by rw [assoc]; exact e0)
+      rw [assoc] at c
+      exact tr _ (hel k4 _ _ _ (tube σ4 h)) (tr _ (pR0 k4 _ _ _ (tube σ4 h) e0) c)
+    · have e0 := eq0 (hsc k4 _) (toV σ4 (ψ := .neg r) h')
+      exact tr _ (cL0 k' ρ k4 (ρ'.comp (σ3.comp σ4)) e0) (sy _ (pR0 k4 _ _ _ (tube σ4 h) e0))
+    · have e1 := eq1 (hsc k4 _) (toV σ4 h')
+      have c := cR1 k'' (ρ.comp ρ') k4 (σ3.comp σ4) (by rw [assoc]; exact e1)
+      rw [assoc] at c
+      exact tr _ (hel k4 _ _ _ (tube σ4 h)) (tr _ (pR1 k4 _ _ _ (tube σ4 h) e1) c)
+    · have e1 := eq1 (hsc k4 _) (toV σ4 h')
+      exact tr _ (cL1 k' ρ k4 (ρ'.comp (σ3.comp σ4)) e1) (sy _ (pR1 k4 _ _ _ (tube σ4 h) e1))
+    · have e0 := eq0 (hsc k4 _) (toV σ4 (ψ := .neg r) h')
+      have c := cR0 k'' (ρ.comp ρ') k4 (σ3.comp σ4) (by rw [assoc]; exact e0)
+      rw [assoc] at c
+      exact tr _ (cL0 k' ρ k4 (ρ'.comp (σ3.comp σ4)) e0) c
+    · have e1 := eq1 (hsc k4 _) (toV σ4 h')
+      have c := cR1 k'' (ρ.comp ρ') k4 (σ3.comp σ4) (by rw [assoc]; exact e1)
+      rw [assoc] at c
+      exact tr _ (cL1 k' ρ k4 (ρ'.comp (σ3.comp σ4)) e1) c
   · have cc := hcoh k' ρ k'' ρ'
     exact RT2.trans hW (RT2.tyCode_l hW cc (hX2 k'' _ _ (hsc k'' _))) cc
       (RT2.symm hW (hXY k'' _) (hCY k'' (ρ.comp ρ')))
