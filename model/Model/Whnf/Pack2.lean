@@ -238,79 +238,112 @@ theorem sig_conv {A A' t t' : Tm} (hT : sigT S D C A A') (hE : TyEq S k A A')
 
 end sigma
 
+/-- Interval substitutions that agree up to `I.Eq` at the new variable have the same cube map. -/
+theorem ISub.hom_cons_eq {k' : ℕ} (σ : ISub k' k) {r r' : I} (hr : r.Scoped k') (hr' : r'.Scoped k')
+    (he : I.Eq r r') : (ISub.cons r hr σ).hom = (ISub.cons r' hr' σ).hom := by
+  funext j
+  simp only [ISub.hom]
+  generalize k + 1 - 1 - j = i
+  cases i with
+  | zero => exact ival.congr_eq he _
+  | succ i => rfl
+
 section path
 variable (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (hL : ∀ k' (σ : ISub k' (k + 1)), PERP (Lp k' σ))
-  (hLt : ∀ k' (σ : ISub k' k) (L1 L1' : Tm), (Lp (k' + 1) σ.up).ty L1 L1' → ∀ (r : I) (hr : r.Scoped k'),
-    (Lp k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r))
-include hL hLt
+  (hLe : ∀ k' (σ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+    Lp k' (ISub.cons r hr σ) = Lp k' (ISub.cons r' hr' σ))
+include hL hLe
 
 theorem path_symTy {A A' : Tm} (hT : pathT S Lp A A') : pathT S Lp A' A := by
   intro k' σ
-  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := hT k' σ
+  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, hrr, h4, h5⟩ := hT k' σ
   have P0 := hL k' (ISub.cons .zero trivial σ)
   have P1 := hL k' (ISub.cons .one trivial σ)
-  have c0 := hLt k' σ _ _ h3 .zero trivial
-  have c1 := hLt k' σ _ _ h3 .one trivial
-  exact ⟨L1', b0', b1', L1, b0, b1, h2, h1, (hL _ _).symTy h3, P0.conv c0 (P0.symEl c0 h4),
-    P1.conv c1 (P1.symEl c1 h5)⟩
+  have c0 := hrr .zero .zero trivial trivial (fun _ => rfl)
+  have c1 := hrr .one .one trivial trivial (fun _ => rfl)
+  refine ⟨L1', b0', b1', L1, b0, b1, h2, h1, (hL _ _).symTy h3, fun r r' hr hr' he => ?_,
+    P0.conv c0 (P0.symEl c0 h4), P1.conv c1 (P1.symEl c1 h5)⟩
+  have := hrr r' r hr' hr (fun ρ => (he ρ).symm)
+  rw [hLe k' σ r' r hr' hr (fun ρ => (he ρ).symm)] at this
+  exact (hL _ _).symTy this
 
 theorem path_transTy {A A' A'' : Tm} (hT : pathT S Lp A A') (hT' : pathT S Lp A' A'') :
     pathT S Lp A A'' := by
   intro k' σ
-  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := hT k' σ
-  obtain ⟨L2, c0, c1, L2', c0', c1', h1', h2', h3', h4', h5'⟩ := hT' k' σ
+  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, hrr, h4, h5⟩ := hT k' σ
+  obtain ⟨L2, c0, c1, L2', c0', c1', h1', h2', h3', hrr', h4', h5'⟩ := hT' k' σ
   obtain ⟨rfl, rfl, rfl⟩ : L1' = L2 ∧ b0' = c0 ∧ b1' = c1 := by
     have := RedW.unique h2.1 h1'.1; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
   have P0 := hL k' (ISub.cons .zero trivial σ)
   have P1 := hL k' (ISub.cons .one trivial σ)
-  have d0 := hLt k' σ _ _ h3 .zero trivial
-  have d1 := hLt k' σ _ _ h3 .one trivial
-  exact ⟨L1, b0, b1, L2', c0', c1', h1, h2', (hL _ _).transTy h3 h3',
+  have d0 := hrr .zero .zero trivial trivial (fun _ => rfl)
+  have d1 := hrr .one .one trivial trivial (fun _ => rfl)
+  refine ⟨L1, b0, b1, L2', c0', c1', h1, h2', (hL _ _).transTy h3 h3', fun r r' hr hr' he => ?_,
     P0.transEl d0 h4 (P0.conv (P0.symTy d0) h4'), P1.transEl d1 h5 (P1.conv (P1.symTy d1) h5')⟩
+  have x := hrr r r' hr hr' he
+  have y := hrr' r' r' hr' hr' (fun _ => rfl)
+  rw [← hLe k' σ r r' hr hr' he] at y
+  exact (hL _ _).transTy x y
 
 theorem path_symEl {A A' t t' : Tm} (hT : pathT S Lp A A') (ht : pathEl S Lp A t t') :
     pathEl S Lp A t' t := by
   obtain ⟨he, hall⟩ := ht
   refine ⟨he.symm, fun k'' σ' => ?_⟩
-  obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
-  obtain ⟨L1x, b0x, b1x, L1', b0', b1', hrx, -, h3, -⟩ := hT k'' σ'
+  obtain ⟨L1, b0, b1, hr, hel, e0, e1⟩ := hall k'' σ'
+  obtain ⟨L1x, b0x, b1x, L1', b0', b1', hrx, -, -, hrr, -⟩ := hT k'' σ'
   obtain ⟨rfl, rfl, rfl⟩ : L1x = L1 ∧ b0x = b0 ∧ b1x = b1 := by
     have := RedW.unique hrx.1 hr.1; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
-  refine ⟨L1x, b0x, b1x, hr, fun r hr' => ?_⟩
-  have := hel r hr'
-  simp only [ISub.id_comp] at this ⊢
-  exact (hL _ _).symEl (hLt k'' σ' _ _ h3 r hr') this
+  simp only [ISub.id_comp] at hel e0 e1 ⊢
+  refine ⟨_, _, _, hr, fun r r' hr1 hr1' hE => ?_, ?_, ?_⟩
+  · have hE' : I.Eq r' r := fun ρ => (hE ρ).symm
+    have x := hel r' r hr1' hr1 hE'
+    have y := (hL _ _).symEl (hrr r' r' hr1' hr1' (fun _ => rfl)) x
+    have t1 := hrr r' r hr1' hr1 hE'
+    have t2 := hrr r r hr1 hr1 (fun _ => rfl)
+    rw [hLe k'' σ' r r' hr1 hr1' hE] at t2 ⊢
+    exact (hL _ _).conv ((hL _ _).transTy t1 ((hL _ _).symTy t2)) y
+  · have tyA := hrr .zero .zero trivial trivial (fun _ => rfl)
+    exact (hL _ _).transEl tyA ((hL _ _).symEl tyA (hel .zero .zero trivial trivial (fun _ => rfl))) e0
+  · have tyA := hrr .one .one trivial trivial (fun _ => rfl)
+    exact (hL _ _).transEl tyA ((hL _ _).symEl tyA (hel .one .one trivial trivial (fun _ => rfl))) e1
 
 theorem path_transEl {A A' t t' t'' : Tm} (hT : pathT S Lp A A') (ht : pathEl S Lp A t t')
     (ht' : pathEl S Lp A t' t'') : pathEl S Lp A t t'' := by
   obtain ⟨he, hall⟩ := ht
   obtain ⟨he', hall'⟩ := ht'
   refine ⟨he.trans he', fun k'' σ' => ?_⟩
-  obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
-  obtain ⟨L1x, b0x, b1x, hrx, hel'⟩ := hall' k'' σ'
+  obtain ⟨L1, b0, b1, hr, hel, e0, e1⟩ := hall k'' σ'
+  obtain ⟨L1x, b0x, b1x, hrx, hel', -, -⟩ := hall' k'' σ'
   obtain ⟨rfl, rfl, rfl⟩ : L1x = L1 ∧ b0x = b0 ∧ b1x = b1 := by
     have := RedW.unique hrx.1 hr.1; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
-  obtain ⟨L1y, b0y, b1y, L1', b0', b1', hry, -, h3, -⟩ := hT k'' σ'
+  obtain ⟨L1y, b0y, b1y, L1', b0', b1', hry, -, -, hrr, -⟩ := hT k'' σ'
   obtain ⟨rfl, rfl, rfl⟩ : L1y = L1x ∧ b0y = b0x ∧ b1y = b1x := by
     have := RedW.unique hry.1 hr.1; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
-  refine ⟨L1y, b0y, b1y, hr, fun r hr' => ?_⟩
-  have x := hel r hr'
-  have y := hel' r hr'
-  simp only [ISub.id_comp] at x y ⊢
-  exact (hL _ _).transEl (hLt k'' σ' _ _ h3 r hr') x y
+  simp only [ISub.id_comp] at hel hel' e0 e1 ⊢
+  refine ⟨_, _, _, hr, fun r r' hr1 hr1' hE => ?_, e0, e1⟩
+  have x := hel r r' hr1 hr1' hE
+  have y := hel' r' r' hr1' hr1' (fun _ => rfl)
+  have t1 := hrr r' r' hr1' hr1' (fun _ => rfl)
+  have t2 := hrr r r' hr1 hr1' hE
+  rw [← hLe k'' σ' r r' hr1 hr1' hE] at y t1
+  have y' := (hL _ _).conv ((hL _ _).transTy t1 ((hL _ _).symTy t2)) y
+  exact (hL _ _).transEl t2 x y'
 
 theorem path_conv {A A' t t' : Tm} (hT : pathT S Lp A A') (hE : TyEq S k A A')
     (ht : pathEl S Lp A t t') : pathEl S Lp A' t t' := by
   obtain ⟨he, hall⟩ := ht
   refine ⟨he.conv hE, fun k'' σ' => ?_⟩
-  obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
-  obtain ⟨L1x, b0x, b1x, L1', b0', b1', hrx, hr2, h3, -⟩ := hT k'' σ'
+  obtain ⟨L1, b0, b1, hr, hel, e0, e1⟩ := hall k'' σ'
+  obtain ⟨L1x, b0x, b1x, L1', b0', b1', hrx, hr2, -, hrr, h4, h5⟩ := hT k'' σ'
   obtain ⟨rfl, rfl, rfl⟩ : L1x = L1 ∧ b0x = b0 ∧ b1x = b1 := by
     have := RedW.unique hrx.1 hr.1; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
-  refine ⟨L1', b0', b1', hr2, fun r hr' => ?_⟩
-  have x := hel r hr'
-  simp only [ISub.id_comp] at x ⊢
-  exact (hL _ _).conv (hLt k'' σ' _ _ h3 r hr') x
+  simp only [ISub.id_comp] at hel e0 e1 ⊢
+  refine ⟨L1', b0', b1', hr2, fun r r' hr1 hr1' hE => ?_, ?_, ?_⟩
+  · exact (hL _ _).conv (hrr r r hr1 hr1 (fun _ => rfl)) (hel r r' hr1 hr1' hE)
+  · have c0 := hrr .zero .zero trivial trivial (fun _ => rfl)
+    exact (hL _ _).conv c0 ((hL _ _).transEl c0 e0 h4)
+  · have c1 := hrr .one .one trivial trivial (fun _ => rfl)
+    exact (hL _ _).conv c1 ((hL _ _).transEl c1 e1 h5)
 
 end path
 
@@ -365,10 +398,12 @@ theorem pathT_isub (σ : ISub k'' k) {X X' : Tm} (h : pathT S Lp X X') :
   intro k4 σ4
   have := h k4 (σ.comp σ4)
   rw [← Tm.isub_isub, ← Tm.isub_isub] at this
-  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := this
-  refine ⟨L1, b0, b1, L1', b0', b1', h1, h2, ?_, ?_, ?_⟩
+  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, hrr, h4, h5⟩ := this
+  refine ⟨L1, b0, b1, L1', b0', b1', h1, h2, ?_, fun r r' hr hr' he => ?_, ?_, ?_⟩
   · show (Lp (k4 + 1) (σ.up.comp σ4.up)).ty L1 L1'
     rw [← ISub.up_comp]; exact h3
+  · show (Lp k4 (σ.up.comp (ISub.cons r hr σ4))).ty _ _
+    rw [ISub.up_comp_cons]; exact hrr r r' hr hr' he
   · show (Lp k4 (σ.up.comp (ISub.cons .zero trivial σ4))).el _ _ _
     rw [ISub.up_comp_cons]; exact h4
   · show (Lp k4 (σ.up.comp (ISub.cons .one trivial σ4))).el _ _ _
@@ -380,11 +415,12 @@ theorem pathEl_isub (hW : WfSig S) (σ : ISub k'' k) {X t t' : Tm} (h : pathEl S
   refine ⟨⟨HasTy.isubS hW he.1 σ, HasTy.isubS hW he.2.1 σ, EqTm.isubS hW he.2.2 σ⟩, fun k4 σ4 => ?_⟩
   have := hall k4 (σ.comp σ4)
   rw [← Tm.isub_isub] at this
-  obtain ⟨L1, b0, b1, h1, h2⟩ := this
-  refine ⟨L1, b0, b1, h1, fun r hr => ?_⟩
-  have := h2 r hr
-  simp only [ISub.id_comp] at this ⊢
-  rw [ISub.up_comp_cons, Tm.isub_isub, Tm.isub_isub]; exact this
+  obtain ⟨L1, b0, b1, h1, h2, h3, h4⟩ := this
+  simp only [ISub.id_comp] at h2 h3 h4 ⊢
+  refine ⟨L1, b0, b1, h1, fun r r' hr hr' he => ?_, ?_, ?_⟩
+  · rw [ISub.up_comp_cons, Tm.isub_isub, Tm.isub_isub]; exact h2 r r' hr hr' he
+  · rw [ISub.up_comp_cons, Tm.isub_isub]; exact h3
+  · rw [ISub.up_comp_cons, Tm.isub_isub]; exact h4
 end isubPath
 
 variable (hW : WfSig S)
@@ -413,14 +449,14 @@ theorem sigPack_per (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) →
     fun hT ht => sig_conv D C hD hC hT.2 hT.1.2.2 ht⟩
 
 theorem pathPack_per (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (hL : ∀ k' (σ : ISub k' (k + 1)), PERP (Lp k' σ))
-    (hLt : ∀ k' (σ : ISub k' k) (L1 L1' : Tm), (Lp (k' + 1) σ.up).ty L1 L1' → ∀ (r : I) (hr : r.Scoped k'),
-      (Lp k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r)) :
+    (hLe : ∀ k' (σ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+      Lp k' (ISub.cons r hr σ) = Lp k' (ISub.cons r' hr' σ)) :
     PERP (pathPack S Lp) :=
-  ⟨fun hT => ⟨⟨hT.1.2.1, hT.1.1, hT.1.2.2.symm⟩, path_symTy Lp hL hLt hT.2⟩,
-    fun hT hT' => ⟨⟨hT.1.1, hT'.1.2.1, hT.1.2.2.trans hW hT'.1.2.2⟩, path_transTy Lp hL hLt hT.2 hT'.2⟩,
-    fun hT ht => path_symEl Lp hL hLt hT.2 ht,
-    fun hT ht ht' => path_transEl Lp hL hLt hT.2 ht ht',
-    fun hT ht => path_conv Lp hL hLt hT.2 hT.1.2.2 ht⟩
+  ⟨fun hT => ⟨⟨hT.1.2.1, hT.1.1, hT.1.2.2.symm⟩, path_symTy Lp hL hLe hT.2⟩,
+    fun hT hT' => ⟨⟨hT.1.1, hT'.1.2.1, hT.1.2.2.trans hW hT'.1.2.2⟩, path_transTy Lp hL hLe hT.2 hT'.2⟩,
+    fun hT ht => path_symEl Lp hL hLe hT.2 ht,
+    fun hT ht ht' => path_transEl Lp hL hLe hT.2 ht ht',
+    fun hT ht => path_conv Lp hL hLe hT.2 hT.1.2.2 ht⟩
 
 end
 

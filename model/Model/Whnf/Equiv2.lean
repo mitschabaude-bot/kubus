@@ -67,16 +67,9 @@ theorem ISub.up_tail_comp_cons_id {n : ℕ} (σ : ISub k' n) (r : I) (hr : r.Sco
 variable (hW : WfSig S)
 include hW
 
-/-- The lines of path types over a constant family satisfy the line condition. -/
-theorem constLine_ty {n : ℕ} {AP : (k' : ℕ) → ISub k' n → Pack2} (hA : FamOK S n AP) :
-    ∀ k' (σ : ISub k' n) (L1 L1' : Tm), (AP (k' + 1) σ.up.tail).ty L1 L1' → ∀ (r : I) (hr : r.Scoped k'),
-      (AP k' (ISub.cons r hr σ).tail).ty (L1.dinst r) (L1'.dinst r) := by
-  intro k' σ L1 L1' h r hr
-  obtain ⟨h1, h2⟩ := hA.isTy _ _ _ _ h
-  have := hA.kr _ _ k' (ISub.cons r hr (ISub.id k')) _ _ h
-  rw [ISub.up_tail_comp_cons_id, isub_cons_id_of_closed (closed_of_isTyK hW h1),
-    isub_cons_id_of_closed (closed_of_isTyK hW h2)] at this
-  exact this
+omit hW in
+theorem ISub.tail_cons {n : ℕ} (σ : ISub k' n) (r : I) (hr : r.Scoped k') : (ISub.cons r hr σ).tail = σ := by
+  ext i; rfl
 
 omit hW in
 theorem ISub.up_comp_tail {n k'' : ℕ} (σ : ISub k' n) (σ' : ISub k'' (k' + 1)) :
@@ -89,7 +82,7 @@ section fam
 variable {n : ℕ}
 
 theorem pathF_ok {AP : (k' : ℕ) → ISub k' n → Pack2} (hA : FamOK S n AP) : FamOK S n (pathF S AP) where
-  per k' σ := pathPack_per hW _ (fun k3 σ3 => hA.per _ _) (constLine_ty hW (hA.rebase σ))
+  per k' σ := pathPack_per hW _ (fun k3 σ3 => hA.per _ _) fun k3 σ3 r r' hr hr' _ => by simp only [ISub.tail_cons]
   kr k' σ k'' σ' X X' h := by
     refine ⟨⟨h.1.1.isub hW σ', h.1.2.1.isub hW σ', h.1.2.2.isub hW σ'⟩, ?_⟩
     have := pathT_isub _ σ' h.2
@@ -183,7 +176,7 @@ theorem pathF_ty {AP : (k' : ℕ) → ISub k' n → Pack2} (hA : FamOK S n AP) {
     (hX : (AP n (ISub.id n)).ty X X') (h0 : (AP n (ISub.id n)).el X b0 b0') (h1 : (AP n (ISub.id n)).el X b1 b1') :
     (pathF S AP n (ISub.id n)).ty (Tm.pathC X b0 b1) (Tm.pathC X' b0' b1') := by
   refine ⟨hb, fun k3 σ3 => ⟨(X.isub σ3).dshift, b0.isub σ3, b1.isub σ3, (X'.isub σ3).dshift, b0'.isub σ3,
-    b1'.isub σ3, ?_, ?_, ?_, ?_, ?_⟩⟩
+    b1'.isub σ3, ?_, ?_, ?_, ?_, ?_, ?_⟩⟩
   · show RedT S k3 (Tm.path (X.dshift.isub σ3.up) _ _) _
     rw [isub_dshift]; exact ⟨redW_self (by simp [step]), TyEq.refl _⟩
   · show RedT S k3 (Tm.path (X'.dshift.isub σ3.up) _ _) _
@@ -191,6 +184,10 @@ theorem pathF_ty {AP : (k' : ℕ) → ISub k' n → Pack2} (hA : FamOK S n AP) {
   · have := hA.kr n (ISub.id n) (k3 + 1) σ3.up.tail X X' hX
     rw [← dshift_isub_tail, ← dshift_isub_tail, isub_dshift, isub_dshift] at this
     simpa only [ISub.id_comp] using this
+  · intro r r' hr hr' _
+    have := hA.kr n (ISub.id n) k3 σ3 X X' hX
+    rw [Meta.dshift_dinst, Meta.dshift_dinst]
+    simpa only [ISub.id_comp, ISub.tail_cons] using this
   · have := hA.krEl n (ISub.id n) k3 σ3 X b0 b0' h0
     rw [Meta.dshift_dinst]
     simpa only [ISub.id_comp] using this

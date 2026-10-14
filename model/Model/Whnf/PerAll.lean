@@ -39,8 +39,9 @@ theorem kr2_per2_he2_wf : ∀ l, l ≤ maxLevel → ∀ m X, WF l m X → KR2 S 
   · intro l m L a0 a1 hL h0 h1 ihL
     have hLne := IsKV.ne_empty hL.fib.kv
     have krX := kr2_pathC hW (WF.fib (show WF l m (pathC m L a0 a1) from WFI.path hL h0 h1)) hLne
-    refine ⟨krX, per2_pathC hW hLne ihL.1 ihL.2.1, fun k f T T' t t' => ?_⟩
-    exact ⟨heTy_pathC hLne hW ihL.2.1 krX, heEl_pathC hLne hW ihL.2.1 ihL.1 ihL.2.2⟩
+    have perX := per2_pathC hW hLne ihL.1 ihL.2.1 (a0 := a0) (a1 := a1)
+    refine ⟨krX, perX, fun k f T T' t t' => ?_⟩
+    exact ⟨heTy_pathC hLne hW ihL.2.1 krX, heEl_pathC hLne hW ihL.2.1 ihL.1 ihL.2.2 perX krX⟩
   · intro l m L hL ihL
     have hLne := IsKV.ne_empty hL.fib.kv
     have krX := kr2_ipiC hW (WF.fib (show WF l m (ipiC m L) from WFI.ipi hL)) hLne
@@ -50,15 +51,18 @@ theorem kr2_per2_he2_wf : ∀ l, l ≤ maxLevel → ∀ m X, WF l m X → KR2 S 
     exact ⟨kr2_univC hW fun m' X hX => (ih m' X hX).1, per2_univC hW fun m' X hX => (ih m' X hX).2.1,
       he2_univC hW fun m' X hX => (ih m' X hX).2.2⟩
   · intro l m A φ Tp ep hl hA hφ hn hTp hep hTw hTn hem hen ihA ihT
-    exact ⟨kr2_glueC hW hA.fib.kv hφ hTn hTw
-        (WF.fib (show WF l m (glueC m A φ Tp ep) from WFI.glue hA hφ hn hTp hep hTw hTn hem hen))
-        (fun k f hh => (ihT k f hh).1),
+    have krX := kr2_glueC hW hA.fib.kv hφ hTn hTw
+      (WF.fib (show WF l m (glueC m A φ Tp ep) from WFI.glue hA hφ hn hTp hep hTw hTn hem hen))
+      (fun k f hh => (ihT k f hh).1)
+    exact ⟨krX,
       per2_glueC hW hA.fib.kv hφ hTn (fun k f hh => (hTw k f hh).fib.kv) ihA.2.1 ihA.1 (fun k f hh => (ihT k f hh).2.1)
         (fun k f hh => (ihT k f hh).1),
-      he2_glueC hW hA.fib.kv hφ hTn (fun k f hh => (hTw k f hh).fib.kv) fun k f hh => (ihT k f hh).2.2⟩
+      he2_glueC hW hA.fib.kv hφ hTn (fun k f hh => (hTw k f hh).fib.kv) (fun k f hh => (ihT k f hh).2.2)
+        ihA.2.1 ihA.1 (fun k f hh => (ihT k f hh).2.1) (fun k f hh => (ihT k f hh).1) krX⟩
   · intro l m Θ hc hw ih
     exact ⟨kr2_dataC hW (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw)), per2_dataC hW fun c j n g pre hp =>
-      (ih c j n g pre hp).2.1, he2_dataC hW⟩
+      (ih c j n g pre hp).2.1, he2_dataC hW fun h c j pre => perP_tyLook (fun c j n g pre hp =>
+      (ih c j n g pre hp).2.1) h c j pre⟩
 
 theorem per2_wf (l : ℕ) (hl : l ≤ maxLevel) (m : ℕ) (X : V) (hX : WF l m X) : PER2 S m X :=
   (kr2_per2_he2_wf hW l hl m X hX).2.1

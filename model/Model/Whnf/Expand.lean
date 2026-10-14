@@ -468,6 +468,8 @@ include hLne hW
 theorem pathC_clause {g : Hom k m} {U V : Tm} (h : (Comp2 S (pathC m L a0 a1) m k g).ty U V) :
     ∃ L1 b0 b1 L1' b0' b1', RedT S k U (.path L1 b0 b1) ∧ RedT S k V (.path L1' b0' b1') ∧
       (Comp2 S L (m + 1) (k + 1) ((Hom.lift g).comp (ISub.id k).up.hom)).ty L1 L1' ∧
+      (∀ (r r' : I) (hr : r.Scoped k) (hr' : r'.Scoped k), I.Eq r r' →
+        (Comp2 S L (m + 1) k ((Hom.lift g).comp (ISub.cons r hr (ISub.id k)).hom)).ty (L1.dinst r) (L1'.dinst r')) ∧
       (Comp2 S L (m + 1) k ((Hom.lift g).comp (ISub.cons .zero trivial (ISub.id k)).hom)).el (L1.dinst .zero) b0 b0' ∧
       (Comp2 S L (m + 1) k ((Hom.lift g).comp (ISub.cons .one trivial (ISub.id k)).hom)).el (L1.dinst .one) b1 b1' := by
   rw [Comp2_pathC L a0 a1 hLne] at h
@@ -491,9 +493,14 @@ theorem pathC_coh1 {g : Hom k m} {U V : Tm} (h : (Comp2 S (pathC m L a0 a1) m k 
   simpa only [ISub.id_comp] using this
 
 theorem pathC_el_at {g : Hom k m} {U u v : Tm} (h : (Comp2 S (pathC m L a0 a1) m k g).el U u v) :
-    ∃ L1 b0 b1, RedT S k U (.path L1 b0 b1) ∧ ∀ (r : I) (hr : r.Scoped k),
-      (Comp2 S L (m + 1) k ((Hom.lift g).comp (ISub.cons r hr (ISub.id k)).hom)).el (L1.dinst r)
-        (.papp u r) (.papp v r) := by
+    ∃ L1 b0 b1, RedT S k U (.path L1 b0 b1) ∧
+      (∀ (r r' : I) (hr : r.Scoped k) (hr' : r'.Scoped k), I.Eq r r' →
+        (Comp2 S L (m + 1) k ((Hom.lift g).comp (ISub.cons r hr (ISub.id k)).hom)).el (L1.dinst r)
+          (.papp u r) (.papp v r')) ∧
+      (Comp2 S L (m + 1) k ((Hom.lift g).comp (ISub.cons .zero trivial (ISub.id k)).hom)).el (L1.dinst .zero)
+        (.papp u .zero) b0 ∧
+      (Comp2 S L (m + 1) k ((Hom.lift g).comp (ISub.cons .one trivial (ISub.id k)).hom)).el (L1.dinst .one)
+        (.papp u .one) b1 := by
   rw [Comp2_pathC L a0 a1 hLne] at h
   obtain ⟨hE, -, -, hall⟩ := h
   have := hall k (ISub.id k)
@@ -516,9 +523,9 @@ theorem cohPath_expand {f : Hom k m} {T T' : Tm}
   have h2' := RedT.to_red hW rV eV h2
   have hUσ := (krX k1 (f.comp σ.hom) k2 σ' U (T'.isub σ) U U).1 hU
   rw [ISub.comp_hom, Tm.isub_isub] at hUσ
-  obtain ⟨M1, d0, d1, E1, e0', e1', hM, hE, hME, -, -⟩ := pathC_clause hLne hW hUσ
+  obtain ⟨M1, d0, d1, E1, e0', e1', hM, hE, hME, -, -, -⟩ := pathC_clause hLne hW hUσ
   have hc := pathC_coh1 hLne hW hU σ' h1' hM
-  obtain ⟨L2', c0', c1', E1', e0'', e1'', hL2, hE', hLE, -, -⟩ := pathC_clause hLne hW hV
+  obtain ⟨L2', c0', c1', E1', e0'', e1'', hL2, hE', hLE, -, -, -⟩ := pathC_clause hLne hW hV
   obtain ⟨rfl, -, -⟩ : L2' = L2 ∧ c0' = c0 ∧ c1' = c1 := by
     have := RedW.unique hL2.1 h2'.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
   obtain ⟨rfl, -, -⟩ : E1' = E1 ∧ True ∧ True := by
@@ -539,15 +546,17 @@ theorem heTy_pathC {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k
   rw [Comp2_pathC L a0 a1 hLne]
   refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_, cohPath_expand hLne hW perL krX hall, hc'⟩
   obtain ⟨U, r, e, hU⟩ := hall k' σ
-  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := pathC_clause hLne hW hU
+  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, hrr, h4, h5⟩ := pathC_clause hLne hW hU
   rw [lift_hom_comp, ISub.comp_id] at h3
   rw [lift_cons, ISub.comp_id] at h4 h5
-  exact ⟨L1, b0, b1, L1', b0', b1', RedT.of_red hW r e h1, h2, h3, h4, h5⟩
+  refine ⟨L1, b0, b1, L1', b0', b1', RedT.of_red hW r e h1, h2, h3, fun r r' hr hr' he => ?_, h4, h5⟩
+  have := hrr r r' hr hr' he
+  rwa [lift_cons, ISub.comp_id] at this
 
 omit krX in
 include krL in
 /-- Head expansion for elements of path types. -/
-theorem heEl_pathC (heL : HE2 S (m + 1) L)
+theorem heEl_pathC (heL : HE2 S (m + 1) L) (perX : PER2 S m (pathC m L a0 a1)) (krX : KR2 S m (pathC m L a0 a1))
     {f : Hom k m} {T t t' : Tm} (hTT : (Comp2 S (pathC m L a0 a1) m k f).ty T T)
     (ht : HasTy S k .one [] t T) (ht' : HasTy S k .one [] t' T)
     (hall : ∀ k' (σ : ISub k' k), ∃ u, Red S (t.isub σ) u ∧ EqTm S k' .one [] (t.isub σ) u (T.isub σ) ∧
@@ -558,40 +567,66 @@ theorem heEl_pathC (heL : HE2 S (m + 1) L)
   have hTall := hTT
   rw [Comp2_pathC L a0 a1 hLne] at hTall
   replace hTall := hTall.2.1
+  have hTT' := hTT
   rw [Comp2_pathC L a0 a1 hLne]
   obtain ⟨hEB, hmem⟩ := el_expand hW ht e0 hu0
   refine ⟨hEB, hmem, hEB, fun k1 σ1 => ?_⟩
   obtain ⟨u1, -, -, hu1⟩ := hall k1 σ1
-  obtain ⟨L1, b0, b1, hR1, -⟩ := pathC_el_at hLne hW hu1
-  obtain ⟨L1x, b0x, b1x, L1y, b0y, b1y, hx, hy, hLL, -, -⟩ := hTall k1 σ1
+  obtain ⟨L1, b0, b1, hR1, -, he0, he1⟩ := pathC_el_at hLne hW hu1
+  obtain ⟨L1x, b0x, b1x, L1y, b0y, b1y, hx, hy, hLL, hrr, -, -⟩ := hTall k1 σ1
   obtain ⟨rfl, rfl, rfl⟩ : L1x = L1 ∧ b0x = b0 ∧ b1x = b1 := by
     have := RedW.unique hx.1 hR1.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
   obtain ⟨rfl, rfl, rfl⟩ : L1y = L1x ∧ b0y = b0x ∧ b1y = b1x := by
     have := RedW.unique hy.1 hR1.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
-  refine ⟨L1y, b0y, b1y, hR1, fun r hr => ?_⟩
+  rw [lift_cons, ISub.comp_id] at he0 he1
   simp only [ISub.id_comp]
   have hp : HasTy S k1 .one [] (t.isub σ1) (.path L1y b0y b1y) := (HasTy.isubS hW ht σ1).tyConv hR1.2
+  -- applications at equal interval terms, against any term related to `t'` at all restrictions
+  have key : ∀ (w : Tm), HasTy S k1 .one [] w (.path L1y b0y b1y) →
+      (∀ k3 (σ3 : ISub k3 k1) u, (Comp2 S (pathC m L a0 a1) m k3 (f.comp (σ1.comp σ3).hom)).el
+        (T.isub (σ1.comp σ3)) u (t'.isub (σ1.comp σ3)) →
+        (Comp2 S (pathC m L a0 a1) m k3 (f.comp (σ1.comp σ3).hom)).el (T.isub (σ1.comp σ3)) u (w.isub σ3)) →
+      ∀ (r r' : I) (hr : r.Scoped k1) (hr' : r'.Scoped k1), I.Eq r r' →
+      (Comp2 S L (m + 1) k1 ((Hom.lift f).comp (ISub.cons r hr σ1).hom)).el (L1y.dinst r)
+        (.papp (t.isub σ1) r) (.papp w r') := by
+    intro w hw hrel r r' hr hr' hE
+    have hTr := hrr r r' hr hr' hE
+    refine (heL k1 _ (L1y.dinst r) (L1y.dinst r) (.papp (t.isub σ1) r) (.papp w r')).2
+      ((perL _ _).reflTy hTr) (HasTy.papp hp hr)
+      ((HasTy.papp hw hr').tyConv (Comp2_ty_base hTr).2.2.2.2.2.symm) fun k3 σ3 => ?_
+    obtain ⟨u3, r3, e3, hu3⟩ := hall k3 (σ1.comp σ3)
+    have hrσ : (r.subst σ3.τ).Scoped k3 := I.scoped_subst hr σ3.sc
+    have hrσ' : (r'.subst σ3.τ).Scoped k3 := I.scoped_subst hr' σ3.sc
+    refine ⟨.papp u3 (r.subst σ3.τ), ?_, ?_, ?_⟩
+    · rw [isub_papp, Tm.isub_isub]; exact red_papp _ r3
+    · have hTy : TyEq S k3 (T.isub (σ1.comp σ3)) (.path (L1y.isub σ3.up) (b0y.isub σ3) (b1y.isub σ3)) := by
+        have := hR1.2.isub hW σ3
+        rwa [Tm.isub_isub, isub_path] at this
+      rw [isub_papp, Tm.isub_isub, isub_dinst]
+      exact EqTm.papp (e3.tyConv hTy) hrσ hrσ fun _ => rfl
+    · rw [isub_papp, isub_dinst, Hom.comp_assoc, ← ISub.hom_comp, ISub.cons_comp]
+      obtain ⟨L3, c0, c1, hR3, hp3, -, -⟩ := pathC_el_at hLne hW (hrel k3 σ3 u3 hu3)
+      have hc := hcT k1 σ1 k3 σ3 L1y b0y b1y L3 c0 c1 hR1 hR3
+      have hl := line_ty hW krL (σ1.comp σ3) hc (r.subst σ3.τ) hrσ
+      have x := hp3 (r.subst σ3.τ) (r'.subst σ3.τ) hrσ hrσ' (Meta.I_eq_subst hE _)
+      rw [lift_cons, ISub.comp_id] at x
+      have P := perL k3 ((Hom.lift f).comp (ISub.cons (r.subst σ3.τ) hrσ (σ1.comp σ3)).hom)
+      exact P.conv (P.symTy hl) x
   have hp' : HasTy S k1 .one [] (t'.isub σ1) (.path L1y b0y b1y) := (HasTy.isubS hW ht' σ1).tyConv hR1.2
-  refine (heL k1 _ (L1y.dinst r) (L1y.dinst r) (.papp (t.isub σ1) r) (.papp (t'.isub σ1) r)).2
-    (line_ty hW krL σ1 hLL r hr) (HasTy.papp hp hr) (HasTy.papp hp' hr) fun k3 σ3 => ?_
-  obtain ⟨u3, r3, e3, hu3⟩ := hall k3 (σ1.comp σ3)
-  have hrσ : (r.subst σ3.τ).Scoped k3 := I.scoped_subst hr σ3.sc
-  refine ⟨.papp u3 (r.subst σ3.τ), ?_, ?_, ?_⟩
-  · rw [isub_papp, Tm.isub_isub]; exact red_papp _ r3
-  · have hTy : TyEq S k3 (T.isub (σ1.comp σ3)) (.path (L1y.isub σ3.up) (b0y.isub σ3) (b1y.isub σ3)) := by
-      have := hR1.2.isub hW σ3
-      rwa [Tm.isub_isub, isub_path] at this
-    rw [isub_papp, Tm.isub_isub, isub_dinst]
-    exact EqTm.papp (e3.tyConv hTy) hrσ hrσ fun _ => rfl
-  · rw [isub_papp, Tm.isub_isub, isub_dinst, Hom.comp_assoc, ← ISub.hom_comp,
-      ISub.cons_comp]
-    obtain ⟨L3, c0, c1, hR3, hp3⟩ := pathC_el_at hLne hW hu3
-    have hc := hcT k1 σ1 k3 σ3 L1y b0y b1y L3 c0 c1 hR1 hR3
-    have hl := line_ty hW krL (σ1.comp σ3) hc (r.subst σ3.τ) hrσ
-    have x := hp3 (r.subst σ3.τ) hrσ
-    rw [lift_cons, ISub.comp_id] at x
-    have P := perL k3 ((Hom.lift f).comp (ISub.cons (r.subst σ3.τ) hrσ (σ1.comp σ3)).hom)
-    exact P.conv (P.symTy hl) x
+  have keyT := key (t'.isub σ1) hp' fun k3 σ3 u hu => by rwa [Tm.isub_isub]
+  -- `u1` is related to `t'` at all restrictions
+  have hu1T : HasTy S k1 .one [] u1 (.path L1y b0y b1y) := (Comp2_el hu1).1.1.tyConv hR1.2
+  have keyU := key u1 hu1T fun k3 σ3 u hu => by
+    have h1 := (krX k1 (f.comp σ1.hom) k3 σ3 (T.isub σ1) (T.isub σ1) u1 (t'.isub σ1)).2 hu1
+    have h2 := (krX k (f) k3 (σ1.comp σ3) T T t t).1 hTT'
+    rw [ISub.comp_hom, Tm.isub_isub, Tm.isub_isub] at h1
+    have P := perX k3 (f.comp (σ1.comp σ3).hom)
+    exact P.transEl h2 hu (P.symEl h2 h1)
+  refine ⟨L1y, b0y, b1y, hR1, keyT, ?_, ?_⟩
+  · have hT0 := hrr .zero .zero trivial trivial (fun _ => rfl)
+    exact (perL _ _).transEl hT0 (keyU .zero .zero trivial trivial (fun _ => rfl)) he0
+  · have hT1 := hrr .one .one trivial trivial (fun _ => rfl)
+    exact (perL _ _).transEl hT1 (keyU .one .one trivial trivial (fun _ => rfl)) he1
 
 end path
 
@@ -601,7 +636,9 @@ include hLne hW
 
 theorem ipiC_clause {g : Hom k m} {U V : Tm} (h : (Comp2 S (ipiC m L) m k g).ty U V) :
     ∃ L1 L1', RedT S k U (.ipi L1) ∧ RedT S k V (.ipi L1') ∧
-      (Comp2 S L (m + 1) (k + 1) ((Hom.lift g).comp (ISub.id k).up.hom)).ty L1 L1' := by
+      (Comp2 S L (m + 1) (k + 1) ((Hom.lift g).comp (ISub.id k).up.hom)).ty L1 L1' ∧
+      (∀ (r r' : I) (hr : r.Scoped k) (hr' : r'.Scoped k), I.Eq r r' →
+        (Comp2 S L (m + 1) k ((Hom.lift g).comp (ISub.cons r hr (ISub.id k)).hom)).ty (L1.dinst r) (L1'.dinst r')) := by
   rw [Comp2_ipiC L hLne] at h
   obtain ⟨⟨hU, hV, -⟩, hall, -⟩ := h
   have := hall k (ISub.id k)
@@ -614,8 +651,7 @@ theorem ipiC_coh {g : Hom k m} {U V : Tm} (h : (Comp2 S (ipiC m L) m k g).ty U V
   exact h.2.2
 
 theorem ipiC_coh1 {g : Hom k m} {U V : Tm} (h : (Comp2 S (ipiC m L) m k g).ty U V)
-    (σ' : ISub k'' k) {L1 L2 : Tm} (h1 : RedT S k U (.ipi L1))
-    (h2 : RedT S k'' (U.isub σ') (.ipi L2)) :
+    (σ' : ISub k'' k) {L1 L2 : Tm} (h1 : RedT S k U (.ipi L1)) (h2 : RedT S k'' (U.isub σ') (.ipi L2)) :
     (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift g).comp σ'.up.hom)).ty (L1.isub σ'.up) L2 := by
   have hU := (Comp2_ty_base h).2.1
   have := (ipiC_coh hLne h).1 k (ISub.id k) k'' σ' L1 L2
@@ -623,9 +659,10 @@ theorem ipiC_coh1 {g : Hom k m} {U V : Tm} (h : (Comp2 S (ipiC m L) m k g).ty U 
   simpa only [ISub.id_comp] using this
 
 theorem ipiC_el_at {g : Hom k m} {U u v : Tm} (h : (Comp2 S (ipiC m L) m k g).el U u v) :
-    ∃ L1, RedT S k U (.ipi L1) ∧ ∀ (r : I) (hr : r.Scoped k),
-      (Comp2 S L (m + 1) k ((Hom.lift g).comp (ISub.cons r hr (ISub.id k)).hom)).el (L1.dinst r)
-        (.papp u r) (.papp v r) := by
+    ∃ L1, RedT S k U (.ipi L1) ∧
+      ∀ (r r' : I) (hr : r.Scoped k) (hr' : r'.Scoped k), I.Eq r r' →
+        (Comp2 S L (m + 1) k ((Hom.lift g).comp (ISub.cons r hr (ISub.id k)).hom)).el (L1.dinst r)
+          (.papp u r) (.papp v r') := by
   rw [Comp2_ipiC L hLne] at h
   obtain ⟨hE, -, -, hall⟩ := h
   have := hall k (ISub.id k)
@@ -648,9 +685,9 @@ theorem cohIPi_expand {f : Hom k m} {T T' : Tm}
   have h2' := RedT.to_red hW rV eV h2
   have hUσ := (krX k1 (f.comp σ.hom) k2 σ' U (T'.isub σ) U U).1 hU
   rw [ISub.comp_hom, Tm.isub_isub] at hUσ
-  obtain ⟨M1, E1, hM, hE, hME⟩ := ipiC_clause hLne hW hUσ
+  obtain ⟨M1, E1, hM, hE, hME, -⟩ := ipiC_clause hLne hW hUσ
   have hc := ipiC_coh1 hLne hW hU σ' h1' hM
-  obtain ⟨L2', E1', hL2, hE', hLE⟩ := ipiC_clause hLne hW hV
+  obtain ⟨L2', E1', hL2, hE', hLE, -⟩ := ipiC_clause hLne hW hV
   obtain rfl : L2' = L2 := by have := RedW.unique hL2.1 h2'.1; injection this
   obtain rfl : E1' = E1 := by have := RedW.unique hE'.1 hE.1; injection this
   rw [lift_hom_comp, ISub.comp_id] at hME hLE
@@ -669,9 +706,11 @@ theorem heTy_ipiC {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k 
   rw [Comp2_ipiC L hLne]
   refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_, cohIPi_expand hLne hW perL krX hall, hc'⟩
   obtain ⟨U, r, e, hU⟩ := hall k' σ
-  obtain ⟨L1, L1', h1, h2, h3⟩ := ipiC_clause hLne hW hU
+  obtain ⟨L1, L1', h1, h2, h3, hrr⟩ := ipiC_clause hLne hW hU
   rw [lift_hom_comp, ISub.comp_id] at h3
-  exact ⟨L1, L1', RedT.of_red hW r e h1, h2, h3⟩
+  refine ⟨L1, L1', RedT.of_red hW r e h1, h2, h3, fun r r' hr hr' he => ?_⟩
+  have := hrr r r' hr hr' he
+  rwa [lift_cons, ISub.comp_id] at this
 
 omit krX in
 include krL in
@@ -692,17 +731,20 @@ theorem heEl_ipiC (heL : HE2 S (m + 1) L)
   refine ⟨hEB, hmem, hEB, fun k1 σ1 => ?_⟩
   obtain ⟨u1, -, -, hu1⟩ := hall k1 σ1
   obtain ⟨L1, hR1, -⟩ := ipiC_el_at hLne hW hu1
-  obtain ⟨L1x, L1y, hx, hy, hLL⟩ := hTall k1 σ1
+  obtain ⟨L1x, L1y, hx, hy, hLL, hrr⟩ := hTall k1 σ1
   obtain rfl : L1x = L1 := by have := RedW.unique hx.1 hR1.1; injection this
   obtain rfl : L1y = L1x := by have := RedW.unique hy.1 hR1.1; injection this
-  refine ⟨L1y, hR1, fun r hr => ?_⟩
   simp only [ISub.id_comp]
   have hp : HasTy S k1 .one [] (t.isub σ1) (.ipi L1y) := (HasTy.isubS hW ht σ1).tyConv hR1.2
   have hp' : HasTy S k1 .one [] (t'.isub σ1) (.ipi L1y) := (HasTy.isubS hW ht' σ1).tyConv hR1.2
-  refine (heL k1 _ (L1y.dinst r) (L1y.dinst r) (.papp (t.isub σ1) r) (.papp (t'.isub σ1) r)).2
-    (line_ty hW krL σ1 hLL r hr) (HasTy.iapp hp hr) (HasTy.iapp hp' hr) fun k3 σ3 => ?_
+  refine ⟨L1y, hR1, fun r r' hr hr' hE => ?_⟩
+  have hTr := hrr r r' hr hr' hE
+  refine (heL k1 _ (L1y.dinst r) (L1y.dinst r) (.papp (t.isub σ1) r) (.papp (t'.isub σ1) r')).2
+    ((perL _ _).reflTy hTr) (HasTy.iapp hp hr)
+    ((HasTy.iapp hp' hr').tyConv (Comp2_ty_base hTr).2.2.2.2.2.symm) fun k3 σ3 => ?_
   obtain ⟨u3, r3, e3, hu3⟩ := hall k3 (σ1.comp σ3)
   have hrσ : (r.subst σ3.τ).Scoped k3 := I.scoped_subst hr σ3.sc
+  have hrσ' : (r'.subst σ3.τ).Scoped k3 := I.scoped_subst hr' σ3.sc
   refine ⟨.papp u3 (r.subst σ3.τ), ?_, ?_, ?_⟩
   · rw [isub_papp, Tm.isub_isub]; exact red_papp _ r3
   · have hTy : TyEq S k3 (T.isub (σ1.comp σ3)) (.ipi (L1y.isub σ3.up)) := by
@@ -710,12 +752,11 @@ theorem heEl_ipiC (heL : HE2 S (m + 1) L)
       rwa [Tm.isub_isub, isub_ipi] at this
     rw [isub_papp, Tm.isub_isub, isub_dinst]
     exact EqTm.iapp (e3.tyConv hTy) hrσ hrσ fun _ => rfl
-  · rw [isub_papp, Tm.isub_isub, isub_dinst, Hom.comp_assoc, ← ISub.hom_comp,
-      ISub.cons_comp]
+  · rw [isub_papp, Tm.isub_isub, isub_dinst, Hom.comp_assoc, ← ISub.hom_comp, ISub.cons_comp]
     obtain ⟨L3, hR3, hp3⟩ := ipiC_el_at hLne hW hu3
     have hc := hcT k1 σ1 k3 σ3 L1y L3 hR1 hR3
     have hl := line_ty hW krL (σ1.comp σ3) hc (r.subst σ3.τ) hrσ
-    have x := hp3 (r.subst σ3.τ) hrσ
+    have x := hp3 (r.subst σ3.τ) (r'.subst σ3.τ) hrσ hrσ' (Meta.I_eq_subst hE _)
     rw [lift_cons, ISub.comp_id] at x
     have P := perL k3 ((Hom.lift f).comp (ISub.cons (r.subst σ3.τ) hrσ (σ1.comp σ3)).hom)
     exact P.conv (P.symTy hl) x
@@ -804,7 +845,21 @@ theorem DR2At.expand {k0 : ℕ} {Θ : SData m} {f : Hom k0 m} {d : ℕ} {D : Dat
     exact .hcomp (by unfold dataMem at hm ⊢; rwa [semK_eq hW e]) hm' (e.trans heq) hH hA hpl (RedE.of_red r e ht) ht'
       hs hs' h12 h21 ha hu
 
-theorem he2_dataC {Θ : SData m} : HE2 S m (dataC Θ) := by
+/-- A related pair of elements of an inductive type is related at its own stage. -/
+theorem DR2.at_id {k0 : ℕ} {Θ : SData m} {f : Hom k0 m} {g : Hom k k0} {X x y : Tm}
+    (h : DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g X x y) :
+    DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g X x y := by
+  cases h with
+  | intro he hh _ _ =>
+    have hx := HasTy.eqL he
+    have hy := HasTy.eqR he
+    have := hh k (ISub.id k)
+    rwa [isub_id_of_closed (closed_of_isTyK hW (isTyK_of_ty hW hx)), isub_id_of_closed (closed_of_ty hW hx),
+      isub_id_of_closed (closed_of_ty hW hy), ISub.hom_id, Hom.comp_id] at this
+
+theorem he2_dataC {Θ : SData m}
+    (hP : ∀ {n : ℕ} (h : Hom n m) (c j : ℕ) (pre : List V),
+      PERP (Comp2 S (tyLook (shapeV (Θ.restr h)) c j pre) n n (Hom.id n))) : HE2 S m (dataC Θ) := by
   intro k f T T' t t'
   constructor
   · intro hT hT' hall
@@ -823,19 +878,51 @@ theorem he2_dataC {Θ : SData m} : HE2 S m (dataC Θ) := by
   · intro hTT ht ht' hall
     obtain ⟨u0, -, e0, hu0⟩ := hypE_id hW (Comp2_ty_base hTT).2.1 ht ht' hall
     obtain ⟨hEB, hmem⟩ := el_expand hW ht e0 hu0
+    have hTall := hTT
+    rw [Comp2_dataC] at hTall
+    -- the argument clauses of the type at every restriction
+    have hyp : ∀ k' (σ : ISub k' k) ps, RedT S k' (T.isub σ) (.data Θ.idx ps) →
+        argRelH Θ f S k' σ.hom ps ps := by
+      intro k' σ ps hps
+      obtain ⟨ps1, -, h1, -, -, -, -, -, a3, -⟩ := hTall.2 k' σ
+      obtain rfl := redT_data_eq (RedT.to_red hW h1.1.1 h1.2 hps)
+      exact (argRel2_iff Θ σ).1 a3
+    -- the reducts at every restriction
+    have red : ∀ k' (σ : ISub k' k), ∃ u, Red S (t.isub σ) u ∧ EqTm S k' .one [] (t.isub σ) u (T.isub σ) ∧
+        DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k' σ.hom (T.isub σ) u (t'.isub σ) := by
+      intro k' σ
+      obtain ⟨u, r, e, hu⟩ := hall k' σ
+      rw [Comp2_dataC] at hu
+      obtain ⟨-, -, -, hdr⟩ := hu
+      have := DR2.unbase (h := σ.hom) f hdr
+      rw [Hom.comp_id] at this
+      exact ⟨u, r, e, this⟩
+    have main : ∀ k' (σ : ISub k' k), DR2At S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k' σ.hom
+        (T.isub σ) (t.isub σ) (t'.isub σ) := fun k' σ => by
+      obtain ⟨u, r, e, hdr⟩ := red k' σ
+      exact (DR2.at_id hW hdr).expand hW r e
     rw [Comp2_dataC]
-    refine ⟨hEB, hmem, hEB, .intro hEB.2.2 fun k' σ => ?_⟩
-    obtain ⟨u, r, e, hu⟩ := hall k' σ
-    rw [Comp2_dataC] at hu
-    obtain ⟨hE, -, -, hdr⟩ := hu
-    have := DR2.unbase (h := σ.hom) f hdr
-    cases this with
-    | intro _ hh =>
-      have := hh k' (ISub.id k')
-      rw [isub_id_of_closed (closed_of_isTyK hW (isTyK_of_ty hW hE.1)), isub_id_of_closed (closed_of_ty hW hE.1),
-        isub_id_of_closed (closed_of_ty hW hE.2.1), ISub.hom_id, Hom.comp_id, Hom.comp_id] at this
-      rw [Hom.id_comp]
-      exact this.expand hW r e
+    refine ⟨hEB, hmem, hEB, .intro hEB.2.2 (fun k' σ => by rw [Hom.id_comp]; exact main k' σ)
+      (fun k' σ w hw k'' ρ => ?_) (fun k' σ w hw k'' ρ => ?_)⟩
+    · obtain ⟨u, r, e, hdr⟩ := red k' σ
+      have hu := (DR2.at_id hW hdr)
+      cases hdr with
+      | intro he hh hc _ =>
+        have hut := HasTy.eqL he
+        have a := hc k' (ISub.id k') w (by rw [isub_id_of_closed (closed_of_ty hW hut)]; exact red_redW r hw) k'' ρ
+        have b := hh k'' ρ
+        simp only [ISub.id_comp, Tm.isub_isub, ← ISub.hom_comp] at a b
+        have hy := hyp k'' (σ.comp ρ)
+        rw [Hom.id_comp]
+        exact DR2At_trans hW f hP (DR2At_trans hW f hP a b hy) (DR2At_symm hW f hP (main k'' (σ.comp ρ)) hy) hy
+    · obtain ⟨u, r, e, hdr⟩ := red k' σ
+      cases hdr with
+      | intro he _ _ hc' =>
+        have hut := HasTy.eqR he
+        have a := hc' k' (ISub.id k') w (by rw [isub_id_of_closed (closed_of_ty hW hut)]; exact hw) k'' ρ
+        simp only [ISub.id_comp, Tm.isub_isub, ← ISub.hom_comp] at a
+        rw [Hom.id_comp]
+        exact a
 
 end misc
 
@@ -855,42 +942,54 @@ theorem glue_holds {g : Hom k m} (hg : (φ.restr g).holds) (σ : ISub k' k) :
     rw [← Cof.restr_restr]; exact (hφ.restr g).holds_restr hg _
   rw [Comp2_glueC_at hφ hTp hTkv, if_pos hgσ, Comp2_eq_res (IsKV.ne_empty (hTkv k g hg)), hTp k g hg]
 
-theorem glueTy_at {g : Hom k m} (hg : ¬ (φ.restr g).holds) {U V : Tm}
-    (h : (Comp2 S (glueC m A φ Tp ep) m k g).ty U V) :
-    ∃ A1 φ1 T1 e1 A1' φ1' T1' e1',
-      RedT S k U (.glue A1 φ1 T1 e1) ∧ RedT S k V (.glue A1' φ1' T1' e1') ∧
-      φ1.Scoped k ∧ φ1'.Scoped k ∧
-      (ival (idEnv k) φ1).face = φ.restr g ∧ (ival (idEnv k) φ1').face = φ.restr g ∧
-      (Comp2 S A m k g).ty A1 A1' ∧
-      ∀ k'' (σ' : ISub k'' k), (φ.restr (g.comp σ'.hom)).holds →
-        (Comp2 S (dat Tp k'' (g.comp σ'.hom)) k'' k'' (Hom.id k'')).ty (T1.isub σ') (T1'.isub σ') ∧
-        (equivF S (fun k3 σ3 => Comp2 S (dat Tp k'' (g.comp σ'.hom)) k'' k3 σ3.hom)
-          (fun k3 σ3 => Comp2 S A m k3 (g.comp (σ'.comp σ3).hom)) k'' (ISub.id k'')).el
-          (Tm.equiv (T1.isub σ') (A1.isub σ')) (e1.isub σ') (e1'.isub σ') := by
-  rw [Comp2_glueC_at hφ hTp hTkv g, if_neg hg, Comp2_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr g) hg] at h
-  simp only [Comp2_res (IsKV.ne_empty hA), dat_res, Cof.restr_restr] at h
-  obtain ⟨⟨hU, hV, -⟩, hall⟩ := h
-  have := hall k (ISub.id k)
-  rw [ISub.hom_id, Hom.comp_id, if_neg hg, isub_id_of_closed (closed_of_isTyK hW hU),
-    isub_id_of_closed (closed_of_isTyK hW hV)] at this
-  simpa only [ISub.id_comp] using this
+/-- The type relation of a Glue code at a restriction is its relation at one stage. -/
+theorem glueLocT_of_rel {f : Hom k m} {k' : ℕ} (σ : ISub k' k) {Y Z : Tm}
+    (h : (Comp2 S (glueC m A φ Tp ep) m k' (f.comp σ.hom)).ty Y Z) : glueLocT S A Tp φ f k' σ Y Z := by
+  by_cases hh : (φ.restr (f.comp σ.hom)).holds
+  · rw [Comp2_glueC_at hφ hTp hTkv, if_pos hh] at h
+    unfold glueLocT; rw [if_pos hh]; exact h
+  · rw [Comp2_glueC_f hA hφ hTp hTkv _ hh] at h
+    obtain ⟨⟨hY, hZ, -⟩, hall, -⟩ := h
+    have := hall k' (ISub.id k')
+    rwa [glueLocT_comp, ISub.comp_id, isub_id_of_closed (closed_of_isTyK hW hY),
+      isub_id_of_closed (closed_of_isTyK hW hZ)] at this
 
-theorem glueEl_at {g : Hom k m} (hg : ¬ (φ.restr g).holds) {U u v : Tm}
-    (h : (Comp2 S (glueC m A φ Tp ep) m k g).el U u v) :
-    ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedT S k U (.glue A1 φ1 T1 e1) ∧
-      RedE S k U u (.glueEl ψ e0 t0 a0) ∧ RedE S k U v (.glueEl ψ' e0' t0' a0') ∧
-      I.Entails ψ φ1 ∧ I.Entails φ1 ψ ∧ I.Entails ψ' φ1 ∧ I.Entails φ1 ψ' ∧
-      EqTm S k (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) ∧ EqTm S k (cof .one φ1) [] e0' e1 (Tm.equiv T1 A1) ∧
-      (Comp2 S A m k g).el A1 a0 a0' := by
-  rw [Comp2_glueC_at hφ hTp hTkv g, if_neg hg, Comp2_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr g) hg] at h
-  simp only [Comp2_res (IsKV.ne_empty hA), dat_res, Cof.restr_restr] at h
-  obtain ⟨hE, -, -, hall⟩ := h
-  have := hall k (ISub.id k)
-  rw [ISub.hom_id, Hom.comp_id, if_neg hg, isub_id_of_closed (closed_of_isTyK hW (isTyK_of_ty hW hE.1)),
-    isub_id_of_closed (closed_of_ty hW hE.1), isub_id_of_closed (closed_of_ty hW hE.2.1)] at this
-  exact this
+/-- The element relation of a Glue code at a restriction is its relation at one stage. -/
+theorem glueLocE_of_rel {f : Hom k m} {k' : ℕ} (σ : ISub k' k) {X y z : Tm}
+    (h : (Comp2 S (glueC m A φ Tp ep) m k' (f.comp σ.hom)).el X y z) : glueLocE S A Tp φ f k' σ X y z := by
+  by_cases hh : (φ.restr (f.comp σ.hom)).holds
+  · rw [Comp2_glueC_at hφ hTp hTkv, if_pos hh] at h
+    unfold glueLocE; rw [if_pos hh]; exact h
+  · rw [Comp2_glueC_f hA hφ hTp hTkv _ hh] at h
+    obtain ⟨hE, -, -, hall, -⟩ := h
+    have := hall k' (ISub.id k')
+    rwa [glueLocE_comp, ISub.comp_id, isub_id_of_closed (closed_of_isTyK hW (isTyK_of_ty hW hE.1)),
+      isub_id_of_closed (closed_of_ty hW hE.1), isub_id_of_closed (closed_of_ty hW hE.2.1)] at this
 
-theorem he2_glueC (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → HE2 S k (dat Tp k f)) :
+/-- The coherence of a related Glue type at a restriction where the face does not hold. -/
+theorem cohGT_of_rel {f : Hom k m} {k' : ℕ} (σ : ISub k' k) (hn : ¬ (φ.restr (f.comp σ.hom)).holds) {Y Z : Tm}
+    (h : (Comp2 S (glueC m A φ Tp ep) m k' (f.comp σ.hom)).ty Y Z) {W : Tm} (hW' : RedW S Y W)
+    {k'' : ℕ} (ρ : ISub k'' k') : glueLocT S A Tp φ f k'' (σ.comp ρ) (W.isub ρ) (Y.isub ρ) := by
+  rw [Comp2_glueC_f hA hφ hTp hTkv _ hn] at h
+  obtain ⟨⟨hY, -⟩, -, hc, -⟩ := h
+  have := hc k' (ISub.id k') (by rwa [ISub.hom_id, Hom.comp_id])
+    W (by rwa [isub_id_of_closed (closed_of_isTyK hW hY)]) k'' ρ
+  rwa [glueLocT_comp, ISub.id_comp] at this
+
+/-- The coherence of related elements of a Glue type at a restriction where the face does not hold. -/
+theorem cohGE_of_rel {f : Hom k m} {k' : ℕ} (σ : ISub k' k) (hn : ¬ (φ.restr (f.comp σ.hom)).holds) {X y z : Tm}
+    (h : (Comp2 S (glueC m A φ Tp ep) m k' (f.comp σ.hom)).el X y z) {w : Tm} (hw : RedW S y w)
+    {k'' : ℕ} (ρ : ISub k'' k') : glueLocE S A Tp φ f k'' (σ.comp ρ) (X.isub ρ) (w.isub ρ) (y.isub ρ) := by
+  rw [Comp2_glueC_f hA hφ hTp hTkv _ hn] at h
+  obtain ⟨hE, -, -, -, hc, -⟩ := h
+  have hy := closed_of_ty hW hE.1
+  have := hc k' (ISub.id k') (by rwa [ISub.hom_id, Hom.comp_id]) w (by rwa [isub_id_of_closed hy]) k'' ρ
+  rwa [glueLocE_comp, ISub.id_comp] at this
+
+theorem he2_glueC (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → HE2 S k (dat Tp k f))
+    (perA : PER2 S m A) (krA : KR2 S m A)
+    (perT : ∀ k (f : Hom k m), (φ.restr f).holds → PER2 S k (dat Tp k f))
+    (krT : ∀ k (f : Hom k m), (φ.restr f).holds → KR2 S k (dat Tp k f)) (krX : KR2 S m (glueC m A φ Tp ep)) :
     HE2 S m (glueC m A φ Tp ep) := by
   intro k f T T' t t'
   by_cases hf : (φ.restr f).holds
@@ -901,57 +1000,94 @@ theorem he2_glueC (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → HE2 S k (da
     simp only [Hom.id_comp] at ih
     simp only [e0, eσ]
     exact ih
-  have hG : glueC k (res f A) (φ.restr f) (res f Tp) (res f ep) = res f (glueC m A φ Tp ep) := by
-    rw [res_glueC hTp hTkv hφ f, if_neg hf]
   -- the relation of `T`'s code at a restriction where the face holds, from those at further restrictions
   have hT_at : ∀ {k' : ℕ} (σ : ISub k' k), (φ.restr (f.comp σ.hom)).holds → ∀ k'' (σ' : ISub k'' k'),
       Comp2 S (glueC m A φ Tp ep) m k'' (f.comp (σ.comp σ').hom) =
         Comp2 S (dat Tp k' (f.comp σ.hom)) k' k'' ((Hom.id k').comp σ'.hom) := by
     intro k' σ hh k'' σ'
     rw [Hom.id_comp, ← ISub.comp_hom, glue_holds hφ hTp hTkv hh]
+  have rel_σ : ∀ {k' : ℕ} (σ : ISub k' k) {k'' : ℕ} (ρ : ISub k'' k'),
+      (f.comp σ.hom).comp ρ.hom = f.comp (σ.comp ρ).hom := by
+    intro k' σ k'' ρ; exact ISub.comp_hom f σ ρ
   constructor
   · intro hT hT' hall
     obtain ⟨U0, -, e0, hU0⟩ := hypT_id hW hT hT' hall
     have hb := base_expand hW hT e0 hU0
-    rw [Comp2_glueC_at hφ hTp hTkv f, if_neg hf, Comp2_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr f) hf]
-    simp only [Comp2_res (IsKV.ne_empty hA), dat_res, Cof.restr_restr]
-    refine ⟨by simp only [hG, res_res, Hom.comp_id]; exact hb, fun k' σ => ?_⟩
-    by_cases hfσ : (φ.restr (f.comp σ.hom)).holds
-    · rw [if_pos hfσ]
-      refine (ihT k' _ hfσ k' (Hom.id k') (T.isub σ) (T'.isub σ) T T).1 (hT.isub hW σ) (hT'.isub hW σ)
-        fun k'' σ' => ?_
-      obtain ⟨U, r, e, hU⟩ := hall k'' (σ.comp σ')
-      rw [← hT_at σ hfσ, Tm.isub_isub, Tm.isub_isub]
-      exact ⟨U, r, e, hU⟩
-    · rw [if_neg hfσ]
-      obtain ⟨U, r, e, hU⟩ := hall k' σ
-      obtain ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', h1, h2, s1, s1', f1, f1', hAA, hrest⟩ :=
-        glueTy_at hW hA hφ hTp hTkv hfσ hU
-      refine ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', RedT.of_red hW r e h1, h2, s1, s1', f1, f1', hAA,
-        fun k'' σ' hh => ?_⟩
-      rw [← ISub.comp_hom] at hh
-      have := hrest k'' σ' hh
-      simp only [ISub.comp_hom, ISub.comp_assoc] at this ⊢
-      exact this
+    have hc' : cohGT S A Tp φ f T' := by
+      rw [Comp2_glueC_f hA hφ hTp hTkv f hf] at hU0; exact hU0.2.2.2
+    have main : ∀ k' (σ : ISub k' k), glueLocT S A Tp φ f k' σ (T.isub σ) (T'.isub σ) := by
+      intro k' σ
+      by_cases hfσ : (φ.restr (f.comp σ.hom)).holds
+      · unfold glueLocT; rw [if_pos hfσ]
+        refine (ihT k' _ hfσ k' (Hom.id k') (T.isub σ) (T'.isub σ) T T).1 (hT.isub hW σ) (hT'.isub hW σ)
+          fun k'' σ' => ?_
+        obtain ⟨U, r, e, hU⟩ := hall k'' (σ.comp σ')
+        rw [← hT_at σ hfσ, Tm.isub_isub, Tm.isub_isub]
+        exact ⟨U, r, e, hU⟩
+      · obtain ⟨U, r, e, hU⟩ := hall k' σ
+        have := glueLocT_of_rel hW hA hφ hTp hTkv (f := f) σ hU
+        unfold glueLocT at this ⊢
+        rw [if_neg hfσ] at this ⊢
+        obtain ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', h1, rest⟩ := this
+        exact ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', RedT.of_red hW r e h1, rest⟩
+    rw [Comp2_glueC_f hA hφ hTp hTkv f hf]
+    refine ⟨hb, main, fun k' σ hn W hW' k'' ρ => ?_, hc'⟩
+    obtain ⟨U, r, e, hU⟩ := hall k' σ
+    have hUt := (Comp2_ty_base hU).2.1
+    have a := cohGT_of_rel hW hA hφ hTp hTkv σ hn hU (red_redW r hW') ρ
+    have b := (krX k' (f.comp σ.hom) k'' ρ U (T'.isub σ) U U).1 hU
+    rw [rel_σ, Tm.isub_isub] at b
+    have b' := glueLocT_of_rel hW hA hφ hTp hTkv (σ.comp ρ) b
+    have c := main k'' (σ.comp ρ)
+    -- the normal form of `T σ` (a Glue type, related to itself) is typed
+    have hWt : IsTyK S k' W := by
+      have hm := main k' σ
+      unfold glueLocT at hm; rw [if_neg hn] at hm
+      obtain ⟨A1, φ1, T1, e1, -, -, -, -, h1, -⟩ := hm
+      obtain rfl := RedW.unique hW' h1.1
+      exact (hT.isub hW σ).of_tyEq h1.2
+    have hτ := hT.isub hW (σ.comp ρ)
+    have hτ' := hT'.isub hW (σ.comp ρ)
+    refine glueLocT_trans hW perA krA perT krT f (σ.comp ρ) (hWt.isub hW ρ) (hUt.isub hW ρ) a
+      (glueLocT_trans hW perA krA perT krT f (σ.comp ρ) (hUt.isub hW ρ) hτ' b'
+        (glueLocT_symm hW perA krA perT krT f (σ.comp ρ) hτ hτ' c))
   · intro hTT ht ht' hall
     obtain ⟨u0, -, e0, hu0⟩ := hypE_id hW (Comp2_ty_base hTT).2.1 ht ht' hall
     obtain ⟨hEB, hmem⟩ := el_expand hW ht e0 hu0
-    rw [Comp2_glueC_at hφ hTp hTkv f, if_neg hf, Comp2_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr f) hf] at hTT ⊢
-    simp only [Comp2_res (IsKV.ne_empty hA), dat_res, Cof.restr_restr] at hTT ⊢
-    refine ⟨hEB, by rw [hG, res_res, Hom.comp_id]; exact hmem, hEB, fun k' σ => ?_⟩
-    have hTσ := hTT.2 k' σ
-    by_cases hfσ : (φ.restr (f.comp σ.hom)).holds
-    · rw [if_pos hfσ] at hTσ ⊢
-      refine (ihT k' _ hfσ k' (Hom.id k') (T.isub σ) (T.isub σ) (t.isub σ) (t'.isub σ)).2 hTσ
-        (HasTy.isubS hW ht σ) (HasTy.isubS hW ht' σ) fun k'' σ' => ?_
-      obtain ⟨u, r, e, hu⟩ := hall k'' (σ.comp σ')
-      rw [← hT_at σ hfσ, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]
-      exact ⟨u, r, e, hu⟩
-    · rw [if_neg hfσ]
-      obtain ⟨u, r, e, hu⟩ := hall k' σ
-      obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', h1, h2, h3, rest⟩ :=
-        glueEl_at hW hA hφ hTp hTkv hfσ hu
-      exact ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', h1, RedE.of_red r e h2, h3, rest⟩
+    have hc' : cohGE S A Tp φ f T t' := by
+      rw [Comp2_glueC_f hA hφ hTp hTkv f hf] at hu0; exact hu0.2.2.2.2.2
+    have hTT' := hTT
+    rw [Comp2_glueC_f hA hφ hTp hTkv f hf] at hTT'
+    have main : ∀ k' (σ : ISub k' k), glueLocE S A Tp φ f k' σ (T.isub σ) (t.isub σ) (t'.isub σ) := by
+      intro k' σ
+      have hTσ := hTT'.2.1 k' σ
+      by_cases hfσ : (φ.restr (f.comp σ.hom)).holds
+      · unfold glueLocT at hTσ; rw [if_pos hfσ] at hTσ
+        unfold glueLocE; rw [if_pos hfσ]
+        refine (ihT k' _ hfσ k' (Hom.id k') (T.isub σ) (T.isub σ) (t.isub σ) (t'.isub σ)).2 hTσ
+          (HasTy.isubS hW ht σ) (HasTy.isubS hW ht' σ) fun k'' σ' => ?_
+        obtain ⟨u, r, e, hu⟩ := hall k'' (σ.comp σ')
+        rw [← hT_at σ hfσ, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]
+        exact ⟨u, r, e, hu⟩
+      · obtain ⟨u, r, e, hu⟩ := hall k' σ
+        have := glueLocE_of_rel hW hA hφ hTp hTkv (f := f) σ hu
+        unfold glueLocE at this ⊢
+        rw [if_neg hfσ] at this ⊢
+        obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', h1, h2, rest⟩ := this
+        exact ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', h1, RedE.of_red r e h2, rest⟩
+    rw [Comp2_glueC_f hA hφ hTp hTkv f hf]
+    refine ⟨hEB, hmem, hEB, main, fun k' σ hn w hw k'' ρ => ?_, hc'⟩
+    obtain ⟨u, r, e, hu⟩ := hall k' σ
+    have a := cohGE_of_rel hW hA hφ hTp hTkv σ hn hu (red_redW r hw) ρ
+    have b := (krX k' (f.comp σ.hom) k'' ρ (T.isub σ) (T.isub σ) u (t'.isub σ)).2 hu
+    rw [rel_σ, Tm.isub_isub, Tm.isub_isub] at b
+    rw [Tm.isub_isub] at a
+    have b' := glueLocE_of_rel hW hA hφ hTp hTkv (σ.comp ρ) b
+    have c := main k'' (σ.comp ρ)
+    have hTτ := hTT'.2.1 k'' (σ.comp ρ)
+    exact glueLocE_trans hW perA krA perT krT f (σ.comp ρ) hTτ a
+      (glueLocE_trans hW perA krA perT krT f (σ.comp ρ) hTτ b'
+        (glueLocE_symm hW perA krA perT krT f (σ.comp ρ) hTτ c))
 
 end glue
 
