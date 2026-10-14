@@ -833,6 +833,61 @@ theorem TGD2.extQ (hψk : (ival (idEnv k) ψ).holds) :
   · exact D.Ppsi1Pt hW hφ1 ((ISub.id k).comp σ2)
       ((holds_iff_entails (I.scoped_subst H.hψ ((ISub.id k).comp σ2).sc)).2 (by rw [I_subst_comp]; exact h))
 
+
+omit hφ1 in
+theorem TGD2.hAA1 : RT2 S k (A.dinst .one) (A.dinst .one) := by
+  have := D.rAA k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
+  rwa [isub_cons_id_of_closed (D.closedL hW).1] at this
+
+/-- The second components of the extensions, as paths in the bases. -/
+theorem TGD2.extSnd : RE2 S k (Tm.pathC (A.dinst .one) (.app (.fst (e.dinst .one)) (.fst (tgExt A φ T e ψ u0 δ)))
+    (tgA1' A φ e ψ u0)) (.snd (tgExt A φ T e ψ u0 δ)) (.snd (tgExt A' φ' T' e' ψ' u0' δ')) := by
+  have z := D.ext hW hφ1
+  rw [tgFib_eq] at z
+  have w := (RE2_sigma_elim hW z).2
+  rwa [P_inst] at w
+
+theorem TGD2.extPP {s s' : I} (hs : s.Scoped k) (hs' : s'.Scoped k) (he : I.Eq s s') :
+    RE2 S k (A.dinst .one) (.papp (.snd (tgExt A φ T e ψ u0 δ)) s) (.papp (.snd (tgExt A' φ' T' e' ψ' u0' δ')) s') :=
+  pathC_elim2 hW (D.extSnd hW hφ1) hs hs' he
+
+theorem TGD2.extEnd : RE2 S k (A.dinst .one) (.papp (.snd (tgExt A φ T e ψ u0 δ)) (.neg .zero)) (tgA1' A φ e ψ u0) := by
+  have hAA := D.hAA1 hW
+  have w := D.extSnd hW hφ1
+  exact RE2.trans hW hAA (pathC_elim2 hW w (s := .neg .zero) (s' := .one) trivial trivial I_eq_neg_zero)
+    (RE2.trans hW hAA (RE2.symm hW hAA (pathC_elim2 hW w (s := .one) (s' := .one) trivial trivial (I_eq_refl _)))
+      (pathC_elim1 hW w))
+
+theorem TGD2.extR (hψk : (ival (idEnv k) ψ).holds) {s : I} (hs : s.Scoped k) :
+    RE2 S k (A.dinst .one) (.papp (.snd (tgExt A φ T e ψ u0 δ)) s) (tgA1' A' φ' e' ψ' u0') := by
+  have hfib := D.hfib hW hφ1
+  have hFF := RT2.refl hW (tyCode_of_univ hW hfib) (D.rFib hW hφ1)
+  have z := RE2.trans hW hFF (D.extQ hW hφ1 hψk) (D.pairP hW hφ1 hψk)
+  rw [tgFib_eq] at z
+  have w := (RE2_sigma_elim hW z).2
+  rw [P_inst] at w
+  have v := pathC_elim2 hW w hs hs (I_eq_refl _)
+  have hsn := (RE2.typed w).2.1
+  unfold Tm.pathC at hsn
+  have st := stable_pappSnd hW hs hsn
+  rw [dshift_dinst, dshift_dinst] at st
+  exact RE2.reduceR hW (D.hAA1 hW) v st (RE2.typed (D.a1' hW)).2.1
+
+theorem TGD2.extL (hψk : (ival (idEnv k) ψ).holds) {s s' : I} (hs : s.Scoped k) (hs' : s'.Scoped k) (he : I.Eq s s') :
+    RE2 S k (A.dinst .one) (tgA1' A φ e ψ u0) (.papp (.snd (tgExt A' φ' T' e' ψ' u0' δ')) s') := by
+  have hfib := D.hfib hW hφ1
+  have hFF := RT2.refl hW (tyCode_of_univ hW hfib) (D.rFib hW hφ1)
+  have z := RE2.trans hW hFF (RE2.symm hW hFF (D.extQ hW hφ1 hψk)) (D.ext hW hφ1)
+  rw [tgFib_eq] at z
+  have w := (RE2_sigma_elim hW z).2
+  rw [P_inst] at w
+  have v := pathC_elim2 hW w hs hs' he
+  have hsn := (RE2.typed w).1
+  unfold Tm.pathC at hsn
+  have st := stable_pappSnd hW hs hsn
+  rw [dshift_dinst, dshift_dinst] at st
+  exact RE2.reduceL hW (D.hAA1 hW) v st (RE2.typed (D.a1' hW)).1
+
 end
 
 end
