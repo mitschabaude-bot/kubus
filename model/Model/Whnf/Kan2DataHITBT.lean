@@ -181,7 +181,7 @@ theorem BT_at {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) (ihc : ∀ c' < c
         intro i hi
         have := (hOself i hi).2.1
         rwa [isub_id_of_closed hc1] at this
-      have hrelb := hyp.bndTy hD hH hC' hb' hent' hd1 s1 hOl hOl htyO hOs
+      have hrelb := hyp.bndTy hD hH hC' hb' hent' hd1 s1 hOl htyO hOs
       have eO := EqTm.conBnd hD hC' hb' hent' hPl1 (by rw [toList_ofList]) htyO
       rw [toList_ofList] at eO
       have eT2 := EqTm.conBnd hD hC' hb' hent' hPl1 (by rw [toList_ofList])
