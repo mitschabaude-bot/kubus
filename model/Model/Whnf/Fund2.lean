@@ -6,6 +6,7 @@ import Model.Whnf.Valid2LineEquiv
 import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Valid2Data
 import Model.Whnf.Valid2Elim
+import Model.Whnf.Valid2TranspCon
 import Model.Whnf.NearAll
 
 /-!
@@ -700,8 +701,13 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
   | .transpData0 h0 h1 h2 =>
     valid_transpData0 hW (hpre _ _ h0) h1 (pre2 hW hpre (.transpData0 h0 h1 h2)).2
       (sigwk_eq hpre (.transpData0 h0 h1 h2)) (fund2_ty h2)
-  | .transpCon h0 h1 h2 h3 h4 h5 h6 =>
-    hDa.transpCon h0 h1 h2 h3 h4 (sigwk_tele hpre h5) (sigwk_ty hpre h6)
+  | .transpCon h0 h1 h2 h3 h4 h5 h6 => by
+    rename_i D _ _ _ _ _ _ _
+    cases hH : D.isHIT
+    · exact valid_transpCon hW (hpre _ _ h0) hH h1 hK h2 h3 (sigwk_ty hpre h6)
+        (pre2 hW hpre (.transpCon h0 h1 h2 h3 h4 h5 h6)).2 (sigwk_eq hpre (.transpCon h0 h1 h2 h3 h4 h5 h6))
+        (fund2_tele h5) (fund2_ty h6) (fund2_transpInv h6 rfl)
+    exact hDa.transpCon h0 hH h1 h2 h3 h4 (sigwk_tele hpre h5) (sigwk_ty hpre h6)
       (pre2 hW hpre (.transpCon h0 h1 h2 h3 h4 h5 h6)).2 (fund2_tele h5) (fund2_ty h6)
   | .transpHcomp h0 h1 h2 h3 h4 =>
     hDa.transpHcomp h0 h1 h2 (sigwk_ty hpre h3) (sigwk_ty hpre h4) (pre2 hW hpre (.transpHcomp h0 h1 h2 h3 h4)).2
