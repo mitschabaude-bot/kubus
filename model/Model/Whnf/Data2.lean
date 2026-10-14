@@ -105,6 +105,20 @@ theorem argRel2_base {Θ : SData m} {k k'' : ℕ} (f : Hom k m) {k' : ℕ} (σ :
       rwa [← ISub.hom_comp, ← ISub.comp_assoc] at this)
   rw [ISub.comp_hom, ← ISub.comp_assoc]; exact this
 
+omit hW in
+theorem parEntry_base {Θ : SData m} {k k'' : ℕ} (f : Hom k m) {k' : ℕ} (σ : ISub k' k) (σ' : ISub k'' k') (j : ℕ) :
+    parEntry Θ (f.comp σ.hom) k'' σ' j = parEntry Θ f k'' (σ.comp σ') j := by
+  simp only [parEntry, ISub.hom_comp, Hom.comp_assoc]
+
+omit hW in
+/-- The parameter clause of an inductive type, at a restriction, relative to the restricted base. -/
+theorem parRel2_base {Θ : SData m} {k k'' : ℕ} (f : Hom k m) {k' : ℕ} (σ : ISub k' k) {σ' : ISub k'' k'}
+    {ps ps' : Tm} (h : parRel2 S Θ f k'' (σ.comp σ') ps ps') : parRel2 S Θ (f.comp σ.hom) k'' σ' ps ps' := by
+  unfold parRel2 at h ⊢
+  rw [show (f.comp σ.hom) = f.comp σ.hom from rfl]
+  simp only [parEntry_base f σ σ']
+  exact h
+
 theorem kr2_dataC {Θ : SData m} (hX : Fib (dataC Θ) m) : KR2 S m (dataC Θ) := by
   intro k f k' σ T T' t t'
   rw [Comp2_dataC, Comp2_dataC]
@@ -112,9 +126,10 @@ theorem kr2_dataC {Θ : SData m} (hX : Fib (dataC Θ) m) : KR2 S m (dataC Θ) :=
   · rintro ⟨hb, hall⟩
     refine ⟨?_, fun k'' σ' => ?_⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
-    · obtain ⟨ps, ps', h1, h2, hpl, hpl', hcl, hcl', hcd, hcd'⟩ := hall k'' (σ.comp σ')
+    · obtain ⟨ps, ps', h1, h2, hpl, hpl', hcl, hcl', hcd, hcd', hpr⟩ := hall k'' (σ.comp σ')
       exact ⟨ps, ps', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, hpl, hpl',
-        argRel2_base f σ hcl, argRel2_base f σ hcl', argRel2_base f σ hcd, argRel2_base f σ hcd'⟩
+        argRel2_base f σ hcl, argRel2_base f σ hcl', argRel2_base f σ hcd, argRel2_base f σ hcd',
+        parRel2_base f σ hpr⟩
   · rintro ⟨he, hmem, -, hdr⟩
     refine ⟨he.isub hW σ, mem_isub hW hX he.1 hmem σ, he.isub hW σ, ?_⟩
     have := DR2.rebase f (DR2.isub f hW hdr σ) σ.hom (Hom.id k') (by rw [Hom.id_comp, Hom.comp_id])
@@ -137,8 +152,8 @@ theorem kr2_wf : ∀ l, l ≤ maxLevel → ∀ m X, WF l m X → KR2 S m X := by
   · intro l m A φ Tp ep hl hA hφ hn hTp hep hTw hTn hem hen _ ihT
     exact kr2_glueC hW hA.fib.kv hφ hTn hTw
       (WF.fib (show WF l m (glueC m A φ Tp ep) from WFI.glue hA hφ hn hTp hep hTw hTn hem hen)) ihT
-  · intro l m Θ hc hw _
-    exact kr2_dataC hW (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw))
+  · intro l m Θ hc hw hpw _ _
+    exact kr2_dataC hW (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw hpw))
 
 theorem kr2_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KR2 S m X := by
   obtain ⟨l, hl, (⟨hX, -⟩ | rfl)⟩ := hX

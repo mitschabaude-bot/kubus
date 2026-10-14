@@ -192,12 +192,18 @@ structure SData (m : ℕ) where
   idx : ℕ
   /-- The parameter values, at all restrictions (recorded in its code). -/
   pv : (n : ℕ) → Hom n m → V
+  /-- For each parameter, the code of its type, or its value if its type is a universe (tagged), at
+  all restrictions (recorded in its code). -/
+  pt : (n : ℕ) → Hom n m → V
   /-- Whether it is a higher inductive type (only these have formal compositions). -/
   hit : Bool
 
 /-- Restriction of a semantic inductive type. -/
 def SData.restr (Θ : SData m) (h : Hom k m) : SData k :=
-  { Θ with ty := fun c j n g pre => Θ.ty c j n (h.comp g) pre, pv := fun n g => Θ.pv n (h.comp g) }
+  { Θ with
+    ty := fun c j n g pre => Θ.ty c j n (h.comp g) pre
+    pv := fun n g => Θ.pv n (h.comp g)
+    pt := fun n g => Θ.pt n (h.comp g) }
 
 /-- The elements of an inductive type, at the restriction `g` of its stage: the least set of
 Kripke values closed under the constructors (with typed arguments) and formal composition.

@@ -17,7 +17,8 @@ attribute [local instance] Classical.propDecidable
 variable {k m n : ℕ}
 
 theorem shapeOf_dataC (Θ : SData m) : shapeOf (dataC Θ) (Hom.id m) =
-    tagZ tData (ZFSet.pair (natZ Θ.idx) (ZFSet.pair (Θ.pv m (Hom.id m)) (shapeV (Θ.restr (Hom.id m))))) := by
+    tagZ tData (ZFSet.pair (natZ Θ.idx) (ZFSet.pair (ZFSet.pair (Θ.pv m (Hom.id m)) (Θ.pt m (Hom.id m)))
+      (shapeV (Θ.restr (Hom.id m))))) := by
   rw [dataC, shapeOf_mkKV, dataDatum, π1_quad]
   simp [SData.restr]
 

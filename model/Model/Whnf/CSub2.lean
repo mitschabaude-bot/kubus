@@ -103,6 +103,30 @@ theorem eq {t u A : Tm} (h : EqTm0 S Ψ Φ Γ t u A) : EqTm S k .one [] (c.L t) 
   have e1 := minimal_to_spec_eq ((sub_eq (sigClosed_of_wfSig hW) h).2 (c.tySubL hW))
   exact e1.trans (c.eqLR hW (presup hW h).2)
 
+/-- The left instance, at the face of a context extended by `φ` (which need not hold). -/
+theorem tySubLCof {φ : I} (hφ : (φ.subst c.σ.τ).Scoped k) :
+    TySub S Ψ (KubusCore.cof Φ φ) Γ k (KubusCore.cof .one (φ.subst c.σ.τ)) [] c.γ c.σ.τ :=
+  ⟨c.σ.sc, ⟨trivial, hφ⟩, ent_and_intro (ent_trans (ent_and_left _ _) c.face) (ent_and_right _ _),
+    fun x A h => HasTy0.restrict ⟨trivial, hφ⟩ (ent_and_left _ _) (spec_to_minimal hW (RE2.typed (c.look x A h)).1),
+    Wf0.nil ⟨trivial, hφ⟩⟩
+
+theorem tySubRCof {φ : I} (hφ : (φ.subst c.σ.τ).Scoped k) :
+    TySub S Ψ (KubusCore.cof Φ φ) Γ k (KubusCore.cof .one (φ.subst c.σ.τ)) [] c.γ' c.σ'.τ :=
+  ⟨c.σ'.sc, ⟨trivial, hφ⟩, ent_and_intro (ent_trans (ent_and_left _ _) c.face')
+    (ent_trans (ent_and_right _ _) (eq_ent (I_eq_subst_congr c.hσ φ))),
+    fun x A h => HasTy0.restrict ⟨trivial, hφ⟩ (ent_and_left _ _) (spec_to_minimal hW
+      ((RE2.typed (c.look x A h)).2.1.tyConv (Comp2_ty_base (c.lookT' h)).2.2.2.2.2)),
+    Wf0.nil ⟨trivial, hφ⟩⟩
+
+/-- Judgmentally equal terms under an extended face, at the two instances under the instance of the face. -/
+theorem eqCof {φ : I} (hφ : (φ.subst c.σ.τ).Scoped k) {t u A : Tm} (h : EqTm0 S Ψ (KubusCore.cof Φ φ) Γ t u A) :
+    EqTm S k (KubusCore.cof .one (φ.subst c.σ.τ)) [] (c.L t) (c.R u) (c.L A) := by
+  have hS := sigClosed_of_wfSig hW
+  have e1 := minimal_to_spec_eq ((sub_eq hS h).2 (c.tySubLCof hW hφ))
+  have hes : EqSub S Ψ Γ k (KubusCore.cof .one (φ.subst c.σ.τ)) [] c.γ c.σ.τ c.γ' c.σ'.τ :=
+    ⟨fun x A hx => EqTm0.restrict ⟨trivial, hφ⟩ (ent_and_left _ _) ((c.eqSub hW).1 x A hx), (c.eqSub hW).2⟩
+  exact e1.trans (minimal_to_spec_eq ((sub_ty hS (presup hW h).2).2.2 (c.tySubLCof hW hφ) (c.tySubRCof hW hφ) hes))
+
 /-- The right instance of a typed term has the left instance of the type. -/
 theorem tyR' {t A : Tm} (h : HasTy0 S Ψ Φ Γ t A) : HasTy S k .one [] (c.R t) (c.L A) :=
   HasTy.eqR (c.eqLR hW h)

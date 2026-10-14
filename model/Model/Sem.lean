@@ -73,6 +73,20 @@ def ParamsOK (σ : SigV) (D : DataDecl) (m : ℕ) (ps : RV m) : Prop :=
         (argEnv [] (plist (ps n g) i))) (Hom.id n)) ∧
     ∀ n' (h : Hom n' n), ∀ i < D.params.length, vnth (ps n' (g.comp h)) i = res h (vnth (ps n g) i)
 
+/-- The code of the type of parameter `j` at the parameter values `psv` (a list value), at stage `n`. -/
+def paramTyC (σ : SigV) (A : Tm) (j n : ℕ) (psv : V) : V :=
+  interp σ univC TyCode A n (fun _ => DM.zero n) (argEnv [] (plist psv j))
+
+/-- The code recorded for parameter `j` at the parameter values `psv` (a list value), at stage `n`:
+`(1, a)` with `a` its value if its type is a universe of at most the declared level, otherwise
+`(0, A)` with `A` the code of its type. -/
+def paramEntry (σ : SigV) (D : DataDecl) (j n : ℕ) (psv : V) : V :=
+  match D.params[j]? with
+  | some (.univ k) => if k ≤ D.level then ZFSet.pair (natZ 1) (vnth psv j)
+      else ZFSet.pair (natZ 0) (paramTyC σ (.univ k) j n psv)
+  | some A => ZFSet.pair (natZ 0) (paramTyC σ A j n psv)
+  | none => ∅
+
 /-- The semantic inductive type at the parameters `ps` (given at all restrictions). -/
 def dataSD (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) : SData m where
   ctors := D.ctors
@@ -80,6 +94,7 @@ def dataSD (σ : SigV) (D : DataDecl) (d m : ℕ) (ps : RV m) : SData m where
   ty c j n g pre := argTySem σ D d c j n (ps n g) pre
   idx := d
   pv := ps
+  pt n g := vlist ((List.range D.params.length).map fun j => paramEntry σ D j n (ps n g))
   hit := D.isHIT
 
 /-- A constructor term denotes a constructor value only at valid parameters and typed arguments
@@ -226,7 +241,9 @@ def DataOK (S : Sig) (d : ℕ) (D : DataDecl) : Prop :=
     (dataSD (sigUpTo S d) D d m ps).Good ∧
     (∀ c j n (g : Hom n m) pre, (dataSD (sigUpTo S d) D d m ps).ty c j n g pre ∈ Vt D.level ∧
       ((dataSD (sigUpTo S d) D d m ps).PtValid c n g pre → WF D.level n ((dataSD (sigUpTo S d) D d m ps).ty c j n g pre))) ∧
-    ∀ n (g : Hom n m), ps n g ∈ Vt D.level
+    (∀ n (g : Hom n m), ps n g ∈ Vt D.level) ∧
+    ∀ n (g : Hom n m), (dataSD (sigUpTo S d) D d m ps).pt n g ∈ Vt D.level ∧
+      ∀ j t X, vnth ((dataSD (sigUpTo S d) D d m ps).pt n g) j = ZFSet.pair t X → X ∈ Vt D.level ∧ WF D.level n X
 
 /-- The signature is semantically valid: every definition is well-typed in the model, and every
 inductive type is valid. -/

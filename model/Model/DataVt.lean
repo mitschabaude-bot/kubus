@@ -88,13 +88,14 @@ theorem HR.out_mem_Vt {Θ : SData m} (hty : ∀ c j n g pre, Θ.ty c j n g pre �
     · rw [(hpt j (by omega) hr).1]; exact compF_mem_Vt hl (hty _ _ _ _ _) _ _ _ _
     · exact iho j (by omega) hr (ha _ (List.getElem_mem _))
 
-theorem dataC_mem_Vt {Θ : SData m} (hty : ∀ c j n g pre, Θ.ty c j n g pre ∈ Vt l) (hpv : ∀ n g, Θ.pv n g ∈ Vt l) :
+theorem dataC_mem_Vt {Θ : SData m} (hty : ∀ c j n g pre, Θ.ty c j n g pre ∈ Vt l) (hpv : ∀ n g, Θ.pv n g ∈ Vt l)
+    (hpt : ∀ n g, Θ.pt n g ∈ Vt l) :
     dataC Θ ∈ Vt l := by
   refine mkKV_mem_Vt hl fun k f => ?_
   set Λ := Θ.restr f
   have htyΛ : ∀ c j n g pre, (∀ a ∈ pre, a ∈ Vt l) → Λ.ty c j n g pre ∈ Vt l := fun c j n g pre _ => hty _ _ _ _ _
   have hD : ∀ n g, delemSet Λ n g ∈ Vt l := fun n g => sep_mem_Vt (dataBound_mem_Vt hl htyΛ n g) _
-  refine quad_mem_Vt (tagZ_mem_Vt (pair_mem_Vt (natZ_mem_Vt hl _) (pair_mem_Vt (hpv _ _) ?_))) (hD k (Hom.id k)) ?_
+  refine quad_mem_Vt (tagZ_mem_Vt (pair_mem_Vt (natZ_mem_Vt hl _) (pair_mem_Vt (pair_mem_Vt (hpv _ _) (hpt _ _)) ?_))) (hD k (Hom.id k)) ?_
     (hcGraph_mem_Vt hl hD fun φ u u0 hu hu0 => ?_)
   · refine iUnion_mem_Vt IsSmallAt.of_countable (fun c => iUnion_mem_Vt IsSmallAt.of_countable (fun j => ?_) hl) hl
     haveI := vpref_small5 (Θ := Λ) (Y := delemSet Λ) (n := k) (g := Hom.id k) (c := c) (C := Λ.ctors[c]) j

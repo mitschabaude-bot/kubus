@@ -118,9 +118,9 @@ theorem kr_wf : ∀ l, l ≤ maxLevel → ∀ m X, WF l m X → KR S m X := by
   · intro l m A φ Tp ep hl hA hφ hn hTp hep hTw hTn hem hen _ ihT
     exact kr_glueC hW hA.fib.kv hφ hTn hTw hl
       (WF.fib (show WF l m (glueC m A φ Tp ep) from WFI.glue hA hφ hn hTp hep hTw hTn hem hen)) ihT
-  · intro l m Θ hc hw ih
+  · intro l m Θ hc hw hpw ih _
     have hΘ : Θ.Good := { hc with fib := fun c j n g pre hp => (hw c j n g pre hp).fib }
-    exact kr_dataC hW hΘ (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw)) ih
+    exact kr_dataC hW hΘ (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw hpw)) ih
 
 theorem kr_tyCode {m : ℕ} {X : V} (hX : TyCode m X) : KR S m X := by
   obtain ⟨l, hl, (⟨hX, -⟩ | rfl)⟩ := hX

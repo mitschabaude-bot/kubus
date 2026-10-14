@@ -29,6 +29,52 @@ theorem perP_tyLook {Θ : SData m} (ih : ∀ c j n (g : Hom n m) pre, Θ.PtValid
   · rw [tyLook_eq h0]
     exact ih c j n (h.comp (Hom.id n)) pre (ptValid_of_validPre h0) n (Hom.id n)
 
+/-- The parameter relations of an inductive type's code are partial equivalences. -/
+theorem perP_parEntry {Θ : SData m} (ihp : ∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → PER2 S n X)
+    {k0 : ℕ} (f : Hom k0 m) {k' : ℕ} (σ : ISub k' k0) (j : ℕ) :
+    PERP (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')) := by
+  by_cases h : ∃ t X, parEntry Θ f k' σ j = ZFSet.pair t X
+  · obtain ⟨t, X, e⟩ := h
+    rw [e, π2_pair]
+    exact ihp k' _ j t X e k' (Hom.id k')
+  · have : π2 (parEntry Θ f k' σ j) = ∅ := by
+      simp only [π2]; rw [dif_neg]; rintro ⟨a, b, e⟩; exact h ⟨a, b, e⟩
+    rw [this, Comp2_empty]; exact perP_bot
+
+
+theorem data_len_of {d : ℕ} {ps : Tm} (hW : WfSig S) (h : IsTyK S k (.data d ps)) :
+    ps.toList.length = (dataD S d).params.length := by
+  obtain ⟨l, hd | hd⟩ := h
+  · obtain ⟨D, hD, hl⟩ := gen_data (spec_to_minimal hW hd) rfl
+    have : dataD S d = D := by unfold dataD; rw [hD]
+    rw [this]; exact hl
+  · cases hd
+
+theorem parRel2_symm {Θ : SData m} (ihp : ∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → PER2 S n X)
+    {k0 : ℕ} (f : Hom k0 m) {k' : ℕ} (σ : ISub k' k0) {ps ps' : Tm} (h : parRel2 S Θ f k' σ ps ps') :
+    parRel2 S Θ f k' σ ps' ps := by
+  intro j p' p e1 e2
+  have P := perP_parEntry ihp f σ j
+  obtain ⟨h1, h0⟩ := h j p p' e2 e1
+  refine ⟨fun t => P.symTy (h1 t), fun t Aj hA => ?_⟩
+  obtain ⟨hty, hel⟩ := h0 t Aj hA
+  exact ⟨P.symTy hty, P.conv hty (P.symEl hty hel)⟩
+
+theorem parRel2_trans {Θ : SData m} (ihp : ∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → PER2 S n X)
+    {k0 : ℕ} (f : Hom k0 m) {k' : ℕ} (σ : ISub k' k0) {ps ps2 ps'' : Tm} (hl : ps2.toList.length = ps.toList.length)
+    (h : parRel2 S Θ f k' σ ps ps2) (h' : parRel2 S Θ f k' σ ps2 ps'') :
+    parRel2 S Θ f k' σ ps ps'' := by
+  intro j p p'' e1 e3
+  have hj : j < ps2.toList.length := by rw [hl]; exact (List.getElem?_eq_some_iff.1 e1).1
+  have e2 : ps2.toList[j]? = some ps2.toList[j] := List.getElem?_eq_getElem hj
+  have P := perP_parEntry ihp f σ j
+  obtain ⟨a1, a0⟩ := h j p _ e1 e2
+  obtain ⟨b1, b0⟩ := h' j _ p'' e2 e3
+  refine ⟨fun t => P.transTy (a1 t) (b1 t), fun t Aj hA => ?_⟩
+  obtain ⟨t1, l1⟩ := a0 t Aj hA
+  obtain ⟨t2, l2⟩ := b0 t Aj hA
+  exact ⟨P.transTy t1 t2, P.transEl t1 l1 (P.conv (P.symTy t1) l2)⟩
+
 section
 variable {k0 : ℕ} (Θ : SData m) (f : Hom k0 m)
 
@@ -446,7 +492,8 @@ theorem argRelH_comp {k : ℕ} {g : Hom k k0} {ps ps' ps'' : Tm} (r1 : argRelH �
 end dr
 
 theorem per2_dataC (hW : WfSig S) {Θ : SData m}
-    (ih : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → PER2 S n (Θ.ty c j n g pre)) :
+    (ih : ∀ c j n (g : Hom n m) pre, Θ.PtValid c n g pre → PER2 S n (Θ.ty c j n g pre))
+    (ihp : ∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → PER2 S n X) :
     PER2 S m (dataC Θ) := by
   intro k f
   have hP : ∀ {n : ℕ} (h : Hom n m) (c j : ℕ) (pre : List V),
@@ -457,24 +504,24 @@ theorem per2_dataC (hW : WfSig S) {Θ : SData m}
       RedT S k' (T.isub σ) (.data Θ.idx ps) ∧ RedT S k' (T'.isub σ) (.data Θ.idx ps') ∧
       ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
       argRel2 S Θ f k' σ ps ps' ∧ argRel2 S Θ f k' σ ps' ps ∧ argRel2 S Θ f k' σ ps ps ∧
-      argRel2 S Θ f k' σ ps' ps') →
+      argRel2 S Θ f k' σ ps' ps' ∧ parRel2 S Θ f k' σ ps ps') →
       ∀ k' (σ : ISub k' k) ps, RedT S k' (T.isub σ) (.data Θ.idx ps) →
         argRelH Θ f S k' ((Hom.id k).comp σ.hom) ps ps := by
     intro T T' h k' σ ps hps
-    obtain ⟨ps0, -, h1, -, -, -, -, -, hd, -⟩ := h k' σ
+    obtain ⟨ps0, -, h1, -, -, -, -, -, hd, -, -⟩ := h k' σ
     obtain rfl : ps = ps0 := by have := RedW.unique hps.1 h1.1; injection this
     rw [Hom.id_comp]; exact (argRel2_iff Θ σ).1 hd
   refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
     fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
   · obtain ⟨hb, hall⟩ := hT
     refine ⟨base_symm hb, fun k' σ => ?_⟩
-    obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d'⟩ := hall k' σ
-    exact ⟨ps', ps, h2, h1, hl', hl, r21, r12, d', d⟩
+    obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d', pr⟩ := hall k' σ
+    exact ⟨ps', ps, h2, h1, hl', hl, r21, r12, d', d, parRel2_symm ihp f σ pr⟩
   · obtain ⟨hb, hall⟩ := hT
     obtain ⟨hb', hall'⟩ := hT'
     refine ⟨base_trans hW hb hb', fun k' σ => ?_⟩
-    obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d'⟩ := hall k' σ
-    obtain ⟨ps2, ps'', g1, g2, hl2, hl'', r12', r21', d2, d''⟩ := hall' k' σ
+    obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d', pr⟩ := hall k' σ
+    obtain ⟨ps2, ps'', g1, g2, hl2, hl'', r12', r21', d2, d'', pr'⟩ := hall' k' σ
     obtain rfl : ps2 = ps' := by have := RedW.unique g1.1 h2.1; injection this
     have hTd : IsTyK S k' (.data Θ.idx ps) := (hb.1.isub hW σ).of_tyEq h1.2
     have hTd' : IsTyK S k' (.data Θ.idx ps2) := (hb.2.1.isub hW σ).of_tyEq h2.2
@@ -486,7 +533,8 @@ theorem per2_dataC (hW : WfSig S) {Θ : SData m}
     rw [argRel2_iff] at r12 r21 d d' r12' r21' d2 d''
     exact ⟨ps, ps'', h1, g2, hl, hl'', (argRel2_iff Θ σ).2 (argRelH_comp hW f hP r12 d d' r12' hTd hTd' hTd'' hl' hdd),
       (argRel2_iff Θ σ).2 (argRelH_comp hW f hP r21' d'' d' r21 hTd'' hTd' hTd hl' hdd'), (argRel2_iff Θ σ).2 d,
-      (argRel2_iff Θ σ).2 d''⟩
+      (argRel2_iff Θ σ).2 d'', parRel2_trans ihp f σ
+        (by rw [data_len_of hW hTd', data_len_of hW hTd]) pr pr'⟩
   · obtain ⟨he, hmem, -, hdr⟩ := ht
     exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm, DR2_symm hW f hP hdr (diagOf hT.2)⟩
   · obtain ⟨he, hmem, -, hdr⟩ := ht
@@ -495,7 +543,7 @@ theorem per2_dataC (hW : WfSig S) {Θ : SData m}
   · obtain ⟨he, hmem, -, hdr⟩ := ht
     have hTT := hT.1.2.2.2.2
     refine ⟨he.conv hTT, hmem, he.conv hTT, DR2_conv hW f hP hdr hTT (fun k' σ ps ps' h1 h2 => ?_) (fun k' σ => ?_)⟩
-    · obtain ⟨ps0, ps0', g1, g2, -, -, r12, -, d, d'⟩ := hT.2 k' σ
+    · obtain ⟨ps0, ps0', g1, g2, -, -, r12, -, d, d', -⟩ := hT.2 k' σ
       obtain rfl : ps = ps0 := by have := RedW.unique h1.1 g1.1; injection this
       obtain rfl : ps' = ps0' := by have := RedW.unique h2.1 g2.1; injection this
       rw [Hom.id_comp]
