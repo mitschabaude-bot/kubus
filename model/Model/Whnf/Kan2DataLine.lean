@@ -145,7 +145,11 @@ theorem projs_rel {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q)) (hQ' : RT2 
     RE2 S k3 ((C.argTy d D.params.length j).substList
         ((((List.range C.args.length).map fun i => proj d D (Q.isub ρ3) c C i x).take j).reverse ++
           (Q.isub ρ3).toList.reverse))
-      (proj d D (Q.isub ρ3) c C j x) (Z.getD j .abort) := by
+      (proj d D (Q.isub ρ3) c C j x) (Z.getD j .abort) ∧
+    RT2 S k3 ((C.argTy d D.params.length j).substList ((Z.take j).reverse ++ (P.isub ρ3).toList.reverse))
+      ((C.argTy d D.params.length j).substList
+        ((((List.range C.args.length).map fun i => proj d D (Q.isub ρ3) c C i x).take j).reverse ++
+          (Q.isub ρ3).toList.reverse)) := by
   have hdD := dataD_eq hW hD
   have hTP : IsTyK S k3 (.data d (P.isub ρ3)) := ⟨_, .inl (HasTy.isubS hW hP ρ3)⟩
   have lvl : ∀ {R : Tm}, IsTyK S k3 (.data d R) → HasTy S k3 .one [] (.data d R) (.univ D.level) := by
@@ -259,7 +263,51 @@ theorem projs_rel {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q)) (hQ' : RT2 
   have a2 := ZZ' j hj
   have a3 := RE2.conv' hW (TZZ' j hj) (RE2.symm hW (RT2.refl' hW hXZ (TZZ' j hj)) (PZ' hj)) hXZ
   rw [show proj d D (Q'.isub ρ3) c C j x' = proj d D (Q'.isub ρ3) c C j x' from rfl] at a3
-  exact ⟨RE2.conv hW (TT j hj) (RE2.trans hW hZZ a1 (RE2.trans hW hZZ a2 a3)), RE2.conv hW (TT j hj) a1⟩
+  exact ⟨RE2.conv hW (TT j hj) (RE2.trans hW hZZ a1 (RE2.trans hW hZZ a2 a3)), RE2.conv hW (TT j hj) a1, TT j hj⟩
+
+include hH hPP in
+/-- The argument types at componentwise related prefixes and parameters related to those of a
+literal inductive type are related. -/
+theorem argTy_rt2 {Q1 Q2 : Tm} (hQ1 : RT2 S K (.data d P) (.data d Q1)) (hQ2 : RT2 S K (.data d P) (.data d Q2))
+    {k3 : ℕ} (ρ3 : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {j : ℕ} (hj : j < C.args.length)
+    {A B : List Tm} (hAl : A.length = j) (hBl : B.length = j)
+    (hrel : ∀ i (hi : i < j), (C.isRec i = true → RE2 S k3 (.data d (Q1.isub ρ3)) (A.getD i .abort) (B.getD i .abort)) ∧
+      (C.isRec i = false → RE2 S k3 ((C.argTy d D.params.length i).substList ((A.take i).reverse ++
+        (Q1.isub ρ3).toList.reverse)) (A.getD i .abort) (B.getD i .abort))) :
+    RT2 S k3 ((C.argTy d D.params.length j).substList (A.reverse ++ (Q1.isub ρ3).toList.reverse))
+      ((C.argTy d D.params.length j).substList (B.reverse ++ (Q2.isub ρ3).toList.reverse)) := by
+  have hdD := dataD_eq hW hD
+  have hQ1T : IsTyK S k3 (.data d (Q1.isub ρ3)) := ((Comp2_ty_base hQ1).2.2.1).isub hW ρ3
+  have hQ2T : IsTyK S k3 (.data d (Q2.isub ρ3)) := ((Comp2_ty_base hQ2).2.2.1).isub hW ρ3
+  have hXP : TyCode K (semK S K (.data d P)) := tyCode_of_univ hW hP
+  have hgetA : ∀ i (hi : i < A.length), A.getD i .abort = A[i] := fun i hi => by
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi]; rfl
+  have hgetB : ∀ i (hi : i < B.length), B.getD i .abort = B[i] := fun i hi => by
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi]; rfl
+  cases hrj : C.isRec j
+  · have hc1 : (Q1.isub ρ3).closedB 0 k3 = true := by
+      have := closed_of_isTyK hW hQ1T; simpa [Tm.closedB] using this
+    have hc2 : (Q2.isub ρ3).closedB 0 k3 = true := by
+      have := closed_of_isTyK hW hQ2T; simpa [Tm.closedB] using this
+    have := argTy_code_rel hW hD hH hP ρ3 (argRelH_QQ hW hD hP hQ1 hQ2 ρ3) (semK_dataQ hW hD hP hQ1 ρ3) hc1 hc2 hC
+      (A := A) (A' := B) (by omega)
+      (fun i hi hi' hri => by rw [← hgetA i hi, ← hgetB i hi']; exact (hrel i (by omega)).1 hri)
+      (fun i hi hi' hri => by rw [← hgetA i hi, ← hgetB i hi']; exact (hrel i (by omega)).2 hri)
+      (by omega) (by rw [hAl]; exact hrj)
+    rw [hAl] at this
+    exact Comp2_ty_RT2 this
+  · have hl1 := (dataLit_rel hW hD hP hQ1 ρ3).2.2.2.2.2.2
+    have hl2 := (dataLit_rel hW hD hP hQ2 ρ3).2.2.2.2.2.2
+    have hlen1 : (Q1.isub ρ3).toList.length = D.params.length := by
+      have := data_len_of hW hQ1T; rwa [hdD] at this
+    have hlen2 : (Q2.isub ρ3).toList.length = D.params.length := by
+      have := data_len_of hW hQ2T; rwa [hdD] at this
+    rw [argTy_rec_inst hrj hl1 hlen1 (by simp; omega), argTy_rec_inst hrj hl2 hlen2 (by simp; omega)]
+    have h1 := RT2.isub hW hXP hQ1 ρ3
+    have h2 := RT2.isub hW hXP hQ2 ρ3
+    exact RT2.trans hW (RT2.tyCode_r hW h1 (hXP.res _ |> fun h => by
+      rw [semK_isubTy hW (Comp2_ty_base hQ1).2.1 ρ3]; exact h)) (RT2.symm hW (by
+      rw [semK_isubTy hW (Comp2_ty_base hQ1).2.1 ρ3]; exact hXP.res _) h1) h2
 
 end lit
 
