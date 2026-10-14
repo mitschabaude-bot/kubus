@@ -287,22 +287,6 @@ theorem GlueTyInv.restrict {Φ' φ : I} {A T e : Tm} (hs : Φ'.Scoped Ψ) (he : 
   exact ⟨l, h0, valid_restrict hW he h1, valid_restrict hW he' h2, valid_restrict hW he' h3,
     HasTy0.restrict hs he t1, HasTy0.restrict hs' he' t2, HasTy0.restrict hs' he' t3⟩
 
-section
-variable (hK : KanOracle2 S)
-include hK
-
-theorem valid_transpGlue_of {A T' e u0 T : Tm} {φ ψ δ : I} (hδ : δ.Scoped Ψ)
-    (h1 : I.Entails δ φ.forall0) (h2 : I.Entails φ.forall0 δ)
-    (h : Valid2 S Ψ Φ Γ (.transp (.glue A φ T' e) ψ u0) (.transp (.glue A φ T' e) ψ u0) T)
-    (hu : HasTy0 S Ψ Φ Γ (Tm.transpGlueWith δ A φ T' e ψ u0) T) :
-    Valid2 S Ψ Φ Γ (.transp (.glue A φ T' e) ψ u0) (Tm.transpGlueWith δ A φ T' e ψ u0) T := by
-  refine valid_redex hW h hu fun k c => ?_
-  simp only [CSub2.R]; rw [transpGlueWith_subst]
-  exact hK.transpGlue k _ _ _ _ _ _ _ _ (I.scoped_subst hδ c.σ'.sc)
-    (ent_trans (ent_subst h1 _) (forall0_subst φ _).1) (ent_trans (forall0_subst φ _).2 (ent_subst h2 _))
-
-end
-
 end
 
 end Model.Whnf

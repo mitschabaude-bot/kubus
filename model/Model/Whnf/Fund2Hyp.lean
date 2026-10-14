@@ -47,9 +47,6 @@ computation rules of the Kan operations. -/
 structure KanOracle2 (S : Sig) : Prop where
   hcomp : ∀ k (A A' : Tm), RT2 S k A A' → KanH2 S k A A'
   transp : ∀ k (A A' : Tm), RT2 S (k + 1) A A' → KanT2 S k A A'
-  transpGlue : ∀ k (X A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (δ : I), δ.Scoped k →
-    I.Entails δ φ.forall0 → I.Entails φ.forall0 δ →
-    RedexOK S k X (.transp (.glue A φ T e) ψ u0) (Tm.transpGlueWith δ A φ T e ψ u0)
 
 /-- `glueBeta`. Inverting the typing of the redex `unglue φ e (glueEl φ e t a) : G` gives the
 annotations `A`, `T` of the `unglue` and `A2`, `T2` of the `glueEl`, whose Glue types are related

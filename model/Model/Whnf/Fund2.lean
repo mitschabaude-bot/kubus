@@ -3,6 +3,7 @@ import Model.Whnf.Valid2CompPi
 import Model.Whnf.Valid2CompPath
 import Model.Whnf.Valid2CompGlue
 import Model.Whnf.Valid2LineEquiv
+import Model.Whnf.Valid2TranspGlue
 
 /-!
 # The binary fundamental lemma
@@ -39,8 +40,8 @@ end
 
 section
 variable (hW : WfSig S) (hpre : ∀ (j : ℕ) (e : Entry), S'[j]? = some e → S[j]? = some e)
-  (hD : DefHyp2 S S') (hK : KanOracle2 S) (hDa : DataHyp2 S S') (hGB : GlueBetaHyp2 S)
-include hW hpre hD hK hDa hGB
+  (hD : DefHyp2 S S') (hK : KanOracle2 S) (hDa : DataHyp2 S S') (hGB : GlueBetaHyp2 S) (hN : NearEl2 S)
+include hW hpre hD hK hDa hGB hN
 
 mutual
 
@@ -407,6 +408,44 @@ theorem fund2_hcompGlueInv {Ψ Φ Γ s G} (hd : HasTy0 S' Ψ Φ Γ s G) :
 termination_by structural hd
 
 
+theorem fund2_transpGlueInv {Ψ Φ Γ s G} (hd : HasTy0 S' Ψ Φ Γ s G) :
+    ∀ {A φ T e ψ a}, s = .transp (.glue A φ T e) ψ a → GlueTyInv S (Ψ + 1) Φ.shift Γ.dshift A φ T e :=
+  match hd with
+  | .transp h0 _ _ _ => fun hs => by
+    have a0 : ∀ {A φ T e}, _ = Tm.glue A φ T e → _ := fun hg => fund2_glueTyInv h0 hg
+    cases hs; exact a0 rfl
+  | .conv h0 _ => fun hs => fund2_transpGlueInv h0 hs
+  | .restrict h0 h1 h2 => fun hs =>
+    (fund2_transpGlueInv h2 hs).restrict hW (KubusCore.I.scoped_shift h0) (ent_shift h1)
+  | .cumul _ h1 => fun hs => fund2_transpGlueInv h1 hs
+  | .var _ _ => fun hs => by cases hs
+  | .const _ _ => fun hs => by cases hs
+  | .univ _ _ => fun hs => by cases hs
+  | .pi _ _ => fun hs => by cases hs
+  | .lam _ _ => fun hs => by cases hs
+  | .app _ _ => fun hs => by cases hs
+  | .sigma _ _ => fun hs => by cases hs
+  | .pair _ _ _ => fun hs => by cases hs
+  | .fst _ => fun hs => by cases hs
+  | .snd _ => fun hs => by cases hs
+  | .path _ _ _ => fun hs => by cases hs
+  | .plam _ _ _ _ => fun hs => by cases hs
+  | .papp _ _ => fun hs => by cases hs
+  | .ipi _ _ => fun hs => by cases hs
+  | .ilam _ _ => fun hs => by cases hs
+  | .iapp _ _ => fun hs => by cases hs
+  | .split _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .abort _ _ => fun hs => by cases hs
+  | .hcomp _ _ _ _ _ => fun hs => by cases hs
+  | .glue _ _ _ _ => fun hs => by cases hs
+  | .glueEl _ _ _ _ _ => fun hs => by cases hs
+  | .data _ _ _ => fun hs => by cases hs
+  | .con _ _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .elim _ _ _ _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .unglue _ _ _ _ => fun hs => by cases hs
+termination_by structural hd
+
+
 theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     Valid2 S Ψ Φ Γ t u A :=
   match hd with
@@ -533,8 +572,9 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
   | .transpSigma h0 => valid_transpSigma_rule hW hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
   | .transpPath h0 =>
     valid_transpPath_rule hW hK.hcomp hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
-  | .transpGlue h0 h1 h2 h3 h4 h5 =>
-    valid_transpGlue_of hW hK h3 h4 h5 (fund2_ty h0) (pre2 hW hpre (.transpGlue h0 h1 h2 h3 h4 h5)).2
+  | .transpGlue h0 _ _ h3 h4 h5 =>
+    valid_transpGlue_rule hW hK.hcomp hK.transp hN (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
+      (fund2_transpGlueInv h0 rfl) h3 h4 h5
   | .transpIPi h0 => valid_transpIPi_rule hW hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
   | .hcompIPi h0 => valid_hcompIPi_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .hcompPi h0 => valid_hcompPi_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
@@ -645,8 +685,8 @@ theorem valid_closed0 {t u A : Tm} (h : Valid2 S 0 .one [] t u A) (ht : t.closed
   simp only [closed0_subst ht, closed0_subst hu, closed0_subst hA] at this; exact this
 
 /-- The definitions of every prefix of the signature are related, by induction on the prefix. -/
-theorem defHyp2_take (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S (S.take n)) (hGB : GlueBetaHyp2 S) :
-    ∀ n, DefHyp2 S (S.take n) := by
+theorem defHyp2_take (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S (S.take n)) (hGB : GlueBetaHyp2 S)
+    (hN : NearEl2 S) : ∀ n, DefHyp2 S (S.take n) := by
   intro n
   induction n with
   | zero => intro i t A h; simp at h
@@ -661,26 +701,26 @@ theorem defHyp2_take (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S
       have hpre : ∀ (j : ℕ) (e : Entry), (S.take i)[j]? = some e → S[j]? = some e :=
         fun j e h => (getElem?_take_some h).2
       have h0 := spec_to_minimal (wfSig_take hW i) hty
-      have hv := fund2_ty hW hpre ih hK (hDa i) hGB h0
+      have hv := fund2_ty hW hpre ih hK (hDa i) hGB hN h0
       intro k
       have := valid_closed0 hv htc htc hAc k
       exact this
 
 /-- **The binary fundamental lemma**, for derivations in the whole signature. -/
 theorem fund2 (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S (S.take n)) (hGB : GlueBetaHyp2 S)
-    {Ψ Φ Γ t u A} (h : EqTm0 S Ψ Φ Γ t u A) : Valid2 S Ψ Φ Γ t u A := by
-  have hD := defHyp2_take hW hK hDa hGB S.length
+    (hN : NearEl2 S) {Ψ Φ Γ t u A} (h : EqTm0 S Ψ Φ Γ t u A) : Valid2 S Ψ Φ Γ t u A := by
+  have hD := defHyp2_take hW hK hDa hGB hN S.length
   rw [List.take_length] at hD
   have := hDa S.length
   rw [List.take_length] at this
-  exact fund2_eq hW (fun _ _ h => h) hD hK this hGB h
+  exact fund2_eq hW (fun _ _ h => h) hD hK this hGB hN h
 
 /-- The binary fundamental lemma for closed terms at stage `k`. -/
 theorem fund2_closed (hW : WfSig S) (hK : KanOracle2 S) (hDa : ∀ n, DataHyp2 S (S.take n)) (hGB : GlueBetaHyp2 S)
-    {t u A : Tm} (h : EqTm0 S k .one [] t u A) : RT2 S k A A ∧ RE2 S k A t u := by
+    (hN : NearEl2 S) {t u A : Tm} (h : EqTm0 S k .one [] t u A) : RT2 S k A A ∧ RE2 S k A t u := by
   obtain ⟨ht, hu⟩ := presup hW h
-  have hA := RE2.typed ((fund2 hW hK hDa hGB (EqTm0.refl ht)) k (CSub2.idS S k)).2
-  refine valid_closed (fund2 hW hK hDa hGB h) (closed_ty ht) (closed_ty hu) ?_
+  have hA := RE2.typed ((fund2 hW hK hDa hGB hN (EqTm0.refl ht)) k (CSub2.idS S k)).2
+  refine valid_closed (fund2 hW hK hDa hGB hN h) (closed_ty ht) (closed_ty hu) ?_
   rcases pre_ty (sigClosed_of_wfSig hW) (wf_typed _ S rfl hW).1 (wf_typed _ S rfl hW).2 ht with ⟨l, hl⟩ | ⟨l, rfl, -⟩
   · exact closed_ty hl
   · rfl

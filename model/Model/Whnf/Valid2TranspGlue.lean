@@ -1,4 +1,5 @@
 import Model.Whnf.Valid2LineEquiv
+import Model.Whnf.Near
 
 /-!
 # Validity of the `transp` computation rule in Glue types
@@ -1295,6 +1296,80 @@ theorem faceδ : VEq S Ψ (cof Φ δ) Γ (tgT1 T ψ u0) (Tm.transpGlueWith δ A 
   exact VEq.symm' hW (VEq.trans' hW g1 hfst)
 
 end VTG
+
+/-! ### The computation rule -/
+
+/-- Element relations are invariant under near terms on the left (`TmNear`: interval points equal in the
+free De Morgan algebra, faces mutually entailing). Needed because `transp` in Glue types reduces to
+`transpGlueWith (∀i. φ)` with the syntactic `∀`, which commutes with substitution only up to
+equivalence. -/
+def NearEl2 (S : Sig) : Prop :=
+  ∀ {k : ℕ} {X t t' u : Tm}, RT2 S k X X → RE2 S k X t u → TmNear t t' → HasTy S k .one [] t' X → RE2 S k X t' u
+
+omit hW in
+theorem ent_one_forall0 {φ : I} (h : I.Entails .one φ) : I.Entails .one φ.forall0 :=
+  entails_iff.2 fun ρ hρ _ => (forall0_sem hρ φ).2 (entails_iff.1 h _ (consAsg_k3 (by decide) hρ) rfl)
+
+/-- The step of `transp` in a Glue line. -/
+theorem eq_transpGlue_step {Ψ Φ Γ A φ T e ψ u0 X} (h : HasTy0 S Ψ Φ Γ (.transp (.glue A φ T e) ψ u0) X) :
+    EqTm0 S Ψ Φ Γ (.transp (.glue A φ T e) ψ u0) (Tm.transpGlueWith φ.forall0 A φ T e ψ u0) X := by
+  obtain ⟨l, ⟨hG, -, -, -⟩, -⟩ := gen_transpF h rfl
+  obtain ⟨l', ⟨hA0, hφ, -, he⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) hG rfl
+  exact EqTm0.transpGlue h hA0 he (forall0_scoped hφ) (ent_refl _) (ent_refl _)
+
+/-- The step of `transp` along a Glue line whose face holds everywhere. -/
+theorem eq_transp_glueLine {Ψ Φ Γ A φ T e ψ u0 X} (h : HasTy0 S Ψ Φ Γ (.transp (.glue A φ T e) ψ u0) X)
+    (hφ : I.Entails .one φ) : EqTm0 S Ψ Φ Γ (.transp (.glue A φ T e) ψ u0) (.transp T ψ u0) X := by
+  obtain ⟨l, ⟨hG, hψ, hc, hu0⟩, ch⟩ := gen_transpF h rfl
+  have e := EqTm0.glueFace (ent_trans (ent_one _) hφ) hG
+  have H := HasTy0.transp hG hψ hc hu0
+  exact ch.transportEq (EqTm0.transp H (transp_retype0 hW hψ hc hu0 e) e (ent_refl _) (ent_refl _) (EqTm0.refl hu0))
+
+theorem valid_transpGlue_rule (hKH : KHAll S) (hKT : KTAll S) (hN : NearEl2 S) {A T e u0 T0 : Tm} {φ ψ δ : I}
+    (h : HasTy0 S Ψ Φ Γ (.transp (.glue A φ T e) ψ u0) T0)
+    (hv : Valid2 S Ψ Φ Γ (.transp (.glue A φ T e) ψ u0) (.transp (.glue A φ T e) ψ u0) T0)
+    (hinv : TranspInv S Ψ Φ Γ (.glue A φ T e) ψ u0 T0)
+    (hg : GlueTyInv S (Ψ + 1) Φ.shift Γ.dshift A φ T e)
+    (hδ : δ.Scoped Ψ) (hδ1 : I.Entails δ φ.forall0) (hδ2 : I.Entails φ.forall0 δ) :
+    Valid2 S Ψ Φ Γ (.transp (.glue A φ T e) ψ u0) (Tm.transpGlueWith δ A φ T e ψ u0) T0 := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l', hψ, hLV, hCV, hu0V, htr, hL, hc, hu0⟩ := hinv
+  obtain ⟨l, hφ, hAV, hTV, heV, hA, hT, he⟩ := hg
+  have H : VTG S Ψ Φ Γ A φ T e ψ u0 δ l l' :=
+    { hKH := hKH, hKT := hKT, hA := ⟨hA, hAV⟩, hφ := hφ, hT := ⟨hT, hTV⟩, he := ⟨he, heV⟩, hψ := hψ, hδ := hδ,
+      hδφ := hδ1, hGl := ⟨hL, hLV⟩, hconst := ⟨hc, hCV⟩, hu0 := ⟨hu0, hu0V⟩ }
+  have hy := H.typed hW
+  have hT0 : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L T0) (c.R T0) := fun k c => (hv k c).1
+  have hyT := valid_conv_tr hy.v htr hT0
+  have hbψ := valid_conv_tr (H.faceψ hW).v (htr.restrict (ent_and_left _ _))
+    fun k c => hT0 k (c.restrictTo (ent_and_left _ _))
+  have hbδ := valid_conv_tr (H.faceδ hW).v (htr.restrict (ent_and_left _ _))
+    fun k c => hT0 k (c.restrictTo (ent_and_left _ _))
+  refine valid_red_rule hW hv hyT fun k c => ?_
+  have hLt := spec_to_minimal hW (c.ty hW h)
+  by_cases hf : I.Entails .one (ψ.subst c.σ.τ)
+  · exact ⟨c.L u0, .step (step_transp_face hf) (.refl _), EqTm.transpFace hf (c.ty hW h), (hbψ k (c.cof hf)).2⟩
+  have hn' : I.entails .one (ψ.subst c.σ.τ) = false := by simpa [I.Entails] using hf
+  by_cases hgl : I.Entails .one (φ.subst (I.up c.σ.τ))
+  · have hg' : I.entails .one (φ.subst (I.up c.σ.τ)) = true := hgl
+    have hδc : I.Entails .one (δ.subst c.σ.τ) :=
+      ent_trans (ent_trans (ent_one_forall0 hgl) (forall0_subst φ c.σ.τ).2) (ent_subst hδ2 _)
+    refine ⟨c.L (.transp T ψ u0), .step ?_ (.refl _), minimal_to_spec_eq (eq_transp_glueLine hW hLt hgl),
+      (hbδ k (c.cof hδc)).2⟩
+    simp [CSub2.L, Tm.subst, step, hn', hg']
+  · have hg' : I.entails .one (φ.subst (I.up c.σ.τ)) = false := by simpa [I.Entails] using hgl
+    have hz := eq_transpGlue_step hW hLt
+    refine ⟨_, .step ?_ (.refl _), minimal_to_spec_eq hz, ?_⟩
+    · simp [CSub2.L, Tm.subst, step, hn', hg']
+    · have e4 : c.L (Tm.transpGlueWith δ A φ T e ψ u0) = Tm.transpGlueWith (δ.subst c.σ.τ)
+          (A.subst (dupS c.γ) (I.up c.σ.τ)) (φ.subst (I.up c.σ.τ)) (T.subst (dupS c.γ) (I.up c.σ.τ))
+          (e.subst (dupS c.γ) (I.up c.σ.τ)) (ψ.subst c.σ.τ) (c.L u0) := transpGlueWith_subst _ _ δ A φ T e ψ u0
+      have hr := (hyT k c).2
+      rw [e4] at hr
+      refine hN (hv.tyLL hW c) hr ?_ (minimal_to_spec (presup hW hz).2)
+      exact near_transpGlueWith ⟨ent_trans (ent_subst hδ1 _) (forall0_subst φ c.σ.τ).1,
+          ent_trans (forall0_subst φ c.σ.τ).2 (ent_subst hδ2 _)⟩ (TmNear.refl _) (FEq.refl _) (TmNear.refl _)
+        (TmNear.refl _) (FEq.refl _) (TmNear.refl _)
 
 end
 
