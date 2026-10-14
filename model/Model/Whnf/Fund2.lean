@@ -1,4 +1,4 @@
-import Model.Whnf.Fund2Aux
+import Model.Whnf.Valid2Comp
 
 /-!
 # The binary fundamental lemma
@@ -213,9 +213,9 @@ theorem fund2_transpInv {Ψ Φ Γ s T} (hd : HasTy0 S' Ψ Φ Γ s T) :
   match hd with
   | .transp h0 h1 h2 h3 => fun hs => by
     have a0 := fund2_ty h0; have a2 := fund2_eq h2; have a3 := fund2_ty h3
-    cases hs; exact ⟨_, h1, a0, a2, a3, ElTr2.refl _⟩
+    cases hs; exact ⟨_, h1, a0, a2, a3, ElTr2.refl _, sigwk_ty hpre h0, sigwk_eq hpre h2, sigwk_ty hpre h3⟩
   | .conv h0 h1 => fun hs => (fund2_transpInv h0 hs).conv hW (fund2_eq h1)
-  | .restrict _ h1 h2 => fun hs => (fund2_transpInv h2 hs).restrict hW h1
+  | .restrict h0 h1 h2 => fun hs => (fund2_transpInv h2 hs).restrict hW h0 h1
   | .cumul h0 h1 => fun hs => (fund2_transpInv h1 hs).cumul hW h0
   | .var _ _ => fun hs => by cases hs
   | .const _ _ => fun hs => by cases hs
@@ -455,9 +455,9 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
   | .transpPath h0 => valid_transpPath_of hW hK (fund2_ty h0) (pre2 hW hpre (.transpPath h0)).2
   | .transpGlue h0 h1 h2 h3 h4 h5 =>
     valid_transpGlue_of hW hK h3 h4 h5 (fund2_ty h0) (pre2 hW hpre (.transpGlue h0 h1 h2 h3 h4 h5)).2
-  | .transpIPi h0 => valid_transpIPi_of hW hK (fund2_ty h0) (pre2 hW hpre (.transpIPi h0)).2
-  | .hcompIPi h0 => valid_hcompIPi_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompIPi h0)).2
-  | .hcompPi h0 => valid_hcompPi_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompPi h0)).2
+  | .transpIPi h0 => valid_transpIPi_rule hW hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
+  | .hcompIPi h0 => valid_hcompIPi_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
+  | .hcompPi h0 => valid_hcompPi_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .hcompSigma h0 => valid_hcompSigma_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompSigma h0)).2
   | .hcompPath h0 => valid_hcompPath_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompPath h0)).2
   | .hcompGlue h0 h1 h2 => valid_hcompGlue_of hW hK (fund2_ty h0) (pre2 hW hpre (.hcompGlue h0 h1 h2)).2

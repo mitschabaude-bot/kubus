@@ -184,23 +184,29 @@ theorem HcompInv.cumul {A u a : Tm} {φ : I} {l : ℕ} (hl : l + 1 ≤ maxLevel)
 def TranspInv (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (A : Tm) (φ : I) (a T : Tm) : Prop :=
   ∃ l, φ.Scoped Ψ ∧ Valid2 S (Ψ + 1) Φ.shift Γ.dshift A A (.univ l) ∧
     Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l) ∧
-    Valid2 S Ψ Φ Γ a a (A.dinst .zero) ∧ ElTr2 S Ψ Φ Γ (A.dinst .one) T
+    Valid2 S Ψ Φ Γ a a (A.dinst .zero) ∧ ElTr2 S Ψ Φ Γ (A.dinst .one) T ∧
+    HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (.univ l) ∧
+    EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l) ∧ HasTy0 S Ψ Φ Γ a (A.dinst .zero)
 
 theorem TranspInv.conv {A a T T' : Tm} {φ : I} {m : ℕ} (h : TranspInv S Ψ Φ Γ A φ a T)
     (hT : Valid2 S Ψ Φ Γ T T' (.univ m)) : TranspInv S Ψ Φ Γ A φ a T' := by
-  obtain ⟨l, h0, h1, h2, h3, h4⟩ := h
-  exact ⟨l, h0, h1, h2, h3, h4.trans (ElTr2.of_valid hW hT)⟩
+  obtain ⟨l, h0, h1, h2, h3, h4, h5⟩ := h
+  exact ⟨l, h0, h1, h2, h3, h4.trans (ElTr2.of_valid hW hT), h5⟩
 
-theorem TranspInv.restrict {Φ' φ : I} {A a T : Tm} (he : I.Entails Φ' Φ) (h : TranspInv S Ψ Φ Γ A φ a T) :
-    TranspInv S Ψ Φ' Γ A φ a T := by
-  obtain ⟨l, h0, h1, h2, h3, h4⟩ := h
+theorem TranspInv.restrict {Φ' φ : I} {A a T : Tm} (hs : Φ'.Scoped Ψ) (he : I.Entails Φ' Φ)
+    (h : TranspInv S Ψ Φ Γ A φ a T) : TranspInv S Ψ Φ' Γ A φ a T := by
+  obtain ⟨l, h0, h1, h2, h3, h4, t1, t2, t3⟩ := h
+  have hs' : (cof Φ' φ).Scoped Ψ := ⟨hs, h0⟩
+  have he' : I.Entails (cof Φ' φ) (cof Φ φ) := ent_and_mono he (ent_refl _)
   exact ⟨l, h0, valid_restrict hW (ent_shift he) h1,
-    valid_restrict hW (ent_shift (ent_and_mono he (ent_refl _))) h2, valid_restrict hW he h3, h4.restrict he⟩
+    valid_restrict hW (ent_shift he') h2, valid_restrict hW he h3, h4.restrict he,
+    HasTy0.restrict (KubusCore.I.scoped_shift hs) (ent_shift he) t1,
+    EqTm0.restrict (KubusCore.I.scoped_shift hs') (ent_shift he') t2, HasTy0.restrict hs he t3⟩
 
 theorem TranspInv.cumul {A a : Tm} {φ : I} {l : ℕ} (hl : l + 1 ≤ maxLevel)
     (h : TranspInv S Ψ Φ Γ A φ a (.univ l)) : TranspInv S Ψ Φ Γ A φ a (.univ (l + 1)) := by
-  obtain ⟨l', h0, h1, h2, h3, h4⟩ := h
-  exact ⟨l', h0, h1, h2, h3, h4.trans (ElTr2.cumul hW hl)⟩
+  obtain ⟨l', h0, h1, h2, h3, h4, h5⟩ := h
+  exact ⟨l', h0, h1, h2, h3, h4.trans (ElTr2.cumul hW hl), h5⟩
 
 /-- The inverted typing of a Glue introduction at `G`. -/
 def GlueElInv (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (φ : I) (e t a G : Tm) : Prop :=
@@ -291,27 +297,6 @@ theorem valid_transpPath_of {A a b p0 T : Tm} {φ : I}
     Valid2 S Ψ Φ Γ (.transp (.path A a b) φ p0) (Tm.transpPath A a b φ p0) T := by
   refine valid_redex hW h hu fun k c => ?_
   simp only [CSub2.R]; rw [transpPath_subst]; exact hK.transpPath k _ _ _ _ _ _
-
-theorem valid_transpIPi_of {A u0 T : Tm} {φ : I}
-    (h : Valid2 S Ψ Φ Γ (.transp (.ipi A) φ u0) (.transp (.ipi A) φ u0) T)
-    (hu : HasTy0 S Ψ Φ Γ (Tm.transpIPi A φ u0) T) :
-    Valid2 S Ψ Φ Γ (.transp (.ipi A) φ u0) (Tm.transpIPi A φ u0) T := by
-  refine valid_redex hW h hu fun k c => ?_
-  simp only [CSub2.R]; rw [transpIPi_subst]; exact hK.transpIPi k _ _ _ _
-
-theorem valid_hcompIPi_of {A u u0 T : Tm} {φ : I}
-    (h : Valid2 S Ψ Φ Γ (.hcomp (.ipi A) φ u u0) (.hcomp (.ipi A) φ u u0) T)
-    (hu : HasTy0 S Ψ Φ Γ (Tm.hcompIPi A φ u u0) T) :
-    Valid2 S Ψ Φ Γ (.hcomp (.ipi A) φ u u0) (Tm.hcompIPi A φ u u0) T := by
-  refine valid_redex hW h hu fun k c => ?_
-  simp only [CSub2.R]; rw [hcompIPi_subst]; exact hK.hcompIPi k _ _ _ _ _
-
-theorem valid_hcompPi_of {A B u u0 T : Tm} {φ : I}
-    (h : Valid2 S Ψ Φ Γ (.hcomp (.pi A B) φ u u0) (.hcomp (.pi A B) φ u u0) T)
-    (hu : HasTy0 S Ψ Φ Γ (Tm.hcompPi A B φ u u0) T) :
-    Valid2 S Ψ Φ Γ (.hcomp (.pi A B) φ u u0) (Tm.hcompPi A B φ u u0) T := by
-  refine valid_redex hW h hu fun k c => ?_
-  simp only [CSub2.R]; rw [hcompPi_subst]; exact hK.hcompPi k _ _ _ _ _ _
 
 theorem valid_hcompSigma_of {A B u u0 T : Tm} {φ : I}
     (h : Valid2 S Ψ Φ Γ (.hcomp (.sigma A B) φ u u0) (.hcomp (.sigma A B) φ u u0) T)
