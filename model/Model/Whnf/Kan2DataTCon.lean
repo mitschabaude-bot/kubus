@@ -168,6 +168,104 @@ theorem argK_restr {d : ℕ} {D : DataDecl} {K : ℕ} {P : Tm}
   intro c j n g pre hv
   exact hArgK c j n (σ.hom.comp g) pre hv
 
+section face
+variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hp : D.params ≠ [])
+  (hH : D.isHIT = false)
+include hW hD hp hH
+
+/-- Where the face of a transport of a constructor holds, its `transpCon` contractum is related to the
+constructor. -/
+theorem tcon_face {PL q : Tm} {ψ : I} {c : ℕ} {C : Ctor} {X : List Tm} (hC : D.ctors[c]? = some C)
+    (hPL : HasTy S (k + 1) .one [] (.data d PL) (.univ D.level))
+    (hRL : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped k3) (hy' : y'.Scoped k3), I.Eq y y' →
+      RT2 S k3 (.data d (PL.isub (ISub.cons y hy τ))) (.data d (PL.isub (ISub.cons y' hy' τ))))
+    (hLC : LineConst S k (.data d PL) ψ) (hψs : ψ.Scoped k) (hψ : I.Entails .one ψ)
+    (hty : HasTy S k .one [] (.transp (.data d PL) ψ (.con d c q (Tm.ofList X) [])) (.data d (PL.dinst .one)))
+    (hbase : RE2 S k (.data d (PL.dinst .zero)) (.con d c q (Tm.ofList X) []) (.con d c q (Tm.ofList X) [])) :
+    RE2 S k (.data d (PL.dinst .one)) (tCon d D c C PL ψ X) (.con d c q (Tm.ofList X) []) := by
+  have hdD := dataD_eq hW hD
+  obtain ⟨eT, htele, hXl⟩ := transpCon_eq hW hD hp hH hC hty
+  have hPc : PL.closedB 0 (k + 1) = true := data_closed hW hD hH hPL
+  have hP0 : PL.isub (ISub.cons .zero trivial (ISub.id k)) = PL.dinst .zero := isub_cons_id_of_closed hPc .zero trivial
+  have hP1 : PL.isub (ISub.cons .one trivial (ISub.id k)) = PL.dinst .one := isub_cons_id_of_closed hPc .one trivial
+  have hd0 : HasTy S k .one [] (.data d (PL.dinst .zero)) (.univ D.level) := by
+    have := HasTy.isubS hW hPL (ISub.cons .zero trivial (ISub.id k)); rwa [show (Tm.data d PL).isub
+      (ISub.cons .zero trivial (ISub.id k)) = .data d (PL.isub (ISub.cons .zero trivial (ISub.id k))) from rfl, hP0] at this
+  have hd1 : HasTy S k .one [] (.data d (PL.dinst .one)) (.univ D.level) := by
+    have := HasTy.isubS hW hPL (ISub.cons .one trivial (ISub.id k)); rwa [show (Tm.data d PL).isub
+      (ISub.cons .one trivial (ISub.id k)) = .data d (PL.isub (ISub.cons .one trivial (ISub.id k))) from rfl, hP1] at this
+  have s0 := hRL k (ISub.id k) .zero .zero trivial trivial (I_eq_refl _)
+  have s1 := hRL k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
+  rw [hP0] at s0
+  rw [hP1] at s1
+  have hholds : (ival (idEnv k) (ψ.subst (ISub.id k).τ)).holds := by
+    rw [I_subst_id hψs]; exact (holds_iff_entails hψs).2 hψ
+  have h10 := hLC k (ISub.id k) .one trivial hholds
+  rw [show (Tm.data d PL).isub (ISub.cons .one trivial (ISub.id k)) = .data d (PL.dinst .one) by
+      show Tm.data d (PL.isub _) = _; rw [hP1],
+    show (Tm.data d PL).isub (ISub.cons .zero trivial (ISub.id k)) = .data d (PL.dinst .zero) by
+      show Tm.data d (PL.isub _) = _; rw [hP0]] at h10
+  have h01 : RT2 S k (.data d (PL.dinst .zero)) (.data d (PL.dinst .one)) :=
+    RT2.symm hW (tyCode_of_univ hW hd1) h10
+  -- the arguments of the constructor
+  have hargsX : ∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
+      ((X.take i).reverse ++ (PL.dinst .zero).toList.reverse)) (X.getD i .abort) (X.getD i .abort) := by
+    have hc0 : (PL.dinst .zero).closedB 0 k = true := data_closed hW hD hH hd0
+    have hb := hbase
+    rw [← isub_id_of_closed hc0] at hb
+    obtain ⟨c', C', qs, Z, qs', Z', hC', hZl, -, hr1, hr2, hZ⟩ := dataLit_argsU hW hD hH hd0 s0 (ISub.id k) hb
+    have e1 := RedW.unique hr1.1 (redW_self (step_con_nonHIT hD hH hC _ _ _))
+    have e2 := RedW.unique hr2.1 (redW_self (step_con_nonHIT hD hH hC _ _ _))
+    simp only [Tm.con.injEq] at e1 e2
+    obtain ⟨-, rfl, -, eX, -⟩ := e1
+    obtain ⟨-, -, -, eX2, -⟩ := e2
+    have eX' := congrArg Tm.toList eX
+    have eX2' := congrArg Tm.toList eX2
+    simp only [toList_ofList] at eX' eX2'
+    subst eX' eX2'
+    rw [hC] at hC'; cases hC'
+    intro i hi
+    have := hZ i hi
+    rwa [isub_id_of_closed hc0] at this
+  -- along the arguments: the argument types and the transported arguments
+  let Good : ℕ → Prop := fun i =>
+    RT2 S k ((C.argTy d D.params.length i).substList ((X.take i).reverse ++ (PL.dinst .zero).toList.reverse))
+      ((C.argTy d D.params.length i).substList (((tOuts d D C PL ψ X).take i).reverse ++ (PL.dinst .one).toList.reverse)) ∧
+    RE2 S k ((C.argTy d D.params.length i).substList ((X.take i).reverse ++ (PL.dinst .zero).toList.reverse))
+      (X.getD i .abort) ((tOuts d D C PL ψ X).getD i .abort)
+  have key : ∀ j, j < C.args.length → Good j := by
+    intro j
+    induction j using Nat.strong_induction_on with
+    | _ j ihj =>
+      intro hj
+      have T : RT2 S k ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ (PL.dinst .zero).toList.reverse))
+          ((C.argTy d D.params.length j).substList (((tOuts d D C PL ψ X).take j).reverse ++
+            (PL.dinst .one).toList.reverse)) :=
+        argTy_rt2' hW hD hH hd0 s0 h01 hC hj (by simp; omega) (by simp [tOuts_length]; omega) (fun i hi => by
+          rw [List.take_take, Nat.min_eq_left hi.le, getD_take_lt hi, getD_take_lt hi]
+          exact (ihj i hi (by omega)).2)
+      obtain ⟨-, -, -, -, -, htyO⟩ := tcon_typing hW hD hp hH hC hty hj
+      rw [← tOuts_getD d D C PL ψ X hj] at htyO
+      have hX : TyCode k (semK S k ((C.argTy d D.params.length j).substList ((X.take j).reverse ++
+          (PL.dinst .zero).toList.reverse))) := RE2.tyCode hW (hargsX j hj)
+      have htyO' := htyO.tyConv (TyEq.symm (Comp2_ty_base T).2.2.2.2.2)
+      have hst := stable_transpFace hW hψ (by rw [tOuts_getD d D C PL ψ X hj] at htyO'; exact htyO')
+      rw [← tOuts_getD d D C PL ψ X hj] at hst
+      have hAA := RT2.refl hW hX T
+      exact ⟨T, RE2.expandR hW hAA (RE2.typed (hargsX j hj)).1 htyO' hst (hargsX j hj)⟩
+  have hcT := HasTy.eqR eT
+  have he := eT.symm.trans (EqTm.transpFace hψ hty)
+  have hc1 : (PL.dinst .one).closedB 0 k = true := data_closed hW hD hH hd1
+  have := RE2_con_args hW hD hH hd1 s1 (ISub.id k) hC (Y := tOuts d D C PL ψ X) (Y' := X) (q := PL.dinst .one) (q' := q)
+    (tOuts_length _ _ _ _ _ _) hXl (by rw [isub_id_of_closed hc1]; exact hcT) (by rw [isub_id_of_closed hc1]; exact he)
+    (fun i hi => by
+      rw [isub_id_of_closed hc1]
+      obtain ⟨T, R⟩ := key i hi
+      exact RE2.conv hW T (RE2.symm hW T R))
+  rwa [isub_id_of_closed hc1] at this
+
+end face
+
 namespace TC
 
 variable {d : ℕ} {D : DataDecl} {PL QL : Tm} {φ φ' : I} {c : ℕ} {C : Ctor} {q q' : Tm} {X X' : List Tm}
