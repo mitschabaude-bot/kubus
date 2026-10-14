@@ -517,6 +517,51 @@ theorem RE2_ipi_elim {L p p' : Tm} (hp : RE2 S k (.ipi L) p p') :
   have := h1 r r' hr hr' hE'
   rw [Comp2_res_line hW hL, hLc] at this; exact this
 
+
+/-! ### Inversion of related `Π` and `Σ` types -/
+
+theorem RT2_pi_inv {A B A' B' : Tm} (h : RT2 S k (.pi A B) (.pi A' B')) :
+    RT2 S k A A' ∧ ∀ a a', RE2 S k A a a' → RT2 S k (B.inst a) (B'.inst a') := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hpi⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hA := HasTy.piDom hpi
+  have hcl := closed_of_ty hW hpi
+  simp only [Tm.closedB, Bool.and_eq_true] at hcl
+  unfold RT2 at h
+  rw [semK_piT hW hpi] at h
+  obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := piC_at (IsKV.ne_empty (kv_semK_of_univ hW hA)) hW h
+  obtain ⟨rfl, rfl⟩ : A = A1 ∧ B = B1 := by
+    have := RedW.unique (redW_self rfl) h1.1; injection this; constructor <;> assumption
+  obtain ⟨rfl, rfl⟩ : A' = A1' ∧ B' = B1' := by
+    have := RedW.unique (redW_self rfl) h2.1; injection this; constructor <;> assumption
+  refine ⟨h3, fun a a' ha => ?_⟩
+  have := h4 a a' ha
+  have hfam := fam_code_eq2 (B := B) hW hA (ISub.id k) (by rw [isub_id_of_closed hcl.1]; exact (RE2.typed ha).1)
+  rw [ISub.hom_id, isub_id_of_closed hcl.2] at hfam
+  rw [hfam] at this
+  exact this
+
+theorem RT2_sigma_inv {A B A' B' : Tm} (h : RT2 S k (.sigma A B) (.sigma A' B')) :
+    RT2 S k A A' ∧ ∀ a a', RE2 S k A a a' → RT2 S k (B.inst a) (B'.inst a') := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hs⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hA := HasTy.sigmaDom hs
+  have hcl := closed_of_ty hW hs
+  simp only [Tm.closedB, Bool.and_eq_true] at hcl
+  unfold RT2 at h
+  rw [semK_sigmaT hW hs] at h
+  obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := sigmaC_at (IsKV.ne_empty (kv_semK_of_univ hW hA)) hW h
+  obtain ⟨rfl, rfl⟩ : A = A1 ∧ B = B1 := by
+    have := RedW.unique (redW_self rfl) h1.1; injection this; constructor <;> assumption
+  obtain ⟨rfl, rfl⟩ : A' = A1' ∧ B' = B1' := by
+    have := RedW.unique (redW_self rfl) h2.1; injection this; constructor <;> assumption
+  refine ⟨h3, fun a a' ha => ?_⟩
+  have := h4 a a' ha
+  have hfam := fam_code_eq2 (B := B) hW hA (ISub.id k) (by rw [isub_id_of_closed hcl.1]; exact (RE2.typed ha).1)
+  rw [ISub.hom_id, isub_id_of_closed hcl.2] at hfam
+  rw [hfam] at this
+  exact this
+
 end
 
 end Model.Whnf

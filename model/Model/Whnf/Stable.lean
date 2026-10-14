@@ -55,6 +55,29 @@ theorem ty_expandS2 {X : V} (hX : TyCode k X) {A A' B B' : Tm} (hA : IsTyK S k A
     (Comp2 S X k k (Hom.id k)).ty A A' :=
   ty_expandS hW hX hA hA' hs (ty_expandSR hW hX hB hA' hs' h)
 
+
+/-- Reduction on the right, stable under restriction. -/
+theorem el_reduceSR {X : V} (hX : TyCode k X) {A t t' u' : Tm} (hAA : (Comp2 S X k k (Hom.id k)).ty A A)
+    (h : (Comp2 S X k k (Hom.id k)).el A t t') (hs : StableE S k A t' u') (hu : HasTy S k .one [] u' A) :
+    (Comp2 S X k k (Hom.id k)).el A t u' :=
+  (rc2_tyCode hW hX k (Hom.id k) A A A t t' u').2 hAA h hs hu
+
+/-- Reduction on the left, stable under restriction. -/
+theorem el_reduceSL {X : V} (hX : TyCode k X) {A t t' u : Tm} (hAA : (Comp2 S X k k (Hom.id k)).ty A A)
+    (h : (Comp2 S X k k (Hom.id k)).el A t t') (hs : StableE S k A t u) (hu : HasTy S k .one [] u A) :
+    (Comp2 S X k k (Hom.id k)).el A u t' := by
+  have P := per2_tyCode hW hX k (Hom.id k)
+  exact P.symEl hAA (el_reduceSR hW hX hAA (P.symEl hAA h) hs hu)
+
+theorem ty_reduceSR {X : V} (hX : TyCode k X) {A A' B' : Tm} (h : (Comp2 S X k k (Hom.id k)).ty A A')
+    (hs : StableT S k A' B') (hB : IsTyK S k B') : (Comp2 S X k k (Hom.id k)).ty A B' :=
+  (rc2_tyCode hW hX k (Hom.id k) A A' B' A A A).1 h hs hB
+
+theorem ty_reduceSL {X : V} (hX : TyCode k X) {A A' B : Tm} (h : (Comp2 S X k k (Hom.id k)).ty A A')
+    (hs : StableT S k A B) (hB : IsTyK S k B) : (Comp2 S X k k (Hom.id k)).ty B A' := by
+  have P := per2_tyCode hW hX k (Hom.id k)
+  exact P.symTy (ty_reduceSR hW hX (P.symTy h) hs hB)
+
 end
 
 end Model.Whnf
