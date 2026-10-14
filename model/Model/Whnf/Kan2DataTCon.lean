@@ -280,6 +280,174 @@ theorem line_kanT {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false) {
   rw [tl_isub H.hW H.hD H.hC hPl φ X hj.le, tl_isub H.hW H.hD H.hC hQl φ' X' hj.le]
   exact K
 
+theorem hRLσ {k4 : ℕ} (σ : ISub k4 (k + 1)) : RT2 S k4 (.data d (PL.isub σ)) (.data d (PL.isub σ)) := by
+  have := H.hRL k4 σ.tail (σ.τ 0) (σ.τ 0) (σ.sc 0 (by omega)) (σ.sc 0 (by omega)) (I_eq_refl _)
+  rwa [ISub.cons_tail] at this
+
+theorem hRσ {k4 : ℕ} (σ : ISub k4 (k + 1)) : RT2 S k4 (.data d (PL.isub σ)) (.data d (QL.isub σ)) := by
+  have := H.hR k4 σ.tail (σ.τ 0) (σ.τ 0) (σ.sc 0 (by omega)) (σ.sc 0 (by omega)) (I_eq_refl _)
+  rwa [ISub.cons_tail] at this
+
+/-- The restricted fillers at `I.Eq`-equal points are related. -/
+theorem fill_self {i : ℕ} (G : Good S k d D PL QL φ φ' C X X' i) {k3 : ℕ} (τ : ISub k3 k) (y y' : I)
+    (hy : y.Scoped k3) (hy' : y'.Scoped k3) (hE : I.Eq y y') :
+    RE2 S k3 ((tl d D C PL φ X i).isub (ISub.cons y hy τ))
+      ((Tm.transpFill (tl d D C PL φ X i) φ (X.getD i .abort)).isub (ISub.cons y hy τ))
+      ((Tm.transpFill (tl d D C PL φ X i) φ (X.getD i .abort)).isub (ISub.cons y' hy' τ)) := by
+  obtain ⟨G1, -, G3, -⟩ := G
+  have a := G1 k3 (ISub.cons y hy τ) (ISub.cons y' hy' τ) rfl hE
+  have b := G1 k3 (ISub.cons y' hy' τ) (ISub.cons y' hy' τ) rfl (I_eq_refl _)
+  have r := G3 k3 τ y y' hy hy' hE
+  have hX : TyCode k3 (semK S k3 ((tl d D C PL φ X i).isub (ISub.cons y hy τ))) := RE2.tyCode H.hW a
+  have b' := RE2.conv H.hW (RT2.symm H.hW hX r) b
+  exact RE2.trans H.hW r a (RE2.symm H.hW r b')
+
+/-- The arguments, at the start of their lines. -/
+theorem base_rel {i : ℕ} (hi : i < C.args.length) (G : Good S k d D PL QL φ φ' C X X' i) :
+    RE2 S k ((tl d D C PL φ X i).dinst .zero) (X.getD i .abort) (X'.getD i .abort) :=
+  RE2.conv H.hW G.2.2.2.2.1 (H.hargs0 i hi)
+
+theorem base_self {i : ℕ} (hi : i < C.args.length) (G : Good S k d D PL QL φ φ' C X X' i) :
+    RE2 S k ((tl d D C PL φ X i).dinst .zero) (X.getD i .abort) (X.getD i .abort) := by
+  have b := H.base_rel hi G
+  have hT := RT2.refl' H.hW (RE2.tyCode H.hW (H.hargs0 i hi)) G.2.2.2.2.1
+  exact RE2.trans H.hW hT b (RE2.symm H.hW hT b)
+
+/-- The transport of the right argument, typed at the end of the left argument line. -/
+theorem tyO' {i : ℕ} (hi : i < C.args.length)
+    (G2 : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped k3) (hy' : y'.Scoped k3), I.Eq y y' →
+      RT2 S k3 ((tl d D C PL φ X i).isub (ISub.cons y hy τ)) ((tl d D C QL φ' X' i).isub (ISub.cons y' hy' τ))) :
+    HasTy S k .one [] (.transp (tl d D C QL φ' X' i) φ' (X'.getD i .abort)) ((tl d D C PL φ X i).dinst .one) ∧
+    TyEq S (k + 1) (tl d D C PL φ X i) (tl d D C QL φ' X' i) := by
+  have hW := H.hW
+  obtain ⟨lj, hLj, -, -, -, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty hi
+  obtain ⟨lj', hLj', htyO', -, -, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty' hi
+  have hcj : (tl d D C PL φ X i).closedB 0 (k + 1) = true := closed_ty (spec_to_minimal hW hLj)
+  have hcj' : (tl d D C QL φ' X' i).closedB 0 (k + 1) = true := closed_ty (spec_to_minimal hW hLj')
+  have r1 := G2 k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
+  rw [isub_cons_id_of_closed hcj, isub_cons_id_of_closed hcj'] at r1
+  have r2 := G2 (k + 1) (ISub.id k).up.tail (.var 0) (.var 0) (show 0 < k + 1 by omega) (show 0 < k + 1 by omega)
+    (I_eq_refl _)
+  rw [ISub.cons_var0_up_tail, isub_up_id_of_closed hcj, isub_up_id_of_closed hcj'] at r2
+  exact ⟨htyO'.tyConv (TyEq.symm (Comp2_ty_base r1).2.2.2.2.2), (Comp2_ty_base r2).2.2.2.2.2⟩
+
+/-- The facts about a point argument, from those about the earlier arguments. -/
+theorem good_pt {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
+    (ih : ∀ i, i < j → Good S k d D PL QL φ φ' C X X' i) : Good S k d D PL QL φ φ' C X X' j := by
+  have hW := H.hW
+  obtain ⟨-, -, -, -, hXl, hX'l, hPl, hQl, -, -, hPc, -⟩ := H.basic
+  have hlF := tF_length d D C PL φ X
+  have hlF' := tF_length d D C QL φ' X'
+  obtain ⟨lj, hLj, htyO, htyF, -, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty hj
+  obtain ⟨lj', hLj', htyO', htyF', -, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty' hj
+  have hcj : (tl d D C PL φ X j).closedB 0 (k + 1) = true := closed_ty (spec_to_minimal hW hLj)
+  have hcj' : (tl d D C QL φ' X' j).closedB 0 (k + 1) = true := closed_ty (spec_to_minimal hW hLj')
+  have hXL : ∀ {k4 : ℕ} (θ : ISub k4 (k + 1)), TyCode k4 (semK S k4 ((tl d D C PL φ X j).isub θ)) := fun θ =>
+    tyCode_of_univ hW (HasTy.isubS hW hLj θ)
+  have tyB : ∀ {k4 : ℕ} {X Z : Tm}, RT2 S k4 X Z → TyEq S k4 X Z := fun h => (Comp2_ty_base h).2.2.2.2.2
+  -- the fillers of the earlier arguments
+  have gF : ∀ i (hi : i < j), (tF d D C PL φ X).getD i .abort = Tm.transpFill (tl d D C PL φ X i) φ (X.getD i .abort) :=
+    fun i hi => tF_getD d D C PL φ X (by omega)
+  have gF' : ∀ i (hi : i < j), (tF d D C QL φ' X').getD i .abort = Tm.transpFill (tl d D C QL φ' X' i) φ' (X'.getD i .abort) :=
+    fun i hi => tF_getD d D C QL φ' X' (by omega)
+  have hBget : ∀ {k3 : ℕ} (σ : ISub k3 (k + 1)) {M : List Tm} (hM : M.length = C.args.length) i (hi : i < j),
+      ((M.map (·.isub σ)).take j).getD i .abort = (M.getD i .abort).isub σ := by
+    intro k3 σ M hM i hi; rw [getD_take_lt hi, getD_map_isub' (by omega)]
+  -- (G2) the restricted lines are related
+  have G2 : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped k3) (hy' : y'.Scoped k3), I.Eq y y' →
+      RT2 S k3 ((tl d D C PL φ X j).isub (ISub.cons y hy τ)) ((tl d D C QL φ' X' j).isub (ISub.cons y' hy' τ)) := by
+    intro k3 τ y y' hy hy' hE
+    have h := H.line_rt2 hj (ISub.cons y hy τ) (H.hRL k3 τ y y hy hy (I_eq_refl _)) (H.hR k3 τ y y' hy hy' hE)
+      (B := ((tF d D C QL φ' X').map (·.isub (ISub.cons y' hy' τ))).take j) (by simp; omega) (fun i hi => by
+        rw [hBget _ hlF' i hi, gF i hi, gF' i hi]; exact (ih i hi).1 k3 _ _ rfl hE)
+    rwa [← tl_isub hW H.hD H.hC hQl φ' X' hj.le] at h
+  -- (G3) the restricted lines are robust
+  have G3 : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped k3) (hy' : y'.Scoped k3), I.Eq y y' →
+      RT2 S k3 ((tl d D C PL φ X j).isub (ISub.cons y hy τ)) ((tl d D C PL φ X j).isub (ISub.cons y' hy' τ)) := by
+    intro k3 τ y y' hy hy' hE
+    have h := H.line_rt2 hj (ISub.cons y hy τ) (H.hRL k3 τ y y hy hy (I_eq_refl _)) (H.hRL k3 τ y y' hy hy' hE)
+      (B := ((tF d D C PL φ X).map (·.isub (ISub.cons y' hy' τ))).take j) (by simp; omega) (fun i hi => by
+        rw [hBget _ hlF i hi, gF i hi]; exact H.fill_self (ih i hi) τ y y' hy hy' hE)
+    rwa [← tl_isub hW H.hD H.hC hPl φ X hj.le] at h
+  -- the earlier arguments' typings
+  have tyi := fun i (hi : i < j) => tcon_typing hW H.hD H.hp H.hH H.hC H.hty (j := i) (by omega)
+  -- (G4) constancy of the line on the face
+  have G4 : LineConst S k (tl d D C PL φ X j) φ := by
+    intro k3 τ r hr hh
+    have hφτ := entails_of_holds (I.scoped_subst H.hφs τ.sc) hh
+    have hLCτ : RT2 S k3 (.data d (PL.isub (ISub.cons r hr τ))) (.data d (PL.isub (ISub.cons .zero trivial τ))) :=
+      H.hLC k3 τ r hr hh
+    have h := H.line_rt2 hj (ISub.cons r hr τ) (H.hRL k3 τ r r hr hr (I_eq_refl _)) hLCτ
+      (B := ((tF d D C PL φ X).map (·.isub (ISub.cons .zero trivial τ))).take j) (by simp; omega) (fun i hi => by
+        rw [hBget _ hlF i hi, gF i hi]
+        obtain ⟨li, hLi, -, htyFi, -, -⟩ := tyi i hi
+        have Gi := ih i hi
+        have haa := H.base_self (by omega) Gi
+        have fr := tfill_face hW hLi Gi.2.2.1 Gi.2.2.2.1 htyFi haa τ r hr
+          (ent_trans hφτ (ent_or_left _ _)) (Or.inl hh)
+        have f0 := tfill_face hW hLi Gi.2.2.1 Gi.2.2.2.1 htyFi haa τ .zero trivial
+          (ent_trans (show I.Entails .one (I.neg .zero) by decide) (ent_or_right _ _)) (Or.inr rfl)
+        have hXi : TyCode k3 (semK S k3 ((tl d D C PL φ X i).isub (ISub.cons r hr τ))) :=
+          tyCode_of_univ hW (HasTy.isubS hW hLi _)
+        have f0' := RE2.conv hW (RT2.symm hW hXi (Gi.2.2.2.1 k3 τ r hr hh)) f0
+        have hA := Gi.2.2.1 k3 τ r r hr hr (I_eq_refl _)
+        exact RE2.trans hW hA fr (RE2.symm hW hA f0'))
+    rwa [← tl_isub hW H.hD H.hC hPl φ X hj.le] at h
+  -- (G5) the start of the line
+  have hP0 : PL.isub (ISub.cons .zero trivial (ISub.id k)) = PL.dinst .zero := isub_cons_id_of_closed hPc .zero trivial
+  have G5 : RT2 S k ((C.argTy d D.params.length j).substList ((X.take j).reverse ++ (PL.dinst .zero).toList.reverse))
+      ((tl d D C PL φ X j).dinst .zero) := by
+    have hQ2 := H.hRLσ (ISub.cons .zero trivial (ISub.id k))
+    rw [hP0] at hQ2
+    have h := H.line_rt2 hj (ISub.cons .zero trivial (ISub.id k)) (H.hRLσ _) (by rw [hP0]; exact hQ2)
+      (B := X.take j) (by simp; omega) (fun i hi => by
+        rw [getD_take_lt hi, gF i hi]
+        obtain ⟨li, hLi, -, htyFi, htyXi, -⟩ := tyi i hi
+        have Gi := ih i hi
+        have f0 := tfill_face hW hLi Gi.2.2.1 Gi.2.2.2.1 htyFi (H.base_self (by omega) Gi) (ISub.id k) .zero trivial
+          (ent_trans (show I.Entails .one (I.neg .zero) by decide) (ent_or_right _ _)) (Or.inr rfl)
+        rwa [isub_id_of_closed (closed_of_ty hW htyXi)] at f0)
+    rw [isub_cons_id_of_closed hcj] at h
+    have hX0 : TyCode k (semK S k ((tl d D C PL φ X j).dinst .zero)) := by
+      have := hXL (ISub.cons .zero trivial (ISub.id k)); rwa [isub_cons_id_of_closed hcj] at this
+    exact RT2.symm hW hX0 h
+  have B := RE2.conv hW G5 (H.hargs0 j hj)
+  -- (G8) transport along the restricted lines
+  have G8 : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1)), I.Eq y y' →
+      KanT2At S k3 ((tl d D C PL φ X j).isub (ISub.cons y hy τ.up.tail))
+        ((tl d D C QL φ' X' j).isub (ISub.cons y' hy' τ.up.tail)) ((X.getD j .abort).isub τ) ((X'.getD j .abort).isub τ) :=
+    fun k3 τ y y' hy hy' hE => KanT2.at (H.line_kanT hj hrj _ _ (H.hRL (k3 + 1) τ.up.tail y y hy hy (I_eq_refl _))
+      (H.hR (k3 + 1) τ.up.tail y y' hy hy' hE) (fun i hi => by
+        rw [gF i hi, gF' i hi]; exact (ih i hi).1 (k3 + 1) _ _ rfl hE)) _ _
+  -- (G1) the fillers
+  have G1 := tfill_rel hW hLj H.hφs H.h12 H.h21 G2 G3 G4 G8 htyF htyF' B
+  -- (G6) the transports
+  obtain ⟨htyO'', eL⟩ := H.tyO' hj G2
+  have G6 : RE2 S k ((tl d D C PL φ X j).dinst .one) (.transp (tl d D C PL φ X j) φ (X.getD j .abort))
+      (.transp (tl d D C QL φ' X' j) φ' (X'.getD j .abort)) := by
+    have K0 := G8 k (ISub.id k) (.var 0) (.var 0) (show 0 < k + 1 by omega) (show 0 < k + 1 by omega) (I_eq_refl _)
+    obtain ⟨-, -, -, -, htyXj, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty hj
+    obtain ⟨-, -, -, -, htyXj', -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty' hj
+    rw [ISub.cons_var0_up_tail, isub_up_id_of_closed hcj, isub_up_id_of_closed hcj',
+      isub_id_of_closed (closed_of_ty hW htyXj), isub_id_of_closed (closed_of_ty hW htyXj')] at K0
+    exact K0 G2 φ φ' G4 htyO htyO'' (eqTm_transp_of hW htyO htyO'' eL H.h12 H.h21 (RE2.typed B).2.2) H.h12 H.h21 B
+  -- (G7) the end of the line
+  have hP1 : PL.isub (ISub.cons .one trivial (ISub.id k)) = PL.dinst .one := isub_cons_id_of_closed hPc .one trivial
+  have G7 : RT2 S k ((tl d D C PL φ X j).dinst .one) ((C.argTy d D.params.length j).substList
+      (((tOuts d D C PL φ X).take j).reverse ++ (PL.dinst .one).toList.reverse)) := by
+    have hQ2 := H.hRLσ (ISub.cons .one trivial (ISub.id k))
+    rw [hP1] at hQ2
+    have h := H.line_rt2 hj (ISub.cons .one trivial (ISub.id k)) (H.hRLσ _) (by rw [hP1]; exact hQ2)
+      (B := (tOuts d D C PL φ X).take j) (by simp [tOuts_length]; omega) (fun i hi => by
+        rw [getD_take_lt hi, tOuts_getD d D C PL φ X (by omega), gF i hi]
+        obtain ⟨li, hLi, htyOi, htyFi, -, -⟩ := tyi i hi
+        have Gi := ih i hi
+        have f1 := tfill_one hW hLi H.hφs H.h12 H.h21 Gi.2.1 Gi.2.2.1 Gi.2.2.2.1 Gi.2.2.2.2.2.2.2 htyFi
+          (H.tyO' (by omega) Gi.2.1).1 (H.base_rel (by omega) Gi) Gi.2.2.2.2.2.1 (ISub.id k)
+        rwa [isub_id_of_closed (closed_of_ty hW htyOi)] at f1)
+    rwa [isub_cons_id_of_closed hcj] at h
+  exact ⟨G1, G2, G3, G4, G5, G6, G7, G8⟩
+
 end TC
 
 end
