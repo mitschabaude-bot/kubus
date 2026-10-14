@@ -49,6 +49,7 @@ structure TC (S : Sig) (k d : ℕ) (D : DataDecl) (PL QL : Tm) (φ φ' : I) (c :
     ((X.take i).reverse ++ (PL.dinst .zero).toList.reverse)) (X.getD i .abort) (X'.getD i .abort)
   hrecT : ∀ i (hi : i < C.args.length), C.isRec i = true → ∀ k3 (τ : ISub k3 k) (y y' : I)
     (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1)), I.Eq y y' →
+    I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero →
     KanT2At S k3 ((Tm.data d PL).isub (ISub.cons y hy τ.up.tail)) ((Tm.data d QL).isub (ISub.cons y' hy' τ.up.tail))
       ((X.getD i .abort).isub τ) ((X'.getD i .abort).isub τ)
 
@@ -156,6 +157,7 @@ def Good (S : Sig) (k d : ℕ) (D : DataDecl) (PL QL : Tm) (φ φ' : I) (C : Cto
   RT2 S k ((tl d D C PL φ X i).dinst .one) ((C.argTy d D.params.length i).substList
     (((tOuts d D C PL φ X).take i).reverse ++ (PL.dinst .one).toList.reverse)) ∧
   (∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1)), I.Eq y y' →
+    I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero →
     KanT2At S k3 ((tl d D C PL φ X i).isub (ISub.cons y hy τ.up.tail))
       ((tl d D C QL φ' X' i).isub (ISub.cons y' hy' τ.up.tail)) ((X.getD i .abort).isub τ) ((X'.getD i .abort).isub τ))
 
@@ -512,9 +514,9 @@ theorem good_pt {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
   have B := RE2.conv hW G5 (H.hargs0 j hj)
   -- (G8) transport along the restricted lines
   have G8 : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1)), I.Eq y y' →
-      KanT2At S k3 ((tl d D C PL φ X j).isub (ISub.cons y hy τ.up.tail))
+      I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero → KanT2At S k3 ((tl d D C PL φ X j).isub (ISub.cons y hy τ.up.tail))
         ((tl d D C QL φ' X' j).isub (ISub.cons y' hy' τ.up.tail)) ((X.getD j .abort).isub τ) ((X'.getD j .abort).isub τ) :=
-    fun k3 τ y y' hy hy' hE => KanT2.at (H.line_kanT hj hrj _ _ (H.hRL (k3 + 1) τ.up.tail y y hy hy (I_eq_refl _))
+    fun k3 τ y y' hy hy' hE _ => KanT2.at (H.line_kanT hj hrj _ _ (H.hRL (k3 + 1) τ.up.tail y y hy hy (I_eq_refl _))
       (H.hR (k3 + 1) τ.up.tail y y' hy hy' hE) (fun i hi => by
         rw [gF i hi, gF' i hi]; exact (ih i hi).1 (k3 + 1) _ _ rfl hE)) _ _
   -- (G1) the fillers
@@ -524,6 +526,7 @@ theorem good_pt {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
   have G6 : RE2 S k ((tl d D C PL φ X j).dinst .one) (.transp (tl d D C PL φ X j) φ (X.getD j .abort))
       (.transp (tl d D C QL φ' X' j) φ' (X'.getD j .abort)) := by
     have K0 := G8 k (ISub.id k) (.var 0) (.var 0) (show 0 < k + 1 by omega) (show 0 < k + 1 by omega) (I_eq_refl _)
+      (I_eq_refl _)
     obtain ⟨-, -, -, -, htyXj, -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty hj
     obtain ⟨-, -, -, -, htyXj', -⟩ := tcon_typing hW H.hD H.hp H.hH H.hC H.hty' hj
     rw [ISub.cons_var0_up_tail, isub_up_id_of_closed hcj, isub_up_id_of_closed hcj',
@@ -585,6 +588,7 @@ theorem good_rec {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = true)
   have G6 : RE2 S k ((Tm.data d PL).dinst .one) (.transp (Tm.data d PL) φ (X.getD j .abort))
       (.transp (Tm.data d QL) φ' (X'.getD j .abort)) := by
     have K0 := G8 k (ISub.id k) (.var 0) (.var 0) (show 0 < k + 1 by omega) (show 0 < k + 1 by omega) (I_eq_refl _)
+      (I_eq_refl _)
     rw [ISub.cons_var0_up_tail, isub_up_id_of_closed hcj, isub_up_id_of_closed hcj',
       isub_id_of_closed (closed_of_ty hW htyXj), isub_id_of_closed (closed_of_ty hW htyXj')] at K0
     have r1 := G2 k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
