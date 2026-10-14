@@ -1,6 +1,6 @@
 import KubusCore.Meta.Final
 import KubusCore.Meta.Near
-import KubusCore.Meta.NearData
+import KubusCore.Meta.NearElim
 
 /-!
 # Metatheory: near typed terms are judgmentally equal
@@ -443,7 +443,60 @@ theorem near_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → ∀ {t'}, TmNear t t'
         (fun r hr => (I.scopedB_iff _ _).1 (hc.2 r hr))
       exact EqTm0.con h0 h1 (HasTy0.con h0 h1 h2 h3 h4 h5 h6 h7) (HasTy0.conv hcon' (EqTm0.symm edata))
         es.toEqTele0 eas.toEqTele0 (ieqL_length hrs) (fun k r r' h1 h2 => ieqL_get hrs k r r' h1 h2)
-  | _ => sorry
+  | @HasTy0.elim _ Ψ Φ Γ d D ps P bs t m h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => fun hn hc => by
+    cases hn with
+    | @elim _ _ ps' _ P' _ bs' _ t' nps nP nbs nt =>
+      simp only [Tm.closedB, Bool.and_eq_true] at hc
+      have hpres : ∀ {Ψ Φ Γ t u A}, EqTm0 S Ψ Φ Γ t u A → HasTy0 S Ψ Φ Γ u A := fun h => eqR0 hS hT hC h
+      have es := near_teleC h3 nps hc.1.1.1
+      have edata := near_ty h2 (TmNear.data nps) (by simpa [Tm.closedB] using hc.1.1.1)
+      have eP := near_ty h4 nP (by simpa using hc.1.1.2)
+      have et := near_ty h9 nt hc.2
+      rw [h5] at nbs
+      obtain ⟨hbs', hbl, hnb⟩ := near_list bs.toList nbs
+      have hbcl := closed_toList hc.1.2
+      have eb : ∀ (c : Nat) (C : Ctor) (b b' : Tm), D.ctors[c]? = some C → bs.toList[c]? = some b →
+          bs'.toList[c]? = some b' → EqTm0 S Ψ Φ Γ b b' (D.branchTy d c C ps P) :=
+        fun c C b b' hC hb hb' => near_ty (h7 c C b hC hb) (hnb c b b' hb hb')
+          (hbcl b' (List.mem_of_getElem? hb'))
+      have hmP : m ≤ maxLevel := IsTypB.lvl (pre_ty hS hT hC h4)
+      have hpt' := params_tele hS hW h0 hpres h3 es
+      have hdata' := HasTy0.data h0 (hW.2 d D h0).1 hpt'
+      have hP' := HasTy0.ctxConv hS (hpres eP) hdata' (EqTm0.symm edata)
+      have hbr' : ∀ (c : Nat) (C : Ctor) (b' : Tm), D.ctors[c]? = some C → bs'.toList[c]? = some b' →
+          HasTy0 S Ψ Φ Γ b' (D.branchTy d c C ps' P') := by
+        intro c C b' hC hb'
+        obtain ⟨b, hb⟩ : ∃ b, bs.toList[c]? = some b :=
+          ⟨bs.toList[c]'(by have := (List.getElem?_eq_some_iff.1 hb').1; omega), List.getElem?_eq_getElem _⟩
+        exact HasTy0.conv (hpres (eb c C b b' hC hb hb'))
+          (branchTy_congr hS hW h0 hC hpres h3 es edata eP hmP)
+      have hcoh' : ∀ (c : Nat) (C : Ctor) (b' : Tm) (k : Nat) (ψ : I) (e : Tm), D.ctors[c]? = some C →
+          bs'.toList[c]? = some b' → C.bnd[k]? = some (ψ, e) →
+          EqTm0 S (Ψ + C.dims) (cof (Φ.ren (· + C.dims)) ψ) (D.branchCtx d C ps' P' Γ)
+            (DataDecl.branchApp C b') (D.bndElim C ps' bs' e) (DataDecl.branchBody d c C ps' P') := by
+        intro c C b' k ψ e hC hb' hk
+        obtain ⟨b, hb⟩ : ∃ b, bs.toList[c]? = some b :=
+          ⟨bs.toList[c]'(by have := (List.getElem?_eq_some_iff.1 hb').1; omega), List.getElem?_eq_getElem _⟩
+        have hco := h8 c C b k ψ e hC hb hk
+        rw [branchCtx_eq] at hco ⊢
+        have hw := wf_of_eq hco
+        have hΞ := scoped_of_eq hco
+        have he : I.Entails (cof (Φ.ren (· + C.dims)) ψ) (Φ.subst (wkIv C.dims)) := by
+          rw [← I_ren_add_eq]; exact ent_and_left _ _
+        have eA := branchApp_congr hS hW h0 hC hpres h3 es edata eP (eb c C b b' hC hb hb') hw he
+        have eB := bndElim_congr hS hW h0 hC hpres h3 es edata eP h5 hbs' hbl.symm eb hk hw he (ent_and_right _ _)
+        have X := EqTm0.trans (EqTm0.symm eA) (EqTm0.trans hco eB)
+        have T := ctxConv_branch hS hW h0 hC hpres h3 es edata eP hΞ he
+        have X' := (sub_eq hS X).2 T
+        have eBody := (sub_eq hS (body_congr hS hW h0 hC hpres h3 es edata eP hw he)).2 T
+        rw [subst_var, subst_var, subst_var] at X'
+        rw [subst_var, subst_var] at eBody
+        exact EqTm0.conv X' eBody
+      have ht' := HasTy0.conv (hpres et) edata
+      have hel' := HasTy0.elim h0 es.isList' hdata' hpt' hP' hbs' (by rw [hbl, h6]) hbr' hcoh' ht'
+      have eT := EqTm0.subst hS eP (hpres eP) h9 (hpres et) et
+      exact EqTm0.elim h0 (HasTy0.elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9) (HasTy0.conv hel' (EqTm0.symm eT))
+        es.toEqTele0 eP h5 hbs' hbl.symm (fun c C b b' hC hb hb' => eb c C b b' hC hb hb') et
 
 theorem near_tele {Ψ Φ Γ ts Δ prev} : HasTele0 S Ψ Φ Γ ts Δ prev → ∀ {ts'}, TmNear ts ts' →
     ts'.closedB Γ.length Ψ = true → EqTele0 S Ψ Φ Γ ts ts' Δ prev
