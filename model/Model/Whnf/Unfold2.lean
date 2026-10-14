@@ -177,18 +177,22 @@ theorem Comp2_dataC (Θ : SData m) (f : Hom k m) :
           semK S k T' = res f (dataC Θ) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ ps ps',
           RedT S k' (T.isub σ) (.data Θ.idx ps) ∧ RedT S k' (T'.isub σ) (.data Θ.idx ps') ∧
           ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
-          ∀ (c : ℕ) (C : Ctor) (args args' : List Tm), (dataD S Θ.idx).ctors[c]? = some C →
+          ∀ k'' (σ' : ISub k'' k') (c : ℕ) (C : Ctor) (args args' : List Tm), (dataD S Θ.idx).ctors[c]? = some C →
             args.length < C.args.length → args'.length = args.length → C.isRec args.length = false →
             (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
-              DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k' σ.hom (.data Θ.idx ps) args[j] args'[j]) →
+              DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k'' (σ.comp σ').hom
+                (.data Θ.idx (ps.isub σ')) args[j] args'[j]) →
             (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
-              dataP2 S Θ f k' σ.hom c j ((args.take j).map (semK S k'))
-                ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps.toList.reverse))
+              dataP2 S Θ f k'' (σ.comp σ').hom c j ((args.take j).map (semK S k''))
+                ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList
+                  ((args.take j).reverse ++ (ps.isub σ').toList.reverse))
                 args[j] args'[j]) →
-            (Comp2 S (tyLook (shapeV (Θ.restr (f.comp σ.hom))) c args.length (args.map (semK S k')))
-              k' k' (Hom.id k')).ty
-              ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList (args.reverse ++ ps.toList.reverse))
-              ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList (args'.reverse ++ ps'.toList.reverse)),
+            (Comp2 S (tyLook (shapeV (Θ.restr (f.comp (σ.comp σ').hom))) c args.length (args.map (semK S k'')))
+              k'' k'' (Hom.id k'')).ty
+              ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
+                (args.reverse ++ (ps.isub σ').toList.reverse))
+              ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
+                (args'.reverse ++ (ps'.isub σ').toList.reverse)),
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (dataC Θ)) (Hom.id k) ∧
           EB S k T t t' ∧ DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k (Hom.id k) T t t'⟩ := by
   rw [Comp2_unfold (show dataC Θ ≠ ∅ from mkKV_ne_empty _)]

@@ -89,13 +89,15 @@ theorem kr2_dataC {Θ : SData m} (hX : Fib (dataC Θ) m) : KR2 S m (dataC Θ) :=
     · have := base_isub hW hb σ; rwa [res_res] at this
     · obtain ⟨ps, ps', h1, h2, hpl, hpl', hcl⟩ := hall k'' (σ.comp σ')
       refine ⟨ps, ps', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, hpl, hpl',
-        fun c C args args' hC hl hl' hr hrec hpt => ?_⟩
-      have := hcl c C args args' hC hl hl' hr
+        fun k3 σ3 c C args args' hC hl hl' hr hrec hpt => ?_⟩
+      have := hcl k3 σ3 c C args args' hC hl hl' hr
         (fun j hj hj' hrj => by
-          have := DR2.unbase f (hrec j hj hj' hrj); rwa [← ISub.hom_comp] at this)
+          have := DR2.unbase f (hrec j hj hj' hrj)
+          rwa [← ISub.hom_comp, ← ISub.comp_assoc] at this)
         (fun j hj hj' hrj => by
-          have := (dataP2_base f σ.hom σ'.hom).1 (hpt j hj hj' hrj); rwa [← ISub.hom_comp] at this)
-      rw [ISub.comp_hom]; exact this
+          have := (dataP2_base f σ.hom (σ'.comp σ3).hom).1 (hpt j hj hj' hrj)
+          rwa [← ISub.hom_comp, ← ISub.comp_assoc] at this)
+      rw [ISub.comp_hom, ← ISub.comp_assoc]; exact this
   · rintro ⟨he, hmem, -, hdr⟩
     refine ⟨he.isub hW σ, mem_isub hW hX he.1 hmem σ, he.isub hW σ, ?_⟩
     have := DR2.rebase f (DR2.isub f hdr σ) σ.hom (Hom.id k') (by rw [Hom.id_comp, Hom.comp_id])

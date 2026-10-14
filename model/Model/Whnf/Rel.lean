@@ -289,18 +289,18 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k), ∃ ps ps',
           RedT S k' (A.isub σ) (.data d ps) ∧ RedT S k' (A'.isub σ) (.data d ps') ∧
           ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
-          ∀ (c : ℕ) (C : Ctor) (args args' : List Tm), D.ctors[c]? = some C →
+          ∀ k'' (σ' : ISub k'' k') (c : ℕ) (C : Ctor) (args args' : List Tm), D.ctors[c]? = some C →
             args.length < C.args.length → args'.length = args.length → C.isRec args.length = false →
             (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
-              DR2 S d D Mem P k' σ.hom (.data d ps) args[j] args'[j]) →
+              DR2 S d D Mem P k'' (σ.comp σ').hom (.data d (ps.isub σ')) args[j] args'[j]) →
             (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
-              P k' σ.hom c j ((args.take j).map (semK S k'))
-                ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ ps.toList.reverse))
+              P k'' (σ.comp σ').hom c j ((args.take j).map (semK S k''))
+                ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ (ps.isub σ').toList.reverse))
                 args[j] args'[j]) →
-            (rec (tyLook (π2 (π2 (π2 (π1 (Dt k' σ.hom))))) c args.length (args.map (semK S k')))
-              (tyLook_rank_lt (hD k' σ.hom)) k' k' (Hom.id k')).ty
-              ((C.argTy d D.params.length args.length).substList (args.reverse ++ ps.toList.reverse))
-              ((C.argTy d D.params.length args.length).substList (args'.reverse ++ ps'.toList.reverse))
+            (rec (tyLook (π2 (π2 (π2 (π1 (Dt k'' (σ.comp σ').hom))))) c args.length (args.map (semK S k'')))
+              (tyLook_rank_lt (hD k'' (σ.comp σ').hom)) k'' k'' (Hom.id k'')).ty
+              ((C.argTy d D.params.length args.length).substList (args.reverse ++ (ps.isub σ').toList.reverse))
+              ((C.argTy d D.params.length args.length).substList (args'.reverse ++ (ps'.isub σ').toList.reverse))
       el := fun A t t' => EB S k A t t' ∧ DR2 S d D Mem P k (Hom.id k) A t t' }
   else Pack2.bot
 
