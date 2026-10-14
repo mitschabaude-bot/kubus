@@ -57,6 +57,22 @@ theorem ctor_point {C : Ctor} {i : ℕ} (hi : i < C.args.length) (hr : C.isRec i
     | point A0 => exact ⟨A0, rfl⟩
     | recur => simp [Ctor.isRec, h] at hr
 
+/-- A nested constructor of a simple boundary. -/
+theorem simpleB_con_inv {ctors : List Ctor} {d np c n : ℕ} {C : Ctor} {d' c' : ℕ} {ps0 as0 : Tm} {rs0 : List I}
+    (h : Ctor.simpleB ctors d np c n C (.con d' c' ps0 as0 rs0) = true) :
+    d' = d ∧ c' < c ∧ ps0 = Ctor.paramVars np n ∧ ∃ C', ctors[c']? = some C' ∧ as0.toList.length = C'.args.length ∧
+      rs0.length = C'.dims ∧ Ctor.simpleArgs ctors d np c n C C' 0 as0 = true ∧ as0 = Tm.ofList as0.toList := by
+  simp only [Ctor.simpleB, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
+  obtain ⟨⟨⟨hdd, hcc⟩, hps⟩, hm⟩ := h
+  refine ⟨hdd, hcc, hps, ?_⟩
+  cases hC' : ctors[c']? with
+  | none => rw [hC'] at hm; cases hm
+  | some C' =>
+    rw [hC'] at hm
+    simp only [Bool.and_eq_true, beq_iff_eq] at hm
+    obtain ⟨⟨hal, hrl⟩, hsa⟩ := hm
+    exact ⟨C', rfl, hal, hrl, hsa, simpleArgs_isList as0 0 hsa⟩
+
 /-- The statement of `con_rel` for constructor `c`. -/
 def CRSt (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (c : ℕ) : Prop :=
   ∀ {k3 : ℕ} (ρ' : ISub k3 K) {C : Ctor} {q q' : Tm} {X X' : List Tm} {rs rs' : List I},
@@ -532,6 +548,75 @@ theorem con_rel : ∀ c, CRSt S d D K P c := by
       (args_restr hW hD hP hPP ρ' hC hXl hX'l hargs κ)
   · exact (hself i hi).2.2
 
+
+/-- The arguments of a nested constructor of a boundary, at related arguments, are related. -/
+theorem nested_args {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {c' : ℕ} {C' : Ctor} {as0 : Tm} {rs0 : List I}
+    (hs : Ctor.simpleB D.ctors d D.params.length c C.args.length C
+      (.con d c' (Ctor.paramVars D.params.length C.args.length) as0 rs0) = true)
+    (hC' : D.ctors[c']? = some C') {k3 : ℕ} (ρ' : ISub k3 K) {ps ps' X X' : List Tm} {rs rs' : List I}
+    (hpl : ps.length = D.params.length) (hpl' : ps'.length = D.params.length)
+    (hXl : X.length = C.args.length) (hX'l : X'.length = C.args.length) (hrs : List.Forall₂ I.Eq rs rs')
+    (hargs : ∀ i (hi : i < C.args.length), RE2 S k3 ((C.argTy d D.params.length i).substList
+      ((X.take i).reverse ++ (P.isub ρ').toList.reverse)) (X.getD i .abort) (X'.getD i .abort))
+    (hrel : bndRel S k3 d D.params.length C.args.length C D.ctors (P.isub ρ') (P.isub ρ') X X rs
+      (.con d c' (Ctor.paramVars D.params.length C.args.length) as0 rs0))
+    (ht : HasTy S k3 .one [] (.con d c' (Tm.ofList ps) (Tm.ofList (as0.toList.map (Ctor.bndAt · ps X rs)))
+      (rs0.map (·.subst (rsSub rs)))) (.data d (P.isub ρ')))
+    (ht' : HasTy S k3 .one [] (.con d c' (Tm.ofList ps') (Tm.ofList (as0.toList.map (Ctor.bndAt · ps' X' rs')))
+      (rs0.map (·.subst (rsSub rs')))) (.data d (P.isub ρ'))) :
+    ∀ i (hi : i < C'.args.length), RE2 S k3 ((C'.argTy d D.params.length i).substList
+      (((as0.toList.map (Ctor.bndAt · ps X rs)).take i).reverse ++ (P.isub ρ').toList.reverse))
+      ((as0.toList.map (Ctor.bndAt · ps X rs)).getD i .abort) ((as0.toList.map (Ctor.bndAt · ps' X' rs')).getD i .abort) := by
+  have hPρ : HasTy S k3 .one [] (.data d (P.isub ρ')) (.univ D.level) := HasTy.isubS hW hP ρ'
+  have hPl := (dataLit_rel hW hD hP hPP ρ').2.2.2.2.2.1
+  have hplen : (P.isub ρ').toList.length = D.params.length := by
+    have := data_len_of hW (⟨_, .inl hPρ⟩ : IsTyK S k3 (.data d (P.isub ρ'))); rwa [dataD_eq hW hD] at this
+  obtain ⟨-, -, -, C1, hC1, hal, -, hsa, -⟩ := simpleB_con_inv hs
+  rw [hC'] at hC1; cases hC1
+  simp only [bndRel, hC'] at hrel
+  intro i hi
+  have hai : i < as0.toList.length := by omega
+  obtain ⟨hsr, hsp⟩ := simpleArgs_get as0 0 hsa i hai
+  obtain ⟨hrp, hrr⟩ := bndRelArgs_get as0 0 [] hrel i hai
+  simp only [Nat.zero_add, List.append_nil] at hsr hsp hrp hrr
+  have eZ : ∀ (qs Y : List Tm) (rY : List I), (as0.toList.map (Ctor.bndAt · qs Y rY)).getD i .abort =
+      Ctor.bndAt as0.toList[i] qs Y rY := by
+    intro qs Y rY
+    rw [getD_eq_get' (by simpa using hai), List.getElem_map]
+  cases hri : C'.isRec i
+  · obtain ⟨x, hx, hxn, hcr⟩ := hsp hri
+    obtain ⟨A0, hA0⟩ := ctor_point hi hri
+    have T := hrp x hx hri hxn
+    have hpt : ∀ (qs Y : List Tm) (rY : List I) (qs' : List Tm) (rY' : List I), Y.length = C.args.length →
+        ∀ i' (h1 : i' < (as0.toList.map (Ctor.bndAt · qs Y rY)).length)
+        (h2 : i' < (as0.toList.map (Ctor.bndAt · qs' Y rY')).length), C'.isRec i' = false →
+        (as0.toList.map (Ctor.bndAt · qs' Y rY'))[i'] = (as0.toList.map (Ctor.bndAt · qs Y rY))[i'] := by
+      intro qs Y rY qs' rY' hYl i' h1 h2 hr'
+      obtain ⟨x', hx', hxn'⟩ := (simpleArgs_get as0 0 hsa i' (by simpa using h1)).2 (by simpa using hr')
+      simp only [List.getElem_map, hx']
+      rw [bndAt_var rY (by omega), bndAt_var rY' (by omega)]
+    have ec := argTy_point_congr hW hD hC' hA0 (args := as0.toList.map (Ctor.bndAt · (P.isub ρ').toList X rs))
+      (args' := as0.toList.map (Ctor.bndAt · ps X rs)) (by simp; omega) (by simp; omega)
+      (P.isub ρ').toList.reverse (by simp [hplen]) (hpt _ X rs _ rs hXl)
+    have eA : C'.argTy d D.params.length i = A0 := by simp [Ctor.argTy, hA0]
+    rw [eA] at T ⊢
+    rw [ec, ← List.map_take]
+    rw [eZ, eZ, hx, bndAt_var rs (show x < X.length by omega), bndAt_var rs' (show x < X'.length by omega),
+      hXl, hX'l]
+    exact RE2.conv hW T (hargs _ (by omega))
+  · rw [argTy_rec_inst hri hPl hplen (by simp; omega), eZ, eZ]
+    have htZ : ∀ {qs Y : List Tm} {rY : List I} {q0 : Tm},
+        HasTy S k3 .one [] (.con d c' q0 (Tm.ofList (as0.toList.map (Ctor.bndAt · qs Y rY)))
+          (rs0.map (·.subst (rsSub rY)))) (.data d (P.isub ρ')) →
+        HasTy S k3 .one [] (Ctor.bndAt as0.toList[i] qs Y rY) (.data d (P.isub ρ')) := by
+      intro qs Y rY q0 h
+      obtain ⟨htele, -⟩ := con_inv hW hD hC' h hPρ
+      have g := HasTele0.get htele (k := i) (a := Ctor.bndAt as0.toList[i] qs Y rY)
+        (by rw [toList_ofList, List.getElem?_map, List.getElem?_eq_getElem hai]; rfl) (argTys_get hi)
+      rw [argTy_rec_inst hri hPl hplen (by simp [toList_ofList]; omega)] at g
+      exact minimal_to_spec g
+    exact bnd_rel hW hD hP hPP (fun c'' _ => con_rel hW hD hP hPP hH hyp c'') hC (sizeOf as0.toList[i] + 1) _
+      (by omega) (hsr hri) ρ' hpl hpl' hXl hX'l hrs hargs (hrr hri) (htZ ht) (htZ ht')
 
 end rel
 
