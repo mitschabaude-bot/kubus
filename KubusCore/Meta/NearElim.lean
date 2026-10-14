@@ -263,4 +263,65 @@ theorem EqTeleS.sub (hS : SigClosed S) {Ψ Φ Γ Ψ' Φ' Δ σ τ} (hσ : TySub 
       have := hcl (k + 1) B (by simpa using hB); simp only [List.length_cons]; rwa [Nat.add_assoc, Nat.add_comm 1 k])
     simpa using this
 
+/-! ## Variables of the branch context -/
+
+/-- The argument part of the branch context before argument `k` (innermost first). -/
+def argCtxB (d np : Nat) (C : Ctor) (ps : Tm) (k : Nat) : Ctx :=
+  (List.range k).reverse.map (DataDecl.branchArgTy d np C ps)
+
+/-- The hypothesis part of the branch context before hypothesis `s` (innermost first). -/
+def ihCtxB (C : Ctor) (P : Tm) (s : Nat) : Ctx := (List.range s).reverse.map (DataDecl.branchIhTy C P)
+
+theorem argCtxB_length (d np : Nat) (C : Ctor) (ps : Tm) (k : Nat) : (argCtxB d np C ps k).length = k := by
+  simp [argCtxB]
+
+theorem ihCtxB_length (C : Ctor) (P : Tm) (s : Nat) : (ihCtxB C P s).length = s := by
+  simp [ihCtxB]
+
+theorem range_rev_map_get (f : Nat → Tm) {k i : Nat} (h : i < k) :
+    ((List.range k).reverse.map f)[k - 1 - i]? = some (f i) := by
+  rw [List.getElem?_map, List.getElem?_reverse (by simp; omega)]
+  simp only [List.length_range, show k - 1 - (k - 1 - i) = i by omega, List.getElem?_range h, Option.map_some]
+
+theorem wkN_wkN_eq (p : Tm) (a b c : Nat) :
+    (p.wkN a 0).subst (fun x => .var (x + b)) (wkIv c) = p.wkN (a + b) c := by
+  rw [wkN_eq, wkN_eq, subst_subst]
+  apply subst_congr
+  · intro x; simp only [Tm.subst]; congr 1; omega
+  · intro i; simp only [I.subst, wkIv]; congr 1
+
+/-- An argument variable of the branch context, typed at its argument type. -/
+theorem argvar_ty (hS : SigClosed S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
+    (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C) {ps : Tm} (hps : IsList ps)
+    (hpl : ps.toList.length = D.params.length) {Ψ' X Γ} (E : Ctx) (m n' : Nat)
+    (hw : Wf0 S Ψ' X (ctxWkI m (E ++ argCtxB d D.params.length C ps n' ++ Γ))) {i : Nat} (hi : i < n') :
+    HasTy0 S Ψ' X (ctxWkI m (E ++ argCtxB d D.params.length C ps n' ++ Γ))
+      (.var (E.length + n' - 1 - i))
+      ((C.argTy d D.params.length i).substList ((List.range i).map (fun j => .var (j + (E.length + n' - i))) ++
+        (ps.toList.map (·.wkN (E.length + n') m)).reverse)) := by
+  have hget : (E ++ argCtxB d D.params.length C ps n' ++ Γ)[E.length + n' - 1 - i]? =
+      some (DataDecl.branchArgTy d D.params.length C ps i) := by
+    rw [List.append_assoc, List.getElem?_append_right (by omega),
+      List.getElem?_append_left (by rw [argCtxB_length]; omega)]
+    rw [show E.length + n' - 1 - i - E.length = n' - 1 - i by omega]
+    exact range_rev_map_get _ hi
+  refine HasTy0.var hw ?_
+  rw [lookup_wkI, lookup_of_get _ _ _ hget]
+  simp only [Option.map_some, Option.some.injEq]
+  unfold DataDecl.branchArgTy
+  have hcl := argTy_closed hS hD hC i
+  rw [ren_eq_subst, subst_subst, substList_subst (by simp [hpl]; rw [Nat.add_comm]; exact hcl)]
+  congr 1
+  simp only [List.map_append, List.map_map, List.map_reverse]
+  congr 1
+  · apply List.map_congr_left; intro j hj
+    have := List.mem_range.1 hj
+    simp only [Function.comp, Tm.subst]; congr 1; omega
+  · congr 1; apply List.map_congr_left; intro p _
+    simp only [Function.comp]
+    rw [wkN_eq, wkN_eq, subst_subst]
+    apply subst_congr
+    · intro x; simp only [Tm.subst, wkIv]; congr 1; omega
+    · intro j; simp [I.subst, wkIv]
+
 end KubusCore.Meta
