@@ -241,26 +241,27 @@ def UnglueInv (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (φ : I) (e g G : Tm) : P
   ∃ A T l, φ.Scoped Ψ ∧ HasTy0 S Ψ Φ Γ (.glue A φ T e) (.univ l) ∧ HasTy0 S Ψ Φ Γ A (.univ l) ∧
     HasTy0 S Ψ (cof Φ φ) Γ e (Tm.equiv T A) ∧ Valid2 S Ψ (cof Φ φ) Γ e e (Tm.equiv T A) ∧
     Valid2 S Ψ Φ Γ A A (.univ l) ∧ ElTr2 S Ψ Φ Γ A G ∧
+    HasTy0 S Ψ Φ Γ g (.glue A φ T e) ∧ TyChainC S Ψ Φ Γ A G ∧
     ∀ t a, g = .glueEl φ e t a → GlueElInv S Ψ Φ Γ φ e t a (.glue A φ T e)
 
 theorem UnglueInv.conv {φ : I} {e g G G' : Tm} {m : ℕ} (h : UnglueInv S Ψ Φ Γ φ e g G)
-    (hG : Valid2 S Ψ Φ Γ G G' (.univ m)) : UnglueInv S Ψ Φ Γ φ e g G' := by
-  obtain ⟨A, T, l, h0, h1, h2, h3, h4, h5, h6, h7⟩ := h
-  exact ⟨A, T, l, h0, h1, h2, h3, h4, h5, h6.trans (ElTr2.of_valid hW hG), h7⟩
+    (hG : Valid2 S Ψ Φ Γ G G' (.univ m)) (eG : EqTm0 S Ψ Φ Γ G G' (.univ m)) : UnglueInv S Ψ Φ Γ φ e g G' := by
+  obtain ⟨A, T, l, h0, h1, h2, h3, h4, h5, h6, hg, hch, h7⟩ := h
+  exact ⟨A, T, l, h0, h1, h2, h3, h4, h5, h6.trans (ElTr2.of_valid hW hG), hg, hch.snoc eG, h7⟩
 
 theorem UnglueInv.restrict {Φ' φ : I} {e g G : Tm} (hs : Φ'.Scoped Ψ) (he : I.Entails Φ' Φ)
     (h : UnglueInv S Ψ Φ Γ φ e g G) : UnglueInv S Ψ Φ' Γ φ e g G := by
-  obtain ⟨A, T, l, h0, h1, h2, h3, h4, h5, h6, h7⟩ := h
+  obtain ⟨A, T, l, h0, h1, h2, h3, h4, h5, h6, hg0, hch, h7⟩ := h
   have hs' : (cof Φ' φ).Scoped Ψ := ⟨hs, h0⟩
   have he' : I.Entails (cof Φ' φ) (cof Φ φ) := ent_and_mono he (ent_refl _)
   exact ⟨A, T, l, h0, HasTy0.restrict hs he h1, HasTy0.restrict hs he h2, HasTy0.restrict hs' he' h3,
-    valid_restrict hW he' h4, valid_restrict hW he h5, h6.restrict he,
-    fun t a hg => (h7 t a hg).restrict hW hs he⟩
+    valid_restrict hW he' h4, valid_restrict hW he h5, h6.restrict he, HasTy0.restrict hs he hg0,
+    hch.restrict hs he, fun t a hg => (h7 t a hg).restrict hW hs he⟩
 
 theorem UnglueInv.cumul {φ : I} {e g : Tm} {l : ℕ} (hl : l + 1 ≤ maxLevel)
     (h : UnglueInv S Ψ Φ Γ φ e g (.univ l)) : UnglueInv S Ψ Φ Γ φ e g (.univ (l + 1)) := by
-  obtain ⟨A, T, l', h0, h1, h2, h3, h4, h5, h6, h7⟩ := h
-  exact ⟨A, T, l', h0, h1, h2, h3, h4, h5, h6.trans (ElTr2.cumul hW hl), h7⟩
+  obtain ⟨A, T, l', h0, h1, h2, h3, h4, h5, h6, hg, hch, h7⟩ := h
+  exact ⟨A, T, l', h0, h1, h2, h3, h4, h5, h6.trans (ElTr2.cumul hW hl), hg, hch.cumul hl, h7⟩
 
 omit hW in
 /-- The type of an element of a Glue type is typed, with its face scoped and its equivalence typed. -/

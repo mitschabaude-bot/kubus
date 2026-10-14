@@ -14,8 +14,6 @@ derivations in a prefix `S'` of the signature `S`. It is parametrized by:
   derivations of their contracta with validity, `Valid2Comp*.lean`, `Valid2LineEquiv.lean`,
   `Valid2TranspGlue.lean`);
 - `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'` (formation, and constructors and elimination of types without path constructors, are proven: `Valid2Data.lean`, `Valid2Elim.lean`);
-- `GlueBetaHyp2 S`: the validity of `glueBeta`, from the data that inverting the typing of its redex
-  gives (see the remark at `GlueBetaHyp2`);
 
 The `transpGlue` rule, whose reduct's `∀i. φ` commutes with substitution only up to equivalence, uses
 that element relations are invariant under near terms (`NearEl2`, from `RE2_near`).
@@ -50,26 +48,6 @@ def DefHyp2 (S S' : Sig) : Prop :=
 structure KanOracle2 (S : Sig) : Prop where
   hcomp : ∀ k (A A' : Tm), RT2 S k A A' → KanH2 S k A A'
   transp : ∀ k (A A' : Tm), RT2 S (k + 1) A A' → KanT2 S k A A'
-
-/-- `glueBeta`. Inverting the typing of the redex `unglue φ e (glueEl φ e t a) : G` gives the
-annotations `A`, `T` of the `unglue` and `A2`, `T2` of the `glueEl`, whose Glue types are related
-(`ElTr2`). Where the face does not hold, this relates `A2` to `A`; where it holds, nothing relates
-them, but the right-hand side needs the coherence `app (fst e) t ≡ a`, known at `A2`, at `A`. -/
-def GlueBetaHyp2 (S : Sig) : Prop :=
-  ∀ {Ψ : ℕ} {Φ : I} {Γ : Ctx} {φ : I} {e t a G A T A2 T2 : Tm} {l l2 : ℕ},
-    HasTy0 S Ψ Φ Γ (.unglue φ e (.glueEl φ e t a)) G → HasTy0 S Ψ Φ Γ a G →
-    Valid2 S Ψ Φ Γ (.unglue φ e (.glueEl φ e t a)) (.unglue φ e (.glueEl φ e t a)) G →
-    Valid2 S Ψ Φ Γ a a G →
-    -- the `unglue`
-    HasTy0 S Ψ Φ Γ (.glue A φ T e) (.univ l) → HasTy0 S Ψ Φ Γ A (.univ l) →
-    HasTy0 S Ψ (cof Φ φ) Γ e (Tm.equiv T A) → Valid2 S Ψ (cof Φ φ) Γ e e (Tm.equiv T A) →
-    Valid2 S Ψ Φ Γ A A (.univ l) → ElTr2 S Ψ Φ Γ A G →
-    -- the `glueEl`
-    HasTy0 S Ψ Φ Γ (.glueEl φ e t a) (.glue A2 φ T2 e) → HasTy0 S Ψ Φ Γ (.glue A2 φ T2 e) (.univ l2) →
-    HasTy0 S Ψ (cof Φ φ) Γ e (Tm.equiv T2 A2) → Valid2 S Ψ (cof Φ φ) Γ e e (Tm.equiv T2 A2) →
-    Valid2 S Ψ (cof Φ φ) Γ t t T2 → Valid2 S Ψ Φ Γ a a A2 → Valid2 S Ψ (cof Φ φ) Γ (.app (.fst e) t) a A2 →
-    ElTr2 S Ψ Φ Γ (.glue A2 φ T2 e) (.glue A φ T e) →
-    Valid2 S Ψ Φ Γ (.unglue φ e (.glueEl φ e t a)) a G
 
 /-- The validity of the rules of the inductive types of `S'` (judgments in `S`), given the validity of
 their premises. -/
