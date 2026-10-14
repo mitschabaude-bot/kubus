@@ -1,5 +1,6 @@
 import Model.Whnf.Fund2
 import Model.Whnf.Kan2DataBasic
+import Model.Whnf.Kan2DataTArgs
 
 /-!
 # Validity of the rules of inductive types
@@ -610,6 +611,86 @@ theorem valid_dataEq {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' : Tm}
     (.inr ⟨_, c.eq hW heq⟩) (isList_subst hpl _ _) (isList_subst hpl' _ _) fun k' σ => ?_
   rw [← CSub2.restr_L hW c σ ps, ← CSub2.restr_R hW c σ ps']
   exact parRel2_of_vtele hW hD hH hv (c.restr hW σ)
+
+/-! ### Constructors -/
+
+omit hH in
+theorem argTy_closed {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) (j : ℕ) :
+    (C.argTy d D.params.length j).closedB (D.params.length + j) 0 = true := by
+  have hsyn : DataSyn d D := ((sigOK_of_wfSig _ S rfl hW).2 d D hD).1
+  unfold Ctor.argTy; split
+  · rename_i A hA
+    exact (hsyn.2.2.1 c C hC j A hA).1
+  · show (Tm.data d _).closedB _ 0 = true
+    simp only [Tm.closedB]; exact paramVars_closed _ _
+
+/-- **Constructors** of an inductive type without path constructors, at valid parameters and arguments. -/
+theorem valid_con_nonHIT (hHIT : D.isHIT = false) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {c : ℕ} {C : Ctor} {ps args : Tm}
+    {rs : List I} (hC : D.ctors[c]? = some C) (hpl : ps = Tm.ofList ps.toList)
+    (hcon : HasTy0 S Ψ Φ Γ (.con d c ps args rs) (.data d ps))
+    (hpsl : ps.toList.length = D.params.length) (hal : args = Tm.ofList args.toList)
+    (hall : args.toList.length = C.args.length) (hrs : rs.length = C.dims)
+    (hvd : Valid2 S Ψ Φ Γ (.data d ps) (.data d ps) (.univ D.level))
+    (hva : VTele2 S Ψ Φ Γ args args (C.argTys d D.params.length) ps.toList.reverse) :
+    Valid2 S Ψ Φ Γ (.con d c ps args rs) (.con d c ps args rs) (.data d ps) := by
+  have hrs0 : rs = [] := List.eq_nil_of_length_eq_zero (by rw [hrs]; exact dims_of_not_hit hHIT hC)
+  subst hrs0
+  intro k c'
+  have hvdk := hvd k c'
+  have hPT : HasTy S k .one [] (.data d (c'.L ps)) (.univ D.level) := (RE2.typed hvdk.2).1
+  have hPP : RT2 S k (.data d (c'.L ps)) (.data d (c'.L ps)) := by
+    have := (RE2_univ_iff hW).1 hvdk.2
+    exact RT2.refl hW (tyCode_of_univ hW hPT) this.2.2
+  refine ⟨?_, ?_⟩
+  · have := (RE2_univ_iff hW).1 hvdk.2
+    have hX : RT2 S k (.data d (c'.L ps)) (.data d (c'.R ps)) := this.2.2
+    exact hX
+  have hpc : (c'.L ps).closedB 0 k = true := by
+    have := closed_of_ty hW hPT; simpa [Tm.closedB] using this
+  have eP : (c'.L ps).isub (ISub.id k) = c'.L ps := isub_id_of_closed hpc
+  have hPT' : HasTy S k .one [] (.data d ((c'.L ps).isub (ISub.id k))) (.univ D.level) := by rw [eP]; exact hPT
+  have hPP' : RT2 S k (.data d ((c'.L ps).isub (ISub.id k))) (.data d ((c'.L ps).isub (ISub.id k))) := by
+    rw [eP]; exact hPP
+  have hY : c'.L args = Tm.ofList (args.toList.map c'.L) := by
+    show args.subst c'.γ c'.σ.τ = _
+    conv_lhs => rw [hal]
+    exact ofList_subst _ _ _
+  have hY' : c'.R args = Tm.ofList (args.toList.map c'.R) := by
+    show args.subst c'.γ' c'.σ'.τ = _
+    conv_lhs => rw [hal]
+    exact ofList_subst _ _ _
+  have hcT := c'.ty hW hcon
+  have he := c'.eqLR hW hcon
+  show RE2 S k (.data d (c'.L ps)) (.con d c (c'.L ps) (c'.L args) []) (.con d c (c'.R ps) (c'.R args) [])
+  rw [hY, hY']
+  change HasTy S k .one [] (.con d c (c'.L ps) (c'.L args) []) (.data d (c'.L ps)) at hcT
+  change EqTm S k .one [] (.con d c (c'.L ps) (c'.L args) []) (.con d c (c'.R ps) (c'.R args) []) (.data d (c'.L ps)) at he
+  rw [hY] at hcT
+  rw [hY, hY'] at he
+  have hcT' : HasTy S k .one [] (.con d c (c'.L ps) (Tm.ofList (args.toList.map c'.L)) [])
+      (.data d ((c'.L ps).isub (ISub.id k))) := by rw [eP]; exact hcT
+  have he' : EqTm S k .one [] (.con d c (c'.L ps) (Tm.ofList (args.toList.map c'.L)) [])
+      (.con d c (c'.R ps) (Tm.ofList (args.toList.map c'.R)) []) (.data d ((c'.L ps).isub (ISub.id k))) := by
+    rw [eP]; exact he
+  have key := RE2_con_args hW hD hHIT hPT hPP (ISub.id k) hC (Y := args.toList.map c'.L) (Y' := args.toList.map c'.R)
+    (by rw [List.length_map, hall]) (by rw [List.length_map, hall]) hcT' he' fun i hi => ?_
+  · rwa [eP] at key
+  rw [eP]
+  have hi0 : i < args.toList.length := by omega
+  have h := (VTele2.get hva i hi0 hi0 (by simp [Ctor.argTys]; exact hi) k c').2
+  simp only [Ctor.argTys, List.getElem_map, List.getElem_range] at h
+  have hcl : (C.argTy d D.params.length i).closedB ((args.toList.take i).reverse ++ ps.toList.reverse).length 0 = true := by
+    simp only [List.length_append, List.length_reverse, List.length_take, hpsl, Nat.min_eq_left hi0.le]
+    rw [Nat.add_comm]; exact argTy_closed hW hD hC i
+  have e3 : c'.L ((C.argTy d D.params.length i).substList ((args.toList.take i).reverse ++ ps.toList.reverse)) =
+      (C.argTy d D.params.length i).substList (((args.toList.map c'.L).take i).reverse ++ (c'.L ps).toList.reverse) := by
+    show ((C.argTy d D.params.length i).substList _).subst c'.γ c'.σ.τ = _
+    rw [substList_subst hcl, List.map_append, List.map_reverse, List.map_reverse, List.map_take,
+      ← toList_subst hpl]
+  rw [e3] at h
+  rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_map,
+    List.getElem?_eq_getElem hi0]
+  exact h
 
 end
 
