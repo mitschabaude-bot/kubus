@@ -100,6 +100,14 @@ theorem pathW_rel {X Y L b0 b1 L' b0' b1' : Tm} (h : RT2 S k X Y) (hX : RedT S k
   exact ⟨hl, hc0, hc1⟩
 
 omit hW in
+theorem sysT_dinst (φ r : I) (p0 a b : Tm) (x : I) :
+    (sysT φ r p0 a b).dinst x = .split φ (.papp p0 r) (.or (.neg r) r) (.split (.neg r) (a.dinst x) r (b.dinst x)) := by
+  show Tm.split (φ.shift.subst (I.inst0 x)) (.papp (p0.dshift.dinst x) (r.shift.subst (I.inst0 x)))
+    (.or (.neg (r.shift.subst (I.inst0 x))) (r.shift.subst (I.inst0 x)))
+    (.split (.neg (r.shift.subst (I.inst0 x))) (a.dinst x) (r.shift.subst (I.inst0 x)) (b.dinst x)) = _
+  rw [I_shift_inst0, I_shift_inst0, dshift_dinst]
+
+omit hW in
 theorem sysT_isub (φ r : I) (p0 a b : Tm) (θ : ISub k' k) :
     (sysT φ r p0 a b).isub θ.up = sysT (φ.subst θ.τ) (r.subst θ.τ) (p0.isub θ) (a.isub θ.up) (b.isub θ.up) := by
   show Tm.split (φ.shift.subst (I.up θ.τ)) (.papp (p0.dshift.isub θ.up) (r.shift.subst (I.up θ.τ)))
@@ -890,6 +898,270 @@ theorem kanT2_path_core {T T' : Tm} (hTT : RT2 S (k + 1) T T') (hP : PathStr S (
           rw [← I_subst_comp, ← I_subst_comp]
         rw [e]
         exact compC k' ρ k'' ρ' hf2
+
+/-- The endpoints of a transport along a line of path types. -/
+theorem kanT2_path_end {T T' : Tm} (hTT : RT2 S (k + 1) T T') (hP : PathStr S (k + 1) T T')
+    {φ : I} {a0 a0' : Tm} (hC : LineConst S k T φ)
+    (hty : HasTy S k .one [] (.transp T φ a0) (T.dinst .one)) (ha0 : RE2 S k (T.dinst .zero) a0 a0')
+    {L1 b0 b1 : Tm} (hR1 : RedT S k (T.dinst .one) (.path L1 b0 b1)) :
+    RE2 S k (L1.dinst .zero) (.papp (.transp T φ a0) .zero) b0 ∧
+    RE2 S k (L1.dinst .one) (.papp (.transp T φ a0) .one) b1 := by
+  obtain ⟨l0, ⟨hTl, hφs, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty) rfl
+  have hTc : T.closedB 0 (k + 1) = true := closed_ty hTl
+  have hTl' : HasTy S (k + 1) .one [] T (.univ l0) := minimal_to_spec hTl
+  choose W c0 c1 W' c0' c1' hw using hP.whnf
+  have hT0 : ∀ {k3 : ℕ} (v : ISub k3 k), (T.dinst .zero).isub v = T.isub (ISub.cons .zero trivial v) := fun v => by
+    rw [isub_dinst]; exact isub_up_dinst T v .zero trivial
+  let ι1 : ISub k (k + 1) := ISub.cons .one trivial (ISub.id k)
+  have hR1' : RedT S k (T.isub ι1) (.path L1 b0 b1) := by rw [isub_cons_id_of_closed hTc]; exact hR1
+  obtain ⟨hL1, hb0, hb1⟩ : W k ι1 = L1 ∧ c0 k ι1 = b0 ∧ c1 k ι1 = b1 := by
+    have := RedW.unique (hw k ι1).1.1 hR1'.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
+  have hX2 : ∀ k3 (σ : ISub k3 (k + 1)) (s : I), s.Scoped k3 → TyCode k3 (semK S k3 ((W k3 σ).dinst s)) :=
+    fun k3 σ s hs => hP.tc k3 σ _ _ _ (hw k3 σ).1 s hs
+  have hcohW : ∀ k1 (σ1 : ISub k1 (k + 1)) k2 (θ : ISub k2 k1) (σ2 : ISub k2 (k + 1)), σ1.comp θ = σ2 →
+      ∀ (s : I), s.Scoped k2 → RT2 S k2 (((W k1 σ1).isub θ.up).dinst s) ((W k2 σ2).dinst s) := by
+    intro k1 σ1 k2 θ σ2 h s hs; subst h
+    exact hP.coh k1 σ1 k2 θ _ _ _ _ _ _ (hw k1 σ1).1 (hw k2 _).1 s hs
+  have hends : ∀ k1 (σ1 : ISub k1 (k + 1)) k2 (θ : ISub k2 k1) (σ2 : ISub k2 (k + 1)), σ1.comp θ = σ2 →
+      RE2 S k2 ((W k2 σ2).dinst .zero) ((c0 k1 σ1).isub θ) (c0 k2 σ2) ∧
+      RE2 S k2 ((W k2 σ2).dinst .one) ((c1 k1 σ1).isub θ) (c1 k2 σ2) := by
+    intro k1 σ1 k2 θ σ2 h; subst h
+    exact hP.ends k1 σ1 k2 θ _ _ _ _ _ _ (hw k1 σ1).1 (hw k2 _).1
+  have hRR : ∀ k3 (σ : ISub k3 (k + 1)) (s : I) (hs : s.Scoped k3), RT2 S k3 ((W k3 σ).dinst s) ((W k3 σ).dinst s) :=
+    fun k3 σ s hs => RT2.refl hW (hX2 _ _ _ hs) ((hw k3 σ).2.2.1 s s hs hs (I_eq_refl _))
+  have tyB : ∀ {k3 : ℕ} {A B : Tm}, RT2 S k3 A B → TyEq S k3 A B := fun h => (Comp2_ty_base h).2.2.2.2.2
+  have hTK : ∀ k3 (σ : ISub k3 (k + 1)), IsTyK S k3 (T.isub σ) := fun k3 σ => ⟨l0, .inl (HasTy.isubS hW hTl' σ)⟩
+  have hWcl : ∀ k3 (σ : ISub k3 (k + 1)), (W k3 σ).closedB 0 (k3 + 1) = true := fun k3 σ => by
+    obtain ⟨lp, hp⟩ := pathW_typed hW (hTK k3 σ) (hw k3 σ).1
+    exact closed_of_ty hW (HasTy.pathLine hp)
+  have hρT : ∀ k' (ρ : ISub k' k), HasTy S k' .one [] (.transp (T.isub ρ.up) (φ.subst ρ.τ) (a0.isub ρ))
+      ((T.isub ρ.up).dinst .one) := fun k' ρ => by
+    have := HasTy.isubS hW hty ρ; rwa [isub_dinst] at this
+  have eY1 : ∀ k' (ρ : ISub k' k), TyEq S k' ((T.isub ρ.up).dinst .one)
+      (.path (L1.isub ρ.up) (b0.isub ρ) (b1.isub ρ)) := fun k' ρ => by
+    have := hR1.2.isub hW ρ; rwa [isub_dinst, isub_path] at this
+  -- the type of the endpoints, at a restriction
+  have Ypt : ∀ k3 (v : ISub k3 k) (e : I) (he : e.Scoped k3), RT2 S k3 ((L1.isub v.up).dinst e)
+      ((W k3 (ISub.cons .one trivial v)).dinst e) := by
+    intro k3 v e he; rw [← hL1]
+    exact hcohW k ι1 k3 v _ (cons_one_comp v) _ he
+  -- the endpoints of the end of the line, at a restriction
+  have Bpt : ∀ k3 (v : ISub k3 k), RE2 S k3 ((W k3 (ISub.cons .one trivial v)).dinst .zero) (b0.isub v)
+      (c0 k3 (ISub.cons .one trivial v)) ∧ RE2 S k3 ((W k3 (ISub.cons .one trivial v)).dinst .one) (b1.isub v)
+      (c1 k3 (ISub.cons .one trivial v)) := by
+    intro k3 v; rw [← hb0, ← hb1]; exact hends k ι1 k3 v _ (cons_one_comp v)
+  -- the bases at the points of the line where the face holds
+  have aPtS : ∀ k4 (τ : ISub k4 k) (y : I) (hy : y.Scoped k4), (ival (idEnv k4) (φ.subst τ.τ)).holds →
+      RE2 S k4 (T.isub (ISub.cons y hy τ)) (a0.isub τ) (a0.isub τ) := by
+    intro k4 τ y hy hh
+    have h0 := RE2.isub hW ha0 τ
+    rw [hT0] at h0
+    have hCτ := hC k4 τ y hy hh
+    have h1 := RE2.conv' hW hCτ h0 (RT2.tyCode_l hW hCτ (RE2.tyCode hW h0))
+    have hTy := RT2.refl hW (RE2.tyCode hW h1) hCτ
+    exact RE2.trans hW hTy h1 (RE2.symm hW hTy h1)
+  -- the face case, at a point `e` of the end
+  have faceE : ∀ k3 (v : ISub k3 k) (e : I) (he : e = .zero ∨ e = .one),
+      (ival (idEnv k3) (φ.subst v.τ)).holds →
+      RE2 S k3 ((W k3 (ISub.cons .one trivial v)).dinst e) (.papp (a0.isub v) e)
+        (if e = .zero then b0.isub v else b1.isub v) := by
+    intro k3 v e he hh
+    have el := hP.elim k3 _ _ _ _ _ _ (hw k3 _).1 (aPtS k3 v .one trivial hh)
+    rcases he with rfl | rfl
+    · simp only [if_true]
+      exact RE2.trans hW (hRR _ _ _ trivial) el.2.1 (RE2.symm hW (hRR _ _ _ trivial) (Bpt k3 v).1)
+    · simp only [if_neg (show (I.one) ≠ .zero by decide)]
+      exact RE2.trans hW (hRR _ _ _ trivial) el.2.2 (RE2.symm hW (hRR _ _ _ trivial) (Bpt k3 v).2)
+  have hpT : HasTy S k .one [] (.transp T φ a0) (.path L1 b0 b1) := hty.tyConv hR1.2
+  obtain ⟨lp, hpath⟩ := pathW_typed hW (isTyK_of_ty hW hty) hR1
+  have hpathC := closed_of_ty hW hpath
+  simp only [Tm.closedB, Bool.and_eq_true] at hpathC
+  have hL1c : L1.isub (ISub.id k).up = L1 := isub_up_id_of_closed hpathC.1.1
+  -- the types of the points of the composition at the end
+  have Zc : ∀ k' (σ : ISub k' k) (e : I) (he : e.Scoped k'), RT2 S k' (((W (k' + 1) σ.up).dinst e.shift).dinst .one)
+      ((W k' (ISub.cons .one trivial σ)).dinst e) := by
+    intro k' σ e he
+    rw [dinst_shift_dinst (hWcl _ _) _ .one he trivial, ← isub_up_dinst _ _ _ he]
+    exact hcohW (k' + 1) σ.up k' _ _ (by rw [ISub.up_comp_cons, ISub.comp_id]) _ he
+  have Wσ2 : ∀ k' (σ : ISub k' k) k4 (σ2 : ISub k4 k') (e : I), (e = .zero ∨ e = .one) →
+      RT2 S k4 (((W k' (ISub.cons .one trivial σ)).dinst e).isub σ2) ((W k4 (ISub.cons .one trivial (σ.comp σ2))).dinst e) := by
+    intro k' σ k4 σ2 e he
+    rcases he with rfl | rfl
+    · have := hcohW k' (ISub.cons .one trivial σ) k4 σ2 _ (ISub.cons_comp _ _ _ _) .zero trivial
+      rw [isub_dinst]; exact this
+    · have := hcohW k' (ISub.cons .one trivial σ) k4 σ2 _ (ISub.cons_comp _ _ _ _) .one trivial
+      rw [isub_dinst]; exact this
+  -- the inner system at the end, against the endpoints
+  have inner0 : ∀ k3 (v : ISub k3 k) k4 (σ2 : ISub k4 k3), RE2 S k4 ((W k4 (ISub.cons .one trivial (v.comp σ2))).dinst .zero)
+      (((c0 (k3 + 1) v.up).dinst .one).isub σ2) (b0.isub (v.comp σ2)) := by
+    intro k3 v k4 σ2
+    rw [isub_dinst]
+    show RE2 S k4 _ (((c0 (k3 + 1) v.up).isub σ2.up).dinst .one) _
+    rw [isub_up_dinst _ _ .one trivial]
+    have e1 := (hends (k3 + 1) v.up k4 (ISub.cons .one trivial σ2) _ (ISub.up_comp_cons v .one trivial σ2)).1
+    exact RE2.trans hW (hRR _ _ _ trivial) e1 (RE2.symm hW (hRR _ _ _ trivial) (Bpt k4 (v.comp σ2)).1)
+  have inner1 : ∀ k3 (v : ISub k3 k) k4 (σ2 : ISub k4 k3), RE2 S k4 ((W k4 (ISub.cons .one trivial (v.comp σ2))).dinst .one)
+      (((c1 (k3 + 1) v.up).dinst .one).isub σ2) (b1.isub (v.comp σ2)) := by
+    intro k3 v k4 σ2
+    rw [isub_dinst]
+    show RE2 S k4 _ (((c1 (k3 + 1) v.up).isub σ2.up).dinst .one) _
+    rw [isub_up_dinst _ _ .one trivial]
+    have e1 := (hends (k3 + 1) v.up k4 (ISub.cons .one trivial σ2) _ (ISub.up_comp_cons v .one trivial σ2)).2
+    exact RE2.trans hW (hRR _ _ _ trivial) e1 (RE2.symm hW (hRR _ _ _ trivial) (Bpt k4 (v.comp σ2)).2)
+  have hYY : ∀ (e : I), (e = .zero ∨ e = .one) → RT2 S k (L1.dinst e) (L1.dinst e) := by
+    intro e he
+    have hes : e.Scoped k := by rcases he with rfl | rfl <;> trivial
+    have := hRR k ι1 e hes; rw [hL1] at this; exact this
+  -- the composition at an end of the path, with the face of the transport not holding
+  have compE : ∀ k' (σ : ISub k' k) (e : I) (he : e = .zero ∨ e = .one) {bE : Tm},
+      ¬ I.Entails .one (φ.subst σ.τ) →
+      HasTy S k' .one [] bE (((W (k' + 1) σ.up).dinst e.shift).dinst .one) →
+      (∀ k4 (σ2 : ISub k4 k'), I.Entails .one ((φ.subst σ.τ).subst σ2.τ) →
+        RE2 S k4 ((W k4 (ISub.cons .one trivial (σ.comp σ2))).dinst e) (.papp (a0.isub (σ.comp σ2)) e) (bE.isub σ2)) →
+      (∀ k4 (σ2 : ISub k4 k'), I.Entails .one ((I.or (.neg e) e).subst σ2.τ) →
+        HasTy S k4 .one [] ((Tm.split (.neg e) ((c0 (k' + 1) σ.up).dinst .one) e ((c1 (k' + 1) σ.up).dinst .one)).isub σ2)
+          ((W k4 (ISub.cons .one trivial (σ.comp σ2))).dinst e) →
+        RE2 S k4 ((W k4 (ISub.cons .one trivial (σ.comp σ2))).dinst e)
+          ((Tm.split (.neg e) ((c0 (k' + 1) σ.up).dinst .one) e ((c1 (k' + 1) σ.up).dinst .one)).isub σ2) (bE.isub σ2)) →
+      HasTy S k' .one [] (Tm.comp ((W (k' + 1) σ.up).dinst e.shift) (.or (φ.subst σ.τ) (.or (.neg e) e))
+        (sysT (φ.subst σ.τ) e (a0.isub σ) (c0 (k' + 1) σ.up) (c1 (k' + 1) σ.up)) (.papp (a0.isub σ) e))
+        (((W (k' + 1) σ.up).dinst e.shift).dinst .one) →
+      RE2 S k' (((W (k' + 1) σ.up).dinst e.shift).dinst .one)
+        (Tm.comp ((W (k' + 1) σ.up).dinst e.shift) (.or (φ.subst σ.τ) (.or (.neg e) e))
+          (sysT (φ.subst σ.τ) e (a0.isub σ) (c0 (k' + 1) σ.up) (c1 (k' + 1) σ.up)) (.papp (a0.isub σ) e)) bE := by
+    intro k' σ e he bE hf hbE hpE hiE hcT
+    have hes : e.Scoped k' := by rcases he with rfl | rfl <;> trivial
+    have Z := Zc k' σ e hes
+    have hXZ := RT2.tyCode_l hW Z (hX2 _ _ _ hes)
+    have hZZ := RT2.refl hW hXZ Z
+    have hZσ : ∀ k4 (σ2 : ISub k4 k'), RT2 S k4 ((((W (k' + 1) σ.up).dinst e.shift).dinst .one).isub σ2)
+        ((W k4 (ISub.cons .one trivial (σ.comp σ2))).dinst e) := fun k4 σ2 => by
+      have a := RT2.isub hW hXZ Z σ2
+      have b := Wσ2 k' σ k4 σ2 e he
+      exact RT2.trans hW (RT2.tyCode_l hW a (RT2.tyCode_l hW b (hX2 _ _ _ (by rcases he with rfl | rfl <;> trivial))))
+        a b
+    rw [comp_eq] at hcT ⊢
+    have hor0 : I.Entails .one (I.or (.neg e) e) := by rcases he with rfl | rfl <;> decide
+    have hor : I.Entails .one (.or (φ.subst σ.τ) (.or (.neg e) e)) := ent_trans hor0 (ent_or_right _ _)
+    have hh := (holds_iff_entails (show (I.or (φ.subst σ.τ) (.or (.neg e) e)).Scoped k' from
+      ⟨I.scoped_subst hφs σ.sc, hes, hes⟩)).2 hor
+    have s1 := stable_hcompFace hW hor hcT
+    have t2 := hcomp_tube_typed' hW hcT .one trivial hh
+    rw [compTube_d1] at t2 s1
+    have s2 := stable_transpFace hW (ent_refl .one) t2
+    have t3 := HasTy.eqR (EqTm.transpFace (ent_refl .one) t2)
+    rw [sysT_dinst] at t3 s2 t2 s1
+    have tin := HasTy.eqR (EqTm.splitR hor0 t3)
+    refine RE2.expandL hW hZZ hcT hbE s1 (RE2.expandL hW hZZ t2 hbE s2 ?_)
+    refine RE2_split_l hW (I.scoped_subst hφs σ.sc) ⟨hes, hes⟩ hor hZZ t3 hbE (fun k4 σ2 h => ?_) (fun k4 σ2 h => ?_)
+    · have r := hpE k4 σ2 h
+      have ea : (Tm.papp (a0.isub σ) e).isub σ2 = .papp (a0.isub (σ.comp σ2)) e := by
+        show Tm.papp ((a0.isub σ).isub σ2) (e.subst σ2.τ) = _
+        rw [Tm.isub_isub]; rcases he with rfl | rfl <;> rfl
+      rw [ea]
+      exact RE2.conv' hW (hZσ k4 σ2) r (RT2.tyCode_l hW (hZσ k4 σ2) (RE2.tyCode hW r))
+    · have r := hiE k4 σ2 h ((HasTy.isubS hW tin σ2).tyConv (tyB (hZσ k4 σ2)))
+      exact RE2.conv' hW (hZσ k4 σ2) r (RT2.tyCode_l hW (hZσ k4 σ2) (RE2.tyCode hW r))
+  -- the endpoints
+  have endE : ∀ (e bE : I → Tm), (∀ x, bE x = if x = .zero then b0 else b1) → ∀ (x : I), (x = .zero ∨ x = .one) →
+      RE2 S k (L1.dinst x) (.papp (.transp T φ a0) x) (bE x) := by
+    intro _ bE hbE x hx
+    have hxs : x.Scoped k := by rcases hx with rfl | rfl <;> trivial
+    have hbT : HasTy S k .one [] (bE x) (L1.dinst x) := by
+      rw [hbE]; rcases hx with rfl | rfl
+      · exact HasTy.pathLeft hpath
+      · exact HasTy.pathRight hpath
+    refine RE2.expandH hW (hYY x hx) (HasTy.papp hpT hxs) hbT fun k' σ => ?_
+    have hxs' : x.Scoped k' := by rcases hx with h | h <;> rw [h] <;> trivial
+    have hY : (L1.dinst x).isub σ = (L1.isub σ.up).dinst x := by
+      rw [isub_dinst]; rcases hx with rfl | rfl <;> rfl
+    have ep : (Tm.papp (.transp T φ a0) x).isub σ = .papp (.transp (T.isub σ.up) (φ.subst σ.τ) (a0.isub σ)) x := by
+      show Tm.papp _ (x.subst σ.τ) = _; rcases hx with rfl | rfl <;> rfl
+    have YW := Ypt k' σ x hxs'
+    have hXW := hX2 k' (ISub.cons .one trivial σ) x hxs'
+    rw [ep, hY]
+    -- the endpoint at a restriction
+    have hbσ : ∀ k4 (σ2 : ISub k4 k'), ((bE x).isub σ).isub σ2 = (bE x).isub (σ.comp σ2) := fun k4 σ2 => by
+      rw [Tm.isub_isub]
+    by_cases hf : I.Entails .one (φ.subst σ.τ)
+    · obtain ⟨a, b⟩ := papp_transp_face' hW hf hxs' (hρT k' σ) (eY1 k' σ)
+      refine ⟨_, a, b, ?_⟩
+      have r := faceE k' σ x hx ((holds_iff_entails (I.scoped_subst hφs σ.sc)).2 hf)
+      have er : (if x = .zero then b0.isub σ else b1.isub σ) = (bE x).isub σ := by
+        rw [hbE]; rcases hx with rfl | rfl <;> simp
+      rw [er] at r
+      exact RE2.conv' hW YW r (RT2.tyCode_l hW YW hXW)
+    · obtain ⟨a, b⟩ := papp_transp_path hW hf hxs' (hρT k' σ) (hw (k' + 1) σ.up).1
+      have Z := Zc k' σ x hxs'
+      have ZY := RT2.trans hW (RT2.tyCode_l hW Z hXW) Z (RT2.symm hW (RT2.tyCode_l hW YW hXW) YW)
+      refine ⟨_, a, b.tyConv (tyB ZY), ?_⟩
+      refine RE2.conv hW ZY (compE k' σ x hx hf ((HasTy.isubS hW hbT σ).tyConv (by rw [hY]; exact TyEq.symm (tyB ZY)))
+        (fun k4 σ2 h => ?_) (fun k4 σ2 h hsp => ?_) (HasTy.eqR b))
+      · have hh := (holds_iff_entails (I.scoped_subst hφs (σ.comp σ2).sc)).2 (by rw [I_subst_comp]; exact h)
+        have r := faceE k4 (σ.comp σ2) x hx hh
+        rw [hbσ]
+        have er : (if x = .zero then b0.isub (σ.comp σ2) else b1.isub (σ.comp σ2)) = (bE x).isub (σ.comp σ2) := by
+          rw [hbE]; rcases hx with rfl | rfl <;> simp
+        rw [er] at r; exact r
+      · rw [hbσ, hbE]
+        rcases hx with rfl | rfl
+        · simp only [if_true]
+          have hin := inner0 k' σ k4 σ2
+          exact RE2.expandL hW (hRR _ _ _ trivial) hsp (RE2.typed hin).2.1
+            (stable_splitL hW (show I.Entails .one (I.neg .zero) by decide) hsp) hin
+        · simp only [if_neg (show (I.one) ≠ .zero by decide)]
+          have hin := inner1 k' σ k4 σ2
+          have hsp' : HasTy S k4 .one [] (Tm.split (.neg .one) (((c0 (k' + 1) σ.up).dinst .one).isub σ2) .one
+              (((c1 (k' + 1) σ.up).dinst .one).isub σ2)) ((W k4 (ISub.cons .one trivial (σ.comp σ2))).dinst .one) := hsp
+          refine RE2_split_l hW trivial trivial (show I.Entails .one (I.or (.neg .one) .one) by decide)
+            (hRR _ _ _ trivial) hsp' (RE2.typed hin).2.1 (fun k5 σ5 h5 => ?_) (fun k5 σ5 h5 => ?_)
+          · exact absurd h5 (show ¬ I.Entails .one (I.neg .one) by decide)
+          · exact RE2.isub hW hin σ5
+  exact ⟨endE (fun _ => b0) (fun x => if x = .zero then b0 else b1) (fun _ => rfl) .zero (.inl rfl),
+    endE (fun _ => b0) (fun x => if x = .zero then b0 else b1) (fun _ => rfl) .one (.inr rfl)⟩
+
+/-- Transport along related lines whose normal forms are path types. -/
+theorem kanT2_path {T T' A a b : Tm} {l : ℕ} (hTT : RT2 S (k + 1) T T') (hR : RedT S (k + 1) T (.path A a b))
+    (hpath : HasTy S (k + 1) .one [] (.path A a b) (.univ l))
+    (hIHT : ∀ k1 (ρ : ISub (k1 + 1) (k + 1)) L c0 c1, RedT S (k1 + 1) (T.isub ρ) (.path L c0 c1) → ∀ (s : I),
+      s.Scoped (k1 + 1) → ∀ k2 (ρ' : ISub (k2 + 1) (k1 + 1)) X', RT2 S (k2 + 1) ((L.dinst s).isub ρ') X' →
+      KanT2 S k2 ((L.dinst s).isub ρ') X')
+    (hIHH : ∀ k1 (ρ : ISub k1 (k + 1)) L c0 c1, RedT S k1 (T.isub ρ) (.path L c0 c1) → ∀ (s : I),
+      s.Scoped k1 → ∀ k2 (ρ' : ISub k2 k1) X', RT2 S k2 ((L.dinst s).isub ρ') X' →
+      KanH2 S k2 ((L.dinst s).isub ρ') X') : KanT2 S k T T' := by
+  have hP := PathStr_of hW hTT hR hpath
+  intro hLR φ φ' a0 a0' hC hty hty' heq h12 h21 ha0
+  obtain ⟨l0, ⟨hTl, -, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty) rfl
+  have hTc : T.closedB 0 (k + 1) = true := closed_ty hTl
+  have hT1K : IsTyK S k (T.dinst .one) := isTyK_of_ty hW hty
+  obtain ⟨L1, b0, b1, L1', b0', b1', h1, -, -, -, -⟩ := hP.whnf k (ISub.cons .one trivial (ISub.id k))
+  rw [isub_cons_id_of_closed hTc] at h1
+  obtain ⟨l1, hpath1⟩ := pathW_typed hW hT1K h1
+  have hX1 : TyCode k (semK S k (T.dinst .one)) := tyCode_of_ty hW hty
+  have hTT1 : RT2 S k (T.dinst .one) (T.dinst .one) := by
+    have := hLR k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
+    rw [isub_cons_id_of_closed hTc] at this
+    exact RT2.refl hW hX1 this
+  have hXT : TyCode (k + 1) (semK S (k + 1) T) := tyCode_of_univ hW (minimal_to_spec hTl)
+  refine RE2_pathW_intro hW hTT1 h1 hpath1 ⟨hty, hty', heq⟩ fun k' ρ L c0 c1 h => ?_
+  have hd1 : ∀ (X : Tm) (x : I), (X.dinst x).isub ρ = (X.isub ρ.up).dinst (x.subst ρ.τ) := fun X x => isub_dinst X x ρ
+  rw [hd1] at h
+  have htyρ := HasTy.isubS hW hty ρ
+  have htyρ' := HasTy.isubS hW hty' ρ
+  have heqρ := EqTm.isubS hW heq ρ
+  have ha0ρ := RE2.isub hW ha0 ρ
+  rw [hd1] at htyρ htyρ' heqρ ha0ρ
+  have IHT : ∀ k1 (ρ1 : ISub (k1 + 1) (k' + 1)) L c0 c1, RedT S (k1 + 1) ((T.isub ρ.up).isub ρ1) (.path L c0 c1) →
+      ∀ (s : I), s.Scoped (k1 + 1) → ∀ k2 (ρ' : ISub (k2 + 1) (k1 + 1)) X', RT2 S (k2 + 1) ((L.dinst s).isub ρ') X' →
+      KanT2 S k2 ((L.dinst s).isub ρ') X' := by
+    intro k1 ρ1 L3 d0 d1 h3; rw [Tm.isub_isub] at h3; exact hIHT k1 (ρ.up.comp ρ1) L3 d0 d1 h3
+  have IHH : ∀ k1 (ρ1 : ISub k1 (k' + 1)) L c0 c1, RedT S k1 ((T.isub ρ.up).isub ρ1) (.path L c0 c1) →
+      ∀ (s : I), s.Scoped k1 → ∀ k2 (ρ' : ISub k2 k1) X', RT2 S k2 ((L.dinst s).isub ρ') X' →
+      KanH2 S k2 ((L.dinst s).isub ρ') X' := by
+    intro k1 ρ1 L3 d0 d1 h3; rw [Tm.isub_isub] at h3; exact hIHH k1 (ρ.up.comp ρ1) L3 d0 d1 h3
+  have E := kanT2_path_end hW (RT2.isub hW hXT hTT ρ.up) (hP.isub hW ρ.up) (hC.isub ρ) htyρ ha0ρ h
+  exact ⟨fun r r' hr hr' hE => kanT2_path_core hW (RT2.isub hW hXT hTT ρ.up) (hP.isub hW ρ.up) (hLR.isub ρ) IHT IHH
+    (hC.isub ρ) htyρ htyρ' heqρ (ent_subst h12 ρ.τ) (ent_subst h21 ρ.τ) ha0ρ h hr hr' hE, E.1, E.2⟩
 
 end
 
