@@ -49,6 +49,17 @@ theorem tgBody_isub (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (σ : ISub k
 variable (hW : WfSig S)
 include hW
 
+theorem pathC_elim2 {F c p X Y : Tm} (h : RE2 S k (Tm.pathC F c p) X Y) {s s' : I} (hs : s.Scoped k)
+    (hs' : s'.Scoped k) (he : I.Eq s s') : RE2 S k F (.papp X s) (.papp Y s') := by
+  unfold Tm.pathC at h
+  have := (RE2_path_elim hW h).1 s s' hs hs' he
+  rwa [dshift_dinst] at this
+
+theorem pathC_elim0 {F c p X Y : Tm} (h : RE2 S k (Tm.pathC F c p) X Y) : RE2 S k F (.papp X .zero) c := by
+  unfold Tm.pathC at h
+  have := (RE2_path_elim hW h).2.1
+  rwa [dshift_dinst] at this
+
 theorem HasTy.top {X : Tm} {l : ℕ} (h : HasTy S k .one [] X (.univ l)) : HasTy S k .one [] X (.univ maxLevel) :=
   h.cumulTo (lvl_of_ty hW h) le_rfl
 
@@ -559,6 +570,70 @@ theorem TGD2.PpsiX (hδ : (ival (idEnv k) δ).holds) (hψk : (ival (idEnv k) ψ)
   have hLL := RT2.refl hW (tyCode_of_univ hW (D.hfib hW hφ1)) (D.rFib hW hφ1)
   exact RE2_contr hW (D.c hW hφ1)
     (RE2.trans hW hLL (RE2.symm hW hLL (D.pairPQ hW hφ1 hδ hψk)) (D.pairD hW hφ1 hδ))
+
+
+omit hφ1 in
+theorem TGD2.δδ : I.Entails δ δ' ∧ I.Entails δ' δ :=
+  ⟨ent_trans (ent_trans D.hδ1 (FEq.forall0 ⟨D.f12, D.f21⟩).1) D.hδ2',
+    ent_trans (ent_trans D.hδ1' (FEq.forall0 ⟨D.f12, D.f21⟩).2) D.hδ2⟩
+
+/-- `φ(1)` under restrictions, in the form of the restricted data. -/
+theorem TGD2.φ1isub (σ : ISub k' k) : (ival (idEnv k') ((φ.subst σ.up.τ).subst (I.inst0 .one))).holds := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have := holds_isub hW (H.hφr (r := .one) trivial) hφ1 σ
+  rwa [I_phi1_isub] at this
+
+theorem TGD2.PdPt (τ : ISub k' k) (hδτ : (ival (idEnv k') (δ.subst τ.τ)).holds) {s s' : I} (hs : s.Scoped k')
+    (hs' : s'.Scoped k') (he : I.Eq s s') :
+    RE2 S k' ((tgFib A φ T e ψ u0).isub τ) (.papp ((tgPd A φ T e ψ u0).isub τ) s)
+      (.papp ((tgPd A' φ' T' e' ψ' u0').isub τ) s') := by
+  have y := pathC_elim2 hW ((D.isub hW τ).Pd hW (D.φ1isub hW hφ1 τ) hδτ) hs hs' he
+  obtain ⟨hF, -, hP, -, -, -⟩ := tg_isub A φ T e ψ u0 δ τ
+  obtain ⟨-, -, hP', -, -, -⟩ := tg_isub A' φ' T' e' ψ' u0' δ' τ
+  rw [hF, hP, hP']; exact y
+
+theorem TGD2.PpsiPt (τ : ISub k' k) (hψτ : (ival (idEnv k') (ψ.subst τ.τ)).holds) {s s' : I} (hs : s.Scoped k')
+    (hs' : s'.Scoped k') (he : I.Eq s s') :
+    RE2 S k' ((tgFib A φ T e ψ u0).isub τ) (.papp ((tgPpsi A φ e ψ u0).isub τ) s)
+      (.papp ((tgPpsi A' φ' e' ψ' u0').isub τ) s') := by
+  have y := pathC_elim2 hW ((D.isub hW τ).Ppsi hW (D.φ1isub hW hφ1 τ) hψτ) hs hs' he
+  obtain ⟨hF, -, -, hP, -, -⟩ := tg_isub A φ T e ψ u0 δ τ
+  obtain ⟨-, -, -, hP', -, -⟩ := tg_isub A' φ' T' e' ψ' u0' δ' τ
+  rw [hF, hP, hP']; exact y
+
+theorem TGD2.PdXPt (τ : ISub k' k) (hδτ : (ival (idEnv k') (δ.subst τ.τ)).holds)
+    (hψτ : (ival (idEnv k') (ψ.subst τ.τ)).holds) {s s' : I} (hs : s.Scoped k')
+    (hs' : s'.Scoped k') (he : I.Eq s s') :
+    RE2 S k' ((tgFib A φ T e ψ u0).isub τ) (.papp ((tgPd A φ T e ψ u0).isub τ) s)
+      (.papp ((tgPpsi A' φ' e' ψ' u0').isub τ) s') := by
+  have y := pathC_elim2 hW ((D.isub hW τ).PdX hW (D.φ1isub hW hφ1 τ) hδτ hψτ) hs hs' he
+  obtain ⟨hF, -, hP, -, -, -⟩ := tg_isub A φ T e ψ u0 δ τ
+  obtain ⟨-, -, -, hP', -, -⟩ := tg_isub A' φ' T' e' ψ' u0' δ' τ
+  rw [hF, hP, hP']; exact y
+
+theorem TGD2.PpsiXPt (τ : ISub k' k) (hδτ : (ival (idEnv k') (δ.subst τ.τ)).holds)
+    (hψτ : (ival (idEnv k') (ψ.subst τ.τ)).holds) {s s' : I} (hs : s.Scoped k')
+    (hs' : s'.Scoped k') (he : I.Eq s s') :
+    RE2 S k' ((tgFib A φ T e ψ u0).isub τ) (.papp ((tgPpsi A φ e ψ u0).isub τ) s)
+      (.papp ((tgPd A' φ' T' e' ψ' u0').isub τ) s') := by
+  have y := pathC_elim2 hW ((D.isub hW τ).PpsiX hW (D.φ1isub hW hφ1 τ) hδτ hψτ) hs hs' he
+  obtain ⟨hF, -, -, hP, -, -⟩ := tg_isub A φ T e ψ u0 δ τ
+  obtain ⟨-, -, hP', -, -, -⟩ := tg_isub A' φ' T' e' ψ' u0' δ' τ
+  rw [hF, hP, hP']; exact y
+
+theorem TGD2.Pd0Pt (τ : ISub k' k) (hδτ : (ival (idEnv k') (δ.subst τ.τ)).holds) :
+    RE2 S k' ((tgFib A φ T e ψ u0).isub τ) (.papp ((tgPd A φ T e ψ u0).isub τ) .zero)
+      ((Tm.fst (tgC A φ e ψ u0)).isub τ) := by
+  have y := pathC_elim0 hW ((D.isub hW τ).Pd hW (D.φ1isub hW hφ1 τ) hδτ)
+  obtain ⟨hF, hC, hP, -, -, -⟩ := tg_isub A φ T e ψ u0 δ τ
+  rw [hF, hP, isub_fst, hC]; exact y
+
+theorem TGD2.Ppsi0Pt (τ : ISub k' k) (hψτ : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+    RE2 S k' ((tgFib A φ T e ψ u0).isub τ) (.papp ((tgPpsi A φ e ψ u0).isub τ) .zero)
+      ((Tm.fst (tgC A φ e ψ u0)).isub τ) := by
+  have y := pathC_elim0 hW ((D.isub hW τ).Ppsi hW (D.φ1isub hW hφ1 τ) hψτ)
+  obtain ⟨hF, hC, -, hP, -, -⟩ := tg_isub A φ T e ψ u0 δ τ
+  rw [hF, hP, isub_fst, hC]; exact y
 
 end
 
