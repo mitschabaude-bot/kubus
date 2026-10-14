@@ -372,4 +372,24 @@ theorem argvars_tele (hS : SigClosed S) {d : Nat} {D : DataDecl} {c : Nat} {C : 
   rw [List.getD_eq_getElem?_getD, ha] at this
   exact this
 
+/-- The parameter data, weakened into an extended context. -/
+theorem params_wk (hS : SigClosed S) {d : Nat} {D : DataDecl} (hD : S[d]? = some (.data D))
+    {Ψ Φ Γ} {ps ps' : Tm} {l : Nat}
+    (ht : HasTele0 S Ψ Φ Γ ps D.params []) (es : EqTeleS S Ψ Φ Γ ps ps' D.params [])
+    (edata : EqTm0 S Ψ Φ Γ (data d ps) (data d ps') (univ l))
+    (E : Ctx) (m : Nat) {X : I} (hw : Wf0 S (Ψ + m) X (ctxWkI m (E ++ Γ))) (he : I.Entails X (Φ.subst (wkIv m))) :
+    HasTele0 S (Ψ + m) X (ctxWkI m (E ++ Γ)) (ps.wkN E.length m) D.params [] ∧
+    EqTeleS S (Ψ + m) X (ctxWkI m (E ++ Γ)) (ps.wkN E.length m) (ps'.wkN E.length m) D.params [] ∧
+    EqTm0 S (Ψ + m) X (ctxWkI m (E ++ Γ)) (data d (ps.wkN E.length m)) (data d (ps'.wkN E.length m)) (univ l) := by
+  have T := tySub_wkE (S := S) (Γ := Γ) (Φ := Φ) E m hw he
+  have e1 : ∀ q : Tm, q.subst (fun j => .var (j + E.length)) (wkIv m) = q.wkN E.length m := fun q => by
+    rw [wkN_eq]; rfl
+  refine ⟨?_, ?_, ?_⟩
+  · have := ((sub_tele hS ht).2 (params_closed hS hD)).1 T
+    rw [e1] at this; simpa using this
+  · have := EqTeleS.sub hS T es (params_closed hS hD)
+    rw [e1, e1] at this; simpa using this
+  · have := (sub_eq hS edata).2 T
+    simp only [Tm.subst] at this; rw [e1, e1] at this; exact this
+
 end KubusCore.Meta
