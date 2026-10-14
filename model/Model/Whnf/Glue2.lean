@@ -515,8 +515,8 @@ theorem glue_annot_eq {A T e e' : Tm} {φ φ' : I} {l : ℕ} (hG : HasTy S k .on
     (EqTm.refl (minimal_to_spec (HasTy0.cumulTo hT1 (le_max_right _ _) (max_le hlv hlv')))) ee'.symm
 
 
-/-- `unglue` of related elements of a Glue type whose face does not hold. -/
-theorem RE2_unglue {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
+/-- `unglue` of related elements of a Glue type whose face does not hold, and the base of a normal form of the left element related to the right `unglue`. -/
+theorem RE2_unglue_and {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
     (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) (hn : ¬ (ival (idEnv k) φ).holds)
     (hgg : RE2 S k (.glue A φ T e) g g')
     (hu : HasTy S k .one [] (.unglue φ e g) A) (hu' : HasTy S k .one [] (.unglue φ' e' g') A)
@@ -526,7 +526,9 @@ theorem RE2_unglue {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
     (hTT : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → RT2 S k' (T.isub σ) (T.isub σ))
     (hE : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e'.isub σ)) :
-    RE2 S k A (.unglue φ e g) (.unglue φ' e' g') := by
+    RE2 S k A (.unglue φ e g) (.unglue φ' e' g') ∧
+      ∀ k' (σ : ISub k' k), ¬ (ival (idEnv k') (φ.subst σ.τ)).holds → ∀ ψ0 e00 t00 a00,
+        RedW S (g.isub σ) (.glueEl ψ0 e00 t00 a00) → RE2 S k' (A.isub σ) a00 ((Tm.unglue φ' e' g').isub σ) := by
   obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
   have hn' : ¬ Cof.holds (ival (idEnv k) φ).face := by rwa [← DM.holds_iff_face_holds]
   have hXA : ∀ k' (σ : ISub k' k), TyCode k' (semK S k' (A.isub σ)) := fun k' σ =>
@@ -590,21 +592,10 @@ theorem RE2_unglue {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
     simp only [isub_unglue, isub_app, isub_fst, Tm.isub_isub, ← I_subst_comp]
     exact ⟨.step (stepF (σ.comp ρ) (hent' _ hh')) (.refl _),
       EqTm.unglueFace (hent' _ hh') (hgσ' (σ.comp ρ)) (hAσ _) (heσ' _ hh')⟩
-  -- the relation at `A`, through head expansion
-  have hX0 := hXA k (ISub.id k)
-  rw [isub_id_of_closed (closed_of_ty hW hA0)] at hX0
-  refine (he2_tyCode hW hX0 k (Hom.id k) A A (.unglue φ e g) (.unglue φ' e' g')).2
-    (by have := hAA k (ISub.id k); rwa [isub_id_of_closed (closed_of_ty hW hA0)] at this) hu hu' fun k' σ => ?_
-  rw [Hom.id_comp, Comp2_res_el hW hA0]
-  by_cases hh : (ival (idEnv k') (φ.subst σ.τ)).holds
-  · -- the face holds: `unglue` is the application of the equivalences
-    refine ⟨.app (.fst (e.isub σ)) (g.isub σ), ?_, ?_, ?_⟩
-    · rw [isub_unglue]; exact .step (stepF σ (hent σ hh)) (.refl _)
-    · rw [isub_unglue]; exact EqTm.unglueFace (hent σ hh) (hgσ σ) (hAσ σ) (heσ σ hh)
-    · have hf := fib σ hh (by have := hmain k' σ; unfold glueLocE at this; rwa [if_pos (hface σ hh)] at this)
-      have happ := RE2_equiv_app hW (hE k' σ hh) hf
-      exact el_expandSR hW (hXA k' σ) (hAA k' σ) (RE2.typed happ).1 (HasTy.isubS hW hu' σ) (stabF σ hh) happ
-  · -- the face does not hold: `unglue` is the base of the normal form
+  -- the base of a normal form of `g`, related to the other side by head expansion of the other side
+  have base : ∀ k' (σ : ISub k' k), ¬ (ival (idEnv k') (φ.subst σ.τ)).holds → ∀ ψ0 e00 t00 a00,
+      RedW S (g.isub σ) (.glueEl ψ0 e00 t00 a00) → RE2 S k' (A.isub σ) a00 ((Tm.unglue φ' e' g').isub σ) := by
+    intro k' σ hh ψ0 e00 t00 a00 hw
     have hne : ¬ I.Entails .one (φ.subst σ.τ) := fun h => hh ((holds_iff_entails (I.scoped_subst hφs σ.sc)).2 h)
     have hnf : ¬ (Cof.restr (ival (idEnv k) φ).face ((Hom.id k).comp σ.hom)).holds := by
       rw [Hom.id_comp, face_holds_iff hφs σ]; exact hh
@@ -619,9 +610,9 @@ theorem RE2_unglue {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
     rw [isub_glue] at hGσ
     have rgσ := rg.2
     rw [isub_glue] at rgσ
-    refine ⟨a0, by rw [isub_unglue]; exact red_unglue_base hne rg.1,
-      by rw [isub_unglue]; exact unglue_base_eq hW hGσ rgσ q1 q1' ee0 (RE2.typed ha0).1, ?_⟩
-    -- the base is related to the other side, by head expansion of the other side
+    have ew0 := RedW.unique rg.1 hw
+    simp only [Tm.glueEl.injEq] at ew0
+    obtain ⟨rfl, rfl, rfl, rfl⟩ := ew0
     have hXσ := hXA k' σ
     refine (perK hW hXσ).symEl (hAA k' σ) ((he2_tyCode hW hXσ k' (Hom.id k') (A.isub σ) (A.isub σ)
       ((Tm.unglue φ' e' g').isub σ) a0).2 (hAA k' σ) (HasTy.isubS hW hu' σ) (RE2.typed ha0).1 fun k'' ρ => ?_)
@@ -694,6 +685,52 @@ theorem RE2_unglue {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
       obtain ⟨rfl, -, -, -⟩ := et
       rw [Hom.id_comp, Comp2_res_el hW hA0] at hb3
       exact RE2.symm hW (hAA _ _) (RE2.trans hW (hAA _ _) hb3 hb0)
+  -- the relation at `A`, through head expansion
+  refine ⟨?_, base⟩
+  have hX0 := hXA k (ISub.id k)
+  rw [isub_id_of_closed (closed_of_ty hW hA0)] at hX0
+  refine (he2_tyCode hW hX0 k (Hom.id k) A A (.unglue φ e g) (.unglue φ' e' g')).2
+    (by have := hAA k (ISub.id k); rwa [isub_id_of_closed (closed_of_ty hW hA0)] at this) hu hu' fun k' σ => ?_
+  rw [Hom.id_comp, Comp2_res_el hW hA0]
+  by_cases hh : (ival (idEnv k') (φ.subst σ.τ)).holds
+  · -- the face holds: `unglue` is the application of the equivalences
+    refine ⟨.app (.fst (e.isub σ)) (g.isub σ), ?_, ?_, ?_⟩
+    · rw [isub_unglue]; exact .step (stepF σ (hent σ hh)) (.refl _)
+    · rw [isub_unglue]; exact EqTm.unglueFace (hent σ hh) (hgσ σ) (hAσ σ) (heσ σ hh)
+    · have hf := fib σ hh (by have := hmain k' σ; unfold glueLocE at this; rwa [if_pos (hface σ hh)] at this)
+      have happ := RE2_equiv_app hW (hE k' σ hh) hf
+      exact el_expandSR hW (hXA k' σ) (hAA k' σ) (RE2.typed happ).1 (HasTy.isubS hW hu' σ) (stabF σ hh) happ
+  · -- the face does not hold: `unglue` is the base of the normal form
+    have hne : ¬ I.Entails .one (φ.subst σ.τ) := fun h => hh ((holds_iff_entails (I.scoped_subst hφs σ.sc)).2 h)
+    have hnf : ¬ (Cof.restr (ival (idEnv k) φ).face ((Hom.id k).comp σ.hom)).holds := by
+      rw [Hom.id_comp, face_holds_iff hφs σ]; exact hh
+    have hm := hmain k' σ
+    unfold glueLocE at hm; rw [if_neg hnf] at hm
+    obtain ⟨A1, φ1, T1, e1, ψ, e0, t0, a0, ψ', e0', t0', a0', r1, rg, rg', q1, q1', q2, q2', ee0, ee0', ha0, hfibs⟩ := hm
+    have eq1 := RedW.unique r1.1 (by rw [isub_glue]; exact (redT_glue_self (S := S) (k := k') hne).1)
+    simp only [Tm.glue.injEq] at eq1
+    obtain ⟨rfl, rfl, rfl, rfl⟩ := eq1
+    rw [Hom.id_comp, Comp2_res_el hW hA0] at ha0
+    have hGσ := HasTy.isubS hW hG σ
+    rw [isub_glue] at hGσ
+    have rgσ := rg.2
+    rw [isub_glue] at rgσ
+    exact ⟨a0, by rw [isub_unglue]; exact red_unglue_base hne rg.1,
+      by rw [isub_unglue]; exact unglue_base_eq hW hGσ rgσ q1 q1' ee0 (RE2.typed ha0).1, base k' σ hh _ _ _ _ rg.1⟩
+
+/-- `unglue` of related elements of a Glue type whose face does not hold. -/
+theorem RE2_unglue {A T e e' g g' : Tm} {φ φ' : I} {l : ℕ}
+    (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) (hn : ¬ (ival (idEnv k) φ).holds)
+    (hgg : RE2 S k (.glue A φ T e) g g')
+    (hu : HasTy S k .one [] (.unglue φ e g) A) (hu' : HasTy S k .one [] (.unglue φ' e' g') A)
+    (hφ' : φ'.Scoped k) (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)
+    (ee' : EqTm S k (cof .one φ) [] e' e (Tm.equiv T A))
+    (hAA : ∀ k' (σ : ISub k' k), RT2 S k' (A.isub σ) (A.isub σ))
+    (hTT : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → RT2 S k' (T.isub σ) (T.isub σ))
+    (hE : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e'.isub σ)) :
+    RE2 S k A (.unglue φ e g) (.unglue φ' e' g') :=
+  (RE2_unglue_and hW hG hn hgg hu hu' hφ' h12 h21 ee' hAA hTT hE).1
 
 
 end

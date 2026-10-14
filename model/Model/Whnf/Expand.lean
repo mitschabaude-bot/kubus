@@ -897,18 +897,97 @@ theorem DR2.at_id {k0 : ℕ} {Θ : SData m} {f : Hom k0 m} {g : Hom k k0} {X x y
     rwa [isub_id_of_closed (closed_of_isTyK hW (isTyK_of_ty hW hx)), isub_id_of_closed (closed_of_ty hW hx),
       isub_id_of_closed (closed_of_ty hW hy), ISub.hom_id, Hom.comp_id] at this
 
+/-- The coherence of an inductive type's normal forms, for a head expansion: through the reducts at a
+restriction and at a further restriction. -/
+theorem cohData_expand {Θ : SData m}
+    (hP : ∀ {n : ℕ} (h : Hom n m) (c j : ℕ) (pre : List V),
+      PERP (Comp2 S (tyLook (shapeV (Θ.restr h)) c j pre) n n (Hom.id n)))
+    (ihp : ∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → PER2 S n X)
+    {f : Hom k m} {T T' : Tm}
+    (hall : ∀ k' (σ : ISub k' k), ∃ U, Red S (T.isub σ) U ∧ TyEq S k' (T.isub σ) U ∧
+      (Comp2 S (dataC Θ) m k' (f.comp σ.hom)).ty U (T'.isub σ)) : cohData S Θ f T := by
+  intro k' σ k'' σ' ps1 ps2 h1 h2
+  obtain ⟨U, r, e, hU⟩ := hall k' σ
+  obtain ⟨U2, r2, e2, hU2⟩ := hall k'' (σ.comp σ')
+  have hUb := Comp2_ty_base hU
+  have hU2b := Comp2_ty_base hU2
+  rw [Comp2_dataC] at hU hU2
+  have hU1 : RedT S k' U (.data Θ.idx ps1) := RedT.to_red hW r e h1
+  have hU2' : RedT S k'' U2 (.data Θ.idx ps2) := RedT.to_red hW r2 e2 h2
+  have hUc := closed_of_isTyK hW hUb.2.1
+  have hU2c := closed_of_isTyK hW hU2b.2.1
+  -- the reduct at `σ`, at its own stage and at `σ'`
+  obtain ⟨p0, -, f0, -, -, -, -, -, a00, -, -⟩ := hU.2.1 k' (ISub.id k')
+  rw [isub_id_of_closed hUc] at f0
+  obtain rfl : ps1 = p0 := (redT_data_eq (RedT.to_red hW hU1.1.1 hU1.2 f0)).symm
+  obtain ⟨q, q', g1, g2, hql, hq'l, a12, a21, a11, a22, p12⟩ := hU.2.1 k'' σ'
+  obtain ⟨c1, c2, c3⟩ := hU.2.2.1 k' (ISub.id k') k'' σ' ps1 q (by rw [isub_id_of_closed hUc]; exact hU1)
+    (by rw [ISub.id_comp]; exact g1)
+  -- the reduct at `σ ∘ σ'`, at its own stage
+  obtain ⟨p2, p2', f1, f2, -, -, b12, b21, b11, b22, pb⟩ := hU2.2.1 k'' (ISub.id k'')
+  rw [isub_id_of_closed hU2c] at f1
+  obtain rfl : ps2 = p2 := (redT_data_eq (RedT.to_red hW hU2'.1.1 hU2'.2 f1)).symm
+  have g2' : RedT S k'' (T'.isub (σ.comp σ')) (.data Θ.idx q') := by rw [← Tm.isub_isub]; exact g2
+  rw [isub_id_of_closed (closed_of_isTyK hW hU2b.2.2.1)] at f2
+  obtain rfl : q' = p2' := by have := RedW.unique g2'.1 f2.1; injection this
+  -- everything at the base `f` and the restriction `σ ∘ σ'`
+  have ub : ∀ {x y : Tm}, argRel2 S Θ (f.comp σ.hom) k'' σ' x y → argRelH Θ f S k'' (σ.comp σ').hom x y :=
+    fun h => (argRel2_iff Θ _).1 (argRel2_unbase f σ h)
+  have ub0 : ∀ {x y : Tm}, argRel2 S Θ (f.comp σ.hom) k'' ((ISub.id k').comp σ') x y →
+      argRelH Θ f S k'' (σ.comp σ').hom x y := fun h => by rw [ISub.id_comp] at h; exact ub h
+  have ub2 : ∀ {x y : Tm}, argRel2 S Θ (f.comp (σ.comp σ').hom) k'' (ISub.id k'') x y →
+      argRelH Θ f S k'' (σ.comp σ').hom x y := fun h => by
+    have := (argRel2_iff Θ _).1 (argRel2_unbase f (σ.comp σ') h); rwa [ISub.comp_id] at this
+  have pb0 : ∀ {x y : Tm}, parRel2 S Θ (f.comp σ.hom) k'' ((ISub.id k').comp σ') x y →
+      parRel2 S Θ f k'' (σ.comp σ') x y := fun h => by
+    rw [ISub.id_comp] at h; exact parRel2_unbase f σ h
+  have pb1 : ∀ {x y : Tm}, parRel2 S Θ (f.comp σ.hom) k'' σ' x y → parRel2 S Θ f k'' (σ.comp σ') x y :=
+    fun h => parRel2_unbase f σ h
+  have pb2 : ∀ {x y : Tm}, parRel2 S Θ (f.comp (σ.comp σ').hom) k'' (ISub.id k'') x y →
+      parRel2 S Θ f k'' (σ.comp σ') x y := fun h => by
+    have := parRel2_unbase f (σ.comp σ') h; rwa [ISub.comp_id] at this
+  have d1 : argRelH Θ f S k'' (σ.comp σ').hom (ps1.isub σ') (ps1.isub σ') := by
+    have := argRelH_isub Θ f ((argRel2_iff Θ _).1 (argRel2_unbase f σ a00)) σ'
+    rwa [ISub.comp_id, ← ISub.hom_comp] at this
+  -- typing of the parameters
+  have tU : IsTyK S k' (.data Θ.idx ps1) := hUb.2.1.of_tyEq hU1.2
+  have t1 : IsTyK S k'' (.data Θ.idx (ps1.isub σ')) := tU.isub hW σ'
+  have tq : IsTyK S k'' (.data Θ.idx q) := (hUb.2.1.isub hW σ').of_tyEq g1.2
+  have tq' : IsTyK S k'' (.data Θ.idx q') := ((hUb.2.2.1.isub hW σ').of_tyEq g2.2)
+  have t2 : IsTyK S k'' (.data Θ.idx ps2) := hU2b.2.1.of_tyEq hU2'.2
+  have e1q : TyEq S k'' (.data Θ.idx (ps1.isub σ')) (.data Θ.idx q) :=
+    (hU1.2.isub hW σ').symm.trans hW g1.2
+  have eqq' : TyEq S k'' (.data Θ.idx q) (.data Θ.idx q') :=
+    (g1.2.symm.trans hW (hUb.2.2.2.2.2.isub hW σ')).trans hW g2.2
+  have eq'2 : TyEq S k'' (.data Θ.idx q') (.data Θ.idx ps2) :=
+    (g2'.2.symm.trans hW hU2b.2.2.2.2.2.symm).trans hW hU2'.2
+  have e2q' : TyEq S k'' (.data Θ.idx ps2) (.data Θ.idx q) := (eqq'.trans hW eq'2).symm
+  have r1q' := argRelH_comp hW f hP (ub0 c1) d1 (ub a11) (ub a12) t1 tq tq' hql e1q
+  have r12 := argRelH_comp hW f hP r1q' d1 (ub a22) (ub2 b21) t1 tq' t2 hq'l (e1q.trans hW eqq')
+  have r2q := argRelH_comp hW f hP (ub2 b12) (ub2 b11) (ub2 b22) (ub a21) t2 tq' tq hq'l eq'2.symm
+  have r21 := argRelH_comp hW f hP r2q (ub2 b11) (ub a11) (ub0 c2) t2 tq t1 hql e2q'
+  have hl1 := data_len_of hW t1
+  have hlq := data_len_of hW tq
+  have hlq' := data_len_of hW tq'
+  have pr := parRel2_trans ihp f (σ.comp σ') (by rw [hlq, hl1]) (pb0 c3)
+    (parRel2_trans ihp f (σ.comp σ') (by rw [hlq', hlq]) (pb1 p12) (parRel2_symm ihp f (σ.comp σ') (pb2 pb)))
+  exact ⟨(argRel2_iff Θ _).2 r12, (argRel2_iff Θ _).2 r21, pr⟩
+
 theorem he2_dataC {Θ : SData m}
     (hP : ∀ {n : ℕ} (h : Hom n m) (c j : ℕ) (pre : List V),
-      PERP (Comp2 S (tyLook (shapeV (Θ.restr h)) c j pre) n n (Hom.id n))) : HE2 S m (dataC Θ) := by
+      PERP (Comp2 S (tyLook (shapeV (Θ.restr h)) c j pre) n n (Hom.id n)))
+    (ihp : ∀ n (g : Hom n m) j t X, vnth (Θ.pt n g) j = ZFSet.pair t X → PER2 S n X) : HE2 S m (dataC Θ) := by
   intro k f T T' t t'
   constructor
   · intro hT hT' hall
     obtain ⟨U0, -, e0, hU0⟩ := hypT_id hW hT hT' hall
-    rw [Comp2_dataC]
-    refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_⟩
+    have hc0 := cohData_expand hW hP ihp hall
+    have hb0 := base_expand hW hT e0 hU0
+    rw [Comp2_dataC] at hU0 ⊢
+    refine ⟨hb0, fun k' σ => ?_, hc0, hU0.2.2.2⟩
     obtain ⟨U, r, e, hU⟩ := hall k' σ
     rw [Comp2_dataC] at hU
-    obtain ⟨⟨hUt, hVt, -⟩, hc⟩ := hU
+    obtain ⟨⟨hUt, hVt, -⟩, hc, -⟩ := hU
     obtain ⟨ps, ps', h1, h2, hpl, hpl', a1, a2, a3, a4, a5⟩ := hc k' (ISub.id k')
     rw [isub_id_of_closed (closed_of_isTyK hW hUt)] at h1
     rw [isub_id_of_closed (closed_of_isTyK hW hVt)] at h2
@@ -926,7 +1005,7 @@ theorem he2_dataC {Θ : SData m}
     have hyp : ∀ k' (σ : ISub k' k) ps, RedT S k' (T.isub σ) (.data Θ.idx ps) →
         argRelH Θ f S k' σ.hom ps ps := by
       intro k' σ ps hps
-      obtain ⟨ps1, -, h1, -, -, -, -, -, a3, -⟩ := hTall.2 k' σ
+      obtain ⟨ps1, -, h1, -, -, -, -, -, a3, -⟩ := hTall.2.1 k' σ
       obtain rfl := redT_data_eq (RedT.to_red hW h1.1.1 h1.2 hps)
       exact (argRel2_iff Θ σ).1 a3
     -- the reducts at every restriction

@@ -67,8 +67,8 @@ theorem kr2_per2_he2_wf : ∀ l, l ≤ maxLevel → ∀ m X, WF l m X → KR2 S 
       rc2_glueC hW hA.fib.kv hφ hTn (fun k f hh => (hTw k f hh).fib.kv) (fun k f hh => (ihT k f hh).2.2.2)⟩
   · intro l m Θ hc hw hpw ih ihp
     exact ⟨kr2_dataC hW (WF.fib (show WF l m (dataC Θ) from WFI.data Θ hc hw hpw)), per2_dataC hW (fun c j n g pre hp =>
-      (ih c j n g pre hp).2.1) (fun n g j t X e => (ihp n g j t X e).2.1), he2_dataC hW fun h c j pre => perP_tyLook (fun c j n g pre hp =>
-      (ih c j n g pre hp).2.1) h c j pre, rc2_dataC hW⟩
+      (ih c j n g pre hp).2.1) (fun n g j t X e => (ihp n g j t X e).2.1), he2_dataC hW (fun h c j pre => perP_tyLook (fun c j n g pre hp =>
+      (ih c j n g pre hp).2.1) h c j pre) (fun n g j t X e => (ihp n g j t X e).2.1), rc2_dataC hW⟩
 
 theorem per2_wf (l : ℕ) (hl : l ≤ maxLevel) (m : ℕ) (X : V) (hX : WF l m X) : PER2 S m X :=
   (kr2_per2_he2_wf hW l hl m X hX).2.1
