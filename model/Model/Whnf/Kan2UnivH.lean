@@ -38,6 +38,11 @@ theorem hcompU_isub (φ : I) (u u0 : Tm) (σ : ISub k' k) :
   rw [dupS_var] at h
   exact h
 
+theorem step_hcomp_univ {l : ℕ} {ψ : I} {u a : Tm} (hn : ¬ I.Entails .one ψ) :
+    step S (.hcomp (.univ l) ψ u a) = some (Tm.hcompU ψ u a) := by
+  have hn' : I.entails .one ψ = false := by simpa [I.Entails] using hn
+  rw [step]; simp only [hn', Bool.false_eq_true, ↓reduceIte]; rfl
+
 variable (hW : WfSig S)
 include hW
 
@@ -211,6 +216,75 @@ theorem RE2_hcompU {X' : Tm} {ψ ψ' : I} {u u' a a' : Tm} {l : ℕ} (hKT : KTAt
   · have : RE2 S k' ((Tm.equiv (u'.dinst .one) a').isub σ) ((Tm.lineEquiv (u'.dsubst revI)).isub σ)
         ((Tm.lineEquiv (u'.dsubst revI)).isub σ) := (VR k' (CSub2.diagF S (cof .one ψ') σ (hc' σ hh))).2
     rwa [isub_equiv] at this
+
+
+/-- A composition at a type with a universe as normal form reduces to `hcompU`. -/
+theorem red_hcomp_univ {X u a : Tm} {ψ : I} {l : ℕ} (hty : HasTy S k .one [] (.hcomp X ψ u a) X)
+    (hR : RedT S k X (.univ l)) (hn : ¬ I.Entails .one ψ) :
+    Red S (.hcomp X ψ u a) (Tm.hcompU ψ u a) ∧ EqTm S k .one [] (.hcomp X ψ u a) (Tm.hcompU ψ u a) X := by
+  have r := hcomp_retype hW hty hR.2
+  exact ⟨(red_hcomp_ty hn hR.1.1).trans (.step (step_hcomp_univ hn) (.refl _)), r.2.trans (EqTm.hcompU r.1)⟩
+
+/-- Composition at a pair of related types whose normal forms are universes. -/
+theorem kanH2_univ {T T' : Tm} {l : ℕ} (hKT : KTAt S l) (hTT : RT2 S k T T') (hR : RedT S k T (.univ l)) :
+    KanH2 S k T T' := by
+  intro ψ ψ' u u' a a' hty hty' heq hteq h12 h21 htube ha hbd hbd'
+  have K : KD S k T T' ψ ψ' u u' a a' := ⟨hty, hty', heq, hteq, h12, h21, htube, ha, hbd, hbd'⟩
+  have hcl := univ_clause hW hTT hR
+  have hXT : TyCode k (semK S k T) := tyCode_of_ty hW hty
+  have hTTd : RT2 S k T T := RT2.refl hW hXT hTT
+  have hTK : IsTyK S k T := (Comp2_ty_base hTT).2.1
+  have hTU : ∀ {k'} (σ : ISub k' k), RT2 S k' (T.isub σ) (.univ l) := fun σ =>
+    RT2_toUniv hW (hTK.isub hW σ) fun k'' ρ => by rw [Tm.isub_isub]; exact (hcl _ _).1
+  obtain ⟨-, ⟨-, hψs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
+  have hTT'e : TyEq S k T T' := (Comp2_ty_base hTT).2.2.2.2.2
+  refine RE2.expandBoth hW hXT hTTd hty hty'
+    (fun k' σ => if I.Entails .one (ψ.subst σ.τ) then (u.isub σ.up).dinst .one
+      else Tm.hcompU (ψ.subst σ.τ) (u.isub σ.up) (a.isub σ))
+    (fun k' σ => if I.Entails .one (ψ'.subst σ.τ) then (u'.isub σ.up).dinst .one
+      else Tm.hcompU (ψ'.subst σ.τ) (u'.isub σ.up) (a'.isub σ))
+    (fun k' σ => ?_) (fun k' σ => ?_) (fun k' σ k'' ρ => ?_)
+  · have htyσ : HasTy S k' .one [] (.hcomp (T.isub σ) (ψ.subst σ.τ) (u.isub σ.up) (a.isub σ)) (T.isub σ) :=
+      HasTy.isubS hW hty σ
+    rw [isub_hcomp]
+    dsimp only
+    split_ifs with hψ
+    · exact ⟨.step (step_hcomp_face hψ) (.refl _), EqTm.hcompFace hψ htyσ⟩
+    · exact red_hcomp_univ hW htyσ (hcl k' σ).1 hψ
+  · have htyσ : HasTy S k' .one [] (.hcomp (T'.isub σ) (ψ'.subst σ.τ) (u'.isub σ.up) (a'.isub σ)) (T.isub σ) :=
+      HasTy.isubS hW hty' σ
+    have eσ : TyEq S k' (T.isub σ) (T'.isub σ) := TyEq.isub hW σ hTT'e
+    rw [isub_hcomp]
+    dsimp only
+    split_ifs with hψ
+    · exact ⟨.step (step_hcomp_face hψ) (.refl _), EqTm.hcompFace hψ htyσ⟩
+    · have r := red_hcomp_univ hW (htyσ.tyConv eσ) (hcl k' σ).2 hψ
+      exact ⟨r.1, r.2.tyConv (TyEq.symm eσ)⟩
+  · dsimp only
+    have hτ0 : ∀ {x : I}, x.subst (σ.comp ρ).τ = (x.subst σ.τ).subst ρ.τ := fun {x} => I_subst_comp x σ ρ
+    have hholdψ : ∀ {k3} (τ : ISub k3 k), I.Entails .one (ψ.subst τ.τ) → (ival (idEnv k3) (ψ.subst τ.τ)).holds :=
+      fun τ h => (holds_iff_entails (I.scoped_subst hψs τ.sc)).2 h
+    by_cases hψ : I.Entails .one (ψ.subst σ.τ)
+    · have hψ2 : I.Entails .one (ψ.subst (σ.comp ρ).τ) := by rw [hτ0]; exact ent_one_subst hψ ρ.τ
+      have hψ2' : I.Entails .one (ψ'.subst (σ.comp ρ).τ) := ent_trans hψ2 (ent_subst h12 _)
+      rw [if_pos hψ, if_pos hψ2', isub_dinst, Tm.isub_isub, ← ISub.up_comp]
+      exact htube k'' (σ.comp ρ) _ _ trivial trivial (I_eq_refl _) (hholdψ _ hψ2)
+    rw [if_neg hψ, hcompU_isub, Tm.isub_isub u, ← ISub.up_comp, Tm.isub_isub a, ← hτ0]
+    have hTU2 := hTU (σ.comp ρ)
+    have hTX : TyCode k'' (semK S k'' (T.isub (σ.comp ρ))) := tyCode_of_ty hW (HasTy.isubS hW hty (σ.comp ρ))
+    have hUT := RT2.symm hW hTX hTU2
+    have K2 := (K.isub hW (σ.comp ρ)).retype hW hTU2
+    by_cases hψ2' : I.Entails .one (ψ'.subst (σ.comp ρ).τ)
+    · -- the face holds at the further restriction: the Glue type is the tube's end
+      have hψ2 : I.Entails .one (ψ.subst (σ.comp ρ).τ) := ent_trans hψ2' (ent_subst h21 _)
+      rw [if_pos hψ2']
+      have tb := RE2.conv hW hTU2 (htube k'' (σ.comp ρ) .one .one trivial trivial (I_eq_refl _) (hholdψ _ hψ2))
+      have hGτ := HasTy.eqR (EqTm.hcompU K2.hty)
+      rw [hcompU_eq] at hGτ ⊢
+      exact RE2.conv hW hUT (RE2.expandL hW (RT2_univ hW) hGτ (RE2.typed tb).2.1 (stable_glueU hW hGτ hψ2) tb)
+    · rw [if_neg hψ2']
+      have hn2 : ¬ I.Entails .one (ψ.subst (σ.comp ρ).τ) := fun h => hψ2' (ent_trans h (ent_subst h12 _))
+      exact RE2.conv hW hUT (RE2_hcompU hW hKT K2 (fun k3 θ => by rw [Tm.isub_isub]; exact (hcl _ _).2) hn2)
 
 end
 
