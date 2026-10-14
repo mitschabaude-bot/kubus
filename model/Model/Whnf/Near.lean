@@ -284,4 +284,105 @@ theorem inst {t t' a a' : Tm} (h : TmNear t t') (ha : TmNear a a') : TmNear (t.i
 
 end TmNear
 
+theorem FEq.entails {φ φ' : I} (h : FEq φ φ') : I.entails .one φ = I.entails .one φ' := by
+  cases h1 : I.entails .one φ <;> cases h2 : I.entails .one φ'
+  · rfl
+  · exact absurd (ent_trans (show I.Entails .one φ' from h2) h.2) (by simp [I.Entails, h1])
+  · exact absurd (ent_trans (show I.Entails .one φ from h1) h.1) (by simp [I.Entails, h2])
+  · rfl
+
+theorem FEq.or {a a' b b' : I} (h1 : FEq a a') (h2 : FEq b b') : FEq (.or a b) (.or a' b') :=
+  ⟨ent_or_elim (ent_trans h1.1 (ent_or_left _ _)) (ent_trans h2.1 (ent_or_right _ _)),
+    ent_or_elim (ent_trans h1.2 (ent_or_left _ _)) (ent_trans h2.2 (ent_or_right _ _))⟩
+
+theorem FEq.shift {a a' : I} (h : FEq a a') : FEq a.shift a'.shift := h.ren _
+
+theorem FEq.forall0 {a a' : I} (h : FEq a a') : FEq a.forall0 a'.forall0 := by
+  have m : ∀ {x y : I}, I.Entails x y → I.Entails x.forall0 y.forall0 := fun {x y} hxy =>
+    entails_iff.2 fun ρ hρ hx => (forall0_sem hρ y).2 (entails_iff.1 hxy _ (consAsg_k3 (by decide) hρ) ((forall0_sem hρ x).1 hx))
+  exact ⟨m h.1, m h.2⟩
+
+macro "near" : tactic => `(tactic| repeat' (first
+  | exact TmNear.refl _
+  | exact FEq.refl _
+  | exact I_eq_refl _
+  | assumption
+  | apply TmNear.pi | apply TmNear.lam | apply TmNear.app | apply TmNear.sigma | apply TmNear.pair
+  | apply TmNear.fst | apply TmNear.snd | apply TmNear.path | apply TmNear.plam | apply TmNear.papp
+  | apply TmNear.ipi | apply TmNear.split | apply TmNear.transp | apply TmNear.hcomp | apply TmNear.glue
+  | apply TmNear.glueEl | apply TmNear.unglue | apply TmNear.tcons | apply TmNear.data
+  | apply TmNear.shift | apply TmNear.dshift | apply TmNear.dinst | apply TmNear.inst | apply TmNear.ren
+  | apply FEq.or | apply FEq.shift | apply FEq.forall0 | apply FEq.ren | apply FEq.subst2
+  | apply near_comp | apply near_fill | apply near_transpFill | apply near_hfill
+  | apply TmNear.dsubst | apply TmNear.subst
+  | (intro i; exact I_eq_refl _)
+  | (intro n; exact TmNear.refl _)
+  | (intro n; rcases n with _ | n <;> simp only)))
+
+theorem near_comp {C C' u u' u0 u0' : Tm} {ψ ψ' : I} (hC : TmNear C C') (hψ : FEq ψ ψ') (hu : TmNear u u')
+    (hu0 : TmNear u0 u0') : TmNear (Tm.comp C ψ u u0) (Tm.comp C' ψ' u' u0') := by
+  simp only [Tm.comp]; near
+
+theorem near_hfill {A A' u u' u0 u0' : Tm} {ψ ψ' : I} (hA : TmNear A A') (hψ : FEq ψ ψ') (hu : TmNear u u')
+    (hu0 : TmNear u0 u0') : TmNear (Tm.hfill A ψ u u0) (Tm.hfill A' ψ' u' u0') := by
+  simp only [Tm.hfill]; near
+
+theorem near_transpPi {A A' B B' a a' : Tm} {φ φ' : I} (hA : TmNear A A') (hB : TmNear B B') (hφ : FEq φ φ')
+    (ha : TmNear a a') : TmNear (Tm.transpPi A B φ a) (Tm.transpPi A' B' φ' a') := by
+  simp only [Tm.transpPi]; near
+
+theorem near_transpFill {A A' a a' : Tm} {φ φ' : I} (hA : TmNear A A') (hφ : FEq φ φ') (ha : TmNear a a') :
+    TmNear (Tm.transpFill A φ a) (Tm.transpFill A' φ' a') := by
+  simp only [Tm.transpFill]; near
+
+theorem near_fill {C C' u u' u0 u0' : Tm} {ψ ψ' : I} (hC : TmNear C C') (hψ : FEq ψ ψ') (hu : TmNear u u')
+    (hu0 : TmNear u0 u0') : TmNear (Tm.fill C ψ u u0) (Tm.fill C' ψ' u' u0') := by
+  simp only [Tm.fill, Tm.comp]; near
+
+theorem near_transpSigma {A A' B B' a a' : Tm} {φ φ' : I} (hA : TmNear A A') (hB : TmNear B B') (hφ : FEq φ φ')
+    (ha : TmNear a a') : TmNear (Tm.transpSigma A B φ a) (Tm.transpSigma A' B' φ' a') := by
+  simp only [Tm.transpSigma, Tm.transpFill]; near
+
+theorem near_transpPath {A A' x x' y y' a a' : Tm} {φ φ' : I} (hA : TmNear A A') (hx : TmNear x x')
+    (hy : TmNear y y') (hφ : FEq φ φ') (ha : TmNear a a') :
+    TmNear (Tm.transpPath A x y φ a) (Tm.transpPath A' x' y' φ' a') := by
+  simp only [Tm.transpPath, Tm.comp]; near
+
+theorem near_transpIPi {A A' a a' : Tm} {φ φ' : I} (hA : TmNear A A') (hφ : FEq φ φ') (ha : TmNear a a') :
+    TmNear (Tm.transpIPi A φ a) (Tm.transpIPi A' φ' a') := by
+  simp only [Tm.transpIPi]; near
+
+theorem near_hcompPi {A A' B B' u u' a a' : Tm} {φ φ' : I} (hA : TmNear A A') (hB : TmNear B B') (hφ : FEq φ φ')
+    (hu : TmNear u u') (ha : TmNear a a') : TmNear (Tm.hcompPi A B φ u a) (Tm.hcompPi A' B' φ' u' a') := by
+  simp only [Tm.hcompPi]; near
+
+theorem near_hcompSigma {A A' B B' u u' a a' : Tm} {φ φ' : I} (hA : TmNear A A') (hB : TmNear B B')
+    (hφ : FEq φ φ') (hu : TmNear u u') (ha : TmNear a a') :
+    TmNear (Tm.hcompSigma A B φ u a) (Tm.hcompSigma A' B' φ' u' a') := by
+  simp only [Tm.hcompSigma, Tm.hfill, Tm.comp]; near
+
+theorem near_hcompPath {A A' x x' y y' u u' a a' : Tm} {φ φ' : I} (hA : TmNear A A') (hx : TmNear x x')
+    (hy : TmNear y y') (hφ : FEq φ φ') (hu : TmNear u u') (ha : TmNear a a') :
+    TmNear (Tm.hcompPath A x y φ u a) (Tm.hcompPath A' x' y' φ' u' a') := by
+  simp only [Tm.hcompPath]; near
+
+theorem near_hcompIPi {A A' u u' a a' : Tm} {φ φ' : I} (hA : TmNear A A') (hφ : FEq φ φ') (hu : TmNear u u')
+    (ha : TmNear a a') : TmNear (Tm.hcompIPi A φ u a) (Tm.hcompIPi A' φ' u' a') := by
+  simp only [Tm.hcompIPi]; near
+
+theorem near_hcompGlue {A A' T T' e e' u u' a a' : Tm} {φ φ' ψ ψ' : I} (hA : TmNear A A') (hφ : FEq φ φ')
+    (hT : TmNear T T') (he : TmNear e e') (hψ : FEq ψ ψ') (hu : TmNear u u') (ha : TmNear a a') :
+    TmNear (Tm.hcompGlue A φ T e ψ u a) (Tm.hcompGlue A' φ' T' e' ψ' u' a') := by
+  simp only [Tm.hcompGlue, Tm.hfill]; near
+
+theorem near_hcompU {u u' a a' : Tm} {φ φ' : I} (hφ : FEq φ φ') (hu : TmNear u u') (ha : TmNear a a') :
+    TmNear (Tm.hcompU φ u a) (Tm.hcompU φ' u' a') := by
+  simp only [Tm.hcompU, Tm.lineEquiv, Tm.lineFun, Tm.idIsEquiv, Tm.isEquiv, Tm.isContr, Tm.fiber]; near
+
+set_option maxHeartbeats 4000000 in
+theorem near_transpGlueWith {A A' T T' e e' a a' : Tm} {δ δ' φ φ' ψ ψ' : I} (hδ : FEq δ δ') (hA : TmNear A A')
+    (hφ : FEq φ φ') (hT : TmNear T T') (he : TmNear e e') (hψ : FEq ψ ψ') (ha : TmNear a a') :
+    TmNear (Tm.transpGlueWith δ A φ T e ψ a) (Tm.transpGlueWith δ' A' φ' T' e' ψ' a') := by
+  simp only [Tm.transpGlueWith, Tm.fiber, Tm.pathC]; near
+
 end Model.Whnf
