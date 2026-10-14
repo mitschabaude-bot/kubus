@@ -88,9 +88,11 @@ theorem LineConst.transport {W X : Tm} {ψ : I} {l : ℕ} (hWt : HasTy S (k + 1)
 /-- Transport along related lines whose normal forms are Glue types. -/
 theorem kanT2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S (k + 1) T T')
     (hR : RedT S (k + 1) T (.glue A φ Tf e)) (hG : HasTy S (k + 1) .one [] (.glue A φ Tf e) (.univ l))
-    (hIHA : ∀ k1 (ρ1 : ISub k1 (k + 1)) A1 φ1 T1 e1, RedT S k1 (T.isub ρ1) (.glue A1 φ1 T1 e1) →
+    (hIHA : ∀ k1 (ρ1 : ISub k1 (k + 1)) A1 φ1 T1 e1, ¬ (ival (idEnv k1) (φ.subst ρ1.τ)).holds →
+      RedT S k1 (T.isub ρ1) (.glue A1 φ1 T1 e1) →
       KHRel S k1 A1 ∧ KTRel S k1 A1)
-    (hIHT : ∀ k1 (ρ1 : ISub k1 (k + 1)) A1 φ1 T1 e1, RedT S k1 (T.isub ρ1) (.glue A1 φ1 T1 e1) →
+    (hIHT : ∀ k1 (ρ1 : ISub k1 (k + 1)) A1 φ1 T1 e1, ¬ (ival (idEnv k1) (φ.subst ρ1.τ)).holds →
+      RedT S k1 (T.isub ρ1) (.glue A1 φ1 T1 e1) →
       (∀ k2 (σ : ISub k2 k1), (ival (idEnv k2) (φ1.subst σ.τ)).holds → ∀ X X', RT2 S k2 (T1.isub σ) X →
         RT2 S k2 X X' → KanH2 S k2 X X') ∧
       (∀ k2 (Θ : ISub (k2 + 1) k1), (ival (idEnv (k2 + 1)) (φ1.subst Θ.τ)).holds → ∀ X X',
@@ -227,7 +229,7 @@ theorem kanT2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S (k + 1) T 
     rw [isub_glue] at hGTΘ
     have hTfT : RT2 S (k5 + 1) (Tf.isub (κ.comp κ').up) (T.isub (κ.comp κ').up) :=
       RT2.trans hW hTfX (RT2_glue_fib0 hW hGΘ hfe (invG.2 _ (κ.comp κ').up hfτ).1) hGTΘ
-    have K := (hIHT (k + 1) (ISub.id (k + 1)) A φ Tf e hR0).2 k5 (κ.comp κ').up hfτ _ _ hTfT (hTτ' _)
+    have K := (hIHT (k + 1) (ISub.id (k + 1)) A φ Tf e (by rw [I_subst_id hφs]; exact fun h => hn ((holds_iff_entails hφs).1 h)) hR0).2 k5 (κ.comp κ').up hfτ _ _ hTfT (hTτ' _)
     have ha0Θ : RE2 S k5 ((T.isub (κ.comp κ').up).dinst .zero) (a0.isub (κ.comp κ')) (a0'.isub (κ.comp κ')) := by
       have := RE2.isub hW ha0 (κ.comp κ'); rwa [isub_dinst] at this
     have r := K (hLR.isub (κ.comp κ')) _ _ _ _ (hC.isub (κ.comp κ')) (hρT k5 (κ.comp κ')) (hρT' k5 (κ.comp κ'))
@@ -260,8 +262,8 @@ theorem kanT2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S (k + 1) T 
       (T1 (k4 + 1) κ.up hf) (e1 (k4 + 1) κ.up hf)).dinst .one) :=
     minimal_to_spec (HasTy0.transp hW0 (I.scoped_subst hψs κ.sc) hconstW (spec_to_minimal hW (RE2.typed ha0W).2.1))
   have heqκ := eqTm_transp_of hW htyκ hty'κ (TyEq.refl _) (ent_refl _) (ent_refl _) (RE2.typed ha0W).2.2
-  have IA := hIHA (k4 + 1) κ.up _ _ _ _ hwκ.1
-  have IT := hIHT (k4 + 1) κ.up _ _ _ _ hwκ.1
+  have IA := hIHA (k4 + 1) κ.up _ _ _ _ hf hwκ.1
+  have IT := hIHT (k4 + 1) κ.up _ _ _ _ hf hwκ.1
   have Dκ := TGD2_mk hW hWt hnκ hWt hnκ rGGκ rGGκ IA.1 IA.2 IT.1 IT.2 (forall0_scoped hφ1s) (ent_refl _)
     (ent_refl _) (forall0_scoped hφ1s) (ent_refl _) (ent_refl _) htyκ hty'κ heqκ (ent_refl _) (ent_refl _) cGκ ha0W
   have D2 := Dκ.isub hW κ'
