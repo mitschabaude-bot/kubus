@@ -142,7 +142,7 @@ theorem sound_eq {S : Sig} (hS : SigOK S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {t u A 
   | .glueFace h0 h1 => sem_EqTm_glueFace h0 (sound_ty hS h1)
   | .glueElFace h0 h1 => sem_EqTm_glueElFace h0 (sound_ty hS h1)
   | .unglueFace h0 h1 h2 h3 => sem_EqTm_unglueFace h0 (sound_ty hS h1) (sound_ty hS h2) (sound_ty hS h3)
-  | .glueBeta h0 _ => sem_EqTm_glueBeta (sound_ty hS h0)
+  | .glueBeta h0 _ _ => sem_EqTm_glueBeta (sound_ty hS h0)
   | .piInjDom h0 => sem_EqTm_piInjDom (sound_eq hS h0)
   | .piInjCod h0 h1 => sem_EqTm_piInjCod (sound_eq hS h0) (sound_ty hS h1)
   | .sigmaInjDom h0 => sem_EqTm_sigmaInjDom (sound_eq hS h0)

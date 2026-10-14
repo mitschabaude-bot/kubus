@@ -590,6 +590,8 @@ structure State where
   rejected : Nat := 0
   /-- add the translated term and type to rejections -/
   verbose : Bool := false
+  /-- the certified definitions with their translated types, in order (for the adequacy check) -/
+  certTys : Array (String × Nat × KTm) := #[]
 
 def showName (n : String) (k : Nat) : String := if k == 0 then n else s!"{n}^{k}"
 
@@ -675,7 +677,7 @@ def translate (env : Env) (R : Rec S) (E : KCtx S 0 .one []) (ty body : Kubus.Tm
 failed translation; the outer one a rejection by the kernel. -/
 def translateCheck (env : Env) (C : CheckedSig) (ty body : Kubus.Tm) (verbose : Bool := false) :
     Except String (Except String (KTm × KTm × CheckedSig)) := runK do
-  let (R, E) ← setup C.sig
+  let (R, E) ← setup C.sig defaultFuel (some ⟨C.wf⟩)
   match ← tryCatch (Except.ok <$> translate env R E ty body) (fun e => pure (.error e)) with
   | .error e => return .error e
   | .ok (kty, kbody) =>
@@ -738,9 +740,9 @@ partial def addGlobal (g : Globals) (n : String) (k : Nat) : StateM State (List 
   let s ← get
   match translateCheck { s.env with globals := g } s.sig ty body s.verbose with
   | .ok (.error e) => return out ++ (← skip e)
-  | .ok (.ok (_, _, sig')) =>
+  | .ok (.ok (kty, _, sig')) =>
       set { s with sig := sig', env.consts := s.env.consts.insert (n, k) s.sig.sig.length,
-                   certified := s.certified + 1 }
+                   certified := s.certified + 1, certTys := s.certTys.push (n, k, kty) }
       return out ++ [s!"kernel: certified {showName n k}"]
   | .error e =>
       set { s with skipped := s.skipped.insert (n, k) "rejected", rejected := s.rejected + 1 }

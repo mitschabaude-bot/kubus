@@ -30,6 +30,53 @@ theorem pairP_isub (A : Tm) (φ : I) (T e : Tm) (ψ : I) (u0 : Tm) (τ : ISub k'
 variable (hW : WfSig S)
 include hW
 
+
+/-- A line related to itself is related to itself at the identity. -/
+theorem LineRob.self {C C' : Tm} (h : LineRob S k C C') (hc : C.closedB 0 (k + 1) = true)
+    (hc' : C'.closedB 0 (k + 1) = true) : RT2 S (k + 1) C C' := by
+  have := h (k + 1) (ISub.id k).up.tail (.var 0) (.var 0) (show 0 < k + 1 by omega) (show 0 < k + 1 by omega)
+    (I_eq_refl _)
+  rwa [ISub.cons_var0_up_tail, isub_up_id_of_closed hc, isub_up_id_of_closed hc'] at this
+
+/-- The data of a transport along a pair of related literal Glue lines. -/
+theorem TGD2_mk {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I} {l l' : ℕ}
+    (hG : HasTy S (k + 1) .one [] (.glue A φ T e) (.univ l)) (hn : ¬ I.Entails .one φ)
+    (hG' : HasTy S (k + 1) .one [] (.glue A' φ' T' e') (.univ l')) (hn' : ¬ I.Entails .one φ')
+    (rG : LineRob S k (.glue A φ T e) (.glue A' φ' T' e')) (rGG : LineRob S k (.glue A φ T e) (.glue A φ T e))
+    (kAR : KHRel S (k + 1) A) (kATR : KTRel S (k + 1) A)
+    (kTR : ∀ k' (σ : ISub k' (k + 1)), (ival (idEnv k') (φ.subst σ.τ)).holds → ∀ X X', RT2 S k' (T.isub σ) X →
+      RT2 S k' X X' → KanH2 S k' X X')
+    (kTTR : ∀ k' (Θ : ISub (k' + 1) (k + 1)), (ival (idEnv (k' + 1)) (φ.subst Θ.τ)).holds → ∀ X X',
+      RT2 S (k' + 1) (T.isub Θ) X → RT2 S (k' + 1) X X' → KanT2 S k' X X')
+    (hδs : δ.Scoped k) (hδ1 : I.Entails δ φ.forall0) (hδ2 : I.Entails φ.forall0 δ)
+    (hδs' : δ'.Scoped k) (hδ1' : I.Entails δ' φ'.forall0) (hδ2' : I.Entails φ'.forall0 δ')
+    (hty : HasTy S k .one [] (.transp (.glue A φ T e) ψ u0) ((Tm.glue A φ T e).dinst .one))
+    (hty' : HasTy S k .one [] (.transp (.glue A' φ' T' e') ψ' u0') ((Tm.glue A φ T e).dinst .one))
+    (heq : EqTm S k .one [] (.transp (.glue A φ T e) ψ u0) (.transp (.glue A' φ' T' e') ψ' u0')
+      ((Tm.glue A φ T e).dinst .one))
+    (p12 : I.Entails ψ ψ') (p21 : I.Entails ψ' ψ) (cG : LineConst S k (.glue A φ T e) ψ)
+    (ha0 : RE2 S k ((Tm.glue A φ T e).dinst .zero) u0 u0') :
+    TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ' := by
+  have hGc := closed_of_ty hW hG
+  have hGc' := closed_of_ty hW hG'
+  have W := rG.self hW hGc hGc'
+  have WW := rGG.self hW hGc hGc
+  have inv := RT2_glueW_inv hW hG hG' hn hn' W (redT_glue_self hn) (redT_glue_self hn')
+  have invL := RT2_glueW_inv hW hG hG hn hn WW (redT_glue_self hn) (redT_glue_self hn)
+  have fc := RT2_glueW_face hW hG hG' hn W (redT_glue_self hn) (redT_glue_self hn')
+  obtain ⟨-, lA, hA0, -⟩ := glue_data hW hG
+  obtain ⟨-, lA', hA0', -⟩ := glue_data hW hG'
+  have hXA := tyCode_of_univ hW hA0
+  have rA : LineRob S k A A' := fun k' τ r r' hr hr' he =>
+    RT2_near hW (tyCode_of_univ hW (HasTy.isubS hW hA0 _)) (RT2.isub hW hXA inv.1 (ISub.cons r hr τ))
+      (near_cons A' hr hr' he) ⟨lA', .inl (HasTy.isubS hW hA0' _)⟩
+  have rAA : LineRob S k A A := fun k' τ r r' hr hr' he =>
+    RT2_near hW (tyCode_of_univ hW (HasTy.isubS hW hA0 _)) (RT2.isub hW hXA invL.1 (ISub.cons r hr τ))
+      (near_cons A hr hr' he) ⟨lA, .inl (HasTy.isubS hW hA0 _)⟩
+  exact ⟨⟨l, hG⟩, ⟨l', hG'⟩, rA, rAA, fun k' σ hh => (inv.2 k' σ hh).1, fun k' σ hh => (invL.2 k' σ hh).1,
+    fun k' σ hh => (inv.2 k' σ hh).2, fun k' σ hh => (invL.2 k' σ hh).2, fc.1, fc.2, kAR, kATR, kTR, kTTR,
+    hδs, hδ1, hδ2, hδs', hδ1', hδ2', hty, hty', heq, p12, p21, rG, rGG, cG, ha0⟩
+
 section
 variable {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
   (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ')

@@ -715,6 +715,7 @@ theorem GHD.baseKD {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
   have eG' := EqTm.hcompGlue (minimal_to_spec hty'G') hA0' he0'
   rw [KubusCore.Meta.hcompGlue_eq] at eG eG'
   have v1 := EqTm.glueBeta (unglue_ty hW hGK ⟨lA, hA0, he0⟩ (HasTy.eqR eG)) (minimal_to_spec parts.2.1)
+    (minimal_to_spec_eq (EqTm0.symm parts.2.2.2.2.2))
   have v2 := EqTm.unglue (unglue_ty hW hGK ⟨lA, hA0, he0⟩ D.hty) (unglue_ty hW hGK ⟨lA, hA0, he0⟩ (HasTy.eqR eG))
     (ent_refl _) (ent_refl _) (EqTm.refl he0) eG
   have v3 := EqTm.unglue (unglue_ty hW hGK ⟨lA, hA0, he0⟩ D.hty)
@@ -723,6 +724,7 @@ theorem GHD.baseKD {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
   have v4 := EqTm.unglue (unglue_ty hW hG'K ⟨lA', hA0', he0'⟩ (minimal_to_spec hty'G'))
     (unglue_ty hW hG'K ⟨lA', hA0', he0'⟩ (HasTy.eqR eG')) (ent_refl _) (ent_refl _) (EqTm.refl he0') eG'
   have v5 := EqTm.glueBeta (unglue_ty hW hG'K ⟨lA', hA0', he0'⟩ (HasTy.eqR eG')) (minimal_to_spec parts'.2.1)
+    (minimal_to_spec_eq (EqTm0.symm parts'.2.2.2.2.2))
   have heqb := v1.symm.trans (v2.symm.trans (v3.trans ((v4.trans v5).tyConv (TyEq.symm hAA'))))
   -- the judgmental equality of the base tubes
   obtain ⟨l0, ⟨-, -, hT0, -⟩, -⟩ := gen_glue hS (spec_to_minimal hW hG) rfl
@@ -743,7 +745,7 @@ theorem GHD.baseKD {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
     ent_and_intro (ent_trans (ent_and_left _ _) (ent_and_left _ _)) (ent_and_right _ _)
   have hsideφ : EqTm0 S k (cof (cof .one φ) ψ) [] (u.dinst .zero) a0 T :=
     EqTm0.conv (EqTm0.restrict hφψc eψ hside) (EqTm0.restrict hφψc (ent_and_left _ _) hGT0)
-  have F := hfill_typed hS hT0 hψs parts.2.2.2.1 parts.2.2.2.2 hsideφ
+  have F := hfill_typed hS hT0 hψs parts.2.2.2.1 parts.2.2.2.2.1 hsideφ
   -- the right filler, in the context of the left face
   have hφc' : (cof .one φ').Scoped k := ⟨trivial, hφs'⟩
   have hφψc' : (cof (cof .one φ') ψ').Scoped k := ⟨hφc', hψs'⟩
@@ -753,7 +755,7 @@ theorem GHD.baseKD {A T e A' T' e' : Tm} {φ φ' ψ ψ' : I} {u u' a0 a0' : Tm}
     ent_and_intro (ent_trans (ent_and_left _ _) (ent_and_left _ _)) (ent_and_right _ _)
   have hsideφ' : EqTm0 S k (cof (cof .one φ') ψ') [] (u'.dinst .zero) a0' T' :=
     EqTm0.conv (EqTm0.restrict hφψc' eψ' hside') (EqTm0.restrict hφψc' (ent_and_left _ _) hG'T0)
-  have F' := hfill_typed hS hT0' hψs' parts'.2.2.2.1 parts'.2.2.2.2 hsideφ'
+  have F' := hfill_typed hS hT0' hψs' parts'.2.2.2.1 parts'.2.2.2.2.1 hsideφ'
   have hsh : (cof .one φ).shift.Scoped (k + 1) := KubusCore.I.scoped_shift hφc
   have hF' : HasTy0 S (k + 1) (cof .one φ).shift [] (Tm.hfill T' ψ' u' a0') T.dshift := by
     have h1 := HasTy0.restrict hsh (ent_shift (ent_and_mono (ent_refl _) D.f12)) F'.1

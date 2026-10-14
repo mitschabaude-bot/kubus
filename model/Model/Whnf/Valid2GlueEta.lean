@@ -222,6 +222,7 @@ theorem glueBeta_at {A T e t a : Tm} {φ : I} {l : ℕ}
     (hat : Valid2 S Ψ (cof Φ φ) Γ (.app (.fst e) t) a A)
     (hg : HasTy0 S Ψ Φ Γ (.glueEl φ e t a) (.glue A φ T e)) (he0 : HasTy0 S Ψ (cof Φ φ) Γ e (Tm.equiv T A))
     (hA0 : HasTy0 S Ψ Φ Γ A (.univ l)) (hty : HasTy0 S Ψ Φ Γ (.unglue φ e (.glueEl φ e t a)) A)
+    (hcoh : EqTm0 S Ψ (cof Φ φ) Γ a (.app (.fst e) t) A)
     (c : CSub2 S Ψ Φ Γ k) :
     ∃ u, Red S (c.L (.unglue φ e (.glueEl φ e t a))) u ∧
       EqTm S k .one [] (c.L (.unglue φ e (.glueEl φ e t a))) u (c.L A) ∧ RE2 S k (c.L A) u (c.R a) := by
@@ -251,18 +252,22 @@ theorem glueBeta_at {A T e t a : Tm} {φ : I} {l : ℕ}
     have h2 : RE2 S k (c.L A) (.app (.fst (c.L e)) (c.L t)) (c.L a) := (hat k ((c.cof hφe).diagL hW)).2
     exact RE2.trans hW hAA happ (RE2.trans hW hAA h2 haa)
   · refine ⟨c.L a, red_unglue_base hφe (redE_glueEl_self (S := S) hφe hgL).1,
-      EqTm.glueBeta hu (RE2.typed haa).1, haa⟩
+      EqTm.glueBeta hu (RE2.typed haa).1 (by
+        have hφ := scoped_cof_right (scoped_of_eq hcoh)
+        exact minimal_to_spec_eq ((sub_eq (sigClosed_of_wfSig hW) hcoh).2
+          (c.tySubLCof hW (I.scoped_subst hφ c.σ.sc)))), haa⟩
 
 theorem valid_glueBeta {A T e t a : Tm} {φ : I} {l : ℕ}
     (he : Valid2 S Ψ (cof Φ φ) Γ e e (Tm.equiv T A))
     (ht : Valid2 S Ψ (cof Φ φ) Γ t t T) (ha : Valid2 S Ψ Φ Γ a a A)
     (hat : Valid2 S Ψ (cof Φ φ) Γ (.app (.fst e) t) a A)
     (hg : HasTy0 S Ψ Φ Γ (.glueEl φ e t a) (.glue A φ T e)) (he0 : HasTy0 S Ψ (cof Φ φ) Γ e (Tm.equiv T A))
-    (hA0 : HasTy0 S Ψ Φ Γ A (.univ l)) (hty : HasTy0 S Ψ Φ Γ (.unglue φ e (.glueEl φ e t a)) A) :
+    (hA0 : HasTy0 S Ψ Φ Γ A (.univ l)) (hty : HasTy0 S Ψ Φ Γ (.unglue φ e (.glueEl φ e t a)) A)
+    (hcoh : EqTm0 S Ψ (cof Φ φ) Γ a (.app (.fst e) t) A) :
     Valid2 S Ψ Φ Γ (.unglue φ e (.glueEl φ e t a)) a A := by
   intro k c
   refine ⟨(ha k c).1, RE2.expandH hW (ha.tyLL hW c) (c.ty hW hty) (RE2.typed (ha k c).2).2.1 fun k' σ => ?_⟩
-  have := glueBeta_at hW he ht ha hat hg he0 hA0 hty (c.restr hW σ)
+  have := glueBeta_at hW he ht ha hat hg he0 hA0 hty hcoh (c.restr hW σ)
   rwa [CSub2.restr_L, CSub2.restr_L, CSub2.restr_R] at this
 
 theorem valid_glueEta {A T e g : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)

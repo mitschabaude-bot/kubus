@@ -1,4 +1,4 @@
-import KubusCore.Kernel.Conv
+import KubusCore.Kernel.Rename
 
 /-!
 # Kernel: entry points
@@ -9,6 +9,8 @@ of `WfSig S`; `CheckedSig.extend` checks one more definition against a checked s
 -/
 
 namespace KubusCore.Kernel
+
+open Meta (rS rI)
 
 variable {S : Sig}
 
@@ -23,7 +25,17 @@ def canonical {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : Option ((Φ' : I) × Equiv' Ψ 
 
 variable {Ψ : Nat} {Φ : I} {Γ : Ctx}
 
-def canonInferRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ t) :=
+/-- Under an inconsistent restriction, an elimination spine on `[]` (which reduction can produce
+from the empty systems that stand for partial elements there) is given the type `U₀`. -/
+def abortSpineInf? (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Option (Inf S Ψ Φ Γ t)) := do
+  if h0 : E.Ent .zero ∧ (spineHead t matches .abort) ∧ !(t matches .abort) then
+    let ⟨hU⟩ ← univTyK E 0
+    let ⟨ht⟩ ← checkAbortSpine R E h0.1 t (.univ 0) 1 hU
+    return some ⟨.univ 0, 1, hU, ht⟩
+  return none
+
+def canonInferRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ t) := do
+  if let some i ← abortSpineInf? R E t then return i
   match (if E.canon then none else canonical E) with
   | none => inferStep R { E with canon := true } t
   | some ⟨Φ', q⟩ => do
@@ -48,7 +60,8 @@ def canonWhnfRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     pure ⟨r.tm, EqTm.restrict E.hsc q.h2 r.eq⟩
 
 def canonWhnfIRaw (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
-    K S ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) :=
+    K S ((i : Inf S Ψ Φ Γ t) × Red S Ψ Φ Γ t i.ty) := do
+  if let some i ← abortSpineInf? R E t then return ⟨i, ⟨t, EqTm.refl i.htm⟩⟩
   match (if E.canon then none else canonical E) with
   | none => whnfIStep R { E with canon := true } t
   | some ⟨Φ', q⟩ => do
@@ -86,10 +99,35 @@ def trail {α : Type} (line : Unit → String) (x : K S α) : K S α :=
 /-! Memoized versions: a hit transports the cached derivation along the equality of the
 keys (checked structurally, with a pointer-equality shortcut). -/
 
+/-! ### Judgments in the smallest context (`Rename.lean`)
+
+A judgment is derived in the context of just the variables its terms mention, once (the cache
+keyed by the small context shares it between the contexts it occurs in), and renamed back. If
+that fails (the kernel is incomplete, and the small context has a weaker restriction), the
+judgment is derived in the full context, and the failure is remembered. -/
+
+def trySmall (E : KCtx S Ψ Φ Γ) (ts : List Tm) : K S Bool :=
+  return ((← get).strFail.find? Ψ Φ Γ ts E.fs.get E.hfs E.hsc (fun _ _ _ => none)).isNone
+
+def smallFailed (E : KCtx S Ψ Φ Γ) (ts : List Tm) : K S Unit :=
+  modify fun c => { c with strFail := c.strFail.insert Ψ Φ Γ ts E.fs.get E.hfs ⟨⟩ }
+
 def canonInfer (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) : K S (Inf S Ψ Φ Γ t) := do
   -- cheap cases, not worth a lookup
   if (match t with | .var _ | .const _ => true | _ => false) then return ← inferStep R E t
   if let some v := (← get).inf.find? Ψ Φ Γ [t] E.fs.get E.hfs E.hsc InfF.restr then return v
+  -- a term known to be typed is inferred cheaply in its own context (the generation lemmas give
+  -- the premises), which the small context does not know
+  let known := ((← get).typed.find? Ψ Φ Γ [t] E.fs.get E.hfs E.hsc TypedF.restr).isSome
+  if !known && (← trySmall E [t]) then
+    if let some (sc, [t']) ← smallCtx? R E [t] then
+      if h : tmEq (t'.subst (rS sc.ρ) (rI sc.δ)) t = true then
+        if let some i ← tryOpt (R.infer sc.E' t') then
+          let v : Inf S Ψ Φ Γ t := ⟨i.ty.subst (rS sc.ρ) (rI sc.δ), i.lvl, sc.hasTy E i.hty rfl rfl,
+            sc.hasTy E i.htm (tmEq_sound h) rfl⟩
+          modify fun c => { c with inf := c.inf.insert Ψ Φ Γ [t] E.fs.get E.hfs v }
+          return v
+      smallFailed E [t]
   let v ← canonInferRaw R E t
   modify fun c => { c with inf := c.inf.insert Ψ Φ Γ [t] E.fs.get E.hfs v }
   return v
@@ -99,14 +137,18 @@ def canonCheck (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   if let some v := (← get).chk.find? Ψ Φ Γ [t, A] E.fs.get E.hfs E.hsc ChkF.restr then return v
   let v ← trail (fun _ => s!"checking {short t} : {short A}") (canonCheckRaw R E t A l hA)
   modify fun c => { c with chk := c.chk.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
+  noteTyped E 16 t ⟨A, v.down⟩
   return v
 
 def canonWhnf (R : Rec S) (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (ht : HasTy S Ψ Φ Γ t A) : K S (Red S Ψ Φ Γ t A) := do
   if t.rigid then return ⟨t, EqTm.refl ht⟩
   if let some v := (← get).wh.find? Ψ Φ Γ [t, A] E.fs.get E.hfs E.hsc WhF.restr then return v
+  -- the heads of its eliminations are typed: their inference can skip the premises
+  noteTyped E 16 t ⟨A, ht⟩
   let v ← canonWhnfRaw R E t A l hA ht
   modify fun c => { c with wh := c.wh.insert Ψ Φ Γ [t, A] E.fs.get E.hfs v }
+  noteTyped E 16 v.tm ⟨A, HasTy.eqR v.eq⟩
   return v
 
 def canonWhnfI (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
@@ -114,18 +156,40 @@ def canonWhnfI (R : Rec S) (E : KCtx S Ψ Φ Γ) (t : Tm) :
   if let some v := (← get).whi.find? Ψ Φ Γ [t] E.fs.get E.hfs E.hsc WhiF.restr then return v
   let v ← canonWhnfIRaw R E t
   modify fun c => { c with whi := c.whi.insert Ψ Φ Γ [t] E.fs.get E.hfs v }
+  noteTyped E 16 v.2.tm ⟨v.1.ty, HasTy.eqR v.2.eq⟩
   return v
 
 def canonConv (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (l : Nat)
     (hA : HasTy S Ψ Φ Γ A (.univ l)) (t u : Tm) (ht : HasTy S Ψ Φ Γ t A)
     (hu : HasTy S Ψ Φ Γ u A) : K S (PLift (EqTm S Ψ Φ Γ t u A)) := do
   if h : tmEq t u = true then return ⟨tmEq_sound h ▸ EqTm.refl ht⟩
+  -- under an inconsistent restriction all terms of a type are equal
+  if h0 : E.Ent .zero then return ⟨EqTm.absurd h0 ht hu⟩
   if let some v := (← get).conv.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc ConvF.restr then return v
-  if ((← get).convFail.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc (fun _ _ _ => none)).isSome then
-    throw s!"kernel: {short t} and {short u} are not convertible (as before)"
+  if ← trySmall E [A, t, u] then
+    if let some (sc, [A', t', u']) ← smallCtx? R E [A, t, u] then
+      if h : tmEq (A'.subst (rS sc.ρ) (rI sc.δ)) A = true ∧ tmEq (t'.subst (rS sc.ρ) (rI sc.δ)) t = true ∧
+          tmEq (u'.subst (rS sc.ρ) (rI sc.δ)) u = true then
+        if let some ⟨lA, ⟨hA'⟩⟩ ← tryOpt (inferType R sc.E' A') then
+          if let some ⟨ht'⟩ ← tryOpt (R.check sc.E' t' A' lA hA') then
+            if let some ⟨hu'⟩ ← tryOpt (R.check sc.E' u' A' lA hA') then
+              if let some ⟨e⟩ ← tryOpt (R.conv sc.E' A' lA hA' _ _ ht' hu') then
+                let v : PLift (EqTm S Ψ Φ Γ t u A) :=
+                  ⟨sc.eqTm E e (tmEq_sound h.2.1) (tmEq_sound h.2.2) (tmEq_sound h.1)⟩
+                modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }
+                return v
+      smallFailed E [A, t, u]
+  if let some msg := (← get).convFail.find? Ψ Φ Γ [A, t, u] E.fs.get E.hfs E.hsc (fun _ _ _ => none) then
+    throw msg
+  -- the heads of their eliminations are typed: their inference can skip the premises
+  noteTyped E 16 t ⟨A, ht⟩
+  noteTyped E 16 u ⟨A, hu⟩
   let v ← tryCatch (trail (fun _ => s!"comparing {short t} and {short u} at {short A}")
       (canonConvRaw R E A l hA t u ht hu)) fun e => do
-    modify fun c => { c with convFail := c.convFail.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs ⟨⟩ }
+    -- (a failure under a restricted strategy is not definitive)
+    let c ← get
+    if !c.noSplit && !c.congFirst then
+      modify fun c => { c with convFail := c.convFail.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs e }
     throw e
   modify fun c => { c with conv := c.conv.insert Ψ Φ Γ [A, t, u] E.fs.get E.hfs v }
   return v
@@ -154,6 +218,7 @@ def SigInfo.next (R : Rec S) (si : SigInfo S) : K S (Option (SigInfo S)) :=
     -- inductive types are not supported by the kernel yet: a placeholder level, never used
     pure (some
       { lv := si.lv ++ [0]
+        wf := si.wf
         closed := by
           intro k t A' hk hlt
           simp only [List.length_append, List.length_singleton] at hlt
@@ -173,6 +238,7 @@ def SigInfo.next (R : Rec S) (si : SigInfo S) : K S (Option (SigInfo S)) :=
       let ⟨l, ⟨hA⟩⟩ ← inferType R (KCtx.root si) A
       pure (some
         { lv := si.lv ++ [l]
+          wf := si.wf
           closed := by
             intro k t A' hk hlt
             simp only [List.length_append, List.length_singleton] at hlt
@@ -205,9 +271,10 @@ def SigInfo.build (R : Rec S) : Nat → SigInfo S → K S (SigInfo S)
     | some si' => SigInfo.build R n si'
 
 /-- The kernel and the empty context for the signature `S`. -/
-def setup (S : Sig) (fuel : Nat := defaultFuel) : K S (Rec S × KCtx S 0 .one []) := do
+def setup (S : Sig) (fuel : Nat := defaultFuel) (wf : Option (PLift (WfSig S)) := none) :
+    K S (Rec S × KCtx S 0 .one []) := do
   let R := rec S fuel
-  let si ← SigInfo.build R S.length (SigInfo.empty S)
+  let si ← SigInfo.build R S.length { SigInfo.empty S with wf }
   pure (R, KCtx.root si)
 
 /-- Lift the result of a pure computation. -/
@@ -230,10 +297,10 @@ def checkEntryK (S : Sig) (R : Rec S) (E : KCtx S 0 .one []) (t A : Tm) :
   else fail "kernel: the definition is not closed"
 
 /-- Check one definition `(t, A)` against the signature `S`. -/
-def checkEntry (S : Sig) (t A : Tm) (fuel : Nat := defaultFuel) :
+def checkEntry (S : Sig) (t A : Tm) (fuel : Nat := defaultFuel) (wf : Option (PLift (WfSig S)) := none) :
     Except String (PLift (t.closedB 0 0 = true ∧ A.closedB 0 0 = true ∧
       (∃ l, HasTy S 0 .one [] A (.univ l)) ∧ HasTy S 0 .one [] t A)) := runK do
-  let (R, E) ← setup S fuel
+  let (R, E) ← setup S fuel wf
   checkEntryK S R E t A
 
 theorem wfSig_append {S : Sig} {t A : Tm} (hS : WfSig S)
@@ -535,7 +602,7 @@ def CheckedSig.empty : CheckedSig := ⟨[], fun k _ _ h => by simp at h, fun k _
 /-- Check one more definition. -/
 def CheckedSig.extend (C : CheckedSig) (t A : Tm) (fuel : Nat := defaultFuel) :
     Except String CheckedSig := do
-  let ⟨h⟩ ← checkEntry C.sig t A fuel
+  let ⟨h⟩ ← checkEntry C.sig t A fuel (some ⟨C.wf⟩)
   pure ⟨C.sig ++ [.defn t A], wfSig_append C.wf h⟩
 
 /-- Check one more inductive type. -/
@@ -548,7 +615,7 @@ def CheckedSig.extendData (C : CheckedSig) (D : DataDecl) (fuel : Nat := default
 def checkSigAux (pre : Sig) (hpre : WfSig pre) : (rest : Sig) → Except String (PLift (WfSig (pre ++ rest)))
   | [] => pure ⟨by simpa using hpre⟩
   | .defn t A :: rest => do
-    let ⟨h⟩ ← checkEntry pre t A
+    let ⟨h⟩ ← checkEntry pre t A defaultFuel (some ⟨hpre⟩)
     let ⟨h'⟩ ← checkSigAux (pre ++ [.defn t A]) (wfSig_append hpre h) rest
     pure ⟨by simpa using h'⟩
   | .data D :: rest => do
