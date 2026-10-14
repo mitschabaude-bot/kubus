@@ -1327,6 +1327,50 @@ theorem kanH2_glue {T T' A Tf e : Tm} {φ : I} {l : ℕ} (hTT : RT2 S k T T') (h
         have D := mkD hfτ (hnρ_of hfτ)
         exact RE2.conv hW hWTρ (D.core hW (hnρh (I.scoped_subst hφ1s ρ.sc) (hnρ_of hfτ)))
 
+
+/-- Tubes related at every point where their face holds are judgmentally equal. -/
+theorem eqTube_of_rel {C u u' : Tm} {ψ : I} {l : ℕ} (hψs : ψ.Scoped k)
+    (hC : HasTy S (k + 1) (cof .one ψ).shift [] C (.univ l))
+    (hu : HasTy S (k + 1) (cof .one ψ).shift [] u C) (hu' : HasTy S (k + 1) (cof .one ψ).shift [] u' C)
+    (htube : ∀ k3 (σ : ISub k3 k) (r : I) (hr : r.Scoped k3), (ival (idEnv k3) (ψ.subst σ.τ)).holds →
+      RE2 S k3 (C.isub (ISub.cons r hr σ)) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r)) :
+    EqTm S (k + 1) (cof .one ψ).shift [] u u' C := by
+  have hsh : ψ.shift.Scoped (k + 1) := KubusCore.I.scoped_shift hψs
+  refine eq_of_restr hW (φ := ψ.shift) hsh (.inl hC) hu hu' fun k' σ hh => ?_
+  rw [shift_subst_tail] at hh
+  have h := htube k' σ.tail (σ.τ 0) (σ.sc 0 (by omega)) hh
+  rw [isub_up_dinst _ _ _ (σ.sc 0 (by omega)), isub_up_dinst _ _ _ (σ.sc 0 (by omega)), ISub.cons_tail] at h
+  exact (RE2.typed h).2.2
+
+
+/-- Composition data from typings and relations alone: the judgmental equalities follow. -/
+theorem KD.of_rel {X X' u u' a0 a0' : Tm} {ψ ψ' : I} (hty : HasTy S k .one [] (.hcomp X ψ u a0) X)
+    (hty' : HasTy S k .one [] (.hcomp X' ψ' u' a0') X) (hXX' : TyEq S k X X')
+    (p12 : I.Entails ψ ψ') (p21 : I.Entails ψ' ψ) (tube : Tube2 S k X ψ u u') (ha0 : RE2 S k X a0 a0')
+    (bd : ∀ k' (σ : ISub k' k), (ival (idEnv k') (ψ.subst σ.τ)).holds →
+      RE2 S k' (X.isub σ) ((u.isub σ.up).dinst .zero) (a0'.isub σ))
+    (bd' : ∀ k' (σ : ISub k' k), (ival (idEnv k') (ψ.subst σ.τ)).holds →
+      RE2 S k' (X.isub σ) (a0.isub σ) ((u'.isub σ.up).dinst .zero)) :
+    KD S k X X' ψ ψ' u u' a0 a0' := by
+  have hS := sigClosed_of_wfSig hW
+  obtain ⟨l1, ⟨hX0, hψs, hu, ha, hside⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
+  obtain ⟨l2, ⟨hX0', hψs', hu', ha', hside'⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty') rfl
+  have hc : (cof .one ψ).shift.Scoped (k + 1) := KubusCore.I.scoped_shift ⟨trivial, hψs⟩
+  have hXd : HasTy S (k + 1) (cof .one ψ).shift [] X.dshift (.univ l1) :=
+    minimal_to_spec (HasTy0.restrict hc (ent_one _) (HasTy0.dwk hS hX0))
+  have hu'X : HasTy S (k + 1) (cof .one ψ).shift [] u' X.dshift := by
+    have h1 := HasTy.restrict hc (ent_shift (ent_and_mono (ent_refl _) p12)) (minimal_to_spec hu')
+    rcases hXX' with rfl | ⟨l, e⟩
+    · exact h1
+    · exact h1.conv (EqTm.restrict hc (ent_trans (ent_shift (ent_and_left _ _)) (ent_refl _)) (EqTm.dwk e)).symm
+  have hteq := eqTube_of_rel hW hψs hXd (minimal_to_spec hu) hu'X fun k3 σ r hr hh => by
+    rw [dshift_isub_cons]; exact tube k3 σ r r hr hr (I_eq_refl _) hh
+  obtain ⟨l3, eX⟩ : ∃ l, EqTm S k .one [] X X' (.univ l) := by
+    rcases hXX' with rfl | ⟨l, e⟩
+    · exact ⟨l1, EqTm.refl (minimal_to_spec hX0)⟩
+    · exact ⟨l, e⟩
+  exact ⟨hty, hty', EqTm.hcomp hty hty' eX p12 p21 hteq (RE2.typed ha0).2.2, hteq, p12, p21, tube, ha0, bd, bd'⟩
+
 end
 
 end Model.Whnf
