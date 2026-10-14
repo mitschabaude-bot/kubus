@@ -64,4 +64,10 @@ theorem equiv_congr {Ψ Φ Γ T T' A A' l} (hT : EqTm0 S Ψ Φ Γ T T' (Tm.univ 
   rw [Meta.arrow_shift] at hv
   exact EqTm0.sigma hTA (isEquiv_congr hS hT0 hC0 (EqTm0.wk hS hTAt hT) (EqTm0.wk hS hTAt hA) (EqTm0.refl hv))
 
+theorem piPath_congr {Ψ Φ Γ X X' c c' l} (hX : EqTm0 S Ψ Φ Γ X X' (Tm.univ l)) (hc : EqTm0 S Ψ Φ Γ c c' X) :
+    EqTm0 S Ψ Φ Γ (.pi X (Tm.pathC X.shift c.shift (.var 0))) (.pi X' (Tm.pathC X'.shift c'.shift (.var 0))) (Tm.univ l) := by
+  have hXt := (pre_eq hS hT0 hC0 hX).1
+  have hv : HasTy0 S Ψ Φ (X :: Γ) (Tm.var 0) X.shift := HasTy0.var (Wf0.cons hXt) rfl
+  exact EqTm0.pi hX (pathC_congr hS (EqTm0.wk hS hXt hX) (EqTm0.wk hS hXt hc) (EqTm0.refl hv))
+
 end Model.Whnf
