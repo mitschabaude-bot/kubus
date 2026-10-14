@@ -55,3 +55,4 @@ import Model.Whnf.Kan2PathT
 import Model.Whnf.Kan2Univ
 import Model.Whnf.Kan2Glue
 import Model.Whnf.Kan2DataCode
+import Model.Whnf.NearAll

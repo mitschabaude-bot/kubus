@@ -532,8 +532,8 @@ theorem ni2_dataC (hW : WfSig S) {m : ℕ} {Θ : SData m}
   have hQ : ∀ {n : ℕ} (h : Hom n m) (c j : ℕ) (pre : List V),
       NIP S n (Comp2 S (tyLook (shapeV (Θ.restr h)) c j pre) n n (Hom.id n)) := fun h c j pre => niP_tyLook ni h c j pre
   rw [Comp2_dataC]
-  refine ⟨fun h hn hT => ⟨base_near hW h.1 hn hT, fun k' σ => ?_⟩, fun hTT h hn hu => ?_⟩
-  · obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d', pr⟩ := h.2 k' σ
+  refine ⟨fun h hn hT => ⟨base_near hW h.1 hn hT, fun k' σ => ?_, h.2.2.1, ?_⟩, fun hTT h hn hu => ?_⟩
+  · obtain ⟨ps, ps', h1, h2, hl, hl', r12, r21, d, d', pr⟩ := h.2.1 k' σ
     have hT' := h.1.2.1
     obtain ⟨W, h2'', nW⟩ := RedT.near hW h2 (hT'.isub hW σ) (hn.isub σ) (good_of_isTyK hW (hT.isub hW σ))
     cases nW with | @data _ _ ps'' nps =>
@@ -551,10 +551,44 @@ theorem ni2_dataC (hW : WfSig S) {m : ℕ} {Θ : SData m}
     have d2 := argRelH_nearL hW f hP hQ hD (argRelH_nearR hW f hP hQ hD d' nps gps) d' hd' nps.symm gps
     exact ⟨ps, ps'', h1, h2'', hl, hl'', (argRel2_iff Θ σ).2 r1, (argRel2_iff Θ σ).2 r2, (argRel2_iff Θ σ).2 d,
       (argRel2_iff Θ σ).2 d2, parRel2_nearR hW ihp nip f σ hD pr nps gps⟩
+  · intro k' σ k'' σ' ps1 ps2 r1 r2
+    have hT' := h.1.2.1
+    obtain ⟨W1, r1', w1⟩ := RedT.near hW r1 (hT.isub hW σ) (hn.symm.isub σ) (good_of_isTyK hW (hT'.isub hW σ))
+    cases w1 with | @data _ _ ps1' nps1 =>
+    obtain ⟨W2, r2', w2⟩ := RedT.near hW r2 (hT.isub hW _) (hn.symm.isub _) (good_of_isTyK hW (hT'.isub hW _))
+    cases w2 with | @data _ _ ps2' nps2 =>
+    obtain ⟨a12, a21, pr⟩ := h.2.2.2 k' σ k'' σ' ps1' ps2' r1' r2'
+    have g1 : goodB S k' ps1 = true := by
+      have := good_whnf hW r1 (good_of_isTyK hW (hT.isub hW σ)); simpa [goodB] using this
+    have g2 : goodB S k'' ps2 = true := by
+      have := good_whnf hW r2 (good_of_isTyK hW (hT.isub hW _)); simpa [goodB] using this
+    have hd1 := RedT.isTyK hW r1' (hT'.isub hW σ)
+    have hd2 := RedT.isTyK hW r2' (hT'.isub hW _)
+    have hD := data_decl_of hW hd1
+    -- the diagonal clauses of the normal forms of `T'`
+    have dg1 : argRelH Θ f S k'' (σ.comp σ').hom (ps1'.isub σ') (ps1'.isub σ') := by
+      obtain ⟨-, q, -, g, -, -, -, -, -, d', -⟩ := h.2.1 k' σ
+      obtain rfl : q = ps1' := by have := RedW.unique g.1 r1'.1; injection this
+      have := argRelH_isub Θ f ((argRel2_iff Θ σ).1 d') σ'
+      rwa [← ISub.hom_comp] at this
+    have dg2 : argRelH Θ f S k'' (σ.comp σ').hom ps2' ps2' := by
+      obtain ⟨-, q, -, g, -, -, -, -, -, d', -⟩ := h.2.1 k'' (σ.comp σ')
+      obtain rfl : q = ps2' := by have := RedW.unique g.1 r2'.1; injection this
+      exact (argRel2_iff Θ _).1 d'
+    have hd1σ : IsTyK S k'' (.data Θ.idx (ps1'.isub σ')) := hd1.isub hW σ'
+    have g1σ := good_isub g1 σ'
+    rw [argRel2_iff] at a12 a21
+    have x12 := argRelH_nearL hW f hP hQ hD (argRelH_nearR hW f hP hQ hD a12 nps2.symm g2) dg1 hd1σ
+      (nps1.isub σ') g1σ
+    have x21 := argRelH_nearL hW f hP hQ hD (argRelH_nearR hW f hP hQ hD a21 (nps1.isub σ').symm g1σ) dg2 hd2
+      nps2 g2
+    have p1 := parRel2_nearR hW ihp nip f (σ.comp σ') hD pr nps2.symm g2
+    have p2 := parRel2_nearR hW ihp nip f (σ.comp σ') hD (parRel2_symm ihp f _ p1) (nps1.isub σ').symm g1σ
+    exact ⟨(argRel2_iff Θ _).2 x12, (argRel2_iff Θ _).2 x21, parRel2_symm ihp f _ p2⟩
   · obtain ⟨hE, hmem, -, hdr⟩ := h
     have hE' : EB S k T t t'' := ⟨hE.1, hu, hE.2.2.trans (eq_near hW hE.2.1 hn (good_of_ty hW hu))⟩
     refine ⟨hE', hmem, hE', DR2_near2 hW f hP hQ hdr (TmNear.refl t) hn hE.1 hu fun k' σ ps hps => ?_⟩
-    obtain ⟨ps0, -, g1, -, -, -, -, -, hd, -, -⟩ := hTT.2 k' σ
+    obtain ⟨ps0, -, g1, -, -, -, -, -, hd, -, -⟩ := hTT.2.1 k' σ
     obtain rfl : ps = ps0 := by have := RedW.unique hps.1 g1.1; injection this
     rw [Hom.id_comp]; exact (argRel2_iff Θ σ).1 hd
 
