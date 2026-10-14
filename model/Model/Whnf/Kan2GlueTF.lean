@@ -890,6 +890,82 @@ theorem TGD2.extL (hψk : (ival (idEnv k) ψ).holds) {s s' : I} (hs : s.Scoped k
 
 end
 
+
+/-- The systems of the compositions in the bases at the end, typed at points of restrictions where their face holds. -/
+theorem asysTy {A T e u0 : Tm} {φ ψ δ : I} {l : ℕ} (H : TG S k .one [] A φ T e ψ u0 δ l) {k' : ℕ}
+    (σ : ISub k' k) (hh : (ival (idEnv k') ((I.or (φ.subst (I.inst0 .one)) ψ).subst σ.τ)).holds) {r : I}
+    (hr : r.Scoped k') :
+    HasTy S k' .one [] (.split ((φ.subst (I.inst0 .one)).subst σ.τ)
+      (.papp ((Tm.snd (tgExt A φ T e ψ u0 δ)).isub σ) (.neg r)) (ψ.subst σ.τ) ((tgA1' A φ e ψ u0).isub σ))
+      ((A.dinst .one).isub σ) := by
+  have hφ1s : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have hsp := HasTy.isubF hW (show ((cof .one (.or (φ.subst (I.inst0 .one)) ψ)).shift).Scoped (k + 1) from
+    KubusCore.I.scoped_shift ⟨trivial, hφ1s, H.hψ⟩) (minimal_to_spec H.hasys) (ISub.cons r hr σ)
+  rw [I_shift_cons, dshift_isub_cons, ← isub_up_dinst _ _ _ hr, asys_isub] at hsp
+  exact HasTy.restrict (Φ' := .one) trivial (ent_cof_one hW
+    (entails_of_holds (I.scoped_subst (show (I.or (φ.subst (I.inst0 .one)) ψ).Scoped k from ⟨hφ1s, H.hψ⟩) σ.sc) hh)) hsp
+
+section
+variable {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
+  (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ')
+include D
+
+theorem TGD2.φ1At' {k' : ℕ} (σ : ISub k' k) {k2 : ℕ} (σ2 : ISub k2 k')
+    (h : I.Entails .one (((φ.subst (I.inst0 .one)).subst σ.τ).subst σ2.τ)) :
+    (ival (idEnv k2) ((φ.subst (σ.comp σ2).up.τ).subst (I.inst0 .one))).holds := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hs : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  rw [← I_phi1_isub, holds_iff_entails (I.scoped_subst hs (σ.comp σ2).sc), I_subst_comp]
+  exact h
+
+/-- The systems of the compositions in the bases at the end, at near points. -/
+theorem TGD2.sysA2 {k' : ℕ} (σ : ISub k' k) (hh : (ival (idEnv k') ((I.or (φ.subst (I.inst0 .one)) ψ).subst σ.τ)).holds)
+    {r r' : I} (hr : r.Scoped k') (hr' : r'.Scoped k') (he : I.Eq r r') :
+    RE2 S k' ((A.dinst .one).isub σ)
+      (((Tm.split (φ.subst (I.inst0 .one)).shift (.papp (Tm.snd (tgExt A φ T e ψ u0 δ)).dshift (.neg (.var 0)))
+        ψ.shift (tgA1' A φ e ψ u0).dshift).isub σ.up).dinst r)
+      (((Tm.split (φ'.subst (I.inst0 .one)).shift (.papp (Tm.snd (tgExt A' φ' T' e' ψ' u0' δ')).dshift (.neg (.var 0)))
+        ψ'.shift (tgA1' A' φ' e' ψ' u0').dshift).isub σ.up).dinst r') := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l2, H'⟩ := D.tgR hW
+  have hφs : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have hφs' : (φ'.subst (I.inst0 .one)).Scoped k := H'.hφr (r := .one) trivial
+  rw [asys_isub, asys_isub]
+  have f12 : I.Entails (φ.subst (I.inst0 .one)) (φ'.subst (I.inst0 .one)) := ent_subst D.f12 _
+  have f21 : I.Entails (φ'.subst (I.inst0 .one)) (φ.subst (I.inst0 .one)) := ent_subst D.f21 _
+  have hh' : (ival (idEnv k') ((I.or (φ'.subst (I.inst0 .one)) ψ').subst σ.τ)).holds := by
+    rw [holds_iff_entails (I.scoped_subst (show (I.or (φ'.subst (I.inst0 .one)) ψ').Scoped k from ⟨hφs', H'.hψ⟩) σ.sc)]
+    exact ent_trans (entails_of_holds (I.scoped_subst (show (I.or (φ.subst (I.inst0 .one)) ψ).Scoped k from
+      ⟨hφs, H.hψ⟩) σ.sc) hh)
+      (ent_subst (ent_or_elim (ent_trans f12 (ent_or_left _ _)) (ent_trans D.p12 (ent_or_right _ _))) σ.τ)
+  have rAσ : RT2 S k' ((A.dinst .one).isub σ) ((A'.dinst .one).isub σ) := by
+    rw [dinst1_isub, dinst1_isub]; exact D.rA k' σ .one .one trivial trivial (I_eq_refl _)
+  have hAA : RT2 S k' ((A.dinst .one).isub σ) ((A.dinst .one).isub σ) := by
+    rw [dinst1_isub]; exact D.rAA k' σ .one .one trivial trivial (I_eq_refl _)
+  have hsp := asysTy hW H σ hh hr
+  have hsp' := (asysTy hW H' σ hh' hr').tyConv (Comp2_ty_base rAσ).2.2.2.2.2.symm
+  have hp : ∀ {k2} (σ2 : ISub k2 k'), I.Entails .one ((ψ.subst σ.τ).subst σ2.τ) →
+      (ival (idEnv k2) (ψ.subst (σ.comp σ2).τ)).holds := fun σ2 h =>
+    (holds_iff_entails (I.scoped_subst H.hψ (σ.comp σ2).sc)).2 (by rw [I_subst_comp]; exact h)
+  refine RE2_sys2 hW (I.scoped_subst hφs σ.sc) (I.scoped_subst hφs' σ.sc) (I.scoped_subst H.hψ σ.sc)
+    (I.scoped_subst H'.hψ σ.sc) (ent_subst f12 _) (ent_subst f21 _) (ent_subst D.p12 _) (ent_subst D.p21 _)
+    (entails_of_holds (I.scoped_subst (show (I.or (φ.subst (I.inst0 .one)) ψ).Scoped k from ⟨hφs, H.hψ⟩) σ.sc) hh)
+    hAA hsp hsp' (fun k2 σ2 h => ?_) (fun k2 σ2 h h' => ?_) (fun k2 σ2 h h' => ?_) (fun k2 σ2 h => ?_) <;>
+  simp only [isub_papp, isub_snd, Tm.isub_isub, I.subst] <;>
+  simp only [(tg_isub A φ T e ψ u0 δ (σ.comp σ2)).2.2.2.2.1, (tg_isub A' φ' T' e' ψ' u0' δ' (σ.comp σ2)).2.2.2.2.1,
+    tgA1'_isub, dinst_isub_end _ (Or.inr rfl)]
+  · exact (D.isub hW (σ.comp σ2)).extPP hW (D.φ1At' hW σ σ2 h)
+      (show (I.neg (r.subst σ2.τ)).Scoped k2 from I.scoped_subst hr σ2.sc)
+      (show (I.neg (r'.subst σ2.τ)).Scoped k2 from I.scoped_subst hr' σ2.sc) (ieq_neg (I_eq_subst he σ2.τ))
+  · exact (D.isub hW (σ.comp σ2)).extR hW (D.φ1At' hW σ σ2 h) (hp σ2 h')
+      (show (I.neg (r.subst σ2.τ)).Scoped k2 from I.scoped_subst hr σ2.sc)
+  · exact (D.isub hW (σ.comp σ2)).extL hW (D.φ1At' hW σ σ2 h) (hp σ2 h')
+      (show (I.neg (r'.subst σ2.τ)).Scoped k2 from I.scoped_subst hr' σ2.sc)
+      (show (I.neg (r'.subst σ2.τ)).Scoped k2 from I.scoped_subst hr' σ2.sc) (I_eq_refl _)
+  · exact (D.isub hW (σ.comp σ2)).a1' hW
+
+end
+
 end
 
 end Model.Whnf
