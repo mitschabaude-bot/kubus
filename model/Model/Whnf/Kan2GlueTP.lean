@@ -61,8 +61,30 @@ theorem dshift_isub_tail (t : Tm) {k4 : ℕ} (τ : ISub k4 (k + 1)) : t.dshift.i
   conv_lhs => rw [← ISub.cons_tail τ]
   rw [dshift_isub_cons]
 
+theorem subst_up_inst0_dinst {X : Tm} {n : ℕ} (hX : X.closedB n (k + 2) = true) {r s : I} (hr : r.Scoped k)
+    (hs : s.Scoped k) :
+    (X.subst Tm.var (I.up (I.inst0 r))).dinst s = X.isub (ISub.cons s hs (ISub.cons r hr (ISub.id k))) := by
+  simp only [Tm.dinst, Tm.dsubst, Tm.isub, subst_subst]
+  refine closed_subst_eq X n (k + 2) _ _ _ _ hX (fun x _ => rfl) fun i hi => ?_
+  rcases i with _ | _ | i
+  · rfl
+  · show ((I.inst0 r 0).shift).subst (I.inst0 s) = r
+    rw [I_shift_inst0]; rfl
+  · show (((I.inst0 r (i + 1)).shift).subst (I.inst0 s)) = (ISub.id k).τ i
+    rw [I_shift_inst0]; simp [ISub.id, I.inst0, show i < k by omega]
+
 variable (hW : WfSig S)
 include hW
+
+/-- A heterogeneous composition whose face holds is stably its tube's end. -/
+theorem stable_compFace {C u u0 X : Tm} {ψ : I} (h : I.Entails .one ψ) (hty : HasTy S k .one [] (Tm.comp C ψ u u0) X) :
+    StableE S k X (Tm.comp C ψ u u0) (u.dinst .one) := by
+  intro k' σ
+  have hσ := HasTy.isubS hW hty σ
+  rw [comp_isub] at hσ ⊢
+  rw [dinst_isub_end _ (.inr rfl)]
+  exact ⟨red_comp_face (ent_subst h σ.τ), minimal_to_spec_eq (comp_face (sigClosed_of_wfSig hW)
+    (spec_to_minimal hW hσ) (ent_subst h σ.τ))⟩
 
 /-- A term typed under a face in a line, at a point of a restriction where the face holds. -/
 theorem ty_line_at {t X : Tm} {ψ : I} (hψ : ψ.Scoped k) (h : HasTy S (k + 1) (cof .one ψ).shift [] t X)
@@ -635,6 +657,96 @@ theorem TGD2.body (hδ : (ival (idEnv k) δ).holds) :
     have a := D.sysAt hW hδ σ0 hy (x := .zero) (x' := .zero) trivial trivial (I_eq_refl _) hh
     have zb := RE2.trans hW hAA z (RE2.symm hW hAA b)
     exact RE2.trans hW hAA (RE2.symm hW hAA zb) a
+
+/-- On `δ`, the transport in the fiber, typed at a restriction. -/
+theorem TGD2.t1Ty (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) :
+    HasTy S k' .one [] ((tgT1 T ψ u0).isub τ) (T.isub (ISub.cons .one trivial τ)) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have h := HasTy.isubS hW (HasTy.restrict (Φ' := .one) trivial (ent_cof_one hW (entails_of_holds D.hδs hδ))
+    (minimal_to_spec H.ht1)) τ
+  rwa [dinst_isub_end _ (.inr rfl), isub_up_dinst _ _ .one trivial] at h
+
+/-- On `δ`, where `ψ` holds, the transport in the fiber is the start. -/
+theorem TGD2.t1E (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) (hh : (ival (idEnv k') (ψ.subst τ.τ)).holds) :
+    RE2 S k' (T.isub (ISub.cons .one trivial τ)) (u0.isub τ) ((tgT1 T ψ u0).isub τ) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hTT := D.rTT k' _ (D.faceL hW hδ (ISub.cons .one trivial τ))
+  have x := RE2.reflL hW hTT (D.u0At hW hδ τ .one trivial (.inl hh))
+  have hty := D.t1Ty hW hδ τ
+  refine RE2.expandR hW hTT (RE2.typed x).1 hty ?_ x
+  unfold tgT1 at hty ⊢
+  rw [transp_isub] at hty ⊢
+  exact stable_transpFace hW (entails_of_holds (I.scoped_subst H.hψ τ.sc) hh) hty
+
+/-- On `δ`, the transport filler in the fiber at the end of its line is near the transport. -/
+theorem TGD2.tf1 (hδ : (ival (idEnv k) δ).holds) {k' : ℕ} (τ : ISub k' k) :
+    RE2 S k' (T.isub (ISub.cons .one trivial τ)) ((Tm.transpFill T ψ u0).isub (ISub.cons .one trivial τ))
+      ((tgT1 T ψ u0).isub τ) := by
+  obtain ⟨-, hTc, -, -⟩ := D.closedL hW
+  have hTT := D.rTT k' _ (D.faceL hW hδ (ISub.cons .one trivial τ))
+  have x := RE2.reflL hW hTT (D.tfAt hW hδ (ISub.cons .one trivial τ) (ISub.cons .one trivial τ) rfl (I_eq_refl _))
+  refine RE2_near hW hTT x ?_ (D.t1Ty hW hδ τ)
+  rw [transpFill_isub_cons]
+  unfold tgT1
+  rw [transp_isub, ← ISub.cons_var0_up_tail τ]
+  exact .transp (near_cons T _ _ (I_eq_and_one_l (.var 0))) (FEq.of_eq (ieq_or_negone _)) (TmNear.refl _)
+
+
+/-- On `δ`, the body of `ω` at the start of the path is the equivalence applied to the transport. -/
+theorem TGD2.w0 (hδ : (ival (idEnv k) δ).holds) :
+    RE2 S k (A.dinst .one) ((tgBody A φ T e ψ u0).dinst .zero) (.app (.fst (e.dinst .one)) (tgT1 T ψ u0)) := by
+  obtain ⟨hAc, hTc, hec, -⟩ := D.closedL hW
+  obtain ⟨l1, H⟩ := D.tgL hW
+  obtain ⟨l, hG⟩ := D.hG
+  have hδe := entails_of_holds D.hδs hδ
+  have hAA := D.rAA k (ISub.id k) .one .one trivial trivial (I_eq_refl _)
+  -- typings
+  have hb := HasTy.isubS hW (HasTy.restrict (Φ' := .one) trivial (ent_shift (ent_cof_one hW hδe))
+    (minimal_to_spec H.hbody)) (ISub.cons .zero trivial (ISub.id k))
+  rw [dshift_isub_cons, isub_id_of_closed (closed_of_ty hW (minimal_to_spec (H.hAr (r := .one) trivial))),
+    isub_cons_id_of_closed (closed_ty H.hbody)] at hb
+  obtain ⟨-, -, he1⟩ := glue_fiber_ty hW hG (ISub.cons .one trivial (ISub.id k)) (D.faceL hW hδ _)
+  have ht1 := D.t1Ty hW hδ (ISub.id k)
+  rw [isub_id_of_closed (closed_ty (H.ht1))] at ht1
+  have hx := minimal_to_spec (app_fst_equiv (spec_to_minimal hW he1) (spec_to_minimal hW ht1))
+  rw [isub_cons_id_of_closed hec, isub_cons_id_of_closed hAc] at hx
+  rw [isub_cons_id_of_closed hAc] at hAA
+  -- the composition reduces to the end of its tube
+  rw [tgBody_dinst] at hb ⊢
+  have hface : I.Entails .one (I.or ψ (.or (.neg .zero) .zero)) :=
+    ent_trans (show I.Entails .one (I.neg .zero) by decide) (ent_trans (ent_or_left _ _) (ent_or_right _ _))
+  refine RE2.expandL hW hAA hb hx (stable_compFace hW hface hb) ?_
+  rw [subst_up_inst0_dinst (closed_ty H.hsys) (r := .zero) (s := .one) trivial trivial]
+  have hχ : I.Entails .one (I.or (ψ.subst (ISub.id k).τ) (.or (.neg .zero) .zero)) := by
+    rw [I_subst_id H.hψ]; exact hface
+  have hsp := tgSys_ty hW H hδe (ISub.id k) (y := .zero) trivial hχ (x := .one) trivial
+  rw [isub_cons_id_of_closed hAc] at hsp
+  unfold tgSys at hsp ⊢
+  rw [tgSys'_isub] at hsp ⊢
+  rw [← isub_cons_id_of_closed hAc .one trivial, ← isub_cons_id_of_closed hec .one trivial,
+    ← isub_id_of_closed (closed_ty H.ht1)] at hx ⊢
+  rw [← isub_cons_id_of_closed hAc .one trivial] at hAA hsp
+  have rs : ∀ {k4 : ℕ} (σ2 : ISub k4 k) (X : Tm),
+      (X.isub (ISub.cons .one trivial (ISub.id k))).isub σ2 = X.isub (ISub.cons .one trivial σ2) :=
+    fun σ2 X => by rw [Tm.isub_isub, ISub.cons_comp, ISub.id_comp]; rfl
+  refine RE2_split_l hW (I.scoped_subst H.hψ (ISub.id k).sc) ⟨trivial, trivial⟩ hχ hAA hsp hx (fun k4 σ2 h => ?_)
+    (fun k4 σ2 h => ?_)
+  · simp only [isub_app, isub_fst, rs, Tm.isub_isub, ISub.id_comp]
+    have hh : (ival (idEnv k4) (ψ.subst σ2.τ)).holds := by
+      rw [holds_iff_entails (I.scoped_subst H.hψ σ2.sc)]
+      rw [I_subst_id H.hψ] at h; exact h
+    exact RE2_equiv_app hW (D.rEL k4 _ (D.faceL hW hδ _)) (D.t1E hW hδ σ2 hh)
+  · have hσ := HasTy.isubS hW hsp σ2
+    have hin := HasTy.eqR (EqTm.splitR h hσ)
+    have hAA2 := D.rAA k4 σ2 .one .one trivial trivial (I_eq_refl _)
+    simp only [← isub_eq_subst, isub_app, isub_fst, rs, Tm.isub_isub, ISub.id_comp, I.subst] at hin ⊢
+    refine RE2_split_l hW trivial trivial (by simpa only [I.subst] using h) hAA2 hin
+      (by simpa only [isub_app, isub_fst, rs, Tm.isub_isub, ISub.id_comp] using HasTy.isubS hW hx σ2)
+      (fun k5 σ3 _ => ?_) (fun k5 σ3 h3 => ?_)
+    · simp only [← isub_eq_subst, isub_app, isub_fst, Tm.isub_isub, ISub.cons_comp, I.subst, ISub.id_comp]
+      exact RE2_equiv_app hW (D.rEL k5 _ (D.faceL hW hδ _)) (D.tf1 hW hδ (σ2.comp σ3))
+    · exact absurd h3 (by simp only [I.subst]; decide)
+
 end
 
 end
