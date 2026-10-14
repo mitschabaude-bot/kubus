@@ -366,6 +366,103 @@ theorem argRelH_of {P : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ
   rw [hc]
   exact argTy_rel hW hD hH hC (hpar k'' σ') hl hl' hr hargs
 
+omit hH in
+/-- The recorded code of a parameter's type is the value of its type instantiated by the earlier
+parameters. -/
+theorem paramTyC_eq {X : Tm} (hxl : X = Tm.ofList X.toList) (hlen : X.toList.length = D.params.length)
+    (hnat : ∀ t ∈ X.toList, Natural S t k (idEnv k) (γ0 k)) (i : ℕ) (hi : i < D.params.length) :
+    paramTyC (sigUpTo S d) D.params[i] i k (sem S X k (idEnv k) (γ0 k)) =
+      semK S k (D.params[i].substList (X.toList.take i).reverse) := by
+  have hsyn : DataSyn d D := ((sigOK_of_wfSig _ S rfl hW).2 d D hD).1
+  have hd : d ≤ S.length := (List.getElem?_eq_some_iff.1 hD).1.le
+  have hσ : interp (sigUpTo S d) univC TyCode (D.params[i]) = sem S (D.params[i]) :=
+    interp_congr_cst _ _ (sigUpTo_agree S S.length hd) _ (hsyn.2.1 i _ (List.getElem?_eq_getElem hi)).2
+  unfold paramTyC semK
+  rw [hσ, Tm.substList, sem_subst S _ k _ _ _ _ (natural_substList fun t ht =>
+      hnat t (List.mem_of_mem_take (List.mem_reverse.1 ht)))]
+  obtain ⟨hcl, -⟩ := hsyn.2.1 i _ (List.getElem?_eq_getElem hi)
+  symm
+  refine interp_congr_closed _ _ _ _ i 0 hcl k _ _ _ _ (fun _ h => absurd h (by omega)) (fun x hx => ?_)
+  have hx' : x < ((X.toList.take i).reverse).length := by simp; omega
+  rw [sem_substList_env _ _ _ x hx']
+  simp only [argEnv, List.reverse_nil, List.append_nil, plist]
+  rw [List.getD_eq_getElem?_getD, List.getElem?_reverse (by simp; omega)]
+  simp only [List.length_map, List.length_range, List.getElem?_map, List.getElem?_range (by omega : i - 1 - x < i),
+    Option.map_some, Option.getD_some]
+  rw [sem_vnth X _ _ _ (by omega), List.getElem_reverse, List.getElem_take]
+  congr 2; simp; omega
+
+/-- The parameter clause of a literal inductive type, from related parameter lists. -/
+theorem parRel2_of {P : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ l)) (hpl : P = Tm.ofList P.toList)
+    {k' : ℕ} (σ : ISub k' k) {ps ps' : Tm} (hrel : ParRel2 S k' D ps.toList ps'.toList)
+    (hpeq : ListEq S k' (P.isub σ).toList ps.toList) :
+    parRel2 S (ΘK S D d k P) (Hom.id k) k' σ ps ps' := by
+  intro j p p' hp hp'
+  obtain ⟨hjps, rfl⟩ := List.getElem?_eq_some_iff.1 hp
+  obtain ⟨hjps', rfl⟩ := List.getElem?_eq_some_iff.1 hp'
+  have hjD : j < D.params.length := by rw [← hrel.1]; exact hjps
+  have hPσ : HasTy S k' .one [] (.data d (P.isub σ)) (.univ l) := HasTy.isubS hW hP σ
+  have hplσ : P.isub σ = Tm.ofList (P.isub σ).toList := isList_subst hpl _ _
+  have hlenσ : (P.isub σ).toList.length = D.params.length := by rw [hpeq.get.1, hrel.1]
+  have hjP : j < (P.isub σ).toList.length := by omega
+  have hnat : ∀ t ∈ (P.isub σ).toList, Natural S t k' (idEnv k') (γ0 k') := by
+    intro t ht
+    obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ht
+    obtain ⟨T, e⟩ := hpeq.get.2 i hi (by rw [← hpeq.get.1]; exact hi)
+    exact (natural_of_eq hW e).1
+  have hent : parEntry (ΘK S D d k P) (Hom.id k) k' σ j =
+      paramEntry (sigUpTo S d) D j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')) := by
+    unfold parEntry
+    rw [Hom.id_comp, ΘK_restr P σ]
+    show vnth (vlist ((List.range D.params.length).map fun j => paramEntry (sigUpTo S d) D j k'
+      (psRV S (P.isub σ) k' (idEnv k') (γ0 k') k' (Hom.id k')))) j = _
+    rw [vnth_vlist_lt _ _ (by simpa using hjD)]
+    simp only [List.getElem_map, List.getElem_range, psRV, IEnv.restr_id, γ0_restr]
+  rw [hent]
+  simp only [show (ΘK S D d k P).idx = d from rfl, dataD_eq hW hD]
+  have hpe := hpeq.get.2 j hjP (by rw [← hpeq.get.1]; exact hjP)
+  unfold paramEntry
+  have hgen : ∀ (A : Tm), A = D.params[j] →
+      (π1 (ZFSet.pair (natZ 0) (paramTyC (sigUpTo S d) A j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')))) = natZ 1 →
+        (Comp2 S (π2 (ZFSet.pair (natZ 0) (paramTyC (sigUpTo S d) A j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')))))
+          k' k' (Hom.id k')).ty ps.toList[j] ps'.toList[j]) ∧
+      (π1 (ZFSet.pair (natZ 0) (paramTyC (sigUpTo S d) A j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')))) = natZ 0 →
+        ∀ Aj, D.params[j]? = some Aj →
+        (Comp2 S (π2 (ZFSet.pair (natZ 0) (paramTyC (sigUpTo S d) A j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')))))
+          k' k' (Hom.id k')).ty (Aj.substList (ps.toList.take j).reverse) (Aj.substList (ps'.toList.take j).reverse) ∧
+        (Comp2 S (π2 (ZFSet.pair (natZ 0) (paramTyC (sigUpTo S d) A j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')))))
+          k' k' (Hom.id k')).el (Aj.substList (ps.toList.take j).reverse) ps.toList[j] ps'.toList[j]) := by
+    rintro A rfl
+    simp only [π1_pair, π2_pair]
+    refine ⟨fun h => absurd h (by intro h; exact absurd (natZ_inj.1 h) (by decide)), fun _ Aj hAj => ?_⟩
+    rw [List.getElem?_eq_getElem hjD] at hAj
+    cases hAj
+    rw [paramTyC_eq hW hD hplσ hlenσ hnat j hjD]
+    have hc : semK S k' (D.params[j].substList ((P.isub σ).toList.take j).reverse) =
+        semK S k' (D.params[j].substList (ps.toList.take j).reverse) := by
+      have hE := List.forall₂_reverse_iff.2 (List.forall₂_take j hpeq)
+      exact semK_substList_congr hW _ (ListEq.get hE).1 (ListEq.get hE).2
+    rw [hc]
+    exact ⟨hrel.ty hW hD hH j hjD, hrel.2.2 j hjps hjps' hjD⟩
+  split
+  · rename_i kk heq
+    have heq' : D.params[j] = .univ kk := by rw [List.getElem?_eq_getElem hjD] at heq; injection heq
+    split
+    · simp only [π1_pair, π2_pair]
+      refine ⟨fun _ => ?_, fun h => absurd (natZ_inj.1 h) (by decide)⟩
+      rw [sem_vnth _ _ _ j hjP]
+      obtain ⟨T, e⟩ := hpe
+      show (Comp2 S (semK S k' _) k' k' (Hom.id k')).ty _ _
+      rw [semK_eq hW e]
+      have h := hrel.2.2 j hjps hjps' hjD
+      rw [heq'] at h
+      exact ((RE2_univ_iff hW).1 h).2.2
+    · exact hgen _ heq'.symm
+  · rename_i A _ heq
+    have heq' : D.params[j] = A := by rw [List.getElem?_eq_getElem hjD] at heq; injection heq
+    exact hgen _ heq'.symm
+  · rename_i heq; rw [List.getElem?_eq_getElem hjD] at heq; cases heq
+
 end
 
 end Model.Whnf
