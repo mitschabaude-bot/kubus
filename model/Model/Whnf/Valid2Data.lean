@@ -549,14 +549,27 @@ theorem VTele2.get {Ψ : ℕ} {Φ : I} {Γ : Ctx} : ∀ {ts ts' : Tm} {Δ prev :
   | .tcons _ _, .tnil, _, _, h => by cases h
   | .tcons _ _, .tcons _ _, [], _, h => h.elim
 
+omit hW hD hH in
+theorem VTele2.shape {Ψ : ℕ} {Φ : I} {Γ : Ctx} : ∀ {ts ts' : Tm} {Δ prev : List Tm}, VTele2 S Ψ Φ Γ ts ts' Δ prev →
+    ts = Tm.ofList ts.toList ∧ ts' = Tm.ofList ts'.toList ∧ ts.toList.length = Δ.length ∧ ts'.toList.length = Δ.length
+  | .tnil, .tnil, [], _, _ => ⟨rfl, rfl, rfl, rfl⟩
+  | .tcons a as, .tcons a' as', A :: Δ, prev, ⟨_, h2⟩ => by
+    obtain ⟨e1, e2, l1, l2⟩ := VTele2.shape h2
+    refine ⟨?_, ?_, ?_, ?_⟩
+    · show Tm.tcons a as = Tm.tcons a (Tm.ofList as.toList); rw [← e1]
+    · show Tm.tcons a' as' = Tm.tcons a' (Tm.ofList as'.toList); rw [← e2]
+    · simp [Tm.toList, l1]
+    · simp [Tm.toList, l2]
+  | .tnil, .tnil, _ :: _, _, h => h.elim
+  | .tnil, .tcons _ _, _, _, h => by cases h
+  | .tcons _ _, .tnil, _, _, h => by cases h
+  | .tcons _ _, .tcons _ _, [], _, h => h.elim
+
 /-- Valid parameters instantiate to related parameter lists. -/
-theorem parRel2_of_vtele {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' : Tm} (ht : HasTele0 S Ψ Φ Γ ps D.params [])
-    (ht' : HasTele0 S Ψ Φ Γ ps' D.params []) (hv : VTele2 S Ψ Φ Γ ps ps' D.params []) (c : CSub2 S Ψ Φ Γ k) :
+theorem parRel2_of_vtele {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' : Tm}
+    (hv : VTele2 S Ψ Φ Γ ps ps' D.params []) (c : CSub2 S Ψ Φ Γ k) :
     ParRel2 S k D (c.L ps).toList (c.R ps').toList := by
-  have hpl := tele_isList ht
-  have hpl' := tele_isList ht'
-  have hlen := tele_length ht
-  have hlen' := tele_length ht'
+  obtain ⟨hpl, hpl', hlen, hlen'⟩ := VTele2.shape hv
   have e1 : (c.L ps).toList = ps.toList.map c.L := toList_subst hpl _ _
   have e2 : (c.R ps').toList = ps'.toList.map c.R := toList_subst hpl' _ _
   refine ⟨by rw [e1]; simpa using hlen, by rw [e2]; simpa using hlen', fun j hj hj' hjD => ?_⟩
@@ -584,7 +597,19 @@ theorem valid_data {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps : Tm} (hlev : D.level + 1 
   refine RT2_dataLit hW hD hH (P := c.L ps) (Q := c.R ps) (c.ty hW hty) (c.tyR' hW hty)
     (.inr ⟨_, c.eqLR hW hty⟩) (isList_subst hpl _ _) (isList_subst hpl _ _) fun k' σ => ?_
   rw [← CSub2.restr_L hW c σ ps, ← CSub2.restr_R hW c σ ps]
-  exact parRel2_of_vtele hW hD hH ht ht hv (c.restr hW σ)
+  exact parRel2_of_vtele hW hD hH hv (c.restr hW σ)
+
+/-- Congruence of formation. -/
+theorem valid_dataEq {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' : Tm}
+    (hty : HasTy0 S Ψ Φ Γ (.data d ps) (.univ D.level)) (hty' : HasTy0 S Ψ Φ Γ (.data d ps') (.univ D.level))
+    (heq : EqTm0 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ D.level)) (hv : VTele2 S Ψ Φ Γ ps ps' D.params []) :
+    Valid2 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ D.level) := by
+  obtain ⟨hpl, hpl', -, -⟩ := VTele2.shape hv
+  refine valid_univ_of hW hty hty' heq fun k c => ?_
+  refine RT2_dataLit hW hD hH (P := c.L ps) (Q := c.R ps') (c.ty hW hty) (c.tyR' hW hty')
+    (.inr ⟨_, c.eq hW heq⟩) (isList_subst hpl _ _) (isList_subst hpl' _ _) fun k' σ => ?_
+  rw [← CSub2.restr_L hW c σ ps, ← CSub2.restr_R hW c σ ps']
+  exact parRel2_of_vtele hW hD hH hv (c.restr hW σ)
 
 end
 
