@@ -595,6 +595,14 @@ theorem ihCtxB_succ (C : Ctor) (P : Tm) (s : Nat) :
     ihCtxB C P (s + 1) = DataDecl.branchIhTy C P s :: ihCtxB C P s := by
   simp [ihCtxB, List.range_succ]
 
+theorem dupN_var (m : Nat) : dupN m Tm.var = Tm.var := by
+  funext n; rw [dupN_eq]; rfl
+
+theorem IupN_var (m : Nat) : IupN m I.var = I.var := by
+  funext i; rw [IupN_eq]; split
+  · rfl
+  · simp only [I.subst]; congr 1; omega
+
 section
 variable (hS : SigClosed S) (hW : WfSig S) {d : Nat} {D : DataDecl} {c : Nat} {C : Ctor}
   (hD : S[d]? = some (.data D)) (hC : D.ctors[c]? = some C)
@@ -658,6 +666,47 @@ theorem branchTy_congr (hmP : mP ≤ maxLevel) :
         ((body_congr hS hW hD hC hpres ht es edata eP hwm (ent_refl _)).lift (Nat.le_max_right _ _) hL)
       rw [List.append_assoc] at this
       exact this
+
+theorem ctxConv_args : ∀ k, k ≤ C.args.length →
+    TySub S Ψ Φ (argCtxB d D.params.length C ps k ++ Γ) Ψ Φ (argCtxB d D.params.length C ps' k ++ Γ) Tm.var I.var
+  | 0, _ => by simpa [argCtxB] using tySub_id (wf_of_tele ht)
+  | k + 1, hk => by
+    have h := ctxConv_args k (by omega)
+    have e := argTy_congr hS hW hD hC hpres ht es edata (by omega)
+      (argCtxB_wf hS hW hD hC hpres ht es edata k (by omega))
+    have e' := (sub_eq hS e).2 h
+    rw [subst_var, subst_var] at e'
+    have := h.up hS (hpres e') (by rw [subst_var]; exact EqTm0.symm e')
+    rw [up_var] at this
+    rw [argCtxB_succ, argCtxB_succ]
+    exact this
+
+include eP in
+theorem ctxConv_ihs : ∀ s, s ≤ C.recPos.length →
+    TySub S Ψ Φ (ihCtxB C P s ++ argCtxB d D.params.length C ps C.args.length ++ Γ)
+      Ψ Φ (ihCtxB C P' s ++ argCtxB d D.params.length C ps' C.args.length ++ Γ) Tm.var I.var
+  | 0, _ => by simpa [ihCtxB] using ctxConv_args hS hW hD hC hpres ht es edata _ (Nat.le_refl _)
+  | s + 1, hs => by
+    have h := ctxConv_ihs s (by omega)
+    have e := ihTy_congr hS hD hC (tele_isList ht) (by simpa using tele_length ht) eP (by omega)
+      (ihCtxB_wf hS hW hD hC hpres ht es edata eP s (by omega))
+    have e' := (sub_eq hS e).2 h
+    rw [subst_var, subst_var] at e'
+    have := h.up hS (hpres e') (by rw [subst_var]; exact EqTm0.symm e')
+    rw [up_var] at this
+    rw [ihCtxB_succ, ihCtxB_succ, List.cons_append, List.cons_append, List.cons_append, List.cons_append]
+    exact this
+
+include eP in
+/-- The branch context at the near data, as an identity substitution. -/
+theorem ctxConv_branch {Ξ : I} (hΞ : Ξ.Scoped (Ψ + C.dims)) (he : I.Entails Ξ (Φ.subst (wkIv C.dims))) :
+    TySub S (Ψ + C.dims) Ξ (ctxWkI C.dims (ihCtxB C P C.recPos.length ++ argCtxB d D.params.length C ps C.args.length ++ Γ))
+      (Ψ + C.dims) Ξ (ctxWkI C.dims (ihCtxB C P' C.recPos.length ++ argCtxB d D.params.length C ps' C.args.length ++ Γ))
+      Tm.var I.var := by
+  have h := (ctxConv_ihs hS hW hD hC hpres ht es edata eP _ (Nat.le_refl _)).dupI hS C.dims
+  rw [dupN_var, IupN_var] at h
+  exact ⟨h.bound, hΞ, by rw [I_subst_var]; exact ent_refl _,
+    fun x A hx => HasTy0.restrict hΞ he (h.look x A hx), h.wf.restrict hΞ he⟩
 
 end
 
