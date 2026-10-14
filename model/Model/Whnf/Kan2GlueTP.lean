@@ -773,6 +773,24 @@ theorem TGD2.fill1 {k' : ℕ} (τ : ISub k' k) :
       have x := D.tubeL hW σ (r := .zero) (r' := .zero) trivial trivial (I_eq_refl _) hh
       rw [tgTube_zero φ e u0]; rwa [tgTube_zero φ e u0] at x) τ
 
+/-- On `δ`, where `ψ` holds, the equivalence applied to the start is the composition in the bases. -/
+theorem TGD2.eu0a1 (hδ : (ival (idEnv k) δ).holds) {k4 : ℕ} (σ2 : ISub k4 k) (hh : (ival (idEnv k4) (ψ.subst σ2.τ)).holds) :
+    RE2 S k4 (A.isub (ISub.cons .one trivial σ2)) (.app (.fst (e.isub (ISub.cons .one trivial σ2))) (u0.isub σ2))
+      ((tgA1' A φ e ψ u0).isub σ2) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hAA2 := D.rAA k4 σ2 .one .one trivial trivial (I_eq_refl _)
+  have t := D.tubeE hW hδ σ2 (r := .one) trivial hh
+  rw [isub_up_dinst _ _ .one trivial] at t
+  have hc := HasTy.isubS hW (minimal_to_spec H.ha1') σ2
+  rw [dinst_isub_end _ (.inr rfl), isub_up_dinst _ _ .one trivial] at hc
+  have st := stable_compFace hW (entails_of_holds (I.scoped_subst H.hψ σ2.sc) hh)
+    (by unfold tgA1' at hc; rw [comp_isub] at hc; exact hc)
+  unfold tgA1'
+  rw [comp_isub]
+  rw [isub_up_dinst _ _ .one trivial] at st
+  exact RE2.expandR hW hAA2 (RE2.typed t).2.1 (by unfold tgA1' at hc; rwa [comp_isub] at hc) st
+    (RE2.symm hW hAA2 t)
+
 /-- On `δ`, the body of `ω` at the end of the path is the composition in the bases. -/
 theorem TGD2.w1 (hδ : (ival (idEnv k) δ).holds) :
     RE2 S k (A.dinst .one) ((tgBody A φ T e ψ u0).dinst .one) (tgA1' A φ e ψ u0) := by
@@ -808,18 +826,7 @@ theorem TGD2.w1 (hδ : (ival (idEnv k) δ).holds) :
     have hh : (ival (idEnv k4) (ψ.subst σ2.τ)).holds := by
       rw [holds_iff_entails (I.scoped_subst H.hψ σ2.sc)]
       rw [I_subst_id H.hψ] at h; exact h
-    have hAA2 := D.rAA k4 σ2 .one .one trivial trivial (I_eq_refl _)
-    have t := D.tubeE hW hδ σ2 (r := .one) trivial hh
-    rw [isub_up_dinst _ _ .one trivial] at t
-    have hc := HasTy.isubS hW (minimal_to_spec H.ha1') σ2
-    rw [dinst_isub_end _ (.inr rfl), isub_up_dinst _ _ .one trivial] at hc
-    have st := stable_compFace hW (entails_of_holds (I.scoped_subst H.hψ σ2.sc) hh)
-      (by unfold tgA1' at hc; rw [comp_isub] at hc; exact hc)
-    unfold tgA1'
-    rw [comp_isub]
-    rw [isub_up_dinst _ _ .one trivial] at st
-    exact RE2.expandR hW hAA2 (RE2.typed t).2.1 (by unfold tgA1' at hc; rwa [comp_isub] at hc) st
-      (RE2.symm hW hAA2 t)
+    exact D.eu0a1 hW hδ σ2 hh
   · have hσ := HasTy.isubS hW hsp σ2
     have hin := HasTy.eqR (EqTm.splitR h hσ)
     have hAA2 := D.rAA k4 σ2 .one .one trivial trivial (I_eq_refl _)
