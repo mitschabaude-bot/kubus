@@ -56,7 +56,7 @@ theorem Comp2_piC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
     Comp2 S (piC m A B) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (piC m A B) ∧
           semK S k T' = res f (piC m A B) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
-          RedW S (T.isub σ) (.pi A1 B1) ∧ RedW S (T'.isub σ) (.pi A1' B1') ∧
+          RedT S k' (T.isub σ) (.pi A1 B1) ∧ RedT S k' (T'.isub σ) (.pi A1' B1') ∧
           (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
             ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
               (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a'),
@@ -72,7 +72,7 @@ theorem Comp2_sigmaC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
     Comp2 S (sigmaC m A B) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (sigmaC m A B) ∧
           semK S k T' = res f (sigmaC m A B) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
-          RedW S (T.isub σ) (.sigma A1 B1) ∧ RedW S (T'.isub σ) (.sigma A1' B1') ∧
+          RedT S k' (T.isub σ) (.sigma A1 B1) ∧ RedT S k' (T'.isub σ) (.sigma A1' B1') ∧
           (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
             ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
               (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a'),
@@ -88,7 +88,7 @@ theorem Comp2_pathC (L a0 a1 : V) (hL : L ≠ ∅) (f : Hom k m) :
     Comp2 S (pathC m L a0 a1) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (pathC m L a0 a1) ∧
           semK S k T' = res f (pathC m L a0 a1) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
-          RedW S (T.isub σ) (.path L1 b0 b1) ∧ RedW S (T'.isub σ) (.path L1' b0' b1') ∧
+          RedT S k' (T.isub σ) (.path L1 b0 b1) ∧ RedT S k' (T'.isub σ) (.path L1' b0' b1') ∧
           (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1' ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .zero trivial σ).hom)).el (L1.dinst .zero) b0 b0' ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .one trivial σ).hom)).el (L1.dinst .one) b1 b1',
@@ -103,7 +103,7 @@ theorem Comp2_ipiC (L : V) (hL : L ≠ ∅) (f : Hom k m) :
     Comp2 S (ipiC m L) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (ipiC m L) ∧
           semK S k T' = res f (ipiC m L) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ L1 L1',
-          RedW S (T.isub σ) (.ipi L1) ∧ RedW S (T'.isub σ) (.ipi L1') ∧
+          RedT S k' (T.isub σ) (.ipi L1) ∧ RedT S k' (T'.isub σ) (.ipi L1') ∧
           (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (ipiC m L)) (Hom.id k) ∧
           ipiE2 S (fun k' σ => (Comp2 S L (m + 1) k' ((Hom.lift f).comp σ.hom)).el) k (ISub.id k) T t t'⟩ := by
@@ -116,7 +116,7 @@ theorem Comp2_univC (l : ℕ) (f : Hom k m) :
     Comp2 S (univC m l) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (univC m l) ∧
           semK S k T' = res f (univC m l) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k),
-          RedW S (T.isub σ) (.univ l) ∧ RedW S (T'.isub σ) (.univ l),
+          RedT S k' (T.isub σ) (.univ l) ∧ RedT S k' (T'.isub σ) (.univ l),
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (univC m l)) (Hom.id k) ∧
           ∃ _ : semK S k t ∈ ZFSet.sep (WF l k) (Vt l), (Comp2 S (semK S k t) k k (Hom.id k)).ty t t'⟩ := by
   rw [Comp2_unfold (show univC m l ≠ ∅ from mkKV_ne_empty (fun k _ => univDatum (WF l) l k))]
@@ -142,7 +142,7 @@ theorem Comp2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp)
           semK S m T' = res (Hom.id m) (glueC m A φ Tp ep) ∧ TyEq S m T T') ∧ ∀ k' (σ : ISub k' m),
           if (φ.restr σ.hom).holds then (Comp2 S (dat Tp k' σ.hom) k' k' (Hom.id k')).ty (T.isub σ) (T'.isub σ)
           else ∃ A1 φ1 T1 e1 A1' φ1' T1' e1',
-            RedW S (T.isub σ) (.glue A1 φ1 T1 e1) ∧ RedW S (T'.isub σ) (.glue A1' φ1' T1' e1') ∧
+            RedT S k' (T.isub σ) (.glue A1 φ1 T1 e1) ∧ RedT S k' (T'.isub σ) (.glue A1' φ1' T1' e1') ∧
             φ1.Scoped k' ∧ φ1'.Scoped k' ∧
             (ival (idEnv k') φ1).face = φ.restr σ.hom ∧ (ival (idEnv k') φ1').face = φ.restr σ.hom ∧
             (Comp2 S A m k' σ.hom).ty A1 A1' ∧
@@ -154,8 +154,8 @@ theorem Comp2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp)
         fun T g g' => EB S m T g g' ∧ semK S m g ∈ El (res (Hom.id m) (glueC m A φ Tp ep)) (Hom.id m) ∧
           EB S m T g g' ∧ ∀ k' (σ : ISub k' m),
           if (φ.restr σ.hom).holds then (Comp2 S (dat Tp k' σ.hom) k' k' (Hom.id k')).el (T.isub σ) (g.isub σ) (g'.isub σ)
-          else ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedW S (T.isub σ) (.glue A1 φ1 T1 e1) ∧
-            RedW S (g.isub σ) (.glueEl ψ e0 t0 a0) ∧ RedW S (g'.isub σ) (.glueEl ψ' e0' t0' a0') ∧
+          else ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedT S k' (T.isub σ) (.glue A1 φ1 T1 e1) ∧
+            RedE S k' (T.isub σ) (g.isub σ) (.glueEl ψ e0 t0 a0) ∧ RedE S k' (T.isub σ) (g'.isub σ) (.glueEl ψ' e0' t0' a0') ∧
             I.Entails ψ φ1 ∧ I.Entails φ1 ψ ∧ I.Entails ψ' φ1 ∧ I.Entails φ1 ψ' ∧
             EqTm S k' (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) ∧ EqTm S k' (cof .one φ1) [] e0' e1 (Tm.equiv T1 A1) ∧
             (Comp2 S A m k' σ.hom).el A1 a0 a0'⟩ := by
@@ -175,7 +175,7 @@ theorem Comp2_dataC (Θ : SData m) (f : Hom k m) :
     Comp2 S (dataC Θ) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (dataC Θ) ∧
           semK S k T' = res f (dataC Θ) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ ps ps',
-          RedW S (T.isub σ) (.data Θ.idx ps) ∧ RedW S (T'.isub σ) (.data Θ.idx ps') ∧
+          RedT S k' (T.isub σ) (.data Θ.idx ps) ∧ RedT S k' (T'.isub σ) (.data Θ.idx ps') ∧
           ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
           ∀ (c : ℕ) (C : Ctor) (args args' : List Tm), (dataD S Θ.idx).ctors[c]? = some C →
             args.length < C.args.length → args'.length = args.length → C.isRec args.length = false →

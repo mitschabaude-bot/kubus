@@ -88,7 +88,7 @@ theorem pi_transTy {A A' A'' : Tm} (hT : piT S D C A A') (hT' : piT S D C A' A''
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hT k' σ
   obtain ⟨A2, B2, A2', B2', h1', h2', h3', h4'⟩ := hT' k' σ
   obtain ⟨rfl, rfl⟩ : A1' = A2 ∧ B1' = B2 := by
-    have := RedW.unique h2 h1'; injection this with e1 e2; exact ⟨e1, e2⟩
+    have := RedW.unique h2.1 h1'.1; injection this with e1 e2; exact ⟨e1, e2⟩
   have P := hD k' σ
   refine ⟨A1, B1, A2', B2', h1, h2', P.transTy h3 h3', fun a a' ha => ?_⟩
   have ha2 : (D k' σ).el A1' a' a' := P.conv h3 (P.reflEl' (P.transTy h3 h3') ha)
@@ -104,7 +104,7 @@ theorem pi_symEl {A A' t t' : Tm} (hT : piT S D C A A') (ht : piEl S D C A t t')
   obtain ⟨A1, B1, hr, hel⟩ := hall k'' σ'
   obtain ⟨A1x, B1x, A1', B1', hrx, -, h3, h4⟩ := hT k'' σ'
   obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
-    have := RedW.unique hrx hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    have := RedW.unique hrx.1 hr.1; injection this with e1 e2; exact ⟨e1, e2⟩
   refine ⟨A1x, B1x, hr, fun a a' ha => ?_⟩
   simp only [ISub.id_comp] at ha hel ⊢
   have P := hD k'' σ'
@@ -123,10 +123,10 @@ theorem pi_transEl {A A' t t' t'' : Tm} (hT : piT S D C A A') (ht : piEl S D C A
   obtain ⟨A1, B1, hr, hel⟩ := hall k'' σ'
   obtain ⟨A1x, B1x, hrx, hel'⟩ := hall' k'' σ'
   obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
-    have := RedW.unique hrx hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    have := RedW.unique hrx.1 hr.1; injection this with e1 e2; exact ⟨e1, e2⟩
   obtain ⟨A1y, B1y, A1', B1', hry, -, h3, h4⟩ := hT k'' σ'
   obtain ⟨rfl, rfl⟩ : A1y = A1x ∧ B1y = B1x := by
-    have := RedW.unique hry hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    have := RedW.unique hry.1 hr.1; injection this with e1 e2; exact ⟨e1, e2⟩
   refine ⟨A1y, B1y, hr, fun a a' ha => ?_⟩
   simp only [ISub.id_comp] at ha hel hel' ⊢
   have P := hD k'' σ'
@@ -144,7 +144,7 @@ theorem pi_conv {A A' t t' : Tm} (hT : piT S D C A A') (hE : TyEq S k A A')
   obtain ⟨A1, B1, hr, hel⟩ := hall k'' σ'
   obtain ⟨A1x, B1x, A1', B1', hrx, hr', h3, h4⟩ := hT k'' σ'
   obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
-    have := RedW.unique hrx hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    have := RedW.unique hrx.1 hr.1; injection this with e1 e2; exact ⟨e1, e2⟩
   refine ⟨A1', B1', hr', fun a a' ha => ?_⟩
   simp only [ISub.id_comp] at ha hel ⊢
   have P := hD k'' σ'
@@ -176,7 +176,7 @@ theorem sig_transTy {A A' A'' : Tm} (hT : sigT S D C A A') (hT' : sigT S D C A' 
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hT k' σ
   obtain ⟨A2, B2, A2', B2', h1', h2', h3', h4'⟩ := hT' k' σ
   obtain ⟨rfl, rfl⟩ : A1' = A2 ∧ B1' = B2 := by
-    have := RedW.unique h2 h1'; injection this with e1 e2; exact ⟨e1, e2⟩
+    have := RedW.unique h2.1 h1'.1; injection this with e1 e2; exact ⟨e1, e2⟩
   have P := hD k' σ
   refine ⟨A1, B1, A2', B2', h1, h2', P.transTy h3 h3', fun a a' ha => ?_⟩
   have ha2 : (D k' σ).el A1' a' a' := P.conv h3 (P.reflEl' (P.transTy h3 h3') ha)
@@ -192,7 +192,7 @@ theorem sig_symEl {A A' t t' : Tm} (hT : sigT S D C A A') (ht : sigEl S D C A t 
   obtain ⟨A1, B1, hr, hfst, hsnd⟩ := hall k'' σ'
   obtain ⟨A1x, B1x, A1', B1', hrx, -, h3, h4⟩ := hT k'' σ'
   obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
-    have := RedW.unique hrx hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    have := RedW.unique hrx.1 hr.1; injection this with e1 e2; exact ⟨e1, e2⟩
   simp only [ISub.id_comp] at hfst hsnd ⊢
   have P := hD k'' σ'
   refine ⟨A1x, B1x, hr, P.symEl h3 hfst, ?_⟩
@@ -209,10 +209,10 @@ theorem sig_transEl {A A' t t' t'' : Tm} (hT : sigT S D C A A') (ht : sigEl S D 
   obtain ⟨A1, B1, hr, hfst, hsnd⟩ := hall k'' σ'
   obtain ⟨A1x, B1x, hrx, hfst', hsnd'⟩ := hall' k'' σ'
   obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
-    have := RedW.unique hrx hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    have := RedW.unique hrx.1 hr.1; injection this with e1 e2; exact ⟨e1, e2⟩
   obtain ⟨A1y, B1y, A1', B1', hry, -, h3, h4⟩ := hT k'' σ'
   obtain ⟨rfl, rfl⟩ : A1y = A1x ∧ B1y = B1x := by
-    have := RedW.unique hry hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    have := RedW.unique hry.1 hr.1; injection this with e1 e2; exact ⟨e1, e2⟩
   simp only [ISub.id_comp] at hfst hsnd hfst' hsnd' ⊢
   have P := hD k'' σ'
   refine ⟨A1y, B1y, hr, P.transEl h3 hfst hfst', ?_⟩
@@ -228,7 +228,7 @@ theorem sig_conv {A A' t t' : Tm} (hT : sigT S D C A A') (hE : TyEq S k A A')
   obtain ⟨A1, B1, hr, hfst, hsnd⟩ := hall k'' σ'
   obtain ⟨A1x, B1x, A1', B1', hrx, hr', h3, h4⟩ := hT k'' σ'
   obtain ⟨rfl, rfl⟩ : A1x = A1 ∧ B1x = B1 := by
-    have := RedW.unique hrx hr; injection this with e1 e2; exact ⟨e1, e2⟩
+    have := RedW.unique hrx.1 hr.1; injection this with e1 e2; exact ⟨e1, e2⟩
   simp only [ISub.id_comp] at hfst hsnd ⊢
   have P := hD k'' σ'
   exact ⟨A1', B1', hr', P.conv h3 hfst, (hC k'' σ' _ _ _ hfst).conv (h4 _ _ (P.reflEl h3 hfst)) hsnd⟩
@@ -257,7 +257,7 @@ theorem path_transTy {A A' A'' : Tm} (hT : pathT S Lp A A') (hT' : pathT S Lp A'
   obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5⟩ := hT k' σ
   obtain ⟨L2, c0, c1, L2', c0', c1', h1', h2', h3', h4', h5'⟩ := hT' k' σ
   obtain ⟨rfl, rfl, rfl⟩ : L1' = L2 ∧ b0' = c0 ∧ b1' = c1 := by
-    have := RedW.unique h2 h1'; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
+    have := RedW.unique h2.1 h1'.1; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
   have P0 := hL k' (ISub.cons .zero trivial σ)
   have P1 := hL k' (ISub.cons .one trivial σ)
   have d0 := hLt k' σ _ _ h3 .zero trivial
@@ -272,7 +272,7 @@ theorem path_symEl {A A' t t' : Tm} (hT : pathT S Lp A A') (ht : pathEl S Lp A t
   obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
   obtain ⟨L1x, b0x, b1x, L1', b0', b1', hrx, -, h3, -⟩ := hT k'' σ'
   obtain ⟨rfl, rfl, rfl⟩ : L1x = L1 ∧ b0x = b0 ∧ b1x = b1 := by
-    have := RedW.unique hrx hr; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
+    have := RedW.unique hrx.1 hr.1; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
   refine ⟨L1x, b0x, b1x, hr, fun r hr' => ?_⟩
   have := hel r hr'
   simp only [ISub.id_comp] at this ⊢
@@ -286,10 +286,10 @@ theorem path_transEl {A A' t t' t'' : Tm} (hT : pathT S Lp A A') (ht : pathEl S 
   obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
   obtain ⟨L1x, b0x, b1x, hrx, hel'⟩ := hall' k'' σ'
   obtain ⟨rfl, rfl, rfl⟩ : L1x = L1 ∧ b0x = b0 ∧ b1x = b1 := by
-    have := RedW.unique hrx hr; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
+    have := RedW.unique hrx.1 hr.1; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
   obtain ⟨L1y, b0y, b1y, L1', b0', b1', hry, -, h3, -⟩ := hT k'' σ'
   obtain ⟨rfl, rfl, rfl⟩ : L1y = L1x ∧ b0y = b0x ∧ b1y = b1x := by
-    have := RedW.unique hry hr; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
+    have := RedW.unique hry.1 hr.1; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
   refine ⟨L1y, b0y, b1y, hr, fun r hr' => ?_⟩
   have x := hel r hr'
   have y := hel' r hr'
@@ -303,7 +303,7 @@ theorem path_conv {A A' t t' : Tm} (hT : pathT S Lp A A') (hE : TyEq S k A A')
   obtain ⟨L1, b0, b1, hr, hel⟩ := hall k'' σ'
   obtain ⟨L1x, b0x, b1x, L1', b0', b1', hrx, hr2, h3, -⟩ := hT k'' σ'
   obtain ⟨rfl, rfl, rfl⟩ : L1x = L1 ∧ b0x = b0 ∧ b1x = b1 := by
-    have := RedW.unique hrx hr; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
+    have := RedW.unique hrx.1 hr.1; injection this with e1 e2 e3; exact ⟨e1, e2, e3⟩
   refine ⟨L1', b0', b1', hr2, fun r hr' => ?_⟩
   have x := hel r hr'
   simp only [ISub.id_comp] at x ⊢

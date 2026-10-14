@@ -159,8 +159,8 @@ theorem sigF_ty {D Cf : (k' : ℕ) → ISub k' n → Pack2} {X Y X' Y' : Tm}
       ∀ a a', (D k3 σ3).el (X.isub σ3) a a' → (Cf k3 σ3).ty ((Y.isub σ3).inst a) ((Y'.isub σ3).inst a')) :
     (sigF S D Cf n (ISub.id n)).ty (.sigma X Y) (.sigma X' Y') := by
   refine ⟨hb, fun k3 σ3 => ⟨X.isub σ3, Y.isub σ3, X'.isub σ3, Y'.isub σ3, ?_, ?_, ?_, fun a a' ha => ?_⟩⟩
-  · rw [isub_sigma]; exact redW_self (by simp [step])
-  · rw [isub_sigma]; exact redW_self (by simp [step])
+  · rw [isub_sigma]; exact ⟨redW_self (by simp [step]), TyEq.refl _⟩
+  · rw [isub_sigma]; exact ⟨redW_self (by simp [step]), TyEq.refl _⟩
   · simpa only [ISub.id_comp] using (h k3 σ3).1
   · simp only [ISub.id_comp, ISub.comp_id] at ha ⊢; exact (h k3 σ3).2 a a' ha
 
@@ -171,8 +171,8 @@ theorem piF_ty {D Cf : (k' : ℕ) → ISub k' n → Pack2} {X Y X' Y' : Tm}
       ∀ a a', (D k3 σ3).el (X.isub σ3) a a' → (Cf k3 σ3).ty ((Y.isub σ3).inst a) ((Y'.isub σ3).inst a')) :
     (piF S D Cf n (ISub.id n)).ty (.pi X Y) (.pi X' Y') := by
   refine ⟨hb, fun k3 σ3 => ⟨X.isub σ3, Y.isub σ3, X'.isub σ3, Y'.isub σ3, ?_, ?_, ?_, fun a a' ha => ?_⟩⟩
-  · rw [isub_pi]; exact redW_self (by simp [step])
-  · rw [isub_pi]; exact redW_self (by simp [step])
+  · rw [isub_pi]; exact ⟨redW_self (by simp [step]), TyEq.refl _⟩
+  · rw [isub_pi]; exact ⟨redW_self (by simp [step]), TyEq.refl _⟩
   · simpa only [ISub.id_comp] using (h k3 σ3).1
   · simp only [ISub.id_comp, ISub.comp_id] at ha ⊢; exact (h k3 σ3).2 a a' ha
 
@@ -184,10 +184,10 @@ theorem pathF_ty {AP : (k' : ℕ) → ISub k' n → Pack2} (hA : FamOK S n AP) {
     (pathF S AP n (ISub.id n)).ty (Tm.pathC X b0 b1) (Tm.pathC X' b0' b1') := by
   refine ⟨hb, fun k3 σ3 => ⟨(X.isub σ3).dshift, b0.isub σ3, b1.isub σ3, (X'.isub σ3).dshift, b0'.isub σ3,
     b1'.isub σ3, ?_, ?_, ?_, ?_, ?_⟩⟩
-  · show RedW S (Tm.path (X.dshift.isub σ3.up) _ _) _
-    rw [isub_dshift]; exact redW_self (by simp [step])
-  · show RedW S (Tm.path (X'.dshift.isub σ3.up) _ _) _
-    rw [isub_dshift]; exact redW_self (by simp [step])
+  · show RedT S k3 (Tm.path (X.dshift.isub σ3.up) _ _) _
+    rw [isub_dshift]; exact ⟨redW_self (by simp [step]), TyEq.refl _⟩
+  · show RedT S k3 (Tm.path (X'.dshift.isub σ3.up) _ _) _
+    rw [isub_dshift]; exact ⟨redW_self (by simp [step]), TyEq.refl _⟩
   · have := hA.kr n (ISub.id n) (k3 + 1) σ3.up.tail X X' hX
     rw [← dshift_isub_tail, ← dshift_isub_tail, isub_dshift, isub_dshift] at this
     simpa only [ISub.id_comp] using this
@@ -235,7 +235,7 @@ theorem app_rel {n : ℕ} {TP AP : (k' : ℕ) → ISub k' n → Pack2} {T A f f'
   obtain ⟨-, hall⟩ := hf
   obtain ⟨A1, B1, hr, hel⟩ := hall k3 σ3
   rw [isub_arrow] at hr
-  have := RedW.unique hr (redW_self (by simp [Tm.arrow, step]))
+  have := RedW.unique hr.1 (redW_self (by simp [Tm.arrow, step]))
   simp only [Tm.arrow, Tm.pi.injEq] at this
   obtain ⟨rfl, rfl⟩ := this
   have := hel x x' (by simpa only [ISub.id_comp] using hx)

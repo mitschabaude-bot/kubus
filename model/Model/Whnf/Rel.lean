@@ -43,26 +43,32 @@ abbrev ElR2 (k : ℕ) := (k' : ℕ) → ISub k' k → Tm → Tm → Tm → Prop
 def EB (k : ℕ) (A t t' : Tm) : Prop :=
   HasTy S k .one [] t A ∧ HasTy S k .one [] t' A ∧ EqTm S k .one [] t t' A
 
+/-- A type and its weak-head normal form, judgmentally equal. -/
+def RedT (k : ℕ) (A W : Tm) : Prop := RedW S A W ∧ TyEq S k A W
+
+/-- An element and its weak-head normal form, judgmentally equal at its type. -/
+def RedE (k : ℕ) (A t w : Tm) : Prop := RedW S t w ∧ EqTm S k .one [] t w A
+
 /-! ### Element relations of the type formers -/
 
 def piE2 (dom : ElR2 k) (cod : (k' : ℕ) → ISub k' k → Tm → ElR2 k') : ElR2 k := fun k' σ A t t' =>
-  EB S k' A t t' ∧ ∀ k'' (σ' : ISub k'' k'), ∃ A1 B1, RedW S (A.isub σ') (.pi A1 B1) ∧
+  EB S k' A t t' ∧ ∀ k'' (σ' : ISub k'' k'), ∃ A1 B1, RedT S k'' (A.isub σ') (.pi A1 B1) ∧
     ∀ a a', dom k'' (σ.comp σ') A1 a a' →
       cod k'' (σ.comp σ') a k'' (ISub.id k'') (B1.inst a) (.app (t.isub σ') a) (.app (t'.isub σ') a')
 
 def sigmaE2 (dom : ElR2 k) (cod : (k' : ℕ) → ISub k' k → Tm → ElR2 k') : ElR2 k := fun k' σ A t t' =>
-  EB S k' A t t' ∧ ∀ k'' (σ' : ISub k'' k'), ∃ A1 B1, RedW S (A.isub σ') (.sigma A1 B1) ∧
+  EB S k' A t t' ∧ ∀ k'' (σ' : ISub k'' k'), ∃ A1 B1, RedT S k'' (A.isub σ') (.sigma A1 B1) ∧
     dom k'' (σ.comp σ') A1 (.fst (t.isub σ')) (.fst (t'.isub σ')) ∧
     cod k'' (σ.comp σ') (.fst (t.isub σ')) k'' (ISub.id k'') (B1.inst (.fst (t.isub σ')))
       (.snd (t.isub σ')) (.snd (t'.isub σ'))
 
 def pathE2 (line : ElR2 (k + 1)) : ElR2 k := fun k' σ A t t' =>
-  EB S k' A t t' ∧ ∀ k'' (σ' : ISub k'' k'), ∃ L1 b0 b1, RedW S (A.isub σ') (.path L1 b0 b1) ∧
+  EB S k' A t t' ∧ ∀ k'' (σ' : ISub k'' k'), ∃ L1 b0 b1, RedT S k'' (A.isub σ') (.path L1 b0 b1) ∧
     ∀ (r : I) (hr : r.Scoped k''),
       line k'' (ISub.cons r hr (σ.comp σ')) (L1.dinst r) (.papp (t.isub σ') r) (.papp (t'.isub σ') r)
 
 def ipiE2 (line : ElR2 (k + 1)) : ElR2 k := fun k' σ A t t' =>
-  EB S k' A t t' ∧ ∀ k'' (σ' : ISub k'' k'), ∃ L1, RedW S (A.isub σ') (.ipi L1) ∧
+  EB S k' A t t' ∧ ∀ k'' (σ' : ISub k'' k'), ∃ L1, RedT S k'' (A.isub σ') (.ipi L1) ∧
     ∀ (r : I) (hr : r.Scoped k''),
       line k'' (ISub.cons r hr (σ.comp σ')) (L1.dinst r) (.papp (t.isub σ') r) (.papp (t'.isub σ') r)
 
@@ -79,7 +85,7 @@ def piEl (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k 
 /-- The type relation of a `Π` family. -/
 def piT (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
     (A A' : Tm) : Prop :=
-  ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1', RedW S (A.isub σ) (.pi A1 B1) ∧ RedW S (A'.isub σ) (.pi A1' B1') ∧
+  ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1', RedT S k' (A.isub σ) (.pi A1 B1) ∧ RedT S k' (A'.isub σ) (.pi A1' B1') ∧
     (D k' σ).ty A1 A1' ∧ ∀ a a', (D k' σ).el A1 a a' → (C k' σ a k' (ISub.id k')).ty (B1.inst a) (B1'.inst a')
 
 /-- The element relation of a `Σ` family. -/
@@ -90,7 +96,7 @@ def sigEl (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k
 /-- The type relation of a `Σ` family. -/
 def sigT (D : (k' : ℕ) → ISub k' k → Pack2) (C : (k' : ℕ) → ISub k' k → Tm → (k'' : ℕ) → ISub k'' k' → Pack2)
     (A A' : Tm) : Prop :=
-  ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1', RedW S (A.isub σ) (.sigma A1 B1) ∧ RedW S (A'.isub σ) (.sigma A1' B1') ∧
+  ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1', RedT S k' (A.isub σ) (.sigma A1 B1) ∧ RedT S k' (A'.isub σ) (.sigma A1' B1') ∧
     (D k' σ).ty A1 A1' ∧ ∀ a a', (D k' σ).el A1 a a' → (C k' σ a k' (ISub.id k')).ty (B1.inst a) (B1'.inst a')
 
 /-- The element relation of path types over a family of lines. -/
@@ -100,7 +106,7 @@ def pathEl (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (A t t' : Tm) : Prop 
 /-- The type relation of path types over a family of lines. -/
 def pathT (Lp : (k' : ℕ) → ISub k' (k + 1) → Pack2) (A A' : Tm) : Prop :=
   ∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
-    RedW S (A.isub σ) (.path L1 b0 b1) ∧ RedW S (A'.isub σ) (.path L1' b0' b1') ∧
+    RedT S k' (A.isub σ) (.path L1 b0 b1) ∧ RedT S k' (A'.isub σ) (.path L1' b0' b1') ∧
     (Lp (k' + 1) σ.up).ty L1 L1' ∧
     (Lp k' (ISub.cons .zero trivial σ)).el (L1.dinst .zero) b0 b0' ∧
     (Lp k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1'
@@ -169,8 +175,8 @@ inductive DR2At {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m 
     (k : ℕ) → Hom k m → Tm → Tm → Tm → Prop
   | con {k : ℕ} {f : Hom k m} {A t t' ps qs qs' : Tm} {c : ℕ} {C : Ctor} {args args' : List Tm}
       {rs rs' : List I} :
-      Mem k f t → Mem k f t' → D.ctors[c]? = some C → RedW S A (.data d ps) → ps = Tm.ofList ps.toList →
-      RedW S t (.con d c qs (Tm.ofList args) rs) → RedW S t' (.con d c qs' (Tm.ofList args') rs') →
+      Mem k f t → Mem k f t' → D.ctors[c]? = some C → RedT S k A (.data d ps) → ps = Tm.ofList ps.toList →
+      RedE S k A t (.con d c qs (Tm.ofList args) rs) → RedE S k A t' (.con d c qs' (Tm.ofList args') rs') →
       rs.length = C.dims → rs'.length = C.dims →
       (∀ (i : ℕ) (r r' : I), rs[i]? = some r → rs'[i]? = some r' → I.Eq r r') →
       (∀ r ∈ rs, r.Scoped k) → (∀ r ∈ rs', r.Scoped k) →
@@ -182,8 +188,8 @@ inductive DR2At {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m 
           ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ ps.toList.reverse)) args[j] args'[j]) →
       DR2At d D Mem P k f A t t'
   | hcomp {k : ℕ} {f : Hom k m} {A t t' ps qs qs' u u' a a' : Tm} {φ φ' : I} :
-      Mem k f t → Mem k f t' → D.isHIT = true → RedW S A (.data d ps) → ps = Tm.ofList ps.toList →
-      RedW S t (.hcomp (.data d qs) φ u a) → RedW S t' (.hcomp (.data d qs') φ' u' a') →
+      Mem k f t → Mem k f t' → D.isHIT = true → RedT S k A (.data d ps) → ps = Tm.ofList ps.toList →
+      RedE S k A t (.hcomp (.data d qs) φ u a) → RedE S k A t' (.hcomp (.data d qs') φ' u' a') →
       φ.Scoped k → φ'.Scoped k → I.Entails φ φ' → I.Entails φ' φ →
       DR2 d D Mem P k f (.data d ps) a a' →
       (∀ k' (σ : ISub k' k) (r : I), r.Scoped k' → (ival (idEnv k') (φ.subst σ.τ)).holds →
@@ -219,8 +225,8 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
       (rec (appV k' (res σ.hom B) (semK S k' a)) ((rank_appV_res_le _ _ _).trans_lt h22) k' k'' σ'.hom).el
     let isPi := π1 sh = natZ tPi
     { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
-          RedW S (A.isub σ) (if isPi then .pi A1 B1 else .sigma A1 B1) ∧
-          RedW S (A'.isub σ) (if isPi then .pi A1' B1' else .sigma A1' B1') ∧
+          RedT S k' (A.isub σ) (if isPi then .pi A1 B1 else .sigma A1 B1) ∧
+          RedT S k' (A'.isub σ) (if isPi then .pi A1' B1' else .sigma A1' B1') ∧
           (RY k' σ).ty A1 A1' ∧ ∀ a a', (RY k' σ).el A1 a a' → (RB k' σ a).ty (B1.inst a) (B1'.inst a')
       el := if isPi then piE2 S (fun k' σ => (RY k' σ).el) cod k (ISub.id k)
         else sigmaE2 S (fun k' σ => (RY k' σ).el) cod k (ISub.id k) }
@@ -229,18 +235,18 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     let RL : (k' : ℕ) → ISub k' (k + 1) → Pack2 := fun k' σ => rec L h12 (k + 1) k' σ.hom
     if π1 sh = natZ tPath then
       { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
-            RedW S (A.isub σ) (.path L1 b0 b1) ∧ RedW S (A'.isub σ) (.path L1' b0' b1') ∧
+            RedT S k' (A.isub σ) (.path L1 b0 b1) ∧ RedT S k' (A'.isub σ) (.path L1' b0' b1') ∧
             (RL (k' + 1) σ.up).ty L1 L1' ∧
             (RL k' (ISub.cons .zero trivial σ)).el (L1.dinst .zero) b0 b0' ∧
             (RL k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1'
         el := pathE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
     else
       { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k), ∃ L1 L1',
-            RedW S (A.isub σ) (.ipi L1) ∧ RedW S (A'.isub σ) (.ipi L1') ∧ (RL (k' + 1) σ.up).ty L1 L1'
+            RedT S k' (A.isub σ) (.ipi L1) ∧ RedT S k' (A'.isub σ) (.ipi L1') ∧ (RL (k' + 1) σ.up).ty L1 L1'
         el := ipiE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
   else if π1 sh = natZ tUniv then
     { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k),
-          RedW S (A.isub σ) (.univ (natOf (π2 sh))) ∧ RedW S (A'.isub σ) (.univ (natOf (π2 sh)))
+          RedT S k' (A.isub σ) (.univ (natOf (π2 sh))) ∧ RedT S k' (A'.isub σ) (.univ (natOf (π2 sh)))
       el := fun A T T' => ∃ h : semK S k T ∈ π1 (π2 (Dt k (Hom.id k))),
         (rec (semK S k T) (lt_trans (rank_lt_of_mem h) ((rank_π1_le _).trans_lt ((rank_π2_le _).trans_lt
           (hD k (Hom.id k))))) k k (Hom.id k)).ty T T' }
@@ -259,7 +265,7 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k),
           if (φ.restr σ.hom).holds then (RT k' σ).ty (A.isub σ) (A'.isub σ)
           else ∃ A1 φ1 T1 e1 A1' φ1' T1' e1',
-            RedW S (A.isub σ) (.glue A1 φ1 T1 e1) ∧ RedW S (A'.isub σ) (.glue A1' φ1' T1' e1') ∧
+            RedT S k' (A.isub σ) (.glue A1 φ1 T1 e1) ∧ RedT S k' (A'.isub σ) (.glue A1' φ1' T1' e1') ∧
             φ1.Scoped k' ∧ φ1'.Scoped k' ∧
             (ival (idEnv k') φ1).face = φ.restr σ.hom ∧ (ival (idEnv k') φ1').face = φ.restr σ.hom ∧
             (RA k' σ).ty A1 A1' ∧
@@ -269,8 +275,8 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
                 (Tm.equiv (T1.isub σ') (A1.isub σ')) (e1.isub σ') (e1'.isub σ')
       el := fun A g g' => EB S k A g g' ∧ ∀ k' (σ : ISub k' k),
           if (φ.restr σ.hom).holds then (RT k' σ).el (A.isub σ) (g.isub σ) (g'.isub σ)
-          else ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedW S (A.isub σ) (.glue A1 φ1 T1 e1) ∧
-            RedW S (g.isub σ) (.glueEl ψ e0 t0 a0) ∧ RedW S (g'.isub σ) (.glueEl ψ' e0' t0' a0') ∧
+          else ∃ A1 φ1 T1 e1 ψ e0 t0 a0 ψ' e0' t0' a0', RedT S k' (A.isub σ) (.glue A1 φ1 T1 e1) ∧
+            RedE S k' (A.isub σ) (g.isub σ) (.glueEl ψ e0 t0 a0) ∧ RedE S k' (A.isub σ) (g'.isub σ) (.glueEl ψ' e0' t0' a0') ∧
             I.Entails ψ φ1 ∧ I.Entails φ1 ψ ∧ I.Entails ψ' φ1 ∧ I.Entails φ1 ψ' ∧
             EqTm S k' (cof .one φ1) [] e0 e1 (Tm.equiv T1 A1) ∧ EqTm S k' (cof .one φ1) [] e0' e1 (Tm.equiv T1 A1) ∧
             (RA k' σ).el A1 a0 a0' }
@@ -281,7 +287,7 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     let P : (k' : ℕ) → Hom k' k → ℕ → ℕ → List V → Tm → Tm → Tm → Prop := fun k' g c j pre A t t' =>
       (rec (tyLook (π2 (π2 (π2 (π1 (Dt k' g))))) c j pre) (tyLook_rank_lt (hD k' g)) k' k' (Hom.id k')).el A t t'
     { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k), ∃ ps ps',
-          RedW S (A.isub σ) (.data d ps) ∧ RedW S (A'.isub σ) (.data d ps') ∧
+          RedT S k' (A.isub σ) (.data d ps) ∧ RedT S k' (A'.isub σ) (.data d ps') ∧
           ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
           ∀ (c : ℕ) (C : Ctor) (args args' : List Tm), D.ctors[c]? = some C →
             args.length < C.args.length → args'.length = args.length → C.isRec args.length = false →

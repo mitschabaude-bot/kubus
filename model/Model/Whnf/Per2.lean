@@ -63,7 +63,7 @@ theorem per2_piC {A B : V} (hA : A ≠ ∅) (ihA : PER2 S m A)
   have hCa : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → C k' σ a = C k' σ a' := by
     intro k' σ _ a a' ha; simp only [C, fib_code hW ha]
   have eT : ∀ T T', (∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
-      RedW S (T.isub σ) (.pi A1 B1) ∧ RedW S (T'.isub σ) (.pi A1' B1') ∧
+      RedT S k' (T.isub σ) (.pi A1 B1) ∧ RedT S k' (T'.isub σ) (.pi A1' B1') ∧
       (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
         ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
           (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ↔
@@ -95,7 +95,7 @@ theorem per2_sigmaC {A B : V} (hA : A ≠ ∅) (ihA : PER2 S m A)
   have hCa : ∀ k' (σ : ISub k' k) X a a', (D k' σ).el X a a' → C k' σ a = C k' σ a' := by
     intro k' σ _ a a' ha; simp only [C, fib_code hW ha]
   have eT : ∀ T T', (∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
-      RedW S (T.isub σ) (.sigma A1 B1) ∧ RedW S (T'.isub σ) (.sigma A1' B1') ∧
+      RedT S k' (T.isub σ) (.sigma A1 B1) ∧ RedT S k' (T'.isub σ) (.sigma A1' B1') ∧
       (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
         ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
           (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ↔
@@ -159,13 +159,13 @@ theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 
     refine ⟨base_trans hW hb hb', fun k' σ => ?_⟩
     obtain ⟨L1, L1', h1, h2, h3⟩ := hall k' σ
     obtain ⟨L2, L2', h1', h2', h3'⟩ := hall' k' σ
-    obtain rfl : L1' = L2 := by have := RedW.unique h2 h1'; injection this
+    obtain rfl : L1' = L2 := by have := RedW.unique h2.1 h1'.1; injection this
     exact ⟨L1, L2', h1, h2', (ihL _ _).transTy h3 h3'⟩
   · obtain ⟨he, hmem, -, hall⟩ := ht
     refine ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm, fun k'' σ' => ?_⟩
     obtain ⟨L1, hr, hel⟩ := hall k'' σ'
     obtain ⟨L1x, L1', hrx, -, h3⟩ := hT.2 k'' σ'
-    obtain rfl : L1x = L1 := by have := RedW.unique hrx hr; injection this
+    obtain rfl : L1x = L1 := by have := RedW.unique hrx.1 hr.1; injection this
     refine ⟨L1x, hr, fun r hr' => ?_⟩
     have := hel r hr'
     simp only [ISub.id_comp] at this ⊢
@@ -175,9 +175,9 @@ theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 
     refine ⟨he.trans he', hmem, he.trans he', fun k'' σ' => ?_⟩
     obtain ⟨L1, hr, hel⟩ := hall k'' σ'
     obtain ⟨L1x, hrx, hel'⟩ := hall' k'' σ'
-    obtain rfl : L1x = L1 := by have := RedW.unique hrx hr; injection this
+    obtain rfl : L1x = L1 := by have := RedW.unique hrx.1 hr.1; injection this
     obtain ⟨L1y, L1', hry, -, h3⟩ := hT.2 k'' σ'
-    obtain rfl : L1y = L1x := by have := RedW.unique hry hr; injection this
+    obtain rfl : L1y = L1x := by have := RedW.unique hry.1 hr.1; injection this
     refine ⟨L1y, hr, fun r hr' => ?_⟩
     have x := hel r hr'
     have y := hel' r hr'
@@ -188,7 +188,7 @@ theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 
     refine ⟨he.conv hTT, hmem, he.conv hTT, fun k'' σ' => ?_⟩
     obtain ⟨L1, hr, hel⟩ := hall k'' σ'
     obtain ⟨L1x, L1', hrx, hr2, h3⟩ := hT.2 k'' σ'
-    obtain rfl : L1x = L1 := by have := RedW.unique hrx hr; injection this
+    obtain rfl : L1x = L1 := by have := RedW.unique hrx.1 hr.1; injection this
     refine ⟨L1', hr2, fun r hr' => ?_⟩
     have x := hel r hr'
     simp only [ISub.id_comp] at x ⊢
