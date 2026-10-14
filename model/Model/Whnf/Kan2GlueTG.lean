@@ -242,6 +242,71 @@ theorem TGD2.bdryδ (hδ : (ival (idEnv k) δ).holds) :
   rw [glue_dinst] at hL hGG ⊢
   exact RE2.expandL hW hGG hL (RE2.typed g).2.1 (stable_glueEl hW hL hφe) g
 
+
+/-- The equivalences at the end, left against left, under restrictions. -/
+theorem TGD2.e1L {k3 : ℕ} (σ : ISub k3 k) (hh : (ival (idEnv k3) ((φ.subst (I.inst0 .one)).subst σ.τ)).holds) :
+    RE2 S k3 (Tm.equiv ((T.dinst .one).isub σ) ((A.dinst .one).isub σ)) ((e.dinst .one).isub σ)
+      ((e.dinst .one).isub σ) := by
+  rw [dinst1_isub, dinst1_isub, dinst1_isub]
+  exact D.rEL k3 _ (by rwa [I_inst1_isub] at hh)
+
+theorem TGD2.T1L {k3 : ℕ} (σ : ISub k3 k) (hh : (ival (idEnv k3) ((φ.subst (I.inst0 .one)).subst σ.τ)).holds) :
+    RT2 S k3 ((T.dinst .one).isub σ) ((T.dinst .one).isub σ) := by
+  rw [dinst1_isub]; exact D.rTT k3 _ (by rwa [I_inst1_isub] at hh)
+
+theorem TGD2.A1L {k3 : ℕ} (σ : ISub k3 k) : RT2 S k3 ((A.dinst .one).isub σ) ((A.dinst .one).isub σ) := by
+  rw [dinst1_isub]; exact D.rAA k3 σ .one .one trivial trivial (I_eq_refl _)
+
+section
+variable (hψk : (ival (idEnv k) ψ).holds)
+include hψk
+
+/-- On `ψ`, the starts at the end of the Glue line. -/
+theorem TGD2.u0G1 : RE2 S k ((Tm.glue A φ T e).dinst .one) u0 u0' := by
+  obtain ⟨l, hG⟩ := D.hG
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hGc := closed_of_ty hW hG
+  have c := D.cG k (ISub.id k) .one trivial (by rw [I_subst_id H.hψ]; exact hψk)
+  rw [isub_cons_id_of_closed hGc, isub_cons_id_of_closed hGc] at c
+  have hG1 := HasTy.isubS hW hG (ISub.cons .one trivial (ISub.id k))
+  rw [isub_cons_id_of_closed hGc] at hG1
+  exact RE2.conv hW (RT2.symm hW (tyCode_of_univ hW hG1) c) D.ha0
+
+/-- On `ψ`, the composition in the base at the end is the composition `a1'`. -/
+theorem TGD2.a1ψ : RE2 S k (A.dinst .one) (tgA1 A φ T e ψ u0 δ) (tgA1' A φ e ψ u0) := by
+  obtain ⟨l1, H⟩ := D.tgL hW
+  have hφs : (φ.subst (I.inst0 .one)).Scoped k := H.hφr (r := .one) trivial
+  have hψe := entails_of_holds H.hψ hψk
+  have hAA := D.hAA1 hW
+  have hA1c : (A.dinst .one).closedB 0 k = true := closed_of_ty hW (minimal_to_spec (H.hAr (r := .one) trivial))
+  have hsc : (I.or (φ.subst (I.inst0 .one)) ψ).Scoped k := ⟨hφs, H.hψ⟩
+  have hh : (ival (idEnv k) ((I.or (φ.subst (I.inst0 .one)) ψ).subst (ISub.id k).τ)).holds := by
+    rw [I_subst_id hsc, holds_iff_entails hsc]; exact ent_trans hψe (ent_or_right _ _)
+  have hsp := asysTy hW H (ISub.id k) hh (r := .one) trivial
+  rw [I_subst_id hφs, I_subst_id H.hψ, isub_id_of_closed hA1c, isub_id_of_closed (closed_ty H.ha1'),
+    isub_id_of_closed (show (Tm.snd (tgExt A φ T e ψ u0 δ)).closedB 0 k = true by
+      simpa [Tm.closedB] using closed_ty H.hext)] at hsp
+  have ha1 := D.a1' hW
+  have hty := minimal_to_spec H.ha1
+  rw [tgA1_eq] at hty ⊢
+  have st := stable_hcompFace hW (ent_trans hψe (ent_or_right _ _)) hty
+  rw [asys_dinst] at st
+  refine RE2.expandL hW hAA hty (RE2.typed ha1).1 st ?_
+  refine RE2_split_l hW hφs H.hψ (ent_trans hψe (ent_or_right _ _)) hAA hsp (RE2.typed ha1).1
+    (fun k2 σ2 h => ?_) (fun k2 σ2 h => ?_) <;>
+  (try simp only [isub_papp, isub_snd, I.subst]) <;>
+  (try simp only [(tg_isub A φ T e ψ u0 δ σ2).2.2.2.2.1, tgA1'_isub, dinst_isub_end _ (Or.inr rfl)])
+  · have D' := D.isub hW σ2
+    have h1 : (ival (idEnv k2) ((φ.subst σ2.up.τ).subst (I.inst0 .one))).holds := by
+      rw [← I_phi1_isub, holds_iff_entails (I.scoped_subst hφs σ2.sc)]; exact h
+    have hψτ := holds_isub hW H.hψ hψk σ2
+    have hAA2 := D'.hAA1 hW
+    exact RE2.trans hW hAA2 (D'.extR hW h1 hψτ (s := .neg .one) trivial) (RE2.symm hW hAA2 (D'.a1' hW))
+  · have D' := D.isub hW σ2
+    exact RE2.reflL hW (D'.hAA1 hW) (D'.a1' hW)
+
+end
+
 end
 
 end
