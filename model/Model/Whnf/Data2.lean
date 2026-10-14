@@ -80,6 +80,20 @@ theorem dataP2_base {k0 : ℕ} {Θ : SData m} (f : Hom k0 m) {k1 : ℕ} (h : Hom
 variable (hW : WfSig S)
 include hW
 
+omit hW in
+/-- The argument clause of an inductive type, at a restriction, relative to the restricted base. -/
+theorem argRel2_base {Θ : SData m} {k k'' : ℕ} (f : Hom k m) {k' : ℕ} (σ : ISub k' k) {σ' : ISub k'' k'}
+    {ps ps' : Tm} (h : argRel2 S Θ f k'' (σ.comp σ') ps ps') : argRel2 S Θ (f.comp σ.hom) k'' σ' ps ps' := by
+  intro k3 σ3 c C args args' hC hl hl' hr hrec hpt
+  have := h k3 σ3 c C args args' hC hl hl' hr
+    (fun j hj hj' hrj => by
+      have := DR2.unbase f (hrec j hj hj' hrj)
+      rwa [← ISub.hom_comp, ← ISub.comp_assoc] at this)
+    (fun j hj hj' hrj => by
+      have := (dataP2_base f σ.hom (σ'.comp σ3).hom).1 (hpt j hj hj' hrj)
+      rwa [← ISub.hom_comp, ← ISub.comp_assoc] at this)
+  rw [ISub.comp_hom, ← ISub.comp_assoc]; exact this
+
 theorem kr2_dataC {Θ : SData m} (hX : Fib (dataC Θ) m) : KR2 S m (dataC Θ) := by
   intro k f k' σ T T' t t'
   rw [Comp2_dataC, Comp2_dataC]
@@ -87,17 +101,9 @@ theorem kr2_dataC {Θ : SData m} (hX : Fib (dataC Θ) m) : KR2 S m (dataC Θ) :=
   · rintro ⟨hb, hall⟩
     refine ⟨?_, fun k'' σ' => ?_⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
-    · obtain ⟨ps, ps', h1, h2, hpl, hpl', hcl⟩ := hall k'' (σ.comp σ')
-      refine ⟨ps, ps', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, hpl, hpl',
-        fun k3 σ3 c C args args' hC hl hl' hr hrec hpt => ?_⟩
-      have := hcl k3 σ3 c C args args' hC hl hl' hr
-        (fun j hj hj' hrj => by
-          have := DR2.unbase f (hrec j hj hj' hrj)
-          rwa [← ISub.hom_comp, ← ISub.comp_assoc] at this)
-        (fun j hj hj' hrj => by
-          have := (dataP2_base f σ.hom (σ'.comp σ3).hom).1 (hpt j hj hj' hrj)
-          rwa [← ISub.hom_comp, ← ISub.comp_assoc] at this)
-      rw [ISub.comp_hom, ← ISub.comp_assoc]; exact this
+    · obtain ⟨ps, ps', h1, h2, hpl, hpl', hcl, hcl'⟩ := hall k'' (σ.comp σ')
+      exact ⟨ps, ps', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, hpl, hpl',
+        argRel2_base f σ hcl, argRel2_base f σ hcl'⟩
   · rintro ⟨he, hmem, -, hdr⟩
     refine ⟨he.isub hW σ, mem_isub hW hX he.1 hmem σ, he.isub hW σ, ?_⟩
     have := DR2.rebase f (DR2.isub f hdr σ) σ.hom (Hom.id k') (by rw [Hom.id_comp, Hom.comp_id])

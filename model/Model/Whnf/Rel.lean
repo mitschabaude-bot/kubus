@@ -286,21 +286,24 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     let Mem : (k' : ℕ) → Hom k' k → Tm → Prop := fun k' g t => semK S k' t ∈ π1 (π2 (Dt k' g))
     let P : (k' : ℕ) → Hom k' k → ℕ → ℕ → List V → Tm → Tm → Tm → Prop := fun k' g c j pre A t t' =>
       (rec (tyLook (π2 (π2 (π2 (π1 (Dt k' g))))) c j pre) (tyLook_rank_lt (hD k' g)) k' k' (Hom.id k')).el A t t'
+    -- the argument types at related arguments, from the parameters `ps` (the arguments are related
+    -- at `ps`) to the parameters `ps'`
+    let argCl : (k' : ℕ) → ISub k' k → Tm → Tm → Prop := fun k' σ ps ps' =>
+      ∀ k'' (σ' : ISub k'' k') (c : ℕ) (C : Ctor) (args args' : List Tm), D.ctors[c]? = some C →
+        args.length < C.args.length → args'.length = args.length → C.isRec args.length = false →
+        (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
+          DR2 S d D Mem P k'' (σ.comp σ').hom (.data d (ps.isub σ')) args[j] args'[j]) →
+        (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
+          P k'' (σ.comp σ').hom c j ((args.take j).map (semK S k''))
+            ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ (ps.isub σ').toList.reverse))
+            args[j] args'[j]) →
+        (rec (tyLook (π2 (π2 (π2 (π1 (Dt k'' (σ.comp σ').hom))))) c args.length (args.map (semK S k'')))
+          (tyLook_rank_lt (hD k'' (σ.comp σ').hom)) k'' k'' (Hom.id k'')).ty
+          ((C.argTy d D.params.length args.length).substList (args.reverse ++ (ps.isub σ').toList.reverse))
+          ((C.argTy d D.params.length args.length).substList (args'.reverse ++ (ps'.isub σ').toList.reverse))
     { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k), ∃ ps ps',
           RedT S k' (A.isub σ) (.data d ps) ∧ RedT S k' (A'.isub σ) (.data d ps') ∧
-          ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
-          ∀ k'' (σ' : ISub k'' k') (c : ℕ) (C : Ctor) (args args' : List Tm), D.ctors[c]? = some C →
-            args.length < C.args.length → args'.length = args.length → C.isRec args.length = false →
-            (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
-              DR2 S d D Mem P k'' (σ.comp σ').hom (.data d (ps.isub σ')) args[j] args'[j]) →
-            (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
-              P k'' (σ.comp σ').hom c j ((args.take j).map (semK S k''))
-                ((C.argTy d D.params.length j).substList ((args.take j).reverse ++ (ps.isub σ').toList.reverse))
-                args[j] args'[j]) →
-            (rec (tyLook (π2 (π2 (π2 (π1 (Dt k'' (σ.comp σ').hom))))) c args.length (args.map (semK S k'')))
-              (tyLook_rank_lt (hD k'' (σ.comp σ').hom)) k'' k'' (Hom.id k'')).ty
-              ((C.argTy d D.params.length args.length).substList (args.reverse ++ (ps.isub σ').toList.reverse))
-              ((C.argTy d D.params.length args.length).substList (args'.reverse ++ (ps'.isub σ').toList.reverse))
+          ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧ argCl k' σ ps ps' ∧ argCl k' σ ps' ps
       el := fun A t t' => EB S k A t t' ∧ DR2 S d D Mem P k (Hom.id k) A t t' }
   else Pack2.bot
 

@@ -171,35 +171,40 @@ theorem Comp2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp)
 def dataP2 (S : Sig) (Θ : SData m) (f : Hom k m) : (k' : ℕ) → Hom k' k → ℕ → ℕ → List V → Tm → Tm → Tm → Prop :=
   fun k' g c j pre A t t' => (Comp2 S (tyLook (shapeV (Θ.restr (f.comp g))) c j pre) k' k' (Hom.id k')).el A t t'
 
+/-- The argument types of an inductive type's code at related arguments, from the parameters `ps`
+to the parameters `ps'`, at the restrictions of `σ`. -/
+def argRel2 (S : Sig) (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (ps ps' : Tm) : Prop :=
+  ∀ k'' (σ' : ISub k'' k') (c : ℕ) (C : Ctor) (args args' : List Tm), (dataD S Θ.idx).ctors[c]? = some C →
+    args.length < C.args.length → args'.length = args.length → C.isRec args.length = false →
+    (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k'' (σ.comp σ').hom
+        (.data Θ.idx (ps.isub σ')) args[j] args'[j]) →
+    (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
+      dataP2 S Θ f k'' (σ.comp σ').hom c j ((args.take j).map (semK S k''))
+        ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList
+          ((args.take j).reverse ++ (ps.isub σ').toList.reverse))
+        args[j] args'[j]) →
+    (Comp2 S (tyLook (shapeV (Θ.restr (f.comp (σ.comp σ').hom))) c args.length (args.map (semK S k'')))
+      k'' k'' (Hom.id k'')).ty
+      ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
+        (args.reverse ++ (ps.isub σ').toList.reverse))
+      ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
+        (args'.reverse ++ (ps'.isub σ').toList.reverse))
+
 theorem Comp2_dataC (Θ : SData m) (f : Hom k m) :
     Comp2 S (dataC Θ) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (dataC Θ) ∧
           semK S k T' = res f (dataC Θ) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ ps ps',
           RedT S k' (T.isub σ) (.data Θ.idx ps) ∧ RedT S k' (T'.isub σ) (.data Θ.idx ps') ∧
           ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
-          ∀ k'' (σ' : ISub k'' k') (c : ℕ) (C : Ctor) (args args' : List Tm), (dataD S Θ.idx).ctors[c]? = some C →
-            args.length < C.args.length → args'.length = args.length → C.isRec args.length = false →
-            (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
-              DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k'' (σ.comp σ').hom
-                (.data Θ.idx (ps.isub σ')) args[j] args'[j]) →
-            (∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
-              dataP2 S Θ f k'' (σ.comp σ').hom c j ((args.take j).map (semK S k''))
-                ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList
-                  ((args.take j).reverse ++ (ps.isub σ').toList.reverse))
-                args[j] args'[j]) →
-            (Comp2 S (tyLook (shapeV (Θ.restr (f.comp (σ.comp σ').hom))) c args.length (args.map (semK S k'')))
-              k'' k'' (Hom.id k'')).ty
-              ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
-                (args.reverse ++ (ps.isub σ').toList.reverse))
-              ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
-                (args'.reverse ++ (ps'.isub σ').toList.reverse)),
+          argRel2 S Θ f k' σ ps ps' ∧ argRel2 S Θ f k' σ ps' ps,
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (dataC Θ)) (Hom.id k) ∧
           EB S k T t t' ∧ DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k (Hom.id k) T t t'⟩ := by
   rw [Comp2_unfold (show dataC Θ ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, dataC, dat_mkKV, dataDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id,
     natZ_inj, tPi, tSigma, tPath, tIPi, tUniv, tEmpty, tGlue, tData, if_false, show ¬ (11 = 2) by decide,
     show ¬ (11 = 3) by decide, show ¬ (11 = 4) by decide, show ¬ (11 = 5) by decide, show ¬ (11 = 6) by decide,
-    show ¬ (11 = 1) by decide, show ¬ (11 = 7) by decide, or_self, if_true, natOf_natZ, π1π2_quad, dataP2]
+    show ¬ (11 = 1) by decide, show ¬ (11 = 7) by decide, or_self, if_true, natOf_natZ, π1π2_quad, dataP2, argRel2]
   rfl
 
 /-- The relations of a Glue code at a restriction: those of `T` where the face holds. -/
