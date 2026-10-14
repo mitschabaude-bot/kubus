@@ -1,4 +1,5 @@
 import KubusCore.Meta.Gen
+import KubusCore.Meta.Near
 
 /-!
 # Metatheory: typed renamings
