@@ -157,3 +157,13 @@ Two design points came out of (c2):
 
 - Elements of Glue types are observed through their whnf `glueEl ψ e0 t0 a0` at every restriction where the face does not hold. The relation requires `ψ ⟺ φ1` and `e0 ≡ e1` under the face, where `(φ1, e1)` come from the type's whnf at the same stage, and relates the bases `a0`. Observing through `unglue φ1 e1 g` instead would mix the annotations of different stages, and those are related only by `GlueCompat`. The annotation agreement is also what makes the step `unglue φ e (glueEl φ' e' t a) ⇒ a` sound (`UGSound`). It holds for `glueEl` introductions and for the `hcompGlue`/`transpGlue` contracta, and it transfers along related Glue types, whose relation gives `e1 ≡ e1'` under the face.
 - Steps do not commute with restriction, so head expansion is local. If, for every restriction `σ`, `t.isub σ` takes a single-stage step to some `t1_σ` that is ≡ to it and related at that stage, then `t` is related. Each clause is Kripke by definition and only uses its own stage's normal forms, so this holds by code induction. The fundamental lemma uses it per restriction, splitting on whether the face of the redex holds there.
+
+### Milestone (c), sub-steps c1 and c2: done
+
+The relation `Comp2` (`Model/Whnf/Rel.lean`) is Kripke (`kr2_wf`, `Kripke2.lean`, `Data2.lean`) and a partial equivalence with transfer along related types (`per2_wf`, `PerAll.lean`) at every code. Design changes made while proving these:
+
+- Normal forms are recorded with their judgmental equality: `RedT` for types and `RedE` for elements. Reduction is only known sound under the side conditions of (a), so the relation carries the equalities itself.
+- `DR2` (inductive types) is Kripke by definition and records the equality of its two sides.
+- The argument clause of an inductive type relates the argument types at related arguments in four directions: `ps → ps'`, `ps' → ps`, `ps → ps` and `ps' → ps'`, at all restrictions of the normal form's parameters. With only one direction, symmetry and transitivity of the clause would need the conversion of recursive arguments, which itself needs the clause.
+- The equivalence of a Glue type is related by `equivF` (`Rel.lean`), a pack built from generic `Π`/`Σ`/path families (`Pack2.lean`). Its type relation for `equiv T A` (`equivF_ty`, `Equiv2.lean`) follows from those of `T` and `A`.
+- Equalities under a face come from all restrictions where the face holds (`eq_of_restr`, `Local.lean`). For Glue elements this turns related equivalences at the face restrictions into agreeing annotations.
