@@ -21,7 +21,7 @@ include hW
 
 /-- Glue eta at one stage: an element of a Glue type whose face does not hold is related to the Glue
 introduction of itself and its `unglue`, for agreeing annotations. -/
-theorem RE2_glue_eta {A T e e' y : Tm} {φ φ' : I} {l : ℕ} (hCW : GlueCohW S)
+theorem RE2_glue_eta {A T e e' y : Tm} {φ φ' : I} {l : ℕ}
     (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) (hn : ¬ (ival (idEnv k) φ).holds)
     (hyy : RE2 S k (.glue A φ T e) y y)
     (hyη : EqTm S k .one [] y (.glueEl φ' e' y (.unglue φ' e' y)) (.glue A φ T e))
@@ -46,7 +46,7 @@ theorem RE2_glue_eta {A T e e' y : Tm} {φ φ' : I} {l : ℕ} (hCW : GlueCohW S)
     HasTy.restrict (show (cof .one φ').Scoped k from ⟨trivial, hφ'⟩) c21 (HasTy.eqL ee')
   have hu' : HasTy S k .one [] (.unglue φ' e' y) A := unglue_ty hW ⟨l2, .inl hG2⟩ ⟨lA, hA0, he0'⟩ hy2
   have hΦ : (cof .one φ).Scoped k := ⟨trivial, hφs⟩
-  have hUA := RE2_unglue_and hW hCW hG hn hyy hu hu' hφ' h12 h21 ee' hAA hTT hE
+  have hUA := RE2_unglue_and hW hG hn hyy hu hu' hφ' h12 h21 ee' hAA hTT hE
   have hent : ∀ {k'} (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → I.Entails .one (φ.subst σ.τ) :=
     fun σ hh => (holds_iff_entails (I.scoped_subst hφs σ.sc)).1 hh
   have hne : ∀ {k'} (σ : ISub k' k), ¬ (ival (idEnv k') (φ.subst σ.τ)).holds → ¬ I.Entails .one (φ.subst σ.τ) :=
@@ -270,7 +270,7 @@ theorem valid_glueBeta {A T e t a : Tm} {φ : I} {l : ℕ}
   have := glueBeta_at hW he ht ha hat hg he0 hA0 hty hcoh (c.restr hW σ)
   rwa [CSub2.restr_L, CSub2.restr_L, CSub2.restr_R] at this
 
-theorem valid_glueEta {A T e g : Tm} {φ : I} {l : ℕ} (hCW : GlueCohW S) (hφ : φ.Scoped Ψ)
+theorem valid_glueEta {A T e g : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
     (hG : Valid2 S Ψ Φ Γ (.glue A φ T e) (.glue A φ T e) (.univ l))
     (he0 : HasTy0 S Ψ (cof Φ φ) Γ e (Tm.equiv T A)) (he : Valid2 S Ψ (cof Φ φ) Γ e e (Tm.equiv T A))
     (hg : Valid2 S Ψ Φ Γ g g (.glue A φ T e)) (hty : HasTy0 S Ψ Φ Γ g (.glue A φ T e))
@@ -305,7 +305,7 @@ theorem valid_glueEta {A T e g : Tm} {φ : I} {l : ℕ} (hCW : GlueCohW S) (hφ 
         (.glueEl (φ.subst c.σ'.τ) (c.R e) (c.R g) (.unglue (φ.subst c.σ'.τ) (c.R e) (c.R g)))
         (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) :=
       (RE2.typed hgr).2.2.symm.trans (c.eq hW (EqTm0.glueEta hty))
-    refine RE2.trans hW hGG hgr (RE2_glue_eta hW hCW hGt hh hyy hyη hφR e12 e21 ee'
+    refine RE2.trans hW hGG hgr (RE2_glue_eta hW hGt hh hyy hyη hφR e12 e21 ee'
       (fun k' σ => RT2.isub hW hXA hinv.1 σ) (fun k' σ hh' => (hinv.2 k' σ hh').1) (fun k' σ hh' => ?_))
     have h' := holds_restr hh' hφ
     have := (he k' ((c.restr hW σ).cof h')).2

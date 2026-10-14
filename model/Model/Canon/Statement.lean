@@ -29,7 +29,7 @@ def Canonicity : Prop :=
 
 /-- Compatibility of Glue annotations: two closed Glue types (at stage `k`, i.e. in `k` interval
 variables) with equivalent faces that do not hold, which are judgmentally equal, have equal bases
-and equal equivalences under the face. Canonicity is proven assuming this; it is believed admissible
+(at some universe) and equal equivalences under the face. Canonicity is proven assuming this; it is believed admissible
 (see `model/CANONICITY.md`), but not as a rule: where the face holds, the annotations are
 unconstrained. (The faces must be assumed equivalent: `glue A φ T e ≡ glue (glue A φ T e) 1 _ idEquiv`
 by `glueFace`; for the canonicity proof, equivalence of the faces follows from the model.) -/
@@ -37,6 +37,6 @@ def GlueCompat (S : Sig) : Prop :=
   ∀ (k : Nat) (A A' T T' e e' : Tm) (φ φ' : I) (l : Nat),
     EqTm S k .one [] (.glue A φ T e) (.glue A' φ' T' e') (.univ l) → ¬ I.Entails .one φ →
     I.Entails φ φ' → I.Entails φ' φ →
-    EqTm S k .one [] A A' (.univ l) ∧ EqTm S k (cof .one φ) [] e e' (Tm.equiv T A)
+    (∃ l', EqTm S k .one [] A A' (.univ l')) ∧ EqTm S k (cof .one φ) [] e e' (Tm.equiv T A)
 
 end KubusCore

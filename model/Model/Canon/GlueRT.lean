@@ -119,7 +119,7 @@ theorem glueEl_coh (hGC : GlueCompat S) {A T e t a : Tm} {φ : I} {l : ℕ}
   have r := Model.Whnf.chain_rel hW ch (Rel.refl hG2 (Model.Whnf.lvl_bound hW hG2))
   obtain ⟨-, ⟨-, hφs, -, -⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) (spec_to_minimal hW hG) rfl
   rcases r with ⟨m, -, eG⟩ | ⟨l0, m, -, eU⟩
-  · have hA := (hGC k A2 A T2 T e e φ φ m (minimal_to_spec_eq eG)
+  · obtain ⟨l1, hA⟩ := (hGC k A2 A T2 T e e φ φ m (minimal_to_spec_eq eG)
       (fun h => hn ((holds_iff_entails hφs).2 h)) (I.entails_refl _) (I.entails_refl _)).1
     exact (EqTm.conv (minimal_to_spec_eq hcoh) (EqTm.restrict ⟨trivial, hφs⟩ (ent_and_left _ _) hA)).symm
   · exfalso
@@ -171,11 +171,11 @@ theorem RE_glue_elim (hGC : GlueCompat S) {A T e g : Tm} {φ : I} {l : ℕ}
       exact ⟨TyEq.refl _, EqTm.refl hu⟩
     · have h12 := ent_of_face_eq hφ hφ1 hf1.symm
       have h21 := ent_of_face_eq hφ1 hφ hf1
-      obtain ⟨hAA, hee⟩ := hGC k A A1 T T1 e e1 φ φ1 l0 hE
+      obtain ⟨⟨l1, hAA⟩, hee⟩ := hGC k A A1 T T1 e e1 φ φ1 l0 hE
         (fun h => hn ((holds_iff_entails hφ).2 h)) h12 h21
       have hu1 : HasTy S k .one [] (.unglue φ1 e1 g) A :=
-        (unglue_ty hW hG1 hdata1 (hgt.tyConv (.inr ⟨l0, hE⟩))).tyConv (show TyEq S k A A1 from .inr ⟨l0, hAA⟩).symm
-      exact ⟨.inr ⟨l0, hAA⟩, (EqTm.unglue hu hu1 h12 h21 hee (EqTm.refl hgt)).symm⟩
+        (unglue_ty hW hG1 hdata1 (hgt.tyConv (.inr ⟨l0, hE⟩))).tyConv (show TyEq S k A A1 from .inr ⟨l1, hAA⟩).symm
+      exact ⟨.inr ⟨l1, hAA⟩, (EqTm.unglue hu hu1 h12 h21 hee (EqTm.refl hgt)).symm⟩
   refine ⟨fun k' σ => ?_, fun k' σ hh => ?_⟩
   · have h1 := (CR_RE hW hAt σ (hbase.1.isub hW σ)).1 (hun1 k' σ)
     have := EqTm.isubS hW hbase.2 σ
