@@ -101,9 +101,9 @@ theorem kr2_dataC {Θ : SData m} (hX : Fib (dataC Θ) m) : KR2 S m (dataC Θ) :=
   · rintro ⟨hb, hall⟩
     refine ⟨?_, fun k'' σ' => ?_⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
-    · obtain ⟨ps, ps', h1, h2, hpl, hpl', hcl, hcl'⟩ := hall k'' (σ.comp σ')
+    · obtain ⟨ps, ps', h1, h2, hpl, hpl', hcl, hcl', hcd, hcd'⟩ := hall k'' (σ.comp σ')
       exact ⟨ps, ps', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, hpl, hpl',
-        argRel2_base f σ hcl, argRel2_base f σ hcl'⟩
+        argRel2_base f σ hcl, argRel2_base f σ hcl', argRel2_base f σ hcd, argRel2_base f σ hcd'⟩
   · rintro ⟨he, hmem, -, hdr⟩
     refine ⟨he.isub hW σ, mem_isub hW hX he.1 hmem σ, he.isub hW σ, ?_⟩
     have := DR2.rebase f (DR2.isub f hW hdr σ) σ.hom (Hom.id k') (by rw [Hom.id_comp, Hom.comp_id])

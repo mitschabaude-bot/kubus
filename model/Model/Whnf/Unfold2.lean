@@ -133,7 +133,7 @@ theorem Comp2_emptyC (f : Hom k m) :
   simp only [body2, core2, emptyC, dat_mkKV, emptyDatum, π1_quad, tagZ, π1_pair, π2_pair,
     natZ_inj, tPi, tSigma, tPath, tIPi, tUniv, tEmpty, if_false, show ¬ (1 = 2) by decide,
     show ¬ (1 = 3) by decide, show ¬ (1 = 4) by decide, show ¬ (1 = 5) by decide, show ¬ (1 = 6) by decide,
-    or_self, if_true, and_false]
+    or_self, if_true, and_false, and_true]
 
 theorem Comp2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp) (hφ : φ.IsCof)
     (hn : ¬ φ.holds) :
@@ -197,7 +197,8 @@ theorem Comp2_dataC (Θ : SData m) (f : Hom k m) :
           semK S k T' = res f (dataC Θ) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ ps ps',
           RedT S k' (T.isub σ) (.data Θ.idx ps) ∧ RedT S k' (T'.isub σ) (.data Θ.idx ps') ∧
           ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
-          argRel2 S Θ f k' σ ps ps' ∧ argRel2 S Θ f k' σ ps' ps,
+          argRel2 S Θ f k' σ ps ps' ∧ argRel2 S Θ f k' σ ps' ps ∧ argRel2 S Θ f k' σ ps ps ∧
+          argRel2 S Θ f k' σ ps' ps',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (dataC Θ)) (Hom.id k) ∧
           EB S k T t t' ∧ DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k (Hom.id k) T t t'⟩ := by
   rw [Comp2_unfold (show dataC Θ ≠ ∅ from mkKV_ne_empty _)]
@@ -223,9 +224,7 @@ theorem Comp2_ty_base {X : V} {f : Hom k m} {T T' : Tm} (h : (Comp2 S X m k f).t
   rw [Comp2_eq] at h; unfold compF2 at h
   split at h
   · rename_i hX
-    refine ⟨hX, ?_⟩
-    simp only [body2, core2] at h
-    split_ifs at h <;> first | exact h.1 | exact h | exact h.elim
+    exact ⟨hX, h.1⟩
   · exact h.elim
 
 theorem Comp2_eq_semK {X : V} {f : Hom k m} {T T' : Tm} (h : (Comp2 S X m k f).ty T T') :

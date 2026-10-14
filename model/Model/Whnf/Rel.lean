@@ -213,8 +213,6 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
   have h122 : rank (π1 (π2 (π2 sh))) < ρ := (rank_π1_le _).trans_lt h22
   have h222 : rank (π2 (π2 (π2 sh))) < ρ := (rank_π2_le _).trans_lt h22
   have h1222 : rank (π1 (π2 (π2 (π2 sh)))) < ρ := (rank_π1_le _).trans_lt h222
-  let base : Tm → Tm → Prop := fun A A' =>
-    IsTyK S k A ∧ IsTyK S k A' ∧ semK S k A = self ∧ semK S k A' = self ∧ TyEq S k A A'
   if π1 sh = natZ tPi ∨ π1 sh = natZ tSigma then
     let Y := π1 (π2 sh)
     let B := π2 (π2 sh)
@@ -224,7 +222,7 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     let cod : (k' : ℕ) → ISub k' k → Tm → ElR2 k' := fun k' σ a k'' σ' =>
       (rec (appV k' (res σ.hom B) (semK S k' a)) ((rank_appV_res_le _ _ _).trans_lt h22) k' k'' σ'.hom).el
     let isPi := π1 sh = natZ tPi
-    { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
+    { ty := fun A A' => ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
           RedT S k' (A.isub σ) (if isPi then .pi A1 B1 else .sigma A1 B1) ∧
           RedT S k' (A'.isub σ) (if isPi then .pi A1' B1' else .sigma A1' B1') ∧
           (RY k' σ).ty A1 A1' ∧ ∀ a a', (RY k' σ).el A1 a a' → (RB k' σ a).ty (B1.inst a) (B1'.inst a')
@@ -234,24 +232,24 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     let L := π1 (π2 sh)
     let RL : (k' : ℕ) → ISub k' (k + 1) → Pack2 := fun k' σ => rec L h12 (k + 1) k' σ.hom
     if π1 sh = natZ tPath then
-      { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
+      { ty := fun A A' => ∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
             RedT S k' (A.isub σ) (.path L1 b0 b1) ∧ RedT S k' (A'.isub σ) (.path L1' b0' b1') ∧
             (RL (k' + 1) σ.up).ty L1 L1' ∧
             (RL k' (ISub.cons .zero trivial σ)).el (L1.dinst .zero) b0 b0' ∧
             (RL k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1'
         el := pathE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
     else
-      { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k), ∃ L1 L1',
+      { ty := fun A A' => ∀ k' (σ : ISub k' k), ∃ L1 L1',
             RedT S k' (A.isub σ) (.ipi L1) ∧ RedT S k' (A'.isub σ) (.ipi L1') ∧ (RL (k' + 1) σ.up).ty L1 L1'
         el := ipiE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
   else if π1 sh = natZ tUniv then
-    { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k),
+    { ty := fun A A' => ∀ k' (σ : ISub k' k),
           RedT S k' (A.isub σ) (.univ (natOf (π2 sh))) ∧ RedT S k' (A'.isub σ) (.univ (natOf (π2 sh)))
       el := fun A T T' => ∃ h : semK S k T ∈ π1 (π2 (Dt k (Hom.id k))),
         (rec (semK S k T) (lt_trans (rank_lt_of_mem h) ((rank_π1_le _).trans_lt ((rank_π2_le _).trans_lt
           (hD k (Hom.id k))))) k k (Hom.id k)).ty T T' }
   else if π1 sh = natZ tEmpty then
-    { ty := base
+    { ty := fun _ _ => True
       el := fun _ _ _ => False }
   else if π1 sh = natZ tGlue then
     let A0 := π1 (π2 sh)
@@ -262,7 +260,7 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
       rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k' k' (Hom.id k')
     let ET : (k' : ℕ) → ISub k' k → (k'' : ℕ) → ISub k'' k' → Pack2 := fun k' σ k'' σ' =>
       rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k' k'' σ'.hom
-    { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k),
+    { ty := fun A A' => ∀ k' (σ : ISub k' k),
           if (φ.restr σ.hom).holds then (RT k' σ).ty (A.isub σ) (A'.isub σ)
           else ∃ A1 φ1 T1 e1 A1' φ1' T1' e1',
             RedT S k' (A.isub σ) (.glue A1 φ1 T1 e1) ∧ RedT S k' (A'.isub σ) (.glue A1' φ1' T1' e1') ∧
@@ -301,17 +299,20 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
           (tyLook_rank_lt (hD k'' (σ.comp σ').hom)) k'' k'' (Hom.id k'')).ty
           ((C.argTy d D.params.length args.length).substList (args.reverse ++ (ps.isub σ').toList.reverse))
           ((C.argTy d D.params.length args.length).substList (args'.reverse ++ (ps'.isub σ').toList.reverse))
-    { ty := fun A A' => base A A' ∧ ∀ k' (σ : ISub k' k), ∃ ps ps',
+    { ty := fun A A' => ∀ k' (σ : ISub k' k), ∃ ps ps',
           RedT S k' (A.isub σ) (.data d ps) ∧ RedT S k' (A'.isub σ) (.data d ps') ∧
-          ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧ argCl k' σ ps ps' ∧ argCl k' σ ps' ps
+          ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧ argCl k' σ ps ps' ∧ argCl k' σ ps' ps ∧
+          argCl k' σ ps ps ∧ argCl k' σ ps' ps'
       el := fun A t t' => EB S k A t t' ∧ DR2 S d D Mem P k (Hom.id k) A t t' }
   else Pack2.bot
 
-/-- The relations, with the elements typed, equal, and in the code's element set. -/
+/-- The relations, with the types typed, equal and of the code, and the elements typed, equal, and in the
+code's element set. -/
 def body2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordinal)
     (hD : ∀ k' (h : Hom k' k), rank (Dt k' h) < ρ)
     (rec : (Y : V) → rank Y < ρ → (m k : ℕ) → Hom k m → Pack2) : Pack2 :=
-  ⟨(core2 S k Dt self ρ hD rec).ty, fun A t t' => EB S k A t t' ∧ semK S k t ∈ El self (Hom.id k) ∧
+  ⟨fun A A' => (IsTyK S k A ∧ IsTyK S k A' ∧ semK S k A = self ∧ semK S k A' = self ∧ TyEq S k A A') ∧
+    (core2 S k Dt self ρ hD rec).ty A A', fun A t t' => EB S k A t t' ∧ semK S k t ∈ El self (Hom.id k) ∧
     (core2 S k Dt self ρ hD rec).el A t t'⟩
 
 def compF2 (X : V) (rec : (Y : V) → rank Y < rank X → (m k : ℕ) → Hom k m → Pack2) (m k : ℕ) (f : Hom k m) :
