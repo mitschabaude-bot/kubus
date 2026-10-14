@@ -131,6 +131,136 @@ theorem argRelH_QQ {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q)) (hQ' : RT2
     ((Comp2_ty_base hQ).2.2.2.2.2.isub hW σ).symm
   exact argRelH_comp hW (Hom.id K) (perP_ΘK hW hD hP) rQP dQ dP rPQ' hQT hPT hQ'T hPl hdd
 
+include hH hPP in
+/-- The projections of related elements of a literal inductive type, at parameters related to its
+own, are related, at the argument types instantiated by the projections. -/
+theorem projs_rel {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q)) (hQ' : RT2 S K (.data d P) (.data d Q'))
+    {k3 : ℕ} (ρ3 : ISub k3 K) {x x' : Tm} (hx : RE2 S k3 (.data d (P.isub ρ3)) x x')
+    {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {qsZ : Tm} {Z : List Tm}
+    (hw : RedW S x (.con d c qsZ (Tm.ofList Z) [])) {j : ℕ} (hj : j < C.args.length) :
+    RE2 S k3 ((C.argTy d D.params.length j).substList
+        ((((List.range C.args.length).map fun i => proj d D (Q.isub ρ3) c C i x).take j).reverse ++
+          (Q.isub ρ3).toList.reverse))
+      (proj d D (Q.isub ρ3) c C j x) (proj d D (Q'.isub ρ3) c C j x') ∧
+    RE2 S k3 ((C.argTy d D.params.length j).substList
+        ((((List.range C.args.length).map fun i => proj d D (Q.isub ρ3) c C i x).take j).reverse ++
+          (Q.isub ρ3).toList.reverse))
+      (proj d D (Q.isub ρ3) c C j x) (Z.getD j .abort) := by
+  have hdD := dataD_eq hW hD
+  have hTP : IsTyK S k3 (.data d (P.isub ρ3)) := ⟨_, .inl (HasTy.isubS hW hP ρ3)⟩
+  have lvl : ∀ {R : Tm}, IsTyK S k3 (.data d R) → HasTy S k3 .one [] (.data d R) (.univ D.level) := by
+    intro R hR
+    obtain ⟨l, hR | hR⟩ := hR
+    · obtain ⟨D', hD', hpt⟩ := gen_data_tele (spec_to_minimal hW hR) rfl
+      rw [hD] at hD'; cases hD'
+      exact minimal_to_spec (HasTy0.data hD (hW.2 d D hD).1 hpt)
+    · cases hR
+  have hQT : IsTyK S k3 (.data d (Q.isub ρ3)) := ((Comp2_ty_base hQ).2.2.1).isub hW ρ3
+  have hQ'T : IsTyK S k3 (.data d (Q'.isub ρ3)) := ((Comp2_ty_base hQ').2.2.1).isub hW ρ3
+  have hTQ : TyEq S k3 (.data d (P.isub ρ3)) (.data d (Q.isub ρ3)) := (Comp2_ty_base hQ).2.2.2.2.2.isub hW ρ3
+  have hTQ' : TyEq S k3 (.data d (P.isub ρ3)) (.data d (Q'.isub ρ3)) := (Comp2_ty_base hQ').2.2.2.2.2.isub hW ρ3
+  have hXP : TyCode K (semK S K (.data d P)) := tyCode_of_univ hW hP
+  have hPρ := RT2.isub hW hXP hPP ρ3
+  obtain ⟨c0, C0, qs0, Z0, qs0', Z', hC0, hZ0l, hZ'l, ht, ht', hrecZ, hptZ⟩ := dataLit_args hW hD hH hP hPP ρ3 hx
+  have e := RedW.unique ht.1 hw
+  simp only [Tm.con.injEq] at e
+  obtain ⟨-, hc0, -, ea, -⟩ := e
+  have hc0' := hc0.symm
+  subst hc0'
+  have ea' := congrArg Tm.toList ea
+  simp only [toList_ofList] at ea'
+  subst ea'
+  rw [hC] at hC0; cases hC0
+  have hxx' := RE2.trans hW hPρ (RE2.symm hW hPρ hx) hx
+  have hPl := (dataLit_rel hW hD hP hPP ρ3).2.2.2.2.2.1
+  have hplen : (P.isub ρ3).toList.length = D.params.length := by
+    have := data_len_of hW hTP; rwa [hdD] at this
+  set pr := (List.range C.args.length).map fun i => proj d D (Q.isub ρ3) c C i x with hpr
+  have hprl : pr.length = C.args.length := by simp [pr]
+  have hprget : ∀ i (hi : i < pr.length), pr[i] = proj d D (Q.isub ρ3) c C i x := by intro i hi; simp [pr]
+  -- the projections against the arguments of the normal forms
+  have PZ := fun {i : ℕ} (hi : i < C.args.length) => proj_rel hW hD hH hP hPP ρ3 hx hC hw hTQ (lvl hQT) hi
+  have PZ' := fun {i : ℕ} (hi : i < C.args.length) => proj_rel hW hD hH hP hPP ρ3 hxx' hC ht'.1 hTQ' (lvl hQ'T) hi
+  have hgetZ : ∀ i (hi : i < Z0.length), Z0.getD i .abort = Z0[i] := fun i hi => by
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi]; rfl
+  have hgetZ' : ∀ i (hi : i < Z'.length), Z'.getD i .abort = Z'[i] := fun i hi => by
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi]; rfl
+  -- the argument types along the normal forms
+  have ZZ' : ∀ i (hi : i < C.args.length), RE2 S k3 ((C.argTy d D.params.length i).substList
+      ((Z0.take i).reverse ++ (P.isub ρ3).toList.reverse)) (Z0.getD i .abort) (Z'.getD i .abort) := by
+    intro i hi
+    rw [hgetZ i (by omega), hgetZ' i (by omega)]
+    cases hri : C.isRec i
+    · exact hptZ i (by omega) (by omega) hri
+    · rw [argTy_rec_inst hri hPl hplen (by simp; omega)]; exact hrecZ i (by omega) (by omega) hri
+  have pc := (dataLit_rel hW hD hP hPP ρ3).2.2.1
+  have hpc : (P.isub ρ3).closedB 0 k3 = true := by
+    have := closed_of_isTyK hW hTP; simpa [Tm.closedB] using this
+  have hsemP := semK_dataLit hW hD hP ρ3
+  -- the argument types at the arguments of the two normal forms
+  have TZZ' : ∀ j (hj : j < C.args.length), RT2 S k3
+      ((C.argTy d D.params.length j).substList ((Z0.take j).reverse ++ (P.isub ρ3).toList.reverse))
+      ((C.argTy d D.params.length j).substList ((Z'.take j).reverse ++ (P.isub ρ3).toList.reverse)) := by
+    intro j hj
+    cases hrj : C.isRec j
+    · have := argTy_code_rel hW hD hH hP ρ3 pc hsemP hpc hpc hC (A := Z0.take j) (A' := Z'.take j)
+        (by simp; omega) (fun i h1 h2 hri => by
+          have hij : i < j := by simp at h1; omega
+          have := ZZ' i (by omega)
+          rw [argTy_rec_inst hri hPl hplen (by simp; omega), hgetZ i (by omega),
+            hgetZ' i (by omega)] at this
+          simpa using this)
+        (fun i h1 h2 hri => by
+          have hij : i < j := by simp at h1; omega
+          have := ZZ' i (by omega)
+          rw [hgetZ i (by omega), hgetZ' i (by omega)] at this
+          simpa [List.take_take, Nat.min_eq_left (show i ≤ j by omega)] using this)
+        (by simp; omega) (by simp; rw [Nat.min_eq_left (by omega)]; exact hrj)
+      have hl : (Z0.take j).length = j := by simp; omega
+      rw [hl] at this
+      exact Comp2_ty_RT2 this
+    · rw [argTy_rec_inst hrj hPl hplen (by simp; omega), argTy_rec_inst hrj hPl hplen (by simp; omega)]
+      exact hPρ
+  -- the argument types at the arguments and at the projections
+  obtain ⟨rPQ, -, -, -, -, -, hQl⟩ := dataLit_rel hW hD hP hQ ρ3
+  have hqc : (Q.isub ρ3).closedB 0 k3 = true := by
+    have := closed_of_isTyK hW hQT; simpa [Tm.closedB] using this
+  have hQlen : (Q.isub ρ3).toList.length = D.params.length := by
+    have := data_len_of hW hQT; rwa [hdD] at this
+  have TT : ∀ j (hj : j < C.args.length), RT2 S k3
+      ((C.argTy d D.params.length j).substList ((Z0.take j).reverse ++ (P.isub ρ3).toList.reverse))
+      ((C.argTy d D.params.length j).substList ((pr.take j).reverse ++ (Q.isub ρ3).toList.reverse)) := by
+    intro j hj
+    cases hrj : C.isRec j
+    · have := argTy_code_rel hW hD hH hP ρ3 rPQ hsemP hpc hqc hC (A := Z0.take j) (A' := pr.take j)
+        (by simp; omega) (fun i h1 h2 hri => by
+          have hij : i < j := by simp at h1; omega
+          have := (PZ (i := i) (by omega))
+          rw [argTy_rec_inst hri hPl hplen (by simp; omega)] at this
+          simp only [List.getElem_take]
+          rw [hprget i (by omega), ← hgetZ i (by omega)]
+          exact RE2.symm hW hPρ this)
+        (fun i h1 h2 hri => by
+          have hij : i < j := by simp at h1; omega
+          have := (PZ (i := i) (by omega))
+          simp only [List.getElem_take, List.take_take, Nat.min_eq_left (show i ≤ j by omega)]
+          rw [hprget i (by omega), ← hgetZ i (by omega)]
+          exact RE2.symm hW (RT2.refl hW (RE2.tyCode hW this) (TZZ' i (by omega))) this)
+        (by simp; omega) (by simp; rw [Nat.min_eq_left (by omega)]; exact hrj)
+      have hl : (Z0.take j).length = j := by simp; omega
+      rw [hl] at this
+      exact Comp2_ty_RT2 this
+    · rw [argTy_rec_inst hrj hPl hplen (by simp; omega), argTy_rec_inst hrj hQl hQlen (by simp; omega)]
+      exact RT2.isub hW hXP hQ ρ3
+  have hXZ : TyCode k3 (semK S k3 ((C.argTy d D.params.length j).substList
+      ((Z0.take j).reverse ++ (P.isub ρ3).toList.reverse))) := RE2.tyCode hW (PZ hj)
+  have hZZ := RT2.refl hW hXZ (TT j hj)
+  have a1 := PZ hj
+  have a2 := ZZ' j hj
+  have a3 := RE2.conv' hW (TZZ' j hj) (RE2.symm hW (RT2.refl' hW hXZ (TZZ' j hj)) (PZ' hj)) hXZ
+  rw [show proj d D (Q'.isub ρ3) c C j x' = proj d D (Q'.isub ρ3) c C j x' from rfl] at a3
+  exact ⟨RE2.conv hW (TT j hj) (RE2.trans hW hZZ a1 (RE2.trans hW hZZ a2 a3)), RE2.conv hW (TT j hj) a1⟩
+
 end lit
 
 end
