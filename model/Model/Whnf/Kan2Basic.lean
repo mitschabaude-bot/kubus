@@ -31,9 +31,20 @@ def KanH2 (S : Sig) (k : ℕ) (A A' : Tm) : Prop :=
     I.Entails φ φ' → I.Entails φ' φ → Tube2 S k A φ u u' → RE2 S k A a a' →
     RE2 S k A (.hcomp A φ u a) (.hcomp A' φ' u' a')
 
+/-- Lines (at stage `k + 1`) related at `I.Eq`-equal points of every restriction. -/
+def LineRob (S : Sig) (k : ℕ) (A A' : Tm) : Prop :=
+  ∀ k' (τ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+    RT2 S k' (A.isub (ISub.cons r hr τ)) (A'.isub (ISub.cons r' hr' τ))
+
+/-- A line (at stage `k + 1`) is constant where the face `φ` holds. -/
+def LineConst (S : Sig) (k : ℕ) (A : Tm) (φ : I) : Prop :=
+  ∀ k' (σ : ISub k' k) (r : I) (hr : r.Scoped k'), (ival (idEnv k') (φ.subst σ.τ)).holds →
+    RT2 S k' (A.isub (ISub.cons r hr σ)) (A.isub (ISub.cons .zero trivial σ))
+
 /-- Transport along related lines (at stage `k + 1`) relates related elements. -/
 def KanT2 (S : Sig) (k : ℕ) (A A' : Tm) : Prop :=
-  ∀ (φ φ' : I) (a a' : Tm), HasTy S k .one [] (.transp A φ a) (A.dinst .one) →
+  LineRob S k A A' →
+  ∀ (φ φ' : I) (a a' : Tm), LineConst S k A φ → HasTy S k .one [] (.transp A φ a) (A.dinst .one) →
     HasTy S k .one [] (.transp A' φ' a') (A.dinst .one) →
     EqTm S k .one [] (.transp A φ a) (.transp A' φ' a') (A.dinst .one) → I.Entails φ φ' → I.Entails φ' φ →
     RE2 S k (A.dinst .zero) a a' → RE2 S k (A.dinst .one) (.transp A φ a) (.transp A' φ' a')

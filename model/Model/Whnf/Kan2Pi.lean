@@ -339,6 +339,94 @@ theorem kanH2_pi {T T' : Tm} (hP : PiStr S k T T')
   rw [Tm.isub_isub] at h3
   exact hIH k1 (ρ.comp ρ1) A3 B3 h3 b hb k2 ρ2 X' hX'
 
+
+omit hW in
+theorem Comp2_ty_iff {m : ℕ} {X : V} {g : Hom k' m} {A A' : Tm} (hne : X ≠ ∅) (hb : semK S k' A = res g X) :
+    (Comp2 S X m k' g).ty A A' ↔ RT2 S k' A A' := by
+  unfold RT2; rw [hb, Comp2_eq_res hne]
+
+omit hW in
+theorem Comp2_el_iff {m : ℕ} {X : V} {g : Hom k' m} {A t t' : Tm} (hne : X ≠ ∅) (hb : semK S k' A = res g X) :
+    (Comp2 S X m k' g).el A t t' ↔ RE2 S k' A t t' := by
+  unfold RE2; rw [hb, Comp2_eq_res hne]
+
+omit hW in
+theorem Comp2_ty_RT2 {m : ℕ} {X : V} {g : Hom k' m} {A A' : Tm} (h : (Comp2 S X m k' g).ty A A') : RT2 S k' A A' :=
+  (Comp2_ty_iff (Comp2_ty_base h).1 (Comp2_ty_base h).2.2.2.1).1 h
+
+/-- Related types whose normal form is a Π-type have the structure `PiStr`. -/
+theorem PiStr_of {T T' A B : Tm} {l : ℕ} (h : RT2 S k T T') (hR : RedT S k T (.pi A B))
+    (hpiK : HasTy S k .one [] (.pi A B) (.univ l)) : PiStr S k T T' := by
+  have hAne := semK_ne hW (HasTy.piDom hpiK)
+  have hX : semK S k T = piC k (semK S k A)
+      (famV k (semK S k A) fun k' g a => sem S B k' ((idEnv k).restr g) (TEnv.cons (TEnv.restr (γ0 k) g) a)) :=
+    (semK_tyEq hW hR.2).trans (semK_piT hW hpiK)
+  have hT := h
+  unfold RT2 at hT
+  rw [hX, Comp2_piC _ _ hAne] at hT
+  obtain ⟨hbase, hall, hcoh, -⟩ := hT
+  -- the domain relation at a restriction, and its base
+  refine ⟨hbase.2.2.2.2, fun k' ρ => ?_, fun k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2 => ?_, fun k' ρ A1 B1 f f' h1 hf => ?_⟩
+  · obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' ρ
+    refine ⟨A1, B1, A1', B1', h1, h2, Comp2_ty_RT2 h3, fun a a' ha => Comp2_ty_RT2 (h4 a a' ?_)⟩
+    exact (Comp2_el_iff hAne (Comp2_ty_base h3).2.2.2.1).2 ha
+  · obtain ⟨c1, c2⟩ := hcoh k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2
+    refine ⟨Comp2_ty_RT2 c1, fun a a' ha => Comp2_ty_RT2 (c2 a a' ?_)⟩
+    exact (Comp2_el_iff hAne (Comp2_ty_base c1).2.2.2.1).2 ha
+  · -- the elimination of related elements
+    have hTρ : semK S k' (T.isub ρ) = res ρ.hom (semK S k T) :=
+      semK_isubTy hW (Comp2_ty_base (show RT2 S k T T' from h)).2.1 ρ
+    have hf2 : (Comp2 S (piC k (semK S k A) (famV k (semK S k A) fun k' g a =>
+        sem S B k' ((idEnv k).restr g) (TEnv.cons (TEnv.restr (γ0 k) g) a))) k k' ρ.hom).el (T.isub ρ) f f' := by
+      rw [Comp2_eq_res (show piC k (semK S k A) (famV k (semK S k A) fun k' g a =>
+        sem S B k' ((idEnv k).restr g) (TEnv.cons (TEnv.restr (γ0 k) g) a)) ≠ ∅ from mkKV_ne_empty _), ← hX, ← hTρ]
+      exact hf
+    obtain ⟨A3, B3, h3, happ⟩ := piC_el_at hAne hW hf2
+    obtain ⟨rfl, rfl⟩ : A3 = A1 ∧ B3 = B1 := by
+      have := RedW.unique h3.1 h1.1; injection this; constructor <;> assumption
+    obtain ⟨A4, B4, A4', B4', h4, -, hd, hc⟩ := hall k' ρ
+    obtain ⟨rfl, rfl⟩ : A4 = A3 ∧ B4 = B3 := by
+      have := RedW.unique h4.1 h1.1; injection this; constructor <;> assumption
+    intro a a' ha
+    have ha' : (Comp2 S (semK S k A) k k' ((Hom.id k).comp ρ.hom)).el A4 a a' :=
+      (Comp2_el_iff hAne (Comp2_ty_base hd).2.2.2.1).2 ha
+    have x := happ a a' (by rwa [Hom.id_comp] at ha')
+    have haa : (Comp2 S (semK S k A) k k' ((Hom.id k).comp ρ.hom)).el A4 a a :=
+      (per2_tyCode hW (tyCode_of_univ hW (HasTy.piDom hpiK)) k' _ |>.reflEl) hd ha'
+    have hcb := Comp2_ty_base (hc a a haa)
+    rw [Hom.id_comp] at hcb
+    exact (Comp2_el_iff hcb.1 hcb.2.2.2.1).1 x
+
+
+/-- Related elements of a type whose normal form is a Π-type, through their applications. -/
+theorem RE2_piW_intro {T A B t t' : Tm} {l : ℕ} (hTT : RT2 S k T T) (hR : RedT S k T (.pi A B))
+    (hpiK : HasTy S k .one [] (.pi A B) (.univ l)) (hE : EB S k T t t')
+    (happ : ∀ k' (ρ : ISub k' k) A1 B1, RedT S k' (T.isub ρ) (.pi A1 B1) →
+      ∀ a a', RE2 S k' A1 a a' → RE2 S k' (B1.inst a) (.app (t.isub ρ) a) (.app (t'.isub ρ) a')) :
+    RE2 S k T t t' := by
+  have hAne := semK_ne hW (HasTy.piDom hpiK)
+  have hX : semK S k T = piC k (semK S k A)
+      (famV k (semK S k A) fun k' g a => sem S B k' ((idEnv k).restr g) (TEnv.cons (TEnv.restr (γ0 k) g) a)) :=
+    (semK_tyEq hW hR.2).trans (semK_piT hW hpiK)
+  have hT := hTT
+  unfold RT2 at hT
+  rw [hX, Comp2_piC _ _ hAne] at hT
+  obtain ⟨-, hall, -, -⟩ := hT
+  unfold RE2
+  rw [hX, Comp2_piC _ _ hAne]
+  refine ⟨hE, ?_, hE, fun k' ρ => ?_⟩
+  · rw [← hX, res_id (by rw [hX]; exact isKV_mkKV _)]; exact mem_of_ty hW hE.1
+  obtain ⟨A1, B1, A1', B1', h1, -, hd, hc⟩ := hall k' ρ
+  refine ⟨A1, B1, h1, fun a a' ha => ?_⟩
+  simp only [ISub.id_comp, Hom.id_comp] at ha hd hc ⊢
+  have hb := (Comp2_ty_base hd).2.2.2.1
+  have haR : RE2 S k' A1 a a' := (Comp2_el_iff hAne hb).1 ha
+  have x := happ k' ρ A1 B1 h1 a a' haR
+  have haa := (per2_tyCode hW (tyCode_of_univ hW (HasTy.piDom hpiK)) k' ρ.hom).reflEl hd ha
+  have hcb := Comp2_ty_base (hc a a haa)
+  rw [ISub.hom_id]
+  exact (Comp2_el_iff hcb.1 hcb.2.2.2.1).2 x
+
 end
 
 end Model.Whnf
