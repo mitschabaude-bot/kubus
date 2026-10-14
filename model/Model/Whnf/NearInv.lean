@@ -93,6 +93,19 @@ theorem sigma_dom {A1 B1 : Tm} {l : ℕ} (hs : HasTy S k .one [] (.sigma A1 B1) 
 variable (hN : NearTy S)
 include hN
 
+theorem HasTy.near' {t t' A : Tm} (h : HasTy S k .one [] t A) (hn : TmNear t t') (hg : goodB S k t' = true) :
+    HasTy S k .one [] t' A :=
+  HasTy.eqR (eq_near hW hN h hn hg)
+
+omit hW hN in
+theorem good_isub {t : Tm} (h : goodB S k t = true) (σ : ISub k' k) : goodB S k' (t.isub σ) = true :=
+  goodB_subst t h (fun _ => rfl) fun i hi => sc_iff.2 (σ.sc i hi)
+
+omit hN in
+/-- The normal form of a good type is good. -/
+theorem good_whnf {T W : Tm} (h : RedT S k T W) (hg : goodB S k T = true) : goodB S k W = true :=
+  red_good hW h.1.1 hg
+
 /-! ### `Π` types -/
 
 section pi
@@ -260,6 +273,201 @@ theorem niEl_sigmaC {f : Hom k m} {T t t' t'' : Tm} (hTT : (Comp2 S (sigmaC m A 
 
 end sigma
 
+
+/-! ### Path types -/
+
+section path
+variable {m : ℕ} {L a0 a1 : V} (hLne : L ≠ ∅) (perL : PER2 S (m + 1) L) (niL : NI2 S (m + 1) L)
+include hLne perL niL
+
+omit hLne in
+theorem cohPath_near {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k T') (hn : TmNear T T')
+    (hc : cohPath S L f T)
+    (hrefl : ∀ k' (σ : ISub k' k) L2 c0 c1, RedT S k' (T.isub σ) (.path L2 c0 c1) → ∀ (r : I) (hr : r.Scoped k'),
+      (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L2.dinst r) (L2.dinst r)) :
+    cohPath S L f T' := by
+  intro k' σ k'' σ' L1 b0 b1 L2 c0 c1 r1 r2
+  have g1 := good_whnf hW r1 (good_of_isTyK hW (hT'.isub hW σ))
+  have g2 := good_whnf hW r2 (good_of_isTyK hW (hT'.isub hW _))
+  simp only [goodB, Bool.and_eq_true] at g1 g2
+  obtain ⟨W1, r1', w1⟩ := RedT.near hW hN r1 (hT'.isub hW σ) (hn.symm.isub σ) (good_of_isTyK hW (hT.isub hW σ))
+  cases w1 with | path nL1 nb0 nb1 =>
+  obtain ⟨W2, r2', w2⟩ := RedT.near hW hN r2 (hT'.isub hW _) (hn.symm.isub _) (good_of_isTyK hW (hT.isub hW _))
+  cases w2 with | path nL2 nc0 nc1 =>
+  obtain ⟨c1x, c2x, c3x⟩ := hc k' σ k'' σ' _ _ _ _ _ _ r1' r2'
+  have bL := Comp2_ty_base c1x
+  have hL1 := (tyEq_near hW hN bL.2.1 (nL1.isub σ'.up).symm (good_isub g1.1.1 σ'.up)).2
+  have hL2 := (tyEq_near hW hN bL.2.2.1 nL2.symm g2.1.1).2
+  refine ⟨NI2.ty2 perL niL c1x (nL1.isub σ'.up).symm hL1 nL2.symm hL2, ?_, ?_⟩
+  · have hR := hrefl k'' (σ.comp σ') _ _ _ r2' .zero trivial
+    have hd := (tyEq_near hW hN (Comp2_ty_base hR).2.1 (nL2.symm.dinst (I_eq_refl _)) (goodB_dinst g2.1.1 rfl)).2
+    have e := NI2.tyR niL hR (nL2.symm.dinst (I_eq_refl _)) hd
+    have x := (perL _ _).conv e c2x
+    have hx := (Comp2_el x).1
+    exact NI2.el2 perL niL ((perL _ _).reflTy' e) x (nb0.isub σ').symm
+      (HasTy.near' hW hN hx.1 (nb0.isub σ').symm (good_isub g1.1.2 σ')) nc0.symm
+      (HasTy.near' hW hN hx.2.1 nc0.symm g2.1.2)
+  · have hR := hrefl k'' (σ.comp σ') _ _ _ r2' .one trivial
+    have hd := (tyEq_near hW hN (Comp2_ty_base hR).2.1 (nL2.symm.dinst (I_eq_refl _)) (goodB_dinst g2.1.1 rfl)).2
+    have e := NI2.tyR niL hR (nL2.symm.dinst (I_eq_refl _)) hd
+    have x := (perL _ _).conv e c3x
+    have hx := (Comp2_el x).1
+    exact NI2.el2 perL niL ((perL _ _).reflTy' e) x (nb1.isub σ').symm
+      (HasTy.near' hW hN hx.1 (nb1.isub σ').symm (good_isub g1.2 σ')) nc1.symm
+      (HasTy.near' hW hN hx.2.1 nc1.symm g2.2)
+
+theorem niTy_pathC {f : Hom k m} {T T' T'' : Tm} (h : (Comp2 S (pathC m L a0 a1) m k f).ty T T')
+    (hn : TmNear T' T'') (hT : IsTyK S k T'') : (Comp2 S (pathC m L a0 a1) m k f).ty T T'' := by
+  rw [Comp2_pathC L a0 a1 hLne] at h ⊢
+  obtain ⟨hb, hall, hc, hc'⟩ := h
+  have hT' := hb.2.1
+  obtain ⟨e', -⟩ := tyEq_near hW hN hT' hn (good_of_isTyK hW hT)
+  have hrefl : ∀ k' (σ : ISub k' k) L2 c0 c1, RedT S k' (T'.isub σ) (.path L2 c0 c1) → ∀ (r : I) (hr : r.Scoped k'),
+      (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L2.dinst r) (L2.dinst r) := by
+    intro k' σ L2 c0 c1 hR r hr
+    obtain ⟨L1, b0, b1, L1', b0', b1', -, h2, -, h4, -, -⟩ := hall k' σ
+    obtain ⟨rfl, -, -⟩ : L1' = L2 ∧ b0' = c0 ∧ b1' = c1 := by
+      have := RedW.unique h2.1 hR.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
+    exact (perL _ _).reflTy' (h4 r r hr hr (I_eq_refl _))
+  refine ⟨⟨hb.1, hT, hb.2.2.1, (semK_tyEq hW e').symm.trans hb.2.2.2.1, hb.2.2.2.2.trans hW e'⟩, fun k' σ => ?_, hc,
+    cohPath_near hW hN perL niL hT' hT hn hc' hrefl⟩
+  obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5, h6⟩ := hall k' σ
+  obtain ⟨W, h2'', hw⟩ := RedT.near hW hN h2 (hT'.isub hW σ) (hn.isub σ) (good_of_isTyK hW (hT.isub hW σ))
+  cases hw with | path nL n0 n1 =>
+  have g := good_whnf hW h2'' (good_of_isTyK hW (hT.isub hW σ))
+  simp only [goodB, Bool.and_eq_true] at g
+  have hL := (tyEq_near hW hN (Comp2_ty_base h3).2.2.1 nL g.1.1).2
+  refine ⟨L1, b0, b1, _, _, _, h1, h2'', NI2.tyR niL h3 nL hL, fun r r' hr hr' he => ?_, ?_, ?_⟩
+  · have x := h4 r r' hr hr' he
+    exact NI2.tyR niL x (nL.dinst (I_eq_refl _))
+      (tyEq_near hW hN (Comp2_ty_base x).2.2.1 (nL.dinst (I_eq_refl _)) (goodB_dinst g.1.1 (sc_iff.2 hr'))).2
+  · exact NI2.elR perL niL ((perL _ _).reflTy (h4 .zero .zero trivial trivial (I_eq_refl _))) h5 n0
+      (HasTy.near' hW hN (Comp2_el h5).1.2.1 n0 g.1.2)
+  · exact NI2.elR perL niL ((perL _ _).reflTy (h4 .one .one trivial trivial (I_eq_refl _))) h6 n1
+      (HasTy.near' hW hN (Comp2_el h6).1.2.1 n1 g.2)
+
+theorem niEl_pathC {f : Hom k m} {T t t' t'' : Tm} (hTT : (Comp2 S (pathC m L a0 a1) m k f).ty T T)
+    (h : (Comp2 S (pathC m L a0 a1) m k f).el T t t') (hn : TmNear t' t'') (hu : HasTy S k .one [] t'' T) :
+    (Comp2 S (pathC m L a0 a1) m k f).el T t t'' := by
+  rw [Comp2_pathC L a0 a1 hLne] at h hTT ⊢
+  obtain ⟨hE, hmem, -, hall⟩ := h
+  have hE' : EB S k T t t'' := ⟨hE.1, hu, hE.2.2.trans (eq_near hW hN hE.2.1 hn (good_of_ty hW hu))⟩
+  refine ⟨hE', hmem, hE', fun k1 σ1 => ?_⟩
+  obtain ⟨L1, b0, b1, hR, hp, e0, e1⟩ := hall k1 σ1
+  refine ⟨L1, b0, b1, hR, fun r r' hr hr' he => ?_, e0, e1⟩
+  simp only [ISub.id_comp] at hp ⊢
+  have x := hp r r' hr hr' he
+  have hx := (Comp2_el x).1
+  have hn1 : TmNear (Tm.papp (t'.isub σ1) r') (Tm.papp (t''.isub σ1) r') := .papp (hn.isub σ1) (I_eq_refl _)
+  have hg : goodB S k1 (Tm.papp (t''.isub σ1) r') = true := by
+    simp only [goodB, Bool.and_eq_true]; exact ⟨good_isub (good_of_ty hW hu) σ1, sc_iff.2 hr'⟩
+  have hLL : (Comp2 S L (m + 1) k1 ((Hom.lift f).comp (ISub.cons r hr σ1).hom)).ty (L1.dinst r) (L1.dinst r) := by
+    obtain ⟨L1x, b0x, b1x, L1y, b0y, b1y, hx, hy, -, hrr, -, -⟩ := hTT.2.1 k1 σ1
+    obtain ⟨rfl, -, -⟩ : L1x = L1 ∧ True ∧ True := by
+      have := RedW.unique hx.1 hR.1; injection this; exact ⟨by assumption, trivial, trivial⟩
+    obtain ⟨rfl, -, -⟩ : L1y = L1x ∧ True ∧ True := by
+      have := RedW.unique hy.1 hR.1; injection this; exact ⟨by assumption, trivial, trivial⟩
+    exact (perL _ _).reflTy (hrr r r hr hr (I_eq_refl _))
+  exact NI2.elR perL niL hLL x hn1 (HasTy.near' hW hN hx.2.1 hn1 hg)
+
+end path
+
+/-! ### `(i : I) → L` -/
+
+section ipi
+variable {m : ℕ} {L : V} (hLne : L ≠ ∅) (perL : PER2 S (m + 1) L) (niL : NI2 S (m + 1) L)
+include hLne perL niL
+
+omit hLne in
+theorem cohIPi_near {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k T') (hn : TmNear T T')
+    (hc : cohIPi S L f T) : cohIPi S L f T' := by
+  intro k' σ k'' σ' L1 L2 r1 r2
+  have g1 := good_whnf hW r1 (good_of_isTyK hW (hT'.isub hW σ))
+  have g2 := good_whnf hW r2 (good_of_isTyK hW (hT'.isub hW _))
+  simp only [goodB] at g1 g2
+  obtain ⟨W1, r1', w1⟩ := RedT.near hW hN r1 (hT'.isub hW σ) (hn.symm.isub σ) (good_of_isTyK hW (hT.isub hW σ))
+  cases w1 with | ipi nL1 =>
+  obtain ⟨W2, r2', w2⟩ := RedT.near hW hN r2 (hT'.isub hW _) (hn.symm.isub _) (good_of_isTyK hW (hT.isub hW _))
+  cases w2 with | ipi nL2 =>
+  have c1x := hc k' σ k'' σ' _ _ r1' r2'
+  have bL := Comp2_ty_base c1x
+  have hL1 := (tyEq_near hW hN bL.2.1 (nL1.isub σ'.up).symm (good_isub g1 σ'.up)).2
+  have hL2 := (tyEq_near hW hN bL.2.2.1 nL2.symm g2).2
+  exact NI2.ty2 perL niL c1x (nL1.isub σ'.up).symm hL1 nL2.symm hL2
+
+theorem niTy_ipiC {f : Hom k m} {T T' T'' : Tm} (h : (Comp2 S (ipiC m L) m k f).ty T T')
+    (hn : TmNear T' T'') (hT : IsTyK S k T'') : (Comp2 S (ipiC m L) m k f).ty T T'' := by
+  rw [Comp2_ipiC L hLne] at h ⊢
+  obtain ⟨hb, hall, hc, hc'⟩ := h
+  have hT' := hb.2.1
+  obtain ⟨e', -⟩ := tyEq_near hW hN hT' hn (good_of_isTyK hW hT)
+  refine ⟨⟨hb.1, hT, hb.2.2.1, (semK_tyEq hW e').symm.trans hb.2.2.2.1, hb.2.2.2.2.trans hW e'⟩, fun k' σ => ?_, hc,
+    cohIPi_near hW hN perL niL hT' hT hn hc'⟩
+  obtain ⟨L1, L1', h1, h2, h3, h4⟩ := hall k' σ
+  obtain ⟨W, h2'', hw⟩ := RedT.near hW hN h2 (hT'.isub hW σ) (hn.isub σ) (good_of_isTyK hW (hT.isub hW σ))
+  cases hw with | ipi nL =>
+  have g := good_whnf hW h2'' (good_of_isTyK hW (hT.isub hW σ))
+  simp only [goodB] at g
+  have hL := (tyEq_near hW hN (Comp2_ty_base h3).2.2.1 nL g).2
+  refine ⟨L1, _, h1, h2'', NI2.tyR niL h3 nL hL, fun r r' hr hr' he => ?_⟩
+  have x := h4 r r' hr hr' he
+  exact NI2.tyR niL x (nL.dinst (I_eq_refl _))
+    (tyEq_near hW hN (Comp2_ty_base x).2.2.1 (nL.dinst (I_eq_refl _)) (goodB_dinst g (sc_iff.2 hr'))).2
+
+theorem niEl_ipiC {f : Hom k m} {T t t' t'' : Tm} (hTT : (Comp2 S (ipiC m L) m k f).ty T T)
+    (h : (Comp2 S (ipiC m L) m k f).el T t t') (hn : TmNear t' t'') (hu : HasTy S k .one [] t'' T) :
+    (Comp2 S (ipiC m L) m k f).el T t t'' := by
+  rw [Comp2_ipiC L hLne] at h hTT ⊢
+  obtain ⟨hE, hmem, -, hall⟩ := h
+  have hE' : EB S k T t t'' := ⟨hE.1, hu, hE.2.2.trans (eq_near hW hN hE.2.1 hn (good_of_ty hW hu))⟩
+  refine ⟨hE', hmem, hE', fun k1 σ1 => ?_⟩
+  obtain ⟨L1, hR, hp⟩ := hall k1 σ1
+  refine ⟨L1, hR, fun r r' hr hr' he => ?_⟩
+  simp only [ISub.id_comp] at hp ⊢
+  have x := hp r r' hr hr' he
+  have hx := (Comp2_el x).1
+  have hn1 : TmNear (Tm.papp (t'.isub σ1) r') (Tm.papp (t''.isub σ1) r') := .papp (hn.isub σ1) (I_eq_refl _)
+  have hg : goodB S k1 (Tm.papp (t''.isub σ1) r') = true := by
+    simp only [goodB, Bool.and_eq_true]; exact ⟨good_isub (good_of_ty hW hu) σ1, sc_iff.2 hr'⟩
+  have hLL : (Comp2 S L (m + 1) k1 ((Hom.lift f).comp (ISub.cons r hr σ1).hom)).ty (L1.dinst r) (L1.dinst r) := by
+    obtain ⟨L1x, L1y, hx, hy, -, hrr⟩ := hTT.2.1 k1 σ1
+    obtain rfl : L1x = L1 := by have := RedW.unique hx.1 hR.1; injection this
+    obtain rfl : L1y = L1x := by have := RedW.unique hy.1 hR.1; injection this
+    exact (perL _ _).reflTy (hrr r r hr hr (I_eq_refl _))
+  exact NI2.elR perL niL hLL x hn1 (HasTy.near' hW hN hx.2.1 hn1 hg)
+
+end ipi
+
+/-! ### The empty type and universes -/
+
+theorem base_near {m : ℕ} {X : V} {f : Hom k m} {T T' T'' : Tm}
+    (hb : IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f X ∧ semK S k T' = res f X ∧ TyEq S k T T')
+    (hn : TmNear T' T'') (hT : IsTyK S k T'') :
+    IsTyK S k T ∧ IsTyK S k T'' ∧ semK S k T = res f X ∧ semK S k T'' = res f X ∧ TyEq S k T T'' := by
+  obtain ⟨e', -⟩ := tyEq_near hW hN hb.2.1 hn (good_of_isTyK hW hT)
+  exact ⟨hb.1, hT, hb.2.2.1, (semK_tyEq hW e').symm.trans hb.2.2.2.1, hb.2.2.2.2.trans hW e'⟩
+
+theorem ni2_emptyC {m : ℕ} : NI2 S m (emptyC m) := by
+  intro k f T T' T'' t t' t''
+  rw [Comp2_emptyC]
+  exact ⟨fun h hn hT => base_near hW hN h hn hT, fun _ h => h.elim⟩
+
+theorem ni2_univC {m l : ℕ} (ih : ∀ m' X, WF l m' X → NI2 S m' X) : NI2 S m (univC m l) := by
+  intro k f T T' T'' t t' t''
+  rw [Comp2_univC]
+  refine ⟨fun h hn hT => ⟨base_near hW hN h.1 hn hT, fun k' σ => ?_⟩, fun hTT h hn hu => ?_⟩
+  · obtain ⟨h1, h2⟩ := h.2 k' σ
+    obtain ⟨W, h2', hw⟩ := RedT.near hW hN h2 (h.1.2.1.isub hW σ) (hn.isub σ) (good_of_isTyK hW (hT.isub hW σ))
+    cases hw
+    exact ⟨h1, h2'⟩
+  · obtain ⟨hE, hmem, hm, hty⟩ := h
+    have hE' : EB S k T t t'' := ⟨hE.1, hu, hE.2.2.trans (eq_near hW hN hE.2.1 hn (good_of_ty hW hu))⟩
+    refine ⟨hE', hmem, hm, ?_⟩
+    have hWF : WF l k (semK S k t) := (ZFSet.mem_sep.1 hm).2
+    have hU : TyEq S k T (.univ l) := by
+      have := (hTT.2 k (ISub.id k)).1.2
+      rwa [isub_id_of_closed (closed_of_isTyK hW hTT.1.1)] at this
+    exact (ih k _ hWF k (Hom.id k) t t' t'' t t' t'').1 hty hn (tyk (hu.tyConv hU))
 
 end
 
