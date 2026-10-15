@@ -29,6 +29,33 @@ theorem teleSub_append (X Y : List Tm) (γ : ℕ → Tm) :
     teleSub (X ++ Y) γ = teleSub Y (teleSub X γ) := by
   exact List.foldl_append
 
+/-- A telescope substitution is lookup in the reversed argument list, followed by the outer substitution. -/
+theorem teleSub_eq (X : List Tm) (γ : ℕ → Tm) (i : ℕ) :
+    teleSub X γ i = X.reverse.getD i (γ (i - X.length)) := by
+  unfold teleSub
+  rw [List.foldl_eq_foldr_reverse]
+  have key : ∀ (L : List Tm) (i : ℕ), L.foldr consT γ i = L.getD i (γ (i - L.length)) := by
+    intro L
+    induction L with
+    | nil => intro i; rfl
+    | cons a L ih =>
+      intro i
+      cases i with
+      | zero => rfl
+      | succ i =>
+        simpa only [List.foldr_cons, consT, List.getD_cons_succ, List.length_cons, Nat.add_sub_add_right] using ih i
+  simpa only [List.length_reverse] using key X.reverse i
+
+theorem teleSub_lt (X : List Tm) (γ : ℕ → Tm) {i : ℕ} (hi : i < X.length) :
+    teleSub X γ i = X.reverse[i]'(by simpa using hi) := by
+  rw [teleSub_eq, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by simpa using hi)]
+  rfl
+
+theorem teleSub_add (X : List Tm) (γ : ℕ → Tm) (i : ℕ) :
+    teleSub X γ (i + X.length) = γ i := by
+  rw [teleSub_eq, List.getD_eq_getElem?_getD, List.getElem?_eq_none (by simp)]
+  simp
+
 /-- Change the presentation of a context without changing either substitution. -/
 def CSub2.ctxEq {Δ : Ctx} (c : CSub2 S Ψ Φ Γ k) (h : Γ = Δ) : CSub2 S Ψ Φ Δ k :=
   { c with
@@ -123,6 +150,48 @@ def CSub2.consList (c : CSub2 S Ψ Φ Γ k) (rs rs' : List I) (hr : IEqL rs rs')
       change I.Eq ((wkIv rs.length i).subst (consIs rs c.σ.τ) |>.subst ρ.τ) _ at hh
       rw [consIs_wkIv] at hh
       exact hh
+
+/-- Closing the arguments of a weakened outer term cancels both weakenings. -/
+theorem wkN_teleSub (t : Tm) (X : List Tm) (rs : List I) (γ : ℕ → Tm) (τ : ℕ → I) :
+    (t.wkN X.length rs.length).subst (teleSub X γ) (consIs rs τ) = t.subst γ τ := by
+  rw [wkN_eq, subst_subst]
+  exact subst_congr (teleSub_add X γ) (consIs_wkIv rs τ) t
+
+/-- A branch application closes to the branch applied to the given arguments and hypotheses. -/
+theorem branchApp_inst2 (C : Ctor) (b : Tm) (X Y : List Tm) (rs : List I)
+    (hX : X.length = C.args.length) (hY : Y.length = C.recPos.length) (hrs : rs.length = C.dims)
+    (γ : ℕ → Tm) (τ : ℕ → I) :
+    (DataDecl.branchApp C b).subst (teleSub (X ++ Y) γ) (consIs rs τ) =
+      Tm.papps (Tm.apps (b.subst γ τ) (X ++ Y)) rs := by
+  unfold DataDecl.branchApp
+  dsimp only
+  rw [papps_subst, apps_subst]
+  have hL : (X ++ Y).length = C.args.length + C.recPos.length := by simp [hX, hY]
+  rw [← hL, ← hrs, wkN_teleSub]
+  congr 2
+  · rw [List.map_append]
+    congr 1
+    · apply List.ext_getElem (by simp [hX])
+      intro j hj hj'
+      simp only [List.getElem_map, List.getElem_range, Tm.subst]
+      rw [teleSub_lt (X ++ Y) γ (by simp only [List.length_append, hX, hY]; omega), List.getElem_reverse, List.getElem_append_left (by simp only [List.length_append, hX, hY]; omega)]
+      congr 1
+      simp only [List.length_append, hX, hY]
+      omega
+    · apply List.ext_getElem (by simp [hY])
+      intro j hj hj'
+      simp only [List.getElem_map, List.getElem_range, Tm.subst]
+      rw [teleSub_lt (X ++ Y) γ (by simp only [List.length_append, hX, hY]; omega), List.getElem_reverse, List.getElem_append_right (by simp [hX, hY]; omega)]
+      congr 1
+      simp only [List.length_append, hX, hY]
+      omega
+  · apply List.ext_getElem (by simp [hrs])
+    intro j hj hj'
+    simp only [List.getElem_map, List.getElem_range, I.subst, consIs_eq]
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by simp; omega)]
+    simp only [Option.getD_some, List.getElem_reverse]
+    congr 1
+    omega
 
 variable (hW : WfSig S)
 include hW
