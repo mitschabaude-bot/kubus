@@ -2,14 +2,16 @@ import Model.Whnf.Fund2
 import Model.Canon.CanonForm
 
 /-!
-# Canonicity from the binary fundamental lemma
+# Unconditional canonicity from the binary fundamental lemma
 
 The binary fundamental lemma (`fund2`, with Kan carried by the universe relation) relates the two sides of every
 judgmental equality of closed types. At an equality of Glue types whose face does not hold, the type
 relation of Glue normal forms relates their bases and equivalences, which gives the compatibility of
-Glue annotations (`glueCompat_of`), the hypothesis of `canonicity_of_glueCompat`.
+Glue annotations (`glueCompat`), discharging the hypothesis of the canonical form proof.
 
-The remaining obligations are the four HIT elimination fields of `DataHyp2`, bundled in `Obl2`. Constructor boundary expansion follows from the checked overlap agreement and boundary argument typing derived by `hyps_take`.
+Constructor boundary expansion follows from the checked overlap agreement and boundary argument
+typing derived by `hyps_take`. HIT elimination and its computation rules follow from the binary
+relation induction. No additional model obligations are assumed.
 -/
 
 set_option autoImplicit false
@@ -22,14 +24,10 @@ noncomputable section
 
 variable {S : Sig}
 
-/-- The remaining obligations of the binary fundamental lemma and the binary Kan lemma. -/
-structure Obl2 (S : Sig) : Prop where
-  data : ∀ n, DataHyp2 S (S.take n)
-
 /-- **The compatibility of Glue annotations**, from the binary fundamental lemma. -/
-theorem glueCompat_of (hW : WfSig S) (O : Obl2 S) : GlueCompat S := by
+theorem glueCompat (hW : WfSig S) : GlueCompat S := by
   intro k A A' T T' e e' φ φ' l h hn h12 h21
-  obtain ⟨-, hr⟩ := fund2_closed hW O.data (spec_to_minimal_eq hW h)
+  obtain ⟨-, hr⟩ := fund2_closed hW (spec_to_minimal_eq hW h)
   have hGG' := RE2_univ_ty hW hr
   have hG := HasTy.eqL h
   have hG' := HasTy.eqR h
@@ -42,11 +40,11 @@ theorem glueCompat_of (hW : WfSig S) (O : Obl2 S) : GlueCompat S := by
   · exact ⟨lA, EqTm.refl hA⟩
   · exact ⟨l', eA⟩
 
-/-- **Canonicity**, given the remaining obligations of the binary development. -/
-theorem canonicity_of_obl2 (S : Sig) (d : Nat) (D : DataDecl) (t : Tm) (hW : WfSig S) (O : Obl2 S)
+/-- **Canonicity** for closed elements of a parameter-free inductive type, including HITs. -/
+theorem canonicity (S : Sig) (d : Nat) (D : DataDecl) (t : Tm) (hW : WfSig S)
     (hD : S[d]? = some (.data D)) (hp : D.params = []) (ht : HasTy S 0 .one [] t (.data d .tnil)) :
     ∃ t', EqTm S 0 .one [] t t' (.data d .tnil) ∧ Canon S d t' :=
-  canonicity_of_glueCompat S d D t hW (glueCompat_of hW O) hD hp ht
+  canonicity_of_glueCompat S d D t hW (glueCompat hW) hD hp ht
 
 end
 

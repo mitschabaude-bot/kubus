@@ -9,4 +9,4 @@ import Model.Whnf.Canon2
 #print axioms Model.consistent0
 #print axioms Model.kernel_consistent0
 #print axioms Model.Canon.canonicity_of_glueCompat
-#print axioms Model.Whnf.canonicity_of_obl2
+#print axioms Model.Whnf.canonicity

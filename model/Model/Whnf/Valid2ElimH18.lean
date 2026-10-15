@@ -1,4 +1,4 @@
-import Model.Whnf.Valid2ElimH17
+import Model.Whnf.Valid2ElimH33
 import Model.Whnf.Valid2ElimHInv
 
 /-! # Recursive arguments and constructor computation from eliminator inversion -/
@@ -11,7 +11,7 @@ open KubusCore KubusCore.Meta Model.Canon
 
 noncomputable section
 
-variable {S S' : Sig} {k : ℕ} (hW : WfSig S)
+variable {S : Sig} {k : ℕ} (hW : WfSig S)
 include hW
 
 omit hW in
@@ -27,10 +27,10 @@ theorem VTele2.recArg {Ψ : ℕ} {Φ : I} {Γ : Ctx} {d np : ℕ} {C : Ctor} {ps
   rw [argTy_rec_inst hr hp hpl (by simp; omega)] at h
   simpa only [getD_eq_get' hi] using h
 
-/-- The formation field supplies computable recursive eliminations for constructor computation. -/
-theorem ElimInv2.recElims (hDa : DataHyp2 S S') {Ψ : ℕ} {Φ : I} {Γ : Ctx}
-    {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hD' : S'[d]? = some (.data D))
-    (hH : D.isHIT = true) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
+/-- Elimination formation supplies computable recursive eliminations for constructor computation. -/
+theorem ElimInv2.recElims {Ψ : ℕ} {Φ : I} {Γ : Ctx}
+    {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
+    (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
     {ps P bs t T args : Tm} (htele : HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
     (hv : VTele2 S Ψ Φ Γ args args (C.argTys d D.params.length) ps.toList.reverse)
     (h : ElimInv2 S Ψ Φ Γ d ps P bs t T) :
@@ -45,8 +45,12 @@ theorem ElimInv2.recElims (hDa : DataHyp2 S S') {Ψ : ℕ} {Φ : I} {Γ : Ctx}
   have hal := Meta.tele_length htele
   simp only [Ctor.argTys, List.length_map, List.length_range] at hal
   intro j hj
-  exact hDa.elim hD' hH hp hE.hdata hpt hpm hbs hl hE.hbr hE.hcoh
-    (recArg_typed hp hpl htele hj) hvd hvp hvm hbr hbd (VTele2.recArg hp hpl hal hv hj)
+  have htj := recArg_typed hp hpl htele hj
+  have hej : HasTy0 S Ψ Φ Γ (.elim d ps P bs (args.toList.getD j .abort))
+      (P.inst (args.toList.getD j .abort)) := .elim hD hp hE.hdata hpt hpm hbs hl hE.hbr hE.hcoh htj
+  exact valid_elimH hW hD hH hyp hej hej hvd hvm
+    (fun c C b b' hc hb hb' => by rw [hb] at hb'; cases hb'; exact hbr c C b hc hb)
+    (VTele2.recArg hp hpl hal hv hj) hbd
 
 /-- Closing a valid constructor telescope gives the argument relation of its literal data type. -/
 theorem VTele2.ctorArgs {Ψ : ℕ} {Φ : I} {Γ : Ctx} {d : ℕ} {D : DataDecl}
@@ -75,8 +79,8 @@ theorem VTele2.ctorArgs {Ψ : ℕ} {Φ : I} {Γ : Ctx} {d : ℕ} {D : DataDecl}
     getD_eq_get' (show i < (args.toList.map c.R).length by simp; omega), List.getElem_map] using h
 
 /-- HIT constructor computation follows from formation and structural eliminator inversion. -/
-theorem valid_elimConH (hDa : DataHyp2 S S') {Ψ : ℕ} {Φ : I} {Γ : Ctx}
-    {d cc : ℕ} {D : DataDecl} {C : Ctor} (hD : S[d]? = some (.data D)) (hD' : S'[d]? = some (.data D))
+theorem valid_elimConH {Ψ : ℕ} {Φ : I} {Γ : Ctx}
+    {d cc : ℕ} {D : DataDecl} {C : Ctor} (hD : S[d]? = some (.data D))
     (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) (hC : D.ctors[cc]? = some C)
     {ps P bs b qs args T : Tm} {rs : List I} (hb : bs.toList[cc]? = some b)
     (hal : IsList args) (htele : HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
@@ -86,7 +90,7 @@ theorem valid_elimConH (hDa : DataHyp2 S S') {Ψ : ℕ} {Φ : I} {Γ : Ctx}
       (.elim d ps P bs (.con d cc qs args rs)) T) :
     Valid2 S Ψ Φ Γ (.elim d ps P bs (.con d cc qs args rs))
       (Tm.papps (Tm.apps b (args.toList ++ C.recPos.map fun j => .elim d ps P bs (args.toList.getD j .abort))) rs) T := by
-  have hr := ElimInv2.recElims hW hDa hD hD' hH hC htele hva hinv
+  have hr := ElimInv2.recElims hW hD hH hyp hC htele hva hinv
   obtain ⟨D0, m, hd, hp, hpt, hvp, hvd, hpm, hvm, hbs, hlen, hbr, hbd, hnat, htr⟩ := hinv
   rw [hD] at hd; cases hd
   obtain ⟨D1, m1, hE, hx⟩ := gen_elimP hnat rfl
