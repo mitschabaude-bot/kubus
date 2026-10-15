@@ -11,6 +11,7 @@ import Model.Whnf.Valid2Data
 import Model.Whnf.Valid2Elim
 import Model.Whnf.Valid2ElimHInv
 import Model.Whnf.Valid2ElimH18
+import Model.Whnf.Valid2ElimH22
 import Model.Whnf.Valid2TranspCon
 import Model.Whnf.Valid2TranspConH
 import Model.Whnf.Valid2TranspHcomp
@@ -790,8 +791,8 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
       have := (List.getElem?_eq_some_iff.1 h0).1; omega)) h1 h2 h4 (sigwk_tele hpre h6) (fund2_tele h6)
       (fund2_elimInv h7 rfl) (fund2_ty h7)
   | .elimHcomp h0 h1 h2 h3 =>
-    hDa.elimHcomp h0 h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (pre2 hW hpre (.elimHcomp h0 h1 h2 h3)).2
-      (fund2_ty h2) (fund2_ty h3)
+    valid_elimHcompH hW hDa (hpre _ _ h0) h0 h1 (fund2_elimInv h3 rfl) (fund2_hcompInv h2 rfl)
+      (pre2 hW hpre (.elimHcomp h0 h1 h2 h3)).2 (fund2_ty h3)
   | .hcompCon h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 =>
     valid_hcompCon hW (hpre _ _ h0) h1 h2 h3 h4 h5 (sigwk_tele hpre h6) (sigwk_tele hpre h7) (sigwk_eq hpre h8)
       (sigwk_eqtele hpre h9) (fund2_eq h8) (fund2_ty h10) (fund2_hcompInv h10 rfl)

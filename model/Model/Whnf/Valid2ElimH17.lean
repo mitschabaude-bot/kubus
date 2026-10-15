@@ -37,13 +37,17 @@ theorem em2_hcompH (ρ : ISub k K) {qs qs' u u' a a' : Tm} {φ φ' : I}
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (hu : TubeD S k (.data d (P.isub ρ)) φ u u')
     (ha : RE2 S k (.data d (P.isub ρ)) a a')
     (hb : HcompBnd2 S k (.data d (P.isub ρ)) φ u a) (hb' : HcompBnd2 S k (.data d (P.isub ρ)) φ' u' a')
-    (iha : EM1H S d D K P M bs k ρ.hom (.data d (P.isub ρ)) a a')
+    (iha : RE2 S k ((M.isub ρ).inst a)
+      (.elim d (P.isub ρ) (M.isub ρ) (bs.isub ρ) a)
+      (.elim d (Q.isub ρ) (M'.isub ρ) (bs'.isub ρ) a'))
     (ihu : ∀ k' (σ : ISub k' k) (r : I), r.Scoped k' → (ival (idEnv k') (φ.subst σ.τ)).holds →
-      EM1H S d D K P M bs k' (ρ.hom.comp σ.hom) ((Tm.data d (P.isub ρ)).isub σ)
-        ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r))
+      RE2 S k' ((M.isub (ρ.comp σ)).inst ((u.isub σ.up).dinst r))
+        (.elim d (P.isub (ρ.comp σ)) (M.isub (ρ.comp σ)) (bs.isub (ρ.comp σ)) ((u.isub σ.up).dinst r))
+        (.elim d (Q.isub (ρ.comp σ)) (M'.isub (ρ.comp σ)) (bs'.isub (ρ.comp σ)) ((u'.isub σ.up).dinst r)))
     (ihb : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
-      EM1H S d D K P M bs k' (ρ.hom.comp σ.hom) ((Tm.data d (P.isub ρ)).isub σ)
-        ((u.isub σ.up).dinst .zero) (a.isub σ)) :
+      RE2 S k' ((M.isub (ρ.comp σ)).inst ((u.isub σ.up).dinst .zero))
+        (.elim d (P.isub (ρ.comp σ)) (M.isub (ρ.comp σ)) (bs.isub (ρ.comp σ)) ((u.isub σ.up).dinst .zero))
+        (.elim d (P.isub (ρ.comp σ)) (M.isub (ρ.comp σ)) (bs.isub (ρ.comp σ)) (a.isub σ))) :
     RE2 S k ((M.isub ρ).inst (.hcomp (.data d qs) φ u a))
       (elimHcompTm d (P.isub ρ) (M.isub ρ) (bs.isub ρ) φ u a)
       (elimHcompTm d (Q.isub ρ) (M'.isub ρ) (bs'.isub ρ) φ' u' a') := by
@@ -124,11 +128,9 @@ theorem em2_hcompH (ρ : ISub k K) {qs qs' u u' a a' : Tm} {φ φ' : I}
   refine RE2.conv hW Tend (elimComp_relH hW HL H ρ hF RF' RFL'
     (by intro k' σ r hr hh; simpa only [data_isub_comp] using faceF k' σ r hr hh)
     (by intro k' σ; simpa only [data_isub_comp] using zeroF k' σ) hb ?_
-    (iha ρ rfl rfl Q M' bs' H) ?_ htC htC' h12 h21)
+    iha ?_ htC htC' h12 h21)
   · intro k' σ r r' hr hr' he hh
-    have I := ihu k' σ r hr hh
-    rw [data_isub_comp] at I
-    have R := I (ρ.comp σ) (by rw [ISub.hom_comp]) rfl Q M' bs' H
+    have R := ihu k' σ r hr hh
     simp only [elimLine_pt, Tm.isub_isub]
     have ur := u2 k' σ r r' hr hr' he hh
     have ur' : RE2 S k' (.data d (P.isub (ρ.comp σ))) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r') := by
@@ -145,9 +147,7 @@ theorem em2_hcompH (ρ : ISub k K) {qs qs' u u' a a' : Tm} {φ φ' : I}
       (.elim (.refl _) (.refl _) (.refl _) ((TmNear.refl _).dinst he))
       (htr.tyConv (Comp2_ty_base T).2.2.2.2.2.symm)
   · intro k' σ hh
-    have I := ihb k' σ hh
-    rw [data_isub_comp] at I
-    have R := I (ρ.comp σ) (by rw [ISub.hom_comp]) rfl P M bs HL
+    have R := ihb k' σ hh
     rw [elimLine_pt]
     simp only [isub_elim, Tm.isub_isub]
     exact R
