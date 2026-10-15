@@ -281,12 +281,13 @@ def inferStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) : (t : Tm) → K S (I
         (HasTy.rs (E.cof φ hφ) hψ ht) (HasTy.cofcof E hφ hψ iu.htm)
       pure ⟨iu.ty, iu.lvl, iu.hty, HasTy.split hφ hψ hcov iu.hty ht (HasTy.rs E hψ iu.htm) e⟩
     else
-      -- neither branch holds: use the common type of the branches (e.g. a universe)
+      -- neither branch holds: use the common type of the branches (e.g. a universe), or else
+      -- the system of their types
       let it ← mapErr (· ++ "\n  (inferring a system branchwise)") (R.infer (E.cof φ hφ) t)
       let iu ← R.infer (E.cof ψ hψ) u
       let A ← match it.ty, iu.ty with
         | .univ a, .univ b => pure (Tm.univ (max a b))
-        | T1, T2 => if T1 = T2 then pure T1 else fail "kernel: cannot infer the type of a system"
+        | T1, T2 => pure (if T1 = T2 then T1 else Tm.split φ T1 ψ T2)
       let ⟨l, ⟨hA⟩⟩ ← inferType R E A
       let ⟨ht⟩ ← R.check (E.cof φ hφ) t A l (HasTy.rs E hφ hA)
       let ⟨hu⟩ ← R.check (E.cof ψ hψ) u A l (HasTy.rs E hψ hA)
@@ -457,6 +458,19 @@ def checkStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .abort => do
     let ⟨h⟩ ← ensureEntE E .zero
     pure ⟨HasTy.abort h hA⟩
+  | .unglue φ e g => do
+    tryCatch (checkByInfer R E (.unglue φ e g) A l hA) fun e1 => tryCatch (do
+      -- the argument may not be inferable (a system of glue elements): check it against the Glue
+      -- type with the expected type as base and the fibre from the equivalence
+      let ⟨hφ⟩ ← ensureScoped φ Ψ
+      let E1 := E.cof φ hφ
+      let (T, _) ← guessEquivTy R E1 e
+      let ⟨hT⟩ ← checkType R E1 T l
+      let ⟨hq⟩ ← checkType R E1 (Tm.equiv T A) l
+      let ⟨he⟩ ← R.check E1 e (Tm.equiv T A) l hq
+      have hG := HasTy.glue hA hφ hT he
+      let ⟨hg⟩ ← R.check E g (.glue A φ T e) l hG
+      pure ⟨HasTy.unglue hG hA he hg⟩) fun _ => throw e1
   | .glueEl φ e t1 a1 => do
     let ⟨hφ⟩ ← ensureScoped φ Ψ
     let ⟨A1, T, ⟨hA1, eG⟩⟩ ← toGlueE R E A l hA φ e

@@ -422,6 +422,20 @@ def whnfStep (R : Rec S) {Ψ Φ Γ} (E : KCtx S Ψ Φ Γ) (t A : Tm) (l : Nat)
   | .fst p, ht => elimStep R E (.fst p) A l hA ht
   | .snd p, ht => elimStep R E (.snd p) A l hA ht
   | .papp p r, ht => elimStep R E (.papp p r) A l hA ht
+  -- `unglue` of a system of glue elements (none of whose faces holds) is stuck; its argument is
+  -- typed only branchwise, so it is not reduced through inference
+  | .unglue φ e (.split φ1 t1 ψ1 u1), ht =>
+    -- a system of glue elements: contracted where a face holds (replacement,
+    -- `Meta.unglue_split`), stuck otherwise (its type is only known branchwise)
+    if E.ent φ then elimStep R E (.unglue φ e (.split φ1 t1 ψ1 u1)) A l hA ht
+    else match E.sig.wf with
+      | some ⟨hS⟩ =>
+        if h1 : E.Ent φ1 then
+          pure (some (⟨_, Meta.HasTy.unglue_split hS ht (.inl ⟨h1, rfl⟩)⟩, false))
+        else if h2 : E.Ent ψ1 then
+          pure (some (⟨_, Meta.HasTy.unglue_split hS ht (.inr ⟨h2, rfl⟩)⟩, false))
+        else pure none
+      | none => elimStep R E (.unglue φ e (.split φ1 t1 ψ1 u1)) A l hA ht
   | .unglue φ e g, ht => elimStep R E (.unglue φ e g) A l hA ht
   | _, _ => pure none
 

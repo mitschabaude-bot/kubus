@@ -87,6 +87,7 @@ These come after the core fragment above is verified end to end:
 - **Elements:** each type also gets formal `hcomp` elements.
 - **Kan operations:** `transp` acts componentwise on constructors and pushes through `hcomp`. On a type without parameters it is the identity.
 - **Elimination:** eliminators with clauses for every constructor, a computation rule for `hcomp`, and boundary conditions on path-constructor clauses.
+- **Boundary agreement (P12):** simple boundary elements have equal constructor normal forms, up to De Morgan interval equality, separately on every consistent DNF face of their overlap (`KubusCore/Boundary.lean`; `docs/inductive-types.md`).
 
 The model for this class is CHM's.
 
