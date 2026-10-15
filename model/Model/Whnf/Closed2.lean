@@ -215,6 +215,16 @@ theorem stable_delta {i : ℕ} {t A : Tm} (hd : S[i]? = some (.defn t A)) (hty :
   rw [ht, hA]
   exact ⟨.step (by simp [step, hd]) (.refl _), EqTm.delta hσ hd⟩
 
+variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
+
+omit hW in
+theorem holds_restr {φ : I} {c : CSub2 S Ψ Φ Γ k} {σ : ISub k' k}
+    (hh : (ival (idEnv k') ((φ.subst c.σ.τ).subst σ.τ)).holds) (hφ : φ.Scoped Ψ) :
+    I.Entails .one (φ.subst (c.σ.comp σ).τ) := by
+  rw [I_subst_subst] at hh
+  exact (holds_iff_entails (I.scoped_subst hφ (c.σ.comp σ).sc)).1 hh
+
+
 end
 
 end Model.Whnf

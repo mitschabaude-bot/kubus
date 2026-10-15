@@ -92,7 +92,7 @@ theorem VEq.appFst' {e T A x x' : Tm} (he : VTy S Ψ Φ Γ e (Tm.equiv T A)) (hx
 
 /-- The contractum of `hcompGlue`, typed and valid, and its agreement with the tube's end where the
 face holds. -/
-theorem VTy.hcompGlue' (hKH : KHAll S) {A T e u u0 : Tm} {φ ψ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+theorem VTy.hcomp'lue' {A T e u u0 : Tm} {φ ψ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
     (hA : VTy S Ψ Φ Γ A (.univ l)) (hT : VTy S Ψ (cof Φ φ) Γ T (.univ l))
     (he : VTy S Ψ (cof Φ φ) Γ e (Tm.equiv T A)) (hψ : ψ.Scoped Ψ)
     (hu : VTy S (Ψ + 1) (cof Φ ψ).shift Γ.dshift u (Tm.glue A φ T e).dshift)
@@ -115,8 +115,8 @@ theorem VTy.hcompGlue' (hKH : KHAll S) {A T e u u0 : Tm} {φ ψ : I} {l : ℕ} (
   have hu0T : VTy S Ψ (cof Φ φ) Γ u0 T := VTy.conv' hW (VTy.restrict' hW hXφ (ent_and_left _ _) hu0) eGT
   have hsideT : VEq S Ψ (cof (cof Φ φ) ψ) Γ (u.dinst .zero) u0 T :=
     VEq.conv' hW (VEq.restrict' hW hXφψ (ent_and_mono (ent_and_left _ _) (ent_refl _)) hside) eGTψ
-  have htc := VTy.hcompG hW hKH hT hψ huT hu0T hsideT
-  obtain ⟨hfl, hfl0, hfl1, hflψ⟩ := VTy.hfill' hW hKH hT hψ huT hu0T hsideT
+  have htc := VTy.hcomp' hW hT hψ huT hu0T hsideT
+  obtain ⟨hfl, hfl0, hfl1, hflψ⟩ := VTy.hfill' hW hT hψ huT hu0T hsideT
   -- the tube of the base
   have hYs : (cof Φ (.or ψ φ)).Scoped Ψ := ⟨hs, ⟨hψ, hφ⟩⟩
   have hRs : (cof Φ (.or ψ φ)).shift.Scoped (Ψ + 1) := KubusCore.I.scoped_shift hYs
@@ -211,7 +211,7 @@ theorem VTy.hcompGlue' (hKH : KHAll S) {A T e u u0 : Tm} {φ ψ : I} {l : ℕ} (
       have e3 := VEq.unglueFace' hW (ent_and_right _ _) (VTy.restrict' hW hZ hZΦ hu0g)
         (VTy.restrict' hW hZ hZΦ hu0) (VTy.restrict' hW hZ hZΦ hA) heZ
       exact VEq.trans' hW e1 (VEq.trans' hW e2 (VEq.symm' hW e3))
-  have hbase := VTy.hcompG hW hKH hA (show (I.or ψ φ).Scoped Ψ from ⟨hψ, hφ⟩) htube hu0g hside'
+  have hbase := VTy.hcomp' hW hA (show (I.or ψ φ).Scoped Ψ from ⟨hψ, hφ⟩) htube hu0g hside'
   -- the side condition of the Glue element
   have hYφ : I.Entails (cof Φ φ) (cof Φ (.or ψ φ)) :=
     ent_and_intro (ent_and_left _ _) (ent_trans (ent_and_right _ _) (ent_or_right _ _))
@@ -277,7 +277,7 @@ theorem valid_red_rule {t y T : Tm} (ht : Valid2 S Ψ Φ Γ t t T) (hy : Valid2 
   have hr := hred k' (c.restr hW σ)
   rwa [CSub2.restr_L, CSub2.restr_L, CSub2.restr_R] at hr
 
-theorem valid_hcompGlue_rule (hKH : KHAll S) {A T e u u0 T0 : Tm} {φ ψ : I}
+theorem valid_hcompGlue_rule {A T e u u0 T0 : Tm} {φ ψ : I}
     (h : HasTy0 S Ψ Φ Γ (.hcomp (.glue A φ T e) ψ u u0) T0)
     (hv : Valid2 S Ψ Φ Γ (.hcomp (.glue A φ T e) ψ u u0) (.hcomp (.glue A φ T e) ψ u u0) T0)
     (hinv : HcompInv S Ψ Φ Γ (.glue A φ T e) ψ u u0 T0) (hg : GlueTyInv S Ψ Φ Γ A φ T e) :
@@ -288,7 +288,7 @@ theorem valid_hcompGlue_rule (hKH : KHAll S) {A T e u u0 T0 : Tm} {φ ψ : I}
   have hup : VTy S (Ψ + 1) (cof Φ ψ).shift Γ.dshift u (Tm.glue A φ T e).dshift := ⟨hu, huV⟩
   have hu0p : VTy S Ψ Φ Γ u0 (.glue A φ T e) := ⟨hu0, hu0V⟩
   have hsidep : VEq S Ψ (cof Φ ψ) Γ (u.dinst .zero) u0 (.glue A φ T e) := ⟨hside, hsV⟩
-  obtain ⟨hy, hface⟩ := VTy.hcompGlue' hW hKH hφ ⟨hA, hAV⟩ ⟨hT, hTV⟩ ⟨he, heV⟩ hψ hup hu0p hsidep
+  obtain ⟨hy, hface⟩ := VTy.hcomp'lue' hW hφ ⟨hA, hAV⟩ ⟨hT, hTV⟩ ⟨he, heV⟩ hψ hup hu0p hsidep
   have hT0 : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L T0) (c.R T0) := fun k c => (hv k c).1
   have hyT := valid_conv_tr hy.v htr hT0
   have hb := valid_conv_tr hface.v (htr.restrict (ent_and_left _ _)) fun k c => hT0 k (c.restrictTo (ent_and_left _ _))

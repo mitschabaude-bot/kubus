@@ -411,9 +411,9 @@ theorem rc2_glueC : RC2 S m (glueC m A φ Tp ep) := by
     exact rcT k f hf k (Hom.id k) T T' B' t t' u'
   rw [Comp2_glueC_f hA hφ hTp hTkv f hf]
   refine ⟨fun h hs hB => ?_, fun hTT h hs hu => ?_⟩
-  · obtain ⟨hb, hall, hc, hc'⟩ := h
+  · obtain ⟨hb, hall, hc, hc', hk⟩ := h
     refine ⟨base_rc hW hB hb hs, fun k' σ => glueLocT_rc rcT σ hW (hall k' σ) (hs.restr σ) (hb.2.1.isub hW σ)
-      (hB.isub hW σ), hc, fun k' σ hn W hW' k'' ρ => ?_⟩
+      (hB.isub hW σ), hc, (fun k' σ hn W hW' k'' ρ => ?_), hk⟩
     exact glueLocT_rc rcT (σ.comp ρ) hW (hc' k' σ hn W (redW_of_red (hs k' σ).1 hW') k'' ρ)
       (hs.restr (σ.comp ρ)) (hb.2.1.isub hW _) (hB.isub hW _)
   · obtain ⟨hE, hmem, -, hall, hc, hc'⟩ := h

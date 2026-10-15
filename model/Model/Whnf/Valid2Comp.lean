@@ -112,7 +112,7 @@ theorem valid_tube_end {u A : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ) (r : I
 
 /-! ### `hcomp` in `Π` -/
 
-theorem valid_hcompPi_rule (hK : ∀ k (X X' : Tm), RT2 S k X X' → KanH2 S k X X') {A B u u0 T : Tm} {φ : I}
+theorem valid_hcompPi_rule {A B u u0 T : Tm} {φ : I}
     (h : HasTy0 S Ψ Φ Γ (.hcomp (.pi A B) φ u u0) T)
     (hv : Valid2 S Ψ Φ Γ (.hcomp (.pi A B) φ u u0) (.hcomp (.pi A B) φ u u0) T)
     (hinv : HcompInv S Ψ Φ Γ (.pi A B) φ u u0 T) :
@@ -164,7 +164,7 @@ theorem valid_hcompPi_rule (hK : ∀ k (X X' : Tm), RT2 S k X X' → KanH2 S k X
   have hbody : HasTy0 S Ψ Φ (A :: Γ) (.hcomp B φ (.app u.shift (.var 0)) (.app u0.shift (.var 0))) B :=
     HasTy0.hcomp hB hφ hU hU0 hsd'
   have hbodyV := valid_hcomp hW hφ (ent_refl _) (ent_refl _) hBV hUV hU0V hsdV' hsdV' hbody hbody (.refl hbody)
-    (.refl hU) fun k c => hK k _ _ (hBV.ty hW c)
+    (.refl hU)
   have hlam : HasTy0 S Ψ Φ Γ (Tm.hcompPi A B φ u u0) (.pi A B) := HasTy0.lam hPi hbody
   have hyV : Valid2 S Ψ Φ Γ (Tm.hcompPi A B φ u u0) (Tm.hcompPi A B φ u u0) (.pi A B) :=
     valid_lam hW hPiV hbodyV hlam hlam (.refl hlam)
@@ -264,7 +264,7 @@ theorem bind2_dinst1 (u : Tm) : (u.dsubst (Tm.bind2 (.var 0))).dinst .one = (u.d
   · intro n; rfl
   · intro i; rcases i with _ | i <;> rfl
 
-theorem valid_hcompIPi_rule (hK : ∀ k (X X' : Tm), RT2 S k X X' → KanH2 S k X X') {A u u0 T : Tm} {φ : I}
+theorem valid_hcompIPi_rule {A u u0 T : Tm} {φ : I}
     (h : HasTy0 S Ψ Φ Γ (.hcomp (.ipi A) φ u u0) T)
     (hv : Valid2 S Ψ Φ Γ (.hcomp (.ipi A) φ u u0) (.hcomp (.ipi A) φ u u0) T)
     (hinv : HcompInv S Ψ Φ Γ (.ipi A) φ u u0 T) :
@@ -330,7 +330,7 @@ theorem valid_hcompIPi_rule (hK : ∀ k (X X' : Tm), RT2 S k X X' → KanH2 S k 
       (.hcomp A φ.shift (.papp (u.dsubst (Tm.bind2 (.var 0))) (.var 1)) (.papp u0.dshift (.var 0))) A :=
     HasTy0.hcomp hA hφ1 hU hU0 hsd2
   have hbodyV := valid_hcomp hW hφ1 (ent_refl _) (ent_refl _) hAV hUV hU0V hsdV2 hsdV2 hbody hbody (.refl hbody)
-    (.refl hU) fun k c => hK k _ _ (hAV.ty hW c)
+    (.refl hU)
   have hpl : HasTy0 S Ψ Φ Γ (Tm.hcompIPi A φ u u0) (.ipi A) := HasTy0.ilam hI hbody
   have hyV : Valid2 S Ψ Φ Γ (Tm.hcompIPi A φ u u0) (Tm.hcompIPi A φ u u0) (.ipi A) :=
     valid_ilam hW hIV hbodyV hpl hpl (.refl hpl)
@@ -372,7 +372,7 @@ theorem valid_hcompIPi_rule (hK : ∀ k (X X' : Tm), RT2 S k X X' → KanH2 S k 
 
 /-! ### `transp` in `(i : I) → A` -/
 
-theorem valid_transpIPi_rule (hK : ∀ k (X X' : Tm), RT2 S (k + 1) X X' → KanT2 S k X X') {A u0 T : Tm} {φ : I}
+theorem valid_transpIPi_rule {A u0 T : Tm} {φ : I}
     (h : HasTy0 S Ψ Φ Γ (.transp (.ipi A) φ u0) T)
     (hv : Valid2 S Ψ Φ Γ (.transp (.ipi A) φ u0) (.transp (.ipi A) φ u0) T)
     (hinv : TranspInv S Ψ Φ Γ (.ipi A) φ u0 T) :
@@ -433,7 +433,6 @@ theorem valid_transpIPi_rule (hK : ∀ k (X X' : Tm), RT2 S (k + 1) X X' → Kan
   -- the transport and the contractum
   have ht := HasTy0.transp hA' hφ1 hcs hb
   have htV := valid_transp hW hφ1 (ent_refl _) (ent_refl _) hA'V hcsV hbV ht ht (.refl ht)
-    fun k c => hK k _ _ (hA'V.ty hW (c.up hW))
   rw [ipi_c5] at ht htV
   have hL1 := HasTy0.dsubst hS hL (r := .one) trivial
   have hL1V := valid_dinst' (r := .one) trivial (closed_ty hL) (closed_ty hL) rfl hs hLV

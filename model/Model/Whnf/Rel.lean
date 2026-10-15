@@ -387,7 +387,10 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
           (RT k'' (σ.comp ρ)).el (A.isub (σ.comp ρ)) (t0.isub ρ) (g.isub (σ.comp ρ))) ∧
         (¬ (φ.restr (σ.comp ρ).hom).holds →
           locE k'' (σ.comp ρ) (A.isub (σ.comp ρ)) (w.isub ρ) (g.isub (σ.comp ρ)))
-    { ty := fun A A' => (∀ k' (σ : ISub k' k), locT k' σ (A.isub σ) (A'.isub σ)) ∧ cohT A ∧ cohT A'
+    let kan : Prop := KanPG S k (rec A0 h12 k) ∧
+      ∀ k' (σ : ISub k' k), (φ.restr σ.hom).holds →
+        KanPG S k' (rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k')
+    { ty := fun A A' => (∀ k' (σ : ISub k' k), locT k' σ (A.isub σ) (A'.isub σ)) ∧ cohT A ∧ cohT A' ∧ kan
       el := fun A g g' => EB S k A g g' ∧ (∀ k' (σ : ISub k' k), locE k' σ (A.isub σ) (g.isub σ) (g'.isub σ)) ∧
         cohE A g ∧ cohE A g' }
   else if π1 sh = natZ tData then

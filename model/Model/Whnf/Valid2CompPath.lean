@@ -111,7 +111,7 @@ theorem papp_endS (u : Tm) (d : Bool) :
   injection h with _ h1
 
 /-- The contractum of `hcompPath`, typed and valid. -/
-theorem VTy.hcompPath' (hKH : KHAll S) {A a b u p0 : Tm} {φ : I} {l : ℕ}
+theorem VTy.hcompPath' {A a b u p0 : Tm} {φ : I} {l : ℕ}
     (hPp : VTy S Ψ Φ Γ (.path A a b) (.univ l)) (hφ : φ.Scoped Ψ)
     (hup : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (Tm.path A a b).dshift)
     (hp0p : VTy S Ψ Φ Γ p0 (.path A a b)) (hsidep : VEq S Ψ (cof Φ φ) Γ (u.dinst .zero) p0 (.path A a b)) :
@@ -337,7 +337,7 @@ theorem VTy.hcompPath' (hKH : KHAll S) {A a b u p0 : Tm} {φ : I} {l : ℕ}
       ((Tm.split φ.shift.shift (.papp (u.dsubst insI) (.var 1)) ψ2
         (.split (.neg (.var 1)) a.dshift.dshift (.var 1) b.dshift.dshift)).dinst .zero)
       (.papp p0.dshift (.var 0)) A := by rw [sys0_eq]; exact hside'
-  have hbody := VTy.hcompG hW hKH hA hψs hsys hbase hside''
+  have hbody := VTy.hcomp' hW hA hψs hsys hbase hside''
   -- the endpoints
   have key : ∀ d : Bool,
       VEq S Ψ Φ Γ ((Tm.hcomp A ψ (.split φ.shift.shift (.papp (u.dsubst insI) (.var 1)) ψ2
@@ -394,7 +394,7 @@ theorem VTy.hcompPath' (hKH : KHAll S) {A a b u p0 : Tm} {φ : I} {l : ℕ}
           (ent_trans (ent_and_left _ _) (ent_and_left _ _)) hb).ty))
   exact ⟨hbody, VTy.plam' hW hPp hbody e0 e1⟩
 
-theorem valid_hcompPath_rule (hKH : KHAll S) {A a b u p0 T : Tm} {φ : I}
+theorem valid_hcompPath_rule {A a b u p0 T : Tm} {φ : I}
     (h : HasTy0 S Ψ Φ Γ (.hcomp (.path A a b) φ u p0) T)
     (hv : Valid2 S Ψ Φ Γ (.hcomp (.path A a b) φ u p0) (.hcomp (.path A a b) φ u p0) T)
     (hinv : HcompInv S Ψ Φ Γ (.path A a b) φ u p0 T) :
@@ -407,7 +407,7 @@ theorem valid_hcompPath_rule (hKH : KHAll S) {A a b u p0 T : Tm} {φ : I}
   have hup : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (Tm.path A a b).dshift := ⟨hu, huV⟩
   have hu0p : VTy S Ψ Φ Γ p0 (.path A a b) := ⟨hu0, hu0V⟩
   have hsidep : VEq S Ψ (cof Φ φ) Γ (u.dinst .zero) p0 (.path A a b) := ⟨hside, hsV⟩
-  obtain ⟨hbody, hy⟩ := VTy.hcompPath' hW hKH hPp hφ hup hu0p hsidep
+  obtain ⟨hbody, hy⟩ := VTy.hcompPath' hW hPp hφ hup hu0p hsidep
   have hT : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L T) (c.R T) := fun k c => (hv k c).1
   have hyT := valid_conv_tr hy.v htr hT
   -- where the face holds: η for the tube's end, and the face of the body
@@ -503,7 +503,7 @@ theorem tp_pappEnd (p0 : Tm) (d : Bool) :
   injection h with _ h1
 
 /-- The contractum of `transpPath`, typed and valid. -/
-theorem VTy.transpPath' (hKH : KHAll S) (hKT : KTAll S) {A a b p0 : Tm} {φ : I} {l : ℕ}
+theorem VTy.transpPath' {A a b p0 : Tm} {φ : I} {l : ℕ}
     (hLp : VTy S (Ψ + 1) Φ.shift Γ.dshift (.path A a b) (.univ l)) (hφ : φ.Scoped Ψ)
     (hcp : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift (.path A a b) ((Tm.path A a b).dinst .zero).dshift (.univ l))
     (hu0p : VTy S Ψ Φ Γ p0 ((Tm.path A a b).dinst .zero)) :
@@ -729,7 +729,7 @@ theorem VTy.transpPath' (hKH : KHAll S) (hKT : KTAll S) {A a b p0 : Tm} {φ : I}
       ((Tm.split φ.shift.shift (.papp p0.dshift.dshift (.var 1)) ψ2
         (.split (.neg (.var 1)) (a.dsubst insI) (.var 1) (b.dsubst insI))).dinst .zero)
       (.papp p0.dshift (.var 0)) ((A.dsubst swapI).dinst .zero) := by rw [tp_sys0]; exact hside'
-  have hbody := VTy.comp' hW hKH hKT hCc hψs hsys hbase hside''
+  have hbody := VTy.comp' hW hCc hψs hsys hbase hside''
   -- the endpoints
   have key : ∀ d : Bool,
       VEq S Ψ Φ Γ ((Tm.comp (A.dsubst swapI) ψ (.split φ.shift.shift (.papp p0.dshift.dshift (.var 1)) ψ2
@@ -799,7 +799,7 @@ theorem VTy.transpPath' (hKH : KHAll S) (hKT : KTAll S) {A a b p0 : Tm} {φ : I}
   rw [ipi_c5] at e0 e1 hbody'
   exact ⟨hbody, VTy.plam' hW (VTy.dsubst' hW .one trivial hLp) hbody' e0 e1⟩
 
-theorem valid_transpPath_rule (hKH : KHAll S) (hKT : KTAll S) {A a b p0 T : Tm} {φ : I}
+theorem valid_transpPath_rule {A a b p0 T : Tm} {φ : I}
     (h : HasTy0 S Ψ Φ Γ (.transp (.path A a b) φ p0) T)
     (hv : Valid2 S Ψ Φ Γ (.transp (.path A a b) φ p0) (.transp (.path A a b) φ p0) T)
     (hinv : TranspInv S Ψ Φ Γ (.path A a b) φ p0 T) :
@@ -810,7 +810,7 @@ theorem valid_transpPath_rule (hKH : KHAll S) (hKT : KTAll S) {A a b p0 T : Tm} 
   have hcp : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift (.path A a b) ((Tm.path A a b).dinst .zero).dshift (.univ l) :=
     ⟨hc, hCV⟩
   have hu0p : VTy S Ψ Φ Γ p0 ((Tm.path A a b).dinst .zero) := ⟨hu0, hu0V⟩
-  obtain ⟨hbody, hy⟩ := VTy.transpPath' hW hKH hKT hLp hφ hcp hu0p
+  obtain ⟨hbody, hy⟩ := VTy.transpPath' hW hLp hφ hcp hu0p
   have hT : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L T) (c.R T) := fun k c => (hv k c).1
   have hyT := valid_conv_tr hy.v htr hT
   -- where the face holds: η for `p0`, and the face of the body

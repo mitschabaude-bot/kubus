@@ -450,13 +450,13 @@ theorem per2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
   rw [Comp2_glueC_f hA hφ hTp hTkv f hf]
   refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
     fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
-  · obtain ⟨hb, hall, hc, hc'⟩ := hT
+  · obtain ⟨hb, hall, hc, hc', hk⟩ := hT
     exact ⟨base_symm hb, fun k' σ => glueLocT_symm hW ihA krA ihT krT f σ (hb.1.isub hW σ) (hb.2.1.isub hW σ)
-      (hall k' σ), hc', hc⟩
-  · obtain ⟨hb, hall, hc, -⟩ := hT
-    obtain ⟨hb', hall', -, hc''⟩ := hT'
+      (hall k' σ), hc', hc, hk⟩
+  · obtain ⟨hb, hall, hc, -, hk⟩ := hT
+    obtain ⟨hb', hall', -, hc'', -⟩ := hT'
     exact ⟨base_trans hW hb hb', fun k' σ => glueLocT_trans hW ihA krA ihT krT f σ (hb.1.isub hW σ)
-      (hb.2.1.isub hW σ) (hall k' σ) (hall' k' σ), hc, hc''⟩
+      (hb.2.1.isub hW σ) (hall k' σ) (hall' k' σ), hc, hc'', hk⟩
   · obtain ⟨he, hmem, -, hall, hc, hc'⟩ := ht
     exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, he.symm,
       fun k' σ => glueLocE_symm hW ihA krA ihT krT f σ (hT.2.1 k' σ) (hall k' σ), hc', hc⟩

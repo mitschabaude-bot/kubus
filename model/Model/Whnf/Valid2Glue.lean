@@ -22,13 +22,6 @@ include hW
 
 variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
-omit hW in
-theorem holds_restr {φ : I} {c : CSub2 S Ψ Φ Γ k} {σ : ISub k' k}
-    (hh : (ival (idEnv k') ((φ.subst c.σ.τ).subst σ.τ)).holds) (hφ : φ.Scoped Ψ) :
-    I.Entails .one (φ.subst (c.σ.comp σ).τ) := by
-  rw [I_subst_subst] at hh
-  exact (holds_iff_entails (I.scoped_subst hφ (c.σ.comp σ).sc)).1 hh
-
 /-- The Glue formation rule, given the self-relation of the right equivalence where the face holds. -/
 theorem valid_glue_core {A A' T T' e e' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Scoped Ψ)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)

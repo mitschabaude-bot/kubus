@@ -22,7 +22,7 @@ include hW
 
 variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
-theorem valid_transpSigma_rule (hKT : KTAll S) {A B u0 T : Tm} {φ : I}
+theorem valid_transpSigma_rule {A B u0 T : Tm} {φ : I}
     (h : HasTy0 S Ψ Φ Γ (.transp (.sigma A B) φ u0) T)
     (hv : Valid2 S Ψ Φ Γ (.transp (.sigma A B) φ u0) (.transp (.sigma A B) φ u0) T)
     (hinv : TranspInv S Ψ Φ Γ (.sigma A B) φ u0 T) :
@@ -41,7 +41,7 @@ theorem valid_transpSigma_rule (hKT : KTAll S) {A B u0 T : Tm} {φ : I}
   have hcD := VEq.sigmaInjDom' hW (A' := (A.dinst .zero).dshift) hcp
   have hf0 := VTy.fst' hW (A := A.dinst .zero) (B := B.subst (Tm.up Tm.var) (I.inst0 .zero)) hu0p
   have hs0 := VTy.snd' hW (A := A.dinst .zero) (B := B.subst (Tm.up Tm.var) (I.inst0 .zero)) hu0p
-  obtain ⟨htf, e0, e1, eX⟩ := VTy.transpFill' hW hKT hA hφ hcD hf0
+  obtain ⟨htf, e0, e1, eX⟩ := VTy.transpFill' hW hA hφ hcD hf0
   have hBa := VTy.subst' hW hA hB htf
   -- constancy of the second line
   have hXs : (cof Φ φ).shift.Scoped (Ψ + 1) := KubusCore.I.scoped_shift ⟨hs, hφ⟩
@@ -71,14 +71,14 @@ theorem valid_transpSigma_rule (hKT : KTAll S) {A B u0 T : Tm} {φ : I}
   have hbase : VTy S Ψ Φ Γ (.snd u0) ((B.inst (Tm.transpFill A φ (.fst u0))).dinst .zero) := by
     rw [tsg_inst_dinst]
     exact VTy.conv' hW hs0 (VTy.inst_congr' hW hA0 hB0 (VEq.symm' hW e0))
-  have ht := VTy.transpG hW hKT hBa hφ hBC hbase
+  have ht := VTy.transp' hW hBa hφ hBC hbase
   rw [tsg_inst_dinst] at ht
   have hL1 := VTy.dsubst' hW .one trivial hLp
   have hA1 : VTy S Ψ Φ Γ (A.dinst .one) (.univ l) :=
     ⟨HasTy0.sigmaDom hS hL1.ty, valid_sigmaDom hW hL1.v (HasTy0.sigmaDom hS hL1.ty)⟩
   have hB1 : VTy S Ψ Φ (A.dinst .one :: Γ) (B.subst (Tm.up Tm.var) (I.inst0 .one)) (.univ l) :=
     ⟨HasTy0.sigmaCod hS hL1.ty, valid_sigmaCod hW hL1.v (HasTy0.sigmaCod hS hL1.ty)⟩
-  have htr' := VTy.transpG hW hKT hA hφ hcD hf0
+  have htr' := VTy.transp' hW hA hφ hcD hf0
   have ht' := VTy.conv' hW ht (VTy.inst_congr' hW hA1 hB1 e1)
   have hy : VTy S Ψ Φ Γ (Tm.transpSigma A B φ u0) ((Tm.sigma A B).dinst .one) :=
     VTy.pair' hW (A := A.dinst .one) (B := B.subst (Tm.up Tm.var) (I.inst0 .one)) hL1 htr' ht'
@@ -109,7 +109,7 @@ theorem valid_transpSigma_rule (hKT : KTAll S) {A B u0 T : Tm} {φ : I}
     exact ⟨.step (step_transp_sigma hn) (.refl _), EqTm.transpSigma (c.ty hW h)⟩
   · exact ⟨.step (step_transp_face hf) (.refl _), EqTm.transpFace hf (c.ty hW h)⟩
 
-theorem valid_hcompSigma_rule (hKH : KHAll S) (hKT : KTAll S) {A B u u0 T : Tm} {φ : I}
+theorem valid_hcompSigma_rule {A B u u0 T : Tm} {φ : I}
     (h : HasTy0 S Ψ Φ Γ (.hcomp (.sigma A B) φ u u0) T)
     (hv : Valid2 S Ψ Φ Γ (.hcomp (.sigma A B) φ u u0) (.hcomp (.sigma A B) φ u u0) T)
     (hinv : HcompInv S Ψ Φ Γ (.sigma A B) φ u u0 T) :
@@ -133,8 +133,8 @@ theorem valid_hcompSigma_rule (hKH : KHAll S) (hKT : KTAll S) {A B u u0 T : Tm} 
   have hsu0 := VTy.snd' hW hu0p
   have hsf : VEq S Ψ (cof Φ φ) Γ ((Tm.fst u).dinst .zero) (.fst u0) A := VEq.fst' hW hsidep
   have hss := VEq.snd' hW hsidep
-  obtain ⟨hf, hf0, hf1, hfφ⟩ := VTy.hfill' hW hKH hA hφ hfu hfu0 hsf
-  have ha := VTy.hcompG hW hKH hA hφ hfu hfu0 hsf
+  obtain ⟨hf, hf0, hf1, hfφ⟩ := VTy.hfill' hW hA hφ hfu hfu0 hsf
+  have ha := VTy.hcomp' hW hA hφ hfu hfu0 hsf
   -- the line of the second component
   have hAd := VTy.dwk' hW hA
   have hBd := VTy.dwk' hW hB
@@ -160,7 +160,7 @@ theorem valid_hcompSigma_rule (hKH : KHAll S) (hKT : KTAll S) {A B u u0 T : Tm} 
     rw [inst_dshift_dinst]
     exact VEq.conv' hW hss (VTy.inst_congr' hW hAX hBX
       (VEq.trans' hW hsf (VEq.symm' hW (VEq.restrict' hW hX (ent_and_left Φ φ) hf0))))
-  have hcomp' := VTy.comp' hW hKH hKT hC hφ hu' hu0' hside'
+  have hcomp' := VTy.comp' hW hC hφ hu' hu0' hside'
   rw [inst_dshift_dinst] at hcomp'
   have hb := VTy.conv' hW hcomp' (VTy.inst_congr' hW hA hB hf1)
   have hy : VTy S Ψ Φ Γ (Tm.hcompSigma A B φ u u0) (.sigma A B) := by

@@ -776,12 +776,12 @@ theorem niTy_glueC {ep : V} {T T' T'' : Tm} (h : (Comp2 S (glueC m A φ Tp ep) m
   · rw [Comp2_glueC_at hφ hTp hTkv f, if_pos hf] at h ⊢
     exact NI2.tyR (niT k f hf) h hn hT''
   rw [Comp2_glueC_f hA hφ hTp hTkv f hf] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk⟩ := h
   have hT' := hb.2.1
   have hall'' : ∀ k' (σ : ISub k' k), glueLocT S A Tp φ f k' σ (T.isub σ) (T''.isub σ) := fun k' σ =>
     glueLocT_near hW perA krA niA perT krT niT f σ (hb.1.isub hW σ) (hT'.isub hW σ) (hT''.isub hW σ) (hall k' σ)
       (hn.isub σ)
-  refine ⟨base_near hW hb hn hT'', hall'', hc, fun k' σ hnot W hWr k'' ρ => ?_⟩
+  refine ⟨base_near hW hb hn hT'', hall'', hc, (fun k' σ hnot W hWr k'' ρ => ?_), hk⟩
   obtain ⟨W', hW', w⟩ := redW_near hWr (hn.symm.isub σ)
   have tW := glueLocT_whnfR hW perA krA perT krT f σ hnot (hall'' k' σ) (hT''.isub hW σ) hWr
   have tW' := glueLocT_whnfR hW perA krA perT krT f σ hnot (hall k' σ) (hT'.isub hW σ) hW'

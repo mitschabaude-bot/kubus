@@ -215,6 +215,14 @@ theorem kr2_univC {l : ℕ} (ih : ∀ m' X, WF l m' X → KR2 S m' X) : KR2 S m 
     · rw [semK_isubS hW ht]
       exact hK.restrict (IsKV.ne_empty hY.fib.kv) σ.hom
 
+omit hW in
+theorem kanGlue2_isub {A Tp : V} {φ : Cof m} {f : Hom k m} (h : kanGlue2 S A Tp φ f)
+    (σ0 : ISub k' k) : kanGlue2 S A Tp φ (f.comp σ0.hom) := by
+  refine ⟨?_, fun k1 σ hh => ?_⟩
+  · simpa only [Hom.comp_assoc] using h.1.comp σ0.hom
+  · have hp := h.2 k1 (σ0.comp σ) (by simpa only [ISub.comp_hom] using hh)
+    simpa only [ISub.comp_hom] using hp
+
 theorem kr2_glueC {l : ℕ} {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof)
     (hTp : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
     (hTw : ∀ k (f : Hom k m), (φ.restr f).holds → WF l k (dat Tp k f))
@@ -244,8 +252,8 @@ theorem kr2_glueC {l : ℕ} {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ
       rwa [if_pos hfσ] at this
   · rw [Comp2_glueC_f hA hφ hTp hTkv _ hfσ]
     constructor
-    · rintro ⟨hb, hall, hc, hc'⟩
-      refine ⟨?_, fun k'' σ' => ?_, cohGT_isub hc σ, cohGT_isub hc' σ⟩
+    · rintro ⟨hb, hall, hc, hc', hk⟩
+      refine ⟨?_, fun k'' σ' => ?_, cohGT_isub hc σ, cohGT_isub hc' σ, kanGlue2_isub hk σ⟩
       · have := base_isub hW hb σ; rwa [res_res] at this
       · rw [glueLocT_comp, Tm.isub_isub, Tm.isub_isub]; exact hall k'' (σ.comp σ')
     · rintro ⟨he, hmem, -, hall, hc, hc'⟩

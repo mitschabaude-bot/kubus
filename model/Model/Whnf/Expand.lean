@@ -1204,7 +1204,9 @@ theorem he2_glueC (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → HE2 S k (da
     obtain ⟨U0, -, e0, hU0⟩ := hypT_id hW hT hT' hall
     have hb := base_expand hW hT e0 hU0
     have hc' : cohGT S A Tp φ f T' := by
-      rw [Comp2_glueC_f hA hφ hTp hTkv f hf] at hU0; exact hU0.2.2.2
+      rw [Comp2_glueC_f hA hφ hTp hTkv f hf] at hU0; exact hU0.2.2.2.1
+    have hk : kanGlue2 S A Tp φ f := by
+      rw [Comp2_glueC_f hA hφ hTp hTkv f hf] at hU0; exact hU0.2.2.2.2
     have main : ∀ k' (σ : ISub k' k), glueLocT S A Tp φ f k' σ (T.isub σ) (T'.isub σ) := by
       intro k' σ
       by_cases hfσ : (φ.restr (f.comp σ.hom)).holds
@@ -1221,7 +1223,7 @@ theorem he2_glueC (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → HE2 S k (da
         obtain ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', h1, rest⟩ := this
         exact ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', RedT.of_red hW r e h1, rest⟩
     rw [Comp2_glueC_f hA hφ hTp hTkv f hf]
-    refine ⟨hb, main, fun k' σ hn W hW' k'' ρ => ?_, hc'⟩
+    refine ⟨hb, main, (fun k' σ hn W hW' k'' ρ => ?_), hc', hk⟩
     obtain ⟨U, r, e, hU⟩ := hall k' σ
     have hUt := (Comp2_ty_base hU).2.1
     have a := cohGT_of_rel hW hA hφ hTp hTkv σ hn hU (red_redW r hW') ρ
