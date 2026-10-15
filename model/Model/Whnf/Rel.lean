@@ -413,7 +413,9 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
         (rec (tyLook (π2 (π2 (π2 (π1 (Dt k'' (σ.comp σ').hom))))) c args.length (args.map (semK S k'')))
           (tyLook_rank_lt (hD k'' (σ.comp σ').hom)) k'' k'' (Hom.id k'')).ty
           ((C.argTy d D.params.length args.length).substList (args.reverse ++ (ps.isub σ').toList.reverse))
-          ((C.argTy d D.params.length args.length).substList (args'.reverse ++ (ps'.isub σ').toList.reverse))
+          ((C.argTy d D.params.length args.length).substList (args'.reverse ++ (ps'.isub σ').toList.reverse)) ∧
+        KanPG S k'' (rec (tyLook (π2 (π2 (π2 (π1 (Dt k'' (σ.comp σ').hom))))) c args.length
+          (args.map (semK S k''))) (tyLook_rank_lt (hD k'' (σ.comp σ').hom)) k'')
     -- the parameters: a parameter of a universe type is related as a type at its value's code, the
     -- others at the code of their type
     let pe : (k' : ℕ) → Hom k' k → ℕ → V := fun k' g j => vnth (π2 (π1 (π2 (π2 (π1 (Dt k' g)))))) j
@@ -422,7 +424,8 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
         ((rank_π2_le _).trans ((rank_π2_le _).trans (rank_π1_le _))))))) (hD k' g)
     let parCl : (k' : ℕ) → ISub k' k → Tm → Tm → Prop := fun k' σ ps ps' =>
       ∀ j (p p' : Tm), ps.toList[j]? = some p → ps'.toList[j]? = some p' →
-        (π1 (pe k' σ.hom j) = natZ 1 → (rec (π2 (pe k' σ.hom j)) (hpe k' σ.hom j) k' k' (Hom.id k')).ty p p') ∧
+        (π1 (pe k' σ.hom j) = natZ 1 → (rec (π2 (pe k' σ.hom j)) (hpe k' σ.hom j) k' k' (Hom.id k')).ty p p' ∧
+          KanPG S k' (rec (π2 (pe k' σ.hom j)) (hpe k' σ.hom j) k')) ∧
         (π1 (pe k' σ.hom j) = natZ 0 → ∀ Aj, D.params[j]? = some Aj →
           (rec (π2 (pe k' σ.hom j)) (hpe k' σ.hom j) k' k' (Hom.id k')).ty
             (Aj.substList (ps.toList.take j).reverse) (Aj.substList (ps'.toList.take j).reverse) ∧

@@ -205,7 +205,7 @@ theorem argLine_kanT {n' : ℕ} {P1 Q2 : Tm} (hP1 : HasTy S (n' + 1) .one [] (.d
       have h := hrel i hi
       rwa [getD_eq_get' hi, getD_eq_get' hi'] at h)
     hAl hrr
-  exact (kan_tyLook hW hD hArgK _ c A.length _ hA).2 rfl
+  exact hA.2.2 n' (Hom.id (n' + 1)) _ _ hA.1
 
 end wrap
 

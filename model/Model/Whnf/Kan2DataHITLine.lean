@@ -89,9 +89,9 @@ theorem argLine_kanT2 {n' : ℕ} {P1 L2 : Tm} (hP1 : HasTy S (n' + 1) .one [] (.
       have h := hrel i hi
       rwa [getD_eq_get' hi] at h)
     hAl hrr
-  have hb := Comp2_ty_base hA
+  have hb := Comp2_ty_base hA.1
   have hA2 := (Comp2_ty_iff hb.1 hb.2.2.2.1).2 hL2
-  exact (kan_tyLook hW hD hArgK _ c A.length _ hA2).2 rfl
+  exact hA.2.2 n' (Hom.id (n' + 1)) _ _ hA2
 
 end wrap
 

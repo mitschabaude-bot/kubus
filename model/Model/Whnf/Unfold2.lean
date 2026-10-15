@@ -301,7 +301,9 @@ def argRel2 (S : Sig) (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (
       ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
         (args.reverse ++ (ps.isub σ').toList.reverse))
       ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
-        (args'.reverse ++ (ps'.isub σ').toList.reverse))
+        (args'.reverse ++ (ps'.isub σ').toList.reverse)) ∧
+    KanPG S k'' (Comp2 S (tyLook (shapeV (Θ.restr (f.comp (σ.comp σ').hom))) c args.length
+      (args.map (semK S k''))) k'')
 
 /-- The recorded parameter entry `j` of an inductive type's code at a restriction. -/
 abbrev parEntry (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (j : ℕ) : V :=
@@ -310,7 +312,8 @@ abbrev parEntry (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (j : �
 /-- The parameters of an inductive type's code are related, from `ps` to `ps'`, at the restriction `σ`. -/
 def parRel2 (S : Sig) (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (ps ps' : Tm) : Prop :=
   ∀ j (p p' : Tm), ps.toList[j]? = some p → ps'.toList[j]? = some p' →
-    (π1 (parEntry Θ f k' σ j) = natZ 1 → (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')).ty p p') ∧
+    (π1 (parEntry Θ f k' σ j) = natZ 1 → (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')).ty p p' ∧
+      KanPG S k' (Comp2 S (π2 (parEntry Θ f k' σ j)) k')) ∧
     (π1 (parEntry Θ f k' σ j) = natZ 0 → ∀ Aj, (dataD S Θ.idx).params[j]? = some Aj →
       (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')).ty
         (Aj.substList (ps.toList.take j).reverse) (Aj.substList (ps'.toList.take j).reverse) ∧
