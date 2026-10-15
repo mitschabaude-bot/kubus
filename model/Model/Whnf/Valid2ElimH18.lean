@@ -27,7 +27,7 @@ theorem VTele2.recArg {Ψ : ℕ} {Φ : I} {Γ : Ctx} {d np : ℕ} {C : Ctor} {ps
   rw [argTy_rec_inst hr hp hpl (by simp; omega)] at h
   simpa only [getD_eq_get' hi] using h
 
-/-- The formation field supplies computable recursive eliminations for constructor computation. -/
+/-- Elimination formation supplies computable recursive eliminations for constructor computation. -/
 theorem ElimInv2.recElims {Ψ : ℕ} {Φ : I} {Γ : Ctx}
     {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
     (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
