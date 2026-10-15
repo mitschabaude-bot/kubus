@@ -1,4 +1,4 @@
-import Model.Whnf.Kan2DataCode
+import Model.Whnf.Kan2DataT
 
 /-!
 # Soundness of the `hcompCon` step
