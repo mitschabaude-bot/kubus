@@ -20,6 +20,7 @@ variable {S : Sig} {k : ℕ}
 /-- Related eliminator components with the motive's relation-carried Kan evidence. -/
 structure ElimRelH (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P M bs Q M' bs' : Tm)
     : Prop extends ElimRel S d D K P M bs Q M' bs' where
+  dataKan : KanP2 S K (semK S K (.data d P))
   kan : ∀ k1 (ρ : ISub k1 K) (x x' : Tm), RE2 S k1 (.data d (P.isub ρ)) x x' →
     KanP2 S k1 (semK S k1 ((M.isub ρ).inst x))
 
@@ -38,7 +39,7 @@ theorem elimRelH_of {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
     (c : CSub2 S Ψ Φ Γ k) :
     ElimRelH S d D k (c.L ps) (P.subst (Tm.up c.γ) c.σ.τ) (c.L bs)
       (c.R ps') (P'.subst (Tm.up c.γ') c.σ'.τ) (c.R bs') :=
-  ⟨elimRel_of hW hD hty hty' hps hM hbr c,
+  ⟨elimRel_of hW hD hty hty' hps hM hbr c, hps.kanV hW k c,
     fun _ ρ _ _ hx => hps.codKan hW hM c ρ hx⟩
 
 omit hW in
