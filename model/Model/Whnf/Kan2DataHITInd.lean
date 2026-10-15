@@ -272,9 +272,12 @@ theorem tm1h_transp_point {k1 : ℕ} (ρ : ISub k1 K) {Q : Tm} (hQ : Rob S d K P
       ((Tm.data d Q).isub (ISub.cons y' hy' ρ.up.tail)) := by
     have h := Rob.line hQ ρ y y' hy hy' hE (k1 + 1) (ISub.id k1).up.tail (.var 0) (.var 0)
       (show 0 < k1 + 1 by omega) (show 0 < k1 + 1 by omega) (I_eq_refl _)
-    rw [ISub.cons_var0_up_tail,
-      isub_up_id_of_closed (closed_ty (gen_transpF (spec_to_minimal hW ht) rfl).choose_spec.1.1),
-      isub_up_id_of_closed (closed_ty (gen_transpF (spec_to_minimal hW ht') rfl).choose_spec.1.1)] at h
+    have hcP : (P.isub (ISub.cons y hy ρ.up.tail)).closedB 0 (k1 + 1) = true :=
+      data_closed hW hD (HasTy.isubS hW hP _)
+    have hcQ : (Q.isub (ISub.cons y' hy' ρ.up.tail)).closedB 0 (k1 + 1) = true := by
+      have := closed_ty (gen_transpF (spec_to_minimal hW ht') rfl).choose_spec.1.1
+      simpa only [Tm.closedB] using this
+    rw [ISub.cons_var0_up_tail, isub_up_id_of_closed hcP, isub_up_id_of_closed hcQ] at h
     exact (Comp2_ty_base h).2.2.2.2.2
   exact K0 (Rob.line hQ ρ y y' hy hy' hE) ψ ψ' LC ht ht'
     (eqTm_transp_of hW ht ht' eLL h12 h21 ((RE2.typed hb).2.2.tyConv (Comp2_ty_base rel0).2.2.2.2.2))
@@ -304,7 +307,7 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
     have e2 := RedW.unique hr'.1 ht'.1
     simp only [Tm.hcomp.injEq] at e1 e2
     obtain ⟨-, rfl, rfl, rfl⟩ := e1
-    obtain ⟨-, -, rfl, rfl⟩ := e2
+    obtain ⟨-, rfl, rfl, rfl⟩ := e2
     have ep := RedW.unique hA2.1 hA.1
     simp only [Tm.data.injEq] at ep
     obtain ⟨-, rfl⟩ := ep
@@ -335,7 +338,7 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
       have e2 := RedW.unique hr3'.1 ht'.1
       simp only [Tm.hcomp.injEq] at e1 e2
       obtain ⟨-, rfl, rfl, rfl⟩ := e1
-      obtain ⟨-, -, rfl, rfl⟩ := e2
+      obtain ⟨-, rfl, rfl, rfl⟩ := e2
       exact ⟨haa3, hu3, hb3, hb3'⟩
   have h123 : I.Entails χ χ' ∧ I.Entails χ' χ := by
     rcases DR2At_cases hW hD hP0 hP0P0 ρ hat with
@@ -513,29 +516,43 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
   have eE' : ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one = Tm.data d (P.isub (ISub.cons
       (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ)) := eE
   rw [eE'] at haa htH htH' heqH ⊢
-  have hbl : HcompBnd2 S k1 _ χ
+  have hbl : HcompBnd2 S k1 (.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))) χ
       (.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u)
       (.transp ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ a) := by
     intro k' σ hh
     rw [tHc_tube_pt _ _ _ σ .zero trivial, isub_transp]
+    change RE2 S k' ((Tm.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))).isub σ)
+      (.transp (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).isub σ.up) (ψ.subst σ.τ) ((u.isub σ.up).dinst .zero))
+      (.transp (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).isub σ.up) (ψ.subst σ.τ) (a.isub σ))
     have hyσ := I.scoped_subst hy σ.up.sc
-    rw [line_isub_up, line_isub_up]
+    rw [line_isub_up]
     have hb0 := hb3 k' σ hh
     have IH := ihb k' σ hh
     rw [← ISub.hom_comp] at IH
-    have tp := hcomp_tube_typed' hW (HasTy.isubS hW htH σ) .zero trivial hh
-    rw [tHc_tube_pt _ _ _ σ .zero trivial, line_isub_up] at tp
+    have tp := hcomp_tube_typed' hW
+      (u := (Tm.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u).isub σ.up)
+      (HasTy.isubS hW htH σ) .zero trivial hh
+    rw [tHc_tube_pt _ _ _ σ .zero trivial] at tp
+    change HasTy S k' .one []
+      (.transp (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).isub σ.up) (ψ.subst σ.τ) ((u.isub σ.up).dinst .zero))
+      ((Tm.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))).isub σ) at tp
+    rw [line_isub_up] at tp
     have tb := HasTy.isubS hW hta1 σ
     rw [isub_transp, line_isub_up] at tb
+    have ee : (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one).isub σ =
+        ((Tm.data d P).isub (ISub.cons (y.subst σ.up.τ) hyσ (ρ.comp σ).up.tail)).dinst .one := by
+      rw [isub_dinst, line_isub_up]; rfl
+    have eEnd := (congrArg (fun Z : Tm => Z.isub σ) eE').symm.trans ee
+    rw [eEnd] at tp
+    rw [ee] at tb
     have R := tm1h_transp_point hW hD hH hp hP hRL (ρ.comp σ) hRL
       (y.subst σ.up.τ) (y.subst σ.up.τ) hyσ hyσ (I_eq_refl _) (ieq_zero_up h0 σ)
       (ψ.subst σ.τ) (ψ.subst σ.τ) (ent_refl _) (ent_refl _) (by
         have := LineConst.isub LC σ; rwa [line_isub_up] at this)
-      (by simpa only [Tm.isub_isub] using hb0) (by simpa only [Tm.isub_isub] using IH)
-      (by rw [← isub_dinst, ← line_isub_up, eE']; exact tp) tb
-    rw [← isub_dinst, ← line_isub_up, eE'] at R
+      (by simpa only [data_isub_comp] using hb0) (by simpa only [data_isub_comp] using IH) tp tb
+    rw [← eEnd] at R
     exact R
-  have hbr : HcompBnd2 S k1 _ χ'
+  have hbr : HcompBnd2 S k1 (.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))) χ'
       (.transp ((Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))).dsubst skipI) ψ'.shift u')
       (.transp ((Tm.data d Q).isub (ISub.cons y' hy' ρ.up.tail)) ψ' a') := by
     intro k' σ hh'
