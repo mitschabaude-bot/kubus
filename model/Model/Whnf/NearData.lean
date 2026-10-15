@@ -265,7 +265,7 @@ theorem DR2At_near2 : ∀ {k : ℕ} {g : Hom k k0} {A t t' t2 t2' : Tm},
       rw [hsem j (by omega)]
       exact NIP.el2 P Q (P.reflTy' hX2) x2 nj (HasTy.near' hW hx.1 nj (ga _ (List.getElem_mem _))) nj'
         (HasTy.near' hW hx.2.1 nj' (ga' _ (List.getElem_mem _)))
-  | k, g, A, t, t', t2, t2', .hcomp (ps := ps) (φ := φ0) hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu, n1, n2, h1, h2, hyp => by
+  | k, g, A, t, t', t2, t2', .hcomp (ps := ps) (φ := φ0) (φ' := φ0') hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb', n1, n2, h1, h2, hyp => by
     have hR := hyp ps hA
     have e1 := eq_near hW (HasTy.eqL heq) n1 (good_of_ty hW h1)
     have e2 := eq_near hW (HasTy.eqR heq) n2 (good_of_ty hW h2)
@@ -283,21 +283,47 @@ theorem DR2At_near2 : ∀ {k : ℕ} {g : Hom k k0} {A t t' t2 t2' : Tm},
       ((e1.symm.trans heq).trans e2) hH hA hpl hw hw' (sc_iff.1 gw.1.1.2) (sc_iff.1 gw'.1.1.2)
       (ent_trans nφ.2 (ent_trans h12 nφ'.1)) (ent_trans nφ'.2 (ent_trans h21 nφ.1))
       (DR2_near2 ha na na' (HasTy.near' hW (HasTy.eqL ea) na gw.2) (HasTy.near' hW (HasTy.eqR ea) na' gw'.2)
-        (hypData f hR)) (fun k' σ r hr hh => ?_)
-    have hh' : (ival (idEnv k') (φ0.subst σ.τ)).holds := by
-      rw [holds_iff_entails (I.scoped_subst hs σ.sc)]
-      exact ent_trans ((holds_iff_entails (I.scoped_subst (sc_iff.1 gw.1.1.2) σ.sc)).1 hh) (ent_subst nφ.2 σ.τ)
-    have eu := DR2.eqTm f (hu k' σ r hr hh')
-    have nu1 := (nu.isub σ.up).dinst (I_eq_refl r)
-    have nu1' := (nu'.isub σ.up).dinst (I_eq_refl r)
-    refine DR2_near2 (hu k' σ r hr hh') nu1 nu1'
-      (HasTy.near' hW (HasTy.eqL eu) nu1 (goodB_dinst (good_isub gw.1.2 σ.up) (sc_iff.2 hr)))
-      (HasTy.near' hW (HasTy.eqR eu) nu1' (goodB_dinst (good_isub gw'.1.2 σ.up) (sc_iff.2 hr))) ?_
-    intro k'' σ' ps2 h
-    rw [Tm.isub_isub] at h
-    obtain rfl := redT_data_eq h
-    rw [Hom.comp_assoc, ← ISub.hom_comp]
-    exact argRelH_isub Θ f hR (σ.comp σ')
+        (hypData f hR)) (fun k' σ r hr hh => ?_) (fun k' σ hh => ?_) (fun k' σ hh => ?_)
+    · have hh' : (ival (idEnv k') (φ0.subst σ.τ)).holds := by
+        rw [holds_iff_entails (I.scoped_subst hs σ.sc)]
+        exact ent_trans ((holds_iff_entails (I.scoped_subst (sc_iff.1 gw.1.1.2) σ.sc)).1 hh) (ent_subst nφ.2 σ.τ)
+      have eu := DR2.eqTm f (hu k' σ r hr hh')
+      have nu1 := (nu.isub σ.up).dinst (I_eq_refl r)
+      have nu1' := (nu'.isub σ.up).dinst (I_eq_refl r)
+      refine DR2_near2 (hu k' σ r hr hh') nu1 nu1'
+        (HasTy.near' hW (HasTy.eqL eu) nu1 (goodB_dinst (good_isub gw.1.2 σ.up) (sc_iff.2 hr)))
+        (HasTy.near' hW (HasTy.eqR eu) nu1' (goodB_dinst (good_isub gw'.1.2 σ.up) (sc_iff.2 hr))) ?_
+      intro k'' σ' ps2 h
+      rw [Tm.isub_isub] at h
+      obtain rfl := redT_data_eq h
+      rw [Hom.comp_assoc, ← ISub.hom_comp]
+      exact argRelH_isub Θ f hR (σ.comp σ')
+    · have hh' : (ival (idEnv k') (φ0.subst σ.τ)).holds := by
+        rw [holds_iff_entails (I.scoped_subst hs σ.sc)]
+        exact ent_trans ((holds_iff_entails (I.scoped_subst (sc_iff.1 gw.1.1.2) σ.sc)).1 hh) (ent_subst nφ.2 σ.τ)
+      have eb := DR2.eqTm f (hb k' σ hh')
+      have nb := (nu.isub σ.up).dinst (I_eq_refl I.zero)
+      refine DR2_near2 (hb k' σ hh') nb (na.isub σ)
+        (HasTy.near' hW (HasTy.eqL eb) nb (goodB_dinst (good_isub gw.1.2 σ.up) rfl))
+        (HasTy.near' hW (HasTy.eqR eb) (na.isub σ) (good_isub gw.2 σ)) ?_
+      intro k'' σ' ps2 h
+      rw [Tm.isub_isub] at h
+      obtain rfl := redT_data_eq h
+      rw [Hom.comp_assoc, ← ISub.hom_comp]
+      exact argRelH_isub Θ f hR (σ.comp σ')
+    · have hh' : (ival (idEnv k') (φ0'.subst σ.τ)).holds := by
+        rw [holds_iff_entails (I.scoped_subst hs' σ.sc)]
+        exact ent_trans ((holds_iff_entails (I.scoped_subst (sc_iff.1 gw'.1.1.2) σ.sc)).1 hh) (ent_subst nφ'.2 σ.τ)
+      have eb := DR2.eqTm f (hb' k' σ hh')
+      have nb := (nu'.isub σ.up).dinst (I_eq_refl I.zero)
+      refine DR2_near2 (hb' k' σ hh') nb (na'.isub σ)
+        (HasTy.near' hW (HasTy.eqL eb) nb (goodB_dinst (good_isub gw'.1.2 σ.up) rfl))
+        (HasTy.near' hW (HasTy.eqR eb) (na'.isub σ) (good_isub gw'.2 σ)) ?_
+      intro k'' σ' ps2 h
+      rw [Tm.isub_isub] at h
+      obtain rfl := redT_data_eq h
+      rw [Hom.comp_assoc, ← ISub.hom_comp]
+      exact argRelH_isub Θ f hR (σ.comp σ')
 termination_by structural _ _ _ _ _ _ _ h => h
 end
 
@@ -391,7 +417,7 @@ theorem DR2At_tyNear : ∀ {k : ℕ} {g : Hom k k0} {A t t' A2 : Tm},
       fun j hj hj' hr => DR2_tyNear (hrec j hj hj' hr) (.data nps) hd2 (hypData f hR2)
     exact .con hm hm' (heq.tyConv e) hC hW2 hpl2 ⟨ht.1, ht.2.tyConv e⟩ ⟨ht'.1, ht'.2.tyConv e⟩ hrs hrs' hreq hsc hsc'
       hl hl' hrec2 (prefix_nearConv hW f hP hQ hR2 hpc2 nps hC (by omega) (by omega) hrec2 hpt)
-  | k, g, A, t, t', A2, .hcomp (ps := ps) hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu, hn, hA2, hyp => by
+  | k, g, A, t, t', A2, .hcomp (ps := ps) hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb', hn, hA2, hyp => by
     have hAt := isTyK_of_ty hW (HasTy.eqL heq)
     have e := (tyEq_near hW hAt hn (good_of_isTyK hW hA2)).1
     obtain ⟨W, hW2, nW⟩ := RedT.near hW hA hAt hn (good_of_isTyK hW hA2)
@@ -405,11 +431,14 @@ theorem DR2At_tyNear : ∀ {k : ℕ} {g : Hom k k0} {A t t' A2 : Tm},
     refine .hcomp hm hm' (heq.tyConv e) hH hW2 hpl2 ⟨ht.1, ht.2.tyConv e⟩ ⟨ht'.1, ht'.2.tyConv e⟩ hs hs' h12 h21
       (DR2_tyNear ha (.data nps) hd2 (hypData f hR2)) (fun k' σ r hr hh =>
         DR2_tyNear (hu k' σ r hr hh) ((TmNear.data nps).isub σ) (hd2.isub hW σ) ?_)
-    intro k'' σ' ps3 h
-    rw [Tm.isub_isub] at h
-    obtain rfl := redT_data_eq h
-    rw [Hom.comp_assoc, ← ISub.hom_comp]
-    exact argRelH_isub Θ f hR2 (σ.comp σ')
+      (fun k' σ hh => DR2_tyNear (hb k' σ hh) ((TmNear.data nps).isub σ) (hd2.isub hW σ) ?_)
+      (fun k' σ hh => DR2_tyNear (hb' k' σ hh) ((TmNear.data nps).isub σ) (hd2.isub hW σ) ?_)
+    all_goals
+      intro k'' σ' ps3 h
+      rw [Tm.isub_isub] at h
+      obtain rfl := redT_data_eq h
+      rw [Hom.comp_assoc, ← ISub.hom_comp]
+      exact argRelH_isub Θ f hR2 (σ.comp σ')
 termination_by structural _ _ _ _ _ _ h => h
 end
 

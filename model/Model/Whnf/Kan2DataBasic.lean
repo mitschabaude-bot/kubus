@@ -81,9 +81,9 @@ theorem DR2At.redL {A t t' u : Tm} (h : DR2At S d D (dataMem S Θ f) (dataP2 S �
   | con hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' hrec hpt =>
     exact .con (by unfold dataMem at hm ⊢; rwa [← semK_eq hW e]) hm' (e.symm.trans heq) hC hA hpl
       ⟨red_redW r ht.1, e.symm.trans ht.2⟩ ht' hrs hrs' hreq hsc hsc' hl hl' hrec hpt
-  | hcomp hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu =>
+  | hcomp hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb' =>
     exact .hcomp (by unfold dataMem at hm ⊢; rwa [← semK_eq hW e]) hm' (e.symm.trans heq) hH hA hpl
-      ⟨red_redW r ht.1, e.symm.trans ht.2⟩ ht' hs hs' h12 h21 ha hu
+      ⟨red_redW r ht.1, e.symm.trans ht.2⟩ ht' hs hs' h12 h21 ha hu hb hb'
 
 /-- A related element of an inductive type at a stage, through a reduct on the right. -/
 theorem DR2At.expandR {A t t' u' : Tm} (h : DR2At S d D (dataMem S Θ f) (dataP2 S Θ f) k g A t u')
@@ -92,9 +92,9 @@ theorem DR2At.expandR {A t t' u' : Tm} (h : DR2At S d D (dataMem S Θ f) (dataP2
   | con hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' hrec hpt =>
     exact .con hm (by unfold dataMem at hm' ⊢; rwa [semK_eq hW e]) (heq.trans e.symm) hC hA hpl ht
       (RedE.of_red r e ht') hrs hrs' hreq hsc hsc' hl hl' hrec hpt
-  | hcomp hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu =>
+  | hcomp hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb' =>
     exact .hcomp hm (by unfold dataMem at hm' ⊢; rwa [semK_eq hW e]) (heq.trans e.symm) hH hA hpl ht
-      (RedE.of_red r e ht') hs hs' h12 h21 ha hu
+      (RedE.of_red r e ht') hs hs' h12 h21 ha hu hb hb'
 
 end dr
 

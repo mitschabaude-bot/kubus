@@ -42,8 +42,10 @@ theorem DR2At_cases {k3 : ℕ} (ρ' : ISub k3 K) {x x' : Tm}
       RedE S k3 (.data d (P.isub ρ')) x' (.hcomp (.data d qs') ψ' u' a') ∧
       ψ.Scoped k3 ∧ ψ'.Scoped k3 ∧ I.Entails ψ ψ' ∧ I.Entails ψ' ψ ∧
       RE2 S k3 (.data d (P.isub ρ')) a a' ∧
-      ∀ k4 (σ : ISub k4 k3) (r : I), r.Scoped k4 → (ival (idEnv k4) (ψ.subst σ.τ)).holds →
-        RE2 S k4 (.data d (P.isub (ρ'.comp σ))) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r)) := by
+      (∀ k4 (σ : ISub k4 k3) (r : I), r.Scoped k4 → (ival (idEnv k4) (ψ.subst σ.τ)).holds →
+        RE2 S k4 (.data d (P.isub (ρ'.comp σ))) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r)) ∧
+      HcompBnd2 S k3 (.data d (P.isub ρ')) ψ u a ∧
+      HcompBnd2 S k3 (.data d (P.isub ρ')) ψ' u' a') := by
   have hdD := dataD_eq hW hD
   have hTP : IsTyK S k3 (.data d (P.isub ρ')) := ⟨_, .inl (HasTy.isubS hW hP ρ')⟩
   have hPl := (dataLit_rel hW hD hP hPP ρ').2.2.2.2.2.1
@@ -67,14 +69,28 @@ theorem DR2At_cases {k3 : ℕ} (ρ' : ISub k3 K) {x x' : Tm}
       rwa [hdD] at this
     · rw [argTy_rec_inst hri hPl hplen (by simp; omega)]
       exact toRE ρ' (hrec i (by omega) (by omega) hri)
-  | @hcomp _ _ _ _ _ ps qs qs' u u' a a' ψ ψ' hm hm' heq hH' hA hpl ht ht' hs hs' h12 h21 ha hu =>
+  | @hcomp _ _ _ _ _ ps qs qs' u u' a a' ψ ψ' hm hm' heq hH' hA hpl ht ht' hs hs' h12 h21 ha hu hb hb' =>
     obtain rfl := redT_data_eq (Θ := ΘK S D d K P) hA
     refine .inr ⟨qs, ψ, u, a, qs', ψ', u', a', hdD ▸ hH', ht, ht', hs, hs', h12, h21, toRE ρ' ha,
-      fun k4 σ r hr hh => ?_⟩
-    have h := hu k4 σ r hr hh
-    rw [show (Tm.data d (P.isub ρ')).isub σ = .data d (P.isub (ρ'.comp σ)) by
-      show Tm.data d ((P.isub ρ').isub σ) = _; rw [Tm.isub_isub], ← ISub.hom_comp] at h
-    exact toRE (ρ'.comp σ) h
+      (fun k4 σ r hr hh => ?_), (fun k4 σ hh => ?_), (fun k4 σ hh => ?_)⟩
+    · have h := hu k4 σ r hr hh
+      rw [show (Tm.data d (P.isub ρ')).isub σ = .data d (P.isub (ρ'.comp σ)) by
+        show Tm.data d ((P.isub ρ').isub σ) = _; rw [Tm.isub_isub], ← ISub.hom_comp] at h
+      exact toRE (ρ'.comp σ) h
+    · have h := hb k4 σ hh
+      rw [show (Tm.data d (P.isub ρ')).isub σ = .data d (P.isub (ρ'.comp σ)) by
+        show Tm.data d ((P.isub ρ').isub σ) = _; rw [Tm.isub_isub], ← ISub.hom_comp] at h
+      change RE2 S k4 ((Tm.data d (P.isub ρ')).isub σ) _ _
+      rw [show (Tm.data d (P.isub ρ')).isub σ = .data d (P.isub (ρ'.comp σ)) by
+        show Tm.data d ((P.isub ρ').isub σ) = _; rw [Tm.isub_isub]]
+      exact toRE (ρ'.comp σ) h
+    · have h := hb' k4 σ hh
+      rw [show (Tm.data d (P.isub ρ')).isub σ = .data d (P.isub (ρ'.comp σ)) by
+        show Tm.data d ((P.isub ρ').isub σ) = _; rw [Tm.isub_isub], ← ISub.hom_comp] at h
+      change RE2 S k4 ((Tm.data d (P.isub ρ')).isub σ) _ _
+      rw [show (Tm.data d (P.isub ρ')).isub σ = .data d (P.isub (ρ'.comp σ)) by
+        show Tm.data d ((P.isub ρ').isub σ) = _; rw [Tm.isub_isub]]
+      exact toRE (ρ'.comp σ) h
 
 /-- An element is related to its normal form, when that is related to itself. -/
 theorem RE2_whnf {k3 : ℕ} (ρ' : ISub k3 K) {y y' w : Tm} (hy : RE2 S k3 (.data d (P.isub ρ')) y y')
@@ -118,7 +134,9 @@ theorem hit_atD {k1 : ℕ} (ρ : ISub k1 K) {Q1 Q2 u u' a a' : Tm} {φ φ' : I} 
     (hty' : HasTy S k1 .one [] (.hcomp (.data d Q2) φ' u' a') (.data d (P.isub ρ)))
     (heq : EqTm S k1 .one [] (.hcomp (.data d Q1) φ u a) (.hcomp (.data d Q2) φ' u' a') (.data d (P.isub ρ)))
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : TubeD S k1 (.data d (P.isub ρ)) φ u u')
-    (haa : RE2 S k1 (.data d (P.isub ρ)) a a') :
+    (haa : RE2 S k1 (.data d (P.isub ρ)) a a')
+    (hb : HcompBnd2 S k1 (.data d (P.isub ρ)) φ u a)
+    (hb' : HcompBnd2 S k1 (.data d (P.isub ρ)) φ' u' a') :
     DR2At S d (dataD S d) (dataMem S (ΘK S D d K P) (Hom.id K)) (dataP2 S (ΘK S D d K P) (Hom.id K)) k1 ρ.hom
       (.data d (P.isub ρ)) (.hcomp (.data d Q1) φ u a) (.hcomp (.data d Q2) φ' u' a') := by
   obtain ⟨-, ⟨-, hφs, -, -, -⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
@@ -130,11 +148,22 @@ theorem hit_atD {k1 : ℕ} (ρ : ISub k1 K) {Q1 Q2 u u' a a' : Tm} {φ φ' : I} 
     ⟨redW_self (step_data d _), TyEq.refl _⟩ hpl ⟨redW_self (step_hcomp_HIT hD hH hn), EqTm.refl hty⟩
     ⟨redW_self (step_hcomp_HIT hD hH hn'), EqTm.refl hty'⟩ hφs hφs' h12 h21
     ((RE2_dataLit_iff hW hD hP ρ).1 haa).2 (fun k' σ r hr hh => ?_)
-  have h1 := htube k' σ r hr hh
-  rw [show (Tm.data d (P.isub ρ)).isub σ = .data d (P.isub (ρ.comp σ)) by
-    show Tm.data d ((P.isub ρ).isub σ) = _; rw [Tm.isub_isub]] at h1 ⊢
-  have := ((RE2_dataLit_iff hW hD hP (ρ.comp σ)).1 h1).2
-  rwa [ISub.hom_comp] at this
+    (fun k' σ hh => ?_) (fun k' σ hh => ?_)
+  · have h1 := htube k' σ r hr hh
+    rw [show (Tm.data d (P.isub ρ)).isub σ = .data d (P.isub (ρ.comp σ)) by
+      show Tm.data d ((P.isub ρ).isub σ) = _; rw [Tm.isub_isub]] at h1 ⊢
+    have := ((RE2_dataLit_iff hW hD hP (ρ.comp σ)).1 h1).2
+    rwa [ISub.hom_comp] at this
+  · have h1 := hb k' σ hh
+    rw [show (Tm.data d (P.isub ρ)).isub σ = .data d (P.isub (ρ.comp σ)) by
+      show Tm.data d ((P.isub ρ).isub σ) = _; rw [Tm.isub_isub]] at h1 ⊢
+    have := ((RE2_dataLit_iff hW hD hP (ρ.comp σ)).1 h1).2
+    rwa [ISub.hom_comp] at this
+  · have h1 := hb' k' σ hh
+    rw [show (Tm.data d (P.isub ρ)).isub σ = .data d (P.isub (ρ.comp σ)) by
+      show Tm.data d ((P.isub ρ).isub σ) = _; rw [Tm.isub_isub]] at h1 ⊢
+    have := ((RE2_dataLit_iff hW hD hP (ρ.comp σ)).1 h1).2
+    rwa [ISub.hom_comp] at this
 
 /-- Related compositions at a restriction of a literal higher inductive type, at all further stages. -/
 theorem hit_stageD {k1 : ℕ} (ρ : ISub k1 K) {Q1 Q2 u u' a a' : Tm} {φ φ' : I}
@@ -142,7 +171,9 @@ theorem hit_stageD {k1 : ℕ} (ρ : ISub k1 K) {Q1 Q2 u u' a a' : Tm} {φ φ' : 
     (hty' : HasTy S k1 .one [] (.hcomp (.data d Q2) φ' u' a') (.data d (P.isub ρ)))
     (heq : EqTm S k1 .one [] (.hcomp (.data d Q1) φ u a) (.hcomp (.data d Q2) φ' u' a') (.data d (P.isub ρ)))
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : TubeD S k1 (.data d (P.isub ρ)) φ u u')
-    (haa : RE2 S k1 (.data d (P.isub ρ)) a a') (k' : ℕ) (σ : ISub k' k1) :
+    (haa : RE2 S k1 (.data d (P.isub ρ)) a a')
+    (hb : HcompBnd2 S k1 (.data d (P.isub ρ)) φ u a)
+    (hb' : HcompBnd2 S k1 (.data d (P.isub ρ)) φ' u' a') (k' : ℕ) (σ : ISub k' k1) :
     DR2At S d (dataD S d) (dataMem S (ΘK S D d K P) (Hom.id K)) (dataP2 S (ΘK S D d K P) (Hom.id K)) k'
       (ρ.hom.comp σ.hom) ((Tm.data d (P.isub ρ)).isub σ) ((Tm.hcomp (.data d Q1) φ u a).isub σ)
       ((Tm.hcomp (.data d Q2) φ' u' a').isub σ) := by
@@ -154,7 +185,9 @@ theorem hit_stageD {k1 : ℕ} (ρ : ISub k1 K) {Q1 Q2 u u' a a' : Tm} {φ φ' : 
   have heqσ := EqTm.isubS hW heq σ
   have htubeσ := htube.isub σ
   have haaσ := RE2.isub hW haa σ
-  rw [eP] at htyσ htyσ' heqσ htubeσ haaσ ⊢
+  have hbσ := hb.isub σ
+  have hbσ' := hb'.isub σ
+  rw [eP] at htyσ htyσ' heqσ htubeσ haaσ hbσ hbσ' ⊢
   rw [← ISub.hom_comp]
   simp only [isub_hcomp] at htyσ htyσ' heqσ ⊢
   by_cases hf : I.Entails .one (φ.subst σ.τ)
@@ -166,13 +199,14 @@ theorem hit_stageD {k1 : ℕ} (ρ : ISub k1 K) {Q1 Q2 u u' a a' : Tm} {φ φ' : 
     have hat := DR2.at_id hW (Θ := ΘK S D d K P) ((RE2_dataLit_iff hW hD hP (ρ.comp σ)).1 h1).2
     refine DR2At.expandL hW (DR2At.expandR hW hat (.step (step_hcomp_face hf') (.refl _))
       (EqTm.hcompFace hf' htyσ')) (.step (step_hcomp_face hf) (.refl _)) (EqTm.hcompFace hf htyσ)
-  · exact hit_atD hW hD hH hP hPP (ρ.comp σ) hf htyσ htyσ' heqσ (ent_subst h12 _) (ent_subst h21 _) htubeσ haaσ
+  · exact hit_atD hW hD hH hP hPP (ρ.comp σ) hf htyσ htyσ' heqσ (ent_subst h12 _) (ent_subst h21 _) htubeσ haaσ hbσ hbσ'
 
 /-- The coherence clause of a composition at a restriction of a literal higher inductive type: its
 normal forms, restricted, are related to its restrictions. -/
 theorem hit_cohD {k1 : ℕ} (ρ : ISub k1 K) {Q1 u a : Tm} {φ : I}
     (hty : HasTy S k1 .one [] (.hcomp (.data d Q1) φ u a) (.data d (P.isub ρ)))
-    (htube : TubeD S k1 (.data d (P.isub ρ)) φ u u) (haa : RE2 S k1 (.data d (P.isub ρ)) a a) :
+    (htube : TubeD S k1 (.data d (P.isub ρ)) φ u u) (haa : RE2 S k1 (.data d (P.isub ρ)) a a)
+    (hb : HcompBnd2 S k1 (.data d (P.isub ρ)) φ u a) :
     ∀ k' (σ : ISub k' k1) w, RedW S ((Tm.hcomp (.data d Q1) φ u a).isub σ) w → ∀ k'' (ρ' : ISub k'' k'),
       DR2At S d (dataD S d) (dataMem S (ΘK S D d K P) (Hom.id K)) (dataP2 S (ΘK S D d K P) (Hom.id K)) k''
         (ρ.hom.comp (σ.comp ρ').hom) ((Tm.data d (P.isub ρ)).isub (σ.comp ρ')) (w.isub ρ')
@@ -208,7 +242,7 @@ theorem hit_cohD {k1 : ℕ} (ρ : ISub k1 K) {Q1 u a : Tm} {φ : I}
       exact DR2At.expandR hW h2 (.step (step_hcomp_face hf2) (.refl _)) (EqTm.hcompFace hf2 htyτ)
   · -- the face does not hold: the composition is normal
     obtain rfl := RedW.unique hw (redW_self (step_hcomp_HIT hD hH hf))
-    have := hit_stageD hW hD hH hP hPP ρ hty hty (EqTm.refl hty) (ent_refl _) (ent_refl _) htube haa k'' (σ.comp ρ')
+    have := hit_stageD hW hD hH hP hPP ρ hty hty (EqTm.refl hty) (ent_refl _) (ent_refl _) htube haa hb hb k'' (σ.comp ρ')
     rw [isub_hcomp] at this
     simp only [isub_hcomp, Tm.isub_isub, ← ISub.up_comp, ← hτ0]
     exact this
@@ -221,13 +255,15 @@ theorem hcomp_relD {k1 : ℕ} (ρ : ISub k1 K) {Q1 Q2 u u' a a' : Tm} {φ φ' : 
     (heq : EqTm S k1 .one [] (.hcomp (.data d Q1) φ u a) (.hcomp (.data d Q2) φ' u' a') (.data d (P.isub ρ)))
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ) (htube : TubeD S k1 (.data d (P.isub ρ)) φ u u')
     (tS : TubeD S k1 (.data d (P.isub ρ)) φ u u) (tS' : TubeD S k1 (.data d (P.isub ρ)) φ' u' u')
-    (haa : RE2 S k1 (.data d (P.isub ρ)) a a') :
+    (haa : RE2 S k1 (.data d (P.isub ρ)) a a')
+    (hb : HcompBnd2 S k1 (.data d (P.isub ρ)) φ u a)
+    (hb' : HcompBnd2 S k1 (.data d (P.isub ρ)) φ' u' a') :
     RE2 S k1 (.data d (P.isub ρ)) (.hcomp (.data d Q1) φ u a) (.hcomp (.data d Q2) φ' u' a') := by
   have hA : RT2 S k1 (.data d (P.isub ρ)) (.data d (P.isub ρ)) := RT2.isub hW (tyCode_of_univ hW hP) hPP ρ
   exact (RE2_dataLit_iff hW hD hP ρ).2 ⟨⟨hty, hty', heq⟩, .intro heq
-    (fun k' σ => hit_stageD hW hD hH hP hPP ρ hty hty' heq h12 h21 htube haa k' σ)
-    (hit_cohD hW hD hH hP hPP ρ hty tS (RE2.trans hW hA haa (RE2.symm hW hA haa)))
-    (hit_cohD hW hD hH hP hPP ρ hty' tS' (RE2.trans hW hA (RE2.symm hW hA haa) haa))⟩
+    (fun k' σ => hit_stageD hW hD hH hP hPP ρ hty hty' heq h12 h21 htube haa hb hb' k' σ)
+    (hit_cohD hW hD hH hP hPP ρ hty tS (RE2.trans hW hA haa (RE2.symm hW hA haa)) hb)
+    (hit_cohD hW hD hH hP hPP ρ hty' tS' (RE2.trans hW hA (RE2.symm hW hA haa) haa) hb')⟩
 
 end hitD
 

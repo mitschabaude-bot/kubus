@@ -433,7 +433,7 @@ theorem tm1_mainH {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm}
     · -- a composition
       rcases DR2At_cases hW hD hP hPP1 _ hnode with
         ⟨_, _, _, _, _, _, _, _, -, -, -, hr0, -⟩ |
-        ⟨qs0, χ0, u0, a0, qs0', χ0', u0', a0', -, hr0, hr0', -, -, -, -, haa0, hu0⟩
+        ⟨qs0, χ0, u0, a0, qs0', χ0', u0', a0', -, hr0, hr0', -, -, -, -, haa0, hu0, hb0, hb0'⟩
       · have := RedW.unique hr0.1 (hWr k4 κ).1; rw [hWe] at this; cases this
       have e1 := RedW.unique (hWr k4 κ).1 hr0.1
       rw [hWe] at e1
@@ -475,8 +475,25 @@ theorem tm1_mainH {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm}
           rw [hPend (κ.comp κ') .zero trivial]
           refine RE2.conv hW (hRL k5 _ _ _ _ _ ?_) hs1
           exact I_eq_trans (I_eq_subst (ieq_zero_up h0 κ) κ'.τ) (I_eq_symm (ieq_zero_up h0 (κ.comp κ')))
+        have hB : HcompBnd2 S k5 (((Tm.data d P).isub (ISub.cons (y.subst (κ.comp κ').up.τ)
+            (I.scoped_subst hy (κ.comp κ').up.sc) ((ρ.comp σ).comp (κ.comp κ')).up.tail)).dinst .zero)
+            (χ.subst κ'.τ) (u.isub κ'.up) (a.isub κ') := by
+          intro k6 σ' hh
+          rw [← I_subst_comp] at hh
+          have hs1 := hb0 k6 (κ'.comp σ') hh
+          simp only [Tm.isub_isub, ← ISub.up_comp]
+          rw [isub_dinst, show I.subst σ'.τ I.zero = I.zero from rfl, line_isub_up,
+            lineP_dinst hW hD hp hP hRL _ _ _ .zero trivial]
+          change RE2 S k6 (.data d ((P.isub (ISub.cons
+            ((y.subst κ.up.τ).subst (ISub.cons .zero trivial (ISub.id k4)).τ)
+            (I.scoped_subst (I.scoped_subst hy κ.up.sc) (ISub.cons .zero trivial (ISub.id k4)).sc)
+            ((ρ.comp σ).comp κ))).isub (κ'.comp σ'))) _ _ at hs1
+          rw [Tm.isub_isub, ISub.cons_comp] at hs1
+          simp only [ISub.comp_assoc] at hs1 ⊢
+          refine RE2.conv hW (hRL k6 _ _ _ _ _ ?_) hs1
+          exact I_eq_trans (I_eq_subst (ieq_zero_up h0 κ) _) (I_eq_symm (ieq_zero_up (ieq_zero_up h0 (κ.comp κ')) σ'))
         have FACE := hcomp_faceH hW hD hH hp hP  hRL ((ρ.comp σ).comp (κ.comp κ')) (y.subst (κ.comp κ').up.τ)
-          (I.scoped_subst hy (κ.comp κ').up.sc) (I.scoped_subst hψs (κ.comp κ').sc) hf2 LC2 rb.1 hU hA
+          (I.scoped_subst hy (κ.comp κ').up.sc) (I.scoped_subst hψs (κ.comp κ').sc) hf2 LC2 rb.1 hU hA hB
         have hc := hconst (κ.comp κ') hf2
         have R0' := RE2.conv hW hc R0
         have hb2 := hb (κ.comp κ')
@@ -513,7 +530,7 @@ theorem tm1_mainH {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm}
             have huc : ((u.isub κ'.up).dinst .one).closedB 0 k5 = true :=
               closed_ty (gen_transpF (spec_to_minimal hW htyT) rfl).choose_spec.1.2.2.2
             have TRt := ((((ih k4 (σ.comp κ)).2 _ hRT).2 qs0 χ u a qs0' χ0' u0' a0' ⟨hr0.1, hr0.2.tyConv hAκ⟩
-              ⟨hr0'.1, hr0'.2.tyConv hAκ⟩).2 k5 κ' .one trivial hh).2.2
+              ⟨hr0'.1, hr0'.2.tyConv hAκ⟩).2.1 k5 κ' .one trivial hh).2.2
             have T1 := TRt (ρ.comp (σ.comp (κ.comp κ'))) (by simp only [ISub.hom_comp, Hom.comp_assoc])
               (by show Tm.data d (((P.dinst .zero).isub _).isub κ') = _; rw [Tm.isub_isub, ISub.comp_assoc, ISub.comp_assoc])
               k5 (ISub.id k5) (y.subst (κ.comp κ').up.τ) (I.scoped_subst hy (κ.comp κ').up.sc) (ieq_zero_up h0 (κ.comp κ'))
@@ -651,9 +668,9 @@ theorem transp_DR2H : ∀ {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm},
     exact tm2_conH hW hD hH hyp hp hP  hRL
       (DR2At.con hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' hrec hpt) hC hA ht ht' hrs hrs' hreq hl hl'
       ihrec
-  · intro k1 g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH' hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu
+  · intro k1 g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH' hA hpl ht ht' hs hs' h12 h21 ha hu hb hb' iha ihu ihb ihb'
     exact tm2_hcompH hW hD hH hp hP  hRL
-      (DR2At.hcomp hm hm' heq hH' hA hpl ht ht' hs hs' h12 h21 ha hu) hA ht ht' iha ihu
+      (DR2At.hcomp hm hm' heq hH' hA hpl ht ht' hs hs' h12 h21 ha hu hb hb') hA ht ht' iha ihu ihb ihb'
 
 /-- Transport along a literal line of a higher inductive type, against a robustly related literal line. -/
 theorem kanT2_litH {Q : Tm} (hQ : Rob S d K P Q) : KanT2 S K (.data d P) (.data d Q) := by
