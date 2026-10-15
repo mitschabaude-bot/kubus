@@ -5,7 +5,7 @@ import Model.Whnf.Valid2LineEquiv
 
 The binary version of `VTy.lineEquiv'` (`Valid2LineEquiv.lean`): for lines `B`, `B'` of types of
 level `l` that are judgmentally equal and valid together, `lineEquiv B` and `lineEquiv B'` are valid
-together (`VEq.lineEquiv₂`). Transport is only used at types of level `l` (`KTAt S l`). This relates the
+together (`VEq.lineEquiv₂`). The related lines carry their transport operations. This relates the
 equivalences of the `hcompU` contracta of related compositions in the universe.
 -/
 

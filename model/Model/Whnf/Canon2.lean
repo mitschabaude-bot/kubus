@@ -5,12 +5,12 @@ import Model.Canon.CanonForm
 /-!
 # Canonicity from the binary fundamental lemma
 
-The binary fundamental lemma (`fund2`, with the Kan oracle `kanOracle2`) relates the two sides of every
+The binary fundamental lemma (`fund2`, with Kan carried by the universe relation) relates the two sides of every
 judgmental equality of closed types. At an equality of Glue types whose face does not hold, the type
 relation of Glue normal forms relates their bases and equivalences, which gives the compatibility of
 Glue annotations (`glueCompat_of`), the hypothesis of `canonicity_of_glueCompat`.
 
-The remaining obligations of the binary development are bundled in `Obl2`: the boundaries of the constructors of higher inductive types and the argument types of their nested constructors (`HITHyp2`), and the rules of higher inductive types (`DataHyp2`).
+The remaining obligations of the binary development are bundled in `Obl2`: the boundary rule for constructors of higher inductive types (`HITConHyp2`), and the rules of higher inductive types (`DataHyp2`).
 -/
 
 set_option autoImplicit false

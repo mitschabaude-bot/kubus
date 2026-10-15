@@ -3,14 +3,10 @@ import Model.Whnf.Kan2GlueCode
 import Model.Whnf.Kan2DataCode
 
 /-!
-# The binary Kan operations at all codes
+# Binary Kan operations at the type formers' codes
 
-`kanP2_tyCode`: composition and transport relate related data at every pair of types related at a
-restriction of a type code, by induction on codes (`tyCode_ind`), one case per type former. The
-components of a normal form are related at restrictions of the components of the code
-(`Comp2_piC`, …), so the induction hypotheses at the component codes give the Kan properties the
-per-former lemmas need (`kanH2_of_code`, `khRel_of_code`). Composition in a universe of level `l`
-uses transport along lines of level `l` only, which the induction hypothesis covers.
+The per-former lemmas use the component Kan evidence carried by the binary relation.
+`kanP2_dataC'` recovers a data declaration from a related type and applies its indexed HIT hypotheses.
 -/
 
 set_option autoImplicit false

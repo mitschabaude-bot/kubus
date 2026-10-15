@@ -654,7 +654,7 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
           ⟨l, hl⟩ | ⟨l, he, -⟩
         · obtain ⟨D3, hD3, htele⟩ := gen_data_tele hl rfl
           rw [hD] at hD3; cases hD3
-          exact valid_data hW hD (hDe.mono (by omega)) (hW.2 _ D hD).1 htele (VTele2.left hW (fund2_eqtele h4))
+          exact valid_data hW hD (hDe.mono (by omega)) (hHit.mono (by omega)) (hW.2 _ D hD).1 htele (VTele2.left hW (fund2_eqtele h4))
         · cases he
       exact valid_con_nonHIT hW hD (hDe.mono (by omega)) hH h1 hpl hcon (sigwk_eq hpre (.con h0 h1 h2 h3 h4 h5 h6 h7))
         hpsl hal hal' hall hall' hrs hrs' hvd va
@@ -820,7 +820,7 @@ theorem hyps_take (hW : WfSig S) (hCon : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S 
       · exact ih.2.2.bndTy hdn hD hH hC hb hent hP hPP hYl hcon hY
       obtain rfl : d = n := by omega
       exact bndTy_of_valid hW (fun h => fund2_eq hW hpre ih.1 (ih.2.2.mono (by simp))
-        (hDa n) (nearEl2_of hW) hDe h) hDecl hD hC hb hent hP hPP hYl hcon hY
+        (hDa d) (nearEl2_of hW) hDe h) hDecl hD hC hb hent hP hPP hYl hcon hY
     exact ⟨hDef, hDecl, hBoundary⟩
 
 /-- **The binary fundamental lemma**, for derivations in the whole signature. -/

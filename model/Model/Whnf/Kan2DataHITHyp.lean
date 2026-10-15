@@ -49,9 +49,6 @@ def bndRelArgs (S : Sig) (k d np n : ℕ) (C : Ctor) (ctors : List Ctor) (P1 Q1 
     (C'.isRec j = true → bndRel S k d np n C ctors P1 Q1 Y Y' rs a) ∧
     bndRelArgs S k d np n C ctors P1 Q1 Y Y' rs C' (j + 1) (Ctor.bndAt a Q1.toList Y' rs :: prev) as
   | _ => True
-/-- Boundary type validity restricts to a smaller signature prefix. -/
-theorem HITHyp2.mono {n m : ℕ} (h : HITHyp2 S n) (hm : m ≤ n) : HITHyp2 S m :=
-  ⟨h.toHITConHyp2, fun hd => h.bndTy (by omega)⟩
 
 end
 
@@ -84,6 +81,11 @@ structure HITHyp2 (S : Sig) (n : ℕ) extends HITConHyp2 S : Prop where
     (∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
       ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y.getD i .abort)) →
     bndRel S k d D.params.length C.args.length C D.ctors P1 P1 Y Y rs b
+
+/-- Boundary type validity restricts to a smaller signature prefix. -/
+theorem HITHyp2.mono {n m : ℕ} (h : HITHyp2 S n) (hm : m ≤ n) : HITHyp2 S m :=
+  ⟨h.toHITConHyp2, fun hd => h.bndTy (by omega)⟩
+
 
 end
 

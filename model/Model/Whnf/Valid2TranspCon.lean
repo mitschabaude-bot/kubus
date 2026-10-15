@@ -179,7 +179,7 @@ theorem valid_transpCon {ci : ℕ} {C : Ctor} {ps qs args T : Tm} {φ : I} {rs :
         exact h,
       hrecT := fun i hi hri k3 τ y y' hy hy' hE _ => by
         have hk := hLV.kanV hW (k3 + 1) ((c.restr hW τ.up.tail).cons y y' hy hy' hE)
-        rw [CSub2.cons_restr_L] at hk
+        rw [CSub2.cons_restr_L, isub_up_dinst _ _ _ hy] at hk
         exact KanT2.at (hk.2 k3 (Hom.id (k3 + 1)) _ _
           (lineRob_of_valid hW hLV c (k3 + 1) τ.up.tail y y' hy hy' hE)) _ _,
       conR := fun Y Y' hYl hY'l hcT he hargs =>

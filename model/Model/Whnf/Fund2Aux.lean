@@ -3,8 +3,8 @@ import Model.Whnf.Fund2Hyp
 /-!
 # Auxiliary lemmas for the binary fundamental lemma
 
-Transfer of related elements along chains of type equations (`ElTr2`), the computation rules whose
-closed instances come from the Kan oracle, `transpU` (a stable step), and Glue η from the validity of
+Transfer of related elements along chains of type equations (`ElTr2`), the computation rules using
+relation-carried Kan, `transpU` (a stable step), and Glue η from the validity of
 the Glue type alone.
 -/
 

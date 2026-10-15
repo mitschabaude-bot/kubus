@@ -1,12 +1,10 @@
 import Model.Whnf.Kan2DataHITInd3
 
 /-!
-# The binary Kan operations at the codes of inductive types
+# Binary Kan operations at inductive types' codes
 
-Composition and transport at all inductive types, at all pairs of types related at a restriction of the
-code `dataC Θ`, given the Kan properties of the argument types through the shape of `Θ` (`KanShape`, which
-follows from those at the argument types' codes by `kanShape_of`), and, for transport at higher inductive
-types with parameters, the hypotheses `HITHyp2`.
+Related inductive types carry Kan of their argument types at related prefixes. Transport at higher
+inductive types also uses constructor boundaries and boundary type validity at the declaration index.
 -/
 
 set_option autoImplicit false

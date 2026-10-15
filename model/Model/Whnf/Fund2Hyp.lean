@@ -9,10 +9,7 @@ derivations in a prefix `S'` of the signature `S`. It is parametrized by:
 
 - `DefHyp2 S S'`: the definitions of `S'` are related to themselves (outer induction on the
   signature);
-- `KanOracle2 S`: the Kan property of related types (`KanH2`, `KanT2`), to be discharged by the Kan
-  lemma by induction on codes (the computation rules of `transp`/`hcomp` are proven, from the typing
-  derivations of their contracta with validity, `Valid2Comp*.lean`, `Valid2LineEquiv.lean`,
-  `Valid2TranspGlue.lean`);
+- indexed boundary type validity, derived by the outer prefix induction from validity at the preceding prefix;
 - `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'` (formation, injectivity, `transpData0`, and the rules of types without path constructors are proven: `Valid2Data.lean`, `Valid2Elim.lean`, `Valid2TranspCon.lean`, `Valid2HcompCon.lean`);
 
 The `transpGlue` rule, whose reduct's `∀i. φ` commutes with substitution only up to equivalence, uses

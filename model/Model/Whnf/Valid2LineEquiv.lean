@@ -3,9 +3,8 @@ import Model.Whnf.Valid2CompGlue
 /-!
 # Validity of `lineEquiv` and of the `hcomp` computation rule in the universe
 
-The typing derivations of `KubusCore/Meta/KanU.lean`, with validity. Transport is only used at
-types of a fixed level `l` (`KTAt S l`), so that the relatedness of `lineEquiv` at level `l` can feed a
-level-stratified construction of composition in the universe.
+The typing derivations of `KubusCore/Meta/KanU.lean`, with validity. Transport obtains Kan from the
+validity of the line in its universe. The resulting equivalence supplies universe composition.
 -/
 
 set_option autoImplicit false

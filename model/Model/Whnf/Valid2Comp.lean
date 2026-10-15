@@ -7,7 +7,7 @@ A computation rule `redex ≡ contractum` is valid once the contractum is valid 
 the validity of the redex's components) and, where the face holds, related to the face reduct: at each
 restriction the redex reduces either to the contractum or, where the face holds, to the face reduct
 (`valid_comp_rule`). The contracta are built from Kan operations at the components' types, so their
-validity takes the Kan property of those (`KanOracle2.hcomp`, `KanOracle2.transp`).
+validity obtains their Kan operations from the corresponding universe premises.
 -/
 
 set_option autoImplicit false

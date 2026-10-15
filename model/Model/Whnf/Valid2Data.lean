@@ -764,10 +764,10 @@ theorem valid_con_nonHIT (hHIT : D.isHIT = false) {Ψ : ℕ} {Φ : I} {Γ : Ctx}
   have hPT : HasTy S k .one [] (.data d (c'.L ps)) (.univ D.level) := (RE2.typed hvdk.2).1
   have hPP : RT2 S k (.data d (c'.L ps)) (.data d (c'.L ps)) := by
     have := (RE2_univ_iff hW).1 hvdk.2
-    exact RT2.refl hW (tyCode_of_univ hW hPT) this.2.2
+    exact RT2.refl hW (tyCode_of_univ hW hPT) this.2.2.1
   refine ⟨?_, ?_⟩
   · have := (RE2_univ_iff hW).1 hvdk.2
-    have hX : RT2 S k (.data d (c'.L ps)) (.data d (c'.R ps)) := this.2.2
+    have hX : RT2 S k (.data d (c'.L ps)) (.data d (c'.R ps)) := this.2.2.1
     exact hX
   have hpc : (c'.L ps).closedB 0 k = true := by
     have := closed_of_ty hW hPT; simpa [Tm.closedB] using this
