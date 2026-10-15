@@ -68,7 +68,7 @@ theorem VEq.glueEl' {A T e t t' a a' : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped �
     (ht : VEq S Ψ (cof Φ φ) Γ t t' T) (ha : VEq S Ψ Φ Γ a a' A) :
     VEq S Ψ Φ Γ (.glueEl φ e t a) (.glueEl φ e t' a') (.glue A φ T e) := by
   have h := EqTm0.glueEl hg.ty hg'.ty (ent_refl _) (ent_refl _) (EqTm0.refl he.ty) ht.eq ha.eq
-  exact ⟨h, valid_glueEl_eq hW hφ (ent_refl _) (ent_refl _) hG.v (EqTm0.refl he.ty) ht.v ha.v hg.v hg'.v
+  exact ⟨h, valid_glueEl_eq hW hφ (ent_refl _) (ent_refl _) (fun k c => hG.v.ty hW c) (EqTm0.refl he.ty) ht.v ha.v hg.v hg'.v
     hg.ty hg'.ty h⟩
 
 theorem VEq.glueEta' {A T e g : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
@@ -76,7 +76,7 @@ theorem VEq.glueEta' {A T e g : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
     (hg : VTy S Ψ Φ Γ g (.glue A φ T e)) :
     VEq S Ψ Φ Γ g (.glueEl φ e g (.unglue φ e g)) (.glue A φ T e) := by
   have h := EqTm0.glueEta hg.ty
-  exact ⟨h, valid_glueEta_ty hW hφ hG.v he.ty hg.v hg.ty (presup hW h).2⟩
+  exact ⟨h, valid_glueEta_ty hW hφ he.ty hg.v hg.ty (presup hW h).2⟩
 
 theorem VTy.appFst' {e T A x : Tm} (he : VTy S Ψ Φ Γ e (Tm.equiv T A)) (hx : VTy S Ψ Φ Γ x T) :
     VTy S Ψ Φ Γ (.app (.fst e) x) A := by

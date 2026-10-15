@@ -1,3 +1,4 @@
+import Model.Whnf.Kan2UnivCode
 import Model.Whnf.Valid2CompSigma
 import Model.Whnf.Valid2CompPi
 import Model.Whnf.Valid2CompPath
@@ -60,7 +61,7 @@ theorem fund2_ty {Ψ Φ Γ t A} (hd : HasTy0 S' Ψ Φ Γ t A) :
   | .conv h0 h1 => valid_conv hW (fund2_ty h0) (fund2_eq h1)
   | .restrict _ h1 h2 => valid_restrict hW h1 (fund2_ty h2)
   | .const h0 h1 => valid_const hW (hpre _ _ h1) (hD _ _ _ h1) (sigwk_ty hpre (.const h0 h1))
-  | .univ h0 _ => valid_univ hW h0
+  | .univ h0 _ => valid_univ hW h0 (fun k _ => kanP2_univC hW)
   | .cumul h0 h1 => valid_cumul hW h0 (fund2_ty h1)
   | .pi h0 h1 => by
     have h := sigwk_ty hpre (.pi h0 h1)
@@ -98,12 +99,11 @@ theorem fund2_ty {Ψ Φ Γ t A} (hd : HasTy0 S' Ψ Φ Γ t A) :
     have h := sigwk_ty hpre (.transp h0 h1 h2 h3)
     have hA := fund2_ty h0
     exact valid_transp hW h1 (ent_refl _) (ent_refl _) hA (fund2_eq h2) (fund2_ty h3) h h (.refl h)
-      fun k c => hK.transp k _ _ (hA.ty hW (c.up hW))
   | .hcomp h0 h1 h2 h3 h4 => by
     have h := sigwk_ty hpre (.hcomp h0 h1 h2 h3 h4)
     have hA := fund2_ty h0
     exact valid_hcomp hW h1 (ent_refl _) (ent_refl _) hA (fund2_ty h2) (fund2_ty h3) (fund2_eq h4) (fund2_eq h4)
-      h h (.refl h) (.refl (sigwk_ty hpre h2)) fun k c => hK.hcomp k _ _ (hA.ty hW c)
+      h h (.refl h) (.refl (sigwk_ty hpre h2))
   | .glue h0 h1 h2 h3 => valid_glue hW h1 (fund2_ty h0) (fund2_ty h2) (fund2_ty h3) (sigwk_ty hpre (.glue h0 h1 h2 h3))
   | .glueEl h0 h1 h2 h3 h4 => by
     obtain ⟨_, ⟨-, hφ, -, -⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) (sigwk_ty hpre h0) rfl
@@ -514,7 +514,7 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     obtain ⟨_, hφ, -, hC, -⟩ := fund2_transpInv h0 rfl
     have hA := fund2_eq h2
     exact valid_transp hW hφ h3 h4 hA hC (fund2_eq h5) (sigwk_ty hpre h0) (sigwk_ty hpre h1)
-      (sigwk_eq hpre (.transp h0 h1 h2 h3 h4 h5)) fun k c => hK.transp k _ _ (hA.ty hW (c.up hW))
+      (sigwk_eq hpre (.transp h0 h1 h2 h3 h4 h5))
   | .hcomp h0 h1 h2 h3 h4 h5 h6 => by
     obtain ⟨_, hφ, -, -, -, hu0, -⟩ := fund2_hcompInv h0 rfl
     obtain ⟨_, -, -, -, -, hu0', -⟩ := fund2_hcompInv h1 rfl
@@ -522,7 +522,7 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     have hu0'' := valid_conv hW (valid_restrict hW (ent_and_mono (ent_refl _) h3) hu0')
       (valid_restrict hW (ent_and_left _ _) (valid_symm hW hA))
     exact valid_hcomp hW hφ h3 h4 hA (fund2_eq h5) (fund2_eq h6) hu0 hu0'' (sigwk_ty hpre h0) (sigwk_ty hpre h1)
-      (sigwk_eq hpre (.hcomp h0 h1 h2 h3 h4 h5 h6)) (sigwk_eq hpre h5) fun k c => hK.hcomp k _ _ (hA.ty hW c)
+      (sigwk_eq hpre (.hcomp h0 h1 h2 h3 h4 h5 h6)) (sigwk_eq hpre h5)
   | .glue h0 h1 h2 h3 h4 h5 h6 => by
     obtain ⟨_, ⟨-, hφ, -, -⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) (sigwk_ty hpre h0) rfl
     obtain ⟨_, ⟨-, hφ', -, -⟩, -⟩ := gen_glue (sigClosed_of_wfSig hW) (sigwk_ty hpre h1) rfl
@@ -591,24 +591,24 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
   | .transpFace h0 h1 => valid_transpFace hW h0 (fund2_ty h1) (sigwk_ty hpre h1) (pre2 hW hpre (.transpFace h0 h1)).2
   | .hcompFace h0 h1 => valid_hcompFace hW h0 (fund2_ty h1) (sigwk_ty hpre h1) (pre2 hW hpre (.hcompFace h0 h1)).2
   | .transpU h0 => valid_transpU hW (fund2_ty h0) (sigwk_ty hpre h0) (pre2 hW hpre (.transpU h0)).2
-  | .transpPi h0 => valid_transpPi_rule hW hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
-  | .transpSigma h0 => valid_transpSigma_rule hW hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
+  | .transpPi h0 => valid_transpPi_rule hW (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
+  | .transpSigma h0 => valid_transpSigma_rule hW (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
   | .transpPath h0 =>
-    valid_transpPath_rule hW hK.hcomp hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
+    valid_transpPath_rule hW (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
   | .transpGlue h0 _ _ h3 h4 h5 =>
-    valid_transpGlue_rule hW hK.hcomp hK.transp hN (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
+    valid_transpGlue_rule hW hN (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
       (fund2_transpGlueInv h0 rfl) h3 h4 h5
-  | .transpIPi h0 => valid_transpIPi_rule hW hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
-  | .hcompIPi h0 => valid_hcompIPi_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
-  | .hcompPi h0 => valid_hcompPi_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
+  | .transpIPi h0 => valid_transpIPi_rule hW (sigwk_ty hpre h0) (fund2_ty h0) (fund2_transpInv h0 rfl)
+  | .hcompIPi h0 => valid_hcompIPi_rule hW (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
+  | .hcompPi h0 => valid_hcompPi_rule hW (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .hcompSigma h0 =>
-    valid_hcompSigma_rule hW hK.hcomp hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
+    valid_hcompSigma_rule hW (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .hcompPath h0 =>
-    valid_hcompPath_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
+    valid_hcompPath_rule hW (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .hcompGlue h0 _ _ =>
-    valid_hcompGlue_rule hW hK.hcomp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl) (fund2_hcompGlueInv h0 rfl)
+    valid_hcompGlue_rule hW (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl) (fund2_hcompGlueInv h0 rfl)
   | .hcompU h0 =>
-    valid_hcompU_rule hW hK.transp (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
+    valid_hcompU_rule hW (sigwk_ty hpre h0) (fund2_ty h0) (fund2_hcompInv h0 rfl)
   | .glueFace h0 h1 => valid_glueFace hW h0 (fund2_ty h1) (sigwk_ty hpre h1) (pre2 hW hpre (.glueFace h0 h1)).2
   | .glueElFace h0 h1 =>
     valid_glueElFace hW h0 (fund2_ty h1) (sigwk_ty hpre h1) (pre2 hW hpre (.glueElFace h0 h1)).2

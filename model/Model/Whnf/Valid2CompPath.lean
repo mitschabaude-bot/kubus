@@ -26,13 +26,19 @@ variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
 theorem valid_pathLine {L a b : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.path L a b) (.path L a b) (.univ l))
     (hL : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift L (.univ l)) : Valid2 S (Ψ + 1) Φ.shift Γ.dshift L L (.univ l) := by
-  refine valid_univ_of hW hL hL (EqTm0.refl hL) fun k c => ?_
-  have hh := (RT2_path_inv hW (h.ty hW c.dtail)).2.1 _ _ (c.σ.sc 0 (by omega)) (c.σ'.sc 0 (by omega)) (c.hσ 0)
-  simp only [CSub2.L, CSub2.R, CSub2.dtail] at hh ⊢
-  rw [dup_dinst, dup_dinst] at hh
-  have e1 : consI (c.σ.τ 0) c.σ.tail.τ = c.σ.τ := consI_tail c.σ
-  have e2 : consI (c.σ'.τ 0) c.σ'.tail.τ = c.σ'.τ := consI_tail c.σ'
-  rwa [e1, e2] at hh
+  refine valid_univ_of hW hL hL (EqTm0.refl hL) (fun k c => ?_) (fun k c => ?_)
+  ·
+    have hh := (RT2_path_inv hW (h.ty hW c.dtail)).2.1 _ _ (c.σ.sc 0 (by omega)) (c.σ'.sc 0 (by omega)) (c.hσ 0)
+    simp only [CSub2.L, CSub2.R, CSub2.dtail] at hh ⊢
+    rw [dup_dinst, dup_dinst] at hh
+    have e1 : consI (c.σ.τ 0) c.σ.tail.τ = c.σ.τ := consI_tail c.σ
+    have e2 : consI (c.σ'.τ 0) c.σ'.tail.τ = c.σ'.τ := consI_tail c.σ'
+    rwa [e1, e2] at hh
+  ·
+    have hh := RT2_path_dinst_kan hW (h.ty hW c.dtail) (c.σ.τ 0) (c.σ.sc 0 (by omega))
+    simp only [CSub2.L, CSub2.dtail] at hh ⊢
+    rw [dup_dinst] at hh
+    rwa [consI_tail c.σ] at hh
 
 /-- The line, left and right endpoints of a typed and valid path type. -/
 theorem VTy.pathParts {L a b : Tm} {l : ℕ} (h : VTy S Ψ Φ Γ (.path L a b) (.univ l)) :
