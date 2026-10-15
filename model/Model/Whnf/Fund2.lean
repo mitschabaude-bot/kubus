@@ -531,7 +531,7 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
   | .glueEl h0 h1 h2 h3 h4 h5 h6 => by
     have g0 := fund2_ty h0
     obtain ⟨l, hGt, hφ, -⟩ := glue_ty_of_el hW (sigwk_ty hpre h0)
-    exact valid_glueEl_eq hW hφ h2 h3 (valid_ty_of hW g0 hGt) (sigwk_eq hpre h4) (fund2_eq h5) (fund2_eq h6) g0
+    exact valid_glueEl_eq hW hφ h2 h3 (fun k c => (g0 k c).1) (sigwk_eq hpre h4) (fund2_eq h5) (fund2_eq h6) g0
       (fund2_ty h1) (sigwk_ty hpre h0) (sigwk_ty hpre h1) (sigwk_eq hpre (.glueEl h0 h1 h2 h3 h4 h5 h6))
   | .unglue h0 h1 h2 h3 h4 h5 => by
     obtain ⟨_, -, hφ, -⟩ := glue_ty_of_el hW (pre2 hW hpre h5).1
@@ -628,7 +628,7 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
   | .glueEta h0 => by
     have g0 := fund2_ty h0
     obtain ⟨l, hGt, hφ, he0⟩ := glue_ty_of_el hW (sigwk_ty hpre h0)
-    exact valid_glueEta_ty hW hφ (valid_ty_of hW g0 hGt) he0 g0 (sigwk_ty hpre h0) (pre2 hW hpre (.glueEta h0)).2
+    exact valid_glueEta_ty hW hφ he0 g0 (sigwk_ty hpre h0) (pre2 hW hpre (.glueEta h0)).2
   | .data h0 h1 h2 h3 => by
     have a3 := fund2_eqtele h3
     have hd := (List.getElem?_eq_some_iff.1 h0).1

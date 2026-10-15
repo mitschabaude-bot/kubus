@@ -136,9 +136,9 @@ theorem valid_glue_eq {A A' T T' e e' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Sco
   exact (holds_iff_entails (I.scoped_subst hφR σ.sc)).2 (ent_trans h1 (ent_subst e12 σ.τ))
 
 
-theorem valid_glueEl_core {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+theorem valid_glueEl_core {A T e e' t t' a a' : Tm} {φ φ' : I} (hφ : φ.Scoped Ψ)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)
-    (hG : Valid2 S Ψ Φ Γ (.glue A φ T e) (.glue A φ T e) (.univ l))
+    (hG : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L (.glue A φ T e)) (c.R (.glue A φ T e)))
     (hee : EqTm0 S Ψ (cof Φ φ) Γ e' e (Tm.equiv T A))
     (ht : Valid2 S Ψ (cof Φ φ) Γ t t' T) (ha : Valid2 S Ψ Φ Γ a a' A)
     (hat : ∀ k (c : CSub2 S Ψ Φ Γ k), ¬ (ival (idEnv k) (φ.subst c.σ.τ)).holds → ∀ k' (σ : ISub k' k),
@@ -152,8 +152,10 @@ theorem valid_glueEl_core {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ 
     (heq : EqTm0 S Ψ Φ Γ (.glueEl φ e t a) (.glueEl φ' e' t' a') (.glue A φ T e)) :
     Valid2 S Ψ Φ Γ (.glueEl φ e t a) (.glueEl φ' e' t' a') (.glue A φ T e) := by
   intro k c
-  refine ⟨hG.ty hW c, ?_⟩
-  have hGt : HasTy S k .one [] (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) (.univ l) := (RE2.typed (hG k c).2).1
+  refine ⟨hG k c, ?_⟩
+  obtain ⟨lG, hGt | hBad⟩ := (Comp2_ty_base (hG k c)).2.1
+  swap
+  · cases hBad
   have hgL : HasTy S k .one [] (.glueEl (φ.subst c.σ.τ) (c.L e) (c.L t) (c.L a))
       (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) := c.ty hW hty
   have hgR : HasTy S k .one [] (.glueEl (φ'.subst c.σ'.τ) (c.R e') (c.R t') (c.R a'))
@@ -164,7 +166,7 @@ theorem valid_glueEl_core {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ 
   have e21 : I.Entails (φ'.subst c.σ'.τ) (φ.subst c.σ.τ) :=
     ent_trans (eq_ent (I_eq_symm (c.ieq_subst (I_eq_refl φ')))) (ent_subst h21 c.σ.τ)
   have hGG : RT2 S k (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) :=
-    hG.ty hW (c.diagL hW)
+    hG k (c.diagL hW)
   by_cases hh : (ival (idEnv k) (φ.subst c.σ.τ)).holds
   · -- the face holds: both sides are their fibers
     have hφe := (holds_iff_entails hφL).1 hh
@@ -216,7 +218,7 @@ theorem valid_glueEl {A T e t a : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
     (hat : Valid2 S Ψ (cof Φ φ) Γ (.app (.fst e) t) a A) (hty : HasTy0 S Ψ Φ Γ (.glueEl φ e t a) (.glue A φ T e)) :
     Valid2 S Ψ Φ Γ (.glueEl φ e t a) (.glueEl φ e t a) (.glue A φ T e) := by
   have hat0 := glue_hat_of_valid hW hφ hG hat
-  refine valid_glueEl_core hW hφ (ent_refl _) (ent_refl _) hG (EqTm0.refl he0) ht ha hat0 (fun k c hh k' σ hh' => ?_)
+  refine valid_glueEl_core hW hφ (ent_refl _) (ent_refl _) (fun k c => hG.ty hW c) (EqTm0.refl he0) ht ha hat0 (fun k c hh k' σ hh' => ?_)
     hty hty (EqTm0.refl hty)
   -- the right instance of `a`, related to the left instance of the fiber image
   have h1 := hat0 k c hh k' σ hh'
@@ -236,9 +238,9 @@ theorem valid_glueEl {A T e t a : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
   have h3 := RE2_equiv_app hW (hinv.2 k' σ hh').2 htσ
   exact RE2.trans hW hAσ (RE2.symm hW hAσ haσ) (RE2.trans hW hAσ h1 h3)
 
-theorem valid_glueEl_eq {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+theorem valid_glueEl_eq {A T e e' t t' a a' : Tm} {φ φ' : I} (hφ : φ.Scoped Ψ)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)
-    (hG : Valid2 S Ψ Φ Γ (.glue A φ T e) (.glue A φ T e) (.univ l))
+    (hG : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L (.glue A φ T e)) (c.R (.glue A φ T e)))
     (hee : EqTm0 S Ψ (cof Φ φ) Γ e e' (Tm.equiv T A))
     (ht : Valid2 S Ψ (cof Φ φ) Γ t t' T) (ha : Valid2 S Ψ Φ Γ a a' A)
     (hg : Valid2 S Ψ Φ Γ (.glueEl φ e t a) (.glueEl φ e t a) (.glue A φ T e))
@@ -251,8 +253,9 @@ theorem valid_glueEl_eq {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ : 
     (fun k c hh k' σ hh' => ?_) hty hty' heq
   all_goals
     have hφL := I.scoped_subst hφ c.σ.sc
-    have hGt : HasTy S k .one [] (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) (.univ l) :=
-      (RE2.typed (hG k c).2).1
+    obtain ⟨lG, hGt | hBad⟩ := (Comp2_ty_base (hG k c)).2.1
+    swap
+    · cases hBad
     have hn : ¬ I.Entails .one (φ.subst c.σ.τ) := fun h => hh ((holds_iff_entails hφL).2 h)
     have e12 : I.Entails (φ.subst c.σ.τ) (φ'.subst c.σ'.τ) :=
       ent_trans (ent_subst h12 c.σ.τ) (eq_ent (c.ieq_subst (I_eq_refl φ')))

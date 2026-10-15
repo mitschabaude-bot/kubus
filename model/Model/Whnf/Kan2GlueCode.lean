@@ -123,21 +123,21 @@ theorem kanP2_glueT {A T e : Tm} {φ : I} {l : ℕ}
     rw [show semK S k (.univ lA) = univC k lA from rfl, El_univC] at hm
     exact (ZFSet.mem_sep.1 hm).2
   have hNat := (cond_of_sem_glue (semK_ne hW hG)).1
-  have hTK' : ∀ k' (f : Hom k' k), ((ival (idEnv k) φ).face.restr f).holds →
+  have hTK' : ∀ k' (f : Hom k' k), (Cof.restr (ival (idEnv k) φ).face f).holds →
       KanP2 S k' (dat (partialKV k (ival (idEnv k) φ).face (faceVals S T (idEnv k) (γ0 k))) k' f) := by
     intro k' f hf
-    have hf' : ((ival (idEnv k) φ).face.restr (ISub.ofHom f).hom).holds := by
+    have hf' : (Cof.restr (ival (idEnv k) φ).face (ISub.ofHom f).hom).holds := by
       rwa [ISub.ofHom_hom]
     have ht := hTK k' (ISub.ofHom f) ((face_holds_iff hφ _).1 hf')
     rwa [← dat_glue_fiber _ hf', ISub.ofHom_hom] at ht
   rw [semK_glueT hW hG]
   refine kanP2_glueC hW hAw (isCof_ival_face _ _) ?_ ?_ hAK hTK'
   · intro k' f hf n g
-    rw [dat_partialKV_holds hf, dat_partialKV_holds ((isCof_ival_face _ _).mono hf g)]
+    rw [dat_partialKV_holds hf, dat_partialKV_holds (by rw [← Cof.restr_restr]; exact ((isCof_ival_face _ _).restr f).holds_restr hf g)]
     have ht := hNat k' f hf n g
     simpa only [faceVals, IEnv.restr_restr, TEnv.restr_restr] using ht.symm
   · intro k' f hf
-    have hf' : ((ival (idEnv k) φ).face.restr (ISub.ofHom f).hom).holds := by
+    have hf' : (Cof.restr (ival (idEnv k) φ).face (ISub.ofHom f).hom).holds := by
       rwa [ISub.ofHom_hom]
     obtain ⟨lT, hT, -⟩ := glue_fiber_ty hW hG (ISub.ofHom f) ((face_holds_iff hφ _).1 hf')
     have ht := kv_semK_of_univ hW hT

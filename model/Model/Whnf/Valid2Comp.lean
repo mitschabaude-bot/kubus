@@ -75,29 +75,40 @@ theorem CSub2.head_rel {A : Tm} (c : CSub2 S Ψ Φ (A :: Γ) k) :
 
 theorem valid_piDom {A B : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.pi A B) (.pi A B) (.univ l))
     (hA : HasTy0 S Ψ Φ Γ A (.univ l)) : Valid2 S Ψ Φ Γ A A (.univ l) :=
-  valid_univ_of hW hA hA (EqTm0.refl hA) fun k c => (RT2_pi_inv hW (h.ty hW c)).1
+  valid_piInjDom hW h hA hA (EqTm0.refl hA)
 
 theorem valid_piCod {A B : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.pi A B) (.pi A B) (.univ l))
     (hB : HasTy0 S Ψ Φ (A :: Γ) B (.univ l)) : Valid2 S Ψ Φ (A :: Γ) B B (.univ l) := by
-  refine valid_univ_of hW hB hB (EqTm0.refl hB) fun k c => ?_
-  have hh := (RT2_pi_inv hW (h.ty hW (c.ren (· + 1) lookup_shift_ren))).2 _ _ c.head_rel
-  simp only [CSub2.ren, subst_up_inst_eq, consT_succ_eq] at hh
-  exact hh
+  refine valid_univ_of hW hB hB (EqTm0.refl hB) (fun k c => ?_) (fun k c => ?_)
+  ·
+    have hh := (RT2_pi_inv hW (h.ty hW (c.ren (· + 1) lookup_shift_ren))).2 _ _ c.head_rel
+    simp only [CSub2.ren, subst_up_inst_eq, consT_succ_eq] at hh
+    exact hh
+  ·
+    have hh := (RT2_pi_kan hW (h.ty hW (c.ren (· + 1) lookup_shift_ren))).2 _ _ c.head_rel
+    simp only [CSub2.ren, subst_up_inst_eq, consT_succ_eq] at hh
+    exact hh
 
 theorem valid_sigmaDom {A B : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.sigma A B) (.sigma A B) (.univ l))
     (hA : HasTy0 S Ψ Φ Γ A (.univ l)) : Valid2 S Ψ Φ Γ A A (.univ l) :=
-  valid_univ_of hW hA hA (EqTm0.refl hA) fun k c => (RT2_sigma_inv hW (h.ty hW c)).1
+  valid_sigmaInjDom hW h hA hA (EqTm0.refl hA)
 
 theorem valid_sigmaCod {A B : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.sigma A B) (.sigma A B) (.univ l))
     (hB : HasTy0 S Ψ Φ (A :: Γ) B (.univ l)) : Valid2 S Ψ Φ (A :: Γ) B B (.univ l) := by
-  refine valid_univ_of hW hB hB (EqTm0.refl hB) fun k c => ?_
-  have hh := (RT2_sigma_inv hW (h.ty hW (c.ren (· + 1) lookup_shift_ren))).2 _ _ c.head_rel
-  simp only [CSub2.ren, subst_up_inst_eq, consT_succ_eq] at hh
-  exact hh
+  refine valid_univ_of hW hB hB (EqTm0.refl hB) (fun k c => ?_) (fun k c => ?_)
+  ·
+    have hh := (RT2_sigma_inv hW (h.ty hW (c.ren (· + 1) lookup_shift_ren))).2 _ _ c.head_rel
+    simp only [CSub2.ren, subst_up_inst_eq, consT_succ_eq] at hh
+    exact hh
+  ·
+    have hh := (RT2_sigma_kan hW (h.ty hW (c.ren (· + 1) lookup_shift_ren))).2 _ _ c.head_rel
+    simp only [CSub2.ren, subst_up_inst_eq, consT_succ_eq] at hh
+    exact hh
 
 /-! ### The endpoint of a tube -/
 
 /-- The end of a valid tube. -/
+
 theorem valid_tube_end {u A : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ) (r : I) (hr : r.Scoped Ψ)
     (hu : Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u u A.dshift)
     (hut : HasTy0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift) (hA : HasTy0 S Ψ Φ Γ A (.univ l)) :
@@ -233,13 +244,23 @@ theorem consI_tail (σ : ISub k (Ψ + 1)) : consI (σ.τ 0) σ.tail.τ = σ.τ :
 
 theorem valid_ipiLine {A : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.ipi A) (.ipi A) (.univ l))
     (hA : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (.univ l)) : Valid2 S (Ψ + 1) Φ.shift Γ.dshift A A (.univ l) := by
-  refine valid_univ_of hW hA hA (EqTm0.refl hA) fun k c => ?_
-  have hh := (RT2_ipi_inv hW (h.ty hW c.dtail)).2 _ _ (c.σ.sc 0 (by omega)) (c.σ'.sc 0 (by omega)) (c.hσ 0)
-  simp only [CSub2.L, CSub2.R, CSub2.dtail] at hh ⊢
-  rw [dup_dinst, dup_dinst] at hh
-  have e1 : consI (c.σ.τ 0) c.σ.tail.τ = c.σ.τ := consI_tail c.σ
-  have e2 : consI (c.σ'.τ 0) c.σ'.tail.τ = c.σ'.τ := consI_tail c.σ'
-  rwa [e1, e2] at hh
+  refine valid_univ_of hW hA hA (EqTm0.refl hA) (fun k c => ?_) (fun k c => ?_)
+  ·
+    have hh := (RT2_ipi_inv hW (h.ty hW c.dtail)).2 _ _ (c.σ.sc 0 (by omega)) (c.σ'.sc 0 (by omega)) (c.hσ 0)
+    simp only [CSub2.L, CSub2.R, CSub2.dtail] at hh ⊢
+    rw [dup_dinst, dup_dinst] at hh
+    have e1 : consI (c.σ.τ 0) c.σ.tail.τ = c.σ.τ := consI_tail c.σ
+    have e2 : consI (c.σ'.τ 0) c.σ'.tail.τ = c.σ'.τ := consI_tail c.σ'
+    rwa [e1, e2] at hh
+  
+  ·
+    have hh := RT2_ipi_dinst_kan hW (h.ty hW c.dtail) (c.σ.τ 0) (c.σ.sc 0 (by omega))
+    simp only [CSub2.L, CSub2.R, CSub2.dtail] at hh ⊢
+    rw [dup_dinst] at hh
+    have e1 : consI (c.σ.τ 0) c.σ.tail.τ = c.σ.τ := consI_tail c.σ
+    have e2 : consI (c.σ'.τ 0) c.σ'.tail.τ = c.σ'.τ := consI_tail c.σ'
+    rwa [e1] at hh
+  
 
 /-! ### `hcomp` in `(i : I) → A` -/
 
