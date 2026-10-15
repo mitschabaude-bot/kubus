@@ -87,3 +87,4 @@ import Model.Whnf.Valid2ElimH1
 import Model.Whnf.Valid2ElimH2
 import Model.Whnf.Valid2ElimH3
 import Model.Whnf.Valid2ElimH4
+import Model.Whnf.Valid2ElimH5
