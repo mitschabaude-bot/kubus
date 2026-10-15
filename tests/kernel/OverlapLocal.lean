@@ -90,4 +90,19 @@ theorem different_heads : ¬ TmNear left right := by
 
 #print axioms overlap_eq
 
+-- P12 accepts the unsplit overlap by comparing its two DNF faces separately.
+#guard decide (Boundary.Agree D.ctors 0 0 0 4 overlap left right)
+
+/-- Normalization substitutes already normalized recursive arguments when unfolding a boundary. -/
+def WrapD : DataDecl :=
+  { level := 0, params := [], ctors :=
+      [{ args := [], dims := 0, bnd := [] },
+       { args := [.recur], dims := 1, bnd := [(.one, .var 0)] },
+       { args := [.recur], dims := 2,
+         bnd := [(.neg (.var 1), .con 0 1 .tnil
+           (Tm.ofList [.con 0 1 .tnil (Tm.ofList [.var 0]) [.var 1]]) [.var 0]),
+           (.neg (.var 0), .var 0)] }] }
+
+#guard (checkSig [.data WrapD]).toBool
+
 end OverlapLocal

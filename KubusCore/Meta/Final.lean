@@ -147,7 +147,7 @@ theorem wfSig_of_wfSig0 (h : WfSig0 S) : WfSig S := by
     · obtain ⟨a, b, e⟩ := hp j A hj
       exact ⟨a, b, e.elim (fun e => .inl (toFull_ty e)) .inr⟩
     · obtain ⟨ha, hb, ho⟩ := hc c C hC
-      refine ⟨fun k A hk => ?_, fun k ψ b hk => ?_, fun k k' ψ ψ' b b' h1 h2 => toFull_eq (ho k k' ψ ψ' b b' h1 h2)⟩
+      refine ⟨fun k A hk => ?_, fun k ψ b hk => ?_, ho⟩
       · obtain ⟨a1, a2, a3, a4, a5⟩ := ha k A hk
         exact ⟨a1, a2, a3, toFull_ty a4, toFull_ty a5⟩
       · obtain ⟨b1, b2, b3, b4, b5⟩ := hb k ψ b hk
