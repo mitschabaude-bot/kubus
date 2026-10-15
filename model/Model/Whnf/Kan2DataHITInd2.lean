@@ -136,7 +136,7 @@ theorem whnf_data {k3 : ℕ} (ρ' : ISub k3 K) {x x' : Tm} (h : RE2 S k3 (.data 
   have hDR := DR2.at_id hW (Θ := ΘK S D d K P) ((RE2_dataLit_iff hW hD hP ρ').1 h).2
   rcases DR2At_cases hW hD hP hPP ρ' hDR with
     ⟨c, C, qs, Z, rs, qs', Z', rs', hC, hZl, hZ'l, hr, -, hrsl, hrsl', hreq, -, -, hZ⟩ |
-    ⟨qs, χ, u, a, qs', χ', u', a', -, hr, hr', hχs, -, -, -, haa, hu⟩
+    ⟨qs, χ, u, a, qs', χ', u', a', -, hr, hr', hχs, -, -, -, haa, hu, hb, hb'⟩
   · have hf : firstBnd C.bnd rs = none := by
       have := hr.1.2; simp [IsWhnf, step, hD, hC] at this; exact this
     have hWW : RE2 S k3 (.data d (P.isub ρ')) (.con d c qs (Tm.ofList Z) rs) (.con d c qs (Tm.ofList Z) rs) :=
@@ -158,7 +158,7 @@ theorem whnf_data {k3 : ℕ} (ρ' : ISub k3 K) {x x' : Tm} (h : RE2 S k3 (.data 
         show Tm.data d ((P.isub ρ').isub σ) = _; rw [Tm.isub_isub]]
       exact RE2.trans hW (hT σ) h1 (RE2.symm hW (hT σ) h1)
     have hWW := hcomp_relD hW hD hH hP hPP ρ' hty hty (EqTm.refl hty) (ent_refl _) (ent_refl _) tS tS tS
-      (RE2.trans hW hPρ haa (RE2.symm hW hPρ haa))
+      (RE2.trans hW hPρ haa (RE2.symm hW hPρ haa)) hb hb
     exact ⟨_, hr, .inr ⟨qs, χ, u, a, rfl, hχ⟩, hWW, RE2_whnf hW hD hP hPP ρ' h hr hWW⟩
 
 end whnf
@@ -180,7 +180,8 @@ theorem hcomp_faceH {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Scoped (k1 + 1))
     (hU : ∀ k' (σ : ISub k' k1) (r : I), r.Scoped k' → (ival (idEnv k') (χ.subst σ.τ)).holds →
       RE2 S k' ((((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .zero).isub σ) ((u.isub σ.up).dinst r)
         ((u.isub σ.up).dinst r))
-    (hA : RE2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .zero) a a) :
+    (hA : RE2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .zero) a a)
+    (hB : HcompBnd2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .zero) χ u a) :
     RE2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one)
       (tHc d (P.isub (ISub.cons y hy ρ.up.tail)) ψ χ u a) (.hcomp (.data d qs) χ u a) := by
   have hPP1 := PP1 hW hD hp hP  hRL
@@ -247,9 +248,18 @@ theorem hcomp_faceH {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Scoped (k1 + 1))
   have hst := stable_transpFace hW hψ (minimal_to_spec hta)
   have hA1 := RE2.conv hW conv01' hA
   have haa := RE2.expandL hW (RT2.refl' hW (RE2.tyCode hW hA) conv01') (minimal_to_spec hta) (RE2.typed hA1).1 hst hA1
+  have hbr : HcompBnd2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one) χ u a :=
+    fun k' σ hh => RE2.conv hW (conv01 σ) (hB k' σ hh)
+  have hbl : HcompBnd2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one) χ
+      (.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u)
+      (.transp ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ a) := by
+    intro k' σ hh
+    have hT1 := RT2.refl' hW (RE2.tyCode hW (hU k' σ .zero trivial hh)) (conv01 σ)
+    exact RE2.trans hW hT1 (htube k' σ .zero trivial hh)
+      (RE2.trans hW hT1 (hbr k' σ hh) (RE2.symm hW hT1 (RE2.isub hW haa σ)))
   have eE := lineP_dinst hW hD hp hP  hRL ρ y hy .one trivial
-  rw [eE] at htH htube tS tS' haa hWty1 heqHW ⊢
-  exact hcomp_relD hW hD hH hP hPP1 _ htH hWty1 heqHW (ent_refl _) (ent_refl _) htube tS tS' haa
+  rw [eE] at htH htube tS tS' haa hWty1 heqHW hbl hbr ⊢
+  exact hcomp_relD hW hD hH hP hPP1 _ htH hWty1 heqHW (ent_refl _) (ent_refl _) htube tS tS' haa hbl hbr
 
 /-- The data of the transport of a constructor normal form along a line, with itself. -/
 theorem tc_node (hyp : HITHyp2 S (d + 1)) {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Scoped (k1 + 1))

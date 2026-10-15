@@ -52,10 +52,12 @@ theorem DR2.rebase {k : ℕ} {f' : Hom k k0} {A t t' : Tm}
     · unfold dataMem at hm ⊢; rwa [Hom.comp_assoc]
     · unfold dataMem at hm' ⊢; rwa [Hom.comp_assoc]
     · have := hpt j hj hj' hr; unfold dataP2 at this ⊢; rwa [Hom.comp_assoc]
-  · intro k f' A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu k1 h g e
+  · intro k f' A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb' iha ihu ihb ihb' k1 h g e
     subst e
     refine .hcomp ?_ ?_ heq hH hA hpl ht ht' hs hs' h12 h21 (iha h g rfl)
       (fun k' σ r hr hh => ihu k' σ r hr hh h _ (by rw [Hom.comp_assoc]))
+      (fun k' σ hh => ihb k' σ hh h _ (by rw [Hom.comp_assoc]))
+      (fun k' σ hh => ihb' k' σ hh h _ (by rw [Hom.comp_assoc]))
     · unfold dataMem at hm ⊢; rwa [Hom.comp_assoc]
     · unfold dataMem at hm' ⊢; rwa [Hom.comp_assoc]
 
@@ -75,11 +77,13 @@ theorem DR2.unbase {k k1 : ℕ} {h : Hom k1 k0} {g : Hom k k1} {A t t' : Tm}
     · unfold dataMem at hm ⊢; rwa [← Hom.comp_assoc]
     · unfold dataMem at hm' ⊢; rwa [← Hom.comp_assoc]
     · have := hpt j hj hj' hr; unfold dataP2 at this ⊢; rwa [← Hom.comp_assoc]
-  · intro k g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu
-    refine .hcomp ?_ ?_ heq hH hA hpl ht ht' hs hs' h12 h21 iha (fun k' σ r hr hh => ?_)
+  · intro k g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb' iha ihu ihb ihb'
+    refine .hcomp ?_ ?_ heq hH hA hpl ht ht' hs hs' h12 h21 iha (fun k' σ r hr hh => ?_) (fun k' σ hh => ?_) (fun k' σ hh => ?_)
     · unfold dataMem at hm ⊢; rwa [← Hom.comp_assoc]
     · unfold dataMem at hm' ⊢; rwa [← Hom.comp_assoc]
     · have := ihu k' σ r hr hh; simp only at this; rwa [Hom.comp_assoc]
+    · have := ihb k' σ hh; simp only at this; rwa [Hom.comp_assoc]
+    · have := ihb' k' σ hh; simp only at this; rwa [Hom.comp_assoc]
 
 end
 

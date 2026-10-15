@@ -77,8 +77,12 @@ def TMch (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : H
   (∀ (qs : Tm) (χ : I) (u a qs' : Tm) (χ' : I) (u' a' : Tm),
     RedE S k1 A v (.hcomp (.data d qs) χ u a) → RedE S k1 A v' (.hcomp (.data d qs') χ' u' a') →
     TM1H S d D K P k1 g (.data d ps) a a' ∧
-    ∀ k' (σ : ISub k' k1) (r : I), r.Scoped k' → (ival (idEnv k') (χ.subst σ.τ)).holds →
-      TM1H S d D K P k' (g.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r))
+    (∀ k' (σ : ISub k' k1) (r : I), r.Scoped k' → (ival (idEnv k') (χ.subst σ.τ)).holds →
+      TM1H S d D K P k' (g.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r)) ∧
+    (∀ k' (σ : ISub k' k1), (ival (idEnv k') (χ.subst σ.τ)).holds →
+      TM1H S d D K P k' (g.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst .zero) (a.isub σ)) ∧
+    (∀ k' (σ : ISub k' k1), (ival (idEnv k') (χ'.subst σ.τ)).holds →
+      TM1H S d D K P k' (g.comp σ.hom) ((Tm.data d ps).isub σ) ((u'.isub σ.up).dinst .zero) (a'.isub σ)))
 
 /-- The motive at one stage. -/
 def TM2H (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom k1 K) (A v v' : Tm) : Prop :=
@@ -242,6 +246,41 @@ theorem tm2_conH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' : Tm} {c : ℕ} {C 
   exact H.rel
 
 omit hyp in
+/-- The transport induction hypothesis applied to a related pair at one point. -/
+theorem tm1h_transp_point {k1 : ℕ} (ρ : ISub k1 K) {Q : Tm} (hQ : Rob S d K P Q)
+    (y y' : I) (hy : y.Scoped (k1 + 1)) (hy' : y'.Scoped (k1 + 1)) (hE : I.Eq y y')
+    (h0 : I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k1)).τ) .zero)
+    (ψ ψ' : I) (h12 : I.Entails ψ ψ') (h21 : I.Entails ψ' ψ)
+    (LC : LineConst S k1 ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ)
+    {b b' : Tm} (hb : RE2 S k1 (.data d ((P.dinst .zero).isub ρ)) b b')
+    (ihb : TM1H S d D K P k1 ρ.hom (.data d ((P.dinst .zero).isub ρ)) b b')
+    (ht : HasTy S k1 .one [] (.transp ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ b)
+      (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one))
+    (ht' : HasTy S k1 .one [] (.transp ((Tm.data d Q).isub (ISub.cons y' hy' ρ.up.tail)) ψ' b')
+      (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one)) :
+    RE2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one)
+      (.transp ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ b)
+      (.transp ((Tm.data d Q).isub (ISub.cons y' hy' ρ.up.tail)) ψ' b') := by
+  have K0 := ihb.1 ρ rfl rfl Q hQ k1 (ISub.id k1) y y' hy hy' hE h0
+  rw [ISub.comp_id, isub_id_of_closed (closed_of_ty hW (RE2.typed hb).1),
+    isub_id_of_closed (closed_of_ty hW (RE2.typed hb).2.1)] at K0
+  have rel0 : RT2 S k1 (.data d ((P.dinst .zero).isub ρ))
+      (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .zero) := by
+    rw [lineP_dinst hW hD hp hP hRL _ _ _ .zero trivial, P0_isub hW hD hp hP hRL]
+    exact hRL k1 ρ .zero _ trivial _ (I_eq_symm h0)
+  have eLL : TyEq S (k1 + 1) ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail))
+      ((Tm.data d Q).isub (ISub.cons y' hy' ρ.up.tail)) := by
+    have h := Rob.line hQ ρ y y' hy hy' hE (k1 + 1) (ISub.id k1).up.tail (.var 0) (.var 0)
+      (show 0 < k1 + 1 by omega) (show 0 < k1 + 1 by omega) (I_eq_refl _)
+    rw [ISub.cons_var0_up_tail,
+      isub_up_id_of_closed (closed_ty (gen_transpF (spec_to_minimal hW ht) rfl).choose_spec.1.1),
+      isub_up_id_of_closed (closed_ty (gen_transpF (spec_to_minimal hW ht') rfl).choose_spec.1.1)] at h
+    exact (Comp2_ty_base h).2.2.2.2.2
+  exact K0 (Rob.line hQ ρ y y' hy hy' hE) ψ ψ' LC ht ht'
+    (eqTm_transp_of hW ht ht' eLL h12 h21 ((RE2.typed hb).2.2.tyConv (Comp2_ty_base rel0).2.2.2.2.2))
+    h12 h21 (RE2.conv hW rel0 hb)
+
+omit hyp in
 /-- The composition case: the `transpHcomp` contracta of related formal compositions are related. -/
 theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {χ χ' : I}
     (hat : DR2At S d (dataD S d) (dataMem S (ΘK S D d K (P.dinst .zero)) (Hom.id K))
@@ -250,7 +289,11 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
     (ht : RedE S k1 A t (.hcomp (.data d qs) χ u a)) (ht' : RedE S k1 A t' (.hcomp (.data d qs') χ' u' a'))
     (iha : TM1H S d D K P k1 g (.data d ps) a a')
     (ihu : ∀ k' (σ : ISub k' k1) (r : I), r.Scoped k' → (ival (idEnv k') (χ.subst σ.τ)).holds →
-      TM1H S d D K P k' (g.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r)) :
+      TM1H S d D K P k' (g.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r))
+    (ihb : ∀ k' (σ : ISub k' k1), (ival (idEnv k') (χ.subst σ.τ)).holds →
+      TM1H S d D K P k' (g.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst .zero) (a.isub σ))
+    (ihb' : ∀ k' (σ : ISub k' k1), (ival (idEnv k') (χ'.subst σ.τ)).holds →
+      TM1H S d D K P k' (g.comp σ.hom) ((Tm.data d ps).isub σ) ((u'.isub σ.up).dinst .zero) (a'.isub σ)) :
     TM2H S d D K P k1 g A t t' := by
   refine ⟨?_, fun ps2 hA2 => ⟨?_, ?_⟩⟩
   rotate_left
@@ -265,7 +308,7 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
     have ep := RedW.unique hA2.1 hA.1
     simp only [Tm.data.injEq] at ep
     obtain ⟨-, rfl⟩ := ep
-    exact ⟨iha, fun k' σ r hr0 hh => ihu k' σ r hr0 hh⟩
+    exact ⟨iha, ihu, ihb, ihb'⟩
   intro ρ hg hAe Q hQ y y' hy hy' hE h0 ψ ψ' hψs h12 h21 LC hty hty' heq w w' hr hr'
   subst hg hAe
   obtain rfl := RedW.unique hr.1 ht.1
@@ -279,19 +322,21 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
   obtain rfl : ps = (P.dinst .zero).isub ρ := redT_data_eq (Θ := ΘK S D d K (P.dinst .zero)) hA
   have tyB : ∀ {k4 : ℕ} {X Z : Tm}, RT2 S k4 X Z → TyEq S k4 X Z := fun h => (Comp2_ty_base h).2.2.2.2.2
   -- the relations of the bases and the tubes
-  obtain ⟨haa3, hu3⟩ : RE2 S k1 (.data d ((P.dinst .zero).isub ρ)) a a' ∧
-      ∀ k4 (σ : ISub k4 k1) (r : I), r.Scoped k4 → (ival (idEnv k4) (χ.subst σ.τ)).holds →
-        RE2 S k4 (.data d ((P.dinst .zero).isub (ρ.comp σ))) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r) := by
+  obtain ⟨haa3, hu3, hb3, hb3'⟩ : RE2 S k1 (.data d ((P.dinst .zero).isub ρ)) a a' ∧
+      (∀ k4 (σ : ISub k4 k1) (r : I), r.Scoped k4 → (ival (idEnv k4) (χ.subst σ.τ)).holds →
+        RE2 S k4 (.data d ((P.dinst .zero).isub (ρ.comp σ))) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r)) ∧
+      HcompBnd2 S k1 (.data d ((P.dinst .zero).isub ρ)) χ u a ∧
+      HcompBnd2 S k1 (.data d ((P.dinst .zero).isub ρ)) χ' u' a' := by
     rcases DR2At_cases hW hD hP0 hP0P0 ρ hat with
       ⟨_, _, _, _, _, _, _, _, -, -, -, hr3, -⟩ |
-      ⟨qs3, χ3, u3, a3, qs3', χ3', u3', a3', -, hr3, hr3', -, -, -, -, haa3, hu3⟩
+      ⟨qs3, χ3, u3, a3, qs3', χ3', u3', a3', -, hr3, hr3', -, -, -, -, haa3, hu3, hb3, hb3'⟩
     · have := RedW.unique hr3.1 ht.1; cases this
     · have e1 := RedW.unique hr3.1 ht.1
       have e2 := RedW.unique hr3'.1 ht'.1
       simp only [Tm.hcomp.injEq] at e1 e2
       obtain ⟨-, rfl, rfl, rfl⟩ := e1
       obtain ⟨-, -, rfl, rfl⟩ := e2
-      exact ⟨haa3, hu3⟩
+      exact ⟨haa3, hu3, hb3, hb3'⟩
   have h123 : I.Entails χ χ' ∧ I.Entails χ' χ := by
     rcases DR2At_cases hW hD hP0 hP0P0 ρ hat with
       ⟨_, _, _, _, _, _, _, _, -, -, -, hr3, -⟩ |
@@ -468,7 +513,38 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
   have eE' : ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one = Tm.data d (P.isub (ISub.cons
       (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ)) := eE
   rw [eE'] at haa htH htH' heqH ⊢
-  exact hcomp_relD hW hD hH hP hPP1 _ htH htH' heqH h123.1 h123.2 htube tS tS' haa
+  have hbl : HcompBnd2 S k1 _ χ
+      (.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u)
+      (.transp ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ a) := by
+    intro k' σ hh
+    rw [tHc_tube_pt _ _ _ σ .zero trivial, isub_transp]
+    have hyσ := I.scoped_subst hy σ.up.sc
+    rw [line_isub_up, line_isub_up]
+    have hb0 := hb3 k' σ hh
+    have IH := ihb k' σ hh
+    rw [← ISub.hom_comp] at IH
+    have tp := hcomp_tube_typed' hW (HasTy.isubS hW htH σ) .zero trivial hh
+    rw [tHc_tube_pt _ _ _ σ .zero trivial, line_isub_up] at tp
+    have tb := HasTy.isubS hW hta1 σ
+    rw [isub_transp, line_isub_up] at tb
+    have R := tm1h_transp_point hW hD hH hp hP hRL (ρ.comp σ) hRL
+      (y.subst σ.up.τ) (y.subst σ.up.τ) hyσ hyσ (I_eq_refl _) (ieq_zero_up h0 σ)
+      (ψ.subst σ.τ) (ψ.subst σ.τ) (ent_refl _) (ent_refl _) (by
+        have := LineConst.isub LC σ; rwa [line_isub_up] at this)
+      (by simpa only [Tm.isub_isub] using hb0) (by simpa only [Tm.isub_isub] using IH)
+      (by rw [← isub_dinst, ← line_isub_up, eE']; exact tp) tb
+    rw [← isub_dinst, ← line_isub_up, eE'] at R
+    exact R
+  have hbr : HcompBnd2 S k1 _ χ'
+      (.transp ((Tm.data d (Q.isub (ISub.cons y' hy' ρ.up.tail))).dsubst skipI) ψ'.shift u')
+      (.transp ((Tm.data d Q).isub (ISub.cons y' hy' ρ.up.tail)) ψ' a') := by
+    intro k' σ hh'
+    have hh : (ival (idEnv k') (χ.subst σ.τ)).holds :=
+      (holds_iff_entails (I.scoped_subst hχs σ.sc)).2
+        (ent_trans ((holds_iff_entails (I.scoped_subst hχs' σ.sc)).1 hh') (ent_subst h123.2 _))
+    exact RE2.trans hW (hTσ σ) (RE2.symm hW (hTσ σ) (htube k' σ .zero trivial hh))
+      (RE2.trans hW (hTσ σ) (hbl k' σ hh) (RE2.isub hW haa σ))
+  exact hcomp_relD hW hD hH hP hPP1 _ htH htH' heqH h123.1 h123.2 htube tS tS' haa hbl hbr
 
 end ind
 
