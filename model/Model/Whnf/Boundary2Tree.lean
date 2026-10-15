@@ -167,51 +167,6 @@ theorem con_typed {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {X Y : List T
     exact spec_to_minimal hW hh
   exact .con hD hC (p_lit hW hD hP hPP) hP (toFull_tele htel) CI.2.2.2.1 CI.2.2.2.2.1
 
-theorem Comp.cong {γ : ℕ → Tm} {τ : ℕ → I} {d' c : ℕ} {ps as bs : Tm} {rs : List I} {C : Ctor}
-    (hC : D.ctors[c]? = some C) (h : Comp S k d D P N γ τ (.con d' c ps as rs))
-    (hbs : bs = Tm.ofList bs.toList) (hbl : bs.toList.length = C.args.length)
-    (hrec : ∀ i (hi : i < as.toList.length) (hi' : i < bs.toList.length), C.isRec i = true →
-      Comp S k d D P N γ τ bs.toList[i] ∧
-      RE2 S k (.data d P) (close d P γ τ as.toList[i]) (close d P γ τ bs.toList[i]))
-    (hpt : ∀ i (hi : i < as.toList.length) (hi' : i < bs.toList.length), C.isRec i = false →
-      bs.toList[i] = as.toList[i]) :
-    Comp S k d D P N γ τ (.con d' c ps bs rs) ∧
-      RE2 S k (.data d P) (close d P γ τ (.con d' c ps as rs)) (close d P γ τ (.con d' c ps bs rs)) := by
-  cases h with
-  | @con _ _ _ _ _ C0 hc hC0 has hal ht hr hp =>
-    rw [hC] at hC0; cases hC0
-    have ex : closeArgs d P γ τ as = as.toList.map (close d P γ τ) := by
-      conv_lhs => rw [has]
-      exact closeArgs_ofList γ τ _
-    have ey : closeArgs d P γ τ bs = bs.toList.map (close d P γ τ) := by
-      conv_lhs => rw [hbs]
-      exact closeArgs_ofList γ τ _
-    have hxlen : (closeArgs d P γ τ as).length = C.args.length := by simp [ex, hal]
-    have hylen : (closeArgs d P γ τ bs).length = C.args.length := by simp [ey, hbl]
-    have ha : ∀ i (_hi : i < C.args.length),
-        RE2 S k (argAt d D P C (closeArgs d P γ τ as) i)
-          ((closeArgs d P γ τ as).getD i .abort) ((closeArgs d P γ τ bs).getD i .abort) := by
-      intro i hi
-      have hi1 : i < as.toList.length := by omega
-      have hi2 : i < bs.toList.length := by omega
-      simp only [ex, ey, getD_eq_get' (show i < (as.toList.map (close d P γ τ)).length by simp; omega),
-        getD_eq_get' (show i < (bs.toList.map (close d P γ τ)).length by simp; omega), List.getElem_map]
-      cases hri : C.isRec i
-      · obtain ⟨j, hj, hR⟩ := hp i hi1 hri
-        rw [hpt i hi1 hi2 hri, hj]
-        simpa only [ex, close, KubusCore.Boundary.eval] using hR
-      · simp only [argAt]
-        rw [argTy_rec_inst hri (p_lit hW hD hP hPP) (p_len hW hD hP) (by simp; omega)]
-        exact (hrec i hi1 hi2 hri).2
-    have hty := con_typed hW hD hP hPP hC ht hylen ha
-    refine ⟨Comp.con hc hC hbs hbl hty ?_ ?_, lower_con hW hP ih hc hC ht hty (forall2_ieq_refl _) ha⟩
-    · intro i hi hri
-      exact (hrec i (by omega) hi hri).1
-    · intro i hi hri
-      obtain ⟨j, hj, hR⟩ := hp i (by omega) hri
-      refine ⟨j, (hpt i (by omega) hi hri).trans hj, ?_⟩
-      exact RE2.conv hW (args_type hW hD hP hPP hC hxlen hylen ha i (by omega)) hR
-
 end rel
 
 end

@@ -8,7 +8,7 @@ open KubusCore KubusCore.Meta Model.Canon Model.Whnf
 noncomputable section
 attribute [local instance] Classical.propDecidable
 
-variable {d np n c : ℕ} {ctors : List Ctor} {C : Ctor} {P ps : Tm}
+variable {d np n c : ℕ} {ctors : List Ctor} {C : Ctor} {P : Tm}
 
 theorem eval_ofList (H : ℕ → List Tm → List I → Tm) (γ : ℕ → Tm) (τ : ℕ → I) (as : List Tm) :
     KubusCore.Boundary.evalArgs H γ τ (Tm.ofList as) = as.map (KubusCore.Boundary.eval H γ τ) := by
@@ -18,90 +18,11 @@ theorem close_id_con (γ : ℕ → Tm) (d' c : ℕ) (ps as : Tm) (rs : List I) :
     close d P γ I.var (.con d' c ps as rs) = .con d c P (Tm.ofList (closeArgs d P γ I.var as)) rs := by
   simp [close, KubusCore.Boundary.eval, I_subst_var, closeArgs]
 
-theorem eval_fusion (F H G : ℕ → List Tm → List I → Tm) (γ : ℕ → Tm) (τ : ℕ → I)
-    (hH : ∀ c xs rs, KubusCore.Boundary.eval F γ τ (H c xs rs) =
-      G c (xs.map (KubusCore.Boundary.eval F γ τ)) (rs.map (·.subst τ)))
-    (σ : ℕ → Tm) (η : ℕ → I) (t : Tm) :
-    KubusCore.Boundary.eval F γ τ (KubusCore.Boundary.eval H σ η t) =
-      KubusCore.Boundary.eval G (fun j => KubusCore.Boundary.eval F γ τ (σ j)) (fun i => (η i).subst τ) t ∧
-    (KubusCore.Boundary.evalArgs H σ η t).map (KubusCore.Boundary.eval F γ τ) =
-      KubusCore.Boundary.evalArgs G (fun j => KubusCore.Boundary.eval F γ τ (σ j)) (fun i => (η i).subst τ) t := by
-  induction t with
-  | var j => exact ⟨rfl, rfl⟩
-  | con d' c ps as rs _ ihas =>
-    refine ⟨?_, rfl⟩
-    simp only [KubusCore.Boundary.eval, hH, ihas.2, List.map_map, Function.comp_def, I_subst_subst]
-  | tcons a as iha ihas =>
-    exact ⟨rfl, by simp only [KubusCore.Boundary.evalArgs, List.map_cons, iha.1, ihas.2]⟩
-  | _ => exact ⟨rfl, rfl⟩
-
-def inst (d : ℕ) (ps : Tm) (A : List Tm) (rs : List I) : Tm → Tm :=
-  KubusCore.Boundary.eval (fun c xs ss => .con d c ps (Tm.ofList xs) ss)
-    (fun j => A.reverse.getD j .abort) (fun i => rs.reverse.getD i .zero)
-
-theorem close_inst (γ : ℕ → Tm) (A : List Tm) (rs : List I) (t : Tm) :
-    close d P γ I.var (inst d ps A rs t) =
-      close d P (fun j => close d P γ I.var (A.reverse.getD j .abort)) (fun i => rs.reverse.getD i .zero) t := by
-  have he := (eval_fusion (fun c xs ss => .con d c P (Tm.ofList xs) ss)
-    (fun c xs ss => .con d c ps (Tm.ofList xs) ss)
-    (fun c xs ss => .con d c P (Tm.ofList xs) ss) γ I.var
-    (fun c xs ss => by simp [KubusCore.Boundary.eval, eval_ofList, I_subst_var])
-    (fun j => A.reverse.getD j .abort) (fun i => rs.reverse.getD i .zero) t).1
-  simpa only [I_subst_var] using he
-
 theorem interval_zero_default (rs : List I) {r : I} (hr : r.Scoped rs.length) :
     r.subst (fun i => rs.reverse.getD i .zero) = r.subst (rsSub rs) := by
   apply subst_scoped_eq hr
   intro i hi
   simp only [rsSub, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (show i < rs.reverse.length by simpa using hi), Option.getD_some]
-
-theorem close_var {X : List Tm} {j : ℕ} {rs : List I} (hj : j < X.length) :
-    close d P (fun j => X.reverse.getD j .abort) (fun i => rs.reverse.getD i .zero) (.var j) =
-      Ctor.bndAt (.var j) P.toList X rs := by
-  simp only [close, KubusCore.Boundary.eval]
-  rw [bndAt_var rs hj, getD_eq_get' (by simpa using hj), List.getElem_reverse]
-  rw [getD_eq_get' (by omega)]
-
-theorem close_bnd {X : List Tm} {rs : List I} (hP : P = Tm.ofList P.toList)
-    (hp : P.toList.length = np) (hX : X.length = n) :
-    ∀ (N : ℕ) (t : Tm), sizeOf t < N → Ctor.simpleB ctors d np c n C t = true →
-    t.closedB (np + n) rs.length = true →
-    close d P (fun j => X.reverse.getD j .abort) (fun i => rs.reverse.getD i .zero) t =
-      Ctor.bndAt t P.toList X rs := by
-  intro N
-  induction N with
-  | zero => intro t h; omega
-  | succ N ih =>
-    intro t hsz hs hc
-    cases t with
-    | var j =>
-      simp only [Ctor.simpleB, Bool.and_eq_true, decide_eq_true_eq] at hs
-      exact close_var (by omega)
-    | con d' c' ps0 as0 rs0 =>
-      obtain ⟨hdd, hcc, hps, C', hC', hal, hrl, hsa, has⟩ := simpleB_con_inv hs
-      subst d' hps
-      simp only [Tm.closedB, Bool.and_eq_true, List.all_eq_true] at hc
-      rw [bndAt_con, bndAt_paramVars rs hp hX, ← hP]
-      simp only [close, KubusCore.Boundary.eval]
-      congr 1
-      · rw [has, eval_ofList, bndAt_ofList]
-        congr 1
-        apply List.map_congr_left
-        intro a ha
-        obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem ha
-        obtain ⟨hsr, hsp⟩ := simpleArgs_get as0 0 hsa i hi
-        simp only [Nat.zero_add] at hsr hsp
-        cases hr : C'.isRec i
-        · obtain ⟨j, hj, hjn, _⟩ := hsp hr
-          rw [hj]
-          exact close_var (by omega)
-        · have hsize := sizeOf_con_arg (d' := d) (c' := c') (ps0 := Ctor.paramVars np n) (rs0 := rs0) (List.getElem_mem hi)
-          exact ih _ (by omega) (hsr hr) (closed_toList hc.1.2 _ (List.getElem_mem hi))
-      · apply List.map_congr_left
-        intro r hr
-        exact interval_zero_default rs ((I.scopedB_iff _ _).1 (hc.2 r hr))
-    | _ => simp [Ctor.simpleB] at hs
-
 
 /-- Changing unused term variables does not change a simple boundary evaluation. -/
 theorem eval_simple_congr (H : ℕ → List Tm → List I → Tm) (σ σ' : ℕ → Tm) (τ : ℕ → I)

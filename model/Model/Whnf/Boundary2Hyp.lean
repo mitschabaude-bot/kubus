@@ -13,7 +13,7 @@ def BndTyping (S : Sig) : Prop := ∀ {k d : ℕ} {D : DataDecl} {c : ℕ} {C : 
     HasTy S k .one [] (.data d P1) (.univ D.level) → RT2 S k (.data d P1) (.data d Q1) →
     Y.length = C.args.length → Y'.length = C.args.length →
     HasTy S k .one [] (.con d c P1 (Tm.ofList Y) rs) (.data d P1) →
-    (∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
+    (∀ i (_hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
       ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y'.getD i .abort)) →
     bndRel S k d D.params.length C.args.length C D.ctors P1 Q1 Y Y' rs b
 
@@ -25,7 +25,7 @@ def CBRSt (S : Sig) (d : ℕ) (D : DataDecl) (c : ℕ) : Prop := ∀ {k : ℕ} {
     HasTy S k .one [] (.data d P1) (.univ D.level) → RT2 S k (.data d P1) (.data d P1) →
     Y.length = C.args.length →
     HasTy S k .one [] (.con d c P1 (Tm.ofList Y) rs) (.data d P1) →
-    (∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
+    (∀ i (_hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
       ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y.getD i .abort)) →
     RE2 S k (.data d P1) (.con d c P1 (Tm.ofList Y) rs) (Ctor.bndAt b P1.toList Y rs)
 

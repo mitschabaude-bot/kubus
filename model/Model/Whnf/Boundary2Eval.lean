@@ -36,7 +36,7 @@ theorem Comp.args {c : ℕ} {C : Ctor} {as : List Tm} {rs : List I}
       exact (hr i hai hri).diag hW hD hP hPP ih
 
 /-- Evaluate a simple boundary in any constructor algebra preserving computability. -/
-theorem eval_rel (hC : D.ctors[c]? = some C) (hcN : c ≤ N)
+theorem eval_rel (_hC : D.ctors[c]? = some C) (hcN : c ≤ N)
     (A : List Tm) (hA : A.length = C.args.length)
     (hAN : ∀ a ∈ A, NF D.ctors d ps k a) (rs : List I) (hrs : rs.length = C.dims)
     (har : ∀ i (hi : i < A.length), C.isRec i = true → Comp S k d D P N γ I.var A[i])
