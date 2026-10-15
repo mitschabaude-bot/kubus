@@ -178,7 +178,7 @@ bodies['EqTm0'] = {
 'glueFace': f"by simp only [{RN}]; exact EqTm0.glueFace {ENT('h0')} {ST('h1')}",
 'glueElFace': f"by simp only [{RN}]; exact EqTm0.glueElFace {ENT('h0')} {ST('h1')}",
 'unglueFace': f"by simp only [{RN}]; exact EqTm0.unglueFace {ENT('h0')} {ST('h1')} {T('h2')} {ST('h3')}",
-'glueBeta': f"by simp only [{RN}]; exact EqTm0.glueBeta {ST('h0')} {ST('h1')}",
+'glueBeta': f"by have hφ := scoped_cof_right (scoped_of_eq h2); simp only [{RN}]; exact EqTm0.glueBeta {ST('h0')} {ST('h1')} {SE('h2','(hR.underCof hφ)')}",
 'glueEta': f"by simp only [{RN}]; exact EqTm0.glueEta {ST('h0')}",
 'data': f"by simp only [{RN}]; exact EqTm0.data h0 {T('h1')} {T('h2')} ((ren_eqtele hS h3).2 (fun k A hk => by simpa using hS.params _ _ _ _ h0 hk) hR)",
 'con': f"""by

@@ -1,4 +1,5 @@
 import KubusCore.Kernel.Rename
+import KubusCore.Kernel.Boundary
 
 /-!
 # Kernel: entry points
@@ -521,8 +522,7 @@ def checkCtorBnd (Sc : Sig) (d : Nat) (D : DataDecl) (c : Nat) (C : Ctor) :
         Ctor.simpleB D.ctors d D.params.length c C.args.length C b = true ∧
         HasTy Sc C.dims ψ (D.argCtx d C C.args.length) b (.data d (Ctor.paramVars D.params.length C.args.length))) ∧
       (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
-        EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
-          (.data d (Ctor.paramVars D.params.length C.args.length))))) := do
+        Boundary.Agree D.ctors d D.params.length C.args.length c (.and ψ ψ') b b'))) := do
   let np := D.params.length
   let (R, E0) ← setup Sc
   let En ← argCtxK R E0 D d C C.args.length
@@ -540,14 +540,12 @@ def checkCtorBnd (Sc : Sig) (d : Nat) (D : DataDecl) (c : Nat) (C : Ctor) :
         Ctor.simpleB D.ctors d np c C.args.length C pb.2 = true then pure ⟨hψ, hc.1, hc.2, h⟩
     else fail "kernel: boundary not closed or not simple"
   let ⟨hagree⟩ ← forallElems C.bnd (fun k pb => ∀ (k' : Nat) (ψ' : I) (b' : Tm), C.bnd[k']? = some (ψ', b') →
-      EqTm Sc C.dims (.and pb.1 ψ') (D.argCtx d C C.args.length) pb.2 b' T) fun k pb hk => do
-    let ⟨h⟩ ← forallElems C.bnd (fun _ pb' => EqTm Sc C.dims (.and pb.1 pb'.1)
-        (D.argCtx d C C.args.length) pb.2 pb'.2 T) fun k' pb' hk' => do
-      let Eb ← bndCtxK En C.dims (.and pb.1 pb'.1)
-      let ⟨l, ⟨hT⟩⟩ ← inferType R Eb T
-      let ⟨h1⟩ ← R.check Eb pb.2 T l hT
-      let ⟨h2⟩ ← R.check Eb pb'.2 T l hT
-      R.conv Eb T l hT _ _ h1 h2
+      Boundary.Agree D.ctors d np C.args.length c (.and pb.1 ψ') pb.2 b') fun _ pb _ => do
+    let ⟨h⟩ ← forallElems C.bnd (fun _ pb' =>
+        Boundary.Agree D.ctors d np C.args.length c (.and pb.1 pb'.1) pb.2 pb'.2) fun _ pb' _ => do
+      if ha : Boundary.Agree D.ctors d np C.args.length c (.and pb.1 pb'.1) pb.2 pb'.2 then
+        pure ⟨ha⟩
+      else fail "kernel: boundary normal forms disagree on an overlap face"
     pure ⟨fun k' ψ' b' hk' => h k' (ψ', b') hk'⟩
   pure ⟨fun k ψ b hk => hb k (ψ, b) hk, fun k k' ψ ψ' b b' hk hk' => hagree k (ψ, b) hk k' ψ' b' hk'⟩
 
@@ -580,8 +578,7 @@ def checkData (S : Sig) (d : Nat) (D : DataDecl) : K S (PLift (D.Wf S d)) := do
         Ctor.bndTyped S C.dims ψ (D.argCtx d C C.args.length) C (D.pointCtx d C C.args.length)
           D.level D.ctors d np b) ∧
       (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
-        EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
-          (.data d (Ctor.paramVars np C.args.length)))) fun c C _ => do
+        Boundary.Agree D.ctors d np C.args.length c (.and ψ ψ') b b')) fun c C _ => do
       let ⟨ha⟩ ← liftM' (runK (checkCtorArgs (S ++ [.data (D.truncate 0)]) d D C))
       let ⟨hb⟩ ← liftM' (runK (checkCtorBnd (S ++ [.data (D.truncate c)]) d D c C))
       let ⟨hty⟩ ← checkCtorBndTyped R E0 d D C

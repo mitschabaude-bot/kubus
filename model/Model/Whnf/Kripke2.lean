@@ -59,7 +59,7 @@ theorem cohPath_isub {L : V} {f : Hom k m} {T : Tm} (h : cohPath S L f T) (σ0 :
   intro k1 σ k2 σ' L1 b0 b1 L2 c0 c1 h1 h2
   rw [Tm.isub_isub] at h1 h2
   have := h k1 (σ0.comp σ) k2 σ' L1 b0 b1 L2 c0 c1 h1 (by rwa [ISub.comp_assoc])
-  rw [ISub.comp_assoc] at this; rwa [lift_hom_comp]
+  rw [ISub.comp_assoc] at this; rwa [lift_hom_comp, lift_cons, lift_cons]
 
 omit hW in
 theorem cohIPi_isub {L : V} {f : Hom k m} {T : Tm} (h : cohIPi S L f T) (σ0 : ISub k' k) :

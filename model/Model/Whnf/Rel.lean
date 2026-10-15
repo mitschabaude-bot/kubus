@@ -258,7 +258,9 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
     if π1 sh = natZ tPath then
       let coh : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') L1 b0 b1 L2 c0 c1,
         RedT S k' (A.isub σ) (.path L1 b0 b1) → RedT S k'' (A.isub (σ.comp σ')) (.path L2 c0 c1) →
-        (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2
+        (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2 ∧
+        (RL k'' (ISub.cons .zero trivial (σ.comp σ'))).el (L2.dinst .zero) (b0.isub σ') c0 ∧
+        (RL k'' (ISub.cons .one trivial (σ.comp σ'))).el (L2.dinst .one) (b1.isub σ') c1
       { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
             RedT S k' (A.isub σ) (.path L1 b0 b1) ∧ RedT S k' (A'.isub σ) (.path L1' b0' b1') ∧
             (RL (k' + 1) σ.up).ty L1 L1' ∧
@@ -367,10 +369,16 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
             (Aj.substList (ps.toList.take j).reverse) (Aj.substList (ps'.toList.take j).reverse) ∧
           (rec (π2 (pe k' σ.hom j)) (hpe k' σ.hom j) k' k' (Hom.id k')).el
             (Aj.substList (ps.toList.take j).reverse) p p')
-    { ty := fun A A' => ∀ k' (σ : ISub k' k), ∃ ps ps',
+    -- coherence: the parameters of the normal form at a restriction, restricted further, are related
+    -- to those of the normal form at the further restriction
+    let coh : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') ps1 ps2,
+      RedT S k' (A.isub σ) (.data d ps1) → RedT S k'' (A.isub (σ.comp σ')) (.data d ps2) →
+      argCl k'' (σ.comp σ') (ps1.isub σ') ps2 ∧ argCl k'' (σ.comp σ') ps2 (ps1.isub σ') ∧
+      parCl k'' (σ.comp σ') (ps1.isub σ') ps2
+    { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ ps ps',
           RedT S k' (A.isub σ) (.data d ps) ∧ RedT S k' (A'.isub σ) (.data d ps') ∧
           ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧ argCl k' σ ps ps' ∧ argCl k' σ ps' ps ∧
-          argCl k' σ ps ps ∧ argCl k' σ ps' ps' ∧ parCl k' σ ps ps'
+          argCl k' σ ps ps ∧ argCl k' σ ps' ps' ∧ parCl k' σ ps ps') ∧ coh A ∧ coh A'
       el := fun A t t' => EB S k A t t' ∧ DR2 S d D Mem P k (Hom.id k) A t t' }
   else Pack2.bot
 

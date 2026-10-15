@@ -38,6 +38,12 @@ structure PathStr (S : Sig) (k : ℕ) (T T' : Tm) : Prop where
   elim' : ∀ k' (ρ : ISub k' k) L1 b0 b1 f f', RedT S k' (T'.isub ρ) (.path L1 b0 b1) → RE2 S k' (T'.isub ρ) f f' →
     (∀ (r r' : I), r.Scoped k' → r'.Scoped k' → I.Eq r r' → RE2 S k' (L1.dinst r) (.papp f r) (.papp f' r')) ∧
     RE2 S k' (L1.dinst .zero) (.papp f .zero) b0 ∧ RE2 S k' (L1.dinst .one) (.papp f .one) b1
+  ends : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k') L1 b0 b1 L2 c0 c1, RedT S k' (T.isub ρ) (.path L1 b0 b1) →
+    RedT S k'' (T.isub (ρ.comp ρ')) (.path L2 c0 c1) →
+    RE2 S k'' (L2.dinst .zero) (b0.isub ρ') c0 ∧ RE2 S k'' (L2.dinst .one) (b1.isub ρ') c1
+  ends' : ∀ k' (ρ : ISub k' k) k'' (ρ' : ISub k'' k') L1 b0 b1 L2 c0 c1, RedT S k' (T'.isub ρ) (.path L1 b0 b1) →
+    RedT S k'' (T'.isub (ρ.comp ρ')) (.path L2 c0 c1) →
+    RE2 S k'' (L2.dinst .zero) (b0.isub ρ') c0 ∧ RE2 S k'' (L2.dinst .one) (b1.isub ρ') c1
 
 variable (hW : WfSig S)
 include hW
@@ -79,14 +85,24 @@ theorem PathStr_of {T T' L a b : Tm} {l : ℕ} (h : RT2 S k T T') (hR : RedT S k
       rw [e r hr] at hxy
       exact (Comp2_el_iff hLne (hsem r hr)).1 hxy
     exact ⟨fun r r' hr hr' hE => conv r hr (happ r r' hr hr' hE), conv .zero trivial h0, conv .one trivial h1'⟩
+  -- the endpoints, against their types
+  have endsGen : ∀ k2 (σ : ISub k2 k) (U : Tm), semK S k2 U = res σ.hom (semK S k T) → ∀ L2 c0 c1,
+      RedT S k2 U (.path L2 c0 c1) → ∀ (e : I) (he : e.Scoped k2), (e = .zero ∨ e = .one) →
+      (∀ (s : I) (hs : s.Scoped k2), semK S k2 (L2.dinst s) =
+        res ((Hom.lift (Hom.id k)).comp (ISub.cons s hs σ).hom) (semK S (k + 1) L)) → ∀ {x y : Tm},
+      (Comp2 S (semK S (k + 1) L) (k + 1) k2 ((Hom.lift (Hom.id k)).comp (ISub.cons e he σ).hom)).el
+        (L2.dinst e) x y → RE2 S k2 (L2.dinst e) x y := by
+    intro k2 σ U hU L2 c0 c1 h2 e he _ hsem x y hxy
+    exact (Comp2_el_iff hLne (hsem e he)).1 hxy
   refine ⟨hbase.2.2.2.2, fun k' ρ => ?_, fun k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2 s hs => ?_,
     fun k' ρ L1 b0 b1 h1 s hs => ?_, fun k' ρ L1 b0 b1 f f' h1 hf => ?_,
-    fun k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2 s hs => ?_, fun k' ρ L1 b0 b1 f f' h1 hf => ?_⟩
+    fun k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2 s hs => ?_, fun k' ρ L1 b0 b1 f f' h1 hf => ?_,
+    fun k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2 => ?_, fun k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2 => ?_⟩
   · obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, -, h4, h5, h6⟩ := hall k' ρ
     refine ⟨L1, b0, b1, L1', b0', b1', h1, h2, fun r r' hr hr' hE => Comp2_ty_RT2 (h4 r r' hr hr' hE), ?_, ?_⟩
     · exact (Comp2_el_iff hLne (Comp2_ty_base (h4 .zero .zero trivial trivial (I_eq_refl _))).2.2.2.1).1 h5
     · exact (Comp2_el_iff hLne (Comp2_ty_base (h4 .one .one trivial trivial (I_eq_refl _))).2.2.2.1).1 h6
-  · have c := hcoh k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2
+  · have c := (hcoh k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2).1
     exact RT2.dinst hW (Comp2_ty_tyCode c hLc) (Comp2_ty_RT2 c) s hs
   · obtain ⟨L4, b4, b5, L4x, b4x, b5x, h4, -, -, hd, -, -⟩ := hall k' ρ
     obtain rfl : L4 = L1 := by have := RedW.unique h4.1 h1.1; injection this
@@ -95,13 +111,31 @@ theorem PathStr_of {T T' L a b : Tm} {l : ℕ} (h : RT2 S k T T') (hR : RedT S k
     obtain ⟨L4, b4, b5, L4x, b4x, b5x, h4, -, -, hd, -, -⟩ := hall k' ρ
     obtain rfl : L4 = L1 := by have := RedW.unique h4.1 h1.1; injection this
     exact (Comp2_ty_base (hd s s hs hs (I_eq_refl s))).2.2.2.1
-  · have c := hcoh' k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2
+  · have c := (hcoh' k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2).1
     exact RT2.dinst hW (Comp2_ty_tyCode c hLc) (Comp2_ty_RT2 c) s hs
   · refine elimGen k' ρ _ ((semK_isubTy hW hbase.2.1 ρ).trans (by rw [RT2.semK_eq hW h])) L1 b0 b1 f f' h1
       (fun s hs => ?_) hf
     obtain ⟨L4, b4, b5, L4x, b4x, b5x, -, h4, -, hd, -, -⟩ := hall k' ρ
     obtain rfl : L4x = L1 := by have := RedW.unique h4.1 h1.1; injection this
     exact (Comp2_ty_base (hd s s hs hs (I_eq_refl s))).2.2.2.2.1
+  · obtain ⟨c1', c2', c3'⟩ := hcoh k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2
+    obtain ⟨L4, b4, b5, L4x, b4x, b5x, h4, -, -, hd, -, -⟩ := hall k2 (ρ.comp ρ')
+    obtain rfl : L4 = L2 := by have := RedW.unique h4.1 h2.1; injection this
+    have hsem : ∀ (s : I) (hs : s.Scoped k2), semK S k2 (L4.dinst s) =
+        res ((Hom.lift (Hom.id k)).comp (ISub.cons s hs (ρ.comp ρ')).hom) (semK S (k + 1) L) := fun s hs =>
+      (Comp2_ty_base (hd s s hs hs (I_eq_refl s))).2.2.2.1
+    exact ⟨endsGen k2 (ρ.comp ρ') _ (semK_isubTy hW hbase.1 _) L4 c0 c1 h2 .zero trivial (.inl rfl) hsem c2',
+      endsGen k2 (ρ.comp ρ') _ (semK_isubTy hW hbase.1 _) L4 c0 c1 h2 .one trivial (.inr rfl) hsem c3'⟩
+  · obtain ⟨c1', c2', c3'⟩ := hcoh' k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2
+    obtain ⟨L4, b4, b5, L4x, b4x, b5x, -, h4, -, hd, -, -⟩ := hall k2 (ρ.comp ρ')
+    obtain rfl : L4x = L2 := by have := RedW.unique h4.1 h2.1; injection this
+    have hsem : ∀ (s : I) (hs : s.Scoped k2), semK S k2 (L4x.dinst s) =
+        res ((Hom.lift (Hom.id k)).comp (ISub.cons s hs (ρ.comp ρ')).hom) (semK S (k + 1) L) := fun s hs =>
+      (Comp2_ty_base (hd s s hs hs (I_eq_refl s))).2.2.2.2.1
+    have hU : semK S k2 (T'.isub (ρ.comp ρ')) = res (ρ.comp ρ').hom (semK S k T) :=
+      (semK_isubTy hW hbase.2.1 _).trans (by rw [RT2.semK_eq hW h])
+    exact ⟨endsGen k2 (ρ.comp ρ') _ hU L4x c0 c1 h2 .zero trivial (.inl rfl) hsem c2',
+      endsGen k2 (ρ.comp ρ') _ hU L4x c0 c1 h2 .one trivial (.inr rfl) hsem c3'⟩
 
 theorem PathStr.isub {T T' : Tm} (hP : PathStr S k T T') (σ : ISub k' k) : PathStr S k' (T.isub σ) (T'.isub σ) where
   tyEq := hP.tyEq.isub hW σ
@@ -123,6 +157,14 @@ theorem PathStr.isub {T T' : Tm} (hP : PathStr S k T T') (σ : ISub k' k) : Path
   elim' k1 ρ L1 b0 b1 f f' h1 h2 := by
     rw [Tm.isub_isub] at h1 h2
     exact hP.elim' k1 (σ.comp ρ) L1 b0 b1 f f' h1 h2
+  ends k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2 := by
+    rw [Tm.isub_isub] at h1 h2
+    rw [← ISub.comp_assoc] at h2
+    exact hP.ends k1 (σ.comp ρ) k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2
+  ends' k1 ρ k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2 := by
+    rw [Tm.isub_isub] at h1 h2
+    rw [← ISub.comp_assoc] at h2
+    exact hP.ends' k1 (σ.comp ρ) k2 ρ' L1 b0 b1 L2 c0 c1 h1 h2
 
 /-- Related elements of a type whose normal form is a path type, through their points and endpoints. -/
 theorem RE2_pathW_intro {T L a b t t' : Tm} {l : ℕ} (hTT : RT2 S k T T) (hR : RedT S k T (.path L a b))

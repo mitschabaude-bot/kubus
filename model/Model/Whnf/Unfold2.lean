@@ -74,7 +74,11 @@ def cohSigma (S : Sig) (A B : V) (f : Hom k m) (T : Tm) : Prop :=
 def cohPath (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
   ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') L1 b0 b1 L2 c0 c1,
     RedT S k' (T.isub σ) (.path L1 b0 b1) → RedT S k'' (T.isub (σ.comp σ')) (.path L2 c0 c1) →
-    (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift f).comp (σ.comp σ').up.hom)).ty (L1.isub σ'.up) L2
+    (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift f).comp (σ.comp σ').up.hom)).ty (L1.isub σ'.up) L2 ∧
+    (Comp2 S L (m + 1) k'' ((Hom.lift f).comp (ISub.cons .zero trivial (σ.comp σ')).hom)).el
+      (L2.dinst .zero) (b0.isub σ') c0 ∧
+    (Comp2 S L (m + 1) k'' ((Hom.lift f).comp (ISub.cons .one trivial (σ.comp σ')).hom)).el
+      (L2.dinst .one) (b1.isub σ') c1
 
 /-- Coherence of the normal forms of a type `(i : I) → L`. -/
 def cohIPi (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
@@ -270,21 +274,30 @@ def parRel2 (S : Sig) (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (
         (Aj.substList (ps.toList.take j).reverse) (Aj.substList (ps'.toList.take j).reverse) ∧
       (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')).el (Aj.substList (ps.toList.take j).reverse) p p')
 
+/-- Coherence of the normal forms of an inductive type: the parameters of the normal form at a
+restriction, restricted further, are related to those of the normal form at the further restriction. -/
+def cohData (S : Sig) (Θ : SData m) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') ps1 ps2,
+    RedT S k' (T.isub σ) (.data Θ.idx ps1) → RedT S k'' (T.isub (σ.comp σ')) (.data Θ.idx ps2) →
+    argRel2 S Θ f k'' (σ.comp σ') (ps1.isub σ') ps2 ∧ argRel2 S Θ f k'' (σ.comp σ') ps2 (ps1.isub σ') ∧
+    parRel2 S Θ f k'' (σ.comp σ') (ps1.isub σ') ps2
+
 theorem Comp2_dataC (Θ : SData m) (f : Hom k m) :
     Comp2 S (dataC Θ) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (dataC Θ) ∧
-          semK S k T' = res f (dataC Θ) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k), ∃ ps ps',
+          semK S k T' = res f (dataC Θ) ∧ TyEq S k T T') ∧ (∀ k' (σ : ISub k' k), ∃ ps ps',
           RedT S k' (T.isub σ) (.data Θ.idx ps) ∧ RedT S k' (T'.isub σ) (.data Θ.idx ps') ∧
           ps = Tm.ofList ps.toList ∧ ps' = Tm.ofList ps'.toList ∧
           argRel2 S Θ f k' σ ps ps' ∧ argRel2 S Θ f k' σ ps' ps ∧ argRel2 S Θ f k' σ ps ps ∧
-          argRel2 S Θ f k' σ ps' ps' ∧ parRel2 S Θ f k' σ ps ps',
+          argRel2 S Θ f k' σ ps' ps' ∧ parRel2 S Θ f k' σ ps ps') ∧ cohData S Θ f T ∧ cohData S Θ f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (dataC Θ)) (Hom.id k) ∧
           EB S k T t t' ∧ DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k (Hom.id k) T t t'⟩ := by
   rw [Comp2_unfold (show dataC Θ ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, dataC, dat_mkKV, dataDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id,
     natZ_inj, tPi, tSigma, tPath, tIPi, tUniv, tEmpty, tGlue, tData, if_false, show ¬ (11 = 2) by decide,
     show ¬ (11 = 3) by decide, show ¬ (11 = 4) by decide, show ¬ (11 = 5) by decide, show ¬ (11 = 6) by decide,
-    show ¬ (11 = 1) by decide, show ¬ (11 = 7) by decide, or_self, if_true, natOf_natZ, π1π2_quad, dataP2, argRel2]
+    show ¬ (11 = 1) by decide, show ¬ (11 = 7) by decide, or_self, if_true, natOf_natZ, π1π2_quad, dataP2, argRel2,
+    cohData, parRel2, parEntry]
   rfl
 
 /-- The relations of a Glue code at a restriction: those of `T` where the face holds. -/

@@ -476,7 +476,7 @@ theorem fund_ty {Ψ Φ Γ t A} : HasTy0 S Ψ Φ Γ t A → KOK S n O t → ∀ k
         I.Entails .one (φ.subst (c.restr hW σ).σ.τ) := fun k' σ hh => by
       rw [show φ.subst (c.restr hW σ).σ.τ = (φ.subst c.σ.τ).subst σ.τ from (I_subst_subst _ _ _).symm]
       exact entails_of_holds (I.scoped_subst hφs σ.sc) hh
-    refine RE_glueEl_intro hW hG hφ hty (fun k' σ => ?_) (fun k' σ hh => ?_)
+    refine RE_glueEl_intro hW hGC hG hφ hty (fun k' σ => ?_) (fun k' σ hh => ?_)
     · have := fund_ty h3 hc.2.2 k' (c.restr hW σ)
       rw [CSub.restr_subst, CSub.restr_subst] at this; exact this
     · have := fund_ty h2 hc.2.1 k' ((c.restr hW σ).cof (hface k' σ hh))

@@ -1,4 +1,4 @@
-import KubusCore.Syntax
+import KubusCore.Boundary
 
 /-!
 # Kubus Core: typing and equality
@@ -329,7 +329,8 @@ inductive EqTm (S : Sig) : Nat → I → Ctx → Tm → Tm → Tm → Prop
       HasTy S Ψ Φ Γ A (univ l) → HasTy S Ψ Φ Γ e (equiv T A) →
       EqTm S Ψ Φ Γ (unglue φ e g) (app (fst e) g) A
   | glueBeta {Ψ Φ Γ φ e t a G} : HasTy S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) G →
-      HasTy S Ψ Φ Γ a G → EqTm S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
+      HasTy S Ψ Φ Γ a G → EqTm S Ψ (cof Φ φ) Γ a (app (fst e) t) G →
+      EqTm S Ψ Φ Γ (unglue φ e (glueEl φ e t a)) a G
   | glueEta {Ψ Φ Γ A φ T e g} : HasTy S Ψ Φ Γ g (glue A φ T e) →
       EqTm S Ψ Φ Γ g (glueEl φ e g (unglue φ e g)) (glue A φ T e)
   /- inductive types: congruence -/
@@ -465,16 +466,7 @@ have formal compositions, which the model uses as generic elements. -/
 def truncate (D : DataDecl) (c : Nat) : DataDecl :=
   { D with ctors := D.ctors.take c ++ [{ args := [], dims := if D.isHIT then 1 else 0, bnd := [] }] }
 
-/-- A well-formed declaration of the inductive type `d = S.length`, checked against the
-signature `S` before it: the parameters in `S` itself, the point arguments in `S` extended by
-the declaration without constructors, and the boundary of constructor `c` and its agreement on
-overlaps in `S` extended by the declaration truncated to the constructors before `c`, so that neither `c`'s own boundary rule nor later constructors are
-available (otherwise `conBnd` would make the boundary check vacuous). Parameters and point
-arguments do not mention `d` (so `d` occurs only as the type of recursive arguments: strictly
-positive, not nested), point arguments do not mention earlier recursive arguments and live in
-the declared universe (also in `S` itself, over the parameters and earlier point arguments, so
-that their types are typed wherever the parameters are: `transpCon` transports along them), and boundaries are simple, well-typed (with the argument types of their
-nested constructors, `Ctor.bndTyped`) and agree on overlaps. -/
+/-- A well-formed declaration of the inductive type `d = S.length`, checked against the signature `S` before it. Parameters are checked in `S`, point arguments in `S` extended by `D.truncate 0`, and boundaries of constructor `c` in `S` extended by `D.truncate c`. Parameters and point arguments do not mention `d`; point arguments do not depend on recursive arguments and are also typed in `S` over the point context. Boundaries are simple and well-typed, with the argument types of their nested constructors (`Ctor.bndTyped`). Their normal forms agree, up to `I.Eq`, separately on each consistent DNF face of each overlap (`Boundary.Agree`). -/
 def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
   let np := D.params.length
   D.level + 1 ≤ maxLevel ∧
@@ -494,8 +486,7 @@ def Wf (D : DataDecl) (S : Sig) (d : Nat) : Prop :=
       Ctor.bndTyped S C.dims ψ (D.argCtx d C C.args.length) C (D.pointCtx d C C.args.length)
         D.level D.ctors d np b) ∧
     (∀ (k k' : Nat) (ψ ψ' : I) (b b' : Tm), C.bnd[k]? = some (ψ, b) → C.bnd[k']? = some (ψ', b') →
-      EqTm Sc C.dims (.and ψ ψ') (D.argCtx d C C.args.length) b b'
-        (.data d (Ctor.paramVars np C.args.length)))
+      Boundary.Agree D.ctors d np C.args.length c (.and ψ ψ') b b')
 
 end DataDecl
 
