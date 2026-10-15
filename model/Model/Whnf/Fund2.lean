@@ -1,5 +1,6 @@
 import Model.Whnf.Kan2UnivCode
 import Model.Whnf.Kan2DataHITBndTy
+import Model.Whnf.Boundary2ConBnd
 import Model.Whnf.Valid2CompSigma
 import Model.Whnf.Valid2CompPi
 import Model.Whnf.Valid2CompPath
@@ -816,7 +817,7 @@ theorem nearEl2_of (hW : WfSig S) : NearEl2 S := by
 
 /-- The definitions of every prefix of the signature are related, and the declared types of its inductive
 types are valid, by induction on the prefix. -/
-theorem hyps_take (hW : WfSig S) (hCon : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S (S.take n))
+theorem hyps_take (hW : WfSig S) (hDa : ∀ n, DataHyp2 S (S.take n))
     : ∀ n, DefHyp2 S (S.take n) ∧ DeclHyp2 S n ∧ HITHyp2 S n := by
   intro n
   induction n with
@@ -863,7 +864,8 @@ theorem hyps_take (hW : WfSig S) (hCon : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S 
         have hv := hfund (spec_to_minimal (wfSig_take hW d) hty)
         exact RE2_univ_kan hW (hv k cs).2
     have hBoundary : HITHyp2 S (n + 1) := by
-      refine ⟨(fun hd => hCon.conBnd), fun {k d D c C P1 Y rs kb ψ b} hd hD hH hC hb hent hP hPP hYl hcon hY => ?_⟩
+      apply Boundary2.hitHyp_of_bndTyping hW
+      intro d hd k D c C P1 Y rs kb ψ b hD hH hC hb hent hP hPP hYl hcon hY
       by_cases hdn : d < n
       · exact ih.2.2.bndTy hdn hD hH hC hb hent hP hPP hYl hcon hY
       obtain rfl : d = n := by omega
@@ -872,9 +874,9 @@ theorem hyps_take (hW : WfSig S) (hCon : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S 
     exact ⟨hDef, hDecl, hBoundary⟩
 
 /-- **The binary fundamental lemma**, for derivations in the whole signature. -/
-theorem fund2 (hW : WfSig S) (hHit : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S (S.take n))
+theorem fund2 (hW : WfSig S) (hDa : ∀ n, DataHyp2 S (S.take n))
     {Ψ Φ Γ t u A} (h : EqTm0 S Ψ Φ Γ t u A) : Valid2 S Ψ Φ Γ t u A := by
-  have hH := hyps_take hW hHit hDa S.length
+  have hH := hyps_take hW hDa S.length
   have hD := hH.1
   rw [List.take_length] at hD
   have := hDa S.length
@@ -882,11 +884,11 @@ theorem fund2 (hW : WfSig S) (hHit : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S (S.t
   exact fund2_eq hW (fun _ _ h => h) hD hH.2.2 this (nearEl2_of hW) hH.2.1 h
 
 /-- The binary fundamental lemma for closed terms at stage `k`. -/
-theorem fund2_closed (hW : WfSig S) (hHit : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S (S.take n))
+theorem fund2_closed (hW : WfSig S) (hDa : ∀ n, DataHyp2 S (S.take n))
     {t u A : Tm} (h : EqTm0 S k .one [] t u A) : RT2 S k A A ∧ RE2 S k A t u := by
   obtain ⟨ht, hu⟩ := presup hW h
-  have hA := RE2.typed ((fund2 hW hHit hDa (EqTm0.refl ht)) k (CSub2.idS S k)).2
-  refine valid_closed (fund2 hW hHit hDa h) (closed_ty ht) (closed_ty hu) ?_
+  have hA := RE2.typed ((fund2 hW hDa (EqTm0.refl ht)) k (CSub2.idS S k)).2
+  refine valid_closed (fund2 hW hDa h) (closed_ty ht) (closed_ty hu) ?_
   rcases pre_ty (sigClosed_of_wfSig hW) (wf_typed _ S rfl hW).1 (wf_typed _ S rfl hW).2 ht with ⟨l, hl⟩ | ⟨l, rfl, -⟩
   · exact closed_ty hl
   · rfl
