@@ -74,7 +74,7 @@ include hW hD hP hPP H
 /-- Elimination agrees with the boundary interpreter at simple trees of earlier constructors. -/
 theorem bndInterp_rel2 {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
     (ihCR : ∀ c' < c, CRSt S d D K P c') (ihEC : ∀ c' < c, ECSt2 S d D K P M bs c')
-    {k : ℕ} (ρ : ISub k K) (X : List Tm) (rs : List I) (hX : X.length = C.args.length)
+    {k : ℕ} (ρ : ISub k K) (q : Tm) (hql : q.toList.length = D.params.length) (X : List Tm) (rs : List I) (hX : X.length = C.args.length)
     (ha : ∀ i (_hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
       ((X.take i).reverse ++ (P.isub ρ).toList.reverse)) (X.getD i .abort) (X.getD i .abort))
     (hi : ∀ i, i ∈ C.recPos → RE2 S k ((M.isub ρ).inst (X.getD i .abort))
@@ -83,9 +83,10 @@ theorem bndInterp_rel2 {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
     ∀ (N : ℕ) (e : Tm), sizeOf e < N → Ctor.simpleB D.ctors d D.params.length c C.args.length C e = true →
       e.closedB (D.params.length + C.args.length) C.dims = true →
       bndRel S k d D.params.length C.args.length C D.ctors (P.isub ρ) (P.isub ρ) X X rs e →
+      HasTy S k .one [] (Ctor.bndAt e q.toList X rs) (.data d (P.isub ρ)) →
       HasTy S k .one [] (Ctor.bndAt e (P.isub ρ).toList X rs) (.data d (P.isub ρ)) →
-      RE2 S k ((M.isub ρ).inst (Ctor.bndAt e (P.isub ρ).toList X rs))
-        (.elim d (P.isub ρ) (M.isub ρ) (bs.isub ρ) (Ctor.bndAt e (P.isub ρ).toList X rs))
+      RE2 S k ((M.isub ρ).inst (Ctor.bndAt e q.toList X rs))
+        (.elim d (P.isub ρ) (M.isub ρ) (bs.isub ρ) (Ctor.bndAt e q.toList X rs))
         (bndInterp2 d D C (P.isub ρ) (M.isub ρ) (bs.isub ρ) X rs e) := by
   have hPρ := HasTy.isubS hW hP ρ
   have hPl := (dataLit_rel hW hD hP hPP ρ).2.2.2.2.2.1
@@ -96,7 +97,7 @@ theorem bndInterp_rel2 {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
   induction N with
   | zero => intro e hsz; omega
   | succ N ih =>
-    intro e hsz hs hcl hR ht
+    intro e hsz hs hcl hR ht htP
     cases e
     case var j =>
       simp only [Ctor.simpleB, Bool.and_eq_true, decide_eq_true_eq] at hs
@@ -105,16 +106,24 @@ theorem bndInterp_rel2 {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
     case con d' c' qs as ss =>
       obtain ⟨hdd, hcc, hqs, C', hC', hal, hrl, hsa, has⟩ := simpleB_con_inv hs
       subst d' qs
-      let Z := as.toList.map (fun a => Ctor.bndAt a (P.isub ρ).toList X rs)
+      let Z := as.toList.map (fun a => Ctor.bndAt a q.toList X rs)
+      let ZP := as.toList.map (fun a => Ctor.bndAt a (P.isub ρ).toList X rs)
       let ss1 := ss.map (fun r => Ctor.cofAt r rs)
       have hZ : Z.length = C'.args.length := by simp [Z, hal]
       have eB : Ctor.bndAt (.con d c' (Ctor.paramVars D.params.length C.args.length) as ss)
-          (P.isub ρ).toList X rs = .con d c' (P.isub ρ) (Tm.ofList Z) ss1 := by
+          q.toList X rs = .con d c' (Tm.ofList q.toList) (Tm.ofList Z) ss1 := by
+        rw [bndAt_con, bndAt_paramVars rs hql hX]
+        conv => lhs; rw [has]
+        rw [bndAt_ofList]
+        rfl
+      have eBP : Ctor.bndAt (.con d c' (Ctor.paramVars D.params.length C.args.length) as ss)
+          (P.isub ρ).toList X rs = .con d c' (P.isub ρ) (Tm.ofList ZP) ss1 := by
         rw [bndAt_con, bndAt_paramVars rs hplen hX, ← hPl]
         conv => lhs; rw [has]
         rw [bndAt_ofList]
         rfl
       rw [eB] at ht ⊢
+      rw [eBP] at htP
       have hRA : bndRelArgs S k d D.params.length C.args.length C D.ctors (P.isub ρ) (P.isub ρ)
           X X rs C' 0 [] as := by simpa only [bndRel, hC'] using hR
       have hrecBase : ∀ i (hai : i < as.toList.length), C'.isRec i = true →
@@ -131,12 +140,12 @@ theorem bndInterp_rel2 {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
             (argTys_get (by omega))
           rw [argTy_rec_inst hr hPl hplen (by simp [toList_ofList]; omega)] at ht0
           exact minimal_to_spec ht0
-        rw [show Z.getD i .abort = Ctor.bndAt as.toList[i] (P.isub ρ).toList X rs by
+        rw [show Z.getD i .abort = Ctor.bndAt as.toList[i] q.toList X rs by
           rw [getD_eq_get' (by simp [Z]; omega)]; simp only [Z, List.getElem_map]] at hty ⊢
         exact bnd_rel hW hD hP hPP ihCR hC N _ (by
           have := sizeOf_con_arg (d' := d) (c' := c') (ps0 := Ctor.paramVars D.params.length C.args.length)
             (rs0 := ss) (List.getElem_mem hai)
-          omega) hs0 ρ hplen hplen hX hX (forall2_ieq_refl _) ha hR0 hty hty
+          omega) hs0 ρ hql hql hX hX (forall2_ieq_refl _) ha hR0 hty hty
       have hargsZ : ∀ i (_hi : i < C'.args.length), RE2 S k ((C'.argTy d D.params.length i).substList
           ((Z.take i).reverse ++ (P.isub ρ).toList.reverse)) (Z.getD i .abort) (Z.getD i .abort) := by
         intro i hi'
@@ -146,6 +155,16 @@ theorem bndInterp_rel2 {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
           have T := (bndRelArgs_get as 0 [] hRA i hai).1 x hx (by simpa using hr) hxn
           simp only [Nat.zero_add, List.append_nil] at T
           rw [List.map_take] at T
+          obtain ⟨A0, hA0⟩ := ctor_point hi' hr
+          have ec := argTy_point_congr hW hD hC' hA0 (args := ZP) (args' := Z)
+            (by simp [ZP]; omega) (by simp [Z]; omega) (P.isub ρ).toList.reverse (by simp [hplen]) (by
+              intro j hj hj' hjr
+              obtain ⟨x', hx', hxn', -⟩ := (simpleArgs_get as 0 hsa j (by simpa [ZP] using hj)).2 (by simpa using hjr)
+              simp only [ZP, Z, List.getElem_map, hx']
+              rw [bndAt_var rs (by omega), bndAt_var rs (by omega)])
+          have eA : C'.argTy d D.params.length i = A0 := by simp [Ctor.argTy, hA0]
+          rw [eA] at T ⊢
+          rw [ec]
           have R := RE2.conv hW T (ha (C.args.length - 1 - x) (by omega))
           have ez : Z.getD i .abort = X.getD (C.args.length - 1 - x) .abort := by
             rw [getD_eq_get' (by simp [Z]; omega)]
@@ -155,6 +174,43 @@ theorem bndInterp_rel2 {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
           exact R
         · rw [argTy_rec_inst hr hPl hplen (by simp [Z]; omega)]
           exact hrecBase i hai hr
+      have hrecPair : ∀ i (hai : i < as.toList.length), C'.isRec i = true →
+          RE2 S k (.data d (P.isub ρ)) (Z.getD i .abort) (ZP.getD i .abort) := by
+        intro i hai hr
+        have hs0 := (simpleArgs_get as 0 hsa i hai).1 (by simpa using hr)
+        have hR0 := (bndRelArgs_get as 0 [] hRA i hai).2 (by simpa using hr)
+        have htL := (RE2.typed (hrecBase i hai hr)).1
+        have htR : HasTy S k .one [] (ZP.getD i .abort) (.data d (P.isub ρ)) := by
+          obtain ⟨htele, -⟩ := con_inv hW hD hC' htP hPρ
+          have ht0 := HasTele0.get htele (k := i) (a := ZP.getD i .abort)
+            (by rw [toList_ofList, getD_eq_get' (show i < ZP.length by simp [ZP]; omega), List.getElem?_eq_getElem (by simp [ZP]; omega)])
+            (argTys_get (by omega))
+          rw [argTy_rec_inst hr hPl hplen (by simp [toList_ofList, ZP]; omega)] at ht0
+          exact minimal_to_spec ht0
+        have ez : Z.getD i .abort = Ctor.bndAt as.toList[i] q.toList X rs := by
+          rw [getD_eq_get' (by simp [Z]; omega)]; simp only [Z, List.getElem_map]
+        have ezP : ZP.getD i .abort = Ctor.bndAt as.toList[i] (P.isub ρ).toList X rs := by
+          rw [getD_eq_get' (by simp [ZP]; omega)]; simp only [ZP, List.getElem_map]
+        rw [ez] at htL ⊢
+        rw [ezP] at htR ⊢
+        exact bnd_rel hW hD hP hPP ihCR hC N _ (by
+          have := sizeOf_con_arg (d' := d) (c' := c') (ps0 := Ctor.paramVars D.params.length C.args.length)
+            (rs0 := ss) (List.getElem_mem hai)
+          omega) hs0 ρ hql hplen hX hX (forall2_ieq_refl _) ha hR0 htL htR
+      have hargsZP : ∀ i (_hi : i < C'.args.length), RE2 S k ((C'.argTy d D.params.length i).substList
+          ((Z.take i).reverse ++ (P.isub ρ).toList.reverse)) (Z.getD i .abort) (ZP.getD i .abort) := by
+        intro i hi'
+        cases hr : C'.isRec i
+        · have R := hargsZ i hi'
+          have hai : i < as.toList.length := by omega
+          obtain ⟨x, hx, hxn, -⟩ := (simpleArgs_get as 0 hsa i hai).2 (by simpa using hr)
+          have ez : ZP.getD i .abort = Z.getD i .abort := by
+            rw [getD_eq_get' (by simp [ZP]; omega), getD_eq_get' (by simp [Z]; omega)]
+            simp only [ZP, Z, List.getElem_map, hx]
+            rw [bndAt_var rs (by omega), bndAt_var rs (by omega)]
+          rwa [ez]
+        · rw [argTy_rec_inst hr hPl hplen (by simp [Z]; omega)]
+          exact hrecPair i (by omega) hr
       have hrecE : ∀ i (hai : i < as.toList.length), C'.isRec i = true →
           RE2 S k ((M.isub ρ).inst (Z.getD i .abort))
             (.elim d (P.isub ρ) (M.isub ρ) (bs.isub ρ) (Z.getD i .abort))
@@ -166,13 +222,15 @@ theorem bndInterp_rel2 {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
         have hc0 := closed_toList hacl _ (List.getElem_mem hai)
         have hty := (RE2.typed (hrecBase i hai hr)).1
         rw [getD_eq_get' hai]
-        have ez : Z.getD i .abort = Ctor.bndAt as.toList[i] (P.isub ρ).toList X rs := by
+        have ez : Z.getD i .abort = Ctor.bndAt as.toList[i] q.toList X rs := by
           rw [getD_eq_get' (by simp [Z]; omega)]; simp only [Z, List.getElem_map]
         rw [ez] at hty ⊢
         exact ih _ (by
           have := sizeOf_con_arg (d' := d) (c' := c') (ps0 := Ctor.paramVars D.params.length C.args.length)
             (rs0 := ss) (List.getElem_mem hai)
-          omega) hs0 hc0 hR0 hty
+          omega) hs0 hc0 hR0 hty (by
+            have h := (RE2.typed (hrecPair i hai hr)).2.1
+            simpa only [ZP, getD_eq_get' (show i < ZP.length by simp [ZP]; omega), List.getElem_map] using h)
       have r1 := ihEC c' hcc ρ hC' ht hargsZ (fun i hi' => by
         obtain ⟨hin, hir⟩ := mem_recPos hi'
         have R := hrecE i (by omega) hir
@@ -180,11 +238,11 @@ theorem bndInterp_rel2 {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
         exact RE2.trans hW T R (RE2.symm hW T R))
       obtain ⟨-, -, -, hrsl, hrsc, -, -, -, -⟩ := con_inv hW hD hC' ht hPρ
       let Y := C'.recPos.map (fun j => bndInterp2 d D C (P.isub ρ) (M.isub ρ) (bs.isub ρ) X rs (as.toList.getD j .abort))
-      have r2 := branchApp_rel2 hW hD hC' hplen (H.br k ρ c' C' hC') Z Z
-        (ihsOf d C' (P.isub ρ) (M.isub ρ) (bs.isub ρ) Z) Y hZ hZ (by simp [ihsOf]) (by simp [Y])
+      have r2 := branchApp_rel2 hW hD hC' hplen (H.br k ρ c' C' hC') Z ZP
+        (ihsOf d C' (P.isub ρ) (M.isub ρ) (bs.isub ρ) Z) Y hZ (by simp [ZP, hal]) (by simp [ihsOf]) (by simp [Y])
         (fun i hi hi' => by
-          have R := hargsZ i (by omega)
-          simpa only [getD_eq_get' hi] using R)
+          have R := hargsZP i (by omega)
+          simpa only [getD_eq_get' hi, getD_eq_get' hi'] using R)
         (fun s hs => by
           have hg : C'.recPos.getD s 0 = C'.recPos[s] := by
             rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hs]; rfl
@@ -203,7 +261,10 @@ theorem bndInterp_rel2 {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
       have hb : (bs.isub ρ).toList[c']? = some ((bs.isub ρ).toList.getD c' .abort) := by
         rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hc]; rfl
       rw [bndInterp2_con hC' hb, hBA]
-      exact RE2.trans hW (H.mot k ρ _ _ (ihCR c' hcc ρ hC' ht ht (forall2_ieq_refl _) hargsZ)) r1 r2
+      have htCanon := (con_inv hW hD hC' ht hPρ).2.2.2.2.2.2.1
+      have rc := ihCR c' hcc ρ hC' htCanon ht (forall2_ieq_refl _) hargsZ
+      exact RE2.trans hW (H.mot k ρ _ _ (ihCR c' hcc ρ hC' ht ht (forall2_ieq_refl _) hargsZ)) r1
+        (RE2.conv hW (H.mot k ρ _ _ rc) r2)
     all_goals simp [Ctor.simpleB] at hs
 
 end
