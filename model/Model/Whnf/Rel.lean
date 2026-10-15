@@ -223,7 +223,7 @@ inductive DR2 {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m �
 /-- Related elements of an inductive type at a stage: weak-head normal forms which are the same
 constructor with related arguments (point arguments by `P`, given the values of the earlier
 arguments of the left side), or, in a HIT, formal compositions with equivalent faces that do not
-hold, related bases and tubes related where the face holds. -/
+hold, related bases and tubes related where the face holds, with each tube's start related to its base. -/
 inductive DR2At {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m → Tm → Prop)
     (P : (k : ℕ) → Hom k m → ℕ → ℕ → List V → Tm → Tm → Tm → Prop) :
     (k : ℕ) → Hom k m → Tm → Tm → Tm → Prop
@@ -248,6 +248,10 @@ inductive DR2At {m : ℕ} (d : ℕ) (D : DataDecl) (Mem : (k : ℕ) → Hom k m 
       DR2 d D Mem P k f (.data d ps) a a' →
       (∀ k' (σ : ISub k' k) (r : I), r.Scoped k' → (ival (idEnv k') (φ.subst σ.τ)).holds →
         DR2 d D Mem P k' (f.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r)) →
+      (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+        DR2 d D Mem P k' (f.comp σ.hom) ((Tm.data d ps).isub σ) ((u.isub σ.up).dinst .zero) (a.isub σ)) →
+      (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ'.subst σ.τ)).holds →
+        DR2 d D Mem P k' (f.comp σ.hom) ((Tm.data d ps).isub σ) ((u'.isub σ.up).dinst .zero) (a'.isub σ)) →
       DR2At d D Mem P k f A t t'
 end
 
@@ -478,6 +482,11 @@ def RE2 (k : ℕ) (A t t' : Tm) : Prop := (Comp2 S (semK S k A) k k (Hom.id k)).
 def Tube2 (k : ℕ) (A : Tm) (φ : I) (u u' : Tm) : Prop :=
   ∀ k' (σ : ISub k' k) (r r' : I), r.Scoped k' → r'.Scoped k' → I.Eq r r' →
     (ival (idEnv k') (φ.subst σ.τ)).holds → RE2 S k' (A.isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r')
+
+/-- The start of a composition's tube is related to its base at every restriction where its face holds. -/
+def HcompBnd2 (k : ℕ) (A : Tm) (φ : I) (u a : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+    RE2 S k' (A.isub σ) ((u.isub σ.up).dinst .zero) (a.isub σ)
 
 /-- Composition in related types relates related tubes and bases. -/
 def KanH2 (k : ℕ) (A A' : Tm) : Prop :=

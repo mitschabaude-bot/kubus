@@ -945,9 +945,9 @@ theorem DR2At.expand {k0 : ℕ} {Θ : SData m} {f : Hom k0 m} {d : ℕ} {D : Dat
   | con hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' hrec hpt =>
     exact .con (by unfold dataMem at hm ⊢; rwa [semK_eq hW e]) hm' (e.trans heq) hC hA hpl (RedE.of_red r e ht) ht'
       hrs hrs' hreq hsc hsc' hl hl' hrec hpt
-  | hcomp hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu =>
+  | hcomp hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb' =>
     exact .hcomp (by unfold dataMem at hm ⊢; rwa [semK_eq hW e]) hm' (e.trans heq) hH hA hpl (RedE.of_red r e ht) ht'
-      hs hs' h12 h21 ha hu
+      hs hs' h12 h21 ha hu hb hb'
 
 /-- A related pair of elements of an inductive type is related at its own stage. -/
 theorem DR2.at_id {k0 : ℕ} {Θ : SData m} {f : Hom k0 m} {g : Hom k k0} {X x y : Tm}

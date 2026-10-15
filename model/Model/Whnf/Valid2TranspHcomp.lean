@@ -141,6 +141,41 @@ theorem tube_rel {A u : Tm}
     rw [dshift_dup_subst, dshift_dinst]] at b
   exact transp_rel_at hW hφ hLV hCV hL hc (c.restr hW σ) b
 
+/-- The typing boundary's validity supplies the left semantic composition boundary. -/
+theorem hcompBndL_at_valid {A u a : Tm} {ψ : I} (hψ : ψ.Scoped Ψ)
+    (hs : Valid2 S Ψ (cof Φ ψ) Γ (u.dinst .zero) a A) (c : CSub2 S Ψ Φ Γ k) :
+    HcompBnd2 S k (c.L A) (ψ.subst c.σ.τ) ((c.up hW).L u) (c.L a) := by
+  intro k' σ hh
+  have h := (hs k' (((c.restr hW σ).diagL hW).cof (holds_restr hh hψ))).2
+  change RE2 S k' ((c.restr hW σ).L A) ((c.restr hW σ).L (u.dinst .zero)) ((c.restr hW σ).L a) at h
+  rw [CSub2.restr_L, CSub2.restr_L, CSub2.restr_L, CSub2.L_dinst hW, isub_dinst] at h
+  exact h
+
+/-- The transported tube's start is related to the transport of its base. -/
+theorem tube_bnd_rel {A u a : Tm} {φ ψ : I} {l : ℕ} (hφ : φ.Scoped Ψ) (hψ : ψ.Scoped Ψ)
+    (hLV : Valid2 S (Ψ + 1) Φ.shift Γ.dshift A A (.univ l))
+    (hCV : Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l))
+    (hL : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift A (.univ l))
+    (hc : EqTm0 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l))
+    (hs : Valid2 S Ψ (cof Φ ψ) Γ (u.dinst .zero) a (A.dinst .zero)) (c : CSub2 S Ψ Φ Γ k) :
+    HcompBnd2 S k (c.L (A.dinst .one)) (ψ.subst c.σ.τ)
+      ((c.up hW).L (.transp (A.dsubst skip1I) φ.shift u))
+      (.transp ((c.up hW).L A) (φ.subst c.σ.τ) (c.L a)) := by
+  intro k' σ hh
+  have hb := (hs k' (((c.restr hW σ).diagL hW).cof (holds_restr hh hψ))).2
+  change RE2 S k' ((c.restr hW σ).L (A.dinst .zero))
+    ((c.restr hW σ).L (u.dinst .zero)) ((c.restr hW σ).L a) at hb
+  have R := transp_rel_at hW hφ hLV hCV hL hc ((c.restr hW σ).diagL hW) hb
+  change RE2 S k' ((c.restr hW σ).L (A.dinst .one))
+    (.transp (((c.restr hW σ).up hW).L A) (φ.subst (c.restr hW σ).σ.τ) ((c.restr hW σ).L (u.dinst .zero)))
+    (.transp (((c.restr hW σ).up hW).L A) (φ.subst (c.restr hW σ).σ.τ) ((c.restr hW σ).L a)) at R
+  rw [CSub2.L_dinst hW, CSub2.up_restr_L, CSub2.restr_L, CSub2.restr_L,
+    show φ.subst (c.restr hW σ).σ.τ = (φ.subst c.σ.τ).subst σ.τ from I_subst_comp φ c.σ σ] at R
+  rw [show (c.up hW).L (.transp (A.dsubst skip1I) φ.shift u) = _ from
+    transp_skip_subst A φ u c.γ c.σ.τ, show skip1I = skipI from rfl,
+    tHc_tube_pt _ _ _ σ .zero trivial, isub_transp]
+  simpa only [CSub2.L_dinst hW, isub_dinst] using R
+
 variable {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hp : D.params ≠ []) (hH : D.isHIT = true)
 include hD hp hH
 
@@ -215,6 +250,16 @@ theorem valid_transpHcomp {ps qs u a T : Tm} {φ ψ : I}
         exact ent_trans ((holds_iff_entails (I.scoped_subst hψR σ.sc)).1 hh) (ent_subst (c.ent_RL (ent_refl ψ)) σ.τ)
       exact RE2.trans hW (hpre σ) (RE2.symm hW (hpre σ) (htube k' σ r hr hh')) (htube k' σ r hr hh')
     have haa := transp_rel_at hW hφ hLV hCV hL hc c (haV k c).2
+    have hbl := tube_bnd_rel hW hφ hψ hLV hCV hL hc hsV c
+    have hbr : HcompBnd2 S k (c.L ((Tm.data d ps).dinst .one)) (ψ.subst c.σ'.τ)
+        ((c.up hW).R (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u))
+        (.transp ((c.up hW).R (.data d ps)) (φ.subst c.σ'.τ) (c.R a)) := by
+      intro k' σ hh
+      have hh' : (ival (idEnv k') ((ψ.subst c.σ.τ).subst σ.τ)).holds := by
+        rw [holds_iff_entails (I.scoped_subst hψL σ.sc)]
+        exact ent_trans ((holds_iff_entails (I.scoped_subst hψR σ.sc)).1 hh) (ent_subst (c.ent_RL (ent_refl ψ)) σ.τ)
+      exact RE2.trans hW (hpre σ) (RE2.symm hW (hpre σ) (htube k' σ .zero trivial hh'))
+        (RE2.trans hW (hpre σ) (hbl k' σ hh') (RE2.isub hW haa σ))
     have R := hcomp_relD hW hD hH hPk hPPk (ISub.id k) (Q1 := c.L (ps.dinst .one)) (Q2 := c.R (ps.dinst .one))
       (φ := ψ.subst c.σ.τ) (φ' := ψ.subst c.σ'.τ)
       (u := (c.up hW).L (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u))
@@ -224,6 +269,7 @@ theorem valid_transpHcomp {ps qs u a T : Tm} {φ ψ : I}
       (by rw [e0]; exact c.ty hW hy1) (by rw [e0]; exact c.tyR' hW hy1) (by rw [e0]; exact c.eqLR hW hy1)
       (c.ent_LR (ent_refl ψ)) (c.ent_RL (ent_refl ψ)) (by rw [e0]; exact htube) (by rw [e0]; exact tS)
       (by rw [e0]; exact tS') (by rw [e0]; exact haa)
+      (by rw [e0]; exact hbl) (by rw [e0]; exact hbr)
     rw [e0] at R
     exact R
   have hT : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L T) (c.R T) := fun k c => (hv k c).1
@@ -336,6 +382,15 @@ theorem valid_transpHcomp {ps qs u a T : Tm} {φ ψ : I}
         (c.R (.hcomp (.data d (ps.dinst .one)) ψ (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u)
           (.transp (.data d ps) φ a))) (c.L ((Tm.data d ps).dinst .one)) :=
       (EqTm.transpFace hf (c.ty hW ht1)).symm.trans (c.eq hW heq1)
+    have hbl : HcompBnd2 S k (c.L ((Tm.data d ps).dinst .one)) (ψ.subst c.σ.τ) ((c.up hW).L u) (c.L a) :=
+      fun k' σ hh => to1 σ (hcompBndL_at_valid hW hψ hsV c k' σ hh)
+    have hbr : HcompBnd2 S k (c.L ((Tm.data d ps).dinst .one)) (ψ.subst c.σ'.τ)
+        ((c.up hW).R (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u))
+        (.transp ((c.up hW).R (.data d ps)) (φ.subst c.σ'.τ) (c.R a)) := by
+      intro k' σ hh
+      have hh' := hψRL σ hh
+      exact RE2.trans hW (hpre σ) (RE2.symm hW (hpre σ) (htube k' σ .zero trivial hh'))
+        (RE2.trans hW (hpre σ) (hbl k' σ hh') (RE2.isub hW haa σ))
     have R := hcomp_relD hW hD hH hPk hPPk (ISub.id k) (Q1 := c.L qs) (Q2 := c.R (ps.dinst .one))
       (φ := ψ.subst c.σ.τ) (φ' := ψ.subst c.σ'.τ) (u := (c.up hW).L u)
       (u' := (c.up hW).R (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u)) (a := c.L a)
@@ -343,6 +398,7 @@ theorem valid_transpHcomp {ps qs u a T : Tm} {φ ψ : I}
       (by rw [e0]; exact hb1) (by rw [e0]; exact c.tyR' hW hy1) (by rw [e0]; exact heqb)
       (c.ent_LR (ent_refl ψ)) (c.ent_RL (ent_refl ψ)) (by rw [e0]; exact htube) (by rw [e0]; exact tS)
       (by rw [e0]; exact tS') (by rw [e0]; exact haa)
+      (by rw [e0]; exact hbl) (by rw [e0]; exact hbr)
     rw [e0] at R
     exact htr k c _ _ R
   by_cases hg : I.Entails .one (ψ.subst c.σ.τ)

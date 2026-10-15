@@ -347,9 +347,9 @@ theorem DR2At.redR {k0 : ℕ} {Θ : SData m} {f : Hom k0 m} {d : ℕ} {D : DataD
   | con hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl' hrec hpt =>
     exact .con hm (by unfold dataMem at hm' ⊢; rwa [← semK_eq hW e]) (heq.trans e) hC hA hpl ht
       ⟨red_redW r ht'.1, e.symm.trans ht'.2⟩ hrs hrs' hreq hsc hsc' hl hl' hrec hpt
-  | hcomp hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu =>
+  | hcomp hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb' =>
     exact .hcomp hm (by unfold dataMem at hm' ⊢; rwa [← semK_eq hW e]) (heq.trans e) hH hA hpl ht
-      ⟨red_redW r ht'.1, e.symm.trans ht'.2⟩ hs hs' h12 h21 ha hu
+      ⟨red_redW r ht'.1, e.symm.trans ht'.2⟩ hs hs' h12 h21 ha hu hb hb'
 
 theorem rc2_dataC {Θ : SData m} : RC2 S m (dataC Θ) := by
   intro k f T T' B' t t' u'

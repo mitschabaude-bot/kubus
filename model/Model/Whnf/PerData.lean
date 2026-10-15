@@ -238,10 +238,10 @@ theorem DR2At_symm : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
     rw [hsemj]
     have y := P.symEl hty x
     exact P.conv hty y
-  | k, g, A, t, t', .hcomp (ps := ps) hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu, hyp => by
+  | k, g, A, t, t', .hcomp (ps := ps) hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb', hyp => by
     have hR := hyp ps hA
     refine .hcomp hm' hm heq.symm hH hA hpl ht' ht hs' hs h21 h12 (DR2_symm ha (hypData f hR))
-      (fun k' σ r hr hh => DR2_symm (hu k' σ r hr ?_) ?_)
+      (fun k' σ r hr hh => DR2_symm (hu k' σ r hr ?_) ?_) hb' hb
     · rw [holds_iff_entails (I.scoped_subst hs σ.sc)]
       exact ent_trans ((holds_iff_entails (I.scoped_subst hs' σ.sc)).1 hh) (ent_subst h21 σ.τ)
     · intro k'' σ' ps2 h
@@ -311,12 +311,12 @@ theorem DR2At_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' t'' : Tm},
         unfold dataP2 at x y ⊢
         rw [hsemj] at y
         exact P.transEl hty x (P.conv (P.symTy hty) y)
-  | k, g, A, t, t', t'', .hcomp (ps := ps) hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu, h2, hyp => by
+  | k, g, A, t, t', t'', .hcomp (ps := ps) hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb', h2, hyp => by
     have hR := hyp ps hA
     cases h2 with
     | con _ _ _ _ _ _ ht2 =>
       have := RedW.unique ht'.1 ht2.1; cases this
-    | hcomp hm2 hm2' heq2 hH2 hA2 hpl2 ht2 ht2' hs2 hs2' h122 h212 ha2 hu2 =>
+    | hcomp hm2 hm2' heq2 hH2 hA2 hpl2 ht2 ht2' hs2 hs2' h122 h212 ha2 hu2 hb2 hb2' =>
       have e := RedW.unique ht'.1 ht2.1
       simp only [Tm.hcomp.injEq, Tm.data.injEq] at e
       obtain ⟨⟨-, rfl⟩, rfl, rfl, rfl⟩ := e
@@ -324,7 +324,7 @@ theorem DR2At_trans : ∀ {k : ℕ} {g : Hom k k0} {A t t' t'' : Tm},
       simp only [Tm.data.injEq] at e2
       obtain ⟨-, rfl⟩ := e2
       refine .hcomp hm hm2' (heq.trans heq2) hH hA hpl ht ht2' hs hs2' (ent_trans h12 h122) (ent_trans h212 h21)
-        (DR2_trans ha ha2 (hypData f hR)) (fun k' σ r hr hh => DR2_trans (hu k' σ r hr hh) (hu2 k' σ r hr ?_) ?_)
+        (DR2_trans ha ha2 (hypData f hR)) (fun k' σ r hr hh => DR2_trans (hu k' σ r hr hh) (hu2 k' σ r hr ?_) ?_) hb hb2'
       · rw [holds_iff_entails (I.scoped_subst hs' σ.sc)]
         exact ent_trans ((holds_iff_entails (I.scoped_subst hs σ.sc)).1 hh) (ent_subst h12 σ.τ)
       · intro k'' σ' ps2 h
@@ -422,7 +422,7 @@ theorem DR2_conv : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
       have x := hpt j hj hj' hr
       unfold dataP2 at x ⊢
       exact (hP (f.comp g) c j _).conv hty x
-  · intro k g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu iha ihu A' ps' hE hA'
+  · intro k g A t t' ps qs qs' u u' a a' φ φ' hm hm' heq hH hA hpl ht ht' hs hs' h12 h21 ha hu hb hb' iha ihu ihb ihb' A' ps' hE hA'
       hpl' hyp
     obtain ⟨hR, hRd, hRd'⟩ := hyp ps hA
     have hdd : TyEq S k (.data Θ.idx ps) (.data Θ.idx ps') := (hA.2.symm.trans hW hE).trans hW hA'.2
@@ -439,13 +439,16 @@ theorem DR2_conv : ∀ {k : ℕ} {g : Hom k k0} {A t t' : Tm},
       ⟨ps'.isub σ, ⟨redW_self rfl, TyEq.refl _⟩, isList_subst hpl' _ _⟩
     refine .hcomp hm hm' (heq.tyConv hE) hH hA' hpl' ⟨ht.1, ht.2.tyConv hE⟩ ⟨ht'.1, ht'.2.tyConv hE⟩ hs hs' h12 h21
       (iha hdd hyp2 hex2) (fun k' σ r hr hh => ihu k' σ r hr hh (hdd.isub hW σ) ?_ ?_)
-    · intro k'' σ' ps2 ps2' h1 h2
+      (fun k' σ hh => ihb k' σ hh (hdd.isub hW σ) ?_ ?_)
+      (fun k' σ hh => ihb' k' σ hh (hdd.isub hW σ) ?_ ?_)
+    all_goals first
+    | intro k'' σ' ps2 ps2' h1 h2
       rw [Tm.isub_isub] at h1 h2
       obtain rfl := redT_data_eq h1
       obtain rfl := redT_data_eq h2
       rw [Hom.comp_assoc, ← ISub.hom_comp]
       exact ⟨argRelH_isub Θ f hR (σ.comp σ'), argRelH_isub Θ f hRd (σ.comp σ'), argRelH_isub Θ f hRd' (σ.comp σ')⟩
-    · intro k'' σ'
+    | intro k'' σ'
       rw [Tm.isub_isub]
       exact ⟨ps'.isub (σ.comp σ'), ⟨redW_self rfl, TyEq.refl _⟩, isList_subst hpl' _ _⟩
 
