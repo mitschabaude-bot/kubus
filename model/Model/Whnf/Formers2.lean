@@ -79,6 +79,25 @@ theorem Comp2_res_el {A : Tm} {l : ℕ} (hA : HasTy S k .one [] A (.univ l)) (σ
     Comp2 S (semK S k A) k k' σ.hom = Comp2 S (semK S k' (A.isub σ)) k' k' (Hom.id k') := by
   rw [semK_isubS hW hA, Comp2_eq_res (semK_ne hW hA)]
 
+omit hW in
+/-- A scoped syntactic representative of a cube map. -/
+def ISub.ofHom (f : Hom k' k) : ISub k' k :=
+  ⟨tyOf f, fun i _ => tyOf_scoped f i, fun i hi => by
+    simp only [tyOf, dif_neg (show ¬ i < k by omega)]⟩
+
+omit hW in
+theorem ISub.ofHom_hom (f : Hom k' k) : (ISub.ofHom f).hom = f := by
+  funext j
+  change ival (idEnv k') (tyOf f (k - 1 - j)) = f j
+  rw [ival_tyOf]
+  ext p
+  simp only [IEnv.restr, idEnv, dif_pos (show k - 1 - j.val < k by omega), DM.restr_fn, DM.var_fn, Hom.app]
+  congr 2
+  apply Fin.ext
+  have hj := j.isLt
+  change k - 1 - (k - 1 - j.val) = j.val
+  omega
+
 /-! ### The Kan property of a code -/
 
 omit hW in
@@ -143,6 +162,12 @@ theorem kanPG_at_iff {X : V} (hX : X ≠ ∅) (f : Hom k m) :
 theorem KanP2.restrict {X : V} (hX : X ≠ ∅) (h : KanP2 S m X) (g : Hom k m) :
     KanP2 S k (res g X) :=
   (kanPG_iff hW).1 (((kanPG_iff hW).2 h).restrict hX g)
+
+/-- Kan of the code is stable under a syntactic restriction. -/
+theorem KanP2.isub {A : Tm} {l : ℕ} (hA : HasTy S k .one [] A (.univ l))
+    (h : KanP2 S k (semK S k A)) (σ : ISub k' k) : KanP2 S k' (semK S k' (A.isub σ)) := by
+  rw [semK_isubS hW hA]
+  exact h.restrict hW (semK_ne hW hA) σ.hom
 
 /-! ### Universes -/
 

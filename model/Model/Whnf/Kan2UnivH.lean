@@ -2,7 +2,7 @@ import Model.Whnf.Kan2Univ
 import Model.Whnf.Kan2Glue
 import Model.Whnf.Valid2LineEquivB
 import Model.Whnf.NearAll
-import Model.Whnf.Fund2
+import Model.Whnf.Kan2GlueCode
 
 /-!
 # Binary composition in universes
@@ -10,7 +10,7 @@ import Model.Whnf.Fund2
 `hcomp U [ψ ↦ u] a` computes to the Glue type `hcompU ψ u a = Glue a [ψ ↦ (u(1), lineEquiv (u⁻))]`.
 Related compositions give related contracta (`RE2_hcompU`): the bases are related, and the
 equivalences are related by the binary validity of `lineEquiv` (`VEq.lineEquiv₂`), applied to the
-restricted tubes as closed lines. Transport is only used along lines of level `l` (`KTAt S l`).
+restricted tubes as closed lines. The related tubes carry the Kan operations used by transport.
 -/
 
 set_option autoImplicit false
@@ -100,7 +100,7 @@ theorem tube_valid {u1 u2 : Tm} {ψ : I} {l : ℕ} (hψs : ψ.Scoped k)
 
 
 /-- The equivalences of the `hcompU` contracta of related tubes, valid together under the face. -/
-theorem equiv_valid {u1 u2 a1 : Tm} {ψ : I} {l : ℕ} (hKT : KTAt S l) (hψs : ψ.Scoped k)
+theorem equiv_valid {u1 u2 a1 : Tm} {ψ : I} {l : ℕ} (hψs : ψ.Scoped k)
     (hu1 : HasTy S (k + 1) (cof .one ψ).shift [] u1 (.univ l)) (hu2 : HasTy S (k + 1) (cof .one ψ).shift [] u2 (.univ l))
     (hteq : EqTm S (k + 1) (cof .one ψ).shift [] u1 u2 (.univ l))
     (tube : Tube2 S k (.univ l) ψ u1 u2) (tube1 : Tube2 S k (.univ l) ψ u1 u1)
@@ -121,7 +121,7 @@ theorem equiv_valid {u1 u2 a1 : Tm} {ψ : I} {l : ℕ} (hKT : KTAt S l) (hψs : 
       (fun i hi => by rcases Nat.lt_one_iff.1 hi with rfl; exact (show 0 < k + 1 by omega))
       (fun i => rfl) (KubusCore.I.scoped_shift hX) (ent_sk1 _ (ent_refl _)) hw1 V12
     exact this
-  have hLE := VEq.lineEquiv₂ hW (Ψ := k) (Φ := cof .one ψ) (Γ := []) hKT hB
+  have hLE := VEq.lineEquiv₂ hW (Ψ := k) (Φ := cof .one ψ) (Γ := []) hB
   rw [rev_d0, rev_d1] at hLE
   have hw0 : Wf0 S (k + 0) (cof .one ψ) (Ctx.dren 0 []) := by
     rw [Ctx.dren_zero]; exact wf_unshift hS hw1
@@ -154,7 +154,7 @@ theorem stable_glueU {A T e : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] (.g
   exact ⟨.step (by simp [step, show I.entails .one (φ.subst σ.τ) = true from hσ]) (.refl _), EqTm.glueFace hσ hGσ⟩
 
 /-- Related compositions in a universe whose face does not hold have related contracta. -/
-theorem RE2_hcompU {X' : Tm} {ψ ψ' : I} {u u' a a' : Tm} {l : ℕ} (hKT : KTAt S l)
+theorem RE2_hcompU {X' : Tm} {ψ ψ' : I} {u u' a a' : Tm} {l : ℕ}
     (K : KD S k (.univ l) X' ψ ψ' u u' a a') (hR' : ∀ k' (σ : ISub k' k), RedT S k' (X'.isub σ) (.univ l))
     (hn : ¬ I.Entails .one ψ) :
     RE2 S k (.univ l) (Tm.hcompU ψ u a) (Tm.hcompU ψ' u' a') := by
@@ -196,15 +196,21 @@ theorem RE2_hcompU {X' : Tm} {ψ ψ' : I} {u u' a a' : Tm} {l : ℕ} (hKT : KTAt
   have hu2 := minimal_to_spec hu'
   have hu2ψ : HasTy S (k + 1) (cof .one ψ).shift [] u' (.univ l) :=
     HasTy.restrict (KubusCore.I.scoped_shift ⟨trivial, hψs⟩) (ent_shift (ent_and_mono (ent_refl _) K.p12)) hu2
-  have V := equiv_valid hW hKT hψs hu1 hu2ψ K.hteq K.tube tube11 (minimal_to_spec_eq hside) (minimal_to_spec ha) hbd1
-  have VL := equiv_valid hW hKT hψs hu1 hu1 (EqTm.refl hu1) tube11 tube11 (minimal_to_spec_eq hside)
+  have V := equiv_valid hW hψs hu1 hu2ψ K.hteq K.tube tube11 (minimal_to_spec_eq hside) (minimal_to_spec ha) hbd1
+  have VL := equiv_valid hW hψs hu1 hu1 (EqTm.refl hu1) tube11 tube11 (minimal_to_spec_eq hside)
     (minimal_to_spec ha) hbd1
-  have VR := equiv_valid hW hKT hψs' hu2 hu2 (EqTm.refl hu2) tube22 tube22 (minimal_to_spec_eq hside')
+  have VR := equiv_valid hW hψs' hu2 hu2 (EqTm.refl hu2) tube22 tube22 (minimal_to_spec_eq hside')
     (minimal_to_spec ha') hbd2
   simp only [hcompU_eq] at he hG hG' ⊢
+  have hAK := RE2_univ_kan hW K.ha0
+  have hTK : ∀ k' (σ : ISub k' k), (ival (idEnv k') (ψ.subst σ.τ)).holds →
+      KanP2 S k' (semK S k' ((u.dinst .one).isub σ)) := by
+    intro k' σ hh
+    rw [isub_dinst]
+    exact RE2_univ_kan hW (K.tube k' σ .one .one trivial trivial (I_eq_refl _) hh)
   refine RE2_univ_of hW ⟨hG, hG', he⟩ (RT2_glue_intro hW hG hG' he hnh K.p12 K.p21
     (fun k' σ => RE2_univ_ty hW (RE2.isub hW K.ha0 σ)) (fun k' σ hh => ?_) (fun k' σ hh => ?_)
-    (fun k' σ hh => ?_) (fun k' σ hh => ?_))
+    (fun k' σ hh => ?_) (fun k' σ hh => ?_) hAK hTK) (kanP2_glueT hW hG hAK hTK)
   · have := K.tube k' σ .one .one trivial trivial (I_eq_refl _) hh
     rw [isub_dinst, isub_dinst]; exact RE2_univ_ty hW this
   · have : RE2 S k' ((Tm.equiv (u.dinst .one) a).isub σ) ((Tm.lineEquiv (u.dsubst revI)).isub σ)
@@ -226,7 +232,7 @@ theorem red_hcomp_univ {X u a : Tm} {ψ : I} {l : ℕ} (hty : HasTy S k .one [] 
   exact ⟨(red_hcomp_ty hn hR.1.1).trans (.step (step_hcomp_univ hn) (.refl _)), r.2.trans (EqTm.hcompU r.1)⟩
 
 /-- Composition at a pair of related types whose normal forms are universes. -/
-theorem kanH2_univ {T T' : Tm} {l : ℕ} (hKT : KTAt S l) (hTT : RT2 S k T T') (hR : RedT S k T (.univ l)) :
+theorem kanH2_univ {T T' : Tm} {l : ℕ} (hTT : RT2 S k T T') (hR : RedT S k T (.univ l)) :
     KanH2 S k T T' := by
   intro ψ ψ' u u' a a' hty hty' heq hteq h12 h21 htube ha hbd hbd'
   have K : KD S k T T' ψ ψ' u u' a a' := ⟨hty, hty', heq, hteq, h12, h21, htube, ha, hbd, hbd'⟩
@@ -284,7 +290,7 @@ theorem kanH2_univ {T T' : Tm} {l : ℕ} (hKT : KTAt S l) (hTT : RT2 S k T T') (
       exact RE2.conv hW hUT (RE2.expandL hW (RT2_univ) hGτ (RE2.typed tb).2.1 (stable_glueU hW hGτ hψ2) tb)
     · rw [if_neg hψ2']
       have hn2 : ¬ I.Entails .one (ψ.subst (σ.comp ρ).τ) := fun h => hψ2' (ent_trans h (ent_subst h12 _))
-      exact RE2.conv hW hUT (RE2_hcompU hW hKT K2 (fun k3 θ => by rw [Tm.isub_isub]; exact (hcl _ _).2) hn2)
+      exact RE2.conv hW hUT (RE2_hcompU hW K2 (fun k3 θ => by rw [Tm.isub_isub]; exact (hcl _ _).2) hn2)
 
 end
 

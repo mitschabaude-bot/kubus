@@ -1,5 +1,6 @@
 import Model.Whnf.Valid2
 import Model.Whnf.Glue2Closed
+import Model.Whnf.Kan2GlueCode
 
 /-!
 # Semantic validity of the Glue rules
@@ -22,6 +23,23 @@ include hW
 
 variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
+/-- Kan of the face fibres of a valid Glue component. -/
+theorem Valid2.faceKan {T T' : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+    (hT : Valid2 S Ψ (cof Φ φ) Γ T T' (.univ l)) (c : CSub2 S Ψ Φ Γ k)
+    (σ : ISub k' k) (hh : (ival (idEnv k') ((φ.subst c.σ.τ).subst σ.τ)).holds) :
+    KanP2 S k' (semK S k' ((c.L T).isub σ)) := by
+  have h' := holds_restr hh hφ
+  have hk := hT.kanV hW k' ((c.restr hW σ).cof h')
+  exact CSub2.restr_L hW c σ T ▸ hk
+
+/-- The Glue formation rule carries Kan of its base and face fibres. -/
+theorem kanV_glue {A A' T T' e : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+    (hA : Valid2 S Ψ Φ Γ A A' (.univ l)) (hT : Valid2 S Ψ (cof Φ φ) Γ T T' (.univ l))
+    (hty : HasTy0 S Ψ Φ Γ (.glue A φ T e) (.univ l)) : KanV S Ψ Φ Γ (.glue A φ T e) := by
+  intro k c
+  exact kanP2_glueT hW (c.ty hW hty) (hA.kanV hW k c)
+    (fun k' σ hh => hT.faceKan hW hφ c σ hh)
+
 /-- The Glue formation rule, given the self-relation of the right equivalence where the face holds. -/
 theorem valid_glue_core {A A' T T' e e' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Scoped Ψ)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)
@@ -34,7 +52,7 @@ theorem valid_glue_core {A A' T T' e e' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.S
     (heq : EqTm0 S Ψ Φ Γ (.glue A φ T e) (.glue A' φ' T' e') (.univ l)) :
     Valid2 S Ψ Φ Γ (.glue A φ T e) (.glue A' φ' T' e') (.univ l) := by
   have hee := valid_trans hW he (valid_symm hW he)
-  refine valid_univ_of hW hty hty' heq fun k c => ?_
+  refine valid_univ_of hW hty hty' heq (fun k c => ?_) (kanV_glue hW hφ hA hT hty)
   have hG : HasTy S k .one [] (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) (.univ l) := c.ty hW hty
   have hG' : HasTy S k .one [] (.glue (c.R A') (φ'.subst c.σ'.τ) (c.R T') (c.R e')) (.univ l) := c.tyR hW hty'
   have heqc : EqTm S k .one [] (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e))
@@ -53,7 +71,7 @@ theorem valid_glue_core {A A' T T' e e' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.S
     exact RT2.expand2 hW (tyCode_of_univ hW hG) hGK hG'K (hGK.of_tyEq (glue_face_tyEq hW hGK hφe))
       (stable_glue hW hGK hφe) (stable_glue hW hG'K (ent_trans hφe e12)) hTT
   · refine RT2_glue_intro hW hG hG' heqc hh e12 e21 (fun k' σ => hA.tyRestr hW c σ)
-      (fun k' σ hh' => ?_) (fun k' σ hh' => ?_) (fun k' σ hh' => ?_) (hER k c hh)
+      (fun k' σ hh' => ?_) (fun k' σ hh' => ?_) (fun k' σ hh' => ?_) (hER k c hh) (hA.kanV hW k c) (fun k' σ hh' => hT.faceKan hW hφ c σ hh')
     · have h' := holds_restr hh' hφ
       have := RE2_univ_ty hW (hT k' ((c.restr hW σ).cof h')).2
       exact (CSub2.restr_L hW c σ T ▸ CSub2.restr_R hW c σ T' ▸ this)

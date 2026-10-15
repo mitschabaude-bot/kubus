@@ -62,6 +62,7 @@ theorem TGD2_mk {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I} {l l' : 
   have W := rG.self hW hGc hGc'
   have WW := rGG.self hW hGc hGc
   have inv := RT2_glueW_inv hW hG hG' hn hn' W (redT_glue_self hn) (redT_glue_self hn')
+  have hKan := RT2_glueW_kan hW hG hn W (redT_glue_self hn)
   have invL := RT2_glueW_inv hW hG hG hn hn WW (redT_glue_self hn) (redT_glue_self hn)
   have fc := RT2_glueW_face hW hG hG' hn W (redT_glue_self hn) (redT_glue_self hn')
   obtain ⟨-, lA, hA0, -⟩ := glue_data hW hG
@@ -75,7 +76,7 @@ theorem TGD2_mk {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I} {l l' : 
       (near_cons A hr hr' he) ⟨lA, .inl (HasTy.isubS hW hA0 _)⟩
   exact ⟨⟨l, hG⟩, ⟨l', hG'⟩, rA, rAA, fun k' σ hh => (inv.2 k' σ hh).1, fun k' σ hh => (invL.2 k' σ hh).1,
     fun k' σ hh => (inv.2 k' σ hh).2, fun k' σ hh => (invL.2 k' σ hh).2, fc.1, fc.2, kAR, kATR, kTR, kTTR,
-    hδs, hδ1, hδ2, hδs', hδ1', hδ2', hty, hty', heq, p12, p21, rG, rGG, cG, ha0⟩
+    hδs, hδ1, hδ2, hδs', hδ1', hδ2', hty, hty', heq, p12, p21, rG, rGG, cG, ha0, hKan.1, hKan.2⟩
 
 section
 variable {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}

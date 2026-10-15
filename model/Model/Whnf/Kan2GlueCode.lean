@@ -110,6 +110,40 @@ theorem kanP2_glueC {l m : ℕ} {A Tp ep : V} {φ : Cof m} (hAw : WF l m A) (hφ
         fun k2 Θ hh2 X X' h1 h2 => ((ihs hloc f1 s1 k1 ρ1 A2 φ2 T2 e2 hn1 hR2).2 (k2 + 1) Θ hh2).relT hW h1 h2⟩)
 
 
+/-- A syntactic Glue code is Kan when its base and its face fibres are Kan. -/
+theorem kanP2_glueT {A T e : Tm} {φ : I} {l : ℕ}
+    (hG : HasTy S k .one [] (.glue A φ T e) (.univ l))
+    (hAK : KanP2 S k (semK S k A))
+    (hTK : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      KanP2 S k' (semK S k' (T.isub σ))) :
+    KanP2 S k (semK S k (.glue A φ T e)) := by
+  obtain ⟨hφ, lA, hA, -⟩ := glue_data hW hG
+  have hAw : WF lA k (semK S k A) := by
+    have hm := mem_of_ty hW hA
+    rw [show semK S k (.univ lA) = univC k lA from rfl, El_univC] at hm
+    exact (ZFSet.mem_sep.1 hm).2
+  have hNat := (cond_of_sem_glue (semK_ne hW hG)).1
+  have hTK' : ∀ k' (f : Hom k' k), ((ival (idEnv k) φ).face.restr f).holds →
+      KanP2 S k' (dat (partialKV k (ival (idEnv k) φ).face (faceVals S T (idEnv k) (γ0 k))) k' f) := by
+    intro k' f hf
+    have hf' : ((ival (idEnv k) φ).face.restr (ISub.ofHom f).hom).holds := by
+      rwa [ISub.ofHom_hom]
+    have ht := hTK k' (ISub.ofHom f) ((face_holds_iff hφ _).1 hf')
+    rwa [← dat_glue_fiber _ hf', ISub.ofHom_hom] at ht
+  rw [semK_glueT hW hG]
+  refine kanP2_glueC hW hAw (isCof_ival_face _ _) ?_ ?_ hAK hTK'
+  · intro k' f hf n g
+    rw [dat_partialKV_holds hf, dat_partialKV_holds ((isCof_ival_face _ _).mono hf g)]
+    have ht := hNat k' f hf n g
+    simpa only [faceVals, IEnv.restr_restr, TEnv.restr_restr] using ht.symm
+  · intro k' f hf
+    have hf' : ((ival (idEnv k) φ).face.restr (ISub.ofHom f).hom).holds := by
+      rwa [ISub.ofHom_hom]
+    obtain ⟨lT, hT, -⟩ := glue_fiber_ty hW hG (ISub.ofHom f) ((face_holds_iff hφ _).1 hf')
+    have ht := kv_semK_of_univ hW hT
+    rwa [← dat_glue_fiber _ hf', ISub.ofHom_hom] at ht
+
+
 end
 
 end Model.Whnf

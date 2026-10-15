@@ -62,6 +62,26 @@ theorem RT2_glue_inv {A T e A' T' e' : Tm} {φ φ' : I} {l l' : ℕ}
   refine (goodP_id hW (goodP_equivF hW hE0 gT gA) (closed_of_ty hW hE0) (e1.isub σ) (e1'.isub σ)).1 ?_
   convert hE using 3
 
+/-- The component Kan of a type whose normal form is a Glue type. -/
+theorem RT2_glueW_kan {X X' A T e : Tm} {φ : I} {l : ℕ}
+    (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) (hn : ¬ I.Entails .one φ)
+    (h : RT2 S k X X') (hR : RedT S k X (.glue A φ T e)) :
+    KanP2 S k (semK S k A) ∧ ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      KanP2 S k' (semK S k' (T.isub σ)) := by
+  obtain ⟨hφs, lA, hA, -⟩ := glue_data hW hG
+  have hnF : ¬ Cof.holds (ival (idEnv k) φ).face := by
+    rw [← DM.holds_iff_face_holds]; exact fun hh => hn ((holds_iff_entails hφs).1 hh)
+  unfold RT2 at h
+  rw [semK_tyEq hW hR.2, semK_glueT hW hG,
+    Comp2_glueC (kv_semK_of_univ hW hA) (isKV_partialKV _ _) (isCof_ival_face _ _) hnF] at h
+  have hk := h.2.2.2.2
+  simp only [kanGlue2, Hom.id_comp] at hk
+  refine ⟨(kanPG_iff hW).1 hk.1, fun k' σ hh => ?_⟩
+  have hFace := (face_holds_iff hφs σ).2 hh
+  have ht := hk.2 k' σ hFace
+  rw [dat_glue_fiber σ hFace] at ht
+  exact (kanPG_iff hW).1 ht
+
 /-- Expansion of related types along stable steps on both sides, at the level of `RT2`. -/
 theorem RT2.expand2 {A A' B B' : Tm} (hX : TyCode k (semK S k A)) (hA : IsTyK S k A) (hA' : IsTyK S k A')
     (hB : IsTyK S k B) (hs : StableT S k A B) (hs' : StableT S k A' B') (h : RT2 S k B B') : RT2 S k A A' := by
