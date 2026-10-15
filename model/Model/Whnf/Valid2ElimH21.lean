@@ -10,7 +10,7 @@ open KubusCore KubusCore.Meta Model.Canon
 
 noncomputable section
 
-variable {S S' : Sig} {Ψ : ℕ} {Φ : I} {Γ : Ctx} {d : ℕ} {D : DataDecl} {ps M bs : Tm} {m : ℕ}
+variable {S : Sig} {Ψ : ℕ} {Φ : I} {Γ : Ctx} {d : ℕ} {D : DataDecl} {ps M bs : Tm} {m : ℕ}
 
 /-- The valid premises of elimination, independently of its scrutinee. -/
 structure ElimValid2 (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (d : ℕ) (D : DataDecl) (ps M bs : Tm) (m : ℕ)
@@ -78,34 +78,24 @@ theorem ElimValid2.dwk (E : ElimValid2 S Ψ Φ Γ d D ps M bs m) {t : Tm}
     exact valid_branchBnd_dwk hW E.hD hc hk E.hps (Meta.tele_length E.hpt) E.hbs
       (E.hcoh c C b0 kb ψ e hc hb0 hk) (E.boundaryV c C b0 kb ψ e hc hb0 hk)
 
-omit hW in
 /-- Formation applied to any valid scrutinee, using the stored valid components. -/
-theorem ElimValid2.elim (hDa : DataHyp2 S S') (hD' : S'[d]? = some (.data D)) (hH : D.isHIT = true)
+theorem ElimValid2.elim (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1))
     (E : ElimValid2 S Ψ Φ Γ d D ps M bs m) {t : Tm} (ht : HasTy0 S Ψ Φ Γ t (.data d ps))
     (hv : Valid2 S Ψ Φ Γ t t (.data d ps)) :
     Valid2 S Ψ Φ Γ (.elim d ps M bs t) (.elim d ps M bs t) (M.inst t) :=
-  hDa.elim hD' hH E.hps E.hdata E.hpt E.hP E.hbs E.hlen E.hbr E.hcoh ht
-    E.dataV E.paramsV E.motiveV E.branchV E.boundaryV hv
+  valid_elimH hW E.hD hH hyp (E.toElimPrem.elim_ty ht) (E.toElimPrem.elim_ty ht) E.dataV E.motiveV
+    (fun c C b b' hc hb hb' => by rw [hb] at hb'; cases hb'; exact E.branchV c C b hc hb) hv E.boundaryV
 
-/-- The remaining congruence field applies to a fixed valid eliminator's scrutinees. -/
-theorem ElimValid2.congr (hDa : DataHyp2 S S') (hD' : S'[d]? = some (.data D)) (hH : D.isHIT = true)
+/-- Congruence for a fixed valid eliminator's scrutinees. -/
+theorem ElimValid2.congr (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1))
     (E : ElimValid2 S Ψ Φ Γ d D ps M bs m) {t t' : Tm}
     (he : EqTm0 S Ψ Φ Γ t t' (.data d ps)) (hv : Valid2 S Ψ Φ Γ t t' (.data d ps)) :
     Valid2 S Ψ Φ Γ (.elim d ps M bs t) (.elim d ps M bs t') (M.inst t) := by
   have hS := sigClosed_of_wfSig hW
-  have hleft := E.elim hDa hD' hH (presup hW he).1 (valid_trans hW hv (valid_symm hW hv))
-  have hright := E.elim hDa hD' hH (presup hW he).2 (valid_trans hW (valid_symm hW hv) hv)
   have hinst := HasTy0.inst_congr hS E.hP (presup hW he).1 (presup hW he).2 he
-  have htype := valid_inst hW E.dataV hv E.motiveV
-  change Valid2 S Ψ Φ Γ (M.inst t) (M.inst t') (.univ m) at htype
-  refine hDa.elimEq hD' hH (E.toElimPrem.elim_ty (presup hW he).1)
+  refine valid_elimH hW E.hD hH hyp (E.toElimPrem.elim_ty (presup hW he).1)
     (HasTy0.conv (E.toElimPrem.elim_ty (presup hW he).2) (EqTm0.symm hinst))
-    (EqTele0.refl E.hpt) (EqTm0.refl E.hP) E.hbs E.hbs rfl ?_ he hleft
-    (valid_conv hW hright (valid_symm hW htype)) E.paramsV E.motiveV ?_ hv
-  · intro c C b b' hc hb hb'
-    rw [hb] at hb'
-    cases hb'
-    exact EqTm0.refl (E.hbr c C b hc hb)
+    E.dataV E.motiveV ?_ hv E.boundaryV
   · intro c C b b' hc hb hb'
     rw [hb] at hb'
     cases hb'

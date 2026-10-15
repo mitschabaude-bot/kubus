@@ -17,6 +17,8 @@ What does it mean that Kubus accepts a proof? This chapter explains what is veri
 
 **The model** (`model/`, built on Mathlib) interprets the specification in cubical sets and validates every rule. The theorem `Model.kernel_consistent0` states that if the kernel accepts a signature, there is no closed term of `(A : U₀) → A` over it. It depends only on Lean's standard axioms (`propext`, `Classical.choice`, `Quot.sound`), and CI checks this on every push.
 
+Canonicity is also proven unconditionally (`Model.Whnf.canonicity`, `model/Model/Whnf/Canon2.lean`). Every closed term of a parameterless inductive type over a well-formed signature is judgmentally equal to a canonical form: a numeral for `Nat`, or a constructor or formal composition for a higher inductive type. The binary logical relation derives the Glue compatibility needed by the canonical form proof. It has no remaining obligation bundle, and CI checks that its only axioms are `propext`, `Classical.choice` and `Quot.sound`.
+
 ## What you need to read
 
 To trust a Kubus development, you need to read neither the elaborator, nor the kernel, nor the proofs. You need to read
@@ -24,7 +26,8 @@ To trust a Kubus development, you need to read neither the elaborator, nor the k
 1. the syntax and the definitions the rules mention (`KubusCore/Syntax.lean`),
 2. the rules in their textbook form (`KubusCore/Meta/Minimal.lean`), without primitive weakening, substitution or inversion rules, which are proven admissible,
 3. the two statements in `model/Model/Minimal.lean`: consistency of the minimal judgments, and consistency of what the kernel accepts,
-4. the signature of `Kernel.checkSig`, which returns a proof of well-formedness.
+4. for canonicity, `Canon` in `model/Model/Canon/Statement.lean` and the theorem in `model/Model/Whnf/Canon2.lean`,
+5. the signature of `Kernel.checkSig`, which returns a proof of well-formedness.
 
 [docs/metatheory.md](https://github.com/mitschabaude-bot/kubus/blob/main/docs/metatheory.md) lists exactly what to read, with file and definition names.
 
@@ -36,6 +39,6 @@ A kernel proven sound for an inconsistent specification certifies nothing, which
 
 ## What is not verified (yet)
 
-- **Canonicity** is proven, conditional on one hypothesis. Every closed term of a parameterless inductive type is judgmentally equal to a canonical form: for `Nat`, a numeral. The theorem `Model.Canon.canonicity_of_glueCompat` assumes `GlueCompat`: two judgmentally equal Glue types whose faces are equivalent and not trivially true have judgmentally equal bases, and equal equivalences under the face. It holds in the model and for every rule that equates Glue types directly. Proving it in general needs a normalization argument for types, which is open. Full **normalization** is a design goal (stratified universes, strict positivity, structural recursion) but is not proven. Consistency depends on neither.
+- **Full normalization** remains a design goal: universes are stratified, data types are strictly positive and recursion is structural, but a general normalization theorem is not proven. Consistency and canonicity are proven independently of such a theorem.
 - **The elaborator's evaluator** is tested, not verified: `kubus --selfcheck` checks invariants on every definition, and a fuzzer generates random well-typed programs and ill-typed mutants. When the elaborator and the kernel disagree, the kernel wins.
 - **The specification** has to be read: no proof can show that it says what you mean. This is why its textbook form is kept small.

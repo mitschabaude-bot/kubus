@@ -29,8 +29,9 @@ def Canonicity : Prop :=
 
 /-- Compatibility of Glue annotations: two closed Glue types (at stage `k`, i.e. in `k` interval
 variables) with equivalent faces that do not hold, which are judgmentally equal, have equal bases
-(at some universe) and equal equivalences under the face. Canonicity is proven assuming this; it is believed admissible
-(see `model/CANONICITY.md`), but not as a rule: where the face holds, the annotations are
+(at some universe) and equal equivalences under the face. `Model.Whnf.glueCompat` proves this
+from `WfSig S`, and `Model.Whnf.canonicity` discharges the canonical form proof's use of it.
+It is a metatheorem, not a rule: where the face holds, the annotations are
 unconstrained. (The faces must be assumed equivalent: `glue A φ T e ≡ glue (glue A φ T e) 1 _ idEquiv`
 by `glueFace`; for the canonicity proof, equivalence of the faces follows from the model.) -/
 def GlueCompat (S : Sig) : Prop :=

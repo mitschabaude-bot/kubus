@@ -10,7 +10,7 @@ open KubusCore KubusCore.Meta Model.Canon
 
 noncomputable section
 
-variable {S S' : Sig} {Ψ k : ℕ} {Φ : I} {Γ : Ctx} (hW : WfSig S)
+variable {S : Sig} {Ψ k : ℕ} {Φ : I} {Γ : Ctx} (hW : WfSig S)
 include hW
 
 /-- Closing a valid tube gives its same-point relation. -/
@@ -71,8 +71,8 @@ theorem elimTube_at_valid {d : ℕ} {ps M bs u : Tm} {φ : I} (hφ : φ.Scoped �
   simpa only [CSub2.restr_L, CSub2.restr_R, CSub2.upL_restr, CSub2.upR_restr, el, er] using R
 
 /-- HIT composition computation follows from formation, congruence and typing inversion. -/
-theorem valid_elimHcompH (hDa : DataHyp2 S S') {d : ℕ} {D : DataDecl}
-    (hD : S[d]? = some (.data D)) (hD' : S'[d]? = some (.data D)) (hH : D.isHIT = true)
+theorem valid_elimHcompH {d : ℕ} {D : DataDecl}
+    (hD : S[d]? = some (.data D)) (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1))
     {ps M bs qs u a T : Tm} {φ : I}
     (hi : ElimInv2 S Ψ Φ Γ d ps M bs (.hcomp (.data d qs) φ u a) T)
     (hh : HcompInv S Ψ Φ Γ (.data d ps) φ u a (.data d ps))
@@ -91,9 +91,9 @@ theorem valid_elimHcompH (hDa : DataHyp2 S S') {d : ℕ} {D : DataDecl}
   have Eline := (E.dwk hW ha).restrict hW
     (KubusCore.I.scoped_shift (show (cof Φ φ).Scoped Ψ from ⟨scoped_of_ty E.hdata, hφ⟩))
     (ent_shift (ent_and_left _ _))
-  have va := E.elim hDa hD' hH ha haV
-  have vu := Eline.elim hDa hD' hH hu huV
-  have vb := Eface.congr hW hDa hD' hH hb hbV
+  have va := E.elim hW hH hyp ha haV
+  have vu := Eline.elim hW hH hyp hu huV
+  have vb := Eface.congr hW hH hyp hb hbV
   obtain ⟨D1, m1, Et, hx⟩ := gen_elimP ht rfl
   have hd1 := Et.hD
   rw [hD] at hd1
