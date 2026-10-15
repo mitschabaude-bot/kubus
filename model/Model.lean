@@ -82,4 +82,5 @@ import Model.Whnf.Kan2GlueTM
 import Model.Whnf.Kan2All
 import Model.Whnf.Canon2
 import Model.Whnf.Kan2DataHCSound
+import Model.Whnf.Kan2DataHITBndTy
 import Model.Whnf.Valid2ElimH1

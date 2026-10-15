@@ -67,16 +67,16 @@ structure HITHyp2 (S : Sig) : Prop where
     RE2 S k (.data d P1) (.con d c P1 (Tm.ofList Y) rs) (Ctor.bndAt b P1.toList Y rs)
   /-- The argument types of the nested constructors of a boundary that holds are related to those of
   the constructor (validity of the equations of `Ctor.bndTyped`). -/
-  bndTy : ∀ {k d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {P1 Q1 : Tm} {Y Y' : List Tm} {rs : List I}
+  bndTy : ∀ {k d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {P1 : Tm} {Y : List Tm} {rs : List I}
     {kb : ℕ} {ψ : I} {b : Tm},
     S[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C → C.bnd[kb]? = some (ψ, b) →
     I.Entails .one (Ctor.cofAt ψ rs) →
-    HasTy S k .one [] (.data d P1) (.univ D.level) → RT2 S k (.data d P1) (.data d Q1) →
-    Y.length = C.args.length → Y'.length = C.args.length →
+    HasTy S k .one [] (.data d P1) (.univ D.level) → RT2 S k (.data d P1) (.data d P1) →
+    Y.length = C.args.length →
     HasTy S k .one [] (.con d c P1 (Tm.ofList Y) rs) (.data d P1) →
     (∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
-      ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y'.getD i .abort)) →
-    bndRel S k d D.params.length C.args.length C D.ctors P1 Q1 Y Y' rs b
+      ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y.getD i .abort)) →
+    bndRel S k d D.params.length C.args.length C D.ctors P1 P1 Y Y rs b
 
 end
 
