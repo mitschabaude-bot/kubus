@@ -9,6 +9,8 @@ import Model.Whnf.Valid2LineEquiv
 import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Valid2Data
 import Model.Whnf.Valid2Elim
+import Model.Whnf.Valid2ElimHInv
+import Model.Whnf.Valid2ElimH18
 import Model.Whnf.Valid2TranspCon
 import Model.Whnf.Valid2TranspConH
 import Model.Whnf.Valid2TranspHcomp
@@ -317,6 +319,52 @@ theorem fund2_conInv {Ψ Φ Γ s T} (hd : HasTy0 S' Ψ Φ Γ s T) :
   | .data _ _ _ => fun hs => by cases hs
   | .transp _ _ _ _ => fun hs => by cases hs
   | .elim _ _ _ _ _ _ _ _ _ _ => fun hs => by cases hs
+termination_by structural hd
+
+
+
+/-- The validity premises of an eliminator, obtained from its typing derivation. -/
+theorem fund2_elimInv {Ψ Φ Γ s T} (hd : HasTy0 S' Ψ Φ Γ s T) :
+    ∀ {d ps P bs t}, s = .elim d ps P bs t → ElimInv2 S Ψ Φ Γ d ps P bs t T :=
+  match hd with
+  | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => fun hs => by
+    have a2 := fund2_ty h2
+    have a3 := fund2_tele h3
+    have a4 := fund2_ty h4
+    have a7 := fun (c : ℕ) (C : Ctor) (b : Tm) hc hb => fund2_ty (h7 c C b hc hb)
+    have a8 := fun (c : ℕ) (C : Ctor) (b : Tm) (kb : ℕ) (ψ : I) (e : Tm) hc hb hk => fund2_eq (h8 c C b kb ψ e hc hb hk)
+    cases hs
+    exact ⟨_, _, hpre _ _ h0, h1, sigwk_tele hpre h3, a3, a2, sigwk_ty hpre h4, a4, h5, h6,
+      a7, a8,
+      sigwk_ty hpre (.elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9), ElTr2.refl _⟩
+  | .conv h0 h1 => fun hs => (fund2_elimInv h0 hs).conv hW (fund2_eq h1)
+  | .restrict h0 h1 h2 => fun hs => (fund2_elimInv h2 hs).restrict hW h0 h1
+  | .cumul h0 h1 => fun hs => (fund2_elimInv h1 hs).cumul hW h0
+  | .var _ _ => fun hs => by cases hs
+  | .const _ _ => fun hs => by cases hs
+  | .univ _ _ => fun hs => by cases hs
+  | .pi _ _ => fun hs => by cases hs
+  | .lam _ _ => fun hs => by cases hs
+  | .app _ _ => fun hs => by cases hs
+  | .sigma _ _ => fun hs => by cases hs
+  | .pair _ _ _ => fun hs => by cases hs
+  | .fst _ => fun hs => by cases hs
+  | .snd _ => fun hs => by cases hs
+  | .path _ _ _ => fun hs => by cases hs
+  | .plam _ _ _ _ => fun hs => by cases hs
+  | .papp _ _ => fun hs => by cases hs
+  | .ipi _ _ => fun hs => by cases hs
+  | .ilam _ _ => fun hs => by cases hs
+  | .iapp _ _ => fun hs => by cases hs
+  | .split _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .abort _ _ => fun hs => by cases hs
+  | .transp _ _ _ _ => fun hs => by cases hs
+  | .glue _ _ _ _ => fun hs => by cases hs
+  | .glueEl _ _ _ _ _ => fun hs => by cases hs
+  | .unglue _ _ _ _ => fun hs => by cases hs
+  | .data _ _ _ => fun hs => by cases hs
+  | .con _ _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .hcomp _ _ _ _ _ => fun hs => by cases hs
 termination_by structural hd
 
 
@@ -738,8 +786,9 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     · exact valid_elimCon hW (hpre _ _ h0) hH h1 h2 h4 h5 (sigwk_ty hpre h7)
         (pre2 hW hpre (.elimCon h0 h1 h2 h3 h4 h5 h6 h7)).2 (sigwk_eq hpre (.elimCon h0 h1 h2 h3 h4 h5 h6 h7))
         (fund2_ty h7)
-    exact hDa.elimCon h0 hH h1 h2 h3 h4 h5 (sigwk_tele hpre h6) (sigwk_ty hpre h7)
-      (pre2 hW hpre (.elimCon h0 h1 h2 h3 h4 h5 h6 h7)).2 (fund2_tele h6) (fund2_ty h7)
+    exact valid_elimConH hW hDa (hpre _ _ h0) h0 hH (hHit.mono (by
+      have := (List.getElem?_eq_some_iff.1 h0).1; omega)) h1 h2 h4 (sigwk_tele hpre h6) (fund2_tele h6)
+      (fund2_elimInv h7 rfl) (fund2_ty h7)
   | .elimHcomp h0 h1 h2 h3 =>
     hDa.elimHcomp h0 h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (pre2 hW hpre (.elimHcomp h0 h1 h2 h3)).2
       (fund2_ty h2) (fund2_ty h3)
