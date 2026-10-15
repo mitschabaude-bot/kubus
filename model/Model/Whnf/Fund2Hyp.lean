@@ -10,7 +10,7 @@ derivations in a prefix `S'` of the signature `S`. It is parametrized by:
 - `DefHyp2 S S'`: the definitions of `S'` are related to themselves (outer induction on the
   signature);
 - `HITHyp2 S S'.length`: the constructor boundary relations and boundary argument typing for the prefix;
-- `DataHyp2 S S'`: the remaining HIT elimination rules (`elim`, `elimEq`, `elimHcomp`).
+- `DataHyp2 S S'`: the remaining HIT elimination rules (`elim`, `elimEq`).
 
 The `transpGlue` rule, whose reduct's `∀i. φ` commutes with substitution only up to equivalence, uses
 that element relations are invariant under near terms (`NearEl2`, from `RE2_near`).
@@ -96,16 +96,6 @@ structure DataHyp2 (S S' : Sig) : Prop where
       Valid2 S Ψ Φ Γ b b' (D.branchTy d c C ps P)) →
     Valid2 S Ψ Φ Γ t t' (.data d ps) →
     Valid2 S Ψ Φ Γ (.elim d ps P bs t) (.elim d ps' P' bs' t') (P.inst t)
-  elimHcomp : ∀ {Ψ Φ Γ d D ps P bs qs φ u a T}, S'[d]? = some (.data D) → D.isHIT = true →
-    HasTy0 S Ψ Φ Γ (.hcomp (.data d ps) φ u a) (.data d ps) →
-    HasTy0 S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T →
-    HasTy0 S Ψ Φ Γ (Tm.comp (P.subst (consSub (Tm.hfill (.data d ps) φ u a)) (fun i => .var (i + 1))) φ
-      (.elim d ps.dshift P.dshift bs.dshift u) (.elim d ps P bs a)) T →
-    Valid2 S Ψ Φ Γ (.hcomp (.data d ps) φ u a) (.hcomp (.data d ps) φ u a) (.data d ps) →
-    Valid2 S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a)) (.elim d ps P bs (.hcomp (.data d qs) φ u a)) T →
-    Valid2 S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a))
-      (Tm.comp (P.subst (consSub (Tm.hfill (.data d ps) φ u a)) (fun i => .var (i + 1))) φ
-        (.elim d ps.dshift P.dshift bs.dshift u) (.elim d ps P bs a)) T
 
 end
 
