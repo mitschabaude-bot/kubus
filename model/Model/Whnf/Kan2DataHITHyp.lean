@@ -49,11 +49,15 @@ def bndRelArgs (S : Sig) (k d np n : ℕ) (C : Ctor) (ctors : List Ctor) (P1 Q1 
     (C'.isRec j = true → bndRel S k d np n C ctors P1 Q1 Y Y' rs a) ∧
     bndRelArgs S k d np n C ctors P1 Q1 Y Y' rs C' (j + 1) (Ctor.bndAt a Q1.toList Y' rs :: prev) as
   | _ => True
+/-- Boundary type validity restricts to a smaller signature prefix. -/
+theorem HITHyp2.mono {n m : ℕ} (h : HITHyp2 S n) (hm : m ≤ n) : HITHyp2 S m :=
+  ⟨h.toHITConHyp2, fun hd => h.bndTy (by omega)⟩
+
 end
 
 /-- The hypotheses for transport at higher inductive types (closed instances of the validity of the
 rules of higher inductive types and of the equations `Ctor.bndTyped`). -/
-structure HITHyp2 (S : Sig) : Prop where
+structure HITConHyp2 (S : Sig) : Prop where
   /-- A constructor at a boundary that holds is related to the boundary element (`DataHyp2.conBnd`). -/
   conBnd : ∀ {k d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {P1 : Tm} {Y : List Tm} {rs : List I} {kb : ℕ}
     {ψ : I} {b : Tm},
@@ -65,11 +69,14 @@ structure HITHyp2 (S : Sig) : Prop where
     (∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
       ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y.getD i .abort)) →
     RE2 S k (.data d P1) (.con d c P1 (Tm.ofList Y) rs) (Ctor.bndAt b P1.toList Y rs)
+
+/-- Boundary type validity for the declarations before a signature prefix. -/
+structure HITHyp2 (S : Sig) (n : ℕ) extends HITConHyp2 S : Prop where
   /-- The argument types of the nested constructors of a boundary that holds are related to those of
   the constructor (validity of the equations of `Ctor.bndTyped`). -/
   bndTy : ∀ {k d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {P1 : Tm} {Y : List Tm} {rs : List I}
     {kb : ℕ} {ψ : I} {b : Tm},
-    S[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C → C.bnd[kb]? = some (ψ, b) →
+    d < n → S[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C → C.bnd[kb]? = some (ψ, b) →
     I.Entails .one (Ctor.cofAt ψ rs) →
     HasTy S k .one [] (.data d P1) (.univ D.level) → RT2 S k (.data d P1) (.data d P1) →
     Y.length = C.args.length →

@@ -20,13 +20,6 @@ noncomputable section
 
 variable {S : Sig} {k : ℕ}
 
-/-- The Kan properties at the argument types of an inductive type, from the Kan oracle. -/
-theorem kanShape_of_oracle (hK : KanOracle2 S) {n0 : ℕ} (Λ : SData n0) : KanShape S n0 Λ := by
-  intro n h c j pre A A' hT
-  have hb := Comp2_ty_base hT
-  have hAA : RT2 S n A A' := (Comp2_ty_iff hb.1 hb.2.2.2.1).1 hT
-  exact ⟨hK.hcomp n A A' hAA, fun {n'} e => by subst e; exact hK.transp n' A A' hAA⟩
-
 section
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
 include hW hD
@@ -64,7 +57,7 @@ include hH hp
 variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
 /-- **Transport of a constructor** of an inductive type without path constructors. -/
-theorem valid_transpCon (hK : KanOracle2 S) {ci : ℕ} {C : Ctor} {ps qs args T : Tm} {φ : I} {rs : List I}
+theorem valid_transpCon {ci : ℕ} {C : Ctor} {ps qs args T : Tm} {φ : I} {rs : List I}
     (hC : D.ctors[ci]? = some C) (hpl : ps = Tm.ofList ps.toList)
     (hty : HasTy0 S Ψ Φ Γ (.transp (.data d ps) φ (.con d ci qs args rs)) T)
     (hu : HasTy0 S Ψ Φ Γ (.con d ci (ps.dinst .one)
@@ -166,7 +159,7 @@ theorem valid_transpCon (hK : KanOracle2 S) {ci : ℕ} {C : Ctor} {ps qs args T 
       hW := hW, hD := hD, hp := hp, hC := hC, hPL := hPL c,
       hR := fun k3 τ y y' hy hy' hE => lineRob_of_valid hW hLV c k3 τ y y' hy hy' hE,
       hRL := fun k3 τ y y' hy hy' hE => lineRob_of_valid hW hLV (c.diagL hW) k3 τ y y' hy hy' hE,
-      hArgK := kanShape_of_oracle hK _, hφs := I.scoped_subst hφ c.σ.sc,
+      hφs := I.scoped_subst hφ c.σ.sc,
       h12 := c.ent_LR (ent_refl φ), h21 := c.ent_RL (ent_refl φ),
       hLC := lineConst_of_valid hW hφ hCV c, hty := h1, hty' := h1', heq := h1e,
       hargs0 := fun i hi => by
@@ -184,8 +177,11 @@ theorem valid_transpCon (hK : KanOracle2 S) {ci : ℕ} {C : Ctor} {ps qs args T 
         rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_map,
           List.getElem?_eq_getElem hi0]
         exact h,
-      hrecT := fun i hi hri k3 τ y y' hy hy' hE _ =>
-        KanT2.at (hK.transp k3 _ _ (lineRob_of_valid hW hLV c (k3 + 1) τ.up.tail y y' hy hy' hE)) _ _,
+      hrecT := fun i hi hri k3 τ y y' hy hy' hE _ => by
+        have hk := hLV.kanV hW (k3 + 1) ((c.restr hW τ.up.tail).cons y y' hy hy' hE)
+        rw [CSub2.cons_restr_L] at hk
+        exact KanT2.at (hk.2 k3 (Hom.id (k3 + 1)) _ _
+          (lineRob_of_valid hW hLV c (k3 + 1) τ.up.tail y y' hy hy' hE)) _ _,
       conR := fun Y Y' hYl hY'l hcT he hargs =>
         RE2_con_args_id hW hD hH (hd1 c) (s1 c) hC Y Y' hYl hY'l hcT he hargs }
   -- the contracta are valid

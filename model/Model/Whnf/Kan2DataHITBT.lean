@@ -30,7 +30,7 @@ def BTSt (S : Sig) (d : ℕ) (D : DataDecl) (c : ℕ) : Prop :=
 
 section bt
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = true)
-  (hyp : HITHyp2 S)
+  (hyp : HITHyp2 S (d + 1))
 include hW hD hH hyp
 
 /-- One restriction of the transport of a boundary term: a reduct related to the boundary term at the
@@ -181,7 +181,7 @@ theorem BT_at {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) (ihc : ∀ c' < c
         intro i hi
         have := (hOself i hi).2.1
         rwa [isub_id_of_closed hc1] at this
-      have hrelb := hyp.bndTy hD hH hC' hb' hent' hd1 s1 hOl htyO hOs
+      have hrelb := hyp.bndTy (by omega) hD hH hC' hb' hent' hd1 s1 hOl htyO hOs
       have eO := EqTm.conBnd hD hC' hb' hent' hPl1 (by rw [toList_ofList]) htyO
       rw [toList_ofList] at eO
       have eT2 := EqTm.conBnd hD hC' hb' hent' hPl1 (by rw [toList_ofList])

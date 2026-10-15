@@ -121,9 +121,9 @@ theorem conArgs2 {k3 : ℕ} (ρ3 : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D.ctors
 
 omit hD hH hP hPP in
 /-- Compositions over related lines of the oracle, at a related type. -/
-theorem hc2_of_oracle (hK : KanOracle2 S) {A L L' a a' : Tm} (hX : TyCode k (semK S k L)) (hLA : RT2 S k L A)
-    (hLL' : RT2 S k L L') : HC2 S k A L L' a a' :=
-  HC2.conv hW hLA hX (KanH2.at (hK.hcomp k L L' hLL') a a')
+theorem HC2.of_kan {A L L' a a' : Tm} (hX : TyCode k (semK S k L)) (hLA : RT2 S k L A)
+    (hK : KanH2 S k L L') : HC2 S k A L L' a a' :=
+  HC2.conv hW hLA hX (KanH2.at hK a a')
 
 omit hW hD hH hP hPP in
 theorem getD_map_dinst (L : List Tm) (i : ℕ) (r : I) :
@@ -133,7 +133,7 @@ theorem getD_map_dinst (L : List Tm) (i : ℕ) (r : I) :
 
 /-- The data of `HCG` for the contractum of the rule (tube arguments `Ys`) against the contractum of
 the step (the projections of the tube). -/
-theorem hcgAt (hK : KanOracle2 S) {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
+theorem hcgAt {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
     {u qs : Tm} {φ : I} {X Ys : List Tm} (hYl : Ys.length = C.args.length)
     (hty : HasTy S k1 .one [] (.hcomp (.data d (P.isub ρ)) φ u (.con d c qs (Tm.ofList X) [])) (.data d (P.isub ρ)))
     (hYe : EqTm0 S (k1 + 1) (cof .one φ).shift [] u (.con d c (P.isub ρ).dshift (Tm.ofList Ys) [])
@@ -206,7 +206,7 @@ theorem hcgAt (hK : KanOracle2 S) {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {C : Cto
   have hXPσ : ∀ {k3 : ℕ} (σ : ISub k3 k1), TyCode k3 (semK S k3 (.data d (P.isub (ρ.comp σ)))) :=
     fun σ => tyCode_of_univ hW (HasTy.isubS hW hP _)
   refine {
-    hW := hW, hD := hD, hH := hH, hP := hP, hPP := hPP, hQ := hPP, hQ' := hPP, hArgK := kanShape_of_oracle hK _,
+    hW := hW, hD := hD, hH := hH, hP := hP, hPP := hPP, hQ := hPP, hQ' := hPP,
     hC := hC, hXl := hXl, hXl' := hXl, hul := hYl, hul' := by simp,
     hrecR := fun i hi hri => by
       have := hbbA.2 i hi; rwa [argTy_rec_inst hri hpl hplen (by simp; omega)] at this,
@@ -215,7 +215,9 @@ theorem hcgAt (hK : KanOracle2 S) {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {C : Cto
       have a := RT2.isub hW hXP h1 (ρ.comp σ)
       have a' := RT2.isub hW hXP h1' (ρ.comp σ)
       have hXQ := RT2.tyCode_r hW a (hXPσ σ)
-      exact hc2_of_oracle hW hK hXQ (RT2.symm hW (hXPσ σ) a) (RT2.trans hW hXQ (RT2.symm hW (hXPσ σ) a) a'),
+      have hQQ' := RT2.trans hW hXQ (RT2.symm hW (hXPσ σ) a) a'
+      exact HC2.of_kan hW hXQ (RT2.symm hW (hXPσ σ) a)
+        (kanH2_data hW hD hH hQQ' ⟨redW_self (step_data d _), TyEq.refl _⟩),
     h12 := ent_refl _, h21 := ent_refl _, hqT := hpT, hq'T := hpT, hφs := hφs, hφs' := hφs, hXq := hXq,
     hXq' := hXq, G1 := G1, G1' := G1', G3 := ?_, G3' := G3', G4 := fun i hi => ?_, G4' := fun i hi => by
       rw [show ((List.range C.args.length).map fun j => proj d D (P.isub ρ).dshift c C j u).getD i .abort =
@@ -260,7 +262,7 @@ theorem hcgAt (hK : KanOracle2 S) {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {C : Cto
 
 /-- The contractum of the rule at the tube arguments `Ys` is related to the composition of a
 constructor. -/
-theorem rel_hcompCon (hK : KanOracle2 S) {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
+theorem rel_hcompCon {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
     {u qs : Tm} {φ : I} {X Ys : List Tm} (hYl : Ys.length = C.args.length)
     (hty : HasTy S k1 .one [] (.hcomp (.data d (P.isub ρ)) φ u (.con d c qs (Tm.ofList X) [])) (.data d (P.isub ρ)))
     (hrr : RE2 S k1 (.data d (P.isub ρ)) (.hcomp (.data d (P.isub ρ)) φ u (.con d c qs (Tm.ofList X) []))
@@ -324,7 +326,7 @@ theorem rel_hcompCon (hK : KanOracle2 S) {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {
   have hbb2 := RE2.isub hW hbb κ
   rw [eX, show (Tm.data d (P.isub ρ)).isub κ = .data d (P.isub (ρ.comp κ)) by
     show Tm.data d ((P.isub ρ).isub κ) = _; rw [eP]] at hbb2
-  have H := hcgAt hW hD hH hP hPP hK (ρ.comp κ) hC (u := u.isub κ.up) (qs := qs.isub κ) (φ := φ.subst κ.τ)
+  have H := hcgAt hW hD hH hP hPP (ρ.comp κ) hC (u := u.isub κ.up) (qs := qs.isub κ) (φ := φ.subst κ.τ)
     (X := X.map (·.isub κ)) (Ys := Ys.map (·.isub κ.up)) (by simp [hYl]) hty2 (hYe k2 κ) hYr2 hub2 hbb2 he2
   have R := H.conRel
   have hXl2 : (X.map (·.isub κ)).length = C.args.length := by simp [hXl]
@@ -352,7 +354,7 @@ include hW hD hH
 variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
 /-- **Composition of a constructor** of an inductive type without path constructors. -/
-theorem valid_hcompCon (hK : KanOracle2 S) {c : ℕ} {C : Ctor} {ps u qs uargs args T : Tm} {φ : I}
+theorem valid_hcompCon {c : ℕ} {C : Ctor} {ps u qs uargs args T : Tm} {φ : I}
     (hC : D.ctors[c]? = some C) (hps : ps = Tm.ofList ps.toList) (hargs : args = Tm.ofList args.toList)
     (huargs : uargs = Tm.ofList uargs.toList)
     (h6 : HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse)
@@ -375,7 +377,7 @@ theorem valid_hcompCon (hK : KanOracle2 S) {c : ℕ} {C : Ctor} {ps u qs uargs a
     HasTy0.hcomp hA hφ hu ha hside
   have heqD := EqTm0.hcompCon hD hH hC hps hargs huargs h6 h7 h8 h9 hty0
   have hvD := valid_hcomp hW hφ (ent_refl _) (ent_refl _) hAV huV haV hsV hsV hty0 hty0 (EqTm0.refl hty0)
-    (EqTm0.refl hu) (fun k c => hK.hcomp k _ _ (hAV.ty hW c))
+    (EqTm0.refl hu)
   intro k γ
   refine ⟨(hv k γ).1, ?_⟩
   have key : RE2 S k (.data d (γ.R ps)) (γ.R (.con d c ps (Tm.ofList (Tm.hcompTele C (C.argTy d D.params.length)
@@ -496,7 +498,7 @@ theorem valid_hcompCon (hK : KanOracle2 S) {c : ℕ} {C : Ctor} {ps u qs uargs a
         ((Tm.con d c (γ.R qs) (γ.R args) []).isub σ) at h
       rw [hXR, show (Tm.data d (γ.R ps)).isub σ = .data d ((γ.R ps).isub σ) from rfl] at h
       exact h
-    have R := rel_hcompCon hW hD hH hPT hPP hK (ISub.id k) hC (u := (γ.up hW).R u) (qs := γ.R qs)
+    have R := rel_hcompCon hW hD hH hPT hPP (ISub.id k) hC (u := (γ.up hW).R u) (qs := γ.R qs)
       (φ := φ.subst γ.σ'.τ) (X := args.toList.map γ.R) (Ys := uargs.toList.map (γ.up hW).R) hYl
       (by rw [e0]; exact hty) (by rw [e0]; exact hrr) (fun k2 κ => by rw [ISub.id_comp]; exact hYe k2 κ)
       (fun k3 σ r r' hr hr' hE hh => by rw [ISub.id_comp]; exact hYr k3 σ r r' hr hr' hE hh)

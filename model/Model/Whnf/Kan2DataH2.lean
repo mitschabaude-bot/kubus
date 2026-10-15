@@ -58,8 +58,8 @@ def DM2 (S : Sig) (d : ℕ) (D : DataDecl) {K : ℕ} (P : Tm) (k1 : ℕ) (g : Ho
 section side
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
   {K : ℕ} {P : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level)) (hPP : RT2 S K (.data d P) (.data d P))
-  (hArgK : KanShape S K (ΘK S D d K P))
-include hW hD hH hP hPP hArgK
+
+include hW hD hH hP hPP
 
 theorem eDσ (R : Tm) {k1 : ℕ} (ρ : ISub k1 K) {k3 : ℕ} (σ : ISub k3 k1) :
     (Tm.data d (R.isub ρ)).isub σ = .data d (R.isub (ρ.comp σ)) := by
@@ -112,8 +112,8 @@ theorem coh_side {k1 : ℕ} (ρ : ISub k1 K) {Q1 : Tm} (hQ1 : RT2 S K (.data d P
   have huc : u1.closedB 0 (k1 + 1) = true := closed_ty hu
   have eH : ∀ {k3 : ℕ} (σ : ISub k3 k1), (Tm.hcomp (.data d (Q1.isub ρ)) φ1 u1 x1).isub σ =
       .hcomp (.data d (Q1.isub (ρ.comp σ))) (φ1.subst σ.τ) (u1.isub σ.up) (x1.isub σ) := by
-    intro k3 σ; rw [isub_hcomp, eDσ hW hD hH hP hPP hArgK Q1 ρ σ]
-  have ePσ := fun {k3 : ℕ} (σ : ISub k3 k1) => eDσ hW hD hH hP hPP hArgK P ρ σ
+    intro k3 σ; rw [isub_hcomp, eDσ hW hD hH hP hPP  Q1 ρ σ]
+  have ePσ := fun {k3 : ℕ} (σ : ISub k3 k1) => eDσ hW hD hH hP hPP  P ρ σ
   have hPσ : ∀ {k3 : ℕ} (σ : ISub k3 k1), RT2 S k3 (.data d (P.isub (ρ.comp σ))) (.data d (P.isub (ρ.comp σ))) :=
     fun σ => RT2.isub hW hXP hPP (ρ.comp σ)
   have hfσ : ∀ {k3 : ℕ} (σ : ISub k3 k1), I.Entails .one (φ1.subst σ.τ) → (ival (idEnv k3) (φ1.subst σ.τ)).holds :=
@@ -131,7 +131,7 @@ theorem coh_side {k1 : ℕ} (ρ : ISub k1 K) {Q1 : Tm} (hQ1 : RT2 S K (.data d P
     cases hdr with
     | intro _ _ hc _ =>
       have := hc K3 (ISub.id K3) w (by rw [isub_id_of_closed hc1]; exact hw') K4 ρ'
-      rw [ISub.id_comp, eDσ hW hD hH hP hPP hArgK P (ρ.comp τ) ρ', ← ISub.hom_comp, ISub.comp_assoc,
+      rw [ISub.id_comp, eDσ hW hD hH hP hPP  P (ρ.comp τ) ρ', ← ISub.hom_comp, ISub.comp_assoc,
         show ((u1.isub τ.up).dinst .one).isub ρ' = (u1.isub (τ.comp ρ').up).dinst .one by
           rw [isub_dinst, Tm.isub_isub, ← ISub.up_comp]; rfl] at this
       have htyτρ := HasTy.isubS hW hty1 (τ.comp ρ')
@@ -143,7 +143,7 @@ theorem coh_side {k1 : ℕ} (ρ : ISub k1 K) {Q1 : Tm} (hQ1 : RT2 S K (.data d P
     obtain ⟨c, C, qs, X, -, -, hC, hXl, -, ht, -, -, -⟩ := dataLit_args hW hD hH hP hPP (ρ.comp τ) hxτ
     have htyτ := HasTy.isubS hW hty1 τ
     rw [eH, ePσ] at htyτ
-    obtain ⟨hHc, eHc, rHc⟩ := hcomp_red_con hW hD hH hP hPP hArgK hQ1 (ρ.comp τ) hC hfτ htyτ ht
+    obtain ⟨hHc, eHc, rHc⟩ := hcomp_red_con hW hD hH hP hPP  hQ1 (ρ.comp τ) hC hfτ htyτ ht
     have hQl := (dataLit_rel hW hD hP hQ1 (ρ.comp τ)).2.2.2.2.2.2
     have hQlen : (Q1.isub (ρ.comp τ)).toList.length = D.params.length := by
       have := data_len_of hW (((Comp2_ty_base hQ1).2.2.1).isub hW (ρ.comp τ)); rwa [dataD_eq hW hD] at this
@@ -166,7 +166,7 @@ theorem coh_side {k1 : ℕ} (ρ : ISub k1 K) {Q1 : Tm} (hQ1 : RT2 S K (.data d P
     have econX : (Tm.con d c qs (Tm.ofList X) []).isub ρ' = .con d c (qs.isub ρ') (Tm.ofList (X.map (·.isub ρ'))) [] := by
       show Tm.con d c (qs.isub ρ') ((Tm.ofList X).isub ρ') [] = _; rw [ofList_isub]
     have hHcρ := HasTy.isubS hW hHc ρ'
-    rw [isub_hcomp, econX, eDσ hW hD hH hP hPP hArgK Q1 (ρ.comp τ) ρ', eDσ hW hD hH hP hPP hArgK P (ρ.comp τ) ρ',
+    rw [isub_hcomp, econX, eDσ hW hD hH hP hPP  Q1 (ρ.comp τ) ρ', eDσ hW hD hH hP hPP  P (ρ.comp τ) ρ',
       ISub.comp_assoc, eφ, eu] at hHcρ
     have htyτρ := HasTy.isubS hW hty1 (τ.comp ρ')
     rw [eH, ePσ] at htyτρ
@@ -192,11 +192,11 @@ theorem coh_side {k1 : ℕ} (ρ : ISub k1 K) {Q1 : Tm} (hQ1 : RT2 S K (.data d P
       -- the base's normal form against the base
       have hcx := RE2_whnf_con hW hD hH hP hPP (ρ.comp τ) hxτ hC ht
       have hcxρ := RE2.isub hW hcx ρ'
-      rw [econX, eDσ hW hD hH hP hPP hArgK P (ρ.comp τ) ρ', ISub.comp_assoc, Tm.isub_isub] at hcxρ
+      rw [econX, eDσ hW hD hH hP hPP  P (ρ.comp τ) ρ', ISub.comp_assoc, Tm.isub_isub] at hcxρ
       have hPρ'' := hPσ (τ.comp ρ')
       have eHcρ := EqTm.isubS hW eHc ρ'
-      rw [isub_hcomp, isub_hcomp, econX, eDσ hW hD hH hP hPP hArgK Q1 (ρ.comp τ) ρ',
-        eDσ hW hD hH hP hPP hArgK P (ρ.comp τ) ρ', ISub.comp_assoc, eφ, eu, Tm.isub_isub] at eHcρ
+      rw [isub_hcomp, isub_hcomp, econX, eDσ hW hD hH hP hPP  Q1 (ρ.comp τ) ρ',
+        eDσ hW hD hH hP hPP  P (ρ.comp τ) ρ', ISub.comp_assoc, eφ, eu, Tm.isub_isub] at eHcρ
       have hbd2 : ∀ k5 (κ : ISub k5 K4), (ival (idEnv k5) ((φ1.subst (τ.comp ρ').τ).subst κ.τ)).holds →
           RE2 S k5 ((Tm.data d (P.isub (ρ.comp (τ.comp ρ')))).isub κ)
             (((u1.isub (τ.comp ρ').up).isub κ.up).dinst .zero) ((x1.isub (τ.comp ρ')).isub κ) := by
@@ -233,7 +233,7 @@ theorem mot1_intro {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm} (he : EqTm S k1 .one 
   intro ρ hg hA Q Q' hQ hQ' K2 σ φ φ' u u' hty hty' heq hteq h12 h21 htube hxx hbd hbd'
   subst hg hA
   have hXP := tyCode_of_univ hW hP
-  have eP := fun (R : Tm) {k3 : ℕ} (σ1 : ISub k3 K2) => eDσ hW hD hH hP hPP hArgK R (ρ.comp σ) σ1
+  have eP := fun (R : Tm) {k3 : ℕ} (σ1 : ISub k3 K2) => eDσ hW hD hH hP hPP  R (ρ.comp σ) σ1
   have hPρσ := RT2.isub hW hXP hPP (ρ.comp σ)
   have hpσ : ∀ {k3 : ℕ} (κ : ISub k3 K2), RT2 S k3 ((Tm.data d (P.isub (ρ.comp σ))).isub κ)
       ((Tm.data d (P.isub (ρ.comp σ))).isub κ) := fun κ => by
@@ -250,7 +250,7 @@ theorem mot1_intro {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm} (he : EqTm S k1 .one 
   refine (RE2_dataLit_iff hW hD hP (ρ.comp σ)).2 ⟨⟨hty, hty', heq⟩, .intro heq (fun K3 τ => ?_) ?_ ?_⟩
   · -- each stage
     have h1 := ih K3 (σ.comp τ) (ρ.comp (σ.comp τ)) (ISub.hom_comp _ _).symm
-      (eDσ hW hD hH hP hPP hArgK P ρ (σ.comp τ)) Q Q' hQ hQ'
+      (eDσ hW hD hH hP hPP  P ρ (σ.comp τ)) Q Q' hQ hQ'
     rw [← ISub.hom_comp] at h1
     have h1' : HC2R S K3 ((Tm.data d (P.isub (ρ.comp σ))).isub τ) ((Tm.data d (Q.isub (ρ.comp σ))).isub τ)
         ((Tm.data d (Q'.isub (ρ.comp σ))).isub τ) ((x.isub σ).isub τ) ((x'.isub σ).isub τ)
@@ -261,13 +261,13 @@ theorem mot1_intro {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm} (he : EqTm S k1 .one 
     exact HC2R_isub hW τ h1' φ φ' u u' hty hty' heq hteq h12 h21 htube hxx hbd hbd'
   · -- the coherence of the left side
     intro K3 τ w hw K4 ρ'
-    refine coh_side hW hD hH hP hPP hArgK (ρ.comp σ) hQ hx0 (fun k' τ1 w1 hw1 k'' ρ1 => ?_) hty
+    refine coh_side hW hD hH hP hPP  (ρ.comp σ) hQ hx0 (fun k' τ1 w1 hw1 k'' ρ1 => ?_) hty
       (fun k3 κ r r' hr hr' hE hh => RE2.trans hW (hpσ κ) (htube k3 κ r r' hr hr' hE hh)
         (RE2.symm hW (hpσ κ) (htube k3 κ r' r' hr' hr' (I_eq_refl _) hh)))
       (fun k3 κ hh => RE2.trans hW (hpσ κ) (hbd k3 κ hh) (RE2.symm hW (hpσ κ) (RE2.isub hW hxx κ))) τ w hw ρ'
     rw [Tm.isub_isub] at hw1
     have h1 := ihc k' (σ.comp τ1) w1 hw1 k'' ρ1
-    rw [eDσ hW hD hH hP hPP hArgK P ρ ((σ.comp τ1).comp ρ1), ← ISub.hom_comp] at h1
+    rw [eDσ hW hD hH hP hPP  P ρ ((σ.comp τ1).comp ρ1), ← ISub.hom_comp] at h1
     rw [Tm.isub_isub, ← ISub.hom_comp]
     simp only [ISub.comp_assoc] at h1 ⊢
     exact h1
@@ -275,14 +275,14 @@ theorem mot1_intro {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm} (he : EqTm S k1 .one 
     intro K3 τ w hw K4 ρ'
     have hty'P : HasTy S K2 .one [] (.hcomp (.data d (Q'.isub (ρ.comp σ))) φ' u' (x'.isub σ)) (.data d (P.isub (ρ.comp σ))) :=
       hty'
-    refine coh_side hW hD hH hP hPP hArgK (ρ.comp σ) hQ' hxx' (fun k' τ1 w1 hw1 k'' ρ1 => ?_) hty'P
+    refine coh_side hW hD hH hP hPP  (ρ.comp σ) hQ' hxx' (fun k' τ1 w1 hw1 k'' ρ1 => ?_) hty'P
       (fun k3 κ r r' hr hr' hE hh => RE2.trans hW (hpσ κ)
         (RE2.symm hW (hpσ κ) (htube k3 κ r r hr hr (I_eq_refl _) (hφ'φ κ hh))) (htube k3 κ r r' hr hr' hE (hφ'φ κ hh)))
       (fun k3 κ hh => RE2.symm hW (hpσ κ) (RE2.trans hW (hpσ κ) (RE2.symm hW (hpσ κ) (RE2.isub hW hxx κ))
         (hbd' k3 κ (hφ'φ κ hh)))) τ w hw ρ'
     rw [Tm.isub_isub] at hw1
     have h1 := ihc' k' (σ.comp τ1) w1 hw1 k'' ρ1
-    rw [eDσ hW hD hH hP hPP hArgK P ρ ((σ.comp τ1).comp ρ1), ← ISub.hom_comp] at h1
+    rw [eDσ hW hD hH hP hPP  P ρ ((σ.comp τ1).comp ρ1), ← ISub.hom_comp] at h1
     rw [Tm.isub_isub, ← ISub.hom_comp]
     simp only [ISub.comp_assoc] at h1 ⊢
     exact h1
@@ -297,7 +297,7 @@ theorem hcomp_DR2 : ∀ {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm},
   refine DR2.rec (motive_1 := fun k1 g A x x' _ => DM1 S d P k1 g A x x')
     (motive_2 := fun k1 g A y y' _ => DM2 S d D P k1 g A y y') ?_ ?_ ?_ h
   · intro k1 g A x x' he _ _ _ ih ihc ihc'
-    exact mot1_intro hW hD hH hP hPP hArgK he ih ihc ihc'
+    exact mot1_intro hW hD hH hP hPP  he ih ihc ihc'
   · intro k1 g A t t' ps qs qs' c C args args' rs rs' hm hm' heq hC hA hpl ht ht' hrs hrs' hreq hsc hsc' hl hl'
       hrec hpt ihrec ρ hg hAe Q Q' hQ hQ'
     subst hg hAe
@@ -306,7 +306,7 @@ theorem hcomp_DR2 : ∀ {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm},
     have hrs0 := List.eq_nil_of_length_eq_zero (hrs.trans (nonHIT_ctor hH hC').1)
     have hrs0' := List.eq_nil_of_length_eq_zero (hrs'.trans (nonHIT_ctor hH hC').1)
     subst hrs0 hrs0'
-    exact mot2_con hW hD hH hP hPP hArgK ρ hQ hQ' hC' ht ht' (by rw [hl]) (by rw [hl']) hrec hpt
+    exact mot2_con hW hD hH hP hPP  ρ hQ hQ' hC' ht ht' (by rw [hl]) (by rw [hl']) hrec hpt
       (fun i hi hi' hri Q1 Q1' h1 h2 K2 σ => by
         have := ihrec i hi hi' hri ρ rfl rfl Q1 Q1' h1 h2 K2 σ
         exact this)
@@ -320,7 +320,7 @@ theorem kanH2_lit {k1 : ℕ} (ρ : ISub k1 K) {Q Q' : Tm} (hQ : RT2 S K (.data d
     HC2 S k1 (.data d (P.isub ρ)) (.data d (Q.isub ρ)) (.data d (Q'.isub ρ)) a a' := by
   intro φ φ' u u' hty hty' heq hteq h12 h21 htube haa hbd hbd'
   obtain ⟨-, hdr⟩ := (RE2_dataLit_iff hW hD hP ρ).1 haa
-  have h := hcomp_DR2 hW hD hH hP hPP hArgK hdr ρ rfl rfl Q Q' hQ hQ' k1 (ISub.id k1)
+  have h := hcomp_DR2 hW hD hH hP hPP  hdr ρ rfl rfl Q Q' hQ hQ' k1 (ISub.id k1)
   have hac := closed_of_ty hW (RE2.typed haa).1
   have hac' := closed_of_ty hW (RE2.typed haa).2.1
   rw [ISub.comp_id, isub_id_of_closed hac, isub_id_of_closed hac'] at h

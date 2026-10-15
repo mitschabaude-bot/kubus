@@ -113,7 +113,7 @@ theorem outs_inst (H : TC S k d D PL QL φ φ' c C q q' X X' rs rs') :
 
 /-- The arguments of a nested constructor of a boundary at the transported arguments, against the
 arguments of its own transport. -/
-theorem argsCmp (H : TC S k d D PL PL φ φ c C q q X X rs rs) (hH : D.isHIT = true) (hyp : HITHyp2 S) {c' : ℕ}
+theorem argsCmp (H : TC S k d D PL PL φ φ c C q q X X rs rs) (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) {c' : ℕ}
     {C' : Ctor} {as0 : Tm} {rs0 : List I} (hC' : D.ctors[c']? = some C')
     (hs : Ctor.simpleB D.ctors d D.params.length c C.args.length C
       (.con d c' (Ctor.paramVars D.params.length C.args.length) as0 rs0) = true)

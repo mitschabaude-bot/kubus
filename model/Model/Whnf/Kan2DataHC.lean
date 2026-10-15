@@ -73,7 +73,6 @@ structure HCC (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P Q Q' : Tm) (k1 : �
   hPP : RT2 S K (.data d P) (.data d P)
   hQ : RT2 S K (.data d P) (.data d Q)
   hQ' : RT2 S K (.data d P) (.data d Q')
-  hArgK : KanShape S K (ΘK S D d K P)
   hC : D.ctors[c]? = some C
   hXl : X.length = C.args.length
   hXl' : X'.length = C.args.length
@@ -131,7 +130,7 @@ structure Basic (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P Q Q' : Tm) (k1 :
   htubeR : Tube2 S k1 (.data d (P.isub ρ)) φ' u' u'
 
 theorem basic : Basic S d D K P Q Q' k1 ρ c C X X' φ φ' u u' := by
-  obtain ⟨hW, hD, hH, hP, hPP, hQ, hQ', -, hC, hXl, hXl', -, -, -, hn, hty, hty', -, -, -, h21, htube, -, -⟩ := H
+  obtain ⟨hW, hD, hH, hP, hPP, hQ, hQ', hC, hXl, hXl', -, -, -, hn, hty, hty', -, -, -, h21, htube, -, -⟩ := H
   have hS := sigClosed_of_wfSig hW
   obtain ⟨l0, ⟨hdq, hφs, hut, hb, hside⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
   obtain ⟨l0', ⟨hdq', hφs', hut', hb', hside'⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty') rfl
@@ -187,7 +186,7 @@ theorem contracta :
       Red S (.hcomp (.data d (Q'.isub ρ)) φ' u' (.con d c qs' (Tm.ofList X') []))
         (.con d c (Q'.isub ρ) (Tm.ofList (conOuts d D c C (Q'.isub ρ) φ' u' X')) [])) := by
   have B := H.basic
-  obtain ⟨hW, hD, hH, -, -, -, -, -, hC, hXl, hXl', -, -, -, hn, hty, hty', -, -, -, -, -, -, -⟩ := H
+  obtain ⟨hW, hD, hH, -, -, -, -, hC, hXl, hXl', -, -, -, hn, hty, hty', -, -, -, -, -, -, -⟩ := H
   have e_hc := hcompCon_sound hW hD hH hC hty B.hcan
   have e_hc' := hcompCon_sound hW hD hH hC hty' B.hcan'
   have hul : (tubeArgs d D c C (Q.isub ρ) u).length = C.args.length := by simp [tubeArgs]
@@ -250,7 +249,7 @@ theorem euu : ∀ i (hi : i < C.args.length), EqTm0 S (k1 + 1) (cof .one φ).shi
       (Q.isub ρ).dshift.toList.reverse)) := by
   have B := H.basic
   obtain ⟨⟨G1, G2, -, -⟩, ⟨-, G2', -, -⟩⟩ := H.prem
-  obtain ⟨hW, hD, hH, -, -, -, -, -, hC, -, -, -, -, -, -, -, -, -, hteq, h12, -, -, -, -⟩ := H
+  obtain ⟨hW, hD, hH, -, -, -, -, hC, -, -, -, -, -, -, -, -, -, hteq, h12, -, -, -, -⟩ := H
   have hS := sigClosed_of_wfSig hW
   have hΦs : ((cof .one φ).shift).Scoped (k1 + 1) := KubusCore.I.scoped_shift ⟨trivial, B.hφs⟩
   have hΦe : I.Entails (cof .one φ).shift (cof .one φ').shift := ent_shift (ent_and_mono (ent_refl _) h12)
@@ -458,7 +457,7 @@ theorem toHCG : HCG S d D K P Q Q' k1 ρ c C X X' φ φ'
   obtain ⟨⟨G1, -, G3, G4⟩, ⟨G1', -, G3', G4'⟩⟩ := H.prem
   exact {
     hW := H.hW, hD := H.hD, hH := H.hH, hP := H.hP, hPP := H.hPP, hQ := H.hQ, hQ' := H.hQ'
-    hArgK := H.hArgK, hC := H.hC, hXl := H.hXl, hXl' := H.hXl'
+    hC := H.hC, hXl := H.hXl, hXl' := H.hXl'
     hul := by simp [tubeArgs]
     hul' := by simp [tubeArgs]
     hrecR := H.hrecR, hptR := H.hptR, hrecH := H.hrecH, h12 := H.h12, h21 := H.h21

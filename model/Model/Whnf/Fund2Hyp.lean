@@ -44,11 +44,6 @@ def ElTr2 (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (X Y : Tm) : Prop :=
 def DefHyp2 (S S' : Sig) : Prop :=
   ∀ (i : ℕ) (t A : Tm), S'[i]? = some (.defn t A) → ∀ k, RT2 S k A A ∧ RE2 S k A t t
 
-/-- The Kan oracle: composition and transport in related types. -/
-structure KanOracle2 (S : Sig) : Prop where
-  hcomp : ∀ k (A A' : Tm), RT2 S k A A' → KanH2 S k A A'
-  transp : ∀ k (A A' : Tm), RT2 S (k + 1) A A' → KanT2 S k A A'
-
 /-- The validity of the rules of the inductive types of `S'` (judgments in `S`), given the validity of
 their premises. -/
 structure DataHyp2 (S S' : Sig) : Prop where

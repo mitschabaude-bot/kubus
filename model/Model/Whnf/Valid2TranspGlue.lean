@@ -1304,10 +1304,6 @@ equivalence. -/
 def NearEl2 (S : Sig) : Prop :=
   ∀ {k : ℕ} {X t t' u : Tm}, RT2 S k X X → RE2 S k X t u → TmNear t t' → HasTy S k .one [] t' X → RE2 S k X t' u
 
-omit hW in
-theorem ent_one_forall0 {φ : I} (h : I.Entails .one φ) : I.Entails .one φ.forall0 :=
-  entails_iff.2 fun ρ hρ _ => (forall0_sem hρ φ).2 (entails_iff.1 h _ (consAsg_k3 (by decide) hρ) rfl)
-
 /-- The step of `transp` in a Glue line. -/
 theorem eq_transpGlue_step {Ψ Φ Γ A φ T e ψ u0 X} (h : HasTy0 S Ψ Φ Γ (.transp (.glue A φ T e) ψ u0) X) :
     EqTm0 S Ψ Φ Γ (.transp (.glue A φ T e) ψ u0) (Tm.transpGlueWith φ.forall0 A φ T e ψ u0) X := by

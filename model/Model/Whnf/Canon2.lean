@@ -1,4 +1,5 @@
 import Model.Whnf.Kan2All
+import Model.Whnf.Fund2
 import Model.Canon.CanonForm
 
 /-!
@@ -24,13 +25,13 @@ variable {S : Sig}
 
 /-- The remaining obligations of the binary fundamental lemma and the binary Kan lemma. -/
 structure Obl2 (S : Sig) : Prop where
-  hit : HITHyp2 S
+  hit : HITConHyp2 S
   data : ∀ n, DataHyp2 S (S.take n)
 
 /-- **The compatibility of Glue annotations**, from the binary fundamental lemma. -/
 theorem glueCompat_of (hW : WfSig S) (O : Obl2 S) : GlueCompat S := by
   intro k A A' T T' e e' φ φ' l h hn h12 h21
-  obtain ⟨-, hr⟩ := fund2_closed hW (kanOracle2 hW O.hit) O.data (spec_to_minimal_eq hW h)
+  obtain ⟨-, hr⟩ := fund2_closed hW O.hit O.data (spec_to_minimal_eq hW h)
   have hGG' := RE2_univ_ty hW hr
   have hG := HasTy.eqL h
   have hG' := HasTy.eqR h

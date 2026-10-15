@@ -177,7 +177,7 @@ theorem argTy_rt2' {k3 : ℕ} {P1 Q2 : Tm} (hP1 : HasTy S k3 .one [] (.data d P1
 Kan properties of the argument types' codes. -/
 theorem argLine_kanT {n' : ℕ} {P1 Q2 : Tm} (hP1 : HasTy S (n' + 1) .one [] (.data d P1) (.univ D.level))
     (hP1P1 : RT2 S (n' + 1) (.data d P1) (.data d P1)) (hQ2 : RT2 S (n' + 1) (.data d P1) (.data d Q2))
-    (hArgK : KanShape S (n' + 1) (ΘK S D d (n' + 1) P1))
+
     {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {A B : List Tm} (hBl : B.length = A.length)
     (hAl : A.length < C.args.length) (hrr : C.isRec A.length = false)
     (hrel : ∀ i (hi : i < A.length), RE2 S (n' + 1) ((C.argTy d D.params.length i).substList ((A.take i).reverse ++

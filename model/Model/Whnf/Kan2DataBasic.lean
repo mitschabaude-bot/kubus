@@ -154,61 +154,6 @@ theorem perP_ΘK {K : ℕ} {P : Tm} {l : ℕ} (hP : HasTy S K .one [] (.data d P
   fun h c j pre => perP_tyLook (fun c j n g pre hv => per2_wf hW _ (level_le hW hD (K := K)) n _
     (ΘK_ty_wf hW hD hP c j n g pre hv)) h c j pre
 
-/-- The Kan properties of the argument types of a semantic inductive type, through its shape (which
-is determined by its code): composition and transport at related types at the argument types'
-codes, at all restrictions and valid prefixes. -/
-def KanShape (S : Sig) (n0 : ℕ) (Λ : SData n0) : Prop :=
-  ∀ n (h : Hom n n0) (c j : ℕ) (pre : List V) (A A' : Tm),
-    (Comp2 S (tyLook (shapeV (Λ.restr h)) c j pre) n n (Hom.id n)).ty A A' →
-    KanH2 S n A A' ∧ ∀ {n' : ℕ} (e : n = n' + 1), KanT2 S n' A A'
-
-omit hW hD in
-/-- The Kan properties through the shape, from those at the argument types' codes. -/
-theorem kanShape_of {n0 : ℕ} {Λ : SData n0}
-    (hArgK : ∀ c j n (g : Hom n n0) pre, Λ.PtValid c n g pre → KanP2 S n (Λ.ty c j n g pre)) :
-    KanShape S n0 Λ := by
-  intro n h c j pre A A' hA
-  rcases tyLook_cases (Λ.restr h) c j pre with h0 | h0
-  · rw [h0, Comp2_empty] at hA; exact hA.elim
-  · rw [tyLook_eq h0] at hA
-    have hv := ptValid_of_validPre h0
-    have K2 := hArgK c j n (h.comp (Hom.id n)) pre hv
-    refine ⟨K2.1 n (Hom.id n) A A' hA, fun {n'} e => ?_⟩
-    subst e
-    exact K2.2 n' (Hom.id (n' + 1)) A A' hA
-
-omit hW hD in
-theorem KanShape.restr {n0 n1 : ℕ} {Λ : SData n0} (h : KanShape S n0 Λ) (g : Hom n1 n0) :
-    KanShape S n1 (Λ.restr g) := by
-  intro n h' c j pre A A' hA
-  rw [SData.restr_restr] at hA
-  exact h n (g.comp h') c j pre A A' hA
-
-omit hW hD in
-/-- The shape of a semantic inductive type is determined by its code. -/
-theorem shapeV_restr_of_dataC_eq {n0 : ℕ} {Λ Λ' : SData n0} (e : dataC Λ = dataC Λ') {n : ℕ} (h : Hom n n0) :
-    shapeV (Λ.restr h) = shapeV (Λ'.restr h) := by
-  have e' : dataC (Λ.restr h) = dataC (Λ'.restr h) := by rw [← res_dataC, ← res_dataC, e]
-  have := congrArg (fun c => shapeOf c (Hom.id n)) e'
-  simp only [shapeOf_dataC, tagZ_inj, pair_inj'] at this
-  have h1 := this.2.2.2
-  rwa [SData.restr_restr, SData.restr_restr, Hom.comp_id] at h1
-
-omit hW hD in
-theorem KanShape.of_dataC_eq {n0 : ℕ} {Λ Λ' : SData n0} (e : dataC Λ = dataC Λ') (h : KanShape S n0 Λ') :
-    KanShape S n0 Λ := by
-  intro n h' c j pre A A' hA
-  rw [shapeV_restr_of_dataC_eq e h'] at hA
-  exact h n h' c j pre A A' hA
-
-/-- Composition and transport at the point argument types of a literal inductive type, from those
-at their codes. -/
-theorem kan_tyLook {K : ℕ} {P : Tm} (hArgK : KanShape S K (ΘK S D d K P))
-    {n : ℕ} (h : Hom n K) (c j : ℕ) (pre : List V) {A A' : Tm}
-    (hA : (Comp2 S (tyLook (shapeV ((ΘK S D d K P).restr h)) c j pre) n n (Hom.id n)).ty A A') :
-    KanH2 S n A A' ∧ ∀ {n' : ℕ} (e : n = n' + 1), KanT2 S n' A A' :=
-  hArgK n h c j pre A A' hA
-
 /-- The clauses of related literal inductive types at a restriction. -/
 theorem dataLit_rel {K : ℕ} {P Q : Tm} {l : ℕ} (hP : HasTy S K .one [] (.data d P) (.univ l))
     (hPQ : RT2 S K (.data d P) (.data d Q)) (σ : ISub k' K) :
