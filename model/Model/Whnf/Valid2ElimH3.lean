@@ -157,6 +157,40 @@ theorem wkN_teleSub (t : Tm) (X : List Tm) (rs : List I) (γ : ℕ → Tm) (τ :
   rw [wkN_eq, subst_subst]
   exact subst_congr (teleSub_add X γ) (consIs_wkIv rs τ) t
 
+/-- The variables of a branch context instantiate to its arguments, hypotheses and interval arguments. -/
+theorem branchVars_inst2 (C : Ctor) (X Y : List Tm) (rs : List I)
+    (hX : X.length = C.args.length) (hY : Y.length = C.recPos.length) (hrs : rs.length = C.dims)
+    (γ : ℕ → Tm) (τ : ℕ → I) :
+    ((List.range C.args.length).map (fun j => Tm.var (C.recPos.length + C.args.length - 1 - j))).map
+      (fun t => t.subst (teleSub (X ++ Y) γ) (consIs rs τ)) = X ∧
+    ((List.range C.recPos.length).map (fun j => Tm.var (C.recPos.length - 1 - j))).map
+      (fun t => t.subst (teleSub (X ++ Y) γ) (consIs rs τ)) = Y ∧
+    ((List.range C.dims).map (fun j => I.var (C.dims - 1 - j))).map
+      (fun r => r.subst (consIs rs τ)) = rs := by
+  refine ⟨?_, ?_, ?_⟩
+  · apply List.ext_getElem (by simp [hX])
+    intro j hj hj'
+    simp only [List.getElem_map, List.getElem_range, Tm.subst]
+    rw [teleSub_lt (X ++ Y) γ (by simp only [List.length_append, hX, hY]; omega), List.getElem_reverse, List.getElem_append_left (by simp only [List.length_append, hX, hY]; omega)]
+    congr 1
+    simp only [List.length_append, hX, hY]
+    omega
+  · apply List.ext_getElem (by simp [hY])
+    intro j hj hj'
+    simp only [List.getElem_map, List.getElem_range, Tm.subst]
+    rw [teleSub_lt (X ++ Y) γ (by simp only [List.length_append, hX, hY]; omega), List.getElem_reverse, List.getElem_append_right (by simp [hX, hY]; omega)]
+    congr 1
+    simp only [List.length_append, hX, hY]
+    omega
+  · apply List.ext_getElem (by simp [hrs])
+    intro j hj hj'
+    simp only [List.getElem_map, List.getElem_range, I.subst, consIs_eq]
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by simp; omega)]
+    simp only [Option.getD_some, List.getElem_reverse]
+    congr 1
+    omega
+
+
 /-- A branch application closes to the branch applied to the given arguments and hypotheses. -/
 theorem branchApp_inst2 (C : Ctor) (b : Tm) (X Y : List Tm) (rs : List I)
     (hX : X.length = C.args.length) (hY : Y.length = C.recPos.length) (hrs : rs.length = C.dims)
@@ -168,30 +202,51 @@ theorem branchApp_inst2 (C : Ctor) (b : Tm) (X Y : List Tm) (rs : List I)
   rw [papps_subst, apps_subst]
   have hL : (X ++ Y).length = C.args.length + C.recPos.length := by simp [hX, hY]
   rw [← hL, ← hrs, wkN_teleSub]
-  congr 2
-  · rw [List.map_append]
-    congr 1
-    · apply List.ext_getElem (by simp [hX])
-      intro j hj hj'
-      simp only [List.getElem_map, List.getElem_range, Tm.subst]
-      rw [teleSub_lt (X ++ Y) γ (by simp only [List.length_append, hX, hY]; omega), List.getElem_reverse, List.getElem_append_left (by simp only [List.length_append, hX, hY]; omega)]
-      congr 1
-      simp only [List.length_append, hX, hY]
-      omega
-    · apply List.ext_getElem (by simp [hY])
-      intro j hj hj'
-      simp only [List.getElem_map, List.getElem_range, Tm.subst]
-      rw [teleSub_lt (X ++ Y) γ (by simp only [List.length_append, hX, hY]; omega), List.getElem_reverse, List.getElem_append_right (by simp [hX, hY]; omega)]
-      congr 1
-      simp only [List.length_append, hX, hY]
-      omega
-  · apply List.ext_getElem (by simp [hrs])
-    intro j hj hj'
-    simp only [List.getElem_map, List.getElem_range, I.subst, consIs_eq]
-    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by simp; omega)]
-    simp only [Option.getD_some, List.getElem_reverse]
-    congr 1
-    omega
+  obtain ⟨hx, hy, hr⟩ := branchVars_inst2 C X Y rs hX hY hrs γ τ
+  rw [← hrs] at hr
+  rw [List.map_append, hx, hy, hr]
+
+/-- The instantiated branch body is the motive at the instantiated constructor. -/
+theorem branchBody_inst2 (d c : ℕ) (C : Ctor) (ps M : Tm) (X Y : List Tm) (rs : List I)
+    (hX : X.length = C.args.length) (hY : Y.length = C.recPos.length) (hrs : rs.length = C.dims)
+    (γ : ℕ → Tm) (τ : ℕ → I) :
+    (DataDecl.branchBody d c C ps M).subst (teleSub (X ++ Y) γ) (consIs rs τ) =
+      (M.subst (Tm.up γ) τ).inst (.con d c (ps.subst γ τ) (Tm.ofList X) rs) := by
+  unfold DataDecl.branchBody
+  dsimp only
+  rw [subst_subst, subst_up_inst_eq]
+  have hL : (X ++ Y).length = C.args.length + C.recPos.length := by simp [hX, hY]
+  obtain ⟨hx, -, hr⟩ := branchVars_inst2 C X Y rs hX hY hrs γ τ
+  apply subst_congr
+  · intro j
+    cases j with
+    | zero =>
+      simp only [Tm.subst, ofList_subst]
+      rw [← hrs] at hr
+      rw [← hL, ← hrs, wkN_teleSub, hx, hr]
+      rfl
+    | succ j =>
+      simp only [Tm.subst, consT]
+      rw [Nat.add_assoc, ← hL]
+      exact teleSub_add (X ++ Y) γ j
+  · intro i
+    change (wkIv C.dims i).subst (consIs rs τ) = τ i
+    rw [← hrs]
+    exact consIs_wkIv rs τ i
+
+/-- Instantiating a lifted outer substitution is the telescope substitution. -/
+theorem subst_upN_teleSub (t : Tm) (X : List Tm) (γ : ℕ → Tm) (τ : ℕ → I) :
+    (t.subst (upN X.length γ) τ).substList X.reverse = t.subst (teleSub X γ) τ := by
+  rw [substList_eq, subst_subst]
+  apply subst_congr
+  · intro i
+    by_cases hi : i < X.length
+    · rw [upN_lt hi, Tm.subst, slS_lt (by simpa using hi), teleSub_lt X γ hi]
+    · obtain ⟨j, rfl⟩ : ∃ j, i = j + X.length := ⟨i - X.length, by omega⟩
+      rw [upN_add, ← substList_eq, teleSub_add]
+      simpa only [List.length_reverse, wkN_eq] using wkN_substList (γ j) X.reverse
+  · intro i
+    exact I_subst_var _
 
 variable (hW : WfSig S)
 include hW
