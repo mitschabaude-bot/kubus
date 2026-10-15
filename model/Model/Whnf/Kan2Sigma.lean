@@ -42,7 +42,7 @@ theorem SigmaStr_of {T T' A B : Tm} {l : ℕ} (h : RT2 S k T T') (hR : RedT S k 
   have hT := h
   unfold RT2 at hT
   rw [hX, Comp2_sigmaC _ _ hAne] at hT
-  obtain ⟨hbase, hall, hcoh, hcoh'⟩ := hT
+  obtain ⟨hbase, hall, hcoh, hcoh', -, -⟩ := hT
   refine ⟨hbase.2.2.2.2, fun k' ρ => ?_, fun k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2 => ?_,
     fun k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2 => ?_, fun k' ρ A1 B1 f f' h1 hf => ?_⟩
   · obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' ρ

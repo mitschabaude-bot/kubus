@@ -36,7 +36,7 @@ variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
 include hW hD
 
 /-- The boundaries that hold. -/
-theorem BI_top (hH : D.isHIT = true) (hyp : HITHyp2 S) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
+theorem BI_top (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C)
     {rs : List I} (hrsl : rs.length = C.dims) {kb : ℕ} {ψ : I} {b : Tm} (hb : C.bnd[kb]? = some (ψ, b))
     (hent : I.Entails .one (Ctor.cofAt ψ rs)) : BI S d D c C rs b := by
   intro k3 P1 Y τ hP1 hPP hYl hcT hY
@@ -44,7 +44,7 @@ theorem BI_top (hH : D.isHIT = true) (hyp : HITHyp2 S) {c : ℕ} {C : Ctor} (hC 
   have hent' : I.Entails .one (Ctor.cofAt ψ (rs.map (·.subst τ))) := by
     rw [← cofAt_subst τ (by rw [hrsl]; exact hψs)]; exact ent_one_subst hent τ
   have hPl := (con_inv hW hD hC hcT hP1).2.2.1
-  refine ⟨hyp.bndTy hD hH hC hb hent' hP1 hPP hYl hYl hcT hY, ?_⟩
+  refine ⟨hyp.bndTy (by omega) hD hH hC hb hent' hP1 hPP hYl hcT hY, ?_⟩
   have := EqTm.conBnd hD hC hb hent' hPl (by rw [toList_ofList]) hcT
   rw [toList_ofList] at this
   exact HasTy.eqR this

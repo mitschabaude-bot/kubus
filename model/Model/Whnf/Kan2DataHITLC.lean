@@ -30,7 +30,7 @@ variable {d : ℕ} {D : DataDecl} {PL : Tm} {φ : I} {c : ℕ} {C : Ctor} {q : T
 include H
 
 /-- Point arguments of nested constructors, transported along the nested and the outer argument lines. -/
-theorem nested_pt (hH : D.isHIT = true) (hyp : HITHyp2 S) {c' : ℕ} {C' : Ctor} {as0 : Tm} {rs0 : List I}
+theorem nested_pt (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) {c' : ℕ} {C' : Ctor} {as0 : Tm} {rs0 : List I}
     (hC' : D.ctors[c']? = some C')
     (hs : Ctor.simpleB D.ctors d D.params.length c C.args.length C
       (.con d c' (Ctor.paramVars D.params.length C.args.length) as0 rs0) = true)
@@ -216,7 +216,7 @@ theorem nested_pt (hH : D.isHIT = true) (hyp : HITHyp2 S) {c' : ℕ} {C' : Ctor}
           (RT2.symm hW (hXL' j hj _) (LA (k3 + 1) _))
       rw [tl_isub hW H.hD H.hC hPl φ X hi.le] at hL2
       have K0 := argLine_kanT2 hW H.hD (HasTy.isubS hW H.hPL (ISub.cons y' hy' τ.up.tail))
-        (H.hRLσ _) (argK_restr H.hArgK _) H.hC (A := ((tF d D C PL φ X).map (·.isub (ISub.cons y' hy' τ.up.tail))).take i)
+        (H.hRLσ _)  H.hC (A := ((tF d D C PL φ X).map (·.isub (ISub.cons y' hy' τ.up.tail))).take i)
         (by rw [hAl]; exact hi) (by rw [hAl]; exact hcr) (fun l hl => by
           rw [hAl] at hl
           rw [List.take_take, Nat.min_eq_left hl.le, getD_take_lt hl]

@@ -234,29 +234,26 @@ theorem VEq.splitR' {A t u : Tm} {φ ψ : I} (hφ : φ.Scoped Ψ) (hψ : ψ.Scop
 /-! ### Kan operations -/
 
 theorem VTy.transp' {A a : Tm} {φ : I} {l : ℕ}
-    (hK : ∀ k (c : CSub2 S Ψ Φ Γ k), KanT2 S k ((c.up hW).L A) ((c.up hW).R A))
     (hA : VTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l)) (hφ : φ.Scoped Ψ)
     (hc : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l))
     (ha : VTy S Ψ Φ Γ a (A.dinst .zero)) : VTy S Ψ Φ Γ (.transp A φ a) (A.dinst .one) := by
   have h := HasTy0.transp hA.ty hφ hc.eq ha.ty
-  exact ⟨h, valid_transp hW hφ (ent_refl _) (ent_refl _) hA.v hc.v ha.v h h (.refl h) hK⟩
+  exact ⟨h, valid_transp hW hφ (ent_refl _) (ent_refl _) hA.v hc.v ha.v h h (.refl h)⟩
 
 theorem VEq.transp' {A A' a a' : Tm} {φ φ' : I} {l l' : ℕ}
-    (hK : ∀ k (c : CSub2 S Ψ Φ Γ k), KanT2 S k ((c.up hW).L A) ((c.up hW).R A'))
     (hφ : φ.Scoped Ψ) (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)
     (hty : HasTy0 S Ψ Φ Γ (.transp A φ a) (A.dinst .one)) (hty' : HasTy0 S Ψ Φ Γ (.transp A' φ' a') (A.dinst .one))
     (hA : VEq S (Ψ + 1) Φ.shift Γ.dshift A A' (.univ l))
     (hc : Valid2 S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l'))
     (ha : VEq S Ψ Φ Γ a a' (A.dinst .zero)) : VEq S Ψ Φ Γ (.transp A φ a) (.transp A' φ' a') (A.dinst .one) := by
   have e := EqTm0.transp hty hty' hA.eq h12 h21 ha.eq
-  exact ⟨e, valid_transp hW hφ h12 h21 hA.v hc ha.v hty hty' e hK⟩
+  exact ⟨e, valid_transp hW hφ h12 h21 hA.v hc ha.v hty hty' e⟩
 
 theorem VTy.hcomp' {A u a : Tm} {φ : I} {l : ℕ}
-    (hK : ∀ k (c : CSub2 S Ψ Φ Γ k), KanH2 S k (c.L A) (c.R A))
     (hA : VTy S Ψ Φ Γ A (.univ l)) (hφ : φ.Scoped Ψ) (hu : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift)
     (ha : VTy S Ψ Φ Γ a A) (hs : VEq S Ψ (cof Φ φ) Γ (u.dinst .zero) a A) : VTy S Ψ Φ Γ (.hcomp A φ u a) A := by
   have h := HasTy0.hcomp hA.ty hφ hu.ty ha.ty hs.eq
-  exact ⟨h, valid_hcomp hW hφ (ent_refl _) (ent_refl _) hA.v hu.v ha.v hs.v hs.v h h (.refl h) (.refl hu.ty) hK⟩
+  exact ⟨h, valid_hcomp hW hφ (ent_refl _) (ent_refl _) hA.v hu.v ha.v hs.v hs.v h h (.refl h) (.refl hu.ty)⟩
 
 theorem VEq.transpFace' {A a T : Tm} {φ : I} (hφ0 : I.Entails Φ φ) (h : VTy S Ψ Φ Γ (.transp A φ a) T) :
     VEq S Ψ Φ Γ (.transp A φ a) a T := by
@@ -407,25 +404,8 @@ theorem VTy.lineIeq {C T : Tm} (hC : VTy S (Ψ + 1) Φ.shift Γ.dshift C T) {k :
 
 /-! ### Transport filler -/
 
-/-- The Kan property of transport along all related lines. -/
-abbrev KTAll (S : Sig) : Prop := ∀ k (X X' : Tm), RT2 S (k + 1) X X' → KanT2 S k X X'
-
-/-- The Kan property of composition in all related types. -/
-abbrev KHAll (S : Sig) : Prop := ∀ k (X X' : Tm), RT2 S k X X' → KanH2 S k X X'
-
-theorem VTy.transpG {A a : Tm} {φ : I} {l : ℕ} (hKT : KTAll S)
-    (hA : VTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l)) (hφ : φ.Scoped Ψ)
-    (hc : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l))
-    (ha : VTy S Ψ Φ Γ a (A.dinst .zero)) : VTy S Ψ Φ Γ (.transp A φ a) (A.dinst .one) :=
-  VTy.transp' hW (fun k c => hKT k _ _ (hA.v.ty hW (c.up hW))) hA hφ hc ha
-
-theorem VTy.hcompG {A u a : Tm} {φ : I} {l : ℕ} (hKH : KHAll S)
-    (hA : VTy S Ψ Φ Γ A (.univ l)) (hφ : φ.Scoped Ψ) (hu : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift)
-    (ha : VTy S Ψ Φ Γ a A) (hs : VEq S Ψ (cof Φ φ) Γ (u.dinst .zero) a A) : VTy S Ψ Φ Γ (.hcomp A φ u a) A :=
-  VTy.hcomp' hW (fun k c => hKH k _ _ (hA.v.ty hW c)) hA hφ hu ha hs
-
 /-- `transpFill_typed`, with validity. -/
-theorem VTy.transpFill' {A a : Tm} {φ : I} {l : ℕ} (hKT : KTAll S)
+theorem VTy.transpFill' {A a : Tm} {φ : I} {l : ℕ}
     (hA : VTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l)) (hφ : φ.Scoped Ψ)
     (hcD : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l))
     (ha : VTy S Ψ Φ Γ a (A.dinst .zero)) :
@@ -495,7 +475,7 @@ theorem VTy.transpFill' {A a : Tm} {φ : I} {l : ℕ} (hKT : KTAll S)
       ⟨hv0, trivial⟩ (I_eq_symm (I_eq_and_zero_r _)) hwX
     rw [sk_zero1] at e
     exact VTy.conv' hW (VTy.dwk' hW ha) e
-  have ht0 := VTy.transpG hW hKT hL hψ hconst ha'
+  have ht0 := VTy.transp' hW hL hψ hconst ha'
   have eC : VEq S (Ψ + 1) Φ.shift Γ.dshift ((A.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))).dinst .one) A (.univ l) := by
     have e := VTy.lineIeq hW hA (k := 1) (r := .and (.var 0) .one) (r' := .var 0) (ent_refl _)
       ⟨hv0, trivial⟩ hv0 (I_eq_and_one_r _) hwX
@@ -518,7 +498,7 @@ theorem VTy.transpFill' {A a : Tm} {φ : I} {l : ℕ} (hKT : KTAll S)
       rwa [sk_var1] at e
     have eL1 := VEq.dsubst' hW .one trivial hline
     have eL0 := VEq.dsubst' hW .zero trivial hline
-    have h2 := VTy.transpG hW hKT hA hφ hcD ha
+    have h2 := VTy.transp' hW hA hφ hcD ha
     -- the constancy of the left line, through `A`
     have hψ1 : (I.or φ (.neg .one)).Scoped Ψ := ⟨hφ, trivial⟩
     have hX1s : (cof Φ (.or φ (.neg .one))).shift.Scoped (Ψ + 1) := KubusCore.I.scoped_shift ⟨hs, hψ1⟩
@@ -534,7 +514,7 @@ theorem VTy.transpFill' {A a : Tm} {φ : I} {l : ℕ} (hKT : KTAll S)
           ((A.subst Tm.var (sk (.and .one (.var 0)) 1)).dinst .zero).dshift (A.dinst .zero).dshift (.univ l) :=
         valid_restrict hW hX1Φ (VEq.dwk' hW (VEq.dsubst' hW .zero trivial hline)).v
       exact valid_trans hW k1 (valid_trans hW k2 (valid_symm hW k3))
-    have e := VEq.transp' hW (fun k c => hKT k _ _ (hline.v.ty hW (c.up hW))) hψ1 (ent_neg_one φ) (ent_or_left _ _)
+    have e := VEq.transp' hW  hψ1 (ent_neg_one φ) (ent_or_left _ _)
       h1.ty (HasTy0.conv h2.ty (VEq.symm' hW eL1).eq) hline hc1
       (VEq.refl' (VTy.conv' hW ha (VEq.symm' hW eL0)))
     rw [tf_d1_eq]

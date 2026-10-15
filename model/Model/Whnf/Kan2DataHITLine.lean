@@ -64,7 +64,7 @@ include hW hD
 /-- Transport along an argument line at self-related earlier arguments, against any related line. -/
 theorem argLine_kanT2 {n' : ℕ} {P1 L2 : Tm} (hP1 : HasTy S (n' + 1) .one [] (.data d P1) (.univ D.level))
     (hP1P1 : RT2 S (n' + 1) (.data d P1) (.data d P1))
-    (hArgK : KanShape S (n' + 1) (ΘK S D d (n' + 1) P1))
+
     {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {A : List Tm}
     (hAl : A.length < C.args.length) (hrr : C.isRec A.length = false)
     (hrel : ∀ i (hi : i < A.length), RE2 S (n' + 1) ((C.argTy d D.params.length i).substList ((A.take i).reverse ++
@@ -89,9 +89,9 @@ theorem argLine_kanT2 {n' : ℕ} {P1 L2 : Tm} (hP1 : HasTy S (n' + 1) .one [] (.
       have h := hrel i hi
       rwa [getD_eq_get' hi] at h)
     hAl hrr
-  have hb := Comp2_ty_base hA
+  have hb := Comp2_ty_base hA.1
   have hA2 := (Comp2_ty_iff hb.1 hb.2.2.2.1).2 hL2
-  exact (kan_tyLook hW hD hArgK _ c A.length _ hA2).2 rfl
+  exact hA.2.2 n' (Hom.id (n' + 1)) _ _ hA2
 
 end wrap
 

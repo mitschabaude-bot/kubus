@@ -126,7 +126,10 @@ theorem RT2_glue_intro {A T e A' T' e' : Tm} {φ φ' : I} {l : ℕ}
     (hEL : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
       RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e.isub σ))
     (hER : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
-      RE2 S k' (Tm.equiv (T'.isub σ) (A'.isub σ)) (e'.isub σ) (e'.isub σ)) :
+      RE2 S k' (Tm.equiv (T'.isub σ) (A'.isub σ)) (e'.isub σ) (e'.isub σ))
+    (hAK : KanP2 S k (semK S k A))
+    (hTK : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      KanP2 S k' (semK S k' (T.isub σ))) :
     RT2 S k (.glue A φ T e) (.glue A' φ' T' e') := by
   obtain ⟨hφs, lA, hA0, -⟩ := glue_data hW hG
   have hn' : ¬ Cof.holds (ival (idEnv k) φ).face := by rwa [← DM.holds_iff_face_holds]
@@ -149,7 +152,7 @@ theorem RT2_glue_intro {A T e A' T' e' : Tm} {φ φ' : I} {l : ℕ}
   have hsemG' : semK S k (.glue A' φ' T' e') = semK S k (.glue A φ T e) := (semK_eq hW he).symm
   unfold RT2
   rw [semK_glueT hW hG, Comp2_glueC (kv_semK_of_univ hW hA0) (isKV_partialKV _ _) (isCof_ival_face _ _) hn']
-  refine ⟨⟨⟨l, .inl hG⟩, ⟨l, .inl hG'⟩, ?_, ?_, .inr ⟨l, he⟩⟩, fun k' σ => ?_, ?_, ?_⟩
+  refine ⟨⟨⟨l, .inl hG⟩, ⟨l, .inl hG'⟩, ?_, ?_, .inr ⟨l, he⟩⟩, fun k' σ => ?_, ?_, ?_, ?_⟩
   · rw [← semK_glueT hW hG, res_id (kv_semK_of_univ hW hG)]
   · rw [hsemG', ← semK_glueT hW hG, res_id (kv_semK_of_univ hW hG)]
   · rw [isub_glue, isub_glue]
@@ -181,6 +184,12 @@ theorem RT2_glue_intro {A T e A' T' e' : Tm} {φ φ' : I} {l : ℕ}
       (RT2.refl' hW (hXA _ _) (hA k'' _)) (fun k3 σ3 hh => ?_) (fun k3 σ3 hh => ?_)
     · rw [Tm.isub_isub]; exact RT2.refl' hW (hXT _ _ hh) (hT k3 _ hh)
     · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]; exact hER k3 _ hh
+
+  · refine ⟨?_, fun k' σ hh => ?_⟩
+    · simpa only [Hom.id_comp] using (kanPG_iff hW).2 hAK
+    · simp only [Hom.id_comp] at hh ⊢
+      rw [dat_glue_fiber σ hh]
+      exact (kanPG_iff hW).2 (hTK k' σ ((face_holds_iff hφs σ).1 hh))
 
 
 omit hW in

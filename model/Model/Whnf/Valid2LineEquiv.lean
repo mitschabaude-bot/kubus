@@ -3,9 +3,8 @@ import Model.Whnf.Valid2CompGlue
 /-!
 # Validity of `lineEquiv` and of the `hcomp` computation rule in the universe
 
-The typing derivations of `KubusCore/Meta/KanU.lean`, with validity. Transport is only used at
-types of a fixed level `l` (`KTAt S l`), so that the relatedness of `lineEquiv` at level `l` can feed a
-level-stratified construction of composition in the universe.
+The typing derivations of `KubusCore/Meta/KanU.lean`, with validity. Transport obtains Kan from the
+validity of the line in its universe. The resulting equivalence supplies universe composition.
 -/
 
 set_option autoImplicit false
@@ -15,12 +14,6 @@ namespace Model.Whnf
 open KubusCore KubusCore.Meta Model.Canon
 
 noncomputable section
-
-/-- The Kan property of transport in all related lines of types of level `l`. -/
-def KTAt (S : Sig) (l : ℕ) : Prop :=
-  ∀ k (X X' : Tm), RT2 S (k + 1) X X' → HasTy S (k + 1) .one [] X (.univ l) → KanT2 S k X X'
-
-theorem KTAt.of_all {S : Sig} (h : KTAll S) (l : ℕ) : KTAt S l := fun k X X' hX _ => h k X X' hX
 
 variable {S : Sig} {k : ℕ}
 
@@ -51,12 +44,6 @@ theorem VEq.piBeta' {A b a T : Tm} (h : VTy S Ψ Φ Γ (.app (.lam A b) a) T) :
     VEq S Ψ Φ Γ (.app (.lam A b) a) (b.inst a) T := by
   have e := EqTm0.piBeta h.ty
   exact ⟨e, valid_piBeta hW h.v h.ty (presup hW e).2⟩
-
-theorem VTy.transpL {A a : Tm} {φ : I} {l : ℕ} (hKT : KTAt S l)
-    (hA : VTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l)) (hφ : φ.Scoped Ψ)
-    (hc : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l))
-    (ha : VTy S Ψ Φ Γ a (A.dinst .zero)) : VTy S Ψ Φ Γ (.transp A φ a) (A.dinst .one) :=
-  VTy.transp' hW (fun k c => hKT k _ _ (hA.v.ty hW (c.up hW)) ((c.up hW).ty hW hA.ty)) hA hφ hc ha
 
 /-! ### Types of equivalences -/
 
@@ -106,7 +93,7 @@ theorem VTy.equiv' {T A : Tm} {l : ℕ} (hT : VTy S Ψ Φ Γ T (.univ l)) (hA : 
 
 /-! ### The transport filler with a constant cofibration -/
 
-theorem VTy.tfill' {C a : Tm} {l : ℕ} (hKT : KTAt S l) (hC : VTy S (Ψ + 1) Φ.shift Γ.dshift C (.univ l))
+theorem VTy.tfill' {C a : Tm} {l : ℕ} (hC : VTy S (Ψ + 1) Φ.shift Γ.dshift C (.univ l))
     (ha : VTy S Ψ Φ Γ a (C.dinst .zero)) :
     VTy S (Ψ + 1) Φ.shift Γ.dshift (KubusCore.Meta.tfill C a) C ∧ VEq S Ψ Φ Γ ((KubusCore.Meta.tfill C a).dinst .zero) a (C.dinst .zero) := by
   have hS := sigClosed_of_wfSig hW
@@ -151,7 +138,7 @@ theorem VTy.tfill' {C a : Tm} {l : ℕ} (hKT : KTAt S l) (hC : VTy S (Ψ + 1) Φ
       ⟨hv0, trivial⟩ (I_eq_symm (I_eq_and_zero_r _)) hwX
     rw [sk_zero1] at e
     exact VTy.conv' hW (VTy.dwk' hW ha) e
-  have ht0 := VTy.transpL hW hKT hL (show (I.neg (.var 0)).Scoped (Ψ + 1) from hv0) hconst ha'
+  have ht0 := VTy.transp' hW hL (show (I.neg (.var 0)).Scoped (Ψ + 1) from hv0) hconst ha'
   have eC : VEq S (Ψ + 1) Φ.shift Γ.dshift ((C.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))).dinst .one) C (.univ l) := by
     have e := VTy.lineIeq hW hC (k := 1) (r := .and (.var 0) .one) (r' := .var 0) (ent_refl _)
       ⟨hv0, trivial⟩ hv0 (I_eq_and_one_r _) hwX
@@ -165,7 +152,7 @@ theorem VTy.tfill' {C a : Tm} {l : ℕ} (hKT : KTAt S l) (hC : VTy S (Ψ + 1) Φ
   rw [dshift_dinst] at hf
   exact VEq.conv' hW hf eC0
 
-theorem VTy.lineFun' {B : Tm} {l : ℕ} (hKT : KTAt S l) (hB : VTy S (Ψ + 1) Φ.shift Γ.dshift B (.univ l)) :
+theorem VTy.lineFun' {B : Tm} {l : ℕ} (hB : VTy S (Ψ + 1) Φ.shift Γ.dshift B (.univ l)) :
     VTy S (Ψ + 1) Φ.shift Γ.dshift (Tm.lineFun B) (Tm.arrow (B.dinst .zero).dshift B) ∧
       VEq S Ψ Φ Γ ((Tm.lineFun B).dinst .zero) (.lam (B.dinst .zero) (.var 0))
         (Tm.arrow (B.dinst .zero) (B.dinst .zero)) := by
@@ -174,7 +161,7 @@ theorem VTy.lineFun' {B : Tm} {l : ℕ} (hKT : KTAt S l) (hB : VTy S (Ψ + 1) Φ
   have hC : VTy S (Ψ + 1) Φ.shift (Ctx.dshift (B.dinst .zero :: Γ)) B.shift (.univ l) := VTy.wk' hW hB0d.ty hB
   have ha : VTy S Ψ Φ (B.dinst .zero :: Γ) (.var 0) (B.shift.dinst .zero) := by
     rw [shift_dinst_comm]; exact VTy.var0' hW hB0
-  obtain ⟨ht, he⟩ := VTy.tfill' hW hKT hC ha
+  obtain ⟨ht, he⟩ := VTy.tfill' hW hC ha
   have hpi : VTy S (Ψ + 1) Φ.shift Γ.dshift (.pi (B.dinst .zero).dshift B.shift) (.univ l) :=
     VTy.pi' hW hB0d (VTy.wk' hW hB0d.ty hB)
   refine ⟨VTy.lam' hW hpi ht, ?_⟩
@@ -366,7 +353,7 @@ theorem VTy.idIsEquiv' {T f : Tm} {l : ℕ} (h : VIsId S Ψ Φ Γ T f l) :
   exact VTy.lam' hW hpi (VTy.contr' hW h1 hy)
 
 /-- Transport along a line of types of level `l` is an equivalence between its endpoints. -/
-theorem VTy.lineEquiv' {B : Tm} {l : ℕ} (hKT : KTAt S l) (hB : VTy S (Ψ + 1) Φ.shift Γ.dshift B (.univ l)) :
+theorem VTy.lineEquiv' {B : Tm} {l : ℕ} (hB : VTy S (Ψ + 1) Φ.shift Γ.dshift B (.univ l)) :
     VTy S Ψ Φ Γ (Tm.lineEquiv B) (Tm.equiv (B.dinst .zero) (B.dinst .one)) := by
   have hS := sigClosed_of_wfSig hW
   have hw0 := wf_unshift hS (wf_of_ty hB.ty)
@@ -374,7 +361,7 @@ theorem VTy.lineEquiv' {B : Tm} {l : ℕ} (hKT : KTAt S l) (hB : VTy S (Ψ + 1) 
   have hB0 := VTy.dsubst' hW .zero trivial hB
   have hB1 := VTy.dsubst' hW .one trivial hB
   have hB0d := VTy.dwk' hW hB0
-  obtain ⟨hlf, hid⟩ := VTy.lineFun' hW hKT hB
+  obtain ⟨hlf, hid⟩ := VTy.lineFun' hW hB
   have hf : ∀ r : I, r.Scoped Ψ → VTy S Ψ Φ Γ ((Tm.lineFun B).dinst r) (Tm.arrow (B.dinst .zero) (B.dinst r)) := by
     intro r hr
     have := VTy.dsubst' hW r hr hlf; rwa [arrow_dinst, dshift_dinst] at this
@@ -382,7 +369,7 @@ theorem VTy.lineEquiv' {B : Tm} {l : ℕ} (hKT : KTAt S l) (hB : VTy S (Ψ + 1) 
   have hab : I.Entails (cof Φ .zero).shift .zero := ent_shift (ent_and_right Φ .zero)
   have hZs : (cof Φ .zero).shift.Scoped (Ψ + 1) := KubusCore.I.scoped_shift ⟨hs, trivial⟩
   have hbase := VTy.idIsEquiv' hW (Ψ := Ψ) (Φ := Φ) (Γ := Γ) ⟨hB0, hf .zero trivial, hid⟩
-  have ht := VTy.transpL hW hKT hE (φ := .zero) trivial
+  have ht := VTy.transp' hW hE (φ := .zero) trivial
     (VEq.absurd' hW hab (VTy.restrict' hW hZs (ent_shift (ent_and_left _ _)) hE).ty
       (VTy.restrict' hW hZs (ent_shift (ent_and_left _ _)) (VTy.dwk' hW (VTy.dsubst' hW .zero trivial hE))).ty)
     (by rw [isEquiv_dinst, dshift_dinst]; exact hbase)
@@ -411,7 +398,7 @@ theorem VEq.equivCong' {T T' A A' : Tm} {l l0 : ℕ} (hU : VTy S Ψ Φ Γ (.univ
 /-! ### `hcomp` in the universe -/
 
 /-- The contractum of `hcompU`, typed and valid, using transport at types of level `l` only. -/
-theorem VTy.hcompU' {u u0 : Tm} {φ : I} {l l0 : ℕ} (hKT : KTAt S l) (hU : VTy S Ψ Φ Γ (.univ l) (.univ l0))
+theorem VTy.hcompU' {u u0 : Tm} {φ : I} {l l0 : ℕ} (hU : VTy S Ψ Φ Γ (.univ l) (.univ l0))
     (hφ : φ.Scoped Ψ) (hu : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u (.univ l))
     (hu0 : VTy S Ψ Φ Γ u0 (.univ l)) (hside : VEq S Ψ (cof Φ φ) Γ (u.dinst .zero) u0 (.univ l)) :
     VTy S Ψ Φ Γ (Tm.hcompU φ u u0) (.univ l) := by
@@ -425,7 +412,7 @@ theorem VTy.hcompU' {u u0 : Tm} {φ : I} {l l0 : ℕ} (hKT : KTAt S l) (hU : VTy
       (fun i hi => by rcases Nat.lt_one_iff.1 hi with rfl; exact (show 0 < Ψ + 1 by omega))
       (fun i => rfl) (KubusCore.I.scoped_shift hX) (ent_sk1 _ (ent_refl _)) hw1 hu
     exact this
-  have hLE := VTy.lineEquiv' hW hKT hB
+  have hLE := VTy.lineEquiv' hW hB
   rw [rev_d0, rev_d1] at hLE
   have hw0 : Wf0 S (Ψ + 0) (cof Φ φ) (Ctx.dren 0 Γ) := by
     rw [Ctx.dren_zero]; exact wf_unshift hS hw1
@@ -440,7 +427,7 @@ theorem VTy.hcompU' {u u0 : Tm} {φ : I} {l l0 : ℕ} (hKT : KTAt S l) (hU : VTy
   have eq := VEq.equivCong' hW hUφ hT1 (VEq.lty' hW e1) e0 (VEq.trans' hW e1 hside)
   exact VTy.glue' hW hφ hu0 hT1 (VTy.conv' hW hLE eq)
 
-theorem valid_hcompU_rule (hKT : KTAll S) {u u0 T : Tm} {φ : I} {l : ℕ}
+theorem valid_hcompU_rule {u u0 T : Tm} {φ : I} {l : ℕ}
     (h : HasTy0 S Ψ Φ Γ (.hcomp (.univ l) φ u u0) T)
     (hv : Valid2 S Ψ Φ Γ (.hcomp (.univ l) φ u u0) (.hcomp (.univ l) φ u u0) T)
     (hinv : HcompInv S Ψ Φ Γ (.univ l) φ u u0 T) :
@@ -449,7 +436,7 @@ theorem valid_hcompU_rule (hKT : KTAll S) {u u0 T : Tm} {φ : I} {l : ℕ}
   have hs := scoped_of_ty hU
   have hX : (cof Φ φ).Scoped Ψ := ⟨hs, hφ⟩
   have hX0Φ : I.Entails (cof Φ φ) Φ := ent_and_left _ _
-  have hy := VTy.hcompU' hW (KTAt.of_all hKT l) ⟨hU, hUV⟩ hφ ⟨hu, huV⟩ ⟨hu0, hu0V⟩ ⟨hside, hsV⟩
+  have hy := VTy.hcompU' hW  ⟨hU, hUV⟩ hφ ⟨hu, huV⟩ ⟨hu0, hu0V⟩ ⟨hside, hsV⟩
   have hT : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L T) (c.R T) := fun k c => (hv k c).1
   have hyT := valid_conv_tr hy.v htr hT
   -- where the face holds: the Glue type is the tube's end

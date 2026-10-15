@@ -68,7 +68,7 @@ theorem end_data {QL : Tm} {φ' : I} {q' : Tm} {X' : List Tm} {rs' : List I}
   rw [show PL.dinst .one = PL.subst Tm.var (I.inst0 .one) from rfl, toList_subst hPl]; simp [hPlen]
 
 /-- The data of the transport of a nested constructor of a boundary, at the instances of its arguments. -/
-theorem mkNested (H : TC S k d D PL PL φ φ c C q q X X rs rs) (hH : D.isHIT = true) (hyp : HITHyp2 S)
+theorem mkNested (H : TC S k d D PL PL φ φ c C q q X X rs rs) (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1))
     {c' : ℕ} {C' : Ctor} {as0 : Tm} {rs0 : List I} (hC' : D.ctors[c']? = some C')
     (hs : Ctor.simpleB D.ctors d D.params.length c C.args.length C
       (.con d c' (Ctor.paramVars D.params.length C.args.length) as0 rs0) = true)
@@ -119,7 +119,7 @@ theorem mkNested (H : TC S k d D PL PL φ φ c C q q X X rs rs) (hH : D.isHIT = 
     intro i hi
     have h := this i hi
     rwa [isub_id_of_closed hc0] at h
-  refine ⟨hW, H.hD, H.hp, hC', H.hPL, H.hR, H.hRL, H.hArgK, H.hφs, H.h12, H.h21, H.hLC, hty', hty', EqTm.refl hty',
+  refine ⟨hW, H.hD, H.hp, hC', H.hPL, H.hR, H.hRL, H.hφs, H.h12, H.h21, H.hLC, hty', hty', EqTm.refl hty',
     hargs0, ?_, conR_hit hW H.hD hH hyp hC' H.hPL H.hRL (forall2_ieq_refl _)⟩
   intro l hl hrl k3 τ y y' hy hy' hE hy0 hLR ψ ψ' hLCy htyA htyA' heqA h12' h21' hbase
   have hlZ : l < as0.toList.length := by omega

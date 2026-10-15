@@ -42,6 +42,17 @@ theorem Comp2_res {X : V} (hX : X ≠ ∅) (g : Hom k m) (h : Hom k' k) :
   · show res h (res g X) = _
     rw [res_res]
 
+theorem KanPG.comp {n : ℕ} {R : (k : ℕ) → Hom k m → Pack2} (h : KanPG S m R) (g : Hom n m) :
+    KanPG S n (fun k f => R k (g.comp f)) :=
+  ⟨fun k f => h.1 k (g.comp f), fun k f => h.2 k (g.comp f)⟩
+
+/-- The Kan property of a code restricts. -/
+theorem KanPG.restrict {X : V} (hX : X ≠ ∅) (h : KanPG S m (Comp2 S X m)) (g : Hom k m) :
+    KanPG S k (Comp2 S (res g X) k) := by
+  have e : Comp2 S (res g X) k = fun k' f => Comp2 S X m k' (g.comp f) :=
+    funext fun k' => funext fun f => Comp2_res hX g f
+  rw [e]; exact h.comp g
+
 theorem Comp2_eq_res {X : V} (hX : X ≠ ∅) (f : Hom k m) : Comp2 S X m k f = Comp2 S (res f X) k k (Hom.id k) := by
   rw [Comp2_res hX, Hom.comp_id]
 
@@ -86,6 +97,20 @@ def cohIPi (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
     RedT S k' (T.isub σ) (.ipi L1) → RedT S k'' (T.isub (σ.comp σ')) (.ipi L2) →
     (Comp2 S L (m + 1) (k'' + 1) ((Hom.lift f).comp (σ.comp σ').up.hom)).ty (L1.isub σ'.up) L2
 
+/-- Kan evidence for the components of a Π normal form, at its own syntactic domain. -/
+def kanPi2 (S : Sig) (A B : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) A1 B1, RedT S k' (T.isub σ) (.pi A1 B1) →
+    KanPG S k' (fun n g => Comp2 S A m n ((f.comp σ.hom).comp g)) ∧
+    ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
+      KanPG S k' (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k')
+
+/-- Kan evidence for the components of a Σ normal form, at its own syntactic domain. -/
+def kanSigma2 (S : Sig) (A B : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) A1 B1, RedT S k' (T.isub σ) (.sigma A1 B1) →
+    KanPG S k' (fun n g => Comp2 S A m n ((f.comp σ.hom).comp g)) ∧
+    ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
+      KanPG S k' (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k')
+
 theorem Comp2_piC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
     Comp2 S (piC m A B) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (piC m A B) ∧
@@ -94,14 +119,14 @@ theorem Comp2_piC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
           (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
             ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
               (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ∧
-          cohPi S A B f T ∧ cohPi S A B f T',
+          cohPi S A B f T ∧ cohPi S A B f T' ∧ kanPi2 S A B f T ∧ kanPi2 S A B f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (piC m A B)) (Hom.id k) ∧
           piE2 S (fun k' σ => (Comp2 S A m k' (f.comp σ.hom)).el)
             (fun k' σ a k'' σ' => (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k'' σ'.hom).el)
             k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show piC m A B ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, piC, dat_mkKV, piDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, true_or,
-    if_true, natZ_inj, Comp2_res hA, appV_res_res, cohPi]
+    if_true, natZ_inj, Comp2_res hA, appV_res_res, cohPi, kanPi2, Hom.comp_assoc]
 
 theorem Comp2_sigmaC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
     Comp2 S (sigmaC m A B) m k f =
@@ -111,14 +136,24 @@ theorem Comp2_sigmaC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
           (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧
             ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
               (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a')) ∧
-          cohSigma S A B f T ∧ cohSigma S A B f T',
+          cohSigma S A B f T ∧ cohSigma S A B f T' ∧ kanSigma2 S A B f T ∧ kanSigma2 S A B f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (sigmaC m A B)) (Hom.id k) ∧
           sigmaE2 S (fun k' σ => (Comp2 S A m k' (f.comp σ.hom)).el)
             (fun k' σ a k'' σ' => (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k'' σ'.hom).el)
             k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show sigmaC m A B ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, sigmaC, dat_mkKV, sigmaDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, or_true,
-    if_true, natZ_inj, Comp2_res hA, appV_res_res, tPi, tSigma, if_false, show ¬ (3 = 2) by decide, cohSigma]
+    if_true, natZ_inj, Comp2_res hA, appV_res_res, tPi, tSigma, if_false, show ¬ (3 = 2) by decide, cohSigma, kanSigma2, Hom.comp_assoc]
+
+/-- Kan of the line of a syntactic path normal form. -/
+def kanPath2 (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) L1 b0 b1, RedT S k' (T.isub σ) (.path L1 b0 b1) →
+    KanPG S (k' + 1) (fun n g => Comp2 S L (m + 1) n (((Hom.lift f).comp σ.up.hom).comp g))
+
+/-- Kan of the line of a syntactic interval-function normal form. -/
+def kanIPi2 (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) L1, RedT S k' (T.isub σ) (.ipi L1) →
+    KanPG S (k' + 1) (fun n g => Comp2 S L (m + 1) n (((Hom.lift f).comp σ.up.hom).comp g))
 
 theorem Comp2_pathC (L a0 a1 : V) (hL : L ≠ ∅) (f : Hom k m) :
     Comp2 S (pathC m L a0 a1) m k f =
@@ -130,13 +165,13 @@ theorem Comp2_pathC (L a0 a1 : V) (hL : L ≠ ∅) (f : Hom k m) :
             (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L1.dinst r) (L1'.dinst r')) ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .zero trivial σ).hom)).el (L1.dinst .zero) b0 b0' ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .one trivial σ).hom)).el (L1.dinst .one) b1 b1') ∧
-          cohPath S L f T ∧ cohPath S L f T',
+          cohPath S L f T ∧ cohPath S L f T' ∧ kanPath2 S L f T ∧ kanPath2 S L f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (pathC m L a0 a1)) (Hom.id k) ∧
           pathE2 S (fun k' σ => (Comp2 S L (m + 1) k' ((Hom.lift f).comp σ.hom)).el) k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show pathC m L a0 a1 ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, pathC, dat_mkKV, pathDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, true_or,
     if_true, natZ_inj, Comp2_res hL, tPi, tSigma, tPath, if_false, show ¬ (4 = 2) by decide,
-    show ¬ (4 = 3) by decide, or_self, cohPath]
+    show ¬ (4 = 3) by decide, or_self, cohPath, kanPath2, Hom.comp_assoc]
 
 theorem Comp2_ipiC (L : V) (hL : L ≠ ∅) (f : Hom k m) :
     Comp2 S (ipiC m L) m k f =
@@ -146,13 +181,13 @@ theorem Comp2_ipiC (L : V) (hL : L ≠ ∅) (f : Hom k m) :
           (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1' ∧
           ∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
             (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L1.dinst r) (L1'.dinst r')) ∧
-          cohIPi S L f T ∧ cohIPi S L f T',
+          cohIPi S L f T ∧ cohIPi S L f T' ∧ kanIPi2 S L f T ∧ kanIPi2 S L f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (ipiC m L)) (Hom.id k) ∧
           ipiE2 S (fun k' σ => (Comp2 S L (m + 1) k' ((Hom.lift f).comp σ.hom)).el) k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show ipiC m L ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, ipiC, dat_mkKV, ipiDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, or_true,
     if_true, natZ_inj, Comp2_res hL, tPi, tSigma, tPath, tIPi, if_false, show ¬ (5 = 2) by decide,
-    show ¬ (5 = 3) by decide, show ¬ (5 = 4) by decide, or_self, cohIPi]
+    show ¬ (5 = 3) by decide, show ¬ (5 = 4) by decide, or_self, cohIPi, kanIPi2, Hom.comp_assoc]
 
 theorem Comp2_univC (l : ℕ) (f : Hom k m) :
     Comp2 S (univC m l) m k f =
@@ -160,7 +195,8 @@ theorem Comp2_univC (l : ℕ) (f : Hom k m) :
           semK S k T' = res f (univC m l) ∧ TyEq S k T T') ∧ ∀ k' (σ : ISub k' k),
           RedT S k' (T.isub σ) (.univ l) ∧ RedT S k' (T'.isub σ) (.univ l),
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (univC m l)) (Hom.id k) ∧
-          ∃ _ : semK S k t ∈ ZFSet.sep (WF l k) (Vt l), (Comp2 S (semK S k t) k k (Hom.id k)).ty t t'⟩ := by
+          ∃ _ : semK S k t ∈ ZFSet.sep (WF l k) (Vt l), (Comp2 S (semK S k t) k k (Hom.id k)).ty t t' ∧
+            KanPG S k (Comp2 S (semK S k t) k)⟩ := by
   rw [Comp2_unfold (show univC m l ≠ ∅ from mkKV_ne_empty (fun k _ => univDatum (WF l) l k))]
   simp only [body2, core2, univC, univCode, dat_mkKV, univDatum, π1_quad, tagZ, π1_pair, π2_pair,
     natZ_inj, tPi, tSigma, tPath, tIPi, tUniv, if_false, show ¬ (6 = 2) by decide,
@@ -219,13 +255,19 @@ def cohGE (S : Sig) (A Tp : V) (φ : Cof m) {k : ℕ} (f : Hom k m) (T g : Tm) :
     (¬ (φ.restr (f.comp (σ.comp ρ).hom)).holds →
       glueLocE S A Tp φ f k'' (σ.comp ρ) (T.isub (σ.comp ρ)) (w.isub ρ) (g.isub (σ.comp ρ)))
 
+/-- Kan of a Glue base and its fibres at the restrictions of its face. -/
+def kanGlue2 (S : Sig) (A Tp : V) (φ : Cof m) (f : Hom k m) : Prop :=
+  KanPG S k (fun n g => Comp2 S A m n (f.comp g)) ∧
+    ∀ k' (σ : ISub k' k), (φ.restr (f.comp σ.hom)).holds →
+      KanPG S k' (Comp2 S (dat Tp k' (f.comp σ.hom)) k')
+
 theorem Comp2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp) (hφ : φ.IsCof)
     (hn : ¬ φ.holds) :
     Comp2 S (glueC m A φ Tp ep) m m (Hom.id m) =
       ⟨fun T T' => (IsTyK S m T ∧ IsTyK S m T' ∧ semK S m T = res (Hom.id m) (glueC m A φ Tp ep) ∧
           semK S m T' = res (Hom.id m) (glueC m A φ Tp ep) ∧ TyEq S m T T') ∧
           (∀ k' (σ : ISub k' m), glueLocT S A Tp φ (Hom.id m) k' σ (T.isub σ) (T'.isub σ)) ∧
-          cohGT S A Tp φ (Hom.id m) T ∧ cohGT S A Tp φ (Hom.id m) T',
+          cohGT S A Tp φ (Hom.id m) T ∧ cohGT S A Tp φ (Hom.id m) T' ∧ kanGlue2 S A Tp φ (Hom.id m),
         fun T g g' => EB S m T g g' ∧ semK S m g ∈ El (res (Hom.id m) (glueC m A φ Tp ep)) (Hom.id m) ∧
           EB S m T g g' ∧ (∀ k' (σ : ISub k' m), glueLocE S A Tp φ (Hom.id m) k' σ (T.isub σ) (g.isub σ) (g'.isub σ)) ∧
           cohGE S A Tp φ (Hom.id m) T g ∧ cohGE S A Tp φ (Hom.id m) T g'⟩ := by
@@ -235,7 +277,7 @@ theorem Comp2_glueC {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hTp : IsKV m Tp)
   simp only [body2, core2, Hom.comp_id, hdat, glueDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id,
     natZ_inj, tPi, tSigma, tPath, tIPi, tUniv, tEmpty, tGlue, if_false, show ¬ (7 = 2) by decide,
     show ¬ (7 = 3) by decide, show ¬ (7 = 4) by decide, show ¬ (7 = 5) by decide, show ¬ (7 = 6) by decide,
-    show ¬ (7 = 1) by decide, or_self, if_true, cofOf_enc, Hom.id_comp, glueLocT, glueLocE, cohGT, cohGE]
+    show ¬ (7 = 1) by decide, or_self, if_true, cofOf_enc, Hom.id_comp, glueLocT, glueLocE, cohGT, cohGE, kanGlue2]
 
 /-- The point argument relation of an inductive type's code. -/
 def dataP2 (S : Sig) (Θ : SData m) (f : Hom k m) : (k' : ℕ) → Hom k' k → ℕ → ℕ → List V → Tm → Tm → Tm → Prop :=
@@ -259,7 +301,9 @@ def argRel2 (S : Sig) (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (
       ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
         (args.reverse ++ (ps.isub σ').toList.reverse))
       ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
-        (args'.reverse ++ (ps'.isub σ').toList.reverse))
+        (args'.reverse ++ (ps'.isub σ').toList.reverse)) ∧
+    KanPG S k'' (Comp2 S (tyLook (shapeV (Θ.restr (f.comp (σ.comp σ').hom))) c args.length
+      (args.map (semK S k''))) k'')
 
 /-- The recorded parameter entry `j` of an inductive type's code at a restriction. -/
 abbrev parEntry (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (j : ℕ) : V :=
@@ -268,7 +312,8 @@ abbrev parEntry (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (j : �
 /-- The parameters of an inductive type's code are related, from `ps` to `ps'`, at the restriction `σ`. -/
 def parRel2 (S : Sig) (Θ : SData m) (f : Hom k m) (k' : ℕ) (σ : ISub k' k) (ps ps' : Tm) : Prop :=
   ∀ j (p p' : Tm), ps.toList[j]? = some p → ps'.toList[j]? = some p' →
-    (π1 (parEntry Θ f k' σ j) = natZ 1 → (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')).ty p p') ∧
+    (π1 (parEntry Θ f k' σ j) = natZ 1 → (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')).ty p p' ∧
+      KanPG S k' (Comp2 S (π2 (parEntry Θ f k' σ j)) k')) ∧
     (π1 (parEntry Θ f k' σ j) = natZ 0 → ∀ Aj, (dataD S Θ.idx).params[j]? = some Aj →
       (Comp2 S (π2 (parEntry Θ f k' σ j)) k' k' (Hom.id k')).ty
         (Aj.substList (ps.toList.take j).reverse) (Aj.substList (ps'.toList.take j).reverse) ∧
@@ -314,6 +359,10 @@ theorem glueLocT_res {A Tp : V} {φ : Cof m} (hA : A ≠ ∅) {k : ℕ} (f : Hom
     glueLocT S (res f A) (res f Tp) (φ.restr f) (Hom.id k) k' σ Y Z = glueLocT S A Tp φ f k' σ Y Z := by
   simp only [glueLocT, Hom.id_comp, Comp2_res hA, dat_res, Cof.restr_restr, ISub.comp_hom]
 
+theorem kanGlue2_res {A Tp : V} {φ : Cof m} (hA : A ≠ ∅) {k : ℕ} (f : Hom k m) :
+    kanGlue2 S (res f A) (res f Tp) (φ.restr f) (Hom.id k) = kanGlue2 S A Tp φ f := by
+  simp only [kanGlue2, Hom.id_comp, Comp2_res hA, dat_res, Cof.restr_restr]
+
 theorem glueLocE_res {A Tp : V} {φ : Cof m} (hA : A ≠ ∅) {k : ℕ} (f : Hom k m) {k' : ℕ} (σ : ISub k' k) (X g g' : Tm) :
     glueLocE S (res f A) (res f Tp) (φ.restr f) (Hom.id k) k' σ X g g' = glueLocE S A Tp φ f k' σ X g g' := by
   simp only [glueLocE, Hom.id_comp, Comp2_res hA, dat_res, Cof.restr_restr]
@@ -350,7 +399,7 @@ theorem Comp2_glueC_f {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (glueC m A φ Tp ep) ∧
           semK S k T' = res f (glueC m A φ Tp ep) ∧ TyEq S k T T') ∧
           (∀ k' (σ : ISub k' k), glueLocT S A Tp φ f k' σ (T.isub σ) (T'.isub σ)) ∧
-          cohGT S A Tp φ f T ∧ cohGT S A Tp φ f T',
+          cohGT S A Tp φ f T ∧ cohGT S A Tp φ f T' ∧ kanGlue2 S A Tp φ f,
         fun T g g' => EB S k T g g' ∧ semK S k g ∈ El (res f (glueC m A φ Tp ep)) (Hom.id k) ∧
           EB S k T g g' ∧ (∀ k' (σ : ISub k' k), glueLocE S A Tp φ f k' σ (T.isub σ) (g.isub σ) (g'.isub σ)) ∧
           cohGE S A Tp φ f T g ∧ cohGE S A Tp φ f T g'⟩ := by
@@ -358,7 +407,7 @@ theorem Comp2_glueC_f {A Tp ep : V} {φ : Cof m} (hA : IsKV m A) (hφ : φ.IsCof
     rw [res_glueC hTp hTkv hφ f, if_neg hf]
   rw [Comp2_glueC_at hφ hTp hTkv f, if_neg hf, Comp2_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr f) hf, hG,
     res_id (isKV_res _ _)]
-  simp only [cohGT, cohGE, glueLocT_res (IsKV.ne_empty hA), glueLocE_res (IsKV.ne_empty hA), Hom.id_comp, dat_res,
+  simp only [cohGT, cohGE, kanGlue2_res (IsKV.ne_empty hA), glueLocT_res (IsKV.ne_empty hA), glueLocE_res (IsKV.ne_empty hA), Hom.id_comp, dat_res,
     Cof.restr_restr]
 
 /-- Every pair of related types has the base clause. -/

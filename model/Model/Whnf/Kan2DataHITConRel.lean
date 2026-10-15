@@ -335,7 +335,7 @@ theorem bndAt_isubL {b q : Tm} {X : List Tm} {rs : List I} (hq : q = Tm.ofList q
   rw [bndAt_isub hb κ, toList_isub hq κ]
 
 section rel
-variable (hH : D.isHIT = true) (hyp : HITHyp2 S)
+variable (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1))
 include hH hyp
 
 /-- Constructors with related arguments are related at each stage, given the relation of the earlier
@@ -392,7 +392,7 @@ theorem con_at {c : ℕ} (ih : ∀ c' < c, CRSt S d D K P c') {k3 : ℕ} (ρ' : 
         (.data d (P.isub ρ')) := by
       have := EqTm.conBnd hD hC hb' hent' hqL' (by rw [toList_ofList]) ht'
       rwa [toList_ofList] at this
-    have hrel := hyp.bndTy hD hH hC hb hent hPρ hPPρ hXl hXl hcP (fun i hi => (hself i hi).2.1)
+    have hrel := hyp.bndTy (by omega) hD hH hC hb hent hPρ hPPρ hXl hcP (fun i hi => (hself i hi).2.1)
     have R := bnd_rel hW hD hP hPP ih hC (sizeOf b + 1) b (by omega) hsimple ρ' hql hql' hXl hX'l hrs hargs hrel
       (HasTy.eqR e1) (HasTy.eqR e1')
     have at0 := DR2.at_id hW (Θ := ΘK S D d K P) ((RE2_dataLit_iff hW hD hP ρ').1 R).2
@@ -448,7 +448,7 @@ theorem con_coh0 {c : ℕ} (ih : ∀ c' < c, CRSt S d D K P c') {k3 : ℕ} (ρ' 
     have s1 : step S (.con d c q (Tm.ofList X) rs) = some (Ctor.bndAt b q.toList X rs) := by
       rw [step_con_some hD hC _ _ hf, toList_ofList]
     have hwB := red_redW (.step s1 (.refl _)) hw
-    have hrel := hyp.bndTy hD hH hC hb hent hPρ hPPρ hXl hXl CI.2.2.2.2.2.2.1 hargs
+    have hrel := hyp.bndTy (by omega) hD hH hC hb hent hPρ hPPρ hXl CI.2.2.2.2.2.2.1 hargs
     have RBB := bnd_rel hW hD hP hPP ih hC (sizeOf b + 1) b (by omega) hsimple ρ' hql hql hXl hXl
       (forall2_ieq_refl _) hargs hrel (HasTy.eqR e1) (HasTy.eqR e1)
     have hBc := closed_of_ty hW (HasTy.eqR e1)
@@ -485,12 +485,12 @@ theorem con_coh0 {c : ℕ} (ih : ∀ c' < c, CRSt S d D K P c') {k3 : ℕ} (ρ' 
     have e_qb'' := eqb hb'' hent'' hqLκ htκ
     have e_Pb := eqb hb hentκ hPlκ hcPκ
     have e_Pb'' := eqb hb'' hent'' hPlκ hcPκ
-    have hrelκ := hyp.bndTy hD hH hC hb hentκ hPκT hPPκ hXκl hXκl hcPκ argsκ
-    have hrelκ'' := hyp.bndTy hD hH hC hb'' hent'' hPκT hPPκ hXκl hXκl hcPκ argsκ
+    have hrelκ := hyp.bndTy (by omega) hD hH hC hb hentκ hPκT hPPκ hXκl hcPκ argsκ
+    have hrelκ'' := hyp.bndTy (by omega) hD hH hC hb'' hent'' hPκT hPPκ hXκl hcPκ argsκ
     have R1 := bnd_rel hW hD hP hPP ih hC (sizeOf b + 1) b (by omega) hsimple (ρ'.comp κ) hqlκ hplenκ hXκl hXκl
       (forall2_ieq_refl _) argsκ hrelκ (HasTy.eqR e_qb) (HasTy.eqR e_Pb)
-    have R2 := hyp.conBnd hD hH hC hb hentκ hPκT hPPκ hXκl hcPκ argsκ
-    have R3 := hyp.conBnd hD hH hC hb'' hent'' hPκT hPPκ hXκl hcPκ argsκ
+    have R2 := hyp.conBnd (by omega) hD hH hC hb hentκ hPκT hPPκ hXκl hcPκ argsκ
+    have R3 := hyp.conBnd (by omega) hD hH hC hb'' hent'' hPκT hPPκ hXκl hcPκ argsκ
     have R4 := bnd_rel hW hD hP hPP ih hC (sizeOf b'' + 1) b'' (by omega) hsimple'' (ρ'.comp κ) hplenκ hqlκ hXκl hXκl
       (forall2_ieq_refl _) argsκ hrelκ'' (HasTy.eqR e_Pb'') (HasTy.eqR e_qb'')
     have R := RE2.trans hW hPPκ R1 (RE2.trans hW hPPκ (RE2.symm hW hPPκ R2) (RE2.trans hW hPPκ R3 R4))

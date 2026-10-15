@@ -1,4 +1,4 @@
-import Model.Whnf.Valid2Glue
+import Model.Whnf.Glue2Closed
 
 /-!
 # Expansion on both sides with per-restriction reducts
@@ -18,46 +18,6 @@ open KubusCore KubusCore.Meta Model.Canon
 noncomputable section
 
 variable {S : Sig} {k k' k'' : ℕ}
-
-/-- Related tubes: related where the face holds, at all restrictions and `I.Eq`-equal points. -/
-def Tube2 (S : Sig) (k : ℕ) (A : Tm) (φ : I) (u u' : Tm) : Prop :=
-  ∀ k' (σ : ISub k' k) (r r' : I), r.Scoped k' → r'.Scoped k' → I.Eq r r' →
-    (ival (idEnv k') (φ.subst σ.τ)).holds → RE2 S k' (A.isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r')
-
-/-- Composition in related types relates related tubes and bases. -/
-def KanH2 (S : Sig) (k : ℕ) (A A' : Tm) : Prop :=
-  ∀ (φ φ' : I) (u u' a a' : Tm), HasTy S k .one [] (.hcomp A φ u a) A → HasTy S k .one [] (.hcomp A' φ' u' a') A →
-    EqTm S k .one [] (.hcomp A φ u a) (.hcomp A' φ' u' a') A →
-    EqTm S (k + 1) (cof .one φ).shift [] u u' A.dshift →
-    I.Entails φ φ' → I.Entails φ' φ → Tube2 S k A φ u u' → RE2 S k A a a' →
-    (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
-      RE2 S k' (A.isub σ) ((u.isub σ.up).dinst .zero) (a'.isub σ)) →
-    (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
-      RE2 S k' (A.isub σ) (a.isub σ) ((u'.isub σ.up).dinst .zero)) →
-    RE2 S k A (.hcomp A φ u a) (.hcomp A' φ' u' a')
-
-/-- Lines (at stage `k + 1`) related at `I.Eq`-equal points of every restriction. -/
-def LineRob (S : Sig) (k : ℕ) (A A' : Tm) : Prop :=
-  ∀ k' (τ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
-    RT2 S k' (A.isub (ISub.cons r hr τ)) (A'.isub (ISub.cons r' hr' τ))
-
-/-- A line (at stage `k + 1`) is constant where the face `φ` holds. -/
-def LineConst (S : Sig) (k : ℕ) (A : Tm) (φ : I) : Prop :=
-  ∀ k' (σ : ISub k' k) (r : I) (hr : r.Scoped k'), (ival (idEnv k') (φ.subst σ.τ)).holds →
-    RT2 S k' (A.isub (ISub.cons r hr σ)) (A.isub (ISub.cons .zero trivial σ))
-
-/-- Transport along related lines (at stage `k + 1`) relates related elements. -/
-def KanT2 (S : Sig) (k : ℕ) (A A' : Tm) : Prop :=
-  LineRob S k A A' →
-  ∀ (φ φ' : I) (a a' : Tm), LineConst S k A φ → HasTy S k .one [] (.transp A φ a) (A.dinst .one) →
-    HasTy S k .one [] (.transp A' φ' a') (A.dinst .one) →
-    EqTm S k .one [] (.transp A φ a) (.transp A' φ' a') (A.dinst .one) → I.Entails φ φ' → I.Entails φ' φ →
-    RE2 S k (A.dinst .zero) a a' → RE2 S k (A.dinst .one) (.transp A φ a) (.transp A' φ' a')
-
-/-- The Kan properties of all pairs of types related at a restriction of the code `X`. -/
-def KanP2 (S : Sig) (m : ℕ) (X : V) : Prop :=
-  (∀ k (f : Hom k m) (A A' : Tm), (Comp2 S X m k f).ty A A' → KanH2 S k A A') ∧
-  (∀ k (f : Hom (k + 1) m) (A A' : Tm), (Comp2 S X m (k + 1) f).ty A A' → KanT2 S k A A')
 
 theorem I_subst_wk {r : I} (hr : r.Scoped k) : r.subst (ISub.wk k).τ = r.shift :=
   I_subst_congr_scoped (τ := fun i => .var (i + 1)) (fun i hi => by simp [ISub.wk, hi]) hr

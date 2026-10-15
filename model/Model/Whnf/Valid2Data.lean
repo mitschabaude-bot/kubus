@@ -1,6 +1,7 @@
 import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Kan2DataBasic
 import Model.Whnf.Kan2DataTArgs
+import Model.Whnf.Kan2DataCode
 
 /-!
 # Validity of the rules of inductive types
@@ -28,9 +29,13 @@ structure DeclHyp2 (S : Sig) (n : ℕ) : Prop where
   points : ∀ d < n, ∀ (D : DataDecl), S[d]? = some (.data D) → ∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C →
     ∀ (i : ℕ) (A : Tm), C.args[i]? = some (.point A) →
     ∀ k (cs : CSub2 S 0 .one (D.pointCtx d C i) k), RT2 S k (cs.L (A.ren (C.pointRen i) id)) (cs.R (A.ren (C.pointRen i) id))
+  pointsKan : ∀ d < n, ∀ (D : DataDecl), S[d]? = some (.data D) → ∀ (c : ℕ) (C : Ctor), D.ctors[c]? = some C →
+    ∀ (i : ℕ) (A : Tm), C.args[i]? = some (.point A) →
+    ∀ k (cs : CSub2 S 0 .one (D.pointCtx d C i) k),
+      KanP2 S k (semK S k (cs.L (A.ren (C.pointRen i) id)))
 
 theorem DeclHyp2.mono {n m : ℕ} (h : DeclHyp2 S n) (hm : m ≤ n) : DeclHyp2 S m :=
-  ⟨fun d hd => h.params d (by omega), fun d hd => h.points d (by omega)⟩
+  ⟨fun d hd => h.params d (by omega), fun d hd => h.points d (by omega), fun d hd => h.pointsKan d (by omega)⟩
 
 /-- The interval substitution out of the empty interval context. -/
 def ISub.none0 (k : ℕ) : ISub k 0 := ⟨fun _ => .zero, fun _ h => absurd h (Nat.not_lt_zero _), fun _ _ => rfl⟩
@@ -230,7 +235,8 @@ theorem argTy_rel {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {ps ps' args 
     (hargs : ∀ i (hi : i < args.length) (hi' : i < args'.length), C.isRec i = false →
       RE2 S k ((C.argTy d D.params.length i).substList ((args.take i).reverse ++ ps.reverse)) args[i] args'[i]) :
     RT2 S k ((C.argTy d D.params.length args.length).substList (args.reverse ++ ps.reverse))
-      ((C.argTy d D.params.length args.length).substList (args'.reverse ++ ps'.reverse)) := by
+      ((C.argTy d D.params.length args.length).substList (args'.reverse ++ ps'.reverse)) ∧
+    KanP2 S k (semK S k ((C.argTy d D.params.length args.length).substList (args.reverse ++ ps.reverse))) := by
   obtain ⟨A0, hA0⟩ := point_of_not_rec hlt hr
   have hAk : C.argTy d D.params.length args.length = A0 := by simp [Ctor.argTy, hA0]
   obtain ⟨cs, hγ, hγ', -, -⟩ := csub2_points hW hD hH hC hp.1 hp.2.1 hp.2.2 hlt.le hl' hargs args.length (Nat.le_refl _)
@@ -242,8 +248,11 @@ theorem argTy_rel {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {ps ps' args 
     show (A0.ren (C.pointRen args.length) id).subst cs.γ' cs.σ'.τ = _
     rw [hγ', pt_inst hW hD hC hA0 (xs := args') (by omega) (by simp [hp.2.1]) 0 cs.σ'.τ,
       List.take_of_length_le (by omega)]
+  have hk := hH.pointsKan d (by omega) D hD c C hC args.length A0 hA0 k cs
   rw [hAk]
-  rwa [e1, e2] at this
+  rw [e1, e2] at this
+  rw [e1] at hk
+  exact ⟨this, hk⟩
 
 /-! ### The relation of literal inductive types -/
 
@@ -369,7 +378,8 @@ theorem argRelH_of {P : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ
   have hc := hcode args.length hl (Nat.le_refl _) hr (by simpa using hv)
   simp only [List.take_length] at hc
   rw [hc]
-  exact argTy_rel hW hD hH hC (hpar k'' σ') hl hl' hr hargs
+  have h := argTy_rel hW hD hH hC (hpar k'' σ') hl hl' hr hargs
+  exact ⟨h.1, (kanPG_iff hW).2 h.2⟩
 
 omit hH in
 /-- The recorded code of a parameter's type is the value of its type instantiated by the earlier
@@ -430,7 +440,9 @@ theorem parRel2_of {P : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ
   have hgen : ∀ (A : Tm), A = D.params[j] →
       (π1 (ZFSet.pair (natZ 0) (paramTyC (sigUpTo S d) A j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')))) = natZ 1 →
         (Comp2 S (π2 (ZFSet.pair (natZ 0) (paramTyC (sigUpTo S d) A j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')))))
-          k' k' (Hom.id k')).ty ps.toList[j] ps'.toList[j]) ∧
+          k' k' (Hom.id k')).ty ps.toList[j] ps'.toList[j] ∧
+        KanPG S k' (Comp2 S (π2 (ZFSet.pair (natZ 0) (paramTyC (sigUpTo S d) A j k'
+          (sem S (P.isub σ) k' (idEnv k') (γ0 k'))))) k')) ∧
       (π1 (ZFSet.pair (natZ 0) (paramTyC (sigUpTo S d) A j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')))) = natZ 0 →
         ∀ Aj, D.params[j]? = some Aj →
         (Comp2 S (π2 (ZFSet.pair (natZ 0) (paramTyC (sigUpTo S d) A j k' (sem S (P.isub σ) k' (idEnv k') (γ0 k')))))
@@ -457,11 +469,12 @@ theorem parRel2_of {P : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.univ
       refine ⟨fun _ => ?_, fun h => absurd (natZ_inj.1 h) (by decide)⟩
       rw [sem_vnth _ _ _ j hjP]
       obtain ⟨T, e⟩ := hpe
-      show (Comp2 S (semK S k' _) k' k' (Hom.id k')).ty _ _
+      change (Comp2 S (semK S k' _) k' k' (Hom.id k')).ty _ _ ∧
+        KanPG S k' (Comp2 S (semK S k' _) k')
       rw [semK_eq hW e]
       have h := hrel.2.2 j hjps hjps' hjD
       rw [heq'] at h
-      exact ((RE2_univ_iff hW).1 h).2.2
+      exact ⟨RE2_univ_ty hW h, (kanPG_iff hW).2 (RE2_univ_kan hW h)⟩
     · exact hgen _ heq'.symm
   · rename_i A _ heq
     have heq' : D.params[j] = A := by rw [List.getElem?_eq_getElem hjD] at heq; injection heq
@@ -519,7 +532,7 @@ theorem parRel2_inv {P : Tm} {l : ℕ} (hP : HasTy S k .one [] (.data d P) (.uni
     rw [sem_vnth _ _ _ j hjP, ep] at hrt
     show RE2 S k' (.univ kk) _ _
     have he' := he kk rfl
-    exact RE2_univ_of hW ⟨HasTy.eqL he', HasTy.eqR he', he'⟩ hrt
+    exact RE2_univ_of hW ⟨HasTy.eqL he', HasTy.eqR he', he'⟩ hrt.1 ((kanPG_iff hW).1 hrt.2)
   · rw [paramEntry_point hA hu] at H
     simp only [π1_pair, π2_pair] at H
     have H2 := (H.2 trivial A hA).2
@@ -691,24 +704,30 @@ theorem parRel2_of_vtele {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' : Tm}
   exact h
 
 /-- **Formation**: a data type at valid parameters is valid. -/
-theorem valid_data {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps : Tm} (hlev : D.level + 1 ≤ maxLevel)
+theorem valid_data (hHit : HITHyp2 S (d + 1)) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps : Tm} (hlev : D.level + 1 ≤ maxLevel)
     (ht : HasTele0 S Ψ Φ Γ ps D.params []) (hv : VTele2 S Ψ Φ Γ ps ps D.params []) :
     Valid2 S Ψ Φ Γ (.data d ps) (.data d ps) (.univ D.level) := by
   have hty := HasTy0.data hD hlev ht
   have hpl := tele_isList ht
-  refine valid_univ_of hW hty hty (.refl hty) fun k c => ?_
+  refine valid_univ_of hW hty hty (.refl hty) (fun k c => ?_) (fun k c => by
+    change KanP2 S k (semK S k (.data d (c.L ps)))
+    rw [semK_dataT hW hD (c.ty hW hty)]
+    exact kanP2_dataC hW hD hHit)
   refine RT2_dataLit hW hD hH (P := c.L ps) (Q := c.R ps) (c.ty hW hty) (c.tyR' hW hty)
     (.inr ⟨_, c.eqLR hW hty⟩) (isList_subst hpl _ _) (isList_subst hpl _ _) fun k' σ => ?_
   rw [← CSub2.restr_L hW c σ ps, ← CSub2.restr_R hW c σ ps]
   exact parRel2_of_vtele hW hD hH hv (c.restr hW σ)
 
 /-- Congruence of formation. -/
-theorem valid_dataEq {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' : Tm}
+theorem valid_dataEq (hHit : HITHyp2 S (d + 1)) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ps ps' : Tm}
     (hty : HasTy0 S Ψ Φ Γ (.data d ps) (.univ D.level)) (hty' : HasTy0 S Ψ Φ Γ (.data d ps') (.univ D.level))
     (heq : EqTm0 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ D.level)) (hv : VTele2 S Ψ Φ Γ ps ps' D.params []) :
     Valid2 S Ψ Φ Γ (.data d ps) (.data d ps') (.univ D.level) := by
   obtain ⟨hpl, hpl', -, -⟩ := VTele2.shape hv
-  refine valid_univ_of hW hty hty' heq fun k c => ?_
+  refine valid_univ_of hW hty hty' heq (fun k c => ?_) (fun k c => by
+    change KanP2 S k (semK S k (.data d (c.L ps)))
+    rw [semK_dataT hW hD (c.ty hW hty)]
+    exact kanP2_dataC hW hD hHit)
   refine RT2_dataLit hW hD hH (P := c.L ps) (Q := c.R ps') (c.ty hW hty) (c.tyR' hW hty')
     (.inr ⟨_, c.eq hW heq⟩) (isList_subst hpl _ _) (isList_subst hpl' _ _) fun k' σ => ?_
   rw [← CSub2.restr_L hW c σ ps, ← CSub2.restr_R hW c σ ps']
@@ -745,10 +764,10 @@ theorem valid_con_nonHIT (hHIT : D.isHIT = false) {Ψ : ℕ} {Φ : I} {Γ : Ctx}
   have hPT : HasTy S k .one [] (.data d (c'.L ps)) (.univ D.level) := (RE2.typed hvdk.2).1
   have hPP : RT2 S k (.data d (c'.L ps)) (.data d (c'.L ps)) := by
     have := (RE2_univ_iff hW).1 hvdk.2
-    exact RT2.refl hW (tyCode_of_univ hW hPT) this.2.2
+    exact RT2.refl hW (tyCode_of_univ hW hPT) this.2.2.1
   refine ⟨?_, ?_⟩
   · have := (RE2_univ_iff hW).1 hvdk.2
-    have hX : RT2 S k (.data d (c'.L ps)) (.data d (c'.R ps)) := this.2.2
+    have hX : RT2 S k (.data d (c'.L ps)) (.data d (c'.R ps)) := this.2.2.1
     exact hX
   have hpc : (c'.L ps).closedB 0 k = true := by
     have := closed_of_ty hW hPT; simpa [Tm.closedB] using this

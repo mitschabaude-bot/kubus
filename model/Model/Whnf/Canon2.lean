@@ -1,15 +1,16 @@
 import Model.Whnf.Kan2All
+import Model.Whnf.Fund2
 import Model.Canon.CanonForm
 
 /-!
 # Canonicity from the binary fundamental lemma
 
-The binary fundamental lemma (`fund2`, with the Kan oracle `kanOracle2`) relates the two sides of every
+The binary fundamental lemma (`fund2`, with Kan carried by the universe relation) relates the two sides of every
 judgmental equality of closed types. At an equality of Glue types whose face does not hold, the type
 relation of Glue normal forms relates their bases and equivalences, which gives the compatibility of
 Glue annotations (`glueCompat_of`), the hypothesis of `canonicity_of_glueCompat`.
 
-The remaining obligations of the binary development are bundled in `Obl2`: the boundaries of the constructors of higher inductive types and the argument types of their nested constructors (`HITHyp2`), and the rules of higher inductive types (`DataHyp2`).
+The remaining obligations of the binary development are bundled in `Obl2`: the boundary rule for constructors of higher inductive types (`HITConHyp2`), and the rules of higher inductive types (`DataHyp2`).
 -/
 
 set_option autoImplicit false
@@ -24,13 +25,13 @@ variable {S : Sig}
 
 /-- The remaining obligations of the binary fundamental lemma and the binary Kan lemma. -/
 structure Obl2 (S : Sig) : Prop where
-  hit : HITHyp2 S
+  hit : HITConHyp2 S
   data : ∀ n, DataHyp2 S (S.take n)
 
 /-- **The compatibility of Glue annotations**, from the binary fundamental lemma. -/
 theorem glueCompat_of (hW : WfSig S) (O : Obl2 S) : GlueCompat S := by
   intro k A A' T T' e e' φ φ' l h hn h12 h21
-  obtain ⟨-, hr⟩ := fund2_closed hW (kanOracle2 hW O.hit) O.data (spec_to_minimal_eq hW h)
+  obtain ⟨-, hr⟩ := fund2_closed hW O.hit O.data (spec_to_minimal_eq hW h)
   have hGG' := RE2_univ_ty hW hr
   have hG := HasTy.eqL h
   have hG' := HasTy.eqR h

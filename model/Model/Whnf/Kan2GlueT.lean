@@ -131,6 +131,10 @@ structure TGD2 (S : Sig) (k : ℕ) (A : Tm) (φ : I) (T e A' : Tm) (φ' : I) (T'
   cG : LineConst S k (.glue A φ T e) ψ
   ha0 : RE2 S k ((Tm.glue A φ T e).dinst .zero) u0 u0'
 
+  kAC : KanP2 S (k + 1) (semK S (k + 1) A)
+  kTC : ∀ k' (σ : ISub k' (k + 1)), (ival (idEnv k') (φ.subst σ.τ)).holds →
+    KanP2 S k' (semK S k' (T.isub σ))
+
 
 theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
     (D : TGD2 S k A φ T e A' φ' T' e' ψ ψ' u0 u0' δ δ') (ρ : ISub k' k) :
@@ -139,6 +143,7 @@ theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
       (δ'.subst ρ.τ) := by
   obtain ⟨l, hG⟩ := D.hG
   obtain ⟨l', hG'⟩ := D.hG'
+  obtain ⟨-, lA, hA, -⟩ := glue_data hW hG
   have hc : ∀ {k3} (σ : ISub k3 (k' + 1)), (ival (idEnv k3) ((φ.subst ρ.up.τ).subst σ.τ)).holds →
       (ival (idEnv k3) (φ.subst (ρ.up.comp σ).τ)).holds := fun σ h => by rwa [I_subst_comp]
   refine ⟨⟨l, HasTy.isubS hW hG ρ.up⟩, ⟨l', HasTy.isubS hW hG' ρ.up⟩, D.rA.isub ρ, D.rAA.isub ρ,
@@ -147,7 +152,7 @@ theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
     I.scoped_subst D.hδs ρ.sc, ent_trans (ent_subst D.hδ1 ρ.τ) (forall0_subst φ ρ.τ).1,
     ent_trans (forall0_subst φ ρ.τ).2 (ent_subst D.hδ2 ρ.τ), I.scoped_subst D.hδs' ρ.sc,
     ent_trans (ent_subst D.hδ1' ρ.τ) (forall0_subst φ' ρ.τ).1, ent_trans (forall0_subst φ' ρ.τ).2 (ent_subst D.hδ2' ρ.τ),
-    ?_, ?_, ?_, ent_subst D.p12 _, ent_subst D.p21 _, D.rG.isub ρ, D.rGG.isub ρ, D.cG.isub ρ, ?_⟩
+    ?_, ?_, ?_, ent_subst D.p12 _, ent_subst D.p21 _, D.rG.isub ρ, D.rGG.isub ρ, D.cG.isub ρ, ?_, ?_, ?_⟩
   · rw [Tm.isub_isub, Tm.isub_isub]; exact D.rT k3 _ (hc σ hh)
   · rw [Tm.isub_isub]; exact D.rTT k3 _ (hc σ hh)
   · rw [Tm.isub_isub, Tm.isub_isub, Tm.isub_isub, Tm.isub_isub]; exact D.rE k3 _ (hc σ hh)
@@ -162,6 +167,11 @@ theorem TGD2.isub {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}
     rwa [transp_isub, transp_isub, dinst_isub_end _ (.inr rfl)] at this
   · have := RE2.isub hW D.ha0 ρ
     rwa [dinst_isub_end _ (.inl rfl)] at this
+  · rw [semK_isubS hW hA]
+    exact D.kAC.restrict hW (semK_ne hW hA) ρ.up.hom
+  · intro k3 σ hh
+    rw [Tm.isub_isub]
+    exact D.kTC k3 _ (hc σ hh)
 
 omit hW in
 theorem TGD2.kAH {A T e A' T' e' u0 u0' : Tm} {φ φ' ψ ψ' δ δ' : I}

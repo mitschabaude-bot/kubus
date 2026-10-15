@@ -58,7 +58,7 @@ theorem PathStr_of {T T' L a b : Tm} {l : ℕ} (h : RT2 S k T T') (hR : RedT S k
   have hT := h
   unfold RT2 at hT
   rw [hX, Comp2_pathC _ _ _ hLne] at hT
-  obtain ⟨hbase, hall, hcoh, hcoh'⟩ := hT
+  obtain ⟨hbase, hall, hcoh, hcoh', -, -⟩ := hT
   have hXne : pathC k (semK S (k + 1) L) (semK S k a) (semK S k b) ≠ ∅ := mkKV_ne_empty _
   -- the elimination of related elements of a type with the code of `T`
   have elimGen : ∀ k' (ρ : ISub k' k) (U : Tm), semK S k' U = res ρ.hom (semK S k T) →

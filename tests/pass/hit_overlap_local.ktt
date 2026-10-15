@@ -1,0 +1,8 @@
+-- The overlap is a disjunction: equality holds locally at both endpoints,
+-- although neither path unfolds over the whole overlap.
+data LocalOverlap : U :=
+  localA | localB
+  | localLeft (i : I) [i = 0 -> localA, i = 1 -> localB]
+  | localRight (i : I) [i = 0 -> localA, i = 1 -> localB]
+  | localSquare (i j : I)
+      [i = 0 \/ i = 1 -> localLeft i, j = 0 -> localRight i]

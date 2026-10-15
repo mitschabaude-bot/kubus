@@ -1,4 +1,4 @@
-import Model.Whnf.Kan2DataHC5
+import Model.Whnf.Kan2DataHCBase
 
 /-!
 # Composition of constructors along arbitrary tube lists
@@ -46,7 +46,6 @@ structure HCG (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P Q Q' : Tm) (k1 : �
   hPP : RT2 S K (.data d P) (.data d P)
   hQ : RT2 S K (.data d P) (.data d Q)
   hQ' : RT2 S K (.data d P) (.data d Q')
-  hArgK : KanShape S K (ΘK S D d K P)
   hC : D.ctors[c]? = some C
   hXl : X.length = C.args.length
   hXl' : X'.length = C.args.length
