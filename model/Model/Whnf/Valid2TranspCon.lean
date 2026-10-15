@@ -25,14 +25,14 @@ variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
 include hW hD
 
 /-- The `transpCon` contractum under a substitution. -/
-theorem tCon_subst {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {ps : Tm} (hps : IsList ps)
+theorem tConR_subst {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {ps : Tm} (hps : IsList ps)
     (hpl : ps.toList.length = D.params.length) (φ : I) {X : List Tm} (hXl : X.length = C.args.length)
-    (σ : ℕ → Tm) (τ : ℕ → I) :
+    (rs : List I) (σ : ℕ → Tm) (τ : ℕ → I) :
     (Tm.con d c (ps.dinst .one)
-      (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] X)) []).subst σ τ =
-      tCon d D c C (ps.subst (dupS σ) (I.up τ)) (φ.subst τ) (X.map (·.subst σ τ)) := by
+      (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] X)) rs).subst σ τ =
+      tConR d D c C (ps.subst (dupS σ) (I.up τ)) (φ.subst τ) (X.map (·.subst σ τ)) (rs.map (·.subst τ)) := by
   have h := transpTele_subst (σ := σ) (τ := τ) (fun j => argTy_closed hW hD hC j) hpl φ X 0 [] rfl
-  show Tm.con d c ((ps.dinst .one).subst σ τ) ((Tm.ofList _).subst σ τ) [] = _
+  show Tm.con d c ((ps.dinst .one).subst σ τ) ((Tm.ofList _).subst σ τ) (rs.map (·.subst τ)) = _
   rw [ofList_subst, h, dinst_subst, ← toList_subst hps]
   simp only [List.map_nil]
   rw [transpTele_tOuts d D C _ _ (by simp [hXl])]
@@ -50,6 +50,32 @@ theorem argTy_substList_subst {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) {
     rw [Nat.add_comm]; exact argTy_closed hW hD hC i
   rw [substList_subst hcl, List.map_append, List.map_reverse, List.map_reverse, List.map_take,
     ← toList_subst hP0]
+
+/-- The point arguments at a closing substitution, in the literal start of the parameter line. -/
+theorem transpCon_args0 {Ψ : ℕ} {Φ : I} {Γ : Ctx} {ci : ℕ} {C : Ctor} {ps args : Tm}
+    (hC : D.ctors[ci]? = some C) (hpl : IsList ps) (hpsl : ps.toList.length = D.params.length)
+    (hva : VTele2 S Ψ Φ Γ args args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse)
+    (c : CSub2 S Ψ Φ Γ k) :
+    ∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
+      (((args.toList.map c.L).take i).reverse ++ (((c.up hW).L ps).dinst .zero).toList.reverse))
+      ((args.toList.map c.L).getD i .abort) ((args.toList.map c.R).getD i .abort) := by
+  obtain ⟨-, -, hXl, -⟩ := VTele2.shape hva
+  simp only [Ctor.argTys, List.length_map, List.length_range] at hXl
+  intro i hi
+  have hi0 : i < args.toList.length := by omega
+  have h := (VTele2.get hva i hi0 hi0 (by simp [Ctor.argTys]; exact hi) k c).2
+  simp only [Ctor.argTys, List.getElem_map, List.getElem_range] at h
+  have hP0 : IsList (ps.dinst .zero) := isList_subst hpl _ _
+  have hP0l : (ps.dinst .zero).toList.length = D.params.length := by
+    show (ps.subst _ _).toList.length = _; rw [toList_subst hpl]; simp [hpsl]
+  have e3 := argTy_substList_subst hW hD hC hP0 hP0l (L := args.toList) (i := i) hi0.le c.γ c.σ.τ
+  change RE2 S k (((C.argTy d D.params.length i).substList
+    ((args.toList.take i).reverse ++ (ps.dinst .zero).toList.reverse)).subst c.γ c.σ.τ) _ _ at h
+  rw [e3, show (ps.dinst .zero).subst c.γ c.σ.τ = ((c.up hW).L ps).dinst .zero from
+    CSub2.L_dinst hW c ps .zero] at h
+  rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_map,
+    List.getElem?_eq_getElem hi0]
+  exact h
 
 variable (hH : D.isHIT = false) (hp : D.params ≠ [])
 include hH hp
@@ -104,11 +130,11 @@ theorem valid_transpCon {ci : ℕ} {C : Ctor} {ps qs args T : Tm} {φ : I} {rs :
   have eL : ∀ {k : ℕ} (c : CSub2 S Ψ Φ Γ k), c.L (.con d ci (ps.dinst .one)
       (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) []) =
       tCon d D ci C ((c.up hW).L ps) (φ.subst c.σ.τ) (args.toList.map c.L) :=
-    fun c => tCon_subst hW hD hC hpl hpsl φ hXl _ _
+    fun c => tConR_subst hW hD hC hpl hpsl φ hXl [] _ _
   have eR : ∀ {k : ℕ} (c : CSub2 S Ψ Φ Γ k), c.R (.con d ci (ps.dinst .one)
       (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) []) =
       tCon d D ci C ((c.up hW).R ps) (φ.subst c.σ'.τ) (args.toList.map c.R) :=
-    fun c => tCon_subst hW hD hC hpl hpsl φ hXl _ _
+    fun c => tConR_subst hW hD hC hpl hpsl φ hXl [] _ _
   -- the literal lines at a related substitution
   have hPL : ∀ {k : ℕ} (c : CSub2 S Ψ Φ Γ k), HasTy S (k + 1) .one [] (.data d ((c.up hW).L ps)) (.univ D.level) :=
     fun c => (c.up hW).ty hW hLD
@@ -162,21 +188,7 @@ theorem valid_transpCon {ci : ℕ} {C : Ctor} {ps qs args T : Tm} {φ : I} {rs :
       hφs := I.scoped_subst hφ c.σ.sc,
       h12 := c.ent_LR (ent_refl φ), h21 := c.ent_RL (ent_refl φ),
       hLC := lineConst_of_valid hW hφ hCV c, hty := h1, hty' := h1', heq := h1e,
-      hargs0 := fun i hi => by
-        have hi0 : i < args.toList.length := by omega
-        have h := (VTele2.get hva i hi0 hi0 (by simp [Ctor.argTys]; exact hi) k c).2
-        simp only [Ctor.argTys, List.getElem_map, List.getElem_range] at h
-        have hP0 : IsList (ps.dinst .zero) := isList_subst hpl _ _
-        have hP0l : (ps.dinst .zero).toList.length = D.params.length := by
-          show (ps.subst _ _).toList.length = _; rw [toList_subst hpl]; simp [hpsl]
-        have e3 := argTy_substList_subst hW hD hC hP0 hP0l (L := args.toList) (i := i) hi0.le c.γ c.σ.τ
-        change RE2 S k (((C.argTy d D.params.length i).substList
-          ((args.toList.take i).reverse ++ (ps.dinst .zero).toList.reverse)).subst c.γ c.σ.τ) _ _ at h
-        rw [e3, show (ps.dinst .zero).subst c.γ c.σ.τ = ((c.up hW).L ps).dinst .zero from
-          CSub2.L_dinst hW c ps .zero] at h
-        rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_map,
-          List.getElem?_eq_getElem hi0]
-        exact h,
+      hargs0 := transpCon_args0 hW hD hC hpl hpsl hva c,
       hrecT := fun i hi hri k3 τ y y' hy hy' hE _ => by
         have hk := hLV.kanV hW (k3 + 1) ((c.restr hW τ.up.tail).cons y y' hy hy' hE)
         rw [CSub2.cons_restr_L, isub_up_dinst _ _ _ hy] at hk

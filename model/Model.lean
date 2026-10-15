@@ -75,6 +75,8 @@ import Model.Whnf.HCCGen2
 import Model.Whnf.HCCGen3
 import Model.Whnf.HCCGen4
 import Model.Whnf.Valid2HcompCon
+import Model.Whnf.Valid2TranspHcomp
+import Model.Whnf.Valid2ConH
 import Model.Whnf.Kan2Glue
 import Model.Whnf.Kan2DataCode
 import Model.Whnf.NearAll
@@ -85,3 +87,8 @@ import Model.Whnf.Kan2DataHCSound
 import Model.Whnf.Kan2DataHITBndTy
 import Model.Whnf.Valid2ElimH1
 import Model.Whnf.Valid2ElimH2
+import Model.Whnf.Valid2ElimH3
+import Model.Whnf.Valid2ElimH4
+import Model.Whnf.Valid2ElimH5
+import Model.Whnf.Valid2ElimH6
+import Model.Whnf.Boundary2ConBnd
