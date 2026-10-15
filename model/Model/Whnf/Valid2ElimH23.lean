@@ -1,4 +1,4 @@
-import Model.Whnf.Valid2ElimH22
+import Model.Whnf.Valid2ElimH19
 
 /-! # Normalization evidence for the raw higher inductive eliminator induction -/
 
