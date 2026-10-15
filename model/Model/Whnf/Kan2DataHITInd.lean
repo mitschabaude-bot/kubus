@@ -37,9 +37,17 @@ def TR (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom
       (.transp ((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail)) ψ (x.isub σ))
       (tRedF d D (P.isub (ISub.cons y hy (ρ.comp σ).up.tail)) ψ w)
 
+/-- The transports of the left element along the lines at `I.Eq`-equal points are related. -/
+def TM1s (S : Sig) (d K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom k1 K) (A x : Tm) : Prop :=
+  ∀ (ρ : ISub k1 K), g = ρ.hom → A = .data d ((P.dinst .zero).isub ρ) →
+  ∀ k3 (σ : ISub k3 k1) (y y' : I) (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1)), I.Eq y y' →
+    I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero →
+    KanT2At S k3 ((Tm.data d P).isub (ISub.cons y hy (ρ.comp σ).up.tail))
+      ((Tm.data d P).isub (ISub.cons y' hy' (ρ.comp σ).up.tail)) (x.isub σ) (x.isub σ)
+
 /-- The motive at the relation of the start of a line. -/
 def TM1H (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom k1 K) (A x x' : Tm) : Prop :=
-  TM1 S d K P k1 g A x x' ∧ TM1 S d K P k1 g A x x ∧ TR S d D K P k1 g A x
+  TM1 S d K P k1 g A x x' ∧ TM1s S d K P k1 g A x ∧ TR S d D K P k1 g A x
 
 /-- The contracta of the transports of related normal forms are related. -/
 def TMc (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P : Tm) (k1 : ℕ) (g : Hom k1 K) (A v v' : Tm) : Prop :=
@@ -89,10 +97,10 @@ theorem hcomp_data_retype (hW : WfSig S) {d : ℕ} {qs p u a : Tm} {χ : I} {l :
 
 section ind
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = true)
-  (hyp : HITHyp2 S) (hp : D.params ≠ []) {K : ℕ} {P : Tm} (hP : HasTy S (K + 1) .one [] (.data d P) (.univ D.level))
-  (hArgK : KanShape S (K + 1) (ΘK S D d (K + 1) P))
+  (hyp : HITHyp2 S (d + 1)) (hp : D.params ≠ []) {K : ℕ} {P : Tm} (hP : HasTy S (K + 1) .one [] (.data d P) (.univ D.level))
+
   (hRL : Rob S d K P P)
-include hW hD hH hyp hp hP hArgK hRL
+include hW hD hH hyp hp hP  hRL
 
 /-- The constructor case: the `transpCon` contracta of related constructors are related. -/
 theorem tm2_conH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' : Tm} {c : ℕ} {C : Ctor} {args args' : List Tm}
@@ -134,8 +142,8 @@ theorem tm2_conH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' : Tm} {c : ℕ} {C 
   obtain rfl := RedW.unique hr.1 ht.1
   obtain rfl := RedW.unique hr'.1 ht'.1
   rw [tRedF_con d D _ ψ hC', tRedF_con d D _ ψ' hC']
-  have hP0 := P0_ty hW hD hp hP hArgK hRL
-  have hP0P0 := P0_rt2 hW hD hp hP hArgK hRL
+  have hP0 := P0_ty hW hD hp hP  hRL
+  have hP0P0 := P0_rt2 hW hD hp hP  hRL
   obtain rfl : ps = (P.dinst .zero).isub ρ := redT_data_eq (Θ := ΘK S D d K (P.dinst .zero)) hA
   -- the arguments, related at the start of the line
   have hZ : ∀ i (hi : i < C.args.length), RE2 S k1 ((C.argTy d D.params.length i).substList
@@ -162,9 +170,9 @@ theorem tm2_conH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' : Tm} {c : ℕ} {C 
   have hPc := data_closed hW hD hP
   have hXP0 : TyCode K (semK S K (.data d (P.dinst .zero))) := tyCode_of_univ hW hP0
   have hP0ρ : RT2 S k1 (.data d ((P.dinst .zero).isub ρ)) (.data d ((P.dinst .zero).isub ρ)) := RT2.isub hW hXP0 hP0P0 ρ
-  have hPL0 := line_dinst hW hD hp hP hArgK hRL ρ y hy .zero trivial
+  have hPL0 := line_dinst hW hD hp hP  hRL ρ y hy .zero trivial
   have rel0 : RT2 S k1 (.data d ((P.dinst .zero).isub ρ)) (.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .zero)) := by
-    rw [P0_isub hW hD hp hP hArgK hRL, hPL0]
+    rw [P0_isub hW hD hp hP  hRL, hPL0]
     exact hRL k1 ρ .zero _ trivial _ (I_eq_symm h0)
   have tyB : ∀ {k4 : ℕ} {X Z : Tm}, RT2 S k4 X Z → TyEq S k4 X Z := fun h => (Comp2_ty_base h).2.2.2.2.2
   -- the arguments, related at the start of the line
@@ -187,7 +195,7 @@ theorem tm2_conH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' : Tm} {c : ℕ} {C 
   have hy'0 : I.Eq (y'.subst (ISub.cons .zero trivial (ISub.id k1)).τ) .zero :=
     I_eq_trans (I_eq_subst (I_eq_symm hE) _) h0
   have rel0' : RT2 S k1 (.data d ((P.dinst .zero).isub ρ)) (.data d ((Q.isub (ISub.cons y' hy' ρ.up.tail)).dinst .zero)) := by
-    rw [P0_isub hW hD hp hP hArgK hRL, hQL0]
+    rw [P0_isub hW hD hp hP  hRL, hQL0]
     exact hQ k1 ρ .zero _ trivial _ (I_eq_symm hy'0)
   have eb := hr.2.tyConv (tyB rel0)
   have eb' := hr'.2.tyConv (tyB rel0')
@@ -220,7 +228,7 @@ theorem tm2_conH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' : Tm} {c : ℕ} {C 
     { hW := hW, hD := hD, hp := hp, hC := hC', hPL := HasTy.isubS hW hP _,
       conR := conR_hit hW hD hH hyp hC' (HasTy.isubS hW hP _) (Rob.line hRL ρ y y hy hy (I_eq_refl _)) hrsF,
       hR := Rob.line hQ ρ y y' hy hy' hE, hRL := Rob.line hRL ρ y y hy hy (I_eq_refl _),
-      hArgK := argK_restr hArgK _, hφs := hψs, h12 := h12, h21 := h21, hLC := LC, hty := rb.1,
+      hφs := hψs, h12 := h12, h21 := h21, hLC := LC, hty := rb.1,
       hty' := rb'.1.tyConv e1', heq := rb.2.symm.trans (heq.trans (rb'.2.tyConv e1')), hargs0 := hargs0,
       hrecT := fun i hi hri k3 τ z z' hz hz' hEz hz0 => by
         have h := (ihrec i (by omega) (by omega) hri).1 ρ rfl rfl Q hQ k3 τ _ _
@@ -264,9 +272,9 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
   obtain rfl := RedW.unique hr'.1 ht'.1
   rw [tRedF_hcomp, tRedF_hcomp]
   have hdD := dataD_eq hW hD
-  have hP0 := P0_ty hW hD hp hP hArgK hRL
-  have hP0P0 := P0_rt2 hW hD hp hP hArgK hRL
-  have hPP1 := PP1 hW hD hp hP hArgK hRL
+  have hP0 := P0_ty hW hD hp hP  hRL
+  have hP0P0 := P0_rt2 hW hD hp hP  hRL
+  have hPP1 := PP1 hW hD hp hP  hRL
   have hPc := data_closed hW hD hP
   obtain rfl : ps = (P.dinst .zero).isub ρ := redT_data_eq (Θ := ΘK S D d K (P.dinst .zero)) hA
   have tyB : ∀ {k4 : ℕ} {X Z : Tm}, RT2 S k4 X Z → TyEq S k4 X Z := fun h => (Comp2_ty_base h).2.2.2.2.2
@@ -297,9 +305,9 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
       exact ⟨h1, h2⟩
   -- the starts and ends of the lines
   have hXP0 : TyCode K (semK S K (.data d (P.dinst .zero))) := tyCode_of_univ hW hP0
-  have hPL0 := line_dinst hW hD hp hP hArgK hRL ρ y hy .zero trivial
+  have hPL0 := line_dinst hW hD hp hP  hRL ρ y hy .zero trivial
   have rel0 : RT2 S k1 (.data d ((P.dinst .zero).isub ρ)) (.data d ((P.isub (ISub.cons y hy ρ.up.tail)).dinst .zero)) := by
-    rw [P0_isub hW hD hp hP hArgK hRL, hPL0]
+    rw [P0_isub hW hD hp hP  hRL, hPL0]
     exact hRL k1 ρ .zero _ trivial _ (I_eq_symm h0)
   have hQc : (Q.isub (ISub.cons y' hy' ρ.up.tail)).closedB 0 (k1 + 1) = true := by
     obtain ⟨l', ⟨hLt', -, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty') rfl
@@ -310,7 +318,7 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
   have hy'0 : I.Eq (y'.subst (ISub.cons .zero trivial (ISub.id k1)).τ) .zero :=
     I_eq_trans (I_eq_subst (I_eq_symm hE) _) h0
   have rel0' : RT2 S k1 (.data d ((P.dinst .zero).isub ρ)) (.data d ((Q.isub (ISub.cons y' hy' ρ.up.tail)).dinst .zero)) := by
-    rw [P0_isub hW hD hp hP hArgK hRL, hQL0]
+    rw [P0_isub hW hD hp hP  hRL, hQL0]
     exact hQ k1 ρ .zero _ trivial _ (I_eq_symm hy'0)
   have hPθc : (P.isub (ISub.cons y hy ρ.up.tail)).closedB 0 (k1 + 1) = true :=
     data_closed hW hD (HasTy.isubS hW hP (ISub.cons y hy ρ.up.tail))
@@ -349,7 +357,7 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
   -- the end of the line, as a restriction of the line of types
   have eE : (Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dinst .one = Tm.data d (P.isub (ISub.cons
       (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) (I.scoped_subst hy (ISub.cons .one trivial (ISub.id k1)).sc) ρ)) :=
-    lineP_dinst hW hD hp hP hArgK hRL ρ y hy .one trivial
+    lineP_dinst hW hD hp hP  hRL ρ y hy .one trivial
   have hy1 := I.scoped_subst hy (ISub.cons .one trivial (ISub.id k1)).sc
   have hTσ : ∀ {k4 : ℕ} (σ : ISub k4 k1), RT2 S k4
       ((Tm.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))).isub σ)
@@ -384,7 +392,7 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
     -- the start of the restricted line
     have rel0σ : RT2 S k' (.data d ((P.dinst .zero).isub (ρ.comp σ)))
         (((Tm.data d P).isub (ISub.cons (y.subst σ.up.τ) hyσ (ρ.comp σ).up.tail)).dinst .zero) := by
-      rw [lineP_dinst hW hD hp hP hArgK hRL _ _ _ .zero trivial, P0_isub hW hD hp hP hArgK hRL]
+      rw [lineP_dinst hW hD hp hP  hRL _ _ _ .zero trivial, P0_isub hW hD hp hP  hRL]
       exact hRL k' _ .zero _ trivial _ (I_eq_symm (ieq_zero_up h0 σ))
     -- the typings of the transported tube points
     have hhσ' : (ival (idEnv k') (χ'.subst σ.τ)).holds :=
@@ -418,7 +426,7 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
       (ψ.subst σ.τ) (ψ'.subst σ.τ) LCσ tp tp'
       (eqTm_transp_of hW tp tp' eLσL (ent_subst h12 _) (ent_subst h21 _) ((RE2.typed hu).2.2.tyConv (tyB rel0σ)))
       (ent_subst h12 _) (ent_subst h21 _) (RE2.conv hW rel0σ hu)
-    rw [lineP_dinst hW hD hp hP hArgK hRL _ _ _ .one trivial] at R1
+    rw [lineP_dinst hW hD hp hP  hRL _ _ _ .one trivial] at R1
     have eY : (y.subst σ.up.τ).subst (ISub.cons .one trivial (ISub.id k')).τ =
         (y.subst (ISub.cons .one trivial (ISub.id k1)).τ).subst σ.τ := by
       rw [← I_subst_comp, ← I_subst_comp, ISub.up_comp_cons_id, ISub.cons_comp, ISub.id_comp]; rfl

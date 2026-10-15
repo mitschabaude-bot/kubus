@@ -56,7 +56,7 @@ theorem parRel2_symm {Θ : SData m} (ihp : ∀ n (g : Hom n m) j t X, vnth (Θ.p
   intro j p' p e1 e2
   have P := perP_parEntry ihp f σ j
   obtain ⟨h1, h0⟩ := h j p p' e2 e1
-  refine ⟨fun t => P.symTy (h1 t), fun t Aj hA => ?_⟩
+  refine ⟨fun t => ⟨P.symTy (h1 t).1, (h1 t).2⟩, fun t Aj hA => ?_⟩
   obtain ⟨hty, hel⟩ := h0 t Aj hA
   exact ⟨P.symTy hty, P.conv hty (P.symEl hty hel)⟩
 
@@ -70,7 +70,7 @@ theorem parRel2_trans {Θ : SData m} (ihp : ∀ n (g : Hom n m) j t X, vnth (Θ.
   have P := perP_parEntry ihp f σ j
   obtain ⟨a1, a0⟩ := h j p _ e1 e2
   obtain ⟨b1, b0⟩ := h' j _ p'' e2 e3
-  refine ⟨fun t => P.transTy (a1 t) (b1 t), fun t Aj hA => ?_⟩
+  refine ⟨fun t => ⟨P.transTy (a1 t).1 (b1 t).1, (a1 t).2⟩, fun t Aj hA => ?_⟩
   obtain ⟨t1, l1⟩ := a0 t Aj hA
   obtain ⟨t2, l2⟩ := b0 t Aj hA
   exact ⟨P.transTy t1 t2, P.transEl t1 l1 (P.conv (P.symTy t1) l2)⟩
@@ -96,7 +96,9 @@ def argRelH (S : Sig) (k : ℕ) (g : Hom k k0) (ps ps' : Tm) : Prop :=
       ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
         (args.reverse ++ (ps.isub σ').toList.reverse))
       ((C.argTy Θ.idx (dataD S Θ.idx).params.length args.length).substList
-        (args'.reverse ++ (ps'.isub σ').toList.reverse))
+        (args'.reverse ++ (ps'.isub σ').toList.reverse)) ∧
+    KanPG S k'' (Comp2 S (tyLook (shapeV (Θ.restr (f.comp (g.comp σ'.hom)))) c args.length
+      (args.map (semK S k''))) k'')
 
 theorem argRel2_iff {k : ℕ} {f : Hom k m} {k' : ℕ} (σ : ISub k' k) {ps ps' : Tm} :
     argRel2 S Θ f k' σ ps ps' ↔ argRelH Θ f S k' σ.hom ps ps' := by
@@ -170,7 +172,26 @@ theorem argRelH_id {k : ℕ} {g : Hom k k0} {ps ps' : Tm} (hR : argRelH Θ f S k
   have := hR k (ISub.id k) c C args args' hC hl hl' hr
     (fun j hj hj' hrj => by rw [ISub.hom_id, Hom.comp_id, isub_id_of_closed hpc]; exact hrec j hj hj' hrj)
     (fun j hj hj' hrj => by rw [ISub.hom_id, Hom.comp_id, isub_id_of_closed hpc]; exact hpt j hj hj' hrj)
-  rwa [ISub.hom_id, Hom.comp_id, isub_id_of_closed hpc, isub_id_of_closed hpc'] at this
+  rw [ISub.hom_id, Hom.comp_id, isub_id_of_closed hpc, isub_id_of_closed hpc'] at this
+  exact this.1
+
+omit hW hP in
+theorem argRelH_kan {k : ℕ} {g : Hom k k0} {ps ps' : Tm} (hR : argRelH Θ f S k g ps ps')
+    (hpc : ps.closedB 0 k = true) (hpc' : ps'.closedB 0 k = true) {c : ℕ} {C : Ctor} {args args' : List Tm}
+    (hC : (dataD S Θ.idx).ctors[c]? = some C) (hl : args.length < C.args.length) (hl' : args'.length = args.length)
+    (hr : C.isRec args.length = false)
+    (hrec : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = true →
+      DR2 S Θ.idx (dataD S Θ.idx) (dataMem S Θ f) (dataP2 S Θ f) k g (.data Θ.idx ps) args[j] args'[j])
+    (hpt : ∀ j (hj : j < args.length) (hj' : j < args'.length), C.isRec j = false →
+      dataP2 S Θ f k g c j ((args.take j).map (semK S k))
+        ((C.argTy Θ.idx (dataD S Θ.idx).params.length j).substList ((args.take j).reverse ++ ps.toList.reverse))
+        args[j] args'[j]) :
+    KanPG S k (Comp2 S (tyLook (shapeV (Θ.restr (f.comp g))) c args.length (args.map (semK S k))) k) := by
+  have := hR k (ISub.id k) c C args args' hC hl hl' hr
+    (fun j hj hj' hrj => by rw [ISub.hom_id, Hom.comp_id, isub_id_of_closed hpc]; exact hrec j hj hj' hrj)
+    (fun j hj hj' hrj => by rw [ISub.hom_id, Hom.comp_id, isub_id_of_closed hpc]; exact hpt j hj hj' hrj)
+  rw [ISub.hom_id, Hom.comp_id, isub_id_of_closed hpc, isub_id_of_closed hpc'] at this
+  exact this.2
 
 omit hP in
 /-- Closed parameters of a typed normal form. -/
@@ -487,7 +508,9 @@ theorem argRelH_comp {k : ℕ} {g : Hom k k0} {ps ps' ps'' : Tm} (r1 : argRelH �
   obtain ⟨hrec', hpt'⟩ := prefix_conv hW f hP r1σ dσ d'σ (hcl hT) (hcl hT') (isList_subst hpl' _ _)
     (hdd.isub hW σ') hC hl.le hl'' hrec hpt
   have b := argRelH_id f r2σ (hcl hT') (hcl hT'') (args := args) (args' := args'') hC hl hl'' hr hrec' hpt'
-  exact (hP _ c args.length _).transTy a b
+  refine ⟨(hP _ c args.length _).transTy a b, ?_⟩
+  exact argRelH_kan f r1σ (hcl hT) (hcl hT') hC hl rfl hr
+    (fun i hi _ hri => hrecd i hi hri) (fun i hi _ hri => hptd i hi hri)
 
 end dr
 

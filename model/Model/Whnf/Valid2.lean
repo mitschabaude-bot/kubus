@@ -1,4 +1,5 @@
-import Model.Whnf.CSub2
+import Model.Whnf.Closed2
+import Model.Whnf.Kan2Codes
 
 /-!
 # Semantic validity of judgments
@@ -23,10 +24,18 @@ variable {S : Sig} {k k' : ℕ}
 def Valid2 (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (t u A : Tm) : Prop :=
   ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L A) (c.R A) ∧ RE2 S k (c.L A) (c.L t) (c.R u)
 
+/-- The instances of a type have Kan codes. -/
+def KanV (S : Sig) (Ψ : ℕ) (Φ : I) (Γ : Ctx) (X : Tm) : Prop :=
+  ∀ k (c : CSub2 S Ψ Φ Γ k), KanP2 S k (semK S k (c.L X))
+
 variable (hW : WfSig S)
 include hW
 
 variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
+
+/-- The instances of a valid type have Kan codes. -/
+theorem Valid2.kanV {A B : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ A B (.univ l)) : KanV S Ψ Φ Γ A :=
+  fun k c => RE2_univ_kan hW (h k c).2
 
 theorem Valid2.tyCode {t u A : Tm} (h : Valid2 S Ψ Φ Γ t u A) (c : CSub2 S Ψ Φ Γ k) :
     TyCode k (semK S k (c.L A)) :=
@@ -74,17 +83,18 @@ theorem valid_restrict {Φ' : I} {t u A : Tm} (he : I.Entails Φ' Φ) (h : Valid
 theorem valid_var {x : ℕ} {A : Tm} (h : Γ.lookup x = some A) : Valid2 S Ψ Φ Γ (.var x) (.var x) A :=
   fun k c => ⟨c.lookT' h, c.look x A h⟩
 
-theorem valid_univ {l : ℕ} (hl : l + 1 ≤ maxLevel) : Valid2 S Ψ Φ Γ (.univ l) (.univ l) (.univ (l + 1)) := by
+theorem valid_univ {l : ℕ} (hl : l + 1 ≤ maxLevel) (hK : KanV S Ψ Φ Γ (.univ l)) :
+    Valid2 S Ψ Φ Γ (.univ l) (.univ l) (.univ (l + 1)) := by
   intro k c
   have hty : HasTy S k .one [] (.univ l) (.univ (l + 1)) := HasTy.univ hl (Wf.nil trivial)
-  exact ⟨RT2_univ hW, RE2_univ_of hW ⟨hty, hty, EqTm.refl hty⟩ (RT2_univ hW)⟩
+  exact ⟨RT2_univ, RE2_univ_of hW ⟨hty, hty, EqTm.refl hty⟩ (RT2_univ) (hK k c)⟩
 
 theorem valid_cumul {A B : Tm} {l : ℕ} (hl : l + 1 ≤ maxLevel) (h : Valid2 S Ψ Φ Γ A B (.univ l)) :
     Valid2 S Ψ Φ Γ A B (.univ (l + 1)) := by
   intro k c
-  obtain ⟨he, hm, hrt⟩ := (RE2_univ_iff hW).1 (h k c).2
-  refine ⟨RT2_univ hW, (RE2_univ_iff hW).2 ⟨⟨HasTy.cumul hl he.1, HasTy.cumul hl he.2.1, EqTm.cumul hl he.2.2⟩,
-    ?_, hrt⟩⟩
+  obtain ⟨he, hm, hrt, hK⟩ := (RE2_univ_iff hW).1 (h k c).2
+  refine ⟨RT2_univ, (RE2_univ_iff hW).2 ⟨⟨HasTy.cumul hl he.1, HasTy.cumul hl he.2.1, EqTm.cumul hl he.2.2⟩,
+    ?_, hrt, hK⟩⟩
   have hm' := ZFSet.mem_sep.1 hm
   exact ZFSet.mem_sep.2 ⟨Vt_subset_succ l (by unfold maxLevel at hl; omega) hm'.1, hm'.2.cumul⟩
 
@@ -106,14 +116,42 @@ theorem Valid2.tyRestr {A A' : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ A A' (.univ 
 
 /-! ### `Π` -/
 
+/-- Kan of a valid family at arguments related at its declared domain. -/
+theorem Valid2.codKan {A A' B B' : Tm} {lA lB : ℕ} (hA : Valid2 S Ψ Φ Γ A A' (.univ lA))
+    (hB : Valid2 S Ψ Φ (A :: Γ) B B' (.univ lB)) (c : CSub2 S Ψ Φ Γ k) (σ : ISub k' k)
+    {a a' : Tm} (ha : RE2 S k' ((c.L A).isub σ) a a') :
+    KanP2 S k' (semK S k' (((B.subst (Tm.up c.γ) c.σ.τ).isub σ).inst a)) := by
+  rw [← CSub2.restr_L hW c σ] at ha
+  let hc := (c.restr hW σ).ext hW A a a' ha (CSub2.tyRob_of hW (fun k c => hA.tySelf hW c) _)
+  rw [subst_up_isub_inst]
+  simpa only [hc, CSub2.L, CSub2.ext, CSub2.restr, ISub.comp] using hB.kanV hW k' hc
+
+/-- The Π code has Kan operations from the evidence in its type relation. -/
+theorem kanV_pi {A B : Tm} {l : ℕ} (hty : HasTy0 S Ψ Φ Γ (.pi A B) (.univ l)) : KanV S Ψ Φ Γ (.pi A B) := by
+  intro k c
+  have hf : HasTy S k .one [] (c.L (.pi A B)) (.univ l) := c.ty hW hty
+  change KanP2 S k (semK S k (.pi (c.L A) (B.subst (Tm.up c.γ) c.σ.τ)))
+  rw [semK_piT hW hf]
+  exact kanP2_piC hW (semK_ne hW (HasTy.piDom hf))
+
+/-- The Σ code has Kan operations from the evidence in its type relation. -/
+theorem kanV_sigma {A B : Tm} {l : ℕ} (hty : HasTy0 S Ψ Φ Γ (.sigma A B) (.univ l)) : KanV S Ψ Φ Γ (.sigma A B) := by
+  intro k c
+  have hf : HasTy S k .one [] (c.L (.sigma A B)) (.univ l) := c.ty hW hty
+  change KanP2 S k (semK S k (.sigma (c.L A) (B.subst (Tm.up c.γ) c.σ.τ)))
+  rw [semK_sigmaT hW hf]
+  exact kanP2_sigmaC hW (semK_ne hW (HasTy.sigmaDom hf))
+
 theorem valid_pi {A A' B B' : Tm} {l : ℕ} (hA : Valid2 S Ψ Φ Γ A A' (.univ l))
     (hB : Valid2 S Ψ Φ (A :: Γ) B B' (.univ l)) (hty : HasTy0 S Ψ Φ Γ (.pi A B) (.univ l))
     (hty' : HasTy0 S Ψ Φ Γ (.pi A' B') (.univ l)) (heq : EqTm0 S Ψ Φ Γ (.pi A B) (.pi A' B') (.univ l)) :
     Valid2 S Ψ Φ Γ (.pi A B) (.pi A' B') (.univ l) := by
   intro k c
-  refine ⟨RT2_univ hW, RE2_univ_of hW ⟨c.ty hW hty, c.tyR hW hty', c.eq hW heq⟩
+  refine ⟨RT2_univ, RE2_univ_of hW ⟨c.ty hW hty, c.tyR hW hty', c.eq hW heq⟩
     (RT2_pi_intro hW (c.ty hW hty) (c.tyR hW hty') (c.eq hW heq) (fun k' σ => hA.tyRestr hW c σ)
-      (fun k' σ a a' ha => ?_))⟩
+      (fun k' σ a a' ha => ?_) (fun k' σ => by
+        rw [← CSub2.restr_L hW c σ]; exact hA.kanV hW k' (c.restr hW σ))
+      (fun k' σ a a' ha => hA.codKan hW hB c σ ha)) (kanV_pi hW hty k c)⟩
   rw [← CSub2.restr_L hW c σ] at ha
   have hAA := hA.tySelf hW (c.restr hW σ)
   have := hB.ty hW ((c.restr hW σ).ext hW A a a' ha (CSub2.tyRob_of hW (fun k c => hA.tySelf hW c) _))
@@ -124,36 +162,6 @@ theorem valid_pi {A A' B B' : Tm} {l : ℕ} (hA : Valid2 S Ψ Φ Γ A A' (.univ 
 /-- The instances of a valid type, related at its own code (left and left). -/
 theorem Valid2.tyLL {t u A : Tm} (h : Valid2 S Ψ Φ Γ t u A) (c : CSub2 S Ψ Φ Γ k) : RT2 S k (c.L A) (c.L A) :=
   RT2.refl hW (h.tyCode hW c) (h k c).1
-
-omit hW in
-theorem isub_lam (A1 b : Tm) (σ : ISub k' k) : (Tm.lam A1 b).isub σ = .lam (A1.isub σ) (b.isub σ) := by
-  simp only [Tm.isub, Tm.subst, up_var]
-
-/-- β-reduction of a closed application, at every restriction. -/
-theorem stable_beta {X A1 b a : Tm} (hty : HasTy S k .one [] (.app (.lam A1 b) a) X) :
-    StableE S k X (.app (.lam A1 b) a) (b.inst a) := by
-  intro k' σ
-  have hσ := HasTy.isubS hW hty σ
-  rw [isub_app, isub_lam] at hσ ⊢
-  rw [isub_inst]
-  exact ⟨.step (by simp [step]) (.refl _), EqTm.piBeta hσ⟩
-
-
-/-- Expansion on both sides, at the level of `RE2`. -/
-theorem RE2.expand2 {A t t' u u' : Tm} (hAA : RT2 S k A A) (ht : HasTy S k .one [] t A)
-    (ht' : HasTy S k .one [] t' A) (hs : StableE S k A t u) (hs' : StableE S k A t' u') (h : RE2 S k A u u') :
-    RE2 S k A t t' :=
-  el_expandS2 hW (RE2.tyCode hW h) hAA ht ht' (RE2.typed h).1 hs hs' h
-
-/-- Reduction on the right, at the level of `RE2`. -/
-theorem RE2.reduceR {A t t' u' : Tm} (hAA : RT2 S k A A) (h : RE2 S k A t t') (hs : StableE S k A t' u')
-    (hu : HasTy S k .one [] u' A) : RE2 S k A t u' :=
-  el_reduceSR hW (RE2.tyCode hW h) hAA h hs hu
-
-/-- Reduction on the left, at the level of `RE2`. -/
-theorem RE2.reduceL {A t t' u : Tm} (hAA : RT2 S k A A) (h : RE2 S k A t t') (hs : StableE S k A t u)
-    (hu : HasTy S k .one [] u A) : RE2 S k A u t' :=
-  el_reduceSL hW (RE2.tyCode hW h) hAA h hs hu
 
 theorem valid_lam {A B t t' : Tm} {l : ℕ} (hpi : Valid2 S Ψ Φ Γ (.pi A B) (.pi A B) (.univ l))
     (ht : Valid2 S Ψ Φ (A :: Γ) t t' B) (hty : HasTy0 S Ψ Φ Γ (.lam A t) (.pi A B))
@@ -218,18 +226,6 @@ theorem valid_piBeta {A b a T : Tm} (h : Valid2 S Ψ Φ Γ (.app (.lam A b) a) (
   exact this
 
 
-omit hW in
-theorem eta_body (f a : Tm) (γ : ℕ → Tm) (τ : ℕ → I) (σ : ISub k' k) :
-    (((Tm.app f.shift (.var 0)).subst (Tm.up γ) τ).isub σ).inst a = .app ((f.subst γ τ).isub σ) a := by
-  rw [subst_up_isub_inst, subst_isub2]
-  simp only [Tm.subst, shift_consT]
-  rfl
-
-/-- Expansion on the right, at the level of `RE2`. -/
-theorem RE2.expandR {A t t' u' : Tm} (hAA : RT2 S k A A) (ht : HasTy S k .one [] t A)
-    (ht' : HasTy S k .one [] t' A) (hs : StableE S k A t' u') (h : RE2 S k A t u') : RE2 S k A t t' :=
-  el_expandSR hW (RE2.tyCode hW h) hAA ht ht' hs h
-
 theorem valid_piEta {A B f : Tm} (hf : Valid2 S Ψ Φ Γ f f (.pi A B)) (hty : HasTy0 S Ψ Φ Γ f (.pi A B))
     (hu : HasTy0 S Ψ Φ Γ (.lam A (.app f.shift (.var 0))) (.pi A B))
     (heq : EqTm0 S Ψ Φ Γ f (.lam A (.app f.shift (.var 0))) (.pi A B)) :
@@ -261,35 +257,41 @@ theorem valid_piEta {A B f : Tm} (hf : Valid2 S Ψ Φ Γ f f (.pi A B)) (hty : H
 
 /-- A type equation is valid once its instances are related types. -/
 theorem valid_univ_of {X X' : Tm} {l : ℕ} (hty : HasTy0 S Ψ Φ Γ X (.univ l)) (hty' : HasTy0 S Ψ Φ Γ X' (.univ l))
-    (heq : EqTm0 S Ψ Φ Γ X X' (.univ l)) (h : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L X) (c.R X')) :
-    Valid2 S Ψ Φ Γ X X' (.univ l) :=
-  fun k c => ⟨RT2_univ hW, RE2_univ_of hW ⟨c.ty hW hty, c.tyR hW hty', c.eq hW heq⟩ (h k c)⟩
+    (heq : EqTm0 S Ψ Φ Γ X X' (.univ l)) (h : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L X) (c.R X'))
+    (hK : KanV S Ψ Φ Γ X) : Valid2 S Ψ Φ Γ X X' (.univ l) :=
+  fun k c => ⟨RT2_univ, RE2_univ_of hW ⟨c.ty hW hty, c.tyR hW hty', c.eq hW heq⟩ (h k c) (hK k c)⟩
 
 theorem valid_piInjDom {A A' B B' : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.pi A B) (.pi A' B') (.univ l))
     (hty : HasTy0 S Ψ Φ Γ A (.univ l)) (hty' : HasTy0 S Ψ Φ Γ A' (.univ l))
     (heq : EqTm0 S Ψ Φ Γ A A' (.univ l)) : Valid2 S Ψ Φ Γ A A' (.univ l) :=
-  valid_univ_of hW hty hty' heq fun k c => (RT2_pi_inv hW (h.ty hW c)).1
+  valid_univ_of hW hty hty' heq (fun k c => (RT2_pi_inv hW (h.ty hW c)).1)
+    (fun k c => (RT2_pi_kan hW (h.ty hW c)).1)
 
 theorem valid_piInjCod {A A' B B' a : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.pi A B) (.pi A' B') (.univ l))
     (ha : Valid2 S Ψ Φ Γ a a A) (hty : HasTy0 S Ψ Φ Γ (B.inst a) (.univ l))
     (hty' : HasTy0 S Ψ Φ Γ (B'.inst a) (.univ l)) (heq : EqTm0 S Ψ Φ Γ (B.inst a) (B'.inst a) (.univ l)) :
     Valid2 S Ψ Φ Γ (B.inst a) (B'.inst a) (.univ l) := by
-  refine valid_univ_of hW hty hty' heq fun k c => ?_
-  simp only [CSub2.L, CSub2.R, inst_subst]
-  exact (RT2_pi_inv hW (h.ty hW c)).2 _ _ (ha k c).2
+  refine valid_univ_of hW hty hty' heq (fun k c => ?_) (fun k c => ?_)
+  · simp only [CSub2.L, CSub2.R, inst_subst]
+    exact (RT2_pi_inv hW (h.ty hW c)).2 _ _ (ha k c).2
+  · simp only [CSub2.L, inst_subst]
+    exact (RT2_pi_kan hW (h.ty hW c)).2 _ _ (ha k c).2
 
 theorem valid_sigmaInjDom {A A' B B' : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.sigma A B) (.sigma A' B') (.univ l))
     (hty : HasTy0 S Ψ Φ Γ A (.univ l)) (hty' : HasTy0 S Ψ Φ Γ A' (.univ l))
     (heq : EqTm0 S Ψ Φ Γ A A' (.univ l)) : Valid2 S Ψ Φ Γ A A' (.univ l) :=
-  valid_univ_of hW hty hty' heq fun k c => (RT2_sigma_inv hW (h.ty hW c)).1
+  valid_univ_of hW hty hty' heq (fun k c => (RT2_sigma_inv hW (h.ty hW c)).1)
+    (fun k c => (RT2_sigma_kan hW (h.ty hW c)).1)
 
 theorem valid_sigmaInjCod {A A' B B' a : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.sigma A B) (.sigma A' B') (.univ l))
     (ha : Valid2 S Ψ Φ Γ a a A) (hty : HasTy0 S Ψ Φ Γ (B.inst a) (.univ l))
     (hty' : HasTy0 S Ψ Φ Γ (B'.inst a) (.univ l)) (heq : EqTm0 S Ψ Φ Γ (B.inst a) (B'.inst a) (.univ l)) :
     Valid2 S Ψ Φ Γ (B.inst a) (B'.inst a) (.univ l) := by
-  refine valid_univ_of hW hty hty' heq fun k c => ?_
-  simp only [CSub2.L, CSub2.R, inst_subst]
-  exact (RT2_sigma_inv hW (h.ty hW c)).2 _ _ (ha k c).2
+  refine valid_univ_of hW hty hty' heq (fun k c => ?_) (fun k c => ?_)
+  · simp only [CSub2.L, CSub2.R, inst_subst]
+    exact (RT2_sigma_inv hW (h.ty hW c)).2 _ _ (ha k c).2
+  · simp only [CSub2.L, inst_subst]
+    exact (RT2_sigma_kan hW (h.ty hW c)).2 _ _ (ha k c).2
 
 
 /-! ### `Σ` -/
@@ -298,24 +300,14 @@ theorem valid_sigma {A A' B B' : Tm} {l : ℕ} (hA : Valid2 S Ψ Φ Γ A A' (.un
     (hB : Valid2 S Ψ Φ (A :: Γ) B B' (.univ l)) (hty : HasTy0 S Ψ Φ Γ (.sigma A B) (.univ l))
     (hty' : HasTy0 S Ψ Φ Γ (.sigma A' B') (.univ l)) (heq : EqTm0 S Ψ Φ Γ (.sigma A B) (.sigma A' B') (.univ l)) :
     Valid2 S Ψ Φ Γ (.sigma A B) (.sigma A' B') (.univ l) := by
-  refine valid_univ_of hW hty hty' heq fun k c => RT2_sigma_intro hW (c.ty hW hty) (c.tyR hW hty') (c.eq hW heq)
+  refine valid_univ_of hW hty hty' heq (fun k c => RT2_sigma_intro hW (c.ty hW hty) (c.tyR hW hty') (c.eq hW heq)
     (fun k' σ => hA.tyRestr hW c σ) (fun k' σ a a' ha => ?_)
+    (fun k' σ => by rw [← CSub2.restr_L hW c σ]; exact hA.kanV hW k' (c.restr hW σ))
+    (fun k' σ a a' ha => hA.codKan hW hB c σ ha)) (kanV_sigma hW hty)
   rw [← CSub2.restr_L hW c σ] at ha
   have := hB.ty hW ((c.restr hW σ).ext hW A a a' ha (CSub2.tyRob_of hW (fun k c => hA.tySelf hW c) _))
   rw [subst_up_isub_inst, subst_up_isub_inst]
   exact this
-
-theorem stable_fstBeta {X a b : Tm} (hty : HasTy S k .one [] (.fst (.pair a b)) X) :
-    StableE S k X (.fst (.pair a b)) a := fun k' σ => by
-  have hσ : HasTy S k' .one [] (.fst (.pair (a.isub σ) (b.isub σ))) (X.isub σ) := HasTy.isubS hW hty σ
-  show Red S (.fst (.pair (a.isub σ) (b.isub σ))) _ ∧ _
-  exact ⟨.step (by simp [step]) (.refl _), EqTm.fstBeta hσ⟩
-
-theorem stable_sndBeta {X a b : Tm} (hty : HasTy S k .one [] (.snd (.pair a b)) X) :
-    StableE S k X (.snd (.pair a b)) b := fun k' σ => by
-  have hσ : HasTy S k' .one [] (.snd (.pair (a.isub σ) (b.isub σ))) (X.isub σ) := HasTy.isubS hW hty σ
-  show Red S (.snd (.pair (a.isub σ) (b.isub σ))) _ ∧ _
-  exact ⟨.step (by simp [step]) (.refl _), EqTm.sndBeta hσ⟩
 
 theorem valid_fst {A B p p' : Tm} (hp : Valid2 S Ψ Φ Γ p p' (.sigma A B)) :
     Valid2 S Ψ Φ Γ (.fst p) (.fst p') A := fun k c =>
@@ -400,30 +392,36 @@ theorem valid_sigmaEta {A B p : Tm} (hp : Valid2 S Ψ Φ Γ p p (.sigma A B)) (h
 
 /-! ### Path types -/
 
-omit hW in
-theorem isub_plam (t : Tm) (σ : ISub k' k) : (Tm.plam t).isub σ = .plam (t.isub σ.up) := rfl
+theorem kanV_path {L a b : Tm} {l : ℕ} (hty : HasTy0 S Ψ Φ Γ (.path L a b) (.univ l)) :
+    KanV S Ψ Φ Γ (.path L a b) := by
+  intro k c
+  have hf : HasTy S k .one [] (c.L (.path L a b)) (.univ l) := c.ty hW hty
+  change KanP2 S k (semK S k (.path (L.subst (dupS c.γ) (I.up c.σ.τ)) (c.L a) (c.L b)))
+  rw [semK_pathT hW hf]
+  exact kanP2_pathC hW (semK_ne hW (HasTy.pathLine hf))
 
-theorem stable_pathBeta {X t : Tm} {r : I} (hty : HasTy S k .one [] (.papp (.plam t) r) X) :
-    StableE S k X (.papp (.plam t) r) (t.dinst r) := by
-  intro k' σ
-  have hσ := HasTy.isubS hW hty σ
-  rw [isub_papp, isub_plam] at hσ ⊢
-  rw [isub_dinst]
-  exact ⟨.step (by simp [step]) (.refl _), EqTm.pathBeta hσ⟩
+theorem kanV_ipi {L : Tm} {l : ℕ} (hty : HasTy0 S Ψ Φ Γ (.ipi L) (.univ l)) : KanV S Ψ Φ Γ (.ipi L) := by
+  intro k c
+  have hf : HasTy S k .one [] (c.L (.ipi L)) (.univ l) := c.ty hW hty
+  change KanP2 S k (semK S k (.ipi (L.subst (dupS c.γ) (I.up c.σ.τ))))
+  rw [semK_ipiT hW hf]
+  exact kanP2_ipiC hW (semK_ne hW (ipi_line hW hf))
 
 theorem valid_path {L L' a a' b b' : Tm} {l : ℕ} (hL : Valid2 S (Ψ + 1) Φ.shift Γ.dshift L L' (.univ l))
     (ha : Valid2 S Ψ Φ Γ a a' (L.dinst .zero)) (hb : Valid2 S Ψ Φ Γ b b' (L.dinst .one))
     (hty : HasTy0 S Ψ Φ Γ (.path L a b) (.univ l)) (hty' : HasTy0 S Ψ Φ Γ (.path L' a' b') (.univ l))
     (heq : EqTm0 S Ψ Φ Γ (.path L a b) (.path L' a' b') (.univ l)) :
     Valid2 S Ψ Φ Γ (.path L a b) (.path L' a' b') (.univ l) := by
-  refine valid_univ_of hW hty hty' heq fun k c => RT2_path_intro hW (c.ty hW hty) (c.tyR hW hty') (c.eq hW heq)
-    (fun k' σ => ?_) (fun k' σ r r' hr hr' hE => ?_) ?_ ?_
+  refine valid_univ_of hW hty hty' heq (fun k c => RT2_path_intro hW (c.ty hW hty) (c.tyR hW hty') (c.eq hW heq)
+    (fun k' σ => ?_) (fun k' σ r r' hr hr' hE => ?_) ?_ ?_ (fun k' σ => ?_)) (kanV_path hW hty)
   · have := hL.ty hW ((c.restr hW σ).up hW)
     rw [CSub2.up_restr_L, CSub2.up_restr_R] at this; exact this
   · have := hL.ty hW ((c.restr hW σ).cons r r' hr hr' hE)
     rw [CSub2.cons_restr_L, CSub2.cons_restr_R] at this; exact this
   · have := (ha k c).2; simp only [CSub2.L, CSub2.R, dinst_subst] at this; exact this
   · have := (hb k c).2; simp only [CSub2.L, CSub2.R, dinst_subst] at this; exact this
+  · have hk := hL.kanV hW (k' + 1) ((c.restr hW σ).up hW)
+    rw [CSub2.up_restr_L] at hk; exact hk
 
 /-- Validity of a path abstraction, given its endpoints. -/
 theorem valid_plam_core {L a b t t' : Tm} {l : ℕ} (hpath : Valid2 S Ψ Φ Γ (.path L a b) (.path L a b) (.univ l))
@@ -459,11 +457,6 @@ theorem valid_plam_core {L a b t t' : Tm} {l : ℕ} (hpath : Valid2 S Ψ Φ Γ (
   rw [isub_plam, isub_plam]
   exact RE2.expand2 hW hXX happL happR (stable_pathBeta hW happL) (stable_pathBeta hW happR) ih
 
-
-/-- Expansion on the left, at the level of `RE2`. -/
-theorem RE2.expandL {A t t' u : Tm} (hAA : RT2 S k A A) (ht : HasTy S k .one [] t A)
-    (ht' : HasTy S k .one [] t' A) (hs : StableE S k A t u) (h : RE2 S k A u t') : RE2 S k A t t' :=
-  el_expandS hW (RE2.tyCode hW h) hAA ht ht' hs h
 
 theorem valid_plam {L a b t : Tm} {l : ℕ} (hpath : Valid2 S Ψ Φ Γ (.path L a b) (.path L a b) (.univ l))
     (ht : Valid2 S (Ψ + 1) Φ.shift Γ.dshift t t L) (h0 : Valid2 S Ψ Φ Γ (t.dinst .zero) a (L.dinst .zero))
@@ -534,20 +527,6 @@ theorem valid_pathOne {L a b p : Tm} (hp : Valid2 S Ψ Φ Γ p p (.path L a b)) 
   exact ⟨hT, RE2.trans hW hT hel.2.2 hI.2.2.2⟩
 
 
-omit hW in
-theorem peta_body (p : Tm) (γ : ℕ → Tm) (τ : ℕ → I) (σ : ISub k' k) (r : I) :
-    (((Tm.papp p.dshift (.var 0)).subst (dupS γ) (I.up τ)).isub σ.up).dinst r =
-      .papp ((p.subst γ τ).isub σ) r := by
-  have e : ((Tm.papp p.dshift (.var 0)).subst (dupS γ) (I.up τ)).isub σ.up =
-      (Tm.papp p.dshift (.var 0)).subst (dupS fun x => (γ x).isub σ) (I.up fun i => (τ i).subst σ.τ) := by
-    simp only [Tm.isub, subst_subst, ISub.up]
-    apply subst_congr
-    · intro x; exact isub_dshift (γ x) σ
-    · intro i; exact I_up_comp _ _ i
-  rw [e, dup_dinst, subst_isub2]
-  simp only [Tm.subst, dshift_consI]
-  rfl
-
 theorem valid_pathEta {L a b p : Tm} (hp : Valid2 S Ψ Φ Γ p p (.path L a b)) (hty : HasTy0 S Ψ Φ Γ p (.path L a b))
     (hu : HasTy0 S Ψ Φ Γ (.plam (.papp p.dshift (.var 0))) (.path L a b))
     (heq : EqTm0 S Ψ Φ Γ p (.plam (.papp p.dshift (.var 0))) (.path L a b)) :
@@ -583,10 +562,13 @@ theorem valid_pathInjLine {L L' a a' b b' : Tm} {r : I} {l : ℕ}
     (h : Valid2 S Ψ Φ Γ (.path L a b) (.path L' a' b') (.univ l)) (hr : r.Scoped Ψ)
     (hty : HasTy0 S Ψ Φ Γ (L.dinst r) (.univ l)) (hty' : HasTy0 S Ψ Φ Γ (L'.dinst r) (.univ l))
     (heq : EqTm0 S Ψ Φ Γ (L.dinst r) (L'.dinst r) (.univ l)) : Valid2 S Ψ Φ Γ (L.dinst r) (L'.dinst r) (.univ l) := by
-  refine valid_univ_of hW hty hty' heq fun k c => ?_
-  simp only [CSub2.L, CSub2.R, dinst_subst]
-  exact (RT2_path_inv hW (h.ty hW c)).2.1 _ _ (I.scoped_subst hr c.σ.sc) (I.scoped_subst hr c.σ'.sc)
-    (c.ieq_subst (I_eq_refl r))
+  refine valid_univ_of hW hty hty' heq (fun k c => ?_) (fun k c => ?_)
+  · simp only [CSub2.L, CSub2.R, dinst_subst]
+    exact (RT2_path_inv hW (h.ty hW c)).2.1 _ _ (I.scoped_subst hr c.σ.sc) (I.scoped_subst hr c.σ'.sc)
+      (c.ieq_subst (I_eq_refl r))
+  · simp only [CSub2.L, dinst_subst]
+    exact RT2_path_dinst_kan hW (h.ty hW c) (r.subst c.σ.τ) (I.scoped_subst hr c.σ.sc)
+
 
 theorem valid_pathInjLeft {L L' a a' b b' : Tm} {l : ℕ}
     (h : Valid2 S Ψ Φ Γ (.path L a b) (.path L' a' b') (.univ l)) : Valid2 S Ψ Φ Γ a a' (L.dinst .zero) := by
@@ -616,12 +598,15 @@ theorem valid_pathInjRight {L L' a a' b b' : Tm} {l : ℕ}
 theorem valid_ipi {L L' : Tm} {l : ℕ} (hL : Valid2 S (Ψ + 1) Φ.shift Γ.dshift L L' (.univ l))
     (hty : HasTy0 S Ψ Φ Γ (.ipi L) (.univ l)) (hty' : HasTy0 S Ψ Φ Γ (.ipi L') (.univ l))
     (heq : EqTm0 S Ψ Φ Γ (.ipi L) (.ipi L') (.univ l)) : Valid2 S Ψ Φ Γ (.ipi L) (.ipi L') (.univ l) := by
-  refine valid_univ_of hW hty hty' heq fun k c => RT2_ipi_intro hW (c.ty hW hty) (c.tyR hW hty') (c.eq hW heq)
-    (fun k' σ => ?_) (fun k' σ r r' hr hr' hE => ?_)
+  refine valid_univ_of hW hty hty' heq (fun k c => RT2_ipi_intro hW (c.ty hW hty) (c.tyR hW hty') (c.eq hW heq)
+    (fun k' σ => ?_) (fun k' σ r r' hr hr' hE => ?_) (fun k' σ => ?_)) (kanV_ipi hW hty)
   · have := hL.ty hW ((c.restr hW σ).up hW)
     rw [CSub2.up_restr_L, CSub2.up_restr_R] at this; exact this
   · have := hL.ty hW ((c.restr hW σ).cons r r' hr hr' hE)
     rw [CSub2.cons_restr_L, CSub2.cons_restr_R] at this; exact this
+  · have hk := hL.kanV hW (k' + 1) ((c.restr hW σ).up hW)
+    rw [CSub2.up_restr_L] at hk; exact hk
+
 
 theorem valid_ilam {L t t' : Tm} {l : ℕ} (hipi : Valid2 S Ψ Φ Γ (.ipi L) (.ipi L) (.univ l))
     (ht : Valid2 S (Ψ + 1) Φ.shift Γ.dshift t t' L) (hty : HasTy0 S Ψ Φ Γ (.plam t) (.ipi L))
@@ -693,105 +678,27 @@ theorem valid_ipiEta {L p : Tm} (hp : Valid2 S Ψ Φ Γ p p (.ipi L)) (hty : Has
 theorem valid_ipiInj {L L' : Tm} {r : I} {l : ℕ} (h : Valid2 S Ψ Φ Γ (.ipi L) (.ipi L') (.univ l))
     (hr : r.Scoped Ψ) (hty : HasTy0 S Ψ Φ Γ (L.dinst r) (.univ l)) (hty' : HasTy0 S Ψ Φ Γ (L'.dinst r) (.univ l))
     (heq : EqTm0 S Ψ Φ Γ (L.dinst r) (L'.dinst r) (.univ l)) : Valid2 S Ψ Φ Γ (L.dinst r) (L'.dinst r) (.univ l) := by
-  refine valid_univ_of hW hty hty' heq fun k c => ?_
-  simp only [CSub2.L, CSub2.R, dinst_subst]
-  exact (RT2_ipi_inv hW (h.ty hW c)).2 _ _ (I.scoped_subst hr c.σ.sc) (I.scoped_subst hr c.σ'.sc)
-    (c.ieq_subst (I_eq_refl r))
+  refine valid_univ_of hW hty hty' heq (fun k c => ?_) (fun k c => ?_)
+  · simp only [CSub2.L, CSub2.R, dinst_subst]
+    exact (RT2_ipi_inv hW (h.ty hW c)).2 _ _ (I.scoped_subst hr c.σ.sc) (I.scoped_subst hr c.σ'.sc)
+      (c.ieq_subst (I_eq_refl r))
 
+
+  · simp only [CSub2.L, dinst_subst]
+    exact RT2_ipi_dinst_kan hW (h.ty hW c) (r.subst c.σ.τ) (I.scoped_subst hr c.σ.sc)
 
 /-! ### Systems -/
 
-/-- Head expansion with a reduct chosen at each restriction. -/
-theorem RE2.expandH {A t t' : Tm} (hAA : RT2 S k A A) (ht : HasTy S k .one [] t A) (ht' : HasTy S k .one [] t' A)
-    (h : ∀ k' (σ : ISub k' k), ∃ u, Red S (t.isub σ) u ∧ EqTm S k' .one [] (t.isub σ) u (A.isub σ) ∧
-      RE2 S k' (A.isub σ) u (t'.isub σ)) : RE2 S k A t t' := by
-  have hb := Comp2_ty_base hAA
-  refine (he2_tyCode hW (tyCode_of_ty hW ht) k (Hom.id k) A A t t').2 hAA ht ht' fun k' σ => ?_
-  obtain ⟨u, h1, h2, h3⟩ := h k' σ
-  refine ⟨u, h1, h2, ?_⟩
-  rw [Hom.id_comp, Comp2_eq_res hb.1, ← semK_isubTy hW hb.2.1 σ]
-  exact h3
-
-omit hW in
-/-- The disjunction property of faces at the generic point of a stage. -/
-theorem ent_or_cases {φ ψ : I} (hφ : φ.Scoped k) (hψ : ψ.Scoped k) (h : I.Entails .one (.or φ ψ)) :
-    I.Entails .one φ ∨ I.Entails .one ψ := by
-  have hh := entails_holds h (ρ := idEnv k) (by rw [ival_one]; rfl)
-  rcases holds_or hh with h1 | h1
-  · exact .inl (entails_of_holds hφ h1)
-  · exact .inr (entails_of_holds hψ h1)
-
-omit hW in
-theorem ent_one_subst {φ : I} (h : I.Entails .one φ) (τ : ℕ → I) : I.Entails .one (φ.subst τ) :=
-  ent_subst h τ
-
-theorem stable_splitL {X t u : Tm} {φ ψ : I} (hφ : I.Entails .one φ)
-    (hsp : HasTy S k .one [] (.split φ t ψ u) X) : StableE S k X (.split φ t ψ u) t := by
-  intro k' σ
-  have hσ : HasTy S k' .one [] (.split (φ.subst σ.τ) (t.isub σ) (ψ.subst σ.τ) (u.isub σ)) (X.isub σ) :=
-    HasTy.isubS hW hsp σ
-  have hφσ := ent_one_subst hφ σ.τ
-  refine ⟨.step ?_ (.refl _), EqTm.splitL hφσ hσ⟩
-  show step S (.split (φ.subst σ.τ) (t.isub σ) (ψ.subst σ.τ) (u.isub σ)) = some (t.isub σ)
-  simp only [step, show I.entails .one (φ.subst σ.τ) = true from hφσ, if_true]
-
-/-- A system is related to `x` if each branch is, wherever its face holds. -/
-theorem RE2_split_l {A x t u : Tm} {φ ψ : I} (hφ : φ.Scoped k) (hψ : ψ.Scoped k)
-    (hor : I.Entails .one (.or φ ψ)) (hAA : RT2 S k A A) (hsp : HasTy S k .one [] (.split φ t ψ u) A)
-    (hx : HasTy S k .one [] x A)
-    (ht : ∀ k' (σ : ISub k' k), I.Entails .one (φ.subst σ.τ) → RE2 S k' (A.isub σ) (t.isub σ) (x.isub σ))
-    (hu : ∀ k' (σ : ISub k' k), I.Entails .one (ψ.subst σ.τ) → RE2 S k' (A.isub σ) (u.isub σ) (x.isub σ)) :
-    RE2 S k A (.split φ t ψ u) x := by
-  refine RE2.expandH hW hAA hsp hx fun k' σ => ?_
-  have hσ : HasTy S k' .one [] (.split (φ.subst σ.τ) (t.isub σ) (ψ.subst σ.τ) (u.isub σ)) (A.isub σ) :=
-    HasTy.isubS hW hsp σ
-  show ∃ u', Red S (.split (φ.subst σ.τ) (t.isub σ) (ψ.subst σ.τ) (u.isub σ)) u' ∧ _
-  by_cases hφσ : I.Entails .one (φ.subst σ.τ)
-  · refine ⟨t.isub σ, .step ?_ (.refl _), EqTm.splitL hφσ hσ, ht k' σ hφσ⟩
-    simp only [step, show I.entails .one (φ.subst σ.τ) = true from hφσ, if_true]
-  · have hψσ : I.Entails .one (ψ.subst σ.τ) := by
-      rcases ent_or_cases (I.scoped_subst hφ σ.sc) (I.scoped_subst hψ σ.sc) (ent_one_subst hor σ.τ) with h | h
-      · exact absurd h hφσ
-      · exact h
-    refine ⟨u.isub σ, .step ?_ (.refl _), EqTm.splitR hψσ hσ, hu k' σ hψσ⟩
-    have hf : I.entails .one (φ.subst σ.τ) = false := by
-      cases e : I.entails .one (φ.subst σ.τ)
-      · rfl
-      · exact absurd e hφσ
-    simp only [step, hf, show I.entails .one (ψ.subst σ.τ) = true from hψσ, if_true, Bool.false_eq_true, if_false]
-
-theorem RE2_split_r {A x t u : Tm} {φ ψ : I} (hφ : φ.Scoped k) (hψ : ψ.Scoped k)
-    (hor : I.Entails .one (.or φ ψ)) (hAA : RT2 S k A A) (hsp : HasTy S k .one [] (.split φ t ψ u) A)
-    (hx : HasTy S k .one [] x A)
-    (ht : ∀ k' (σ : ISub k' k), I.Entails .one (φ.subst σ.τ) → RE2 S k' (A.isub σ) (x.isub σ) (t.isub σ))
-    (hu : ∀ k' (σ : ISub k' k), I.Entails .one (ψ.subst σ.τ) → RE2 S k' (A.isub σ) (x.isub σ) (u.isub σ)) :
-    RE2 S k A x (.split φ t ψ u) := by
-  have hX := tyCode_of_ty hW hx
-  refine RE2.symm hW hAA (RE2_split_l hW hφ hψ hor hAA hsp hx (fun k' σ h => ?_) (fun k' σ h => ?_))
-  · exact RE2.symm hW (RT2.isub hW hX hAA σ) (ht k' σ h)
-  · exact RE2.symm hW (RT2.isub hW hX hAA σ) (hu k' σ h)
-
-
 omit hW in
 theorem CSub2.restr_face (c : CSub2 S Ψ Φ Γ k) {φ : I} {ρ : ISub k' k}
-    (h : I.Entails .one ((φ.subst c.σ.τ).subst ρ.τ)) : I.Entails .one (φ.subst (c.σ.comp ρ).τ) := by
-  rw [I_subst_subst] at h; exact h
+      (h : I.Entails .one ((φ.subst c.σ.τ).subst ρ.τ)) : I.Entails .one (φ.subst (c.σ.comp ρ).τ) := by
+    rw [I_subst_subst] at h; exact h
 
 omit hW in
 theorem CSub2.face_RL (c : CSub2 S Ψ Φ Γ k) {φ : I} {ρ : ISub k' k}
-    (h : I.Entails .one ((φ.subst c.σ'.τ).subst ρ.τ)) : I.Entails .one ((φ.subst c.σ.τ).subst ρ.τ) :=
-  ent_trans h (eq_ent (I_eq_subst (I_eq_symm (c.ieq_subst (I_eq_refl φ))) ρ.τ))
+      (h : I.Entails .one ((φ.subst c.σ'.τ).subst ρ.τ)) : I.Entails .one ((φ.subst c.σ.τ).subst ρ.τ) :=
+    ent_trans h (eq_ent (I_eq_subst (I_eq_symm (c.ieq_subst (I_eq_refl φ))) ρ.τ))
 
-omit hW in
-theorem ent_comp {k'' : ℕ} {φ : I} {ρ : ISub k' k} {ρ' : ISub k'' k'} (h : I.Entails .one (φ.subst ρ.τ)) :
-    I.Entails .one (φ.subst (ρ.comp ρ').τ) := by
-  have := ent_one_subst h ρ'.τ
-  rw [I_subst_subst] at this; exact this
-
-omit hW in
-theorem ent_comp_inv {k'' : ℕ} {φ : I} {ρ : ISub k' k} {ρ' : ISub k'' k'} (h : I.Entails .one ((φ.subst ρ.τ).subst ρ'.τ)) :
-    I.Entails .one (φ.subst (ρ.comp ρ').τ) := by
-  rw [I_subst_subst] at h; exact h
 
 theorem valid_split {A t t' u u' : Tm} {φ ψ : I} (hφ : φ.Scoped Ψ) (hψ : ψ.Scoped Ψ)
     (hor : I.Entails Φ (.or φ ψ)) (htt : Valid2 S Ψ (cof Φ φ) Γ t t' A) (huu : Valid2 S Ψ (cof Φ ψ) Γ u u' A)
@@ -961,22 +868,6 @@ theorem valid_face {t A : Tm} {i : ℕ} {d : Bool} (hi : i < Ψ) (hent : I.Entai
 
 /-! ### No confusion and definitions -/
 
-omit hW in
-theorem tyHead_subst {X : Tm} {h : ℕ × ℕ} (hX : X.tyHead = some h) (γ : ℕ → Tm) (τ : ℕ → I) :
-    (X.subst γ τ).tyHead = some h := by
-  cases X <;> simp_all [Tm.tyHead, Tm.subst]
-
-/-- Judgmentally equal closed types have the same head. -/
-theorem tyHead_eq_of_eq {X Y : Tm} {l : ℕ} {hx hy : ℕ × ℕ} (hX : X.tyHead = some hx) (hY : Y.tyHead = some hy)
-    (he : EqTm S k .one [] X Y (.univ l)) : hx = hy := by
-  have hok := sigOK_of_wfSig _ S rfl hW
-  have hs := sound_eq hok he
-  have hp := isPoint_idEnv S k
-  have e := codeHead_sem hs.1 hX hp
-  rw [hs.2.2 k (idEnv k) (γ0 k) hp, codeHead_sem hs.2.1 hY hp] at e
-  have fx := tyHead_facts hX; have fy := tyHead_facts hY
-  exact (headEnc_inj fy.1 fx.1 fy.2 fx.2 e).symm
-
 theorem valid_noConf {X Y t u T : Tm} {l : ℕ} (h0 : X.headClash Y = true)
     (hXY : Valid2 S Ψ Φ Γ X Y (.univ l)) : Valid2 S Ψ Φ Γ t u T := by
   intro k c
@@ -992,22 +883,6 @@ theorem valid_noConf {X Y t u T : Tm} {l : ℕ} (h0 : X.headClash Y = true)
       rw [hX, hY] at h0
       have := tyHead_eq_of_eq hW (tyHead_subst hX _ _) (tyHead_subst hY _ _) he
       subst this; simp at h0
-
-omit hW in
-theorem closed0_subst {t : Tm} (h : t.closedB 0 0 = true) (γ : ℕ → Tm) (τ : ℕ → I) : t.subst γ τ = t :=
-  closed_subst_id h (fun x hx => absurd hx (Nat.not_lt_zero _)) (fun i hi => absurd hi (Nat.not_lt_zero _))
-
-theorem stable_delta {i : ℕ} {t A : Tm} (hd : S[i]? = some (.defn t A)) (hty : HasTy S k .one [] (.const i) A) :
-    StableE S k A (.const i) t := by
-  obtain ⟨htc, hAc, -, -⟩ := hW.1 i t A hd
-  intro k' σ
-  have hσ := HasTy.isubS hW hty σ
-  have ht : t.isub σ = t := closed0_subst htc _ _
-  have hA : A.isub σ = A := closed0_subst hAc _ _
-  rw [hA] at hσ
-  show Red S (.const i) (t.isub σ) ∧ EqTm S k' .one [] (.const i) (t.isub σ) (A.isub σ)
-  rw [ht, hA]
-  exact ⟨.step (by simp [step, hd]) (.refl _), EqTm.delta hσ hd⟩
 
 /-- A definition's body, related to itself, makes the constant valid. -/
 theorem valid_const {i : ℕ} {t A : Tm} (hd : S[i]? = some (.defn t A))

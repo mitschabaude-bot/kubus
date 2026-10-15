@@ -1,5 +1,4 @@
-import Model.Whnf.Kan2DataLine
-import Model.Whnf.Kan2DataFillC
+import Model.Whnf.HCCGen4
 
 /-!
 # Composition of related constructors in an inductive type without path constructors
@@ -53,14 +52,6 @@ theorem con_retype0 {Ψ : ℕ} {Φ : I} {t qs p : Tm} {c : ℕ} {C : Ctor} {Z : 
 
 end
 
-theorem getD_take_lt {L : List Tm} {i j : ℕ} (h : i < j) : (L.take j).getD i .abort = L.getD i .abort := by
-  simp [List.getD_eq_getElem?_getD, List.getElem?_take, h]
-
-theorem getD_map_isub (L : List Tm) (i : ℕ) (κ : ISub k' k) :
-    (L.map (·.isub κ)).getD i .abort = (L.getD i .abort).isub κ := by
-  rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD, List.getElem?_map]
-  rcases L[i]? with _ | a <;> rfl
-
 /-! ### The data of a composition of related constructors -/
 
 /-- The projections of a composition's tube, at the parameters `q`. -/
@@ -69,16 +60,7 @@ def tubeArgs (d : ℕ) (D : DataDecl) (c : ℕ) (C : Ctor) (q u : Tm) : List Tm 
 
 /-- The arguments of the `hcompCon` contractum. -/
 def conOuts (d : ℕ) (D : DataDecl) (c : ℕ) (C : Ctor) (q : Tm) (φ : I) (u : Tm) (X : List Tm) : List Tm :=
-  (List.range C.args.length).map
-    (Meta.hOut C (C.argTy d D.params.length) (.data d q) q.dshift.toList φ (tubeArgs d D c C q u) X)
-
-/-- The fillers of the arguments of the `hcompCon` contractum. -/
-def conFills (d : ℕ) (D : DataDecl) (c : ℕ) (C : Ctor) (q : Tm) (φ : I) (u : Tm) (X : List Tm) : List Tm :=
-  Meta.hFills C (C.argTy d D.params.length) (.data d q) q.dshift.toList φ (tubeArgs d D c C q u) X C.args.length
-
-/-- The type lines of the arguments of the `hcompCon` contractum. -/
-def conLine (d : ℕ) (D : DataDecl) (c : ℕ) (C : Ctor) (q : Tm) (φ : I) (u : Tm) (X : List Tm) : ℕ → Tm :=
-  Meta.hLine C (C.argTy d D.params.length) (.data d q) q.dshift.toList φ (tubeArgs d D c C q u) X
+  gOuts d D C q φ (tubeArgs d D c C q u) X
 
 /-- The hypotheses of `hcompCon2`: compositions of related constructors along related tubes, in
 restrictions of literal inductive types with parameters `Q`, `Q'` related to `P`. -/
@@ -91,7 +73,6 @@ structure HCC (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P Q Q' : Tm) (k1 : �
   hPP : RT2 S K (.data d P) (.data d P)
   hQ : RT2 S K (.data d P) (.data d Q)
   hQ' : RT2 S K (.data d P) (.data d Q')
-  hArgK : KanShape S K (ΘK S D d K P)
   hC : D.ctors[c]? = some C
   hXl : X.length = C.args.length
   hXl' : X'.length = C.args.length
@@ -149,7 +130,7 @@ structure Basic (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P Q Q' : Tm) (k1 :
   htubeR : Tube2 S k1 (.data d (P.isub ρ)) φ' u' u'
 
 theorem basic : Basic S d D K P Q Q' k1 ρ c C X X' φ φ' u u' := by
-  obtain ⟨hW, hD, hH, hP, hPP, hQ, hQ', -, hC, hXl, hXl', -, -, -, hn, hty, hty', -, -, -, h21, htube, -, -⟩ := H
+  obtain ⟨hW, hD, hH, hP, hPP, hQ, hQ', hC, hXl, hXl', -, -, -, hn, hty, hty', -, -, -, h21, htube, -, -⟩ := H
   have hS := sigClosed_of_wfSig hW
   obtain ⟨l0, ⟨hdq, hφs, hut, hb, hside⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty) rfl
   obtain ⟨l0', ⟨hdq', hφs', hut', hb', hside'⟩, -⟩ := gen_hcomp (spec_to_minimal hW hty') rfl
@@ -205,7 +186,7 @@ theorem contracta :
       Red S (.hcomp (.data d (Q'.isub ρ)) φ' u' (.con d c qs' (Tm.ofList X') []))
         (.con d c (Q'.isub ρ) (Tm.ofList (conOuts d D c C (Q'.isub ρ) φ' u' X')) [])) := by
   have B := H.basic
-  obtain ⟨hW, hD, hH, -, -, -, -, -, hC, hXl, hXl', -, -, -, hn, hty, hty', -, -, -, -, -, -, -⟩ := H
+  obtain ⟨hW, hD, hH, -, -, -, -, hC, hXl, hXl', -, -, -, hn, hty, hty', -, -, -, -, -, -, -⟩ := H
   have e_hc := hcompCon_sound hW hD hH hC hty B.hcan
   have e_hc' := hcompCon_sound hW hD hH hC hty' B.hcan'
   have hul : (tubeArgs d D c C (Q.isub ρ) u).length = C.args.length := by simp [tubeArgs]
@@ -268,7 +249,7 @@ theorem euu : ∀ i (hi : i < C.args.length), EqTm0 S (k1 + 1) (cof .one φ).shi
       (Q.isub ρ).dshift.toList.reverse)) := by
   have B := H.basic
   obtain ⟨⟨G1, G2, -, -⟩, ⟨-, G2', -, -⟩⟩ := H.prem
-  obtain ⟨hW, hD, hH, -, -, -, -, -, hC, -, -, -, -, -, -, -, -, -, hteq, h12, -, -, -, -⟩ := H
+  obtain ⟨hW, hD, hH, -, -, -, -, hC, -, -, -, -, -, -, -, -, -, hteq, h12, -, -, -, -⟩ := H
   have hS := sigClosed_of_wfSig hW
   have hΦs : ((cof .one φ).shift).Scoped (k1 + 1) := KubusCore.I.scoped_shift ⟨trivial, B.hφs⟩
   have hΦe : I.Entails (cof .one φ).shift (cof .one φ').shift := ent_shift (ent_and_mono (ent_refl _) h12)
@@ -290,20 +271,6 @@ theorem euu : ∀ i (hi : i < C.args.length), EqTm0 S (k1 + 1) (cof .one φ).shi
   obtain ⟨hus't, eus', -⟩ := con_retype0 hW hD hH hC G2'' hdq1
   intro i hi
   exact con_args_eq hW hD hH H1 hC G1 hus't ((EqTm0.symm G2).trans (hteq0.trans eus')) hi
-
-/-- The arguments of the two contracta are judgmentally equal. -/
-theorem eYY' : ∀ i (hi : i < C.args.length), EqTm0 S k1 .one [] ((conOuts d D c C (Q.isub ρ) φ u X).getD i .abort)
-    ((conOuts d D c C (Q'.isub ρ) φ' u' X').getD i .abort)
-    ((C.argTy d D.params.length i).substList (((conOuts d D c C (Q.isub ρ) φ u X).take i).reverse ++
-      (P.isub ρ).toList.reverse)) := by
-  have B := H.basic
-  have e := H.eLR
-  obtain ⟨hW, hD, hH, -, -, -, -, -, hC, -⟩ := H
-  obtain ⟨hYp, eYp, -, -⟩ := con_retype hW hD hH hC (EqTm.refl (HasTy.eqL e)) (TyEq.refl _) B.hpT
-  obtain ⟨hY'p, eY'p, -, -⟩ := con_retype hW hD hH hC (EqTm.refl (HasTy.eqR e)) (TyEq.refl _) B.hpT
-  have Hp := PD.of hW hD hH (spec_to_minimal hW B.hpT)
-  intro i hi
-  exact con_args_eq hW hD hH Hp hC hYp hY'p (spec_to_minimal_eq hW (eYp.symm.trans (e.trans eY'p))) hi
 
 theorem tubeArgs_getD {q v : Tm} {i : ℕ} (hi : i < C.args.length) :
     (tubeArgs d D c C q v).getD i .abort = proj d D q.dshift c C i v := by
@@ -482,6 +449,24 @@ theorem prjb' {k3 : ℕ} (σ : ISub k3 k1) (hh : (ival (idEnv k3) (φ.subst σ.�
   have a1 := hZZ j hj
   rw [getD_map_isub] at a1
   exact RE2.trans H.hW (RT2.refl H.hW hXT TX) a1 q1
+
+/-- Composition along a tube is the arbitrary-list construction at its projections. -/
+theorem toHCG : HCG S d D K P Q Q' k1 ρ c C X X' φ φ'
+    (tubeArgs d D c C (Q.isub ρ) u) (tubeArgs d D c C (Q'.isub ρ) u') := by
+  have B := H.basic
+  obtain ⟨⟨G1, -, G3, G4⟩, ⟨G1', -, G3', G4'⟩⟩ := H.prem
+  exact {
+    hW := H.hW, hD := H.hD, hH := H.hH, hP := H.hP, hPP := H.hPP, hQ := H.hQ, hQ' := H.hQ'
+    hC := H.hC, hXl := H.hXl, hXl' := H.hXl'
+    hul := by simp [tubeArgs]
+    hul' := by simp [tubeArgs]
+    hrecR := H.hrecR, hptR := H.hptR, hrecH := H.hrecH, h12 := H.h12, h21 := H.h21
+    hqT := B.hqT, hq'T := B.hq'T, hφs := B.hφs, hφs' := B.hφs', hXq := B.hXq, hXq' := B.hXq'
+    G1 := G1, G1' := G1', G3 := G3, G3' := G3'
+    G4 := fun i hi => by rw [H.tubeArgs_getD (by rw [← H.hXl]; exact hi)]; exact G4 i hi
+    G4' := fun i hi => by rw [H.tubeArgs_getD (by rw [← H.hXl']; exact hi)]; exact G4' i hi
+    euu := H.euu, eLR := H.eLR
+    prj := H.prj, prjs := H.prjs, prjb := H.prjb, prjb' := H.prjb' }
 
 end HCC
 

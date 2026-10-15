@@ -30,7 +30,7 @@ def BTSt (S : Sig) (d : ℕ) (D : DataDecl) (c : ℕ) : Prop :=
 
 section bt
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = true)
-  (hyp : HITHyp2 S)
+  (hyp : HITHyp2 S (d + 1))
 include hW hD hH hyp
 
 /-- One restriction of the transport of a boundary term: a reduct related to the boundary term at the
@@ -181,7 +181,7 @@ theorem BT_at {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) (ihc : ∀ c' < c
         intro i hi
         have := (hOself i hi).2.1
         rwa [isub_id_of_closed hc1] at this
-      have hrelb := hyp.bndTy hD hH hC' hb' hent' hd1 s1 hOl hOl htyO hOs
+      have hrelb := hyp.bndTy (by omega) hD hH hC' hb' hent' hd1 s1 hOl htyO hOs
       have eO := EqTm.conBnd hD hC' hb' hent' hPl1 (by rw [toList_ofList]) htyO
       rw [toList_ofList] at eO
       have eT2 := EqTm.conBnd hD hC' hb' hent' hPl1 (by rw [toList_ofList])
@@ -193,7 +193,7 @@ theorem BT_at {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) (ihc : ∀ c' < c
         (by rw [isub_id_of_closed hc1]; exact hargsO) (by rw [isub_id_of_closed hc1]; exact hrelb)
         (by rw [isub_id_of_closed hc1]; exact HasTy.eqR eO) (by rw [isub_id_of_closed hc1]; exact HasTy.eqR eT2)
       rw [isub_id_of_closed hc1] at R1
-      have R2 := hyp.conBnd hD hH hC' hb' hent' hd1 s1 hOl htyO hOs
+      have R2 := hyp.conBnd (by omega) hD hH hC' hb' hent' hd1 s1 hOl htyO hOs
       exact RE2.trans hW s1 BT' (RE2.trans hW s1 (RE2.symm hW s1 R1) (RE2.symm hW s1 R2))
   all_goals simp [Ctor.simpleB] at hs
 

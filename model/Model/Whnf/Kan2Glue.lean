@@ -1,5 +1,5 @@
 import Model.Whnf.Kan2GlueEq
-import Model.Whnf.Valid2GlueEta
+import Model.Whnf.Glue2Closed
 import Model.Canon.KanGlue
 
 /-!
@@ -81,6 +81,7 @@ theorem RT2_glue_whnf {X A T e : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] 
   obtain ⟨hφs, lA, hA0, -⟩ := glue_data hW hG
   have hnh : ¬ (ival (idEnv k) φ).holds := fun hh => hn ((holds_iff_entails hφs).1 hh)
   have hn' : ¬ Cof.holds (ival (idEnv k) φ).face := by rwa [← DM.holds_iff_face_holds]
+  have hKan := RT2_glueW_kan hW hG hn hXX hR
   have hinv := RT2_glueW_inv hW hG hG hn hn hXX hR hR
   have hXA : TyCode k (semK S k A) := tyCode_of_univ hW hA0
   have hXT : ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds → TyCode k' (semK S k' (T.isub σ)) :=
@@ -88,7 +89,7 @@ theorem RT2_glue_whnf {X A T e : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] 
   have hGG : RT2 S k (.glue A φ T e) (.glue A φ T e) :=
     RT2_glue_intro hW hG hG (EqTm.refl hG) hnh (ent_refl _) (ent_refl _) (fun k' σ => RT2.isub hW hXA hinv.1 σ)
       (fun k' σ hh => (hinv.2 k' σ hh).1) (fun k' σ hh => (hinv.2 k' σ hh).2) (fun k' σ hh => (hinv.2 k' σ hh).2)
-      (fun k' σ hh => (hinv.2 k' σ hh).2)
+      (fun k' σ hh => (hinv.2 k' σ hh).2) hKan.1 hKan.2
   refine ⟨?_, hGG⟩
   have hXK : IsTyK S k X := (show IsTyK S k (.glue A φ T e) from ⟨l, .inl hG⟩).of_tyEq (TyEq.symm hR.2)
   have hsem : semK S k X = semK S k (.glue A φ T e) := semK_tyEq hW hR.2
@@ -98,14 +99,16 @@ theorem RT2_glue_whnf {X A T e : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] 
   rw [hsem] at hXX'
   rw [semK_glueT hW hG, Comp2_glueC (kv_semK_of_univ hW hA0) (isKV_partialKV _ _) (isCof_ival_face _ _) hn']
     at hGG' hXX' ⊢
+  have hKG := hGG'.2.2.2.2
   obtain ⟨⟨hGK, -, hsG, -, -⟩, -, cohG, -⟩ := hGG'
   obtain ⟨⟨-, -, hsX, -, -⟩, -, cohX, -⟩ := hXX'
   have hc := closed_of_isTyK hW hXK
   have hloc := cohX k (ISub.id k) (by
     rw [Hom.id_comp, ISub.hom_id, (isCof_ival_face _ _).restr_id]; exact hn') _ (by rw [isub_id_of_closed hc]; exact hR.1)
-  refine ⟨⟨hGK, hXK, hsG, hsX, hR.2.symm⟩, fun k' σ => ?_, cohG, cohX⟩
+  refine ⟨⟨hGK, hXK, hsG, hsX, hR.2.symm⟩, fun k' σ => ?_, cohG, cohX, hKG⟩
   have := hloc k' σ
   rwa [ISub.id_comp] at this
+
 
 
 /-- A related pair of a Glue type whose face holds is a related pair of its fiber. -/

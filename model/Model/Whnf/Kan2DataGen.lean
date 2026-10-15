@@ -229,10 +229,10 @@ include hH
 /-- Composition at a literal inductive type without path constructors, against a related literal type. -/
 theorem kanH2_litId {K : ℕ} {P Q' : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level))
     (hPP : RT2 S K (.data d P) (.data d P))
-    (hArgK : KanShape S K (ΘK S D d K P))
+
     (hQ' : RT2 S K (.data d P) (.data d Q')) (a a' : Tm) :
     HC2 S K (.data d P) (.data d P) (.data d Q') a a' := by
-  have h := kanH2_lit hW hD hH hP hPP hArgK (ISub.id K) hPP hQ' a a'
+  have h := kanH2_lit hW hD hH hP hPP  (ISub.id K) hPP hQ' a a'
   have hPc : P.closedB 0 K = true := by have := closed_of_ty hW hP; simpa [Tm.closedB] using this
   have hQc : Q'.closedB 0 K = true := by
     have := closed_of_isTyK hW (Comp2_ty_base hQ').2.2.1; simpa [Tm.closedB] using this
@@ -243,12 +243,10 @@ theorem kanH2_litId {K : ℕ} {P Q' : Tm} (hP : HasTy S K .one [] (.data d P) (.
 constructors. The Kan properties of the argument types are required at the literal types related to
 the restrictions of `T`. -/
 theorem kanH2_data {T T' ps : Tm} (hTT : RT2 S k T T') (hR : RedT S k T (.data d ps))
-    (hK : ∀ k1 (ρ1 : ISub k1 k) P1, HasTy S k1 .one [] (.data d P1) (.univ D.level) →
-      RT2 S k1 (.data d P1) (T.isub ρ1) →
-      KanShape S k1 (ΘK S D d k1 P1)) :
+ :
     KanH2 S k T T' :=
   kanH2_data_gen hW hD hTT hR fun k1 ρ1 P1 _ hP1 hPX hPP hPQ a a' =>
-    kanH2_litId hW hD hH hP1 hPP (hK k1 ρ1 P1 hP1 hPX) hPQ a a'
+    kanH2_litId hW hD hH hP1 hPP hPQ a a'
 
 end
 

@@ -3,8 +3,8 @@ import Model.Whnf.Fund2Hyp
 /-!
 # Auxiliary lemmas for the binary fundamental lemma
 
-Transfer of related elements along chains of type equations (`ElTr2`), the computation rules whose
-closed instances come from the Kan oracle, `transpU` (a stable step), and Glue η from the validity of
+Transfer of related elements along chains of type equations (`ElTr2`), the computation rules using
+relation-carried Kan, `transpU` (a stable step), and Glue η from the validity of
 the Glue type alone.
 -/
 
@@ -42,8 +42,8 @@ theorem ElTr2.restrict {Φ' : I} {X Y : Tm} (he : I.Entails Φ' Φ) (h : ElTr2 S
 
 theorem RE2_cumul {l : ℕ} (hl : l + 1 ≤ maxLevel) {T T' : Tm} (h : RE2 S k (.univ l) T T') :
     RE2 S k (.univ (l + 1)) T T' := by
-  obtain ⟨he, hm, hrt⟩ := (RE2_univ_iff hW).1 h
-  refine (RE2_univ_iff hW).2 ⟨⟨HasTy.cumul hl he.1, HasTy.cumul hl he.2.1, EqTm.cumul hl he.2.2⟩, ?_, hrt⟩
+  obtain ⟨he, hm, hrt, hk⟩ := (RE2_univ_iff hW).1 h
+  refine (RE2_univ_iff hW).2 ⟨⟨HasTy.cumul hl he.1, HasTy.cumul hl he.2.1, EqTm.cumul hl he.2.2⟩, ?_, hrt, hk⟩
   have hm' := ZFSet.mem_sep.1 hm
   exact ZFSet.mem_sep.2 ⟨Vt_subset_succ l (by unfold maxLevel at hl; omega) hm'.1, hm'.2.cumul⟩
 
@@ -55,11 +55,6 @@ omit hW in
 theorem valid_conv_tr {t u X Y : Tm} (h : Valid2 S Ψ Φ Γ t u X) (htr : ElTr2 S Ψ Φ Γ X Y)
     (hY : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L Y) (c.R Y)) : Valid2 S Ψ Φ Γ t u Y :=
   fun k c => ⟨hY k c, htr k c _ _ (h k c).2⟩
-
-/-- The type of a valid equation, as a valid type. -/
-theorem valid_ty_of {t u A : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ t u A) (hA : HasTy0 S Ψ Φ Γ A (.univ l)) :
-    Valid2 S Ψ Φ Γ A A (.univ l) :=
-  valid_univ_of hW hA hA (EqTm0.refl hA) fun k c => (h k c).1
 
 /-! ### `transpU` -/
 
@@ -83,8 +78,7 @@ theorem valid_transpU {a T : Tm} {l : ℕ} {φ : I}
 
 /-- `glueEta`, with the equivalence related through the Glue type's relation (`valid_glueEta` asks for
 the validity of the equivalence itself). -/
-theorem valid_glueEta_ty {A T e g : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
-    (hG : Valid2 S Ψ Φ Γ (.glue A φ T e) (.glue A φ T e) (.univ l))
+theorem valid_glueEta_ty {A T e g : Tm} {φ : I} (hφ : φ.Scoped Ψ)
     (he0 : HasTy0 S Ψ (cof Φ φ) Γ e (Tm.equiv T A))
     (hg : Valid2 S Ψ Φ Γ g g (.glue A φ T e)) (hty : HasTy0 S Ψ Φ Γ g (.glue A φ T e))
     (hu : HasTy0 S Ψ Φ Γ (.glueEl φ e g (.unglue φ e g)) (.glue A φ T e)) :
@@ -94,12 +88,13 @@ theorem valid_glueEta_ty {A T e g : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
   have hφL := I.scoped_subst hφ c.σ.sc
   have hφR := I.scoped_subst hφ c.σ'.sc
   have hgr := (hg k c).2
-  have hGt : HasTy S k .one [] (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) (.univ l) :=
-    (RE2.typed (hG k c).2).1
-  have hGtR : HasTy S k .one [] (.glue (c.R A) (φ.subst c.σ'.τ) (c.R T) (c.R e)) (.univ l) :=
-    (RE2.typed (hG k c).2).2.1
-  have hGG : RT2 S k (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) :=
-    hG.ty hW (c.diagL hW)
+  have hGG := hg.tyLL hW c
+  obtain ⟨lG, hGt | hBad⟩ := (Comp2_ty_base hGG).2.1
+  swap
+  · cases hBad
+  obtain ⟨lR, hGtR | hBad⟩ := (Comp2_ty_base (hg k c).1).2.2.1
+  swap
+  · cases hBad
   have e12 : I.Entails (φ.subst c.σ.τ) (φ.subst c.σ'.τ) := eq_ent (c.ieq_subst (I_eq_refl φ))
   have e21 : I.Entails (φ.subst c.σ'.τ) (φ.subst c.σ.τ) := eq_ent (I_eq_symm (c.ieq_subst (I_eq_refl φ)))
   have hηR : HasTy S k .one [] (.glueEl (φ.subst c.σ'.τ) (c.R e) (c.R g) (.unglue (φ.subst c.σ'.τ) (c.R e) (c.R g)))
@@ -110,7 +105,7 @@ theorem valid_glueEta_ty {A T e g : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
   · have hn : ¬ I.Entails .one (φ.subst c.σ.τ) := fun h => hh ((holds_iff_entails hφL).2 h)
     have hnR : ¬ I.Entails .one (φ.subst c.σ'.τ) := fun h => hn (ent_trans h e21)
     have hinv := RT2_glue_inv hW hGt hGt hn hn hGG
-    have hinvLR := RT2_glue_inv hW hGt hGtR hn hnR (hG.ty hW c)
+    have hinvLR := RT2_glue_inv hW hGt hGtR hn hnR (hg k c).1
     have hXA : TyCode k (semK S k (c.L A)) := tyCode_of_univ hW (glue_data hW hGt).2.choose_spec.1
     have hXG : TyCode k (semK S k (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e))) := tyCode_of_univ hW hGt
     have hyy := (perK hW hXG).reflEl' hGG hgr

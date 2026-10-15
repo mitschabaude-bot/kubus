@@ -1,4 +1,5 @@
 import Model.Whnf.Kan2GlueTP
+import Model.Whnf.Kan2Codes
 
 /-!
 # Binary transport in Glue types: the fibres of the equivalence at the end of the line
@@ -179,6 +180,8 @@ theorem TGD2.rFib : RT2 S k (tgFib A φ T e ψ u0) (tgFib A' φ' T' e' ψ' u0') 
   have hfib' := HasTy.top hW (HasTy.restrict (Φ' := .one) trivial hent1' (minimal_to_spec H'.hfib))
   obtain ⟨lT, hT1⟩ := D.hT1 hW hφ1
   have hA1 := minimal_to_spec (H.hAr (r := .one) trivial)
+  obtain ⟨_, hGline⟩ := D.hG
+  obtain ⟨-, lAline, hAline, -⟩ := glue_data hW hGline
   have rT := D.rT1 hW hφ1 (ISub.id k)
   have he1 := D.e1 hW hφ1 (ISub.id k)
   have hAc := closed_of_ty hW hA1
@@ -201,36 +204,59 @@ theorem TGD2.rFib : RT2 S k (tgFib A φ T e ψ u0) (tgFib A' φ' T' e' ψ' u0') 
   have he := fiber_congrS hW eT eA (EqTm.fst ee) (RE2.typed (D.a1' hW)).2.2
   rw [tgFib_eq] at hfib hfib' ⊢
   rw [tgFib_eq]
-  refine RT2_sigma_intro hW hfib hfib' he (fun k' σ => D.rT1 hW hφ1 σ) fun k' σ a a' ha => ?_
-  rw [fibB_isub_inst, fibB_isub_inst]
-  have eσ := D.e1 hW hφ1 σ
-  have rAσ : ∀ {k3} (τ : ISub k3 k), RT2 S k3 ((A.dinst .one).isub τ) ((A'.dinst .one).isub τ) := fun τ => by
-    rw [dinst1_isub, dinst1_isub]; exact D.rA _ τ .one .one trivial trivial (I_eq_refl _)
-  have happ : RE2 S k' ((A.dinst .one).isub σ) (.app (.fst ((e.dinst .one).isub σ)) a)
-      (.app (.fst ((e'.dinst .one).isub σ)) a') := by
-    rw [dinst1_isub, dinst1_isub, dinst1_isub]
-    rw [dinst1_isub] at ha
-    exact D.eApp hW σ (r := .one) (r' := .one) trivial trivial (I_eq_refl _) (D.φ1At hW hφ1 σ) ha
-  have ha1 := RE2.isub hW (D.a1' hW) σ
-  have hAσ := HasTy.isubS hW hA1 σ
-  have hAσ' := HasTy.isubS hW (minimal_to_spec (H'.hAr (r := .one) trivial)) σ
-  have hp := HasTy.top hW (minimal_to_spec (pathC_typed hS (spec_to_minimal hW hAσ)
-    (spec_to_minimal hW (RE2.typed happ).1) (spec_to_minimal hW (RE2.typed ha1).1)))
-  have eAσ := tyEq_top hW hAσ (Comp2_ty_base (rAσ σ)).2.2.2.2.2
-  have hp' := HasTy.top hW (minimal_to_spec (pathC_typed hS (spec_to_minimal hW hAσ')
-    (spec_to_minimal hW ((RE2.typed happ).2.1.conv eAσ)) (spec_to_minimal hW ((RE2.typed ha1).2.1.conv eAσ))))
-  have hpe := pathC_congrS hW eAσ (RE2.typed happ).2.2 (RE2.typed ha1).2.2
-  unfold Tm.pathC at hp hp' hpe ⊢
-  refine RT2_path_intro hW hp hp' hpe (fun k3 σ3 => ?_) (fun k3 σ3 r r' hr hr' he => ?_) ?_ ?_
-  · rw [isub_dshift, isub_dshift, Tm.isub_isub, Tm.isub_isub]
-    have x := RT2.isub hW (tyCode_of_univ hW (HasTy.isubS hW hA1 _)) (rAσ (σ.comp σ3)) (ISub.wk k3)
-    rwa [isub_wk_of_closed (closed_of_ty hW (HasTy.isubS hW hA1 (σ.comp σ3))),
-      isub_wk_of_closed (closed_of_ty hW (HasTy.isubS hW (minimal_to_spec (H'.hAr (r := .one) trivial)) (σ.comp σ3)))]
-      at x
-  · rw [isub_dshift, isub_dshift, dshift_dinst, dshift_dinst, Tm.isub_isub, Tm.isub_isub]
-    exact rAσ (σ.comp σ3)
-  · rw [dshift_dinst]; exact happ
-  · rw [dshift_dinst]; exact ha1
+  refine RT2_sigma_intro hW hfib hfib' he (fun k' σ => D.rT1 hW hφ1 σ) (fun k' σ a a' ha => ?_) (fun k' σ => ?_) (fun k' σ a a' ha => ?_)
+  ·
+    rw [fibB_isub_inst, fibB_isub_inst]
+    have eσ := D.e1 hW hφ1 σ
+    have rAσ : ∀ {k3} (τ : ISub k3 k), RT2 S k3 ((A.dinst .one).isub τ) ((A'.dinst .one).isub τ) := fun τ => by
+      rw [dinst1_isub, dinst1_isub]; exact D.rA _ τ .one .one trivial trivial (I_eq_refl _)
+    have happ : RE2 S k' ((A.dinst .one).isub σ) (.app (.fst ((e.dinst .one).isub σ)) a)
+        (.app (.fst ((e'.dinst .one).isub σ)) a') := by
+      rw [dinst1_isub, dinst1_isub, dinst1_isub]
+      rw [dinst1_isub] at ha
+      exact D.eApp hW σ (r := .one) (r' := .one) trivial trivial (I_eq_refl _) (D.φ1At hW hφ1 σ) ha
+    have ha1 := RE2.isub hW (D.a1' hW) σ
+    have hAσ := HasTy.isubS hW hA1 σ
+    have hAσ' := HasTy.isubS hW (minimal_to_spec (H'.hAr (r := .one) trivial)) σ
+    have hp := HasTy.top hW (minimal_to_spec (pathC_typed hS (spec_to_minimal hW hAσ)
+      (spec_to_minimal hW (RE2.typed happ).1) (spec_to_minimal hW (RE2.typed ha1).1)))
+    have eAσ := tyEq_top hW hAσ (Comp2_ty_base (rAσ σ)).2.2.2.2.2
+    have hp' := HasTy.top hW (minimal_to_spec (pathC_typed hS (spec_to_minimal hW hAσ')
+      (spec_to_minimal hW ((RE2.typed happ).2.1.conv eAσ)) (spec_to_minimal hW ((RE2.typed ha1).2.1.conv eAσ))))
+    have hpe := pathC_congrS hW eAσ (RE2.typed happ).2.2 (RE2.typed ha1).2.2
+    unfold Tm.pathC at hp hp' hpe ⊢
+    refine RT2_path_intro hW hp hp' hpe (fun k3 σ3 => ?_) (fun k3 σ3 r r' hr hr' he => ?_) ?_ ?_ (fun k3 σ3 => ?_)
+    · rw [isub_dshift, isub_dshift, Tm.isub_isub, Tm.isub_isub]
+      have x := RT2.isub hW (tyCode_of_univ hW (HasTy.isubS hW hA1 _)) (rAσ (σ.comp σ3)) (ISub.wk k3)
+      rwa [isub_wk_of_closed (closed_of_ty hW (HasTy.isubS hW hA1 (σ.comp σ3))),
+        isub_wk_of_closed (closed_of_ty hW (HasTy.isubS hW (minimal_to_spec (H'.hAr (r := .one) trivial)) (σ.comp σ3)))]
+        at x
+    · rw [isub_dshift, isub_dshift, dshift_dinst, dshift_dinst, Tm.isub_isub, Tm.isub_isub]
+      exact rAσ (σ.comp σ3)
+    · rw [dshift_dinst]; exact happ
+    · rw [dshift_dinst]; exact ha1
+    · rw [isub_dshift, Tm.isub_isub]
+      have hk := D.kAC.isub hW hAline (ISub.cons .one trivial (σ.comp σ3))
+      rw [← dinst1_isub] at hk
+      have hAr := HasTy.isubS hW hA1 (σ.comp σ3)
+      have hk' := hk.isub hW hAr (ISub.wk k3)
+      rwa [isub_wk_of_closed (closed_of_ty hW hAr)] at hk'
+  · rw [dinst1_isub]
+    exact D.kTC k' _ (D.φ1At hW hφ1 σ)
+  · rw [fibB_isub_inst]
+    have hAσ := HasTy.isubS hW hA1 σ
+    have happ := RE2_equiv_app hW (D.e1 hW hφ1 σ) ha
+    have ha1 := RE2.isub hW (D.a1' hW) σ
+    have hp := HasTy.top hW (minimal_to_spec (pathC_typed hS (spec_to_minimal hW hAσ)
+      (spec_to_minimal hW (RE2.typed happ).1) (spec_to_minimal hW (RE2.typed ha1).1)))
+    change KanP2 S k' (semK S k' (Tm.pathC ((A.dinst .one).isub σ)
+      (.app (.fst ((e.dinst .one).isub σ)) a) ((tgA1' A φ e ψ u0).isub σ)))
+    unfold Tm.pathC at hp ⊢
+    rw [semK_pathT hW hp]
+    have hL := HasTy.isubS hW hAσ (ISub.wk k')
+    rw [isub_wk_of_closed (closed_of_ty hW hAσ)] at hL
+    exact kanP2_pathC hW (semK_ne hW hL)
+
 
 
 /-- The equivalences at the end of the line, unrestricted. -/

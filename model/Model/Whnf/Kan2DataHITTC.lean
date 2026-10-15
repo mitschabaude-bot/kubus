@@ -23,7 +23,7 @@ variable {S : Sig} {k k' k'' : ℕ}
 
 section hit
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = true)
-  (hyp : HITHyp2 S)
+  (hyp : HITHyp2 S (d + 1))
 include hW hD hH hyp
 
 /-- The field `TC.conR` at a higher inductive type. -/
@@ -93,7 +93,7 @@ theorem args0_self : ∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.param
 
 /-- The data restricted along lines: to the lines `y ↦ P(y(z), τ)`, `y ↦ Q(y'(z), τ)` of a restriction `τ`,
 for `I.Eq`-equal `y`, `y'` starting at `0`, with new faces. -/
-theorem restrLine (hH : D.isHIT = true) (hyp : HITHyp2 S) (hrs : List.Forall₂ I.Eq rs rs') {k3 : ℕ} (τ : ISub k3 k)
+theorem restrLine (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) (hrs : List.Forall₂ I.Eq rs rs') {k3 : ℕ} (τ : ISub k3 k)
     (y y' : I) (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1)) (hE : I.Eq y y')
     (h0 : I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero) {ψ ψ' : I} (hψs : ψ.Scoped k3)
     (h12 : I.Entails ψ ψ') (h21 : I.Entails ψ' ψ)
@@ -145,7 +145,7 @@ theorem restrLine (hH : D.isHIT = true) (hyp : HITHyp2 S) (hrs : List.Forall₂ 
         exact restr hXl (by omega) (hself0 l (by omega)))
     rw [H.line_pt τ y hy .zero trivial]
     exact RE2.conv hW T (restr hX'l hi (H.hargs0 i hi))
-  refine ⟨hW, H.hD, H.hp, H.hC, hPL', Rob.line H.hR τ y y' hy hy' hE, hRL', argK_restr H.hArgK _, hψs, h12, h21,
+  refine ⟨hW, H.hD, H.hp, H.hC, hPL', Rob.line H.hR τ y y' hy hy' hE, hRL', hψs, h12, h21,
     hLC, hty, hty', heq, hargs0', ?_, conR_hit hW H.hD hH hyp H.hC hPL' hRL' (forall2_ieq_map hrs τ.τ)⟩
   intro i hi hri k4 τ2 z z' hz hz' hEz hz0
   have h := H.hrecT i hi hri k4 (τ.comp τ2) _ _ (I.scoped_subst hy (ISub.cons z hz τ2.up.tail).sc)
@@ -157,7 +157,7 @@ theorem restrLine (hH : D.isHIT = true) (hyp : HITHyp2 S) (hrs : List.Forall₂ 
   exact h
 
 /-- The data, restricted. -/
-theorem isubH (hH : D.isHIT = true) (hyp : HITHyp2 S) (hrs : List.Forall₂ I.Eq rs rs') {k4 : ℕ} (σ : ISub k4 k) :
+theorem isubH (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) (hrs : List.Forall₂ I.Eq rs rs') {k4 : ℕ} (σ : ISub k4 k) :
     TC S k4 d D (PL.isub σ.up) (QL.isub σ.up) (φ.subst σ.τ) (φ'.subst σ.τ) c C (q.isub σ) (q'.isub σ)
       (X.map (·.isub σ)) (X'.map (·.isub σ)) (rs.map (·.subst σ.τ)) (rs'.map (·.subst σ.τ)) := by
   have hW := H.hW

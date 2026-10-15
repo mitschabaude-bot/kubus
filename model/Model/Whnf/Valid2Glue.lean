@@ -1,4 +1,6 @@
 import Model.Whnf.Valid2
+import Model.Whnf.Glue2Closed
+import Model.Whnf.Kan2GlueCode
 
 /-!
 # Semantic validity of the Glue rules
@@ -19,68 +21,24 @@ variable {S : Sig} {k k' k'' : ℕ}
 variable (hW : WfSig S)
 include hW
 
-/-- Related Glue types whose faces do not hold have related bases, and related fibers and
-equivalences where the face holds. -/
-theorem RT2_glue_inv {A T e A' T' e' : Tm} {φ φ' : I} {l l' : ℕ}
-    (hG : HasTy S k .one [] (.glue A φ T e) (.univ l)) (hG' : HasTy S k .one [] (.glue A' φ' T' e') (.univ l'))
-    (hn : ¬ I.Entails .one φ) (hn' : ¬ I.Entails .one φ') (h : RT2 S k (.glue A φ T e) (.glue A' φ' T' e')) :
-    RT2 S k A A' ∧ ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
-      RT2 S k' (T.isub σ) (T'.isub σ) ∧ RE2 S k' (Tm.equiv (T.isub σ) (A.isub σ)) (e.isub σ) (e'.isub σ) := by
-  obtain ⟨hφs, lA, hA0, he0⟩ := glue_data hW hG
-  have hnh : ¬ (ival (idEnv k) φ).holds := fun hh => hn ((holds_iff_entails hφs).1 hh)
-  have hnf : ¬ Cof.holds (ival (idEnv k) φ).face := by rwa [← DM.holds_iff_face_holds]
-  unfold RT2 at h
-  rw [semK_glueT hW hG, Comp2_glueC (kv_semK_of_univ hW hA0) (isKV_partialKV _ _) (isCof_ival_face _ _) hnf] at h
-  obtain ⟨-, hloc, -, -⟩ := h
-  have h0 := hloc k (ISub.id k)
-  unfold glueLocT at h0
-  rw [if_neg (by rw [Hom.id_comp, ISub.hom_id, (isCof_ival_face _ _).restr_id]; exact hnf)] at h0
-  obtain ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', r1, r2, -, -, -, -, hAA, hfib⟩ := h0
-  rw [isub_id_of_closed (closed_of_ty hW hG)] at r1
-  rw [isub_id_of_closed (closed_of_ty hW hG')] at r2
-  have eq1 := RedW.unique r1.1 (redT_glue_self (S := S) (k := k) (A1 := A) (T1 := T) (e1 := e) hn).1
-  have eq2 := RedW.unique r2.1 (redT_glue_self (S := S) (k := k) (A1 := A') (T1 := T') (e1 := e') hn').1
-  simp only [Tm.glue.injEq] at eq1 eq2
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := eq1
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := eq2
-  refine ⟨?_, fun k' σ hh => ?_⟩
-  · rw [Hom.id_comp, ISub.hom_id] at hAA; exact hAA
-  have hface : (Cof.restr (ival (idEnv k) φ1).face ((Hom.id k).comp ((ISub.id k).comp σ).hom)).holds := by
-    rw [ISub.id_comp, Hom.id_comp]; exact (face_holds_iff hφs σ).2 hh
-  obtain ⟨hT, hE⟩ := hfib k' σ hface
-  rw [ISub.id_comp, Hom.id_comp, dat_glue_fiber σ ((face_holds_iff hφs σ).2 hh)] at hT hE
-  obtain ⟨lT, hTσ, heσ⟩ := glue_fiber_ty hW hG σ hh
-  refine ⟨hT, ?_⟩
-  obtain ⟨lE, hE0⟩ := ty_of_tyEq hW (isTyK_of_ty hW heσ) (TyEq.refl _) (fun l h => by cases h)
-  have gT : GoodP S k' (fun k3 σ3 => Comp2 S (semK S k' (T1.isub σ)) k' k3 σ3.hom) (T1.isub σ) :=
-    goodP_comp hW hTσ
-  have gA : GoodP S k' (fun k3 σ3 => Comp2 S (semK S k A1) k k3 (Hom.id k |>.comp (σ.comp σ3).hom))
-      (A1.isub σ) := by
-    intro k3 σ3 t t'
-    show (Comp2 S (semK S k A1) k k3 ((Hom.id k).comp (σ.comp σ3).hom)).el _ t t' ↔ _
-    rw [Hom.id_comp, Comp2_res_el hW hA0, Tm.isub_isub]; rfl
-  refine (goodP_id hW (goodP_equivF hW hE0 gT gA) (closed_of_ty hW hE0) (e1.isub σ) (e1'.isub σ)).1 ?_
-  convert hE using 3
-
-
 variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
-/-- Expansion of related types along stable steps on both sides, at the level of `RT2`. -/
-theorem RT2.expand2 {A A' B B' : Tm} (hX : TyCode k (semK S k A)) (hA : IsTyK S k A) (hA' : IsTyK S k A')
-    (hB : IsTyK S k B) (hs : StableT S k A B) (hs' : StableT S k A' B') (h : RT2 S k B B') : RT2 S k A A' := by
-  have e : semK S k B = semK S k A := by
-    have := (semK_tyEq hW (hs k (ISub.id k)).2).symm
-    rwa [isub_id_of_closed (closed_of_isTyK hW hA), isub_id_of_closed (closed_of_isTyK hW hB)] at this
-  unfold RT2 at h ⊢
-  rw [e] at h
-  exact ty_expandS2 hW hX hA hA' hB hs hs' h
+/-- Kan of the face fibres of a valid Glue component. -/
+theorem Valid2.faceKan {T T' : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+    (hT : Valid2 S Ψ (cof Φ φ) Γ T T' (.univ l)) (c : CSub2 S Ψ Φ Γ k)
+    (σ : ISub k' k) (hh : (ival (idEnv k') ((φ.subst c.σ.τ).subst σ.τ)).holds) :
+    KanP2 S k' (semK S k' ((c.L T).isub σ)) := by
+  have h' := holds_restr hh hφ
+  have hk := hT.kanV hW k' ((c.restr hW σ).cof h')
+  exact CSub2.restr_L hW c σ T ▸ hk
 
-omit hW in
-theorem holds_restr {φ : I} {c : CSub2 S Ψ Φ Γ k} {σ : ISub k' k}
-    (hh : (ival (idEnv k') ((φ.subst c.σ.τ).subst σ.τ)).holds) (hφ : φ.Scoped Ψ) :
-    I.Entails .one (φ.subst (c.σ.comp σ).τ) := by
-  rw [I_subst_subst] at hh
-  exact (holds_iff_entails (I.scoped_subst hφ (c.σ.comp σ).sc)).1 hh
+/-- The Glue formation rule carries Kan of its base and face fibres. -/
+theorem kanV_glue {A A' T T' e : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+    (hA : Valid2 S Ψ Φ Γ A A' (.univ l)) (hT : Valid2 S Ψ (cof Φ φ) Γ T T' (.univ l))
+    (hty : HasTy0 S Ψ Φ Γ (.glue A φ T e) (.univ l)) : KanV S Ψ Φ Γ (.glue A φ T e) := by
+  intro k c
+  exact kanP2_glueT hW (c.ty hW hty) (hA.kanV hW k c)
+    (fun k' σ hh => hT.faceKan hW hφ c σ hh)
 
 /-- The Glue formation rule, given the self-relation of the right equivalence where the face holds. -/
 theorem valid_glue_core {A A' T T' e e' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Scoped Ψ)
@@ -94,7 +52,7 @@ theorem valid_glue_core {A A' T T' e e' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.S
     (heq : EqTm0 S Ψ Φ Γ (.glue A φ T e) (.glue A' φ' T' e') (.univ l)) :
     Valid2 S Ψ Φ Γ (.glue A φ T e) (.glue A' φ' T' e') (.univ l) := by
   have hee := valid_trans hW he (valid_symm hW he)
-  refine valid_univ_of hW hty hty' heq fun k c => ?_
+  refine valid_univ_of hW hty hty' heq (fun k c => ?_) (kanV_glue hW hφ hA hT hty)
   have hG : HasTy S k .one [] (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) (.univ l) := c.ty hW hty
   have hG' : HasTy S k .one [] (.glue (c.R A') (φ'.subst c.σ'.τ) (c.R T') (c.R e')) (.univ l) := c.tyR hW hty'
   have heqc : EqTm S k .one [] (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e))
@@ -113,7 +71,7 @@ theorem valid_glue_core {A A' T T' e e' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.S
     exact RT2.expand2 hW (tyCode_of_univ hW hG) hGK hG'K (hGK.of_tyEq (glue_face_tyEq hW hGK hφe))
       (stable_glue hW hGK hφe) (stable_glue hW hG'K (ent_trans hφe e12)) hTT
   · refine RT2_glue_intro hW hG hG' heqc hh e12 e21 (fun k' σ => hA.tyRestr hW c σ)
-      (fun k' σ hh' => ?_) (fun k' σ hh' => ?_) (fun k' σ hh' => ?_) (hER k c hh)
+      (fun k' σ hh' => ?_) (fun k' σ hh' => ?_) (fun k' σ hh' => ?_) (hER k c hh) (hA.kanV hW k c) (fun k' σ hh' => hT.faceKan hW hφ c σ hh')
     · have h' := holds_restr hh' hφ
       have := RE2_univ_ty hW (hT k' ((c.restr hW σ).cof h')).2
       exact (CSub2.restr_L hW c σ T ▸ CSub2.restr_R hW c σ T' ▸ this)
@@ -178,31 +136,9 @@ theorem valid_glue_eq {A A' T T' e e' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Sco
   exact (holds_iff_entails (I.scoped_subst hφR σ.sc)).2 (ent_trans h1 (ent_subst e12 σ.τ))
 
 
-/-- A related pair in the fiber of a Glue type whose face holds is a related pair of the Glue type. -/
-theorem RE2_glue_of_fiber {A T e : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] (.glue A φ T e) (.univ l))
-    (hφe : I.Entails .one φ) (hTT : RT2 S k T T) {x y : Tm} (hxy : RE2 S k T x y) :
-    RE2 S k (.glue A φ T e) x y := by
-  obtain ⟨hφs, -⟩ := glue_data hW hG
-  have hh : (ival (idEnv k) (φ.subst (ISub.id k).τ)).holds := by
-    rw [show φ.subst (ISub.id k).τ = φ from ISub.I.subst_scoped_id hφs fun j hj => by simp [ISub.id, hj]]
-    exact (holds_iff_entails hφs).2 hφe
-  have hcG := closed_of_ty hW hG
-  have hcT : T.closedB 0 k = true := by
-    obtain ⟨lT, hTσ, -⟩ := glue_fiber_ty hW hG (ISub.id k) hh
-    have := closed_of_ty hW hTσ
-    rwa [isub_id_of_closed (show T.closedB 0 k = true by
-      simp only [Tm.closedB, Bool.and_eq_true] at hcG; exact hcG.1.2)] at this
-  have := glue_fiber_conv hW hG (ISub.id k) hh (by rwa [isub_id_of_closed hcT]) (by rwa [isub_id_of_closed hcT])
-  rw [isub_id_of_closed hcT, isub_id_of_closed hcG] at this
-  have hGK : IsTyK S k (.glue A φ T e) := ⟨l, .inl hG⟩
-  unfold RE2
-  rw [← semK_tyEq hW (glue_face_tyEq hW hGK hφe)] at this
-  exact this
-
-
-theorem valid_glueEl_core {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+theorem valid_glueEl_core {A T e e' t t' a a' : Tm} {φ φ' : I} (hφ : φ.Scoped Ψ)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)
-    (hG : Valid2 S Ψ Φ Γ (.glue A φ T e) (.glue A φ T e) (.univ l))
+    (hG : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L (.glue A φ T e)) (c.R (.glue A φ T e)))
     (hee : EqTm0 S Ψ (cof Φ φ) Γ e' e (Tm.equiv T A))
     (ht : Valid2 S Ψ (cof Φ φ) Γ t t' T) (ha : Valid2 S Ψ Φ Γ a a' A)
     (hat : ∀ k (c : CSub2 S Ψ Φ Γ k), ¬ (ival (idEnv k) (φ.subst c.σ.τ)).holds → ∀ k' (σ : ISub k' k),
@@ -216,8 +152,10 @@ theorem valid_glueEl_core {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ 
     (heq : EqTm0 S Ψ Φ Γ (.glueEl φ e t a) (.glueEl φ' e' t' a') (.glue A φ T e)) :
     Valid2 S Ψ Φ Γ (.glueEl φ e t a) (.glueEl φ' e' t' a') (.glue A φ T e) := by
   intro k c
-  refine ⟨hG.ty hW c, ?_⟩
-  have hGt : HasTy S k .one [] (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) (.univ l) := (RE2.typed (hG k c).2).1
+  refine ⟨hG k c, ?_⟩
+  obtain ⟨lG, hGt | hBad⟩ := (Comp2_ty_base (hG k c)).2.1
+  swap
+  · cases hBad
   have hgL : HasTy S k .one [] (.glueEl (φ.subst c.σ.τ) (c.L e) (c.L t) (c.L a))
       (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) := c.ty hW hty
   have hgR : HasTy S k .one [] (.glueEl (φ'.subst c.σ'.τ) (c.R e') (c.R t') (c.R a'))
@@ -228,7 +166,7 @@ theorem valid_glueEl_core {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ 
   have e21 : I.Entails (φ'.subst c.σ'.τ) (φ.subst c.σ.τ) :=
     ent_trans (eq_ent (I_eq_symm (c.ieq_subst (I_eq_refl φ')))) (ent_subst h21 c.σ.τ)
   have hGG : RT2 S k (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) :=
-    hG.ty hW (c.diagL hW)
+    hG k (c.diagL hW)
   by_cases hh : (ival (idEnv k) (φ.subst c.σ.τ)).holds
   · -- the face holds: both sides are their fibers
     have hφe := (holds_iff_entails hφL).1 hh
@@ -256,44 +194,6 @@ theorem valid_glueEl_core {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ 
     · exact hat k c hh k' σ hh'
     · exact hat' k c hh k' σ hh'
 
-/-- Related elements of a Glue type whose face does not hold: their bases agree with their fibers
-through the type's equivalence, where the face holds. -/
-theorem RE2_glueEl_base {A T e x y : Tm} {φ : I} {l : ℕ} (hG : HasTy S k .one [] (.glue A φ T e) (.univ l))
-    (hn : ¬ (ival (idEnv k) φ).holds) (h : RE2 S k (.glue A φ T e) x y) {ψ ψ' : I} {e0 t0 a0 e0' t0' a0' : Tm}
-    (hx : RedW S x (.glueEl ψ e0 t0 a0)) (hy : RedW S y (.glueEl ψ' e0' t0' a0')) :
-    ∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
-      RE2 S k' (A.isub σ) (a0.isub σ) (.app (.fst (e.isub σ)) (t0.isub σ)) ∧
-      RE2 S k' (A.isub σ) (a0'.isub σ) (.app (.fst (e.isub σ)) (t0'.isub σ)) := by
-  obtain ⟨hφs, lA, hA0, -⟩ := glue_data hW hG
-  have hnf : ¬ Cof.holds (ival (idEnv k) φ).face := by rwa [← DM.holds_iff_face_holds]
-  have hE := RE2.typed h
-  unfold RE2 at h
-  rw [semK_glueT hW hG, Comp2_glueC (kv_semK_of_univ hW hA0) (isKV_partialKV _ _) (isCof_ival_face _ _) hnf] at h
-  obtain ⟨-, -, -, hmain, -, -⟩ := h
-  have hm := hmain k (ISub.id k)
-  unfold glueLocE at hm
-  rw [if_neg (by rw [Hom.id_comp, ISub.hom_id, (isCof_ival_face _ _).restr_id]; exact hnf)] at hm
-  obtain ⟨A1, φ1, T1, e1, ψ1, e01, t01, a01, ψ1', e01', t01', a01', r1, rg, rg', -, -, -, -, -, -, -, hfibs⟩ := hm
-  have hn' : ¬ I.Entails .one φ := fun h' => hn ((holds_iff_entails hφs).2 h')
-  rw [isub_id_of_closed (closed_of_ty hW hG)] at r1
-  rw [isub_id_of_closed (closed_of_ty hW hE.1)] at rg
-  rw [isub_id_of_closed (closed_of_ty hW hE.2.1)] at rg'
-  have eq1 := RedW.unique r1.1 (redT_glue_self (S := S) (k := k) (A1 := A) (T1 := T) (e1 := e) hn').1
-  simp only [Tm.glue.injEq] at eq1
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := eq1
-  have ex := RedW.unique rg.1 hx
-  have ey := RedW.unique rg'.1 hy
-  simp only [Tm.glueEl.injEq] at ex ey
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := ex
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := ey
-  intro k' σ hh
-  have hface : (Cof.restr (ival (idEnv k) φ1).face ((Hom.id k).comp ((ISub.id k).comp σ).hom)).holds := by
-    rw [ISub.id_comp, Hom.id_comp]; exact (face_holds_iff hφs σ).2 hh
-  obtain ⟨-, h1, h2⟩ := hfibs k' σ hface
-  rw [ISub.id_comp, Hom.id_comp, Comp2_res_el hW hA0] at h1 h2
-  exact ⟨h1, h2⟩
-
-
 /-- The base and fiber agreement of a Glue introduction, from the validity of that agreement. -/
 theorem glue_hat_of_valid {A T e t a : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
     (hG : Valid2 S Ψ Φ Γ (.glue A φ T e) (.glue A φ T e) (.univ l))
@@ -318,7 +218,7 @@ theorem valid_glueEl {A T e t a : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
     (hat : Valid2 S Ψ (cof Φ φ) Γ (.app (.fst e) t) a A) (hty : HasTy0 S Ψ Φ Γ (.glueEl φ e t a) (.glue A φ T e)) :
     Valid2 S Ψ Φ Γ (.glueEl φ e t a) (.glueEl φ e t a) (.glue A φ T e) := by
   have hat0 := glue_hat_of_valid hW hφ hG hat
-  refine valid_glueEl_core hW hφ (ent_refl _) (ent_refl _) hG (EqTm0.refl he0) ht ha hat0 (fun k c hh k' σ hh' => ?_)
+  refine valid_glueEl_core hW hφ (ent_refl _) (ent_refl _) (fun k c => hG.ty hW c) (EqTm0.refl he0) ht ha hat0 (fun k c hh k' σ hh' => ?_)
     hty hty (EqTm0.refl hty)
   -- the right instance of `a`, related to the left instance of the fiber image
   have h1 := hat0 k c hh k' σ hh'
@@ -338,9 +238,9 @@ theorem valid_glueEl {A T e t a : Tm} {φ : I} {l : ℕ} (hφ : φ.Scoped Ψ)
   have h3 := RE2_equiv_app hW (hinv.2 k' σ hh').2 htσ
   exact RE2.trans hW hAσ (RE2.symm hW hAσ haσ) (RE2.trans hW hAσ h1 h3)
 
-theorem valid_glueEl_eq {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Scoped Ψ)
+theorem valid_glueEl_eq {A T e e' t t' a a' : Tm} {φ φ' : I} (hφ : φ.Scoped Ψ)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)
-    (hG : Valid2 S Ψ Φ Γ (.glue A φ T e) (.glue A φ T e) (.univ l))
+    (hG : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L (.glue A φ T e)) (c.R (.glue A φ T e)))
     (hee : EqTm0 S Ψ (cof Φ φ) Γ e e' (Tm.equiv T A))
     (ht : Valid2 S Ψ (cof Φ φ) Γ t t' T) (ha : Valid2 S Ψ Φ Γ a a' A)
     (hg : Valid2 S Ψ Φ Γ (.glueEl φ e t a) (.glueEl φ e t a) (.glue A φ T e))
@@ -353,8 +253,9 @@ theorem valid_glueEl_eq {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ : 
     (fun k c hh k' σ hh' => ?_) hty hty' heq
   all_goals
     have hφL := I.scoped_subst hφ c.σ.sc
-    have hGt : HasTy S k .one [] (.glue (c.L A) (φ.subst c.σ.τ) (c.L T) (c.L e)) (.univ l) :=
-      (RE2.typed (hG k c).2).1
+    obtain ⟨lG, hGt | hBad⟩ := (Comp2_ty_base (hG k c)).2.1
+    swap
+    · cases hBad
     have hn : ¬ I.Entails .one (φ.subst c.σ.τ) := fun h => hh ((holds_iff_entails hφL).2 h)
     have e12 : I.Entails (φ.subst c.σ.τ) (φ'.subst c.σ'.τ) :=
       ent_trans (ent_subst h12 c.σ.τ) (eq_ent (c.ieq_subst (I_eq_refl φ')))
@@ -369,21 +270,6 @@ theorem valid_glueEl_eq {A T e e' t t' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ : 
     exact (RE2_glueEl_base hW hGt hh (hg' k c).2 (redE_glueEl_self (S := S) hnL (c.ty hW hty')).1
       (redE_glueEl_self (S := S) hn' (c.tyR' hW hty')).1 k' σ hh').2
 
-
-/-- `unglue` where the face holds is the application of the equivalence, at every restriction. -/
-theorem stable_unglueFace {X A T e g : Tm} {φ : I} {l : ℕ} (hφe : I.Entails .one φ)
-    (hu : HasTy S k .one [] (.unglue φ e g) X) (hg : HasTy S k .one [] g (.glue A φ T e))
-    (hA : HasTy S k .one [] A (.univ l)) (he : HasTy S k .one [] e (Tm.equiv T A)) (hX : TyEq S k X A) :
-    StableE S k X (.unglue φ e g) (.app (.fst e) g) := by
-  intro k' σ
-  have hφσ : I.Entails .one (φ.subst σ.τ) := by have := ent_subst hφe σ.τ; simpa [I.subst] using this
-  have hgσ := HasTy.isubS hW hg σ
-  have heσ := HasTy.isubS hW he σ
-  rw [isub_glue] at hgσ
-  rw [isub_equiv] at heσ
-  rw [isub_unglue, isub_app, isub_fst]
-  refine ⟨.step (by simp [step, show I.entails .one (φ.subst σ.τ) = true from hφσ]) (.refl _), ?_⟩
-  exact (EqTm.unglueFace hφσ hgσ (HasTy.isubS hW hA σ) heσ).tyConv (TyEq.symm (hX.isub hW σ))
 
 theorem valid_unglue_core {A T e e' g g' : Tm} {φ φ' : I} (hφ : φ.Scoped Ψ) (hφ' : φ'.Scoped Ψ)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)

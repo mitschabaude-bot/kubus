@@ -11,7 +11,9 @@ normal forms (`RedW`), which are unique: this makes the relations transitive wit
 injectivity of type formers or constructors. Elements of `Π`, `Σ` and path types are observed
 through their eliminations. Elements of Glue types are observed through their weak-head normal
 forms `glueEl ψ e t a`, whose annotations agree with those of the type's normal form (so that
-`unglue` computes soundly), and their bases `a`; where the face holds, through `T`.
+`unglue` computes soundly), and their bases `a`; where the face holds, through `T`. Related elements of a
+universe are related types whose code is Kan (`KanPG`): composition and transport in all types related at
+its restrictions relate related inputs.
 -/
 
 set_option autoImplicit false
@@ -161,6 +163,46 @@ def equivF (TP AP : (k' : ℕ) → ISub k' n → Pack2) : (k' : ℕ) → ISub k'
 
 end fam
 
+/-! ### The Kan property, for the relations of a code -/
+
+/-- Composition relates related tubes and bases, with the element relations `E k' σ` at the restrictions
+`A.isub σ` of `A` (at `KanH2`, those of `RE2`; in the universe, those of the code of `A`). -/
+def KanHG (k : ℕ) (A A' : Tm) (E : (k' : ℕ) → ISub k' k → Tm → Tm → Tm → Prop) : Prop :=
+  ∀ (φ φ' : I) (u u' a a' : Tm), HasTy S k .one [] (.hcomp A φ u a) A → HasTy S k .one [] (.hcomp A' φ' u' a') A →
+    EqTm S k .one [] (.hcomp A φ u a) (.hcomp A' φ' u' a') A →
+    EqTm S (k + 1) (cof .one φ).shift [] u u' A.dshift →
+    I.Entails φ φ' → I.Entails φ' φ →
+    (∀ k' (σ : ISub k' k) (r r' : I), r.Scoped k' → r'.Scoped k' → I.Eq r r' →
+      (ival (idEnv k') (φ.subst σ.τ)).holds → E k' σ (A.isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r')) →
+    E k (ISub.id k) A a a' →
+    (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      E k' σ (A.isub σ) ((u.isub σ.up).dinst .zero) (a'.isub σ)) →
+    (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      E k' σ (A.isub σ) (a.isub σ) ((u'.isub σ.up).dinst .zero)) →
+    E k (ISub.id k) A (.hcomp A φ u a) (.hcomp A' φ' u' a')
+
+/-- Transport along related lines (at stage `k + 1`) relates related elements, with the type and element
+relations `Rt k' ρ`, `Re k' ρ` at the restrictions `A.isub ρ` of the line `A`. -/
+def KanTG (k : ℕ) (A A' : Tm) (Rt : (k' : ℕ) → ISub k' (k + 1) → Tm → Tm → Prop)
+    (Re : (k' : ℕ) → ISub k' (k + 1) → Tm → Tm → Tm → Prop) : Prop :=
+  (∀ k' (τ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+    Rt k' (ISub.cons r hr τ) (A.isub (ISub.cons r hr τ)) (A'.isub (ISub.cons r' hr' τ))) →
+  ∀ (φ φ' : I) (a a' : Tm),
+    (∀ k' (σ : ISub k' k) (r : I) (hr : r.Scoped k'), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      Rt k' (ISub.cons r hr σ) (A.isub (ISub.cons r hr σ)) (A.isub (ISub.cons .zero trivial σ))) →
+    HasTy S k .one [] (.transp A φ a) (A.dinst .one) →
+    HasTy S k .one [] (.transp A' φ' a') (A.dinst .one) →
+    EqTm S k .one [] (.transp A φ a) (.transp A' φ' a') (A.dinst .one) → I.Entails φ φ' → I.Entails φ' φ →
+    Re k (ISub.cons .zero trivial (ISub.id k)) (A.dinst .zero) a a' →
+    Re k (ISub.cons .one trivial (ISub.id k)) (A.dinst .one) (.transp A φ a) (.transp A' φ' a')
+
+/-- The Kan property of a code given by its relations `R` at the restrictions of stage `m`: composition
+and transport in all pairs of related types. -/
+def KanPG (m : ℕ) (R : (k : ℕ) → Hom k m → Pack2) : Prop :=
+  (∀ k (f : Hom k m) (A A' : Tm), (R k f).ty A A' → KanHG S k A A' (fun k' σ => (R k' (f.comp σ.hom)).el)) ∧
+  (∀ k (f : Hom (k + 1) m) (A A' : Tm), (R (k + 1) f).ty A A' →
+    KanTG S k A A' (fun k' ρ => (R k' (f.comp ρ.hom)).ty) (fun k' ρ => (R k' (f.comp ρ.hom)).el))
+
 /-! ### Inductive types -/
 
 mutual
@@ -245,11 +287,17 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
       (RY k'' (σ.comp σ')).ty (A1.isub σ') A2 ∧
       ∀ a a', (RY k'' (σ.comp σ')).el (A1.isub σ') a a' →
         (RB k'' (σ.comp σ') a).ty ((B1.isub σ').inst a) (B2.inst a')
+    let kan : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) A1 B1,
+      RedT S k' (A.isub σ) (if isPi then .pi A1 B1 else .sigma A1 B1) →
+      KanPG S k' (fun n g => rec Y h12 k n (σ.hom.comp g)) ∧
+      ∀ a a', (RY k' σ).el A1 a a' →
+        KanPG S k' (rec (appV k' (res σ.hom B) (semK S k' a))
+          ((rank_appV_res_le _ _ _).trans_lt h22) k')
     { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1',
           RedT S k' (A.isub σ) (if isPi then .pi A1 B1 else .sigma A1 B1) ∧
           RedT S k' (A'.isub σ) (if isPi then .pi A1' B1' else .sigma A1' B1') ∧
           (RY k' σ).ty A1 A1' ∧ ∀ a a', (RY k' σ).el A1 a a' → (RB k' σ a).ty (B1.inst a) (B1'.inst a')) ∧
-          coh A ∧ coh A'
+          coh A ∧ coh A' ∧ kan A ∧ kan A'
       el := if isPi then piE2 S (fun k' σ => (RY k' σ).el) cod k (ISub.id k)
         else sigmaE2 S (fun k' σ => (RY k' σ).el) cod k (ISub.id k) }
   else if π1 sh = natZ tPath ∨ π1 sh = natZ tIPi then
@@ -261,30 +309,38 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
         (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2 ∧
         (RL k'' (ISub.cons .zero trivial (σ.comp σ'))).el (L2.dinst .zero) (b0.isub σ') c0 ∧
         (RL k'' (ISub.cons .one trivial (σ.comp σ'))).el (L2.dinst .one) (b1.isub σ') c1
+      let kan : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) L1 b0 b1,
+        RedT S k' (A.isub σ) (.path L1 b0 b1) →
+        KanPG S (k' + 1) (fun n g => rec L h12 (k + 1) n (σ.up.hom.comp g))
       { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
             RedT S k' (A.isub σ) (.path L1 b0 b1) ∧ RedT S k' (A'.isub σ) (.path L1' b0' b1') ∧
             (RL (k' + 1) σ.up).ty L1 L1' ∧
             (∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
               (RL k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r')) ∧
             (RL k' (ISub.cons .zero trivial σ)).el (L1.dinst .zero) b0 b0' ∧
-            (RL k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1') ∧ coh A ∧ coh A'
+            (RL k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1') ∧ coh A ∧ coh A' ∧ kan A ∧ kan A'
         el := pathE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
     else
       let coh : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') L1 L2,
         RedT S k' (A.isub σ) (.ipi L1) → RedT S k'' (A.isub (σ.comp σ')) (.ipi L2) →
         (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2
+      let kan : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) L1,
+        RedT S k' (A.isub σ) (.ipi L1) →
+        KanPG S (k' + 1) (fun n g => rec L h12 (k + 1) n (σ.up.hom.comp g))
       { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ L1 L1',
             RedT S k' (A.isub σ) (.ipi L1) ∧ RedT S k' (A'.isub σ) (.ipi L1') ∧ (RL (k' + 1) σ.up).ty L1 L1' ∧
             ∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
               (RL k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r')) ∧
-            coh A ∧ coh A'
+            coh A ∧ coh A' ∧ kan A ∧ kan A'
         el := ipiE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
   else if π1 sh = natZ tUniv then
     { ty := fun A A' => ∀ k' (σ : ISub k' k),
           RedT S k' (A.isub σ) (.univ (natOf (π2 sh))) ∧ RedT S k' (A'.isub σ) (.univ (natOf (π2 sh)))
       el := fun A T T' => ∃ h : semK S k T ∈ π1 (π2 (Dt k (Hom.id k))),
         (rec (semK S k T) (lt_trans (rank_lt_of_mem h) ((rank_π1_le _).trans_lt ((rank_π2_le _).trans_lt
-          (hD k (Hom.id k))))) k k (Hom.id k)).ty T T' }
+          (hD k (Hom.id k))))) k k (Hom.id k)).ty T T' ∧
+        KanPG S k (rec (semK S k T) (lt_trans (rank_lt_of_mem h) ((rank_π1_le _).trans_lt ((rank_π2_le _).trans_lt
+          (hD k (Hom.id k))))) k) }
   else if π1 sh = natZ tEmpty then
     { ty := fun _ _ => True
       el := fun _ _ _ => False }
@@ -331,7 +387,10 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
           (RT k'' (σ.comp ρ)).el (A.isub (σ.comp ρ)) (t0.isub ρ) (g.isub (σ.comp ρ))) ∧
         (¬ (φ.restr (σ.comp ρ).hom).holds →
           locE k'' (σ.comp ρ) (A.isub (σ.comp ρ)) (w.isub ρ) (g.isub (σ.comp ρ)))
-    { ty := fun A A' => (∀ k' (σ : ISub k' k), locT k' σ (A.isub σ) (A'.isub σ)) ∧ cohT A ∧ cohT A'
+    let kan : Prop := KanPG S k (rec A0 h12 k) ∧
+      ∀ k' (σ : ISub k' k), (φ.restr σ.hom).holds →
+        KanPG S k' (rec (dat Tp k' σ.hom) ((rank_dat_le _ _).trans_lt h1222) k')
+    { ty := fun A A' => (∀ k' (σ : ISub k' k), locT k' σ (A.isub σ) (A'.isub σ)) ∧ cohT A ∧ cohT A' ∧ kan
       el := fun A g g' => EB S k A g g' ∧ (∀ k' (σ : ISub k' k), locE k' σ (A.isub σ) (g.isub σ) (g'.isub σ)) ∧
         cohE A g ∧ cohE A g' }
   else if π1 sh = natZ tData then
@@ -354,7 +413,9 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
         (rec (tyLook (π2 (π2 (π2 (π1 (Dt k'' (σ.comp σ').hom))))) c args.length (args.map (semK S k'')))
           (tyLook_rank_lt (hD k'' (σ.comp σ').hom)) k'' k'' (Hom.id k'')).ty
           ((C.argTy d D.params.length args.length).substList (args.reverse ++ (ps.isub σ').toList.reverse))
-          ((C.argTy d D.params.length args.length).substList (args'.reverse ++ (ps'.isub σ').toList.reverse))
+          ((C.argTy d D.params.length args.length).substList (args'.reverse ++ (ps'.isub σ').toList.reverse)) ∧
+        KanPG S k'' (rec (tyLook (π2 (π2 (π2 (π1 (Dt k'' (σ.comp σ').hom))))) c args.length
+          (args.map (semK S k''))) (tyLook_rank_lt (hD k'' (σ.comp σ').hom)) k'')
     -- the parameters: a parameter of a universe type is related as a type at its value's code, the
     -- others at the code of their type
     let pe : (k' : ℕ) → Hom k' k → ℕ → V := fun k' g j => vnth (π2 (π1 (π2 (π2 (π1 (Dt k' g)))))) j
@@ -363,7 +424,8 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
         ((rank_π2_le _).trans ((rank_π2_le _).trans (rank_π1_le _))))))) (hD k' g)
     let parCl : (k' : ℕ) → ISub k' k → Tm → Tm → Prop := fun k' σ ps ps' =>
       ∀ j (p p' : Tm), ps.toList[j]? = some p → ps'.toList[j]? = some p' →
-        (π1 (pe k' σ.hom j) = natZ 1 → (rec (π2 (pe k' σ.hom j)) (hpe k' σ.hom j) k' k' (Hom.id k')).ty p p') ∧
+        (π1 (pe k' σ.hom j) = natZ 1 → (rec (π2 (pe k' σ.hom j)) (hpe k' σ.hom j) k' k' (Hom.id k')).ty p p' ∧
+          KanPG S k' (rec (π2 (pe k' σ.hom j)) (hpe k' σ.hom j) k')) ∧
         (π1 (pe k' σ.hom j) = natZ 0 → ∀ Aj, D.params[j]? = some Aj →
           (rec (π2 (pe k' σ.hom j)) (hpe k' σ.hom j) k' k' (Hom.id k')).ty
             (Aj.substList (ps.toList.take j).reverse) (Aj.substList (ps'.toList.take j).reverse) ∧
@@ -409,6 +471,49 @@ def RT2 (k : ℕ) (A A' : Tm) : Prop := (Comp2 S (semK S k A) k k (Hom.id k)).ty
 
 /-- Related elements of a type at a stage. -/
 def RE2 (k : ℕ) (A t t' : Tm) : Prop := (Comp2 S (semK S k A) k k (Hom.id k)).el A t t'
+
+/-! ### The Kan property -/
+
+/-- Related tubes: related where the face holds, at all restrictions and `I.Eq`-equal points. -/
+def Tube2 (k : ℕ) (A : Tm) (φ : I) (u u' : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) (r r' : I), r.Scoped k' → r'.Scoped k' → I.Eq r r' →
+    (ival (idEnv k') (φ.subst σ.τ)).holds → RE2 S k' (A.isub σ) ((u.isub σ.up).dinst r) ((u'.isub σ.up).dinst r')
+
+/-- Composition in related types relates related tubes and bases. -/
+def KanH2 (k : ℕ) (A A' : Tm) : Prop :=
+  ∀ (φ φ' : I) (u u' a a' : Tm), HasTy S k .one [] (.hcomp A φ u a) A → HasTy S k .one [] (.hcomp A' φ' u' a') A →
+    EqTm S k .one [] (.hcomp A φ u a) (.hcomp A' φ' u' a') A →
+    EqTm S (k + 1) (cof .one φ).shift [] u u' A.dshift →
+    I.Entails φ φ' → I.Entails φ' φ → Tube2 S k A φ u u' → RE2 S k A a a' →
+    (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (A.isub σ) ((u.isub σ.up).dinst .zero) (a'.isub σ)) →
+    (∀ k' (σ : ISub k' k), (ival (idEnv k') (φ.subst σ.τ)).holds →
+      RE2 S k' (A.isub σ) (a.isub σ) ((u'.isub σ.up).dinst .zero)) →
+    RE2 S k A (.hcomp A φ u a) (.hcomp A' φ' u' a')
+
+/-- Lines (at stage `k + 1`) related at `I.Eq`-equal points of every restriction. -/
+def LineRob (k : ℕ) (A A' : Tm) : Prop :=
+  ∀ k' (τ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
+    RT2 S k' (A.isub (ISub.cons r hr τ)) (A'.isub (ISub.cons r' hr' τ))
+
+/-- A line (at stage `k + 1`) is constant where the face `φ` holds. -/
+def LineConst (k : ℕ) (A : Tm) (φ : I) : Prop :=
+  ∀ k' (σ : ISub k' k) (r : I) (hr : r.Scoped k'), (ival (idEnv k') (φ.subst σ.τ)).holds →
+    RT2 S k' (A.isub (ISub.cons r hr σ)) (A.isub (ISub.cons .zero trivial σ))
+
+/-- Transport along related lines (at stage `k + 1`) relates related elements. -/
+def KanT2 (k : ℕ) (A A' : Tm) : Prop :=
+  LineRob S k A A' →
+  ∀ (φ φ' : I) (a a' : Tm), LineConst S k A φ → HasTy S k .one [] (.transp A φ a) (A.dinst .one) →
+    HasTy S k .one [] (.transp A' φ' a') (A.dinst .one) →
+    EqTm S k .one [] (.transp A φ a) (.transp A' φ' a') (A.dinst .one) → I.Entails φ φ' → I.Entails φ' φ →
+    RE2 S k (A.dinst .zero) a a' → RE2 S k (A.dinst .one) (.transp A φ a) (.transp A' φ' a')
+
+/-- The Kan properties of all pairs of types related at a restriction of the code `X`. -/
+def KanP2 (m : ℕ) (X : V) : Prop :=
+  (∀ k (f : Hom k m) (A A' : Tm), (Comp2 S X m k f).ty A A' → KanH2 S k A A') ∧
+  (∀ k (f : Hom (k + 1) m) (A A' : Tm), (Comp2 S X m (k + 1) f).ty A A' → KanT2 S k A A')
+
 
 end
 
