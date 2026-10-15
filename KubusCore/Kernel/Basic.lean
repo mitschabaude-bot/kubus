@@ -876,6 +876,11 @@ def inferHcomp (R : Rec S) (E : KCtx S Ψ Φ Γ) (A : Tm) (φ : I) (u a : Tm) :
   let ⟨heq⟩ ← R.conv E1 A l (HasTy.rs E hφ hA) (u.dinst .zero) a hu0 (HasTy.rs E hφ ha)
   pure ⟨l, hA, hφ, hu, ha, heq, HasTy.hcomp hA hφ hu ha heq⟩
 
+/-- `hcomp` or `transp`. -/
+def _root_.KubusCore.Tm.isKanOp : Tm → Bool
+  | .hcomp .. | .transp .. => true
+  | _ => false
+
 /-- Record that `t` is typed in `Ψ; Φ; Γ` (with the faces `fs` of `Φ`), and so are the subterms
 that the generation lemmas show typed in the same restriction: the heads of eliminations, the
 type and base of compositions, the base of transports, the components of Π, Σ and path types
@@ -884,7 +889,9 @@ def noteTypedIn (hS : WfSig S) (fs : List I.Face) (hfs : fs = Φ.faces) :
     Nat → (Γ : Ctx) → (t : Tm) → (∃ T, HasTy S Ψ Φ Γ t T) → K S Unit
   | 0, _, _, _ => pure ()
   | n + 1, Γ, t, h => do
-    modify fun c => { c with typed := c.typed.insert Ψ Φ Γ [t] fs hfs (⟨h⟩ : PLift _) }
+    -- only compositions and transports are looked up (`inferHcomp`, `inferTransp`)
+    let kan := t.isKanOp
+    modify fun c => if kan then { c with typed := c.typed.insert Ψ Φ Γ [t] fs hfs (⟨h⟩ : PLift _) } else c
     have h0 : ∃ T, Meta.HasTy0 S Ψ Φ Γ t T := by
       obtain ⟨T, h⟩ := h; exact ⟨T, Meta.spec_to_minimal hS h⟩
     match hp : t.elimHead with

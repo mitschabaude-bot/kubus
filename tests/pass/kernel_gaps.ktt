@@ -33,3 +33,10 @@ def w1fill (j : I) (x : w1 0) : w1 j := fill m (hcomp k U [m = 0 -> Bool, m = 1 
 -- `unglue` of a glue element whose face is equal to `unglue`'s only up to the interval laws
 def ungAlign (i : I) : Glue Bool [i = 0 -> (Bool, idEquiv Bool)] :=
   comp k (Glue Bool [i = 0 -> (Bool, idEquiv Bool)]) [i = 1 -> fill m (Glue Bool [i = 0 -> (Bool, idEquiv Bool)]) [] (glue [i = 0 -> false] false) k] (glue [i = 0 -> false] false)
+
+-- a system of glue elements (from transport along a Glue line with a system as base) under
+-- a restriction with several faces: typed by the system of its branch types, stuck, or
+-- contracted where a face holds (fuzz_11_31)
+def windSys (i40 : I) : Int :=
+  winding (comp k44 (Path S1 base base) [i40 = 0 -> (\i47 -> base)] (\i47 -> base))
+def hcompSys (i39 : I) (i40 : I) : Int := hcomp k48 Int [i39 = 1 -> windSys i40, i39 = 0 -> windSys i40] (windSys i40)

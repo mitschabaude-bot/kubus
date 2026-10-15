@@ -67,7 +67,7 @@ theorem IPiStr_of {T T' L : Tm} {l : ℕ} (h : RT2 S k T T') (hR : RedT S k T (.
   have hT := h
   unfold RT2 at hT
   rw [hX, Comp2_ipiC _ hLne] at hT
-  obtain ⟨hbase, hall, hcoh, hcoh'⟩ := hT
+  obtain ⟨hbase, hall, hcoh, hcoh', -, -⟩ := hT
   have hLc := tyCode_of_univ hW hL0
   refine ⟨hbase.2.2.2.2, fun k' ρ => ?_, fun k1 ρ k2 ρ' L1 L2 h1 h2 s hs => ?_, fun k' ρ L1 h1 s hs => ?_,
     fun k' ρ L1 f f' h1 hf => ?_, fun k1 ρ k2 ρ' L1 L2 h1 h2 s hs => ?_⟩

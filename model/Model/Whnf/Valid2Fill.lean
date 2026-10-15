@@ -64,7 +64,6 @@ theorem VTy.upInst' {Φs Φ' : I} {t A : Tm} (r : I) (hr : r.Scoped Ψ) (hΦs : 
 
 /-- Composition, congruence. -/
 theorem VEq.hcomp' {A A' u u' a a' : Tm} {φ φ' : I} {l : ℕ}
-    (hK : ∀ k (c : CSub2 S Ψ Φ Γ k), KanH2 S k (c.L A) (c.R A'))
     (hφ : φ.Scoped Ψ) (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)
     (hty : HasTy0 S Ψ Φ Γ (.hcomp A φ u a) A) (hty' : HasTy0 S Ψ Φ Γ (.hcomp A' φ' u' a') A)
     (hA : VEq S Ψ Φ Γ A A' (.univ l)) (hu : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift u u' A.dshift)
@@ -72,12 +71,12 @@ theorem VEq.hcomp' {A A' u u' a a' : Tm} {φ φ' : I} {l : ℕ}
     (hu0' : Valid2 S Ψ (cof Φ φ) Γ (u'.dinst .zero) a' A) :
     VEq S Ψ Φ Γ (.hcomp A φ u a) (.hcomp A' φ' u' a') A := by
   have e := EqTm0.hcomp hty hty' hA.eq h12 h21 hu.eq ha.eq
-  exact ⟨e, valid_hcomp hW hφ h12 h21 hA.v hu.v ha.v hu0 hu0' hty hty' e hu.eq hK⟩
+  exact ⟨e, valid_hcomp hW hφ h12 h21 hA.v hu.v ha.v hu0 hu0' hty hty' e hu.eq⟩
 
 /-! ### The homogeneous filler -/
 
 /-- `hfill_typed`, with validity. -/
-theorem VTy.hfill' (hKH : KHAll S) {A u u0 : Tm} {φ : I} {l : ℕ} (hA : VTy S Ψ Φ Γ A (.univ l))
+theorem VTy.hfill' {A u u0 : Tm} {φ : I} {l : ℕ} (hA : VTy S Ψ Φ Γ A (.univ l))
     (hφ : φ.Scoped Ψ) (hu : VTy S (Ψ + 1) (cof Φ φ).shift Γ.dshift u A.dshift)
     (hu0 : VTy S Ψ Φ Γ u0 A) (hside : VEq S Ψ (cof Φ φ) Γ (u.dinst .zero) u0 A) :
     VTy S (Ψ + 1) Φ.shift Γ.dshift (Tm.hfill A φ u u0) A.dshift ∧
@@ -175,7 +174,7 @@ theorem VTy.hfill' (hKH : KHAll S) {A u u0 : Tm} {φ : I} {l : ℕ} (hA : VTy S 
   have hside'' : VEq S (Ψ + 1) (cof Φ.shift χ) Γ.dshift ((KubusCore.Meta.fillTube φ u u0).dinst .zero) u0.dshift
       A.dshift := by rw [fillTube_d0]; exact hside'
   have hfT : VTy S (Ψ + 1) Φ.shift Γ.dshift (Tm.hfill A φ u u0) A.dshift :=
-    VTy.hcompG hW hKH hA1 hχs htube hbase hside''
+    VTy.hcomp' hW hA1 hχs htube hbase hside''
   refine ⟨hfT, ?_, ?_, ?_⟩
   · -- the endpoint 0
     have hd : VTy S Ψ Φ Γ ((Tm.hcomp A.dshift χ (KubusCore.Meta.fillTube φ u u0) u0.dshift).dinst .zero)
@@ -199,7 +198,7 @@ theorem VTy.hfill' (hKH : KHAll S) {A u u0 : Tm} {φ : I} {l : ℕ} (hA : VTy S 
   · -- the endpoint 1
     have hd : VTy S Ψ Φ Γ ((Tm.hcomp A.dshift χ (KubusCore.Meta.fillTube φ u u0) u0.dshift).dinst .one)
         (A.dshift.dinst .one) := VTy.dsubst' hW .one trivial hfT
-    have hc := VTy.hcompG hW hKH hA hφ hu hu0 hside
+    have hc := VTy.hcomp' hW hA hφ hu hu0 hside
     have hX : (cof Φ (.or φ (.neg .one))).Scoped Ψ := ⟨hs, ⟨hφ, trivial⟩⟩
     have hXe0 : I.Entails (cof Φ (.or φ (.neg .one))) (cof Φ φ) := ent_and_mono (ent_refl _) (ent_neg_one φ)
     have hXe : I.Entails (cof Φ (.or φ (.neg .one))).shift (cof Φ φ).shift := ent_shift hXe0
@@ -218,7 +217,7 @@ theorem VTy.hfill' (hKH : KHAll S) {A u u0 : Tm} {φ : I} {l : ℕ} (hA : VTy S 
       have e := VEq.dsubst' hW (Φ := cof Φ (.or φ (.neg .one))) .zero trivial htu
       rw [dshift_dinst] at e
       exact (VEq.trans' hW e (VEq.restrict' hW hX hXe0 hside)).v
-    have e := VEq.hcomp' hW (φ := .or φ (.neg .one)) (fun k c => hKH k _ _ (hA.v.ty hW c)) ⟨hφ, trivial⟩ (ent_neg_one φ) (ent_or_left _ _)
+    have e := VEq.hcomp' hW (φ := .or φ (.neg .one))  ⟨hφ, trivial⟩ (ent_neg_one φ) (ent_or_left _ _)
       hd.ty hc.ty (VEq.refl' hA) htu (VEq.refl' hu0) hu0L (valid_restrict hW hXe0 hside.v)
     rw [show Tm.hfill A φ u u0 = Tm.hcomp A.dshift χ (KubusCore.Meta.fillTube φ u u0) u0.dshift from hfill_eq A φ u u0,
       hfill_d1_eq, fillTube_up1']
@@ -241,7 +240,7 @@ theorem VTy.hfill' (hKH : KHAll S) {A u u0 : Tm} {φ : I} {l : ℕ} (hA : VTy S 
 /-! ### Heterogeneous composition -/
 
 /-- The parts of `comp`: the end type, the tube of transports, the transported base and the side condition. -/
-theorem VTy.compParts' (hKT : KTAll S) {C ψ u u0} {l : ℕ}
+theorem VTy.compParts' {C ψ u u0} {l : ℕ}
     (hC : VTy S (Ψ + 1) Φ.shift Γ.dshift C (.univ l)) (hψ : ψ.Scoped Ψ)
     (hu : VTy S (Ψ + 1) (cof Φ ψ).shift Γ.dshift u C) (hu0 : VTy S Ψ Φ Γ u0 (C.dinst .zero))
     (hside : VEq S Ψ (cof Φ ψ) Γ (u.dinst .zero) u0 (C.dinst .zero)) :
@@ -302,7 +301,7 @@ theorem VTy.compParts' (hKT : KTAll S) {C ψ u u0} {l : ℕ}
       ⟨hv0, trivial⟩ (I_eq_symm (I_eq_or_zero_r _)) hwX
     rw [sk_var1] at e
     exact VTy.conv' hW hu e
-  have ht0 := VTy.transpG hW hKT hL hv0 hconst hu'
+  have ht0 := VTy.transp' hW hL hv0 hconst hu'
   have htube : VTy S (Ψ + 1) (cof Φ ψ).shift Γ.dshift
       (.transp (C.dsubst (Tm.bind2 (.or (.var 1) (.var 0)))) (.var 0) u) (C.dinst .one).dshift := by
     have e := VTy.lineIeq hW hC (k := 1) (r := .or (.var 0) .one) (r' := .one) hXΦ
@@ -313,7 +312,7 @@ theorem VTy.compParts' (hKT : KTAll S) {C ψ u u0} {l : ℕ}
   -- the base
   have hab : I.Entails (cof Φ .zero).shift .zero := ent_shift (ent_and_right Φ .zero)
   have hZs : (cof Φ .zero).shift.Scoped (Ψ + 1) := KubusCore.I.scoped_shift ⟨hs, trivial⟩
-  have hb := VTy.transpG hW hKT hC (φ := .zero) trivial
+  have hb := VTy.transp' hW hC (φ := .zero) trivial
     (VEq.absurd' hW hab (HasTy0.restrict hZs (ent_shift (ent_and_left _ _)) hC.ty)
       (HasTy0.restrict hZs (ent_shift (ent_and_left _ _)) (HasTy0.dwk hS (HasTy0.dsubst hS hC.ty (r := .zero) trivial))))
     hu0
@@ -347,7 +346,7 @@ theorem VTy.compParts' (hKT : KTAll S) {C ψ u u0} {l : ℕ}
     rw [Ctx.dren_zero, sk_zero0] at eA0
     have h5 : VEq S Ψ (cof Φ ψ) Γ (u.dinst .zero) u0 ((C.subst Tm.var (sk (.or .zero (.var 0)) 1)).dinst .zero) := by
       rw [sk1_d0z]; exact VEq.conv' hW hside eA0
-    have e := VEq.transp' hW (fun k c => hKT k _ _ (h2.v.ty hW (c.up hW)))
+    have e := VEq.transp' hW 
       (φ := .zero) trivial (ent_refl _) (ent_refl _) h0'.ty h1.ty h2
       (valid_absurd (A := .univ l) (ent_shift (ent_and_right (cof Φ ψ) .zero))) h5
     rw [sk1_d1z] at e
@@ -355,13 +354,13 @@ theorem VTy.compParts' (hKT : KTAll S) {C ψ u u0} {l : ℕ}
   exact ⟨hC1, htube, hconst, hb, hside'⟩
 
 /-- `comp_typed`, with validity. -/
-theorem VTy.comp' (hKH : KHAll S) (hKT : KTAll S) {C ψ u u0} {l : ℕ}
+theorem VTy.comp' {C ψ u u0} {l : ℕ}
     (hC : VTy S (Ψ + 1) Φ.shift Γ.dshift C (.univ l)) (hψ : ψ.Scoped Ψ)
     (hu : VTy S (Ψ + 1) (cof Φ ψ).shift Γ.dshift u C) (hu0 : VTy S Ψ Φ Γ u0 (C.dinst .zero))
     (hside : VEq S Ψ (cof Φ ψ) Γ (u.dinst .zero) u0 (C.dinst .zero)) :
     VTy S Ψ Φ Γ (Tm.comp C ψ u u0) (C.dinst .one) := by
-  obtain ⟨hC1, htube, -, hb, hside'⟩ := VTy.compParts' hW hKT hC hψ hu hu0 hside
-  exact VTy.hcompG hW hKH hC1 hψ htube hb hside'
+  obtain ⟨hC1, htube, -, hb, hside'⟩ := VTy.compParts' hW hC hψ hu hu0 hside
+  exact VTy.hcomp' hW hC1 hψ htube hb hside'
 
 end
 

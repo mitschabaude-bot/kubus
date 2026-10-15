@@ -117,7 +117,7 @@ theorem HC2_iff {k : ℕ} {A L L' a a' : Tm} : HC2 S k A L L' a a' ↔ HC2R S k 
 section ind
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = false)
   {K : ℕ} {P : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level)) (hPP : RT2 S K (.data d P) (.data d P))
-  (hArgK : KanShape S K (ΘK S D d K P))
+
 include hW hD hH hP hPP
 
 /-- An element is related to its normal form, a constructor. -/
@@ -137,7 +137,6 @@ theorem RE2_whnf_con {k3 : ℕ} (ρ' : ISub k3 K) {y y' : Tm} (hy : RE2 S k3 (.d
       show Tm.data d ((P.isub ρ').isub κ) = _; rw [Tm.isub_isub], ← ISub.hom_comp] at this
     exact this
 
-include hArgK in
 /-- At one stage: compositions of related elements whose normal forms are constructors with related
 arguments, given the compositions over the recursive arguments. -/
 theorem mot2_con {k1 : ℕ} (ρ : ISub k1 K) {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q))
@@ -210,7 +209,7 @@ theorem mot2_con {k1 : ℕ} (ρ : ISub k1 K) {Q Q' : Tm} (hQ : RT2 S K (.data d 
     have cy := RE2_whnf_con hW hD hH hP hPP ρ hyy hC ht
     have cy' := RE2_whnf_con hW hD hH hP hPP ρ hyy' hC ht'
     have H : HCC S d D K P Q Q' k1 ρ c C qs qs' X X' φ φ' u u' := {
-      hW, hD, hH, hP, hPP, hQ, hQ', hArgK, hC, hXl, hXl'
+      hW, hD, hH, hP, hPP, hQ, hQ', hC, hXl, hXl'
       hrecR := fun i hi hri => by
         rw [getD_eq_get (by omega), getD_eq_get (by omega)]
         have h := hrecD i (by omega) (by omega) hri

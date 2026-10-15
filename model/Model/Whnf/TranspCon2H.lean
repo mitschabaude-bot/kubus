@@ -25,7 +25,7 @@ namespace TC
 
 /-- A reduct of transport of a constructor, related to the contractum even where a boundary holds. -/
 theorem transp_redH (H : TC S k d D PL PL φ φ c C q q X X rs rs)
-    (hH : D.isHIT = true) (hyp : HITHyp2 S) :
+    (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) :
     ∃ u, Red S (.transp (.data d PL) φ (.con d c q (Tm.ofList X) rs)) u ∧
       EqTm S k .one [] (.transp (.data d PL) φ (.con d c q (Tm.ofList X) rs)) u (.data d (PL.dinst .one)) ∧
       RE2 S k (.data d (PL.dinst .one)) u (tConR d D c C PL φ X rs) := by
@@ -56,7 +56,7 @@ theorem transp_redH (H : TC S k d D PL PL φ φ c C q q X X rs rs)
     have BIb : BI S d D c C rs b := fun {_} => BI_top hW H.hD hH hyp H.hC CI.2.2.2.1 hbb hent
     have BT := bnd_transp hW H.hD hH hyp c C H.hC b hs hbc H BIb htb
     obtain ⟨hcO, hO⟩ := H.outs_inst
-    have CB := hyp.conBnd H.hD hH H.hC hbb hent hd1 s1 (tOuts_length _ _ _ _ _ _) hcO hO
+    have CB := hyp.conBnd (by omega) H.hD hH H.hC hbb hent hd1 s1 (tOuts_length _ _ _ _ _ _) hcO hO
     have st : step S (.con d c q (Tm.ofList X) rs) = some (Ctor.bndAt b q.toList X rs) := by
       rw [step_con_some H.hD H.hC _ _ hb, toList_ofList]
     exact ⟨_, red_transp_base H.hD H.hp hf (.step st (.refl _)), etb,
@@ -64,7 +64,7 @@ theorem transp_redH (H : TC S k d D PL PL φ φ c C q q X X rs rs)
 
 /-- Transport of a HIT constructor is related to its contractum at every restriction. -/
 theorem transp_relH (H : TC S k d D PL PL φ φ c C q q X X rs rs)
-    (hH : D.isHIT = true) (hyp : HITHyp2 S) :
+    (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) :
     RE2 S k (.data d (PL.dinst .one)) (.transp (.data d PL) φ (.con d c q (Tm.ofList X) rs))
       (tConR d D c C PL φ X rs) := by
   have hW := H.hW

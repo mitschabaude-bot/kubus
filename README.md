@@ -124,7 +124,7 @@ CI runs the tests, a fuzz run, and the model build with its axiom check.
   - they are finitary, with parameters that are small types or universes, and no indices or mutual definitions;
   - path-constructor boundaries may only use the constructor's point arguments and other constructors, so pushouts can't be declared yet;
   - clauses for path constructors can't use nested patterns.
-- **Elaborator vs. kernel:** some programs the elaborator accepts are still rejected or skipped by the kernel, mostly around composition in the universe. The fuzzer tracks them.
+- **Elaborator vs. kernel:** on the fuzzer, the kernel rejects or skips none of the programs the elaborator accepts, but on some programs with deeply nested compositions along `hcomp U` and Glue lines (from `ua`, `sucPathInt`, `winding`) it does not finish within minutes where the elaborator takes seconds. The fuzzer tracks them as kernel stress cases (see `KubusCore/KERNEL.md`).
 
 ## License
 

@@ -99,18 +99,18 @@ include hA
 theorem rcTy_piC {f : Hom k m} {T T' B' : Tm} (h : (Comp2 S (piC m A B) m k f).ty T T') (hs : StableT S k T' B')
     (hB : IsTyK S k B') : (Comp2 S (piC m A B) m k f).ty T B' := by
   rw [Comp2_piC A B hA] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, hk'⟩ := h
   refine ⟨base_rc hW hB hb hs, fun k' σ => ?_, hc, fun k1 σ k2 σ' A1 B1 A2 B2 h1 h2 =>
-    hc' k1 σ k2 σ' A1 B1 A2 B2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2)⟩
+    hc' k1 σ k2 σ' A1 B1 A2 B2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2), hk, fun k' σ A1 B1 hR => hk' k' σ A1 B1 (RedT.stable' hW hs σ hR)⟩
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' σ
   exact ⟨A1, B1, A1', B1', h1, RedT.stable hW hs σ h2, h3, h4⟩
 
 theorem rcTy_sigmaC {f : Hom k m} {T T' B' : Tm} (h : (Comp2 S (sigmaC m A B) m k f).ty T T') (hs : StableT S k T' B')
     (hB : IsTyK S k B') : (Comp2 S (sigmaC m A B) m k f).ty T B' := by
   rw [Comp2_sigmaC A B hA] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, hk'⟩ := h
   refine ⟨base_rc hW hB hb hs, fun k' σ => ?_, hc, fun k1 σ k2 σ' A1 B1 A2 B2 h1 h2 =>
-    hc' k1 σ k2 σ' A1 B1 A2 B2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2)⟩
+    hc' k1 σ k2 σ' A1 B1 A2 B2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2), hk, fun k' σ A1 B1 hR => hk' k' σ A1 B1 (RedT.stable' hW hs σ hR)⟩
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' σ
   exact ⟨A1, B1, A1', B1', h1, RedT.stable hW hs σ h2, h3, h4⟩
 
@@ -225,18 +225,18 @@ include hLne
 theorem rcTy_pathC {f : Hom k m} {T T' B' : Tm} (h : (Comp2 S (pathC m L a0 a1) m k f).ty T T')
     (hs : StableT S k T' B') (hB : IsTyK S k B') : (Comp2 S (pathC m L a0 a1) m k f).ty T B' := by
   rw [Comp2_pathC L a0 a1 hLne] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, hk'⟩ := h
   refine ⟨base_rc hW hB hb hs, fun k' σ => ?_, hc, fun k1 σ k2 σ' L1 b0 b1 L2 c0 c1 h1 h2 =>
-    hc' k1 σ k2 σ' L1 b0 b1 L2 c0 c1 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2)⟩
+    hc' k1 σ k2 σ' L1 b0 b1 L2 c0 c1 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2), hk, fun k' σ L1 b0 b1 hR => hk' k' σ L1 b0 b1 (RedT.stable' hW hs σ hR)⟩
   obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3⟩ := hall k' σ
   exact ⟨L1, b0, b1, L1', b0', b1', h1, RedT.stable hW hs σ h2, h3⟩
 
 theorem rcTy_ipiC {f : Hom k m} {T T' B' : Tm} (h : (Comp2 S (ipiC m L) m k f).ty T T')
     (hs : StableT S k T' B') (hB : IsTyK S k B') : (Comp2 S (ipiC m L) m k f).ty T B' := by
   rw [Comp2_ipiC L hLne] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, hk'⟩ := h
   refine ⟨base_rc hW hB hb hs, fun k' σ => ?_, hc, fun k1 σ k2 σ' L1 L2 h1 h2 =>
-    hc' k1 σ k2 σ' L1 L2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2)⟩
+    hc' k1 σ k2 σ' L1 L2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2), hk, fun k' σ L1 hR => hk' k' σ L1 (RedT.stable' hW hs σ hR)⟩
   obtain ⟨L1, L1', h1, h2, h3⟩ := hall k' σ
   exact ⟨L1, L1', h1, RedT.stable hW hs σ h2, h3⟩
 
@@ -330,8 +330,8 @@ theorem rc2_univC {l : ℕ} (ih : ∀ m' X, WF l m' X → RC2 S m' X) : RC2 S m 
   rw [Comp2_univC]
   refine ⟨fun h hs hB => ⟨base_rc hW hB h.1 hs, fun k' σ => ⟨(h.2 k' σ).1, RedT.stable hW hs σ (h.2 k' σ).2⟩⟩,
     fun hTT h hs hu => ?_⟩
-  obtain ⟨hE, hmem, hm, hty⟩ := h
-  refine ⟨EB.rc hW hE hs hu, hmem, hm, ?_⟩
+  obtain ⟨hE, hmem, hm, hty, hK⟩ := h
+  refine ⟨EB.rc hW hE hs hu, hmem, hm, ?_, hK⟩
   have hWF : WF l k (semK S k t) := (ZFSet.mem_sep.1 hm).2
   have hU : ∀ k' (σ : ISub k' k), TyEq S k' (T.isub σ) (.univ l) := fun k' σ => (hTT.2 k' σ).1.2
   have hst : StableT S k t' u' := fun k' σ => ⟨(hs k' σ).1, .inr ⟨l, (hs k' σ).2.tyConv (hU k' σ)⟩⟩
@@ -411,9 +411,9 @@ theorem rc2_glueC : RC2 S m (glueC m A φ Tp ep) := by
     exact rcT k f hf k (Hom.id k) T T' B' t t' u'
   rw [Comp2_glueC_f hA hφ hTp hTkv f hf]
   refine ⟨fun h hs hB => ?_, fun hTT h hs hu => ?_⟩
-  · obtain ⟨hb, hall, hc, hc'⟩ := h
+  · obtain ⟨hb, hall, hc, hc', hk⟩ := h
     refine ⟨base_rc hW hB hb hs, fun k' σ => glueLocT_rc rcT σ hW (hall k' σ) (hs.restr σ) (hb.2.1.isub hW σ)
-      (hB.isub hW σ), hc, fun k' σ hn W hW' k'' ρ => ?_⟩
+      (hB.isub hW σ), hc, (fun k' σ hn W hW' k'' ρ => ?_), hk⟩
     exact glueLocT_rc rcT (σ.comp ρ) hW (hc' k' σ hn W (redW_of_red (hs k' σ).1 hW') k'' ρ)
       (hs.restr (σ.comp ρ)) (hb.2.1.isub hW _) (hB.isub hW _)
   · obtain ⟨hE, hmem, -, hall, hc, hc'⟩ := h

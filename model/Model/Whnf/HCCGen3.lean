@@ -63,9 +63,11 @@ theorem lineKan {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false)
   have hl : (((gFills d D C (Q.isub ρ) φ us X).map (·.isub (ISub.cons r hr τ))).take j).length = j := by
     simp [hFl]; omega
   rw [hl] at hcode
-  have hb := Comp2_ty_base hcode
+  have hb := Comp2_ty_base hcode.1
   have hR' := (Comp2_ty_iff hb.1 hb.2.2.2.1).2 hR
-  exact kan_tyLook H.hW H.hD H.hArgK _ c j _ hR'
+  exact ⟨hcode.2.1 n (Hom.id n) _ _ hR', fun {n'} e => by
+    subst e
+    exact hcode.2.2 n' (Hom.id (n' + 1)) _ _ hR'⟩
 
 /-- The type line of a point argument, against the right one. -/
 theorem ptLR {j : ℕ} (hj : j < C.args.length) (hV : ∀ i, i < j → GInv S d D Q Q' ρ C X X' φ φ' us us' i) :

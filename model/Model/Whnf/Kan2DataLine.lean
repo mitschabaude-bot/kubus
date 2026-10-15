@@ -71,7 +71,9 @@ theorem argTy_code_rel {k3 : ℕ} (ρ3 : ISub k3 K) {R R' : Tm}
     (Comp2 S (tyLook (shapeV ((ΘK S D d K P).restr ((Hom.id K).comp ρ3.hom))) c A.length (A.map (semK S k3)))
       k3 k3 (Hom.id k3)).ty
       ((C.argTy d D.params.length A.length).substList (A.reverse ++ R.toList.reverse))
-      ((C.argTy d D.params.length A.length).substList (A'.reverse ++ R'.toList.reverse)) := by
+      ((C.argTy d D.params.length A.length).substList (A'.reverse ++ R'.toList.reverse)) ∧
+    KanP2 S k3 (tyLook (shapeV ((ΘK S D d K P).restr ((Hom.id K).comp ρ3.hom))) c A.length
+      (A.map (semK S k3))) := by
   have hdD := dataD_eq hW hD
   have hC' : (dataD S (ΘK S D d K P).idx).ctors[c]? = some C := by
     show (dataD S d).ctors[c]? = some C; rw [hdD]; exact hC
@@ -117,7 +119,10 @@ theorem argTy_code_rel {k3 : ℕ} (ρ3 : ISub k3 K) {R R' : Tm}
   obtain ⟨g1, g2⟩ := key A.length (Nat.le_refl _)
   have := argRelH_id (Hom.id K) hRR' hRc hR'c hC' (args := A) (args' := A') hr hl' hrr
     (fun i hi hi' hri => g1 i hi hi' hi hri) (fun i hi hi' hri => g2 i hi hi' hi hri)
-  simpa only [show (ΘK S D d K P).idx = d from rfl, hdD] using this
+  refine ⟨by simpa only [show (ΘK S D d K P).idx = d from rfl, hdD] using this, ?_⟩
+  have hk := argRelH_kan (Hom.id K) hRR' hRc hR'c hC' (args := A) (args' := A') hr hl' hrr
+    (fun i hi hi' hri => g1 i hi hi' hi hri) (fun i hi hi' hri => g2 i hi hi' hi hri)
+  exact (kanPG_iff hW).1 hk
 
 omit hH in
 /-- Parameters related to those of a literal inductive type are related to each other. -/
@@ -223,7 +228,7 @@ theorem projs_rel {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q)) (hQ' : RT2 
         (by simp; omega) (by simp; rw [Nat.min_eq_left (by omega)]; exact hrj)
       have hl : (Z0.take j).length = j := by simp; omega
       rw [hl] at this
-      exact Comp2_ty_RT2 this
+      exact Comp2_ty_RT2 this.1
     · rw [argTy_rec_inst hrj hPl hplen (by simp; omega), argTy_rec_inst hrj hPl hplen (by simp; omega)]
       exact hPρ
   -- the argument types at the arguments and at the projections
@@ -254,7 +259,7 @@ theorem projs_rel {Q Q' : Tm} (hQ : RT2 S K (.data d P) (.data d Q)) (hQ' : RT2 
         (by simp; omega) (by simp; rw [Nat.min_eq_left (by omega)]; exact hrj)
       have hl : (Z0.take j).length = j := by simp; omega
       rw [hl] at this
-      exact Comp2_ty_RT2 this
+      exact Comp2_ty_RT2 this.1
     · rw [argTy_rec_inst hrj hPl hplen (by simp; omega), argTy_rec_inst hrj hQl hQlen (by simp; omega)]
       exact RT2.isub hW hXP hQ ρ3
   have hXZ : TyCode k3 (semK S k3 ((C.argTy d D.params.length j).substList
@@ -296,6 +301,7 @@ theorem argTy_rt2 {Q1 Q2 : Tm} (hQ1 : RT2 S K (.data d P) (.data d Q1)) (hQ2 : R
       (fun i hi hi' hri => by rw [← hgetA i hi, ← hgetB i hi']; exact (hrel i (by omega)).1 hri)
       (fun i hi hi' hri => by rw [← hgetA i hi, ← hgetB i hi']; exact (hrel i (by omega)).2 hri)
       (by omega) (by rw [hAl]; exact hrj)
+    have := this.1
     rw [hAl] at this
     exact Comp2_ty_RT2 this
   · have hl1 := (dataLit_rel hW hD hP hQ1 ρ3).2.2.2.2.2.2

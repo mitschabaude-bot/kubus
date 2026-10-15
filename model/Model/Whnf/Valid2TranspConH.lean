@@ -22,18 +22,13 @@ section
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
 include hW hD
 
-variable (hH : D.isHIT = true) (hyp : HITHyp2 S) (hp : D.params ≠ [])
+variable (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1)) (hp : D.params ≠ [])
 include hH hyp hp
 
 variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
 /-- **Transport of a constructor** of a higher inductive type. -/
 theorem valid_transpConH {ci : ℕ} {C : Ctor} {ps qs args T : Tm} {φ : I} {rs : List I}
-    (hArgK : ∀ k (c : CSub2 S Ψ Φ Γ k), KanShape S (k + 1) (ΘK S D d (k + 1) ((c.up hW).L ps)))
-    (hKT : ∀ k (c : CSub2 S Ψ Φ Γ k) k3 (τ : ISub k3 k) (y y' : I)
-      (hy : y.Scoped (k3 + 1)) (hy' : y'.Scoped (k3 + 1)), I.Eq y y' →
-      KanT2 S k3 ((Tm.data d ((c.up hW).L ps)).isub (ISub.cons y hy τ.up.tail))
-        ((Tm.data d ((c.up hW).R ps)).isub (ISub.cons y' hy' τ.up.tail)))
     (hC : D.ctors[ci]? = some C) (hpl : ps = Tm.ofList ps.toList)
     (hva : VTele2 S Ψ Φ Γ args args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse)
     (hv : Valid2 S Ψ Φ Γ (.transp (.data d ps) φ (.con d ci qs args rs))
@@ -110,12 +105,15 @@ theorem valid_transpConH {ci : ℕ} {C : Ctor} {ps qs args T : Tm} {φ : I} {rs 
       hW := hW, hD := hD, hp := hp, hC := hC, hPL := hPL c,
       hR := fun k3 τ y y' hy hy' hE => lineRob_of_valid hW hLV c k3 τ y y' hy hy' hE,
       hRL := fun k3 τ y y' hy hy' hE => lineRob_of_valid hW hLV (c.diagL hW) k3 τ y y' hy hy' hE,
-      hArgK := hArgK k c, hφs := I.scoped_subst hφ c.σ.sc,
+      hφs := I.scoped_subst hφ c.σ.sc,
       h12 := c.ent_LR (ent_refl φ), h21 := c.ent_RL (ent_refl φ),
       hLC := lineConst_of_valid hW hφ hCV c, hty := h1, hty' := h1', heq := h1e,
       hargs0 := transpCon_args0 hW hD hC hpl hpsl hva c,
-      hrecT := fun i hi hri k3 τ y y' hy hy' hE _ =>
-        KanT2.at (hKT k c k3 τ y y' hy hy' hE) _ _,
+      hrecT := fun i hi hri k3 τ y y' hy hy' hE _ => by
+        have hk := hLV.kanV hW (k3 + 1) ((c.restr hW τ.up.tail).cons y y' hy hy' hE)
+        rw [CSub2.cons_restr_L, isub_up_dinst _ _ _ hy] at hk
+        exact KanT2.at (hk.2 k3 (Hom.id (k3 + 1)) _ _
+          (lineRob_of_valid hW hLV c (k3 + 1) τ.up.tail y y' hy hy' hE)) _ _,
       conR := conR_hit hW hD hH hyp hC (hPL c)
         (fun k3 τ y y' hy hy' hE => lineRob_of_valid hW hLV (c.diagL hW) k3 τ y y' hy hy' hE)
         (by

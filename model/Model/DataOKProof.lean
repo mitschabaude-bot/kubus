@@ -1,13 +1,12 @@
 import Model.Sound
+import Model.Boundary
 
 /-!
 # Validity of data declarations
 
 `DataOK` for a declaration well-formed in the sense of `DataDecl.Wf`: its argument types are
 fibrant codes (from their typing in the signature with the declaration truncated to a single
-generator), and its boundaries are simple with the right argument types and agree on overlaps
-(from their typing in the signature truncated before each constructor, by a generic-element
-argument).
+generator), and its boundaries are simple with the right argument types. Syntactic boundary normalization supplies overlap agreement directly in the constructor algebra (`Model.Boundary.raw_ovl`).
 -/
 
 set_option autoImplicit false
@@ -1355,289 +1354,6 @@ theorem conBefore_congr_ctors {ctors1 ctors2 : List Ctor} {c n : ℕ}
   · rename_i hc; rw [conV_congr_ctors n c' fun k'' hk'' => h k'' (by omega)]
   · rfl
 
-/-- Formal compositions with an empty face, iterated over `a0`: fresh, pairwise distinct values. -/
-def atomV (n : ℕ) (a0 : V) : ℕ → V
-  | 0 => a0
-  | i + 1 => hcV n (Cof.bot n) (fun _ _ _ => ∅) (atomV n a0 i)
-
-theorem not_bot_holds (n : ℕ) : ¬ (Cof.bot n).holds := by simp [Cof.holds, Cof.bot]
-
-theorem atomV_kv {a0 : V} (ha0 : IsKV n a0) : ∀ i, IsKV n (atomV n a0 i)
-  | 0 => ha0
-  | _ + 1 => isKV_hcV _ _ _
-
-theorem atomV_inj {a0 : V} (ha0 : IsKV n a0) (hne : ∀ ψ u a, ¬ ψ.holds → a0 ≠ hcV n ψ u a) :
-    ∀ i j, atomV n a0 i = atomV n a0 j → i = j
-  | 0, 0, _ => rfl
-  | 0, j + 1, h => absurd h (hne _ _ _ (not_bot_holds n))
-  | i + 1, 0, h => absurd h.symm (hne _ _ _ (not_bot_holds n))
-  | i + 1, j + 1, h => by
-    obtain ⟨-, -, hb⟩ := hcV_inj (Cof.isCof_bot n) (Cof.isCof_bot n) (not_bot_holds n) (not_bot_holds n)
-      (atomV_kv ha0 i) (atomV_kv ha0 j) h
-    rw [atomV_inj ha0 hne i j hb]
-
-theorem atomV_DElem {Θ : SData m} (hH : Θ.hit = true) {g : Hom n m} {a0 : V} (ha0 : DElem Θ n g a0) :
-    ∀ i, DElem Θ n g (atomV n a0 i)
-  | 0 => ha0
-  | i + 1 => DElem.hcomp hH (Cof.isCof_bot n) (atomV_DElem hH ha0 i)
-      (fun n' h r hh => absurd hh (by rw [Cof.bot_restr]; exact not_bot_holds n'))
-      (fun n' h r hh => absurd hh (by rw [Cof.bot_restr]; exact not_bot_holds n'))
-      (fun n' h hh => absurd hh (by rw [Cof.bot_restr]; exact not_bot_holds n'))
-
-/-- Corresponding values: generic atoms and their actual values, and constructor values without
-boundary at corresponding arguments. -/
-inductive Corr (ctors : List Ctor) (n : ℕ) (gen act : ℕ → V) (P : ℕ → Prop) : V → V → Prop
-  | atom {i : ℕ} : P i → Corr ctors n gen act P (gen i) (act i)
-  | con {k : ℕ} {vT vX : List V} {rs : List (DM n)} :
-      bndAtMap (ctors.getD k default) rs (Hom.id n) = none →
-      (∀ a ∈ vT, IsKV n a) → (∀ a ∈ vX, IsKV n a) → vT.length = vX.length →
-      (∀ j (hj : j < vT.length) (hj' : j < vX.length), (ctors.getD k default).isRec j = true →
-        Corr ctors n gen act P vT[j] vX[j]) →
-      (∀ j (hj : j < vT.length) (hj' : j < vX.length), (ctors.getD k default).isRec j = false → vT[j] = vX[j]) →
-      Corr ctors n gen act P (conV ctors n k vT rs) (conV ctors n k vX rs)
-
-theorem Corr.unique {ctors : List Ctor} {n : ℕ} {gen act : ℕ → V} {P : ℕ → Prop}
-    (hinj : ∀ i j, P i → P j → gen i = gen j → i = j)
-    (hne : ∀ i, P i → ∀ k vs (rs : List (DM n)), bndAtMap (ctors.getD k default) rs (Hom.id n) = none →
-      gen i ≠ conV ctors n k vs rs) {v w : V} (h : Corr ctors n gen act P v w) :
-    ∀ {w'}, Corr ctors n gen act P v w' → w = w' := by
-  induction h with
-  | @atom i hi =>
-    intro w' h'
-    generalize hv : gen i = v at h'
-    cases h' with
-    | @atom j hj => rw [hinj i j hi hj hv]
-    | con hb _ _ _ _ _ => exact absurd hv (hne i hi _ _ _ hb)
-  | @con k vT vX rs hb hkT hkX hl hrec hpt ih =>
-    intro w' h'
-    generalize hv : conV ctors n k vT rs = v at h'
-    cases h' with
-    | @atom j hj => exact absurd hv.symm (hne j hj _ _ _ hb)
-    | @con k' vT' vX' rs' hb' hkT' hkX' hl' hrec' hpt' =>
-      obtain ⟨rfl, rfl, rfl⟩ := conV_inj hb hb' hkT hkT' hv
-      congr 1
-      apply List.ext_getElem (by omega)
-      intro j h1 h2
-      cases hr : (ctors.getD k default).isRec j
-      · rw [← hpt j (by omega) h1 hr, hpt' j (by omega) h2 hr]
-      · exact ih j (by omega) h1 hr (hrec' j (by omega) h2 hr)
-
-
-theorem simpleArgs_ofList {ctors : List Ctor} {d np c n : ℕ} {C C' : Ctor} : ∀ {k : ℕ} {t : Tm},
-    Ctor.simpleArgs ctors d np c n C C' k t = true → t = Tm.ofList t.toList
-  | _, .tcons a as, h => by
-    simp only [Ctor.simpleArgs, Bool.and_eq_true] at h
-    simp only [Tm.toList, Tm.ofList]
-    rw [← simpleArgs_ofList h.2]
-  | _, .tnil, _ => rfl
-  | _, .var _, h | _, .const _, h | _, .univ _, h | _, .pi _ _, h | _, .lam _ _, h | _, .app _ _, h
-  | _, .sigma _ _, h | _, .pair _ _, h | _, .fst _, h | _, .snd _, h | _, .path _ _ _, h | _, .plam _, h
-  | _, .papp _ _, h | _, .ipi _, h | _, .abort, h | _, .split _ _ _ _, h | _, .transp _ _ _, h
-  | _, .hcomp _ _ _ _, h | _, .glue _ _ _ _, h | _, .glueEl _ _ _ _, h | _, .unglue _ _ _, h
-  | _, .data _ _, h | _, .con _ _ _ _ _, h | _, .elim _ _ _ _ _, h => by simp [Ctor.simpleArgs] at h
-
-/-- A simple boundary term denotes its boundary value wherever it denotes something (the
-guards of its constructors then hold). -/
-theorem sem_simple_eval {S : Sig} {d : ℕ} {E : DataDecl} (hd : S[d]? = some (.data E)) {c : ℕ} {C : Ctor}
-    {n : ℕ} {ρ : IEnv n} {γ : ℕ → V} (hγ : ∀ x, IsKV n (γ x)) (args : List V) (hl : args.length = C.args.length)
-    (hargs : ∀ x (hx : x < C.args.length), γ x = args.reverse[x]'(by simp; omega)) (rs : List (DM n))
-    (hρ : ∀ i < C.dims, ρ i = renv rs i) : ∀ t : Tm,
-    (Ctor.simpleB E.ctors d E.params.length c C.args.length C t = true →
-      t.closedB (E.params.length + C.args.length) C.dims = true → sem S t n ρ γ ≠ ∅ →
-      sem S t n ρ γ = evalBnd (conBefore E.ctors c n) args rs t) ∧
-    (∀ C' k, Ctor.simpleArgs E.ctors d E.params.length c C.args.length C C' k t = true →
-      t.closedB (E.params.length + C.args.length) C.dims = true →
-      ∀ i (hi : i < t.toList.length), (C'.isRec (k + i) = true → sem S (t.toList[i]) n ρ γ ≠ ∅ →
-        sem S (t.toList[i]) n ρ γ = evalBnd (conBefore E.ctors c n) args rs (t.toList[i])) ∧
-        (C'.isRec (k + i) = false → sem S (t.toList[i]) n ρ γ = evalBnd (conBefore E.ctors c n) args rs (t.toList[i]))) := by
-  have hvar : ∀ x (hx : x < C.args.length), sem S (.var x) n ρ γ = evalBnd (conBefore E.ctors c n) args rs (.var x) := by
-    intro x hx
-    simp only [sem_var, evalBnd]
-    rw [hargs x hx, getD_reverse_eq (by omega), List.getElem_reverse]
-    have hkv := hγ x
-    rw [hargs x hx, List.getElem_reverse] at hkv
-    rw [res_id hkv]
-  intro t
-  induction t with
-  | var x =>
-    refine ⟨fun hs _ _ => ?_, fun _ _ hs => by simp [Ctor.simpleArgs] at hs⟩
-    simp only [Ctor.simpleB, Bool.and_eq_true, decide_eq_true_eq] at hs
-    exact hvar x hs.1
-  | con d' c' ps' as rs'' _ ihas =>
-    refine ⟨fun hs hcl hne => ?_, fun _ _ hs => by simp [Ctor.simpleArgs] at hs⟩
-    simp only [Ctor.simpleB, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at hs
-    obtain ⟨⟨⟨rfl, hc'⟩, -⟩, hrest⟩ := hs
-    cases hC' : E.ctors[c']? with
-    | none => rw [hC'] at hrest; simp at hrest
-    | some C' =>
-    rw [hC'] at hrest
-    simp only [Bool.and_eq_true, beq_iff_eq] at hrest
-    obtain ⟨⟨hlen', -⟩, hsa⟩ := hrest
-    simp only [Tm.closedB, Bool.and_eq_true, List.all_eq_true] at hcl
-    obtain ⟨⟨-, hcla⟩, hclr⟩ := hcl
-    rw [sem_con hd] at hne ⊢
-    split at hne
-    swap; · exact absurd rfl hne
-    rename_i hg
-    rw [if_pos hg]
-    obtain ⟨C'', hC'', -, -, -, hat⟩ := hg
-    rw [hC'] at hC''; cases hC''
-    have hlit := simpleArgs_ofList hsa
-    have hsas : sem S as n (ρ.restr (Hom.id n)) (TEnv.restr γ (Hom.id n)) = vlist (as.toList.map fun t => sem S t n ρ γ) := by
-      rw [IEnv.restr_id, TEnv.restr_id_of_kv hγ, hlit, sem_ofList_vlist, toList_ofList]
-    have hplv : plist (sem S as n (ρ.restr (Hom.id n)) (TEnv.restr γ (Hom.id n))) (E.ctors.getD c' default).args.length =
-        as.toList.map fun t => sem S t n ρ γ := by
-      rw [hsas, getD_ctors hC', ← hlen', show as.toList.length = (as.toList.map fun t => sem S t n ρ γ).length by simp,
-        plist_vlist]
-    have hatv := hat
-    simp only [psRV, IEnv.restr_id, TEnv.restr_id_of_kv hγ] at hatv
-    have hsas' : sem S as n ρ γ = vlist (as.toList.map fun t => sem S t n ρ γ) := by
-      rw [hlit, sem_ofList_vlist, toList_ofList]
-    rw [hsas', show C'.args.length = (as.toList.map fun t => sem S t n ρ γ).length by simp [← hlen'], plist_vlist] at hatv
-    have hrs3 : rs''.map (ival ρ) = rs''.map (ival (renv rs)) :=
-      List.map_congr_left fun r hr => ival_congr_scoped ((I.scopedB_iff _ _).1 (hclr r hr)) fun i hi => hρ i hi
-    rw [hplv, hrs3]
-    simp only [evalBnd, conBefore, dif_pos hc', evalBndList_eq]
-    congr 1
-    apply List.ext_getElem (by simp)
-    intro i h1 h2
-    simp only [List.getElem_map]
-    have hi : i < as.toList.length := by simpa using h1
-    obtain ⟨hr, hp⟩ := ihas.2 C' 0 hsa hcla i hi
-    cases hri : C'.isRec i
-    · exact hp (by simpa using hri)
-    · have hd' := hatv.2.1 i _ (List.getElem?_eq_getElem (by simpa using hi)) hri
-      simp only [List.getElem_map] at hd'
-      exact hr (by simpa using hri) (fun h => not_isKV_empty (h ▸ hd'.kv))
-  | tcons a as iha ihas =>
-    refine ⟨fun hs => by simp [Ctor.simpleB] at hs, fun C' k hs hcl i hi => ?_⟩
-    simp only [Ctor.simpleArgs, Bool.and_eq_true] at hs
-    obtain ⟨hs1, hs2⟩ := hs
-    simp only [Tm.closedB, Bool.and_eq_true] at hcl
-    cases i with
-    | zero =>
-      simp only [Tm.toList, List.getElem_cons_zero, Nat.add_zero]
-      refine ⟨fun hr hne => ?_, fun hr => ?_⟩
-      · rw [if_pos hr] at hs1; exact iha.1 hs1 hcl.1 hne
-      · rw [if_neg (by simp [hr])] at hs1
-        cases a with
-        | var x =>
-          simp only [Bool.and_eq_true, decide_eq_true_eq] at hs1
-          exact hvar x hs1.1
-        | _ => simp at hs1
-    | succ i =>
-      simp only [Tm.toList, List.getElem_cons_succ]
-      have := ihas.2 C' (k + 1) hs2 hcl.2 i (by simp [Tm.toList] at hi; omega)
-      rw [show k + 1 + i = k + (i + 1) by omega] at this
-      exact this
-  | tnil => exact ⟨fun hs => by simp [Ctor.simpleB] at hs, fun _ _ _ _ i hi => by simp [Tm.toList] at hi⟩
-  | _ => exact ⟨fun hs => by simp [Ctor.simpleB] at hs, fun _ _ hs => by simp [Ctor.simpleArgs] at hs⟩
-
-
-/-- Boundary trees at corresponding arguments are corresponding (given this for the constructor
-values of the earlier constructors). -/
-theorem ovl_tree {ΘX : SData m} (hbX : ΘX.Basic) {ΘT : SData n} {g : Hom n m}
-    {gen act : ℕ → V} {P : ℕ → Prop} {k0 : ℕ} {C0 : Ctor} (hC0 : ΘX.ctors[k0]? = some C0)
-    (hct : ∀ k < k0, ΘT.ctors.getD k default = ΘX.ctors.getD k default)
-    (hctO : ∀ k < k0, ΘT.ctors[k]? = ΘX.ctors[k]?)
-    (hty : ∀ k < k0, ∀ j pre, ΘT.ty k j n (Hom.id n) pre = ΘX.ty k j n g pre)
-    (hQ : ∀ k < k0, ∀ C', ΘX.ctors[k]? = some C' → ∀ (vT vX : List V) (rs : List (DM n)),
-      ΘX.ArgsTyped k C' n g vX → ΘT.ArgsTyped k C' n (Hom.id n) vT → vT.length = vX.length →
-      (∀ j (hj : j < vT.length) (hj' : j < vX.length), C'.isRec j = true → Corr ΘX.ctors n gen act P vT[j] vX[j]) →
-      (∀ j (hj : j < vT.length) (hj' : j < vX.length), C'.isRec j = false → vT[j] = vX[j]) →
-      rs.length = C'.dims → Corr ΘX.ctors n gen act P (conV ΘX.ctors n k vT rs) (conV ΘX.ctors n k vX rs))
-    {aT aX : List V} (hatX : ΘX.ArgsTyped k0 C0 n g aX) (hlT : aT.length = C0.args.length)
-    (hrecT : ∀ j (hj : j < aT.length) (hj' : j < aX.length), C0.isRec j = true →
-      Corr ΘX.ctors n gen act P aT[j] aX[j] ∧ DElem ΘT n (Hom.id n) aT[j])
-    (hptT : ∀ j (hj : j < aT.length) (hj' : j < aX.length), C0.isRec j = false → aT[j] = aX[j])
-    (hkvT : ∀ a ∈ aT, IsKV n a) (rs : List (DM n)) : ∀ t : Tm,
-    (BTy ΘX k0 C0 t → Corr ΘX.ctors n gen act P (evalBnd (conBefore ΘX.ctors k0 n) aT rs t)
-        (evalBnd (conBefore ΘX.ctors k0 n) aX rs t) ∧
-      DElem ΘT n (Hom.id n) (evalBnd (conBefore ΘX.ctors k0 n) aT rs t)) ∧
-    (∀ C' k' j prev, BTyArgs ΘX k0 C0 C' k' j prev t → ∀ i (hi : i < t.toList.length),
-      (C'.isRec (j + i) = true → Corr ΘX.ctors n gen act P (evalBnd (conBefore ΘX.ctors k0 n) aT rs t.toList[i])
-          (evalBnd (conBefore ΘX.ctors k0 n) aX rs t.toList[i]) ∧
-        DElem ΘT n (Hom.id n) (evalBnd (conBefore ΘX.ctors k0 n) aT rs t.toList[i])) ∧
-      (C'.isRec (j + i) = false → evalBnd (conBefore ΘX.ctors k0 n) aT rs t.toList[i] =
-        evalBnd (conBefore ΘX.ctors k0 n) aX rs t.toList[i])) := by
-  have hlX : aX.length = C0.args.length := hatX.1
-  have hPVX : ΘX.PtValid k0 n g aX := by
-    have := SData.ptValid_take hC0 hatX.2.2 aX.length; rwa [List.take_length] at this
-  have hkvX : ∀ a ∈ aX, IsKV n a := by
-    intro a ha
-    obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem ha
-    cases hr : C0.isRec j
-    · exact hbX.pt_kv hPVX hj (by rw [getD_ctors hC0]; exact hr)
-    · exact (hatX.2.1 j _ (List.getElem?_eq_getElem hj) hr).kv
-  have hvar : ∀ x (hx : x < C0.args.length), evalBnd (conBefore ΘX.ctors k0 n) aT rs (.var x) = aT[C0.args.length - 1 - x]'(by omega) ∧
-      evalBnd (conBefore ΘX.ctors k0 n) aX rs (.var x) = aX[C0.args.length - 1 - x]'(by omega) := by
-    intro x hx
-    simp only [evalBnd]
-    rw [getD_reverse_eq (by omega), getD_reverse_eq (by omega), res_id (hkvT _ (List.getElem_mem _)),
-      res_id (hkvX _ (List.getElem_mem _))]
-    constructor <;> congr 1 <;> omega
-  intro t
-  induction t with
-  | var x =>
-    refine ⟨fun hb => ?_, fun _ _ _ _ _ i hi => by simp [Tm.toList] at hi⟩
-    obtain ⟨hx, hr⟩ := hb
-    rw [(hvar x hx).1, (hvar x hx).2]
-    exact hrecT _ (by omega) (by omega) hr
-  | con d' c' ps' as rs'' _ ihas =>
-    refine ⟨fun hb => ?_, fun _ _ _ _ _ i hi => by simp [Tm.toList] at hi⟩
-    obtain ⟨hc', C', hC', hlen', hrs', hargs⟩ := hb
-    have houtX := (bnd_delem_aux hbX hC0 hatX.1 hatX.2.1 hatX.2.2 rs as).2 C' c' 0 [] hargs
-    have htaX := nested_argsTyped hbX hC0 hatX.1 hatX.2.1 hatX.2.2 rs hC' hlen' houtX
-    have hIH := ihas.2 C' c' 0 [] hargs
-    simp only [evalBnd, conBefore, dif_pos hc', evalBndList_eq]
-    set vT := as.toList.map (evalBnd (fun c'' as' rs' => if _ : c'' < k0 then conV ΘX.ctors n c'' as' rs' else junkV n) aT rs)
-    set vX := as.toList.map (evalBnd (fun c'' as' rs' => if _ : c'' < k0 then conV ΘX.ctors n c'' as' rs' else junkV n) aX rs)
-    have hrecv : ∀ j (hj : j < vT.length) (hj' : j < vX.length), C'.isRec j = true →
-        Corr ΘX.ctors n gen act P vT[j] vX[j] ∧ DElem ΘT n (Hom.id n) vT[j] := by
-      intro j hj hj' hr
-      simp only [vT, vX, List.getElem_map]
-      exact (hIH j (by simpa [vT] using hj)).1 (by simpa using hr)
-    have hptv : ∀ j (hj : j < vT.length) (hj' : j < vX.length), C'.isRec j = false → vT[j] = vX[j] := by
-      intro j hj hj' hr
-      simp only [vT, vX, List.getElem_map]
-      exact (hIH j (by simpa [vT] using hj)).2 (by simpa using hr)
-    have hC'T : ΘT.ctors[c']? = some C' := by rw [hctO c' hc']; exact hC'
-    have htaT : ΘT.ArgsTyped c' C' n (Hom.id n) vT := by
-      refine ⟨by simp [vT, hlen'], fun j a ha hr => ?_, fun j a ha hr => ?_⟩
-      · obtain ⟨hj, rfl⟩ := List.getElem?_eq_some_iff.1 ha
-        exact (hrecv j hj (by simpa [vX, vT] using hj) hr).2
-      · obtain ⟨hj, rfl⟩ := List.getElem?_eq_some_iff.1 ha
-        have hjX : j < vX.length := by simpa [vX, vT] using hj
-        rw [hptv j hj hjX hr, hty c' hc']
-        have hmem := htaX.2.2 j _ (List.getElem?_eq_getElem hjX) hr
-        have heq : ΘX.ty c' j n g (vT.take j) = ΘX.ty c' j n g (vX.take j) := by
-          apply hbX.recIrr
-          · simp [vT, vX]
-          · intro i hi hi' hri
-            simp only [List.getElem_take]
-            exact hptv i (by simp at hi; omega) (by simp at hi'; omega) (by rw [getD_ctors hC'] at hri; exact hri)
-        rw [heq]; exact hmem
-    have hrsv : (rs''.map (ival (renv rs))).length = C'.dims := by simp [hrs']
-    refine ⟨hQ c' hc' C' hC' vT vX _ htaX htaT (by simp [vT, vX]) (fun j hj hj' hr => (hrecv j hj hj' hr).1) hptv hrsv, ?_⟩
-    have hd := DElem.con hC'T htaT.1 hrsv htaT.2.1 htaT.2.2 (rs := rs''.map (ival (renv rs)))
-    rwa [conV_congr_ctors n c' fun k'' hk'' => hct k'' (by omega)] at hd
-  | tcons a as iha ihas =>
-    refine ⟨fun hb => by simp [BTy] at hb, fun C' k' j prev hb i hi => ?_⟩
-    obtain ⟨hb1, hb2, hb3⟩ := hb
-    cases i with
-    | zero =>
-      simp only [Tm.toList, List.getElem_cons_zero, Nat.add_zero]
-      refine ⟨fun hr => iha.1 (hb1 hr), fun hr => ?_⟩
-      obtain ⟨x, rfl, hx, hxr, -⟩ := hb2 hr
-      rw [(hvar x hx).1, (hvar x hx).2]
-      exact hptT _ (by omega) (by omega) hxr
-    | succ i =>
-      simp only [Tm.toList, List.getElem_cons_succ]
-      have := ihas.2 C' k' (j + 1) (a :: prev) hb3 i (by simp [Tm.toList] at hi; omega)
-      rw [show j + 1 + i = j + (i + 1) by omega] at this
-      exact this
-  | _ => exact ⟨fun hb => by simp [BTy] at hb, fun _ _ _ _ _ i hi => by simp [Tm.toList] at hi⟩
-
 section assembly
 
 variable (S0 : Sig) (hS0 : SigOK S0) (D : DataDecl) (hWf : D.Wf S0 S0.length)
@@ -1742,218 +1458,31 @@ theorem bnd_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) 
   · have := hXr c (by omega) C hC
     subst this; simp at hb
 
-include hS0 hWf hXB hXr hokB hB hXH in
-theorem ovl_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) (m : ℕ) (ps : RV m)
-    (hps : ParamsOK (sigV S0) { D with ctors := X } m ps) :
+include hWf hXB hXr in
+theorem ovl_X (m : ℕ) (ps : RV m) :
     ∀ c C, (dataSD (sigV S0) { D with ctors := X } S0.length m ps).ctors[c]? = some C → ∀ ψ b ψ' b',
       (ψ, b) ∈ C.bnd → (ψ', b') ∈ C.bnd → ∀ n (g : Hom n m) args (rs : List (DM n)),
         (dataSD (sigV S0) { D with ctors := X } S0.length m ps).ArgsTyped c C n g args → rs.length = C.dims →
         (ival (renv rs) ψ).holds → (ival (renv rs) ψ').holds →
         evalBnd (conBefore (dataSD (sigV S0) { D with ctors := X } S0.length m ps).ctors c n) args rs b =
           evalBnd (conBefore (dataSD (sigV S0) { D with ctors := X } S0.length m ps).ctors c n) args rs b' := by
-  intro c
-  induction c using Nat.strong_induction_on with
-  | _ c IH =>
-  intro C hC ψ b ψ' b' hmem hmem' n g args rs hat hrs hψ hψ'
+  intro c C hC ψ b ψ' b' hb hb' n g args rs _ _ hψ hψ'
   by_cases hcB : c < B
-  swap
-  · have := hXr c (by omega) C hC
-    subst this; simp at hmem
-  set E : DataDecl := { D with ctors := X } with hE
-  have hsynX := dataSyn_X S0 hS0 D hWf X B hXB hXr hok0
-  have hUX := argTysOK_X S0 hS0 D hWf X B hXB hXr hXH hok0
-  have hbX := dataSD_basic S0 E hsynX hUX hps
-  have hrcX := dataSD_resClosed S0 E hsynX hUX hps
-  have hCD : D.ctors[c]? = some C := by rw [← hXB c hcB]; exact hC
-  have hcD : c < D.ctors.length := (List.getElem?_eq_some_iff.1 hCD).1
-  -- the truncated declaration
-  have hokc := hokB c hcB
-  have hdT : DataOK (S0 ++ [.data (D.truncate c)]) S0.length (D.truncate c) := hokc.2 S0.length _ (entry_ext S0 _)
-  have hpT : ParamsOK (sigV S0) (D.truncate c) n (fun k f => ps k (g.comp f)) := hps.restr g
-  have hgT : (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).Good := by
-    have := (hdT.2 n _ (by rw [sigUpTo_ext]; exact hpT)).1; rwa [sigUpTo_ext] at this
-  have hctO : ∀ k < c, (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).ctors[k]? =
-      (dataSD (sigV S0) E S0.length m ps).ctors[k]? := by
-    intro k hk
-    show (D.ctors.take c ++ [genCtor D.isHIT])[k]? = X[k]?
-    rw [List.getElem?_append_left (by simp; omega), List.getElem?_take_of_lt hk, hXB k (by omega)]
-  have hct : ∀ k < c, (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).ctors.getD k default =
-      (dataSD (sigV S0) E S0.length m ps).ctors.getD k default := by
-    intro k hk; rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD, hctO k hk]
-  have hty : ∀ k < c, ∀ j pre, (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).ty k j n
-      (Hom.id n) pre = (dataSD (sigV S0) E S0.length m ps).ty k j n g pre := by
-    intro k hk j pre
-    show argTySem (sigV S0) (D.truncate c) S0.length k j n (ps n (g.comp (Hom.id n))) pre =
-      argTySem (sigV S0) E S0.length k j n (ps n g) pre
-    rw [argTySem_congr (E := D.truncate c) (D := E) rfl (hct k hk), Hom.comp_id]
-  -- generic atoms
-  have ha0 : DElem (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))) n (Hom.id n)
-      (genV c n (D.truncate c).ctors) := mem_El_dataC.1 (genV_mem hcD.le)
-  have hHT : (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).hit = true :=
-    isHIT_truncate (isHIT_of_bnd hCD hmem) c
-  have hb0 : bndAtMap ((D.truncate c).ctors.getD c default)
-      (List.replicate ((D.truncate c).ctors.getD c default).dims (DM.zero n)) (Hom.id n) = none := by
-    rw [getD_ctors (truncate_gen D hcD.le)]; rfl
-  have ha0ne : ∀ (ψ0 : Cof n) u a, ¬ ψ0.holds → genV c n (D.truncate c).ctors ≠ hcV n ψ0 u a :=
-    fun ψ0 u a hn => conV_ne_hcV hb0 hn
-  set gf : ℕ → V := fun i => atomV n (genV c n (D.truncate c).ctors) (i + 1) with hgf
-  set P : ℕ → Prop := fun i => i < C.args.length ∧ C.isRec i = true with hP
-  set act : ℕ → V := fun i => args.getD i ∅ with hact
-  have hinj : ∀ i j, P i → P j → gf i = gf j → i = j := fun i j _ _ h => by
-    have := atomV_inj ha0.kv ha0ne (i + 1) (j + 1) h; omega
-  have hne : ∀ i, P i → ∀ k vs (rs' : List (DM n)),
-      bndAtMap ((dataSD (sigV S0) E S0.length m ps).ctors.getD k default) rs' (Hom.id n) = none →
-      gf i ≠ conV (dataSD (sigV S0) E S0.length m ps).ctors n k vs rs' :=
-    fun i _ k vs rs' hb h => conV_ne_hcV hb (not_bot_holds n) h.symm
-  -- the corresponding constructor values
-  have hQ : ∀ k < c, ∀ C', (dataSD (sigV S0) E S0.length m ps).ctors[k]? = some C' → ∀ (vT vX : List V)
-      (rs' : List (DM n)), (dataSD (sigV S0) E S0.length m ps).ArgsTyped k C' n g vX →
-      (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).ArgsTyped k C' n (Hom.id n) vT →
-      vT.length = vX.length →
-      (∀ j (hj : j < vT.length) (hj' : j < vX.length), C'.isRec j = true →
-        Corr (dataSD (sigV S0) E S0.length m ps).ctors n gf act P vT[j] vX[j]) →
-      (∀ j (hj : j < vT.length) (hj' : j < vX.length), C'.isRec j = false → vT[j] = vX[j]) →
-      rs'.length = C'.dims →
-      Corr (dataSD (sigV S0) E S0.length m ps).ctors n gf act P
-        (conV (dataSD (sigV S0) E S0.length m ps).ctors n k vT rs')
-        (conV (dataSD (sigV S0) E S0.length m ps).ctors n k vX rs') := by
-    intro k
-    induction k using Nat.strong_induction_on with
-    | _ k IHk =>
-    intro hk C' hC' vT vX rs' hX hT hl hrec hpt hrs'
-    have hC'T : (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).ctors[k]? = some C' := by
-      rw [hctO k hk]; exact hC'
-    have hPVX : (dataSD (sigV S0) E S0.length m ps).PtValid k n g vX := by
-      have := SData.ptValid_take hC' hX.2.2 vX.length; rwa [List.take_length] at this
-    have hPVT : (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).PtValid k n (Hom.id n) vT := by
-      have := SData.ptValid_take hC'T hT.2.2 vT.length; rwa [List.take_length] at this
-    have hkvX : ∀ a ∈ vX, IsKV n a := by
-      intro a ha
-      obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem ha
-      cases hr : C'.isRec j
-      · exact hbX.pt_kv hPVX hj (by rw [getD_ctors hC']; exact hr)
-      · exact (hX.2.1 j _ (List.getElem?_eq_getElem hj) hr).kv
-    have hkvT : ∀ a ∈ vT, IsKV n a := by
-      intro a ha
-      obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem ha
-      cases hr : C'.isRec j
-      · exact hgT.pt_kv hPVT hj (by rw [getD_ctors hC'T]; exact hr)
-      · exact (hT.2.1 j _ (List.getElem?_eq_getElem hj) hr).kv
-    cases hb : bndAtMap C' rs' (Hom.id n) with
-    | none =>
-      exact Corr.con (by rw [getD_ctors hC']; exact hb) hkvT hkvX hl
-        (fun j hj hj' hr => hrec j hj hj' (by rwa [getD_ctors hC'] at hr))
-        (fun j hj hj' hr => hpt j hj hj' (by rwa [getD_ctors hC'] at hr))
-    | some cl =>
-      obtain ⟨ψk, bk⟩ := cl
-      obtain ⟨hmemk, hhk⟩ := bndAtMap_some hb
-      have hXv := conV_eq_bnd_of hrcX hC' (IH k (by omega) C' hC') hX hrs' hb
-      have hTv := conV_eq_bnd hgT hC'T hT hrs' hb
-      have hcongr : (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))).ctors = (D.truncate c).ctors := rfl
-      rw [conV_congr_ctors n k fun k'' hk'' => hct k'' (by omega),
-        conBefore_congr_ctors (fun k'' hk'' => hct k'' (by omega))] at hTv
-      rw [hTv, hXv]
-      have hbty := bnd_X S0 hS0 D hWf X B hB hXB hXr hokB hok0 m ps hps k C' hC' ψk bk hmemk n rs' (by simpa using hhk)
-      exact ((ovl_tree hbX hC' (fun k'' hk'' => hct k'' (by omega)) (fun k'' hk'' => hctO k'' (by omega))
-        (fun k'' hk'' => hty k'' (by omega)) (fun k'' hk'' => IHk k'' hk'' (by omega)) hX (by rw [hl]; exact hX.1)
-        (fun j hj hj' hr => ⟨hrec j hj hj' hr, hT.2.1 j _ (List.getElem?_eq_getElem hj) hr⟩) hpt hkvT rs' bk).1 hbty).1
-  -- the generic arguments
-  have hlA : args.length = C.args.length := hat.1
-  have hPVA : (dataSD (sigV S0) E S0.length m ps).PtValid c n g args := by
-    have := SData.ptValid_take hC hat.2.2 args.length; rwa [List.take_length] at this
-  have hkvA : ∀ a ∈ args, IsKV n a := by
-    intro a ha
-    obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem ha
-    cases hr : C.isRec j
-    · exact hbX.pt_kv hPVA hj (by rw [getD_ctors hC]; exact hr)
-    · exact (hat.2.1 j _ (List.getElem?_eq_getElem hj) hr).kv
-  set aT := genPre C gf args with haT
-  have hlT : aT.length = C.args.length := by simp [aT, genPre_length, hlA]
-  have hrecT : ∀ j (hj : j < aT.length) (hj' : j < args.length), C.isRec j = true →
-      Corr (dataSD (sigV S0) E S0.length m ps).ctors n gf act P aT[j] args[j] ∧
-        DElem (dataSD (sigV S0) (D.truncate c) S0.length n (fun k f => ps k (g.comp f))) n (Hom.id n) aT[j] := by
-    intro j hj hj' hr
-    simp only [aT, genPre_getElem, hr, if_true]
-    refine ⟨?_, atomV_DElem hHT ha0 (j + 1)⟩
-    have := Corr.atom (ctors := (dataSD (sigV S0) E S0.length m ps).ctors) (n := n) (gen := gf) (act := act)
-      (P := P) (i := j) ⟨by omega, hr⟩
-    simpa [act, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hj'] using this
-  have hptT : ∀ j (hj : j < aT.length) (hj' : j < args.length), C.isRec j = false → aT[j] = args[j] := by
-    intro j hj hj' hr
-    simp [aT, genPre_getElem, hr]
-  have hkvT : ∀ a ∈ aT, IsKV n a := by
-    intro a ha
-    obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem ha
-    cases hr : C.isRec j
-    · rw [hptT j hj (by omega) hr]; exact hkvA _ (List.getElem_mem _)
-    · exact (hrecT j hj (by omega) hr).2.kv
-  have htop : ∀ bb, BTy (dataSD (sigV S0) E S0.length m ps) c C bb →
-      Corr (dataSD (sigV S0) E S0.length m ps).ctors n gf act P
-        (evalBnd (conBefore (dataSD (sigV S0) E S0.length m ps).ctors c n) aT rs bb)
-        (evalBnd (conBefore (dataSD (sigV S0) E S0.length m ps).ctors c n) args rs bb) :=
-    fun bb hbb => ((ovl_tree hbX hC hct hctO hty hQ hat hlT hrecT hptT hkvT rs bb).1 hbb).1
-  -- the judgmental overlap, at the generic arguments
-  obtain ⟨k1, hk1⟩ := List.getElem?_of_mem hmem
-  obtain ⟨k2, hk2⟩ := List.getElem?_of_mem hmem'
-  obtain ⟨-, hcl1, hs1, hhas1, -⟩ := (hWf.2.2 c C hCD).2.1 k1 ψ b hk1
-  obtain ⟨-, hcl2, hs2, hhas2, -⟩ := (hWf.2.2 c C hCD).2.1 k2 ψ' b' hk2
-  have heq := (hWf.2.2 c C hCD).2.2 k1 k2 ψ ψ' b b' hk1 hk2
-  have hsynD : DataSyn S0.length D :=
-    dataSyn_X S0 hS0 D hWf D.ctors D.ctors.length (fun _ _ => rfl)
-      (fun c' h C' hC' => by rw [List.getElem?_eq_none (by omega)] at hC'; cases hC') (fun _ => hok0 (by omega))
-  have hCE : E.ctors[c]? = some C := hC
-  have hgetC : E.ctors.getD c default = D.ctors.getD c default := by
-    rw [getD_ctors hCE, getD_ctors hCD]
-  have hptD : ∀ i (hi : i < C.args.length), C.isRec i = false →
-      args[i]'(by omega) ∈ El (argTyRaw (sigV S0) D S0.length c i n (ps n g) args) (Hom.id n) ∧
-        IsKV n (args[i]'(by omega)) := by
-    intro i hi hr
-    refine ⟨?_, hkvA _ (List.getElem_mem _)⟩
-    have hm := hat.2.2 i _ (List.getElem?_eq_getElem (by omega)) hr
-    change _ ∈ El (argTySem (sigV S0) E S0.length c i n (ps n g) (args.take i)) _ at hm
-    rw [argTySem_eq, if_pos ⟨by rw [getD_ctors hCE]; omega, by rw [getD_ctors hCE]; exact hr,
-      ptValid_argPreValid (hPVA.take i) (j := i) (by simp; omega)⟩] at hm
-    have e : argTyRaw (sigV S0) E S0.length c i n (ps n g) (args.take i) =
-        argTyRaw (sigV S0) D S0.length c i n (ps n g) args := by
-      simp only [argTyRaw, hgetC, List.take_take, Nat.min_self]; rfl
-    rwa [e] at hm
-  have hgfm : ∀ i, C.isRec i = true →
-      gf i ∈ El (dataC (dataSD (sigV S0) (D.truncate c) S0.length n fun k f => ps k (g.comp f))) (Hom.id n) :=
-    fun i _ => mem_El_dataC.2 (atomV_DElem hHT ha0 (i + 1))
-  have htk : genPre C gf (args.take C.args.length) = aT := by rw [List.take_of_length_le (by omega)]
-  have hp1 := isPoint_argCtx S0 D hsynD hCD hps c g (renv rs) hψ gf hgfm (j := C.args.length) (pre := args)
-    (by omega) le_rfl hptD
-  have hp2 := isPoint_argCtx S0 D hsynD hCD hps c g (renv rs) hψ' gf hgfm (j := C.args.length) (pre := args)
-    (by omega) le_rfl hptD
-  have hp12 := isPoint_argCtx S0 D hsynD hCD hps c g (renv rs) (Φ := .and ψ ψ') (holds_and.2 ⟨hψ, hψ'⟩) gf hgfm
-    (j := C.args.length) (pre := args) (by omega) le_rfl hptD
-  rw [htk] at hp1 hp2 hp12
-  have hargs : ∀ x (hx : x < C.args.length),
-      argEnvKV n (plist (ps n g) D.params.length) aT x = aT.reverse[x]'(by simp; omega) := by
-    intro x hx
-    rw [argEnvKV_eq_of_lt (by simp [plist]; omega), List.getElem_append_left (by simp; omega)]
-  have hsimp : ∀ bb, Ctor.simpleB D.ctors S0.length D.params.length c C.args.length C bb = true →
-      Ctor.simpleB (D.truncate c).ctors S0.length (D.truncate c).params.length c C.args.length C bb = true := by
-    intro bb h
-    rw [← (simpleB_congr (fun c' hc' => ?_) bb).1]; exact h
-    show D.ctors[c']? = (D.ctors.take c ++ [genCtor D.isHIT])[c']?
-    rw [List.getElem?_append_left (by simp; omega), List.getElem?_take_of_lt hc']
-  have hev := fun bb => (sem_simple_eval (S := S0 ++ [.data (D.truncate c)]) (entry_ext S0 _) (c := c) (C := C) hp12.kv aT hlT
-    hargs rs (fun i _ => rfl) bb).1
-  have hne1 : sem (S0 ++ [.data (D.truncate c)]) b n (renv rs) (argEnvKV n (plist (ps n g) D.params.length) aT) ≠ ∅ := by
-    obtain ⟨hm, -, hty1, -⟩ := (sound_ty hokc hhas1).2.2.2 n _ _ hp1
-    exact hty1.ne_empty hm
-  have hne2 : sem (S0 ++ [.data (D.truncate c)]) b' n (renv rs) (argEnvKV n (plist (ps n g) D.params.length) aT) ≠ ∅ := by
-    obtain ⟨hm, -, hty1, -⟩ := (sound_ty hokc hhas2).2.2.2 n _ _ hp2
-    exact hty1.ne_empty hm
-  have hE := (sound_eq hokc heq).2.2 n _ _ hp12
-  rw [hev b (hsimp b hs1) hcl1 hne1, hev b' (hsimp b' hs2) hcl2 hne2] at hE
-  rw [conBefore_congr_ctors (ctors1 := (D.truncate c).ctors) (ctors2 := (dataSD (sigV S0) E S0.length m ps).ctors)
-    (fun k hk => hct k hk)] at hE
-  have h1 := htop b (bnd_X S0 hS0 D hWf X B hB hXB hXr hokB hok0 m ps hps c C hC ψ b hmem n rs hψ)
-  have h2 := htop b' (bnd_X S0 hS0 D hWf X B hB hXB hXr hokB hok0 m ps hps c C hC ψ' b' hmem' n rs hψ')
-  rw [← hE] at h2
-  exact Corr.unique hinj hne h1 h2
+  · have hCD : D.ctors[c]? = some C := by rw [← hXB c hcB]; exact hC
+    have he : conBefore D.ctors c n = conBefore X c n :=
+      conBefore_congr_ctors fun k hk => by
+        simp only [List.getD_eq_getElem?_getD]
+        rw [hXB k (by omega)]
+    have ho := Model.Boundary.raw_ovl D.ctors S0.length D.params.length (fun c C hC ψ b ψ' b' hb hb' => by
+      obtain ⟨i, hi⟩ := List.getElem?_of_mem hb
+      obtain ⟨j, hj⟩ := List.getElem?_of_mem hb'
+      exact ((hWf.2.2 c C hC).2.2 i j ψ ψ' b b' hi hj)) c
+    have h := ho ψ b ψ' b' (by rwa [getD_ctors hCD]) (by rwa [getD_ctors hCD]) n args rs hψ hψ'
+    rw [he] at h
+    exact h
+  · have hgen := hXr c (by omega) C hC
+    subst hgen
+    simp [genCtor] at hb
 
 include hS0 hWf hXB hXr hokB hB hXH in
 theorem dataOK_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
@@ -1962,7 +1491,7 @@ theorem dataOK_X (hok0 : 0 < B → SigOK (S0 ++ [.data (D.truncate 0)])) :
     (fun m ps hps n g => params_small hS0 hWf (D := D) hps n g)
     (fun m ps hps n g i hi => param_entry_small hS0 hWf (D := D) hps n g hi)
     fun m ps hps => ⟨bnd_X S0 hS0 D hWf X B hB hXB hXr hokB hok0 m ps hps,
-      ovl_X S0 hS0 D hWf X B hB hXB hXr hokB hXH hok0 m ps hps⟩
+      ovl_X S0 D hWf X B hXB hXr m ps⟩
 
 end assembly
 

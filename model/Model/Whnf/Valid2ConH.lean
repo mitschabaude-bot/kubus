@@ -56,7 +56,7 @@ theorem ConInv.cumul (hW : WfSig S) {Ψ : ℕ} {Φ : I} {Γ : Ctx} {d c : ℕ} {
 
 section
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = true)
-  (hyp : HITHyp2 S)
+  (hyp : HITHyp2 S (d + 1))
 include hW hD hH hyp
 variable {Ψ : ℕ} {Φ : I} {Γ : Ctx}
 
@@ -76,9 +76,8 @@ theorem valid_conH {c : ℕ} {C : Ctor} {ps ps' args args' : Tm} {rs rs' : List 
   have hvdk := hvd k c'
   have hPT : HasTy S k .one [] (.data d (c'.L ps)) (.univ D.level) := (RE2.typed hvdk.2).1
   have hPP : RT2 S k (.data d (c'.L ps)) (.data d (c'.L ps)) := by
-    have := (RE2_univ_iff hW).1 hvdk.2
-    exact RT2.refl hW (tyCode_of_univ hW hPT) this.2.2
-  refine ⟨((RE2_univ_iff hW).1 hvdk.2).2.2, ?_⟩
+    exact RT2.refl hW (tyCode_of_univ hW hPT) (RE2_univ_ty hW hvdk.2)
+  refine ⟨RE2_univ_ty hW hvdk.2, ?_⟩
   have hpc : (c'.L ps).closedB 0 k = true := by
     have := closed_of_ty hW hPT; simpa [Tm.closedB] using this
   have eP : (c'.L ps).isub (ISub.id k) = c'.L ps := isub_id_of_closed hpc
@@ -177,7 +176,7 @@ theorem valid_conBnd {c : ℕ} {C : Ctor} {ps args T : Tm} {rs : List I} {kb : �
     rw [e3] at h
     rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_eq_getElem hi0]
     exact h
-  have key := hyp.conBnd hD hH hC hk hent' hPT hPP (by simpa using hall) hcT hargs
+  have key := hyp.conBnd (by omega) hD hH hC hk hent' hPT hPP (by simpa using hall) hcT hargs
   have eB : c'.R (Ctor.bndAt b ps.toList args.toList rs) =
       Ctor.bndAt b (c'.R ps).toList (args.toList.map c'.R) (rs.map (·.subst c'.σ'.τ)) := by
     show (Ctor.bndAt b ps.toList args.toList rs).subst c'.γ' c'.σ'.τ = _

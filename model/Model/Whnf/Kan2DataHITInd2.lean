@@ -88,7 +88,7 @@ variable {d : ℕ} {D : DataDecl} {PL : Tm} {φ : I} {c : ℕ} {C : Ctor} {q : T
 
 /-- Where the face of a transport of a constructor holds, its `transpCon` contractum is related to the
 constructor. -/
-theorem tcon_faceH (H : TC S k d D PL PL φ φ c C q q X X rs rs) (hH : D.isHIT = true) (hyp : HITHyp2 S)
+theorem tcon_faceH (H : TC S k d D PL PL φ φ c C q q X X rs rs) (hH : D.isHIT = true) (hyp : HITHyp2 S (d + 1))
     (hφ : I.Entails .one φ) :
     RE2 S k (.data d (PL.dinst .one)) (tConR d D c C PL φ X rs) (.con d c q (Tm.ofList X) rs) := by
   have hW := H.hW
@@ -122,7 +122,7 @@ end TC
 
 section whnf
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = true)
-  (hyp : HITHyp2 S) {K : ℕ} {P : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level))
+  (hyp : HITHyp2 S (d + 1)) {K : ℕ} {P : Tm} (hP : HasTy S K .one [] (.data d P) (.univ D.level))
   (hPP : RT2 S K (.data d P) (.data d P))
 include hW hD hH hyp hP hPP
 
@@ -166,9 +166,9 @@ end whnf
 section face
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hH : D.isHIT = true)
   (hp : D.params ≠ []) {K : ℕ} {P : Tm} (hP : HasTy S (K + 1) .one [] (.data d P) (.univ D.level))
-  (hArgK : KanShape S (K + 1) (ΘK S D d (K + 1) P))
+
   (hRL : Rob S d K P P)
-include hW hD hH hp hP hArgK hRL
+include hW hD hH hp hP  hRL
 
 /-- Where the face of a transport of a formal composition holds, its `transpHcomp` contractum is related to
 the composition. -/
@@ -183,7 +183,7 @@ theorem hcomp_faceH {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Scoped (k1 + 1))
     (hA : RE2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .zero) a a) :
     RE2 S k1 (((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)).dinst .one)
       (tHc d (P.isub (ISub.cons y hy ρ.up.tail)) ψ χ u a) (.hcomp (.data d qs) χ u a) := by
-  have hPP1 := PP1 hW hD hp hP hArgK hRL
+  have hPP1 := PP1 hW hD hp hP  hRL
   have tyB : ∀ {k4 : ℕ} {X Z : Tm}, RT2 S k4 X Z → TyEq S k4 X Z := fun h => (Comp2_ty_base h).2.2.2.2.2
   have hLt : HasTy S (k1 + 1) .one [] ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) (.univ D.level) :=
     HasTy.isubS hW hP _
@@ -247,12 +247,12 @@ theorem hcomp_faceH {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Scoped (k1 + 1))
   have hst := stable_transpFace hW hψ (minimal_to_spec hta)
   have hA1 := RE2.conv hW conv01' hA
   have haa := RE2.expandL hW (RT2.refl' hW (RE2.tyCode hW hA) conv01') (minimal_to_spec hta) (RE2.typed hA1).1 hst hA1
-  have eE := lineP_dinst hW hD hp hP hArgK hRL ρ y hy .one trivial
+  have eE := lineP_dinst hW hD hp hP  hRL ρ y hy .one trivial
   rw [eE] at htH htube tS tS' haa hWty1 heqHW ⊢
   exact hcomp_relD hW hD hH hP hPP1 _ htH hWty1 heqHW (ent_refl _) (ent_refl _) htube tS tS' haa
 
 /-- The data of the transport of a constructor normal form along a line, with itself. -/
-theorem tc_node (hyp : HITHyp2 S) {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Scoped (k1 + 1))
+theorem tc_node (hyp : HITHyp2 S (d + 1)) {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Scoped (k1 + 1))
     (h0 : I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k1)).τ) .zero) {ψ : I} (hψs : ψ.Scoped k1)
     (LC : LineConst S k1 ((Tm.data d P).isub (ISub.cons y hy ρ.up.tail)) ψ)
     {c : ℕ} {C : Ctor} {q : Tm} {Z : List Tm} {rs : List I} (hC : D.ctors[c]? = some C)
@@ -265,7 +265,7 @@ theorem tc_node (hyp : HITHyp2 S) {k1 : ℕ} (ρ : ISub k1 K) (y : I) (hy : y.Sc
     (hrec : ∀ j (hj : j < Z.length), C.isRec j = true → TM1s S d K P k1 ρ.hom (.data d ((P.dinst .zero).isub ρ)) Z[j]) :
     TC S k1 d D (P.isub (ISub.cons y hy ρ.up.tail)) (P.isub (ISub.cons y hy ρ.up.tail)) ψ ψ c C q q Z Z rs rs := by
   have hRL' := Rob.line hRL ρ y y hy hy (I_eq_refl _)
-  refine ⟨hW, hD, hp, hC, HasTy.isubS hW hP _, hRL', hRL', argK_restr hArgK _, hψs, ent_refl _, ent_refl _, LC, hty,
+  refine ⟨hW, hD, hp, hC, HasTy.isubS hW hP _, hRL', hRL', hψs, ent_refl _, ent_refl _, LC, hty,
     hty, EqTm.refl hty, hZ, fun i hi hri k3 τ z z' hz hz' hEz hz0 => ?_,
     conR_hit hW hD hH hyp hC (HasTy.isubS hW hP _) hRL' (forall2_ieq_refl _)⟩
   · have h := hrec i (by omega) hri ρ rfl rfl k3 τ _ _

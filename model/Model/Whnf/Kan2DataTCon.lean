@@ -34,7 +34,6 @@ structure TC (S : Sig) (k d : ℕ) (D : DataDecl) (PL QL : Tm) (φ φ' : I) (c :
     RT2 S k3 (.data d (PL.isub (ISub.cons y hy τ))) (.data d (QL.isub (ISub.cons y' hy' τ)))
   hRL : ∀ k3 (τ : ISub k3 k) (y y' : I) (hy : y.Scoped k3) (hy' : y'.Scoped k3), I.Eq y y' →
     RT2 S k3 (.data d (PL.isub (ISub.cons y hy τ))) (.data d (PL.isub (ISub.cons y' hy' τ)))
-  hArgK : KanShape S (k + 1) (ΘK S D d (k + 1) PL)
   hφs : φ.Scoped k
   h12 : I.Entails φ φ'
   h21 : I.Entails φ' φ
@@ -166,13 +165,6 @@ def Good (S : Sig) (k d : ℕ) (D : DataDecl) (PL QL : Tm) (φ φ' : I) (C : Cto
     I.Eq (y.subst (ISub.cons .zero trivial (ISub.id k3)).τ) .zero →
     KanT2At S k3 ((tl d D C PL φ X i).isub (ISub.cons y hy τ.up.tail))
       ((tl d D C QL φ' X' i).isub (ISub.cons y' hy' τ.up.tail)) ((X.getD i .abort).isub τ) ((X'.getD i .abort).isub τ))
-
-/-- The Kan properties of the argument types' codes, at a restriction of a literal inductive type. -/
-theorem argK_restr {d : ℕ} {D : DataDecl} {K : ℕ} {P : Tm}
-    (hArgK : KanShape S K (ΘK S D d K P))
-    (σ : ISub k' K) : KanShape S k' (ΘK S D d k' (P.isub σ)) := by
-  rw [← ΘK_restr]
-  exact hArgK.restr σ.hom
 
 section face
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hp : D.params ≠ [])
@@ -371,7 +363,7 @@ theorem line_kanT {j : ℕ} (hj : j < C.args.length) (hrj : C.isRec j = false) {
   have hlF := tF_length d D C PL φ X
   have hlF' := tF_length d D C QL φ' X'
   have hAlen : (((tF d D C PL φ X).map (·.isub θ)).take j).length = j := by simp; omega
-  have K := argLine_kanT H.hW H.hD (HasTy.isubS H.hW H.hPL θ) hθθ hθθ' (argK_restr H.hArgK θ) H.hC
+  have K := argLine_kanT H.hW H.hD (HasTy.isubS H.hW H.hPL θ) hθθ hθθ'  H.hC
     (A := ((tF d D C PL φ X).map (·.isub θ)).take j) (B := ((tF d D C QL φ' X').map (·.isub θ')).take j)
     (by rw [hAlen]; simp; omega) (by rw [hAlen]; exact hj) (by rw [hAlen]; exact hrj)
     (fun i hi => by

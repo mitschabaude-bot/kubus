@@ -24,16 +24,14 @@ variable {S : Sig} {k k' k'' : ℕ}
 section gen
 variable (hW : WfSig S) {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hp : D.params ≠ [])
   (hlit : ∀ {K : ℕ} {P Q : Tm}, HasTy S (K + 1) .one [] (.data d P) (.univ D.level) →
-    KanShape S (K + 1) (ΘK S D d (K + 1) P) → Rob S d K P P → Rob S d K P Q → KanT2 S K (.data d P) (.data d Q))
+    Rob S d K P P → Rob S d K P Q → KanT2 S K (.data d P) (.data d Q))
 include hW hD hp hlit
 
 /-- Transport along related lines whose normal forms are an inductive type with parameters, given
 transport along its literal lines. The Kan properties of the argument types are required at the
 literal lines related to the restrictions of `T`. -/
 theorem kanT2_data {T T' ps : Tm} (hTT : RT2 S (k + 1) T T') (hR : RedT S (k + 1) T (.data d ps))
-    (hK : ∀ k1 (θ : ISub (k1 + 1) (k + 1)) P1, HasTy S (k1 + 1) .one [] (.data d P1) (.univ D.level) →
-      RT2 S (k1 + 1) (.data d P1) (T.isub θ) →
-      KanShape S (k1 + 1) (ΘK S D d (k1 + 1) P1)) :
+ :
     KanT2 S k T T' := by
   intro hLR φ φ' a0 a0' hC hty hty' heq h12 h21 ha0
   obtain ⟨l0, ⟨hTl, hφs, -, -⟩, -⟩ := gen_transpF (spec_to_minimal hW hty) rfl
@@ -177,7 +175,7 @@ theorem kanT2_data {T T' ps : Tm} (hTT : RT2 S (k + 1) T T') (hR : RedT S (k + 1
   have hP := HasTy.isubS hW (data_whnf_ty hW hD (hTK κ.up) (hw (k4 + 1) κ.up).1) κ'.up
   have hPT : RT2 S (k5 + 1) (.data d ((P1 (k4 + 1) κ.up).isub κ'.up)) (T.isub (κ.comp κ').up) := by
     have := NP (k4 + 1) κ.up (k5 + 1) κ'.up; rwa [← ISub.up_comp] at this
-  have K := hlit hP (hK k5 (κ.comp κ').up _ hP hPT) (RobPP κ κ') (RobPQ κ κ')
+  have K := hlit hP (RobPP κ κ') (RobPQ κ κ')
   have hPc : (Tm.data d ((P1 (k4 + 1) κ.up).isub κ'.up)).closedB 0 (k5 + 1) = true := closed_of_ty hW hP
   have eP : ∀ (r : I) (hr : r.Scoped k5),
       RT2 S k5 ((Tm.data d ((P1 (k4 + 1) κ.up).isub κ'.up)).dinst r) (T.isub (ISub.cons r hr (κ.comp κ'))) := by

@@ -5,7 +5,7 @@ import Model.Whnf.Valid2LineEquiv
 
 The binary version of `VTy.lineEquiv'` (`Valid2LineEquiv.lean`): for lines `B`, `B'` of types of
 level `l` that are judgmentally equal and valid together, `lineEquiv B` and `lineEquiv B'` are valid
-together (`VEq.lineEquiv₂`). Transport is only used at types of level `l` (`KTAt S l`). This relates the
+together (`VEq.lineEquiv₂`). The related lines carry their transport operations. This relates the
 equivalences of the `hcompU` contracta of related compositions in the universe.
 -/
 
@@ -141,18 +141,18 @@ theorem VEq.equiv₂ {T T' A A' : Tm} {l : ℕ} (hT : VEq S Ψ Φ Γ T T' (.univ
 
 
 /-- Transport along related lines of types of level `l`, with the left line constant on the face. -/
-theorem VEq.transpL₂ {A A' a a' : Tm} {φ : I} {l : ℕ} (hKT : KTAt S l)
+theorem VEq.transpL₂ {A A' a a' : Tm} {φ : I} {l : ℕ}
     (hA : VEq S (Ψ + 1) Φ.shift Γ.dshift A A' (.univ l)) (hφ : φ.Scoped Ψ)
     (hc : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l))
     (hty' : HasTy0 S Ψ Φ Γ (.transp A' φ a') (A.dinst .one))
     (ha : VEq S Ψ Φ Γ a a' (A.dinst .zero)) : VEq S Ψ Φ Γ (.transp A φ a) (.transp A' φ a') (A.dinst .one) := by
   have hAL := VEq.lty' hW hA
-  have hty := (VTy.transpL hW hKT hAL hφ hc (VEq.lty' hW ha)).ty
-  exact VEq.transp' hW (fun k c => hKT k _ _ (hA.v.ty hW (c.up hW)) ((c.up hW).ty hW hAL.ty)) hφ (ent_refl _)
+  have hty := (VTy.transp' hW hAL hφ hc (VEq.lty' hW ha)).ty
+  exact VEq.transp' hW  hφ (ent_refl _)
     (ent_refl _) hty hty' hA hc.v ha
 
 /-- The transport filler with a constant cofibration, between related lines and starts. -/
-theorem VEq.tfill₂ {C C' a a' : Tm} {l : ℕ} (hKT : KTAt S l) (hC : VEq S (Ψ + 1) Φ.shift Γ.dshift C C' (.univ l))
+theorem VEq.tfill₂ {C C' a a' : Tm} {l : ℕ} (hC : VEq S (Ψ + 1) Φ.shift Γ.dshift C C' (.univ l))
     (ha : VEq S Ψ Φ Γ a a' (C.dinst .zero)) :
     VEq S (Ψ + 1) Φ.shift Γ.dshift (KubusCore.Meta.tfill C a) (KubusCore.Meta.tfill C' a') C := by
   have hS := sigClosed_of_wfSig hW
@@ -160,7 +160,7 @@ theorem VEq.tfill₂ {C C' a a' : Tm} {l : ℕ} (hKT : KTAt S l) (hC : VEq S (Ψ
   have hCR := VEq.rty' hW hC
   have haR : VTy S Ψ Φ Γ a' (C'.dinst .zero) :=
     VTy.conv' hW (VEq.rty' hW ha) (VEq.dsubst' hW .zero trivial hC)
-  have tR := (VTy.tfill' hW hKT hCR haR).1
+  have tR := (VTy.tfill' hW hCR haR).1
   have hw0 := wf_unshift hS (wf_of_ty hCL.ty)
   have hs := scoped_of_wf hw0
   have hv0 : (I.var 0).Scoped (Ψ + 1) := show 0 < Ψ + 1 by omega
@@ -214,12 +214,12 @@ theorem VEq.tfill₂ {C C' a a' : Tm} {l : ℕ} (hKT : KTAt S l) (hC : VEq S (Ψ
   have hty' : HasTy0 S (Ψ + 1) Φ.shift Γ.dshift (KubusCore.Meta.tfill C' a')
       ((C.dsubst (Tm.bind2 (.and (.var 1) (.var 0)))).dinst .one) :=
     HasTy0.conv tR.ty (EqTm0.trans (EqTm0.symm hC.eq) (EqTm0.symm eC.eq))
-  have ht0 := VEq.transpL₂ hW hKT hL₂ (show (I.neg (.var 0)).Scoped (Ψ + 1) from hv0) hconst hty' ha'
+  have ht0 := VEq.transpL₂ hW hL₂ (show (I.neg (.var 0)).Scoped (Ψ + 1) from hv0) hconst hty' ha'
   exact VEq.conv' hW ht0 eC
 
 
 /-- Transport along related lines, as functions. -/
-theorem VEq.lineFun₂ {B B' : Tm} {l : ℕ} (hKT : KTAt S l) (hB : VEq S (Ψ + 1) Φ.shift Γ.dshift B B' (.univ l)) :
+theorem VEq.lineFun₂ {B B' : Tm} {l : ℕ} (hB : VEq S (Ψ + 1) Φ.shift Γ.dshift B B' (.univ l)) :
     VEq S (Ψ + 1) Φ.shift Γ.dshift (Tm.lineFun B) (Tm.lineFun B') (Tm.arrow (B.dinst .zero).dshift B) := by
   have hB0 := VEq.dsubst' hW .zero trivial hB
   have hB0d := VEq.dwk' hW hB0
@@ -229,7 +229,7 @@ theorem VEq.lineFun₂ {B B' : Tm} {l : ℕ} (hKT : KTAt S l) (hB : VEq S (Ψ + 
     VEq.wk' hW hB0dL.ty hB
   have ha : VEq S Ψ Φ (B.dinst .zero :: Γ) (.var 0) (.var 0) (B.shift.dinst .zero) := by
     rw [shift_dinst_comm]; exact VEq.refl' (VTy.var0' hW (VEq.lty' hW hB0))
-  have ht := VEq.tfill₂ hW hKT hC ha
+  have ht := VEq.tfill₂ hW hC ha
   have hpi : VTy S (Ψ + 1) Φ.shift Γ.dshift (.pi (B.dinst .zero).dshift B.shift) (.univ l) :=
     VTy.pi' hW hB0dL (VTy.wk' hW hB0dL.ty hBL)
   exact VEq.lamD₂ hW hpi hB0d ht
@@ -263,7 +263,7 @@ theorem VEq.idIsEquiv₂ {T T' f f' : Tm} {l : ℕ} (h : VIsId S Ψ Φ Γ T f l)
   exact VEq.lamD₂ hW hpi hFF (VEq.refl' (VTy.contr' hW h1 hy))
 
 /-- Transport along related lines of types of level `l` gives related equivalences between their endpoints. -/
-theorem VEq.lineEquiv₂ {B B' : Tm} {l : ℕ} (hKT : KTAt S l) (hB : VEq S (Ψ + 1) Φ.shift Γ.dshift B B' (.univ l)) :
+theorem VEq.lineEquiv₂ {B B' : Tm} {l : ℕ} (hB : VEq S (Ψ + 1) Φ.shift Γ.dshift B B' (.univ l)) :
     VEq S Ψ Φ Γ (Tm.lineEquiv B) (Tm.lineEquiv B') (Tm.equiv (B.dinst .zero) (B.dinst .one)) := by
   have hS := sigClosed_of_wfSig hW
   have hBL := VEq.lty' hW hB
@@ -277,9 +277,9 @@ theorem VEq.lineEquiv₂ {B B' : Tm} {l : ℕ} (hKT : KTAt S l) (hB : VEq S (Ψ 
   have hB0d' := VTy.dwk' hW hB0'
   have eB0 := VEq.dsubst' hW .zero trivial hB
   have eB0d := VEq.dwk' hW eB0
-  obtain ⟨hlf, hid⟩ := VTy.lineFun' hW hKT hBL
-  obtain ⟨hlf', hid'⟩ := VTy.lineFun' hW hKT hBR
-  have elf := VEq.lineFun₂ hW hKT hB
+  obtain ⟨hlf, hid⟩ := VTy.lineFun' hW hBL
+  obtain ⟨hlf', hid'⟩ := VTy.lineFun' hW hBR
+  have elf := VEq.lineFun₂ hW hB
   have hf : ∀ r : I, r.Scoped Ψ → VTy S Ψ Φ Γ ((Tm.lineFun B).dinst r) (Tm.arrow (B.dinst .zero) (B.dinst r)) := by
     intro r hr
     have := VTy.dsubst' hW r hr hlf; rwa [arrow_dinst, dshift_dinst] at this
@@ -305,13 +305,13 @@ theorem VEq.lineEquiv₂ {B B' : Tm} {l : ℕ} (hKT : KTAt S l) (hB : VEq S (Ψ 
   have hbase' := VTy.idIsEquiv' hW (Ψ := Ψ) (Φ := Φ) (Γ := Γ) ⟨hB0', hf' .zero trivial, hid'⟩
   have ebase := VEq.idIsEquiv₂ hW ⟨hB0, hf .zero trivial, hid⟩
     ⟨hB0', hf' .zero trivial, hid'⟩ eB0 (ef .zero trivial)
-  have ht' := VTy.transpL hW hKT hE' (φ := .zero) trivial hcE' (by rw [isEquiv_dinst, dshift_dinst]; exact hbase')
+  have ht' := VTy.transp' hW hE' (φ := .zero) trivial hcE' (by rw [isEquiv_dinst, dshift_dinst]; exact hbase')
   have eE1 := VEq.dsubst' hW .one trivial eE
   have ht'L : HasTy0 S Ψ Φ Γ (.transp (Tm.isEquiv (B'.dinst .zero).dshift B' (Tm.lineFun B')) .zero
       (Tm.idIsEquiv (B'.dinst .zero) ((Tm.lineFun B').dinst .zero)))
       ((Tm.isEquiv (B.dinst .zero).dshift B (Tm.lineFun B)).dinst .one) :=
     HasTy0.conv ht'.ty (EqTm0.symm eE1.eq)
-  have et := VEq.transpL₂ hW hKT eE (φ := .zero) trivial hcE ht'L
+  have et := VEq.transpL₂ hW eE (φ := .zero) trivial hcE ht'L
     (by rw [isEquiv_dinst, dshift_dinst]; exact ebase)
   rw [isEquiv_dinst, dshift_dinst] at et
   have hEq := VTy.equiv' hW hB0 hB1

@@ -1,4 +1,5 @@
 import Model.Whnf.Kan2Univ
+import Model.Whnf.Valid2
 
 /-!
 # Semantic validity of the Kan rules
@@ -114,6 +115,16 @@ theorem CSub2.ent_RL (c : CSub2 S Ψ Φ Γ k) {φ φ' : I} (h21 : I.Entails φ' 
     I.Entails (φ'.subst c.σ'.τ) (φ.subst c.σ.τ) :=
   ent_trans (eq_ent (I_eq_symm (c.ieq_subst (I_eq_refl φ')))) (ent_subst h21 c.σ.τ)
 
+/-- The type premise supplies its own composition operations. -/
+theorem Valid2.kanH {A A' : Tm} {l : ℕ} (hA : Valid2 S Ψ Φ Γ A A' (.univ l))
+    (c : CSub2 S Ψ Φ Γ k) : KanH2 S k (c.L A) (c.R A') :=
+  (hA.kanV hW k c).1 k (Hom.id k) _ _ (hA.ty hW c)
+
+/-- The line premise supplies its own transport operations. -/
+theorem Valid2.kanT {A A' : Tm} {l : ℕ} (hA : Valid2 S (Ψ + 1) Φ.shift Γ.dshift A A' (.univ l))
+    (c : CSub2 S Ψ Φ Γ k) : KanT2 S k ((c.up hW).L A) ((c.up hW).R A') :=
+  (hA.kanV hW (k + 1) (c.up hW)).2 k (Hom.id (k + 1)) _ _ (hA.ty hW (c.up hW))
+
 /-- Transport (formation and congruence), given the Kan property of the instances of the lines. -/
 theorem valid_transp {A A' a a' : Tm} {φ φ' : I} {l l' : ℕ} (hφ : φ.Scoped Ψ)
     (h12 : I.Entails φ φ') (h21 : I.Entails φ' φ)
@@ -121,14 +132,13 @@ theorem valid_transp {A A' a a' : Tm} {φ φ' : I} {l l' : ℕ} (hφ : φ.Scoped
     (hC : Valid2 S (Ψ + 1) (KubusCore.cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l'))
     (ha : Valid2 S Ψ Φ Γ a a' (A.dinst .zero))
     (hty : HasTy0 S Ψ Φ Γ (.transp A φ a) (A.dinst .one)) (hty' : HasTy0 S Ψ Φ Γ (.transp A' φ' a') (A.dinst .one))
-    (heq : EqTm0 S Ψ Φ Γ (.transp A φ a) (.transp A' φ' a') (A.dinst .one))
-    (hK : ∀ k (c : CSub2 S Ψ Φ Γ k), KanT2 S k ((c.up hW).L A) ((c.up hW).R A')) :
+    (heq : EqTm0 S Ψ Φ Γ (.transp A φ a) (.transp A' φ' a') (A.dinst .one)) :
     Valid2 S Ψ Φ Γ (.transp A φ a) (.transp A' φ' a') (A.dinst .one) := by
   intro k c
   have hT := hA.tySelf hW (c.cons .one .one trivial trivial (I_eq_refl _))
   rw [CSub2.L_cons hW, CSub2.R_cons hW] at hT
   refine ⟨by rw [CSub2.L_dinst hW, CSub2.R_dinst hW]; exact hT, ?_⟩
-  have h := hK k c (lineRob_of_valid hW hA c) (φ.subst c.σ.τ) (φ'.subst c.σ'.τ) (c.L a) (c.R a')
+  have h := hA.kanT hW c (lineRob_of_valid hW hA c) (φ.subst c.σ.τ) (φ'.subst c.σ'.τ) (c.L a) (c.R a')
     (lineConst_of_valid hW hφ hC c) (by have := c.ty hW hty; rwa [CSub2.L_dinst hW] at this)
     (by have := c.tyR' hW hty'; rwa [CSub2.L_dinst hW] at this)
     (by have := c.eq hW heq; rwa [CSub2.L_dinst hW] at this) (c.ent_LR h12) (c.ent_RL h21)
@@ -150,8 +160,7 @@ theorem valid_hcomp {A A' u u' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Scope
     (hu0' : Valid2 S Ψ (KubusCore.cof Φ φ) Γ (u'.dinst .zero) a' A)
     (hty : HasTy0 S Ψ Φ Γ (.hcomp A φ u a) A) (hty' : HasTy0 S Ψ Φ Γ (.hcomp A' φ' u' a') A)
     (heq : EqTm0 S Ψ Φ Γ (.hcomp A φ u a) (.hcomp A' φ' u' a') A)
-    (huu : EqTm0 S (Ψ + 1) (KubusCore.cof Φ φ).shift Γ.dshift u u' A.dshift)
-    (hK : ∀ k (c : CSub2 S Ψ Φ Γ k), KanH2 S k (c.L A) (c.R A')) :
+    (huu : EqTm0 S (Ψ + 1) (KubusCore.cof Φ φ).shift Γ.dshift u u' A.dshift) :
     Valid2 S Ψ Φ Γ (.hcomp A φ u a) (.hcomp A' φ' u' a') A := by
   intro k c
   refine ⟨hA.tySelf hW c, ?_⟩
@@ -159,7 +168,7 @@ theorem valid_hcomp {A A' u u' a a' : Tm} {φ φ' : I} {l : ℕ} (hφ : φ.Scope
   have hu0R := valid_symm hW hu0'
   have hXA : TyCode k (semK S k (c.L A)) := tyCode_of_univ hW (RE2.typed (hA k c).2).1
   have hAA : RT2 S k (c.L A) (c.L A) := RT2.refl hW hXA (hA.tySelf hW c)
-  refine hK k c (φ.subst c.σ.τ) (φ'.subst c.σ'.τ) ((c.up hW).L u) ((c.up hW).R u') (c.L a) (c.R a')
+  refine hA.kanH hW c (φ.subst c.σ.τ) (φ'.subst c.σ'.τ) ((c.up hW).L u) ((c.up hW).R u') (c.L a) (c.R a')
     (c.ty hW hty) (c.tyR' hW hty') (c.eq hW heq) ?_ (c.ent_LR h12) (c.ent_RL h21) ?_ (ha k c).2 ?_ ?_
   · have := c.eqCofUp hW hφL huu
     have e : (c.up hW).L A.dshift = (c.L A).dshift := dshift_dup_subst A c.γ c.σ.τ

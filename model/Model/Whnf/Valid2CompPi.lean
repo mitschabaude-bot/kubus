@@ -31,7 +31,7 @@ theorem VEq.sk1' {t u A : Tm} {X r : I} (hr : r.Scoped (Ψ + 1)) (hΦ : Φ.Scope
     (ent_sk1 r hX) hw h
 
 /-- `wT_typed`, with validity. -/
-theorem VTy.wT' (hKT : KTAll S) {A : Tm} {φ : I} {l : ℕ} (hA : VTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l))
+theorem VTy.wT' {A : Tm} {φ : I} {l : ℕ} (hA : VTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l))
     (hφ : φ.Scoped Ψ) (hcD : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l)) :
     VTy S (Ψ + 1) Φ.shift (Ctx.dshift (A.dinst .one :: Γ)) (wT A φ) A.shift := by
   have hS := sigClosed_of_wfSig hW
@@ -111,7 +111,7 @@ theorem VTy.wT' (hKT : KTAll S) {A : Tm} {φ : I} {l : ℕ} (hA : VTy S (Ψ + 1)
     have hv := VTy.var' hW (A := (A.dinst .one).dshift.shift) (x := 0) (wf_of_ty hAw.ty) rfl
     rw [pw_A1] at hv
     exact VTy.conv' hW hv e
-  have ht := VTy.transpG hW hKT hL hψ hconst hb
+  have ht := VTy.transp' hW hL hψ hconst hb
   rw [pw_L1] at ht
   have e := VTy.lineIeq hW hAw (k := 1) (r := .or (.var 0) (.neg .one)) (r' := .var 0) (ent_refl _)
     ⟨hv0, trivial⟩ hv0 (I_eq_or_negone_r _) hwX
@@ -119,7 +119,7 @@ theorem VTy.wT' (hKT : KTAll S) {A : Tm} {φ : I} {l : ℕ} (hA : VTy S (Ψ + 1)
   exact VTy.conv' hW ht e
 
 /-- `w0T_typed`, with validity. -/
-theorem VTy.w0T' (hKT : KTAll S) {A : Tm} {φ : I} {l : ℕ} (hA : VTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l))
+theorem VTy.w0T' {A : Tm} {φ : I} {l : ℕ} (hA : VTy S (Ψ + 1) Φ.shift Γ.dshift A (.univ l))
     (hφ : φ.Scoped Ψ) (hcD : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift A (A.dinst .zero).dshift (.univ l)) :
     VTy S Ψ Φ (A.dinst .one :: Γ) (w0T A φ) ((A.shift.dsubst negI).dinst .one) ∧
       VEq S Ψ Φ (A.dinst .one :: Γ) ((A.shift.dsubst negI).dinst .one) (A.dinst .zero).shift (.univ l) ∧
@@ -164,7 +164,7 @@ theorem VTy.w0T' (hKT : KTAll S) {A : Tm} {φ : I} {l : ℕ} (hA : VTy S (Ψ + 1
     have hv := VTy.var' hW (A := (A.dinst .one).shift) (x := 0) hwΔ rfl
     rw [p0_A1] at hv
     exact VTy.conv' hW hv e
-  have ht := VTy.transpG hW hKT hL hφ hconst hb
+  have ht := VTy.transp' hW hL hφ hconst hb
   have e := VTy.lineIeq hW hAw (k := 0) (r := .neg .one) (r' := .zero) hΦ0 trivial trivial I_eq_neg_one hwX
   rw [Ctx.dren_zero, p0_A0] at e
   refine ⟨ht, ?_, hb, hL, hconst⟩
@@ -186,7 +186,7 @@ theorem lookup_upRen_succ (B X : Tm) (Γ' : Ctx) : ∀ x A', Ctx.lookup (B :: Γ
     simp only [Tm.upRen, Ctx.lookup, h1, Option.map_some]; rw [e]
 
 /-- The body of the contractum of `transpPi`, typed and valid, with the transported argument. -/
-theorem VTy.transpPiBody' (hKT : KTAll S) {A B u0 : Tm} {φ : I} {l : ℕ}
+theorem VTy.transpPiBody' {A B u0 : Tm} {φ : I} {l : ℕ}
     (hLp : VTy S (Ψ + 1) Φ.shift Γ.dshift (.pi A B) (.univ l)) (hφ : φ.Scoped Ψ)
     (hcp : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift (.pi A B) ((Tm.pi A B).dinst .zero).dshift (.univ l))
     (hu0p : VTy S Ψ Φ Γ u0 ((Tm.pi A B).dinst .zero)) :
@@ -203,8 +203,8 @@ theorem VTy.transpPiBody' (hKT : KTAll S) {A B u0 : Tm} {φ : I} {l : ℕ}
   have hB : VTy S (Ψ + 1) Φ.shift (A :: Γ.dshift) B (.univ l) :=
     ⟨HasTy0.piCod hS hL, valid_piCod hW hLp.v (HasTy0.piCod hS hL)⟩
   have hcD := VEq.piInjDom' hW (A' := (A.dinst .zero).dshift) hcp
-  have hw := VTy.wT' hW hKT hA hφ hcD
-  obtain ⟨hw0, E0, hv00, hL0, hc0⟩ := VTy.w0T' hW hKT hA hφ hcD
+  have hw := VTy.wT' hW hA hφ hcD
+  obtain ⟨hw0, E0, hv00, hL0, hc0⟩ := VTy.w0T' hW hA hφ hcD
   have hA1 := VTy.dsubst' hW .one trivial hA
   have hwΔ : Wf0 S Ψ Φ (A.dinst .one :: Γ) := Wf0.cons hA1.ty
   have hA1d := VTy.dwk' hW hA1
@@ -271,7 +271,7 @@ theorem VTy.transpPiBody' (hKT : KTAll S) {A B u0 : Tm} {φ : I} {l : ℕ}
       (ent_refl _) hv0 ⟨trivial, hv0⟩ (I_eq_symm (I_eq_or_zero_l _)) hwX1
     rw [p0_L, pw_Lw0]; exact e
   have heq0 : VEq S Ψ Φ (A.dinst .one :: Γ) (w0T A φ) ((wT A φ).dinst .zero) (A.dinst .zero).shift := by
-    refine VEq.conv' hW (VEq.transp' hW (fun k c => hKT k _ _ (hline.v.ty hW (c.up hW)))
+    refine VEq.conv' hW (VEq.transp' hW 
       (A' := (A.shift.dsubst (Tm.bind2 (.or (.var 1) (.neg (.var 0))))).subst (fun n => (Tm.var n).dshift)
         (I.up (I.inst0 .zero)))
       (φ' := (I.or φ.shift (.var 0)).subst (I.inst0 .zero)) (a' := .var 0) hφ ?_ ?_ hw0.ty
@@ -282,7 +282,7 @@ theorem VTy.transpPiBody' (hKT : KTAll S) {A B u0 : Tm} {φ : I} {l : ℕ}
       ((B.subst (consT (wT A φ) wkS) I.var).dinst .zero) := by
     rw [Bw_dinst]
     exact VTy.conv' hW happ (VTy.inst_congr' hW hAz0 hBz0 heq0)
-  have ht := VTy.transpG hW hKT hBw hφ hBC hbase
+  have ht := VTy.transp' hW hBw hφ hBC hbase
   rw [Bw_dinst] at ht
   -- the endpoint
   have hR1 := VTy.wk' hW hA1.ty (VTy.dsubst' hW .one trivial hLp)
@@ -302,7 +302,7 @@ theorem VTy.transpPiBody' (hKT : KTAll S) {A B u0 : Tm} {φ : I} {l : ℕ}
   exact ⟨VTy.conv' hW ht eF, hw0, E0, hu0w⟩
 
 /-- `transpPi` is valid. -/
-theorem valid_transpPi_rule (hKT : KTAll S) {A B u0 T : Tm} {φ : I}
+theorem valid_transpPi_rule {A B u0 T : Tm} {φ : I}
     (h : HasTy0 S Ψ Φ Γ (.transp (.pi A B) φ u0) T)
     (hv : Valid2 S Ψ Φ Γ (.transp (.pi A B) φ u0) (.transp (.pi A B) φ u0) T)
     (hinv : TranspInv S Ψ Φ Γ (.pi A B) φ u0 T) :
@@ -314,7 +314,7 @@ theorem valid_transpPi_rule (hKT : KTAll S) {A B u0 T : Tm} {φ : I}
   have hcp : VEq S (Ψ + 1) (cof Φ φ).shift Γ.dshift (.pi A B) ((Tm.pi A B).dinst .zero).dshift (.univ l) :=
     ⟨hc, hCV⟩
   have hu0p : VTy S Ψ Φ Γ u0 ((Tm.pi A B).dinst .zero) := ⟨hu0, hu0V⟩
-  obtain ⟨hbody, hw0, E0, hu0w⟩ := VTy.transpPiBody' hW hKT hLp hφ hcp hu0p
+  obtain ⟨hbody, hw0, E0, hu0w⟩ := VTy.transpPiBody' hW hLp hφ hcp hu0p
   have hL1 := VTy.dsubst' hW .one trivial hLp
   have hy : VTy S Ψ Φ Γ (Tm.transpPi A B φ u0) ((Tm.pi A B).dinst .one) := VTy.lam' hW hL1 hbody
   have hT : ∀ k (c : CSub2 S Ψ Φ Γ k), RT2 S k (c.L T) (c.R T) := fun k c => (hv k c).1

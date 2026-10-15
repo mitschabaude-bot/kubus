@@ -449,7 +449,7 @@ theorem argRelH_nearR {k : ℕ} {g : Hom k k0} {ps ps' ps'' : Tm} (hD : S[Θ.idx
     rcases List.mem_append.1 hy with h | h
     · exact (args_good hW f hl' hrec hpt).2 y (List.mem_reverse.1 h)
     · exact goodB_toList (good_isub gps σ') y (List.mem_reverse.1 h)
-  exact (hQ _ c _ _).1 _ _ _ x nX (tyEq_near hW (Comp2_ty_base x).2.2.1 nX gX).2
+  exact ⟨(hQ _ c _ _).1 _ _ _ x.1 nX (tyEq_near hW (Comp2_ty_base x.1).2.2.1 nX gX).2, x.2⟩
 
 /-- The argument clause, at near parameters on the left. -/
 theorem argRelH_nearL {k : ℕ} {g : Hom k k0} {ps ps' ps'' : Tm} (hD : S[Θ.idx]? = some (.data (dataD S Θ.idx)))
@@ -478,7 +478,7 @@ theorem argRelH_nearL {k : ℕ} {g : Hom k k0} {ps ps' ps'' : Tm} (hD : S[Θ.idx
     · exact (args_good hW f hl' hrec hpt).1 y (List.mem_reverse.1 h)
     · exact goodB_toList (good_isub gps σ') y (List.mem_reverse.1 h)
   have P := hP (f.comp (g.comp σ'.hom)) c args.length (args.map (semK S k''))
-  exact NIP.tyL P (hQ _ c _ _) x nX (tyEq_near hW (Comp2_ty_base x).2.1 nX gX).2
+  exact ⟨NIP.tyL P (hQ _ c _ _) x.1 nX (tyEq_near hW (Comp2_ty_base x.1).2.1 nX gX).2, x.2⟩
 
 end dr
 
@@ -507,7 +507,7 @@ theorem parRel2_nearR (hW : WfSig S) {m : ℕ} {Θ : SData m}
   obtain ⟨a1, a0⟩ := h j p _ e1 e2
   refine ⟨fun t => ?_, fun t Aj hA => ?_⟩
   · have x := a1 t
-    exact Q.1 _ _ _ x np (tyEq_near hW (Comp2_ty_base x).2.2.1 np gp).2
+    exact ⟨Q.1 _ _ _ x.1 np (tyEq_near hW (Comp2_ty_base x.1).2.2.1 np gp).2, x.2⟩
   · obtain ⟨x, y⟩ := a0 t Aj hA
     have nX : TmNear (Aj.substList (ps'.toList.take j).reverse) (Aj.substList (ps''.toList.take j).reverse) :=
       near_substList (nearL_reverse (nearL_take nL j)) (TmNear.refl _)
