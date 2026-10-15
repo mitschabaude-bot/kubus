@@ -84,3 +84,4 @@ import Model.Whnf.Canon2
 import Model.Whnf.Kan2DataHCSound
 import Model.Whnf.Kan2DataHITBndTy
 import Model.Whnf.Valid2ElimH1
+import Model.Whnf.Valid2ElimH2

@@ -193,7 +193,7 @@ theorem BT_at {c : ℕ} {C : Ctor} (hC : D.ctors[c]? = some C) (ihc : ∀ c' < c
         (by rw [isub_id_of_closed hc1]; exact hargsO) (by rw [isub_id_of_closed hc1]; exact hrelb)
         (by rw [isub_id_of_closed hc1]; exact HasTy.eqR eO) (by rw [isub_id_of_closed hc1]; exact HasTy.eqR eT2)
       rw [isub_id_of_closed hc1] at R1
-      have R2 := hyp.conBnd hD hH hC' hb' hent' hd1 s1 hOl htyO hOs
+      have R2 := hyp.conBnd (by omega) hD hH hC' hb' hent' hd1 s1 hOl htyO hOs
       exact RE2.trans hW s1 BT' (RE2.trans hW s1 (RE2.symm hW s1 R1) (RE2.symm hW s1 R2))
   all_goals simp [Ctor.simpleB] at hs
 

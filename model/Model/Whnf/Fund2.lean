@@ -773,7 +773,7 @@ theorem hyps_take (hW : WfSig S) (hCon : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S 
   intro n
   induction n with
   | zero => exact ⟨fun i t A h => by simp at h, ⟨fun d hd => absurd hd (Nat.not_lt_zero _),
-      fun d hd => absurd hd (Nat.not_lt_zero _), fun d hd => absurd hd (Nat.not_lt_zero _)⟩, ⟨hCon, fun hd => absurd hd (Nat.not_lt_zero _)⟩⟩
+      fun d hd => absurd hd (Nat.not_lt_zero _), fun d hd => absurd hd (Nat.not_lt_zero _)⟩, ⟨fun hd => absurd hd (Nat.not_lt_zero _), fun hd => absurd hd (Nat.not_lt_zero _)⟩⟩
   | succ n ih =>
     have hpre : ∀ (j : ℕ) (e : Entry), (S.take n)[j]? = some e → S[j]? = some e :=
       fun j e h => (getElem?_take_some h).2
@@ -815,7 +815,7 @@ theorem hyps_take (hW : WfSig S) (hCon : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S 
         have hv := hfund (spec_to_minimal (wfSig_take hW d) hty)
         exact RE2_univ_kan hW (hv k cs).2
     have hBoundary : HITHyp2 S (n + 1) := by
-      refine ⟨hCon, fun {k d D c C P1 Y rs kb ψ b} hd hD hH hC hb hent hP hPP hYl hcon hY => ?_⟩
+      refine ⟨(fun hd => hCon.conBnd), fun {k d D c C P1 Y rs kb ψ b} hd hD hH hC hb hent hP hPP hYl hcon hY => ?_⟩
       by_cases hdn : d < n
       · exact ih.2.2.bndTy hdn hD hH hC hb hent hP hPP hYl hcon hY
       obtain rfl : d = n := by omega

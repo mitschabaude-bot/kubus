@@ -19,7 +19,7 @@ variable {S : Sig} {k : ℕ}
 
 /-- Related eliminator components with the motive's relation-carried Kan evidence. -/
 structure ElimRelH (S : Sig) (d : ℕ) (D : DataDecl) (K : ℕ) (P M bs Q M' bs' : Tm)
-    extends ElimRel S d D K P M bs Q M' bs' : Prop where
+    : Prop extends ElimRel S d D K P M bs Q M' bs' where
   kan : ∀ k1 (ρ : ISub k1 K) (x x' : Tm), RE2 S k1 (.data d (P.isub ρ)) x x' →
     KanP2 S k1 (semK S k1 ((M.isub ρ).inst x))
 
@@ -41,6 +41,7 @@ theorem elimRelH_of {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D))
   ⟨elimRel_of hW hD hty hty' hps hM hbr c,
     fun _ ρ _ _ hx => hps.codKan hW hM c ρ hx⟩
 
+omit hW in
 /-- Compositions in the motive at related arguments. -/
 theorem ElimRelH.motH {d : ℕ} {D : DataDecl} {K : ℕ} {P M bs Q M' bs' : Tm}
     (H : ElimRelH S d D K P M bs Q M' bs') (ρ : ISub k K) {x x' : Tm}
@@ -48,6 +49,7 @@ theorem ElimRelH.motH {d : ℕ} {D : DataDecl} {K : ℕ} {P M bs Q M' bs' : Tm}
     KanH2 S k ((M.isub ρ).inst x) ((M'.isub ρ).inst x') :=
   (H.kan k ρ x x' hx).1 k (Hom.id k) _ _ (H.mot k ρ x x' hx)
 
+omit hW in
 /-- Transport in the motive along related argument lines. -/
 theorem ElimRelH.motT {d : ℕ} {D : DataDecl} {K : ℕ} {P M bs Q M' bs' : Tm}
     (H : ElimRelH S d D K P M bs Q M' bs') (ρ : ISub (k + 1) K) {x x' : Tm}

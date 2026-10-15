@@ -489,8 +489,8 @@ theorem con_coh0 {c : ℕ} (ih : ∀ c' < c, CRSt S d D K P c') {k3 : ℕ} (ρ' 
     have hrelκ'' := hyp.bndTy (by omega) hD hH hC hb'' hent'' hPκT hPPκ hXκl hcPκ argsκ
     have R1 := bnd_rel hW hD hP hPP ih hC (sizeOf b + 1) b (by omega) hsimple (ρ'.comp κ) hqlκ hplenκ hXκl hXκl
       (forall2_ieq_refl _) argsκ hrelκ (HasTy.eqR e_qb) (HasTy.eqR e_Pb)
-    have R2 := hyp.conBnd hD hH hC hb hentκ hPκT hPPκ hXκl hcPκ argsκ
-    have R3 := hyp.conBnd hD hH hC hb'' hent'' hPκT hPPκ hXκl hcPκ argsκ
+    have R2 := hyp.conBnd (by omega) hD hH hC hb hentκ hPκT hPPκ hXκl hcPκ argsκ
+    have R3 := hyp.conBnd (by omega) hD hH hC hb'' hent'' hPκT hPPκ hXκl hcPκ argsκ
     have R4 := bnd_rel hW hD hP hPP ih hC (sizeOf b'' + 1) b'' (by omega) hsimple'' (ρ'.comp κ) hplenκ hqlκ hXκl hXκl
       (forall2_ieq_refl _) argsκ hrelκ'' (HasTy.eqR e_Pb'') (HasTy.eqR e_qb'')
     have R := RE2.trans hW hPPκ R1 (RE2.trans hW hPPκ (RE2.symm hW hPPκ R2) (RE2.trans hW hPPκ R3 R4))

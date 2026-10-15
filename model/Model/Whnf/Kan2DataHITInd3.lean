@@ -411,7 +411,7 @@ theorem tm1_mainH {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm}
             have BTr := bnd_transp hW hD hH hyp c C hC b hsimple hbc TCκκ' BIb htyb
             obtain ⟨hcO, hO⟩ := TCκκ'.outs_inst
             obtain ⟨hd1, s1, -, -, -⟩ := TCκκ'.end_data
-            have CB := hyp.conBnd hD hH hC hbb hent hd1 s1 (tOuts_length _ _ _ _ _ _) hcO hO
+            have CB := hyp.conBnd (by omega) hD hH hC hbb hent hd1 s1 (tOuts_length _ _ _ _ _ _) hcO hO
             have TT := RE2.trans hW s1 CB (RE2.symm hW s1 BTr)
             -- the transport of the boundary term against the contractum of its normal form
             have s2 : step S (.con d c (q.isub κ') (Tm.ofList (Z.map (·.isub κ'))) (rs.map (·.subst κ'.τ))) =

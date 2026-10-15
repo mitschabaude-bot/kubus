@@ -68,7 +68,17 @@ structure HITConHyp2 (S : Sig) : Prop where
     RE2 S k (.data d P1) (.con d c P1 (Tm.ofList Y) rs) (Ctor.bndAt b P1.toList Y rs)
 
 /-- Boundary type validity for the declarations before a signature prefix. -/
-structure HITHyp2 (S : Sig) (n : ℕ) extends HITConHyp2 S : Prop where
+structure HITHyp2 (S : Sig) (n : ℕ) : Prop where
+  conBnd : ∀ {k d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {P1 : Tm} {Y : List Tm} {rs : List I} {kb : ℕ}
+    {ψ : I} {b : Tm},
+    d < n → S[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C → C.bnd[kb]? = some (ψ, b) →
+    I.Entails .one (Ctor.cofAt ψ rs) →
+    HasTy S k .one [] (.data d P1) (.univ D.level) → RT2 S k (.data d P1) (.data d P1) →
+    Y.length = C.args.length →
+    HasTy S k .one [] (.con d c P1 (Tm.ofList Y) rs) (.data d P1) →
+    (∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
+      ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y.getD i .abort)) →
+    RE2 S k (.data d P1) (.con d c P1 (Tm.ofList Y) rs) (Ctor.bndAt b P1.toList Y rs)
   /-- The argument types of the nested constructors of a boundary that holds are related to those of
   the constructor (validity of the equations of `Ctor.bndTyped`). -/
   bndTy : ∀ {k d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {P1 : Tm} {Y : List Tm} {rs : List I}
@@ -84,7 +94,7 @@ structure HITHyp2 (S : Sig) (n : ℕ) extends HITConHyp2 S : Prop where
 
 /-- Boundary type validity restricts to a smaller signature prefix. -/
 theorem HITHyp2.mono {n m : ℕ} (h : HITHyp2 S n) (hm : m ≤ n) : HITHyp2 S m :=
-  ⟨h.toHITConHyp2, fun hd => h.bndTy (by omega)⟩
+  ⟨fun hd => h.conBnd (by omega), fun hd => h.bndTy (by omega)⟩
 
 
 end

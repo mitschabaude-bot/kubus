@@ -117,8 +117,8 @@ theorem Valid2.tyRestr {A A' : Tm} {l : ℕ} (h : Valid2 S Ψ Φ Γ A A' (.univ 
 /-! ### `Π` -/
 
 /-- Kan of a valid family at arguments related at its declared domain. -/
-theorem Valid2.codKan {A A' B B' : Tm} {l : ℕ} (hA : Valid2 S Ψ Φ Γ A A' (.univ l))
-    (hB : Valid2 S Ψ Φ (A :: Γ) B B' (.univ l)) (c : CSub2 S Ψ Φ Γ k) (σ : ISub k' k)
+theorem Valid2.codKan {A A' B B' : Tm} {lA lB : ℕ} (hA : Valid2 S Ψ Φ Γ A A' (.univ lA))
+    (hB : Valid2 S Ψ Φ (A :: Γ) B B' (.univ lB)) (c : CSub2 S Ψ Φ Γ k) (σ : ISub k' k)
     {a a' : Tm} (ha : RE2 S k' ((c.L A).isub σ) a a') :
     KanP2 S k' (semK S k' (((B.subst (Tm.up c.γ) c.σ.τ).isub σ).inst a)) := by
   rw [← CSub2.restr_L hW c σ] at ha
