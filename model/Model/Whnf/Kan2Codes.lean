@@ -1,4 +1,5 @@
-import Model.Whnf.Kan2GlueTM
+import Model.Whnf.Kan2Univ
+import Model.Whnf.Kan2Rel
 
 /-!
 # Binary Kan operations at individual codes
@@ -98,30 +99,39 @@ theorem KCode.of_comp {m : ℕ} {X : V} {g : Hom k m} {Y Y' : Tm} (hK : KanP2 S 
   let hb := Comp2_ty_base h
   ⟨m, X, g, hK, hb.1, hb.2.1, hb.2.2.2.1⟩
 
+/-- Kan of a code at a restriction, together with its type relation. -/
+theorem KCode.of_comp_at {m : ℕ} {X : V} {g : Hom k m} {Y Y' : Tm}
+    (hK : KanPG S k (fun n f => Comp2 S X m n (g.comp f))) (h : (Comp2 S X m k g).ty Y Y') : KCode S k Y := by
+  have hb := Comp2_ty_base h
+  refine ⟨k, res g X, Hom.id k, (kanPG_at_iff hW hb.1 g).1 hK, mkKV_ne_empty _, hb.2.1, ?_⟩
+  rw [res_id (isKV_res _ _)]; exact hb.2.2.2.1
+
 /-! ### Π- and Σ-types -/
 
 /-- The components of the normal forms of a type related at a restriction of a `Π`/`Σ` code. -/
 theorem famComp {m : ℕ} {A B : V} (hne : A ≠ ∅)
-    (ihA : KanP2 S m A) (ihB : ∀ k (f : Hom k m) A0 a a', (Comp2 S A m k f).el A0 a a' →
-      KanP2 S k (apZ (dat B k f) (semK S k a)))
     {f : Hom k m} {T T' : Tm} {F : Tm → Tm → Tm} (hF : ∀ a b a' b', F a b = F a' b' → a = a' ∧ b = b')
     (h : ∀ k' (σ : ISub k' k), ∃ A1 B1 A1' B1', RedT S k' (T.isub σ) (F A1 B1) ∧ RedT S k' (T'.isub σ) (F A1' B1') ∧
       (Comp2 S A m k' (f.comp σ.hom)).ty A1 A1' ∧ ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
         (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k' k' (Hom.id k')).ty (B1.inst a) (B1'.inst a'))
+    (hK : ∀ k' (σ : ISub k' k) A1 B1, RedT S k' (T.isub σ) (F A1 B1) →
+      KanPG S k' (fun n g => Comp2 S A m n ((f.comp σ.hom).comp g)) ∧
+      ∀ a a', (Comp2 S A m k' (f.comp σ.hom)).el A1 a a' →
+        KanPG S k' (Comp2 S (apZ (dat B k' (f.comp σ.hom)) (semK S k' a)) k'))
     {k' : ℕ} (σ : ISub k' k) {A2 B2 : Tm} (hR : RedT S k' (T.isub σ) (F A2 B2)) :
     KCode S k' A2 ∧ ∀ b, RE2 S k' A2 b b → KCode S k' (B2.inst b) := by
   obtain ⟨A3, B3, A3', B3', hR3, -, hA3, hB3⟩ := h k' σ
   obtain ⟨rfl, rfl⟩ := hF _ _ _ _ (RedW.unique hR3.1 hR.1)
   have hb := Comp2_ty_base hA3
-  refine ⟨KCode.of_comp ihA hA3, fun b hbb => ?_⟩
-  have hb' : (Comp2 S A m k' (f.comp σ.hom)).el A3 b b := (Comp2_el_iff hne hb.2.2.2.1).2 hbb
-  exact KCode.of_comp (ihB k' _ A3 b b hb') (hB3 b b hb')
+  have hp := hK k' σ A3 B3 hR3
+  refine ⟨?_, fun b hbb => ?_⟩
+  · have hd := hA3
+    rw [Comp2_eq_res hne] at hd
+    exact KCode.of_comp ((kanPG_at_iff hW hne _).1 hp.1) hd
+  · have hb' : (Comp2 S A m k' (f.comp σ.hom)).el A3 b b := (Comp2_el_iff hne hb.2.2.2.1).2 hbb
+    exact KCode.of_comp ((kanPG_iff hW).1 (hp.2 b b hb')) (hB3 b b hb')
 
-theorem kanP2_piC {l m : ℕ} {A B : V} (hA : WF l m A)
-    (ihA : KanP2 S m A) (ihB : ∀ k (f : Hom k m) A0 a a', (Comp2 S A m k f).el A0 a a' →
-      KanP2 S k (apZ (dat B k f) (semK S k a))) :
-    KanP2 S m (piC m A B) := by
-  have hne : A ≠ ∅ := IsKV.ne_empty hA.fib.kv
+theorem kanP2_piC {m : ℕ} {A B : V} (hne : A ≠ ∅) : KanP2 S m (piC m A B) := by
   have hF : ∀ a b a' b', Tm.pi a b = Tm.pi a' b' → a = a' ∧ b = b' := fun _ _ _ _ h => by
     injection h with h1 h2; exact ⟨h1, h2⟩
   refine ⟨fun k f T T' hT => ?_, fun k f T T' hT => ?_⟩
@@ -134,7 +144,7 @@ theorem kanP2_piC {l m : ℕ} {A B : V} (hA : WF l m A)
     have hXT : TyCode k (semK S k T) := by rw [semK_tyEq hW hR.2]; exact tyCode_of_univ hW hpi
     refine kanH2_pi hW (PiStr_of hW hTT hR hpi) (fun k' ρ A2 B2 hR2 b hbb k'' ρ' X' hX' => ?_)
       (fun t t' hE happ => RE2_piW_intro hW (RT2.refl hW hXT hTT) hR hpi hE happ)
-    exact (((famComp hW hne ihA ihB hF hT.2.1 ρ hR2).2 b hbb).isub hW ρ').kanH hX'
+    exact (((famComp hW hne hF hT.2.1 hT.2.2.2.2.1 ρ hR2).2 b hbb).isub hW ρ').kanH hX'
   · have hTT := Comp2_ty_RT2 hT
     have hb := Comp2_ty_base hT
     rw [Comp2_piC A B hne] at hT
@@ -143,15 +153,11 @@ theorem kanP2_piC {l m : ℕ} {A B : V} (hA : WF l m A)
     obtain ⟨l1, hpi⟩ := piW_typed hW hb.2.1 hR
     refine kanT2_pi hW hTT hR hpi (fun k1 ρ A2 B2 hR2 k2 ρ' X' hX' => ?_)
       (fun k1 ρ A2 B2 hR2 b hbb k2 ρ' X' hX' => ?_)
-    · exact (((famComp hW hne ihA ihB hF hT.2.1 ρ hR2).1).isub hW ρ').kanT hX'
-    · exact (((famComp hW hne ihA ihB hF hT.2.1 ρ hR2).2 b hbb).isub hW ρ').kanT hX'
+    · exact (((famComp hW hne hF hT.2.1 hT.2.2.2.2.1 ρ hR2).1).isub hW ρ').kanT hX'
+    · exact (((famComp hW hne hF hT.2.1 hT.2.2.2.2.1 ρ hR2).2 b hbb).isub hW ρ').kanT hX'
 
 
-theorem kanP2_sigmaC {l m : ℕ} {A B : V} (hA : WF l m A)
-    (ihA : KanP2 S m A) (ihB : ∀ k (f : Hom k m) A0 a a', (Comp2 S A m k f).el A0 a a' →
-      KanP2 S k (apZ (dat B k f) (semK S k a))) :
-    KanP2 S m (sigmaC m A B) := by
-  have hne : A ≠ ∅ := IsKV.ne_empty hA.fib.kv
+theorem kanP2_sigmaC {m : ℕ} {A B : V} (hne : A ≠ ∅) : KanP2 S m (sigmaC m A B) := by
   have hF : ∀ a b a' b', Tm.sigma a b = Tm.sigma a' b' → a = a' ∧ b = b' := fun _ _ _ _ h => by
     injection h with h1 h2; exact ⟨h1, h2⟩
   refine ⟨fun k f T T' hT => ?_, fun k f T T' hT => ?_⟩
@@ -163,9 +169,9 @@ theorem kanP2_sigmaC {l m : ℕ} {A B : V} (hA : WF l m A)
     obtain ⟨l1, hsig⟩ := sigmaW_typed hW hb.2.1 hR
     refine kanH2_sigma hW hTT hR hsig (fun k1 ρ1 A2 B2 hR2 k2 ρ2 X X' h1 h2 => ?_)
       (fun k1 ρ1 A2 B2 hR2 b hbb k2 ρ2 X X' h1 h2 => ?_) (fun k1 ρ1 A2 B2 hR2 b hbb k2 ρ2 X X' h1 h2 => ?_)
-    · exact ((famComp hW hne ihA ihB hF hT.2.1 ρ1 hR2).1.hrel hW).1 k2 ρ2 X X' h1 h2
-    · exact (((famComp hW hne ihA ihB hF hT.2.1 ρ1 hR2).2 b hbb).hrel hW).1 k2 ρ2 X X' h1 h2
-    · exact (((famComp hW hne ihA ihB hF hT.2.1 ρ1 hR2).2 b hbb).hrel hW).2 k2 ρ2 X X' h1 h2
+    · exact ((famComp hW hne hF hT.2.1 hT.2.2.2.2.1 ρ1 hR2).1.hrel hW).1 k2 ρ2 X X' h1 h2
+    · exact (((famComp hW hne hF hT.2.1 hT.2.2.2.2.1 ρ1 hR2).2 b hbb).hrel hW).1 k2 ρ2 X X' h1 h2
+    · exact (((famComp hW hne hF hT.2.1 hT.2.2.2.2.1 ρ1 hR2).2 b hbb).hrel hW).2 k2 ρ2 X X' h1 h2
   · have hTT := Comp2_ty_RT2 hT
     have hb := Comp2_ty_base hT
     rw [Comp2_sigmaC A B hne] at hT
@@ -174,23 +180,25 @@ theorem kanP2_sigmaC {l m : ℕ} {A B : V} (hA : WF l m A)
     obtain ⟨l1, hsig⟩ := sigmaW_typed hW hb.2.1 hR
     refine kanT2_sigma hW hTT hR hsig (fun k1 ρ A2 B2 hR2 k2 ρ' X' hX' => ?_)
       (fun k1 ρ A2 B2 hR2 b hbb k2 ρ' X' hX' => ?_)
-    · exact (((famComp hW hne ihA ihB hF hT.2.1 ρ hR2).1).isub hW ρ').kanT hX'
-    · exact (((famComp hW hne ihA ihB hF hT.2.1 ρ hR2).2 b hbb).isub hW ρ').kanT hX'
+    · exact (((famComp hW hne hF hT.2.1 hT.2.2.2.2.1 ρ hR2).1).isub hW ρ').kanT hX'
+    · exact (((famComp hW hne hF hT.2.1 hT.2.2.2.2.1 ρ hR2).2 b hbb).isub hW ρ').kanT hX'
 
 /-! ### Path types and `(i : I) → A` -/
 
-theorem kanP2_pathC {m : ℕ} {L a0 a1 : V} (hLne : L ≠ ∅) (ihL : KanP2 S (m + 1) L) :
+theorem kanP2_pathC {m : ℕ} {L a0 a1 : V} (hLne : L ≠ ∅) :
     KanP2 S m (pathC m L a0 a1) := by
   have pt : ∀ {k : ℕ} {f : Hom k m} {T T' : Tm}, (Comp2 S (pathC m L a0 a1) m k f).ty T T' →
       ∀ k' (σ : ISub k' k) L2 c0 c1, RedT S k' (T.isub σ) (.path L2 c0 c1) → ∀ (s : I), s.Scoped k' →
         KCode S k' (L2.dinst s) := by
     intro k f T T' hT k' σ L2 c0 c1 hR2 s hs
     rw [Comp2_pathC L a0 a1 hLne] at hT
-    obtain ⟨L3, b0, b1, L3', b0', b1', hR3, -, -, hpt, -⟩ := hT.2.1 k' σ
+    obtain ⟨L3, b0, b1, L3', b0', b1', hR3, -, hLt, hpt, -⟩ := hT.2.1 k' σ
     have e := RedW.unique hR3.1 hR2.1
     injection e with e1 e2 e3
     subst e1
-    exact KCode.of_comp ihL (hpt s s hs hs (I_eq_refl _))
+    have hLine := KCode.of_comp_at hW (hT.2.2.2.2.1 k' σ _ c0 c1 hR2) hLt
+    have hp := hLine.isub hW (ISub.cons s hs (ISub.id k'))
+    rwa [isub_cons_id_of_closed (closed_of_isTyK hW (Comp2_ty_base hLt).2.1)] at hp
   refine ⟨fun k f T T' hT => ?_, fun k f T T' hT => ?_⟩
   · have hTT := Comp2_ty_RT2 hT
     have hb := Comp2_ty_base hT
@@ -212,17 +220,19 @@ theorem kanP2_pathC {m : ℕ} {L a0 a1 : V} (hLne : L ≠ ∅) (ihL : KanP2 S (m
       ((pt hT (k1 + 1) ρ L2 c0 c1 hR2 s hs).isub hW ρ').kanT hX')
       (fun k1 ρ L2 c0 c1 hR2 s hs k2 ρ' X' hX' => ((pt hT k1 ρ L2 c0 c1 hR2 s hs).isub hW ρ').kanH hX')
 
-theorem kanP2_ipiC {m : ℕ} {L : V} (hLne : L ≠ ∅) (ihL : KanP2 S (m + 1) L) : KanP2 S m (ipiC m L) := by
+theorem kanP2_ipiC {m : ℕ} {L : V} (hLne : L ≠ ∅) : KanP2 S m (ipiC m L) := by
   have pt : ∀ {k : ℕ} {f : Hom k m} {T T' : Tm}, (Comp2 S (ipiC m L) m k f).ty T T' →
       ∀ k' (σ : ISub k' k) L2, RedT S k' (T.isub σ) (.ipi L2) → ∀ (s : I), s.Scoped k' →
         KCode S k' (L2.dinst s) := by
     intro k f T T' hT k' σ L2 hR2 s hs
     rw [Comp2_ipiC L hLne] at hT
-    obtain ⟨L3, L3', hR3, -, -, hpt⟩ := hT.2.1 k' σ
+    obtain ⟨L3, L3', hR3, -, hLt, hpt⟩ := hT.2.1 k' σ
     have e := RedW.unique hR3.1 hR2.1
     injection e with e1
     subst e1
-    exact KCode.of_comp ihL (hpt s s hs hs (I_eq_refl _))
+    have hLine := KCode.of_comp_at hW (hT.2.2.2.2.1 k' σ _ hR2) hLt
+    have hp := hLine.isub hW (ISub.cons s hs (ISub.id k'))
+    rwa [isub_cons_id_of_closed (closed_of_isTyK hW (Comp2_ty_base hLt).2.1)] at hp
   refine ⟨fun k f T T' hT => ?_, fun k f T T' hT => ?_⟩
   · have hTT := Comp2_ty_RT2 hT
     have hb := Comp2_ty_base hT
@@ -242,100 +252,6 @@ theorem kanP2_ipiC {m : ℕ} {L : V} (hLne : L ≠ ∅) (ihL : KanP2 S (m + 1) L
     obtain ⟨l1, hipi⟩ := ipiW_typed hW hb.2.1 hR
     exact kanT2_ipi hW hTT hR hipi fun k1 ρ L2 hR2 s hs k2 ρ' X' hX' =>
       ((pt hT (k1 + 1) ρ L2 hR2 s hs).isub hW ρ').kanT hX'
-
-
-/-! ### Glue types -/
-
-omit hW in
-theorem face_tr {k1 : ℕ} {φ2 : I} {C : Cof k1} (hf : (ival (idEnv k1) φ2).face = C) {k2 : ℕ} (σ : ISub k2 k1) :
-    (ival (idEnv k2) (φ2.subst σ.τ)).holds ↔ (C.restr σ.hom).holds := by
-  rw [DM.holds_iff_face_holds, face_isub hf σ]
-
-/-- The components of the normal forms of a type related at a restriction of a Glue code, at the
-restrictions where the face does not hold. -/
-theorem glueComp {m : ℕ} {A Tp : V} {φ : Cof m} (hAne : A ≠ ∅)
-    (ihA : KanP2 S m A) (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → KanP2 S k (dat Tp k f))
-    {f : Hom k m} {T T' : Tm}
-    (hloc : ∀ k' (σ : ISub k' k), glueLocT S A Tp φ f k' σ (T.isub σ) (T'.isub σ))
-    {k1 : ℕ} (ρ1 : ISub k1 k) (hn1 : ¬ (φ.restr (f.comp ρ1.hom)).holds) {A2 : Tm} {φ2 : I} {T2 e2 : Tm}
-    (hR2 : RedT S k1 (T.isub ρ1) (.glue A2 φ2 T2 e2)) :
-    KCode S k1 A2 ∧ (ival (idEnv k1) φ2).face = φ.restr (f.comp ρ1.hom) ∧
-      ∀ k2 (σ : ISub k2 k1), (ival (idEnv k2) (φ2.subst σ.τ)).holds → KCode S k2 (T2.isub σ) := by
-  have h := hloc k1 ρ1
-  unfold glueLocT at h
-  rw [if_neg hn1] at h
-  obtain ⟨A3, φ3, T3, e3, A3', φ3', T3', e3', r3, -, -, -, f3, -, hA3, hfib⟩ := h
-  have e := RedW.unique r3.1 hR2.1
-  simp only [Tm.glue.injEq] at e
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := e
-  refine ⟨KCode.of_comp ihA hA3, f3, fun k2 σ hh => ?_⟩
-  have hc : (φ.restr (f.comp (ρ1.comp σ).hom)).holds := by
-    rw [← ISub.comp_hom, ← Cof.restr_restr]; exact (face_tr f3 σ).1 hh
-  exact KCode.of_comp (ihT k2 _ hc) (hfib k2 σ hc).1
-
-theorem kanP2_glueC {l m : ℕ} {A Tp ep : V} {φ : Cof m} (hAw : WF l m A) (hφ : φ.IsCof)
-    (hTn : ∀ k (f : Hom k m), (φ.restr f).holds → ∀ n (h : Hom n k), res h (dat Tp k f) = dat Tp n (f.comp h))
-    (hTkv : ∀ k (f : Hom k m), (φ.restr f).holds → IsKV k (dat Tp k f))
-    (ihA : KanP2 S m A) (ihT : ∀ k (f : Hom k m), (φ.restr f).holds → KanP2 S k (dat Tp k f)) :
-    KanP2 S m (glueC m A φ Tp ep) := by
-  have hAne : A ≠ ∅ := IsKV.ne_empty hAw.fib.kv
-  -- the normal form of a type related at a restriction where the face does not hold
-  have nf : ∀ {k : ℕ} {f : Hom k m} {T T' : Tm}, (Comp2 S (glueC m A φ Tp ep) m k f).ty T T' →
-      ¬ (φ.restr f).holds →
-      (∀ k' (σ : ISub k' k), glueLocT S A Tp φ f k' σ (T.isub σ) (T'.isub σ)) ∧
-      ∃ A1 φ1 T1 e1 l1, RedT S k T (.glue A1 φ1 T1 e1) ∧ HasTy S k .one [] (.glue A1 φ1 T1 e1) (.univ l1) ∧
-        (ival (idEnv k) φ1).face = φ.restr f ∧ φ1.Scoped k := by
-    intro k f T T' hT hh
-    have hb := Comp2_ty_base hT
-    rw [Comp2_glueC_at hφ hTn hTkv f, if_neg hh,
-      Comp2_glueC (isKV_res _ _) (isKV_res _ _) (hφ.restr f) hh] at hT
-    obtain ⟨-, hloc, -, -⟩ := hT
-    have hloc' : ∀ k' (σ : ISub k' k), glueLocT S A Tp φ f k' σ (T.isub σ) (T'.isub σ) := fun k' σ => by
-      rw [← glueLocT_res hAne]; exact hloc k' σ
-    refine ⟨hloc', ?_⟩
-    have h0 := hloc' k (ISub.id k)
-    unfold glueLocT at h0
-    rw [if_neg (by rw [ISub.hom_id, Hom.comp_id]; exact hh)] at h0
-    obtain ⟨A1, φ1, T1, e1, A1', φ1', T1', e1', r1, -, s1, -, f1, -, -, -⟩ := h0
-    rw [isub_id_of_closed (closed_of_isTyK hW hb.2.1)] at r1
-    obtain ⟨l1, h1 | h1⟩ := hb.2.1.of_tyEq r1.2
-    swap; · cases h1
-    rw [ISub.hom_id, Hom.comp_id] at f1
-    exact ⟨A1, φ1, T1, e1, l1, r1, h1, f1, s1⟩
-  -- the induction hypotheses of the Glue lemmas at the normal form
-  have ihs : ∀ {k : ℕ} {f : Hom k m} {T T' : Tm} {φ1 : I},
-      (∀ k' (σ : ISub k' k), glueLocT S A Tp φ f k' σ (T.isub σ) (T'.isub σ)) →
-      (ival (idEnv k) φ1).face = φ.restr f → φ1.Scoped k →
-      ∀ k1 (ρ1 : ISub k1 k) (A2 : Tm) (φ2 : I) (T2 e2 : Tm), ¬ (ival (idEnv k1) (φ1.subst ρ1.τ)).holds →
-        RedT S k1 (T.isub ρ1) (.glue A2 φ2 T2 e2) →
-        KCode S k1 A2 ∧ ∀ k2 (σ : ISub k2 k1), (ival (idEnv k2) (φ2.subst σ.τ)).holds → KCode S k2 (T2.isub σ) := by
-    intro k f T T' φ1 hloc f1 s1 k1 ρ1 A2 φ2 T2 e2 hn1 hR2
-    have hn1' : ¬ (φ.restr (f.comp ρ1.hom)).holds := by
-      rw [← Cof.restr_restr]; exact fun h => hn1 ((face_tr f1 ρ1).2 h)
-    have g := glueComp hW hAne ihA ihT hloc ρ1 hn1' hR2
-    exact ⟨g.1, g.2.2⟩
-  refine ⟨fun k f T T' hT => ?_, fun k f T T' hT => ?_⟩
-  · by_cases hh : (φ.restr f).holds
-    · have hT' := hT
-      rw [Comp2_glueC_at hφ hTn hTkv f, if_pos hh] at hT'
-      exact (ihT k f hh).1 k (Hom.id k) T T' hT'
-    have hTT := Comp2_ty_RT2 hT
-    obtain ⟨hloc, A1, φ1, T1, e1, l1, hR, hG, f1, s1⟩ := nf hT hh
-    exact kanH2_glue hW hTT hR hG
-      (fun k1 ρ1 A2 φ2 T2 e2 hn1 hR2 => ((ihs hloc f1 s1 k1 ρ1 A2 φ2 T2 e2 hn1 hR2).1.hrel hW).1)
-      (fun k1 ρ1 A2 φ2 T2 e2 hn1 hR2 k2 σ hh2 X X' h1 h2 =>
-        ((ihs hloc f1 s1 k1 ρ1 A2 φ2 T2 e2 hn1 hR2).2 k2 σ hh2).relH hW h1 h2)
-  · by_cases hh : (φ.restr f).holds
-    · have hT' := hT
-      rw [Comp2_glueC_at hφ hTn hTkv f, if_pos hh] at hT'
-      exact (ihT (k + 1) f hh).2 k (Hom.id (k + 1)) T T' hT'
-    have hTT := Comp2_ty_RT2 hT
-    obtain ⟨hloc, A1, φ1, T1, e1, l1, hR, hG, f1, s1⟩ := nf hT hh
-    exact kanT2_glue hW hTT hR hG
-      (fun k1 ρ1 A2 φ2 T2 e2 hn1 hR2 => (ihs hloc f1 s1 k1 ρ1 A2 φ2 T2 e2 hn1 hR2).1.hrel hW)
-      (fun k1 ρ1 A2 φ2 T2 e2 hn1 hR2 => ⟨fun k2 σ hh2 X X' h1 h2 =>
-        ((ihs hloc f1 s1 k1 ρ1 A2 φ2 T2 e2 hn1 hR2).2 k2 σ hh2).relH hW h1 h2,
-        fun k2 Θ hh2 X X' h1 h2 => ((ihs hloc f1 s1 k1 ρ1 A2 φ2 T2 e2 hn1 hR2).2 (k2 + 1) Θ hh2).relT hW h1 h2⟩)
 
 
 end

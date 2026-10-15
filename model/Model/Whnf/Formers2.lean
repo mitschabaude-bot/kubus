@@ -133,6 +133,17 @@ theorem kanPG_iff {X : V} : KanPG S m (Comp2 S X m) ↔ KanP2 S m X :=
     fun h => ⟨fun k f A A' hT => (kanHG_code hW hT).2 (h.1 k f A A' hT),
       fun k f A A' hT => (kanTG_code hW hT).2 (h.2 k f A A' hT)⟩⟩
 
+/-- Kan through a code at a restriction is Kan of the restricted code. -/
+theorem kanPG_at_iff {X : V} (hX : X ≠ ∅) (f : Hom k m) :
+    KanPG S k (fun n g => Comp2 S X m n (f.comp g)) ↔ KanP2 S k (res f X) := by
+  have e : (fun n g => Comp2 S X m n (f.comp g)) = Comp2 S (res f X) k :=
+    funext fun n => funext fun g => (Comp2_res hX f g).symm
+  rw [e]; exact kanPG_iff hW
+
+theorem KanP2.restrict {X : V} (hX : X ≠ ∅) (h : KanP2 S m X) (g : Hom k m) :
+    KanP2 S k (res g X) :=
+  (kanPG_iff hW).1 (((kanPG_iff hW).2 h).restrict hX g)
+
 /-! ### Universes -/
 
 /-- Related elements of a universe: related types of the universe whose code is Kan. -/
@@ -216,7 +227,9 @@ theorem cod_self {A A' B B' : Tm} {l : ℕ} (hA0 : HasTy S k .one [] A (.univ l)
 theorem RT2_pi_intro {A B A' B' : Tm} {l : ℕ} (hpi : HasTy S k .one [] (.pi A B) (.univ l))
     (hpi' : HasTy S k .one [] (.pi A' B') (.univ l)) (he : EqTm S k .one [] (.pi A B) (.pi A' B') (.univ l))
     (hA : ∀ k' (σ : ISub k' k), RT2 S k' (A.isub σ) (A'.isub σ))
-    (hB : ∀ k' (σ : ISub k' k) a a', RE2 S k' (A.isub σ) a a' → RT2 S k' ((B.isub σ).inst a) ((B'.isub σ).inst a')) :
+    (hB : ∀ k' (σ : ISub k' k) a a', RE2 S k' (A.isub σ) a a' → RT2 S k' ((B.isub σ).inst a) ((B'.isub σ).inst a'))
+    (hAK : ∀ k' (σ : ISub k' k), KanP2 S k' (semK S k' (A.isub σ)))
+    (hBK : ∀ k' (σ : ISub k' k) a a', RE2 S k' (A.isub σ) a a' → KanP2 S k' (semK S k' ((B.isub σ).inst a))) :
     RT2 S k (.pi A B) (.pi A' B') := by
   have hA0 := HasTy.piDom hpi
   have hAσ := fun k' (σ : ISub k' k) => HasTy.isubS hW hA0 σ
@@ -229,7 +242,7 @@ theorem RT2_pi_intro {A B A' B' : Tm} {l : ℕ} (hpi : HasTy S k .one [] (.pi A 
   have hsem' : semK S k (.pi A' B') = semK S k (.pi A B) := (semK_eq hW he).symm
   unfold RT2
   rw [semK_piT hW hpi, Comp2_piC _ _ (semK_ne hW hA0)]
-  refine ⟨⟨⟨l, .inl hpi⟩, ⟨l, .inl hpi'⟩, ?_, ?_, .inr ⟨l, he⟩⟩, fun k' σ => ?_, ?_, ?_⟩
+  refine ⟨⟨⟨l, .inl hpi⟩, ⟨l, .inl hpi'⟩, ?_, ?_, .inr ⟨l, he⟩⟩, fun k' σ => ?_, ?_, ?_, ?_, ?_⟩
   · rw [← semK_piT hW hpi, res_id (kv_semK_of_univ hW hpi)]
   · rw [hsem', ← semK_piT hW hpi, res_id (kv_semK_of_univ hW hpi)]
   · refine ⟨A.isub σ, B.isub σ, A'.isub σ, B'.isub σ, ?_, ?_, ?_, fun a a' ha => ?_⟩
@@ -267,10 +280,37 @@ theorem RT2_pi_intro {A B A' B' : Tm} {l : ℕ} (hpi : HasTy S k .one [] (.pi A 
     rw [RT2.semK_eq hW h3] at this
     exact this
 
+  · intro k' σ A1 B1 hR
+    rw [isub_pi] at hR
+    obtain ⟨rfl, rfl⟩ : A.isub σ = A1 ∧ B.isub σ = B1 := by
+      have := RedW.unique (redW_self rfl) hR.1; injection this; constructor <;> assumption
+    refine ⟨?_, fun a a' ha => ?_⟩
+    · simp only [Hom.id_comp]
+      apply (kanPG_at_iff hW (semK_ne hW hA0) σ.hom).2
+      rw [← semK_isubS hW hA0]; exact hAK k' σ
+    · rw [Hom.id_comp, Comp2_res_el hW hA0] at ha
+      rw [Hom.id_comp, fam_code_eq2 hW hA0 σ (RE2.typed ha).1]
+      exact (kanPG_iff hW).2 (hBK k' σ a a' ha)
+  · intro k' σ A1 B1 hR
+    rw [isub_pi] at hR
+    obtain ⟨rfl, rfl⟩ : A'.isub σ = A1 ∧ B'.isub σ = B1 := by
+      have := RedW.unique (redW_self rfl) hR.1; injection this; constructor <;> assumption
+    refine ⟨?_, fun a a' ha => ?_⟩
+    · simp only [Hom.id_comp]
+      apply (kanPG_at_iff hW (semK_ne hW hA0) σ.hom).2
+      rw [← semK_isubS hW hA0]; exact hAK k' σ
+    · rw [Hom.id_comp, Comp2_res_el hW hA0] at ha
+      have P := perK hW (hXσ k' σ)
+      have ha' := P.conv (P.symTy (hA k' σ)) ha
+      rw [Hom.id_comp, fam_code_eq2 hW hA0 σ (RE2.typed ha').1]
+      exact (kanPG_iff hW).2 (hBK k' σ a a' ha')
+
 theorem RT2_sigma_intro {A B A' B' : Tm} {l : ℕ} (hsig : HasTy S k .one [] (.sigma A B) (.univ l))
     (hsig' : HasTy S k .one [] (.sigma A' B') (.univ l)) (he : EqTm S k .one [] (.sigma A B) (.sigma A' B') (.univ l))
     (hA : ∀ k' (σ : ISub k' k), RT2 S k' (A.isub σ) (A'.isub σ))
-    (hB : ∀ k' (σ : ISub k' k) a a', RE2 S k' (A.isub σ) a a' → RT2 S k' ((B.isub σ).inst a) ((B'.isub σ).inst a')) :
+    (hB : ∀ k' (σ : ISub k' k) a a', RE2 S k' (A.isub σ) a a' → RT2 S k' ((B.isub σ).inst a) ((B'.isub σ).inst a'))
+    (hAK : ∀ k' (σ : ISub k' k), KanP2 S k' (semK S k' (A.isub σ)))
+    (hBK : ∀ k' (σ : ISub k' k) a a', RE2 S k' (A.isub σ) a a' → KanP2 S k' (semK S k' ((B.isub σ).inst a))) :
     RT2 S k (.sigma A B) (.sigma A' B') := by
   have hA0 := HasTy.sigmaDom hsig
   have hAσ := fun k' (σ : ISub k' k) => HasTy.isubS hW hA0 σ
@@ -283,7 +323,7 @@ theorem RT2_sigma_intro {A B A' B' : Tm} {l : ℕ} (hsig : HasTy S k .one [] (.s
   have hsem' : semK S k (.sigma A' B') = semK S k (.sigma A B) := (semK_eq hW he).symm
   unfold RT2
   rw [semK_sigmaT hW hsig, Comp2_sigmaC _ _ (semK_ne hW hA0)]
-  refine ⟨⟨⟨l, .inl hsig⟩, ⟨l, .inl hsig'⟩, ?_, ?_, .inr ⟨l, he⟩⟩, fun k' σ => ?_, ?_, ?_⟩
+  refine ⟨⟨⟨l, .inl hsig⟩, ⟨l, .inl hsig'⟩, ?_, ?_, .inr ⟨l, he⟩⟩, fun k' σ => ?_, ?_, ?_, ?_, ?_⟩
   · rw [← semK_sigmaT hW hsig, res_id (kv_semK_of_univ hW hsig)]
   · rw [hsem', ← semK_sigmaT hW hsig, res_id (kv_semK_of_univ hW hsig)]
   · refine ⟨A.isub σ, B.isub σ, A'.isub σ, B'.isub σ, ?_, ?_, ?_, fun a a' ha => ?_⟩
@@ -320,6 +360,31 @@ theorem RT2_sigma_intro {A B A' B' : Tm} {l : ℕ} (hsig : HasTy S k .one [] (.s
     unfold RT2 at this h3
     rw [RT2.semK_eq hW h3] at this
     exact this
+
+  · intro k' σ A1 B1 hR
+    rw [isub_sigma] at hR
+    obtain ⟨rfl, rfl⟩ : A.isub σ = A1 ∧ B.isub σ = B1 := by
+      have := RedW.unique (redW_self rfl) hR.1; injection this; constructor <;> assumption
+    refine ⟨?_, fun a a' ha => ?_⟩
+    · simp only [Hom.id_comp]
+      apply (kanPG_at_iff hW (semK_ne hW hA0) σ.hom).2
+      rw [← semK_isubS hW hA0]; exact hAK k' σ
+    · rw [Hom.id_comp, Comp2_res_el hW hA0] at ha
+      rw [Hom.id_comp, fam_code_eq2 hW hA0 σ (RE2.typed ha).1]
+      exact (kanPG_iff hW).2 (hBK k' σ a a' ha)
+  · intro k' σ A1 B1 hR
+    rw [isub_sigma] at hR
+    obtain ⟨rfl, rfl⟩ : A'.isub σ = A1 ∧ B'.isub σ = B1 := by
+      have := RedW.unique (redW_self rfl) hR.1; injection this; constructor <;> assumption
+    refine ⟨?_, fun a a' ha => ?_⟩
+    · simp only [Hom.id_comp]
+      apply (kanPG_at_iff hW (semK_ne hW hA0) σ.hom).2
+      rw [← semK_isubS hW hA0]; exact hAK k' σ
+    · rw [Hom.id_comp, Comp2_res_el hW hA0] at ha
+      have P := perK hW (hXσ k' σ)
+      have ha' := P.conv (P.symTy (hA k' σ)) ha
+      rw [Hom.id_comp, fam_code_eq2 hW hA0 σ (RE2.typed ha').1]
+      exact (kanPG_iff hW).2 (hBK k' σ a a' ha')
 
 theorem RE2_sigma_intro {A B p p' : Tm} {l : ℕ} (hsig : HasTy S k .one [] (.sigma A B) (.univ l))
     (hp : EB S k (.sigma A B) p p') (h1 : RE2 S k A (.fst p) (.fst p'))
@@ -423,14 +488,15 @@ theorem RT2_path_intro {L a b L' a' b' : Tm} {l : ℕ} (hpath : HasTy S k .one [
     (hL : ∀ k' (σ : ISub k' k), RT2 S (k' + 1) (L.isub σ.up) (L'.isub σ.up))
     (hLr : ∀ k' (σ : ISub k' k) (r r' : I), r.Scoped k' → r'.Scoped k' → I.Eq r r' →
       RT2 S k' ((L.isub σ.up).dinst r) ((L'.isub σ.up).dinst r'))
-    (ha : RE2 S k (L.dinst .zero) a a') (hb : RE2 S k (L.dinst .one) b b') :
+    (ha : RE2 S k (L.dinst .zero) a a') (hb : RE2 S k (L.dinst .one) b b')
+    (hLK : ∀ k' (σ : ISub k' k), KanP2 S (k' + 1) (semK S (k' + 1) (L.isub σ.up))) :
     RT2 S k (.path L a b) (.path L' a' b') := by
   have hL0 := HasTy.pathLine hpath
   have hX := fun k' (σ : ISub k' k) => tyCode_of_univ hW (HasTy.isubS hW hL0 σ.up)
   have hsem' : semK S k (.path L' a' b') = semK S k (.path L a b) := (semK_eq hW he).symm
   unfold RT2
   rw [semK_pathT hW hpath, Comp2_pathC _ _ _ (semK_ne hW hL0)]
-  refine ⟨⟨⟨l, .inl hpath⟩, ⟨l, .inl hpath'⟩, ?_, ?_, .inr ⟨l, he⟩⟩, fun k' σ => ?_, ?_, ?_⟩
+  refine ⟨⟨⟨l, .inl hpath⟩, ⟨l, .inl hpath'⟩, ?_, ?_, .inr ⟨l, he⟩⟩, fun k' σ => ?_, ?_, ?_, ?_, ?_⟩
   · rw [← semK_pathT hW hpath, res_id (kv_semK_of_univ hW hpath)]
   · rw [hsem', ← semK_pathT hW hpath, res_id (kv_semK_of_univ hW hpath)]
   · refine ⟨L.isub σ.up, a.isub σ, b.isub σ, L'.isub σ.up, a'.isub σ, b'.isub σ, ?_, ?_, ?_,
@@ -481,6 +547,22 @@ theorem RT2_path_intro {L a b L' a' b' : Tm} {l : ℕ} (hpath : HasTy S k .one [
       have t := hLr k2 (σ.comp σ') .one .one trivial trivial (I_eq_refl _)
       have h1 := RE2.conv hW t (RE2.trans hW t (RE2.symm hW t h0) h0)
       unfold RE2 at h1; rwa [RT2.semK_eq hW t] at h1
+  · intro k' σ L1 b0 b1 hR
+    rw [isub_path] at hR
+    obtain ⟨rfl, rfl, rfl⟩ : L.isub σ.up = L1 ∧ a.isub σ = b0 ∧ b.isub σ = b1 := by
+      have hh := RedW.unique (redW_self rfl) hR.1; injection hh
+      exact ⟨by assumption, by assumption, by assumption⟩
+    simp only [Hom.lift_id, Hom.id_comp]
+    apply (kanPG_at_iff hW (semK_ne hW hL0) σ.up.hom).2
+    rw [← semK_isubS hW hL0]; exact hLK k' σ
+  · intro k' σ L1 b0 b1 hR
+    rw [isub_path] at hR
+    obtain ⟨rfl, rfl, rfl⟩ : L'.isub σ.up = L1 ∧ a'.isub σ = b0 ∧ b'.isub σ = b1 := by
+      have hh := RedW.unique (redW_self rfl) hR.1; injection hh
+      exact ⟨by assumption, by assumption, by assumption⟩
+    simp only [Hom.lift_id, Hom.id_comp]
+    apply (kanPG_at_iff hW (semK_ne hW hL0) σ.up.hom).2
+    rw [← semK_isubS hW hL0]; exact hLK k' σ
 
 theorem RE2_path_intro {L a b p p' : Tm} {l : ℕ} (hpath : HasTy S k .one [] (.path L a b) (.univ l))
     (hp : EB S k (.path L a b) p p')
@@ -536,14 +618,15 @@ theorem RT2_ipi_intro {L L' : Tm} {l : ℕ} (hipi : HasTy S k .one [] (.ipi L) (
     (hipi' : HasTy S k .one [] (.ipi L') (.univ l)) (he : EqTm S k .one [] (.ipi L) (.ipi L') (.univ l))
     (hL : ∀ k' (σ : ISub k' k), RT2 S (k' + 1) (L.isub σ.up) (L'.isub σ.up))
     (hLr : ∀ k' (σ : ISub k' k) (r r' : I), r.Scoped k' → r'.Scoped k' → I.Eq r r' →
-      RT2 S k' ((L.isub σ.up).dinst r) ((L'.isub σ.up).dinst r')) :
+      RT2 S k' ((L.isub σ.up).dinst r) ((L'.isub σ.up).dinst r'))
+    (hLK : ∀ k' (σ : ISub k' k), KanP2 S (k' + 1) (semK S (k' + 1) (L.isub σ.up))) :
     RT2 S k (.ipi L) (.ipi L') := by
   have hL0 := ipi_line hW hipi
   have hX := fun k' (σ : ISub k' k) => tyCode_of_univ hW (HasTy.isubS hW hL0 σ.up)
   have hsem' : semK S k (.ipi L') = semK S k (.ipi L) := (semK_eq hW he).symm
   unfold RT2
   rw [semK_ipiT hW hipi, Comp2_ipiC _ (semK_ne hW hL0)]
-  refine ⟨⟨⟨l, .inl hipi⟩, ⟨l, .inl hipi'⟩, ?_, ?_, .inr ⟨l, he⟩⟩, fun k' σ => ?_, ?_, ?_⟩
+  refine ⟨⟨⟨l, .inl hipi⟩, ⟨l, .inl hipi'⟩, ?_, ?_, .inr ⟨l, he⟩⟩, fun k' σ => ?_, ?_, ?_, ?_, ?_⟩
   · rw [← semK_ipiT hW hipi, res_id (kv_semK_of_univ hW hipi)]
   · rw [hsem', ← semK_ipiT hW hipi, res_id (kv_semK_of_univ hW hipi)]
   · refine ⟨L.isub σ.up, L'.isub σ.up, ?_, ?_, ?_, fun r r' hr hr' hE => ?_⟩
@@ -564,6 +647,20 @@ theorem RT2_ipi_intro {L L' : Tm} {l : ℕ} (hipi : HasTy S k .one [] (.ipi L) (
     rw [Tm.isub_isub, ← ISub.up_comp, Comp2_res_up hW hL0]
     have := RT2.refl' hW (hX _ _) (hL k2 (σ.comp σ'))
     unfold RT2 at this; rwa [RT2.semK_eq hW (hL k2 (σ.comp σ'))] at this
+  · intro k' σ L1 hR
+    rw [isub_ipi] at hR
+    obtain rfl : L.isub σ.up = L1 := by
+      have hh := RedW.unique (redW_self rfl) hR.1; injection hh
+    simp only [Hom.lift_id, Hom.id_comp]
+    apply (kanPG_at_iff hW (semK_ne hW hL0) σ.up.hom).2
+    rw [← semK_isubS hW hL0]; exact hLK k' σ
+  · intro k' σ L1 hR
+    rw [isub_ipi] at hR
+    obtain rfl : L'.isub σ.up = L1 := by
+      have hh := RedW.unique (redW_self rfl) hR.1; injection hh
+    simp only [Hom.lift_id, Hom.id_comp]
+    apply (kanPG_at_iff hW (semK_ne hW hL0) σ.up.hom).2
+    rw [← semK_isubS hW hL0]; exact hLK k' σ
 
 theorem RE2_ipi_intro {L p p' : Tm} {l : ℕ} (hipi : HasTy S k .one [] (.ipi L) (.univ l))
     (hp : EB S k (.ipi L) p p')
@@ -644,6 +741,50 @@ theorem RT2_sigma_inv {A B A' B' : Tm} (h : RT2 S k (.sigma A B) (.sigma A' B'))
   exact this
 
 
+/-- The component Kan evidence of related pi types. -/
+theorem RT2_pi_kan {A B A' B' : Tm} (h : RT2 S k (.pi A B) (.pi A' B')) :
+    KanP2 S k (semK S k A) ∧ ∀ a a', RE2 S k A a a' → KanP2 S k (semK S k (B.inst a)) := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hF⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hA := HasTy.piDom hF
+  have hc := closed_of_ty hW hF
+  have hBc : B.closedB 1 k = true := by
+    have hh := hc; simp only [Tm.closedB, Bool.and_eq_true] at hh; exact hh.2
+  unfold RT2 at h
+  rw [semK_piT hW hF, Comp2_piC _ _ (semK_ne hW hA)] at h
+  have hh := h.2.2.2.2.1 k (ISub.id k) A B (by
+    rw [isub_id_of_closed hc]; exact ⟨redW_self rfl, TyEq.refl _⟩)
+  simp only [ISub.hom_id, Hom.id_comp] at hh
+  refine ⟨(kanPG_iff hW).1 hh.1, fun a a' ha => ?_⟩
+  have hk := hh.2 a a' ha
+  have he := fam_code_eq2 (B := B) hW hA (ISub.id k) (by
+    rw [isub_id_of_closed (closed_of_ty hW hA)]; exact (RE2.typed ha).1)
+  rw [ISub.hom_id, isub_id_of_closed hBc] at he
+  rw [he] at hk
+  exact (kanPG_iff hW).1 hk
+
+/-- The component Kan evidence of related sigma types. -/
+theorem RT2_sigma_kan {A B A' B' : Tm} (h : RT2 S k (.sigma A B) (.sigma A' B')) :
+    KanP2 S k (semK S k A) ∧ ∀ a a', RE2 S k A a a' → KanP2 S k (semK S k (B.inst a)) := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hF⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hA := HasTy.sigmaDom hF
+  have hc := closed_of_ty hW hF
+  have hBc : B.closedB 1 k = true := by
+    have hh := hc; simp only [Tm.closedB, Bool.and_eq_true] at hh; exact hh.2
+  unfold RT2 at h
+  rw [semK_sigmaT hW hF, Comp2_sigmaC _ _ (semK_ne hW hA)] at h
+  have hh := h.2.2.2.2.1 k (ISub.id k) A B (by
+    rw [isub_id_of_closed hc]; exact ⟨redW_self rfl, TyEq.refl _⟩)
+  simp only [ISub.hom_id, Hom.id_comp] at hh
+  refine ⟨(kanPG_iff hW).1 hh.1, fun a a' ha => ?_⟩
+  have hk := hh.2 a a' ha
+  have he := fam_code_eq2 (B := B) hW hA (ISub.id k) (by
+    rw [isub_id_of_closed (closed_of_ty hW hA)]; exact (RE2.typed ha).1)
+  rw [ISub.hom_id, isub_id_of_closed hBc] at he
+  rw [he] at hk
+  exact (kanPG_iff hW).1 hk
+
 /-! ### Inversion of related path types and `(i : I) → L` types -/
 
 theorem RT2_path_inv {L a b L' a' b' : Tm} (h : RT2 S k (.path L a b) (.path L' a' b')) :
@@ -692,6 +833,46 @@ theorem RT2_ipi_inv {L L' : Tm} (h : RT2 S k (.ipi L) (.ipi L')) :
   have := h4 r r' hr hr' hE
   rw [Comp2_res_line hW hL, hLc] at this
   exact this
+/-- Related path types carry the Kan operations of their line code. -/
+theorem RT2_path_kan {L a b L' a' b' : Tm} (h : RT2 S k (.path L a b) (.path L' a' b')) : KanP2 S (k + 1) (semK S (k + 1) L) := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hF⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hL := HasTy.pathLine hF
+  unfold RT2 at h
+  rw [semK_pathT hW hF, Comp2_pathC _ _ _ (semK_ne hW hL)] at h
+  have hk := h.2.2.2.2.1 k (ISub.id k) L a b (by
+    rw [isub_id_of_closed (closed_of_ty hW hF)]; exact ⟨redW_self rfl, TyEq.refl _⟩)
+  simp only [ISub.hom_up, ISub.hom_id, Hom.lift_id, Hom.comp_id, Hom.id_comp] at hk
+  exact (kanPG_iff hW).1 hk
+
+theorem RT2_path_dinst_kan {L a b L' a' b' : Tm} (h : RT2 S k (.path L a b) (.path L' a' b')) (r : I) (hr : r.Scoped k) :
+    KanP2 S k (semK S k (L.dinst r)) := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hF⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hL := HasTy.pathLine hF
+  have hk := (RT2_path_kan hW h).restrict hW (semK_ne hW hL) (ISub.cons r hr (ISub.id k)).hom
+  rwa [← semK_isubS hW hL, isub_cons_id_of_closed (closed_of_ty hW hL)] at hk
+
+/-- Related ipi types carry the Kan operations of their line code. -/
+theorem RT2_ipi_kan {L L' : Tm} (h : RT2 S k (.ipi L) (.ipi L')) : KanP2 S (k + 1) (semK S (k + 1) L) := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hF⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hL := ipi_line hW hF
+  unfold RT2 at h
+  rw [semK_ipiT hW hF, Comp2_ipiC _ (semK_ne hW hL)] at h
+  have hk := h.2.2.2.2.1 k (ISub.id k) L (by
+    rw [isub_id_of_closed (closed_of_ty hW hF)]; exact ⟨redW_self rfl, TyEq.refl _⟩)
+  simp only [ISub.hom_up, ISub.hom_id, Hom.lift_id, Hom.comp_id, Hom.id_comp] at hk
+  exact (kanPG_iff hW).1 hk
+
+theorem RT2_ipi_dinst_kan {L L' : Tm} (h : RT2 S k (.ipi L) (.ipi L')) (r : I) (hr : r.Scoped k) :
+    KanP2 S k (semK S k (L.dinst r)) := by
+  have hb := Comp2_ty_base h
+  obtain ⟨l, hF⟩ := ty_of_tyEq hW hb.2.1 (TyEq.refl _) (fun l h => by cases h)
+  have hL := ipi_line hW hF
+  have hk := (RT2_ipi_kan hW h).restrict hW (semK_ne hW hL) (ISub.cons r hr (ISub.id k)).hom
+  rwa [← semK_isubS hW hL, isub_cons_id_of_closed (closed_of_ty hW hL)] at hk
+
 
 end
 

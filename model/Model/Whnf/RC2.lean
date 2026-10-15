@@ -225,18 +225,18 @@ include hLne
 theorem rcTy_pathC {f : Hom k m} {T T' B' : Tm} (h : (Comp2 S (pathC m L a0 a1) m k f).ty T T')
     (hs : StableT S k T' B') (hB : IsTyK S k B') : (Comp2 S (pathC m L a0 a1) m k f).ty T B' := by
   rw [Comp2_pathC L a0 a1 hLne] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, hk'⟩ := h
   refine ⟨base_rc hW hB hb hs, fun k' σ => ?_, hc, fun k1 σ k2 σ' L1 b0 b1 L2 c0 c1 h1 h2 =>
-    hc' k1 σ k2 σ' L1 b0 b1 L2 c0 c1 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2)⟩
+    hc' k1 σ k2 σ' L1 b0 b1 L2 c0 c1 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2), hk, fun k' σ L1 b0 b1 hR => hk' k' σ L1 b0 b1 (RedT.stable' hW hs σ hR)⟩
   obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3⟩ := hall k' σ
   exact ⟨L1, b0, b1, L1', b0', b1', h1, RedT.stable hW hs σ h2, h3⟩
 
 theorem rcTy_ipiC {f : Hom k m} {T T' B' : Tm} (h : (Comp2 S (ipiC m L) m k f).ty T T')
     (hs : StableT S k T' B') (hB : IsTyK S k B') : (Comp2 S (ipiC m L) m k f).ty T B' := by
   rw [Comp2_ipiC L hLne] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, hk'⟩ := h
   refine ⟨base_rc hW hB hb hs, fun k' σ => ?_, hc, fun k1 σ k2 σ' L1 L2 h1 h2 =>
-    hc' k1 σ k2 σ' L1 L2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2)⟩
+    hc' k1 σ k2 σ' L1 L2 (RedT.stable' hW hs σ h1) (RedT.stable' hW hs _ h2), hk, fun k' σ L1 hR => hk' k' σ L1 (RedT.stable' hW hs σ hR)⟩
   obtain ⟨L1, L1', h1, h2, h3⟩ := hall k' σ
   exact ⟨L1, L1', h1, RedT.stable hW hs σ h2, h3⟩
 

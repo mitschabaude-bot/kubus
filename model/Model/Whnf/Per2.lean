@@ -132,8 +132,8 @@ theorem per2_pathC {L a0 a1 : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL 
   have hLt : ∀ k' (σ : ISub k' k) (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
       Lp k' (ISub.cons r hr σ) = Lp k' (ISub.cons r' hr' σ) := fun k' σ r r' hr hr' he => by
     simp only [Lp, ISub.hom_cons_eq σ hr hr' he]
-  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, path_symTy Lp hLp hLt hT.2.1, hT.2.2.2, hT.2.2.1⟩,
-    fun {T T' T''} hT hT' => ⟨base_trans hW hT.1 hT'.1, path_transTy Lp hLp hLt hT.2.1 hT'.2.1, hT.2.2.1, hT'.2.2.2⟩,
+  refine ⟨fun {T T'} hT => ⟨base_symm hT.1, path_symTy Lp hLp hLt hT.2.1, hT.2.2.2.1, hT.2.2.1, hT.2.2.2.2.2, hT.2.2.2.2.1⟩,
+    fun {T T' T''} hT hT' => ⟨base_trans hW hT.1 hT'.1, path_transTy Lp hLp hLt hT.2.1 hT'.2.1, hT.2.2.1, hT'.2.2.2.1, hT.2.2.2.2.1, hT'.2.2.2.2.2⟩,
     fun {T T' t t'} hT ht => ?_, fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
   · obtain ⟨he, hmem, hp⟩ := ht
     exact ⟨he.symm, by rw [← semK_eq hW he.2.2]; exact hmem, path_symEl Lp hLp hLt hT.2.1 hp⟩
@@ -156,16 +156,16 @@ theorem per2_ipiC {L : V} (hLne : L ≠ ∅) (hL : KR2 S (m + 1) L) (ihL : PER2 
   have sy : ∀ {r r' : I}, I.Eq r r' → I.Eq r' r := fun he ρ => (he ρ).symm
   refine ⟨fun {T T'} hT => ?_, fun {T T' T''} hT hT' => ?_, fun {T T' t t'} hT ht => ?_,
     fun {T T' t t' t''} hT ht ht' => ?_, fun {T T' t t'} hT ht => ?_⟩
-  · obtain ⟨hb, hall, hc, hc'⟩ := hT
-    refine ⟨base_symm hb, fun k' σ => ?_, hc', hc⟩
+  · obtain ⟨hb, hall, hc, hc', hk, hk'⟩ := hT
+    refine ⟨base_symm hb, fun k' σ => ?_, hc', hc, hk', hk⟩
     obtain ⟨L1, L1', h1, h2, h3, hrr⟩ := hall k' σ
     refine ⟨L1', L1, h2, h1, (ihL _ _).symTy h3, fun r r' hr hr' he => ?_⟩
     have := hrr r' r hr' hr (sy he)
     rw [hLe σ hr' hr (sy he)] at this
     exact (ihL _ _).symTy this
-  · obtain ⟨hb, hall, hc, -⟩ := hT
-    obtain ⟨hb', hall', -, hc''⟩ := hT'
-    refine ⟨base_trans hW hb hb', fun k' σ => ?_, hc, hc''⟩
+  · obtain ⟨hb, hall, hc, -, hk, -⟩ := hT
+    obtain ⟨hb', hall', -, hc'', -, hk''⟩ := hT'
+    refine ⟨base_trans hW hb hb', fun k' σ => ?_, hc, hc'', hk, hk''⟩
     obtain ⟨L1, L1', h1, h2, h3, hrr⟩ := hall k' σ
     obtain ⟨L2, L2', h1', h2', h3', hrr'⟩ := hall' k' σ
     obtain rfl : L1' = L2 := by have := RedW.unique h2.1 h1'.1; injection this

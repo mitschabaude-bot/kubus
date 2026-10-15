@@ -122,12 +122,32 @@ theorem kr2_sigmaC {A B : V} (hX : Fib (sigmaC m A B) m) (hA : A ≠ ∅) : KR2 
     · simp only [ISub.id_comp, ISub.comp_hom] at h2 ⊢; rw [Tm.isub_isub, Tm.isub_isub]; exact h2
     · simp only [ISub.id_comp, ISub.comp_hom] at h3 ⊢; rw [Tm.isub_isub, Tm.isub_isub]; exact h3
 
+omit hW in
+theorem kanPath2_isub {L : V} {f : Hom k m} {T : Tm} (h : kanPath2 S L f T) (σ0 : ISub k' k) :
+    kanPath2 S L (f.comp σ0.hom) (T.isub σ0) := by
+  intro k1 σ L1 b0 b1 hR
+  rw [Tm.isub_isub] at hR
+  have hh := h k1 (σ0.comp σ) L1 b0 b1 hR
+  change KanPG S (k1 + 1) (fun n g => Comp2 S L (m + 1) n (((Hom.lift (f.comp σ0.hom)).comp σ.up.hom).comp g))
+  rw [lift_hom_comp]
+  exact hh
+
+omit hW in
+theorem kanIPi2_isub {L : V} {f : Hom k m} {T : Tm} (h : kanIPi2 S L f T) (σ0 : ISub k' k) :
+    kanIPi2 S L (f.comp σ0.hom) (T.isub σ0) := by
+  intro k1 σ L1 hR
+  rw [Tm.isub_isub] at hR
+  have hh := h k1 (σ0.comp σ) L1 hR
+  change KanPG S (k1 + 1) (fun n g => Comp2 S L (m + 1) n (((Hom.lift (f.comp σ0.hom)).comp σ.up.hom).comp g))
+  rw [lift_hom_comp]
+  exact hh
+
 theorem kr2_pathC {L a0 a1 : V} (hX : Fib (pathC m L a0 a1) m) (hL : L ≠ ∅) : KR2 S m (pathC m L a0 a1) := by
   intro k f k' σ T T' t t'
   rw [Comp2_pathC L a0 a1 hL, Comp2_pathC L a0 a1 hL]
   constructor
-  · rintro ⟨hb, hall, hc, hc'⟩
-    refine ⟨?_, fun k'' σ' => ?_, cohPath_isub hc σ, cohPath_isub hc' σ⟩
+  · rintro ⟨hb, hall, hc, hc', hk, hk'⟩
+    refine ⟨?_, fun k'' σ' => ?_, cohPath_isub hc σ, cohPath_isub hc' σ, kanPath2_isub hk σ, kanPath2_isub hk' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
     · obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, hrr, h4, h5⟩ := hall k'' (σ.comp σ')
       refine ⟨L1, b0, b1, L1', b0', b1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_, ?_, ?_, ?_⟩
@@ -148,8 +168,8 @@ theorem kr2_ipiC {L : V} (hX : Fib (ipiC m L) m) (hL : L ≠ ∅) : KR2 S m (ipi
   intro k f k' σ T T' t t'
   rw [Comp2_ipiC L hL, Comp2_ipiC L hL]
   constructor
-  · rintro ⟨hb, hall, hc, hc'⟩
-    refine ⟨?_, fun k'' σ' => ?_, cohIPi_isub hc σ, cohIPi_isub hc' σ⟩
+  · rintro ⟨hb, hall, hc, hc', hk, hk'⟩
+    refine ⟨?_, fun k'' σ' => ?_, cohIPi_isub hc σ, cohIPi_isub hc' σ, kanIPi2_isub hk σ, kanIPi2_isub hk' σ⟩
     · have := base_isub hW hb σ; rwa [res_res] at this
     · obtain ⟨L1, L1', h1, h2, h3, hrr⟩ := hall k'' (σ.comp σ')
       refine ⟨L1, L1', by rw [Tm.isub_isub]; exact h1, by rw [Tm.isub_isub]; exact h2, ?_, ?_⟩

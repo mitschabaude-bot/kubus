@@ -1,5 +1,5 @@
 import Model.Whnf.Kan2UnivH
-import Model.Whnf.Kan2Codes
+import Model.Whnf.Kan2GlueCode
 import Model.Whnf.Kan2DataCode
 
 /-!
@@ -73,15 +73,13 @@ theorem kanP2_dataC' (hyp : HITHyp2 S) {m : ℕ} {Θ : SData m} (hKS : KanShape 
 theorem kanP2_tyCode (hyp : HITHyp2 S) {m : ℕ} {X : V} (hX : TyCode m X) : KanP2 S m X := by
   refine tyCode_ind (fun m X => KanP2 S m X) (fun m => kanP2_emptyC hW) ?_ ?_ ?_ ?_ ?_ ?_ ?_ m X hX
   · intro l m A B hA hB hBf hBw hBn ihA ihB
-    exact kanP2_piC hW hA ihA fun k f A0 a a' ha => ihB k f _ (by
-      have := (Comp2_el ha).2; rwa [El_res, Hom.comp_id] at this)
+    exact kanP2_piC hW (IsKV.ne_empty hA.fib.kv)
   · intro l m A B hA hB hBf hBw hBn ihA ihB
-    exact kanP2_sigmaC hW hA ihA fun k f A0 a a' ha => ihB k f _ (by
-      have := (Comp2_el ha).2; rwa [El_res, Hom.comp_id] at this)
+    exact kanP2_sigmaC hW (IsKV.ne_empty hA.fib.kv)
   · intro l m L a0 a1 hL h0 h1 ihL
-    exact kanP2_pathC hW (IsKV.ne_empty hL.fib.kv) ihL
+    exact kanP2_pathC hW (IsKV.ne_empty hL.fib.kv)
   · intro l m L hL ihL
-    exact kanP2_ipiC hW (IsKV.ne_empty hL.fib.kv) ihL
+    exact kanP2_ipiC hW (IsKV.ne_empty hL.fib.kv)
   · intro m l hl ih
     exact kanP2_univC hW ih
   · intro l m A φ Tp ep hl hAw hφ hn hTpE hepE hTw hTn hem hen ihA ihT

@@ -145,6 +145,16 @@ theorem Comp2_sigmaC (A B : V) (hA : A ≠ ∅) (f : Hom k m) :
   simp only [body2, core2, sigmaC, dat_mkKV, sigmaDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, or_true,
     if_true, natZ_inj, Comp2_res hA, appV_res_res, tPi, tSigma, if_false, show ¬ (3 = 2) by decide, cohSigma, kanSigma2, Hom.comp_assoc]
 
+/-- Kan of the line of a syntactic path normal form. -/
+def kanPath2 (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) L1 b0 b1, RedT S k' (T.isub σ) (.path L1 b0 b1) →
+    KanPG S (k' + 1) (fun n g => Comp2 S L (m + 1) n (((Hom.lift f).comp σ.up.hom).comp g))
+
+/-- Kan of the line of a syntactic interval-function normal form. -/
+def kanIPi2 (S : Sig) (L : V) (f : Hom k m) (T : Tm) : Prop :=
+  ∀ k' (σ : ISub k' k) L1, RedT S k' (T.isub σ) (.ipi L1) →
+    KanPG S (k' + 1) (fun n g => Comp2 S L (m + 1) n (((Hom.lift f).comp σ.up.hom).comp g))
+
 theorem Comp2_pathC (L a0 a1 : V) (hL : L ≠ ∅) (f : Hom k m) :
     Comp2 S (pathC m L a0 a1) m k f =
       ⟨fun T T' => (IsTyK S k T ∧ IsTyK S k T' ∧ semK S k T = res f (pathC m L a0 a1) ∧
@@ -155,13 +165,13 @@ theorem Comp2_pathC (L a0 a1 : V) (hL : L ≠ ∅) (f : Hom k m) :
             (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L1.dinst r) (L1'.dinst r')) ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .zero trivial σ).hom)).el (L1.dinst .zero) b0 b0' ∧
           (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons .one trivial σ).hom)).el (L1.dinst .one) b1 b1') ∧
-          cohPath S L f T ∧ cohPath S L f T',
+          cohPath S L f T ∧ cohPath S L f T' ∧ kanPath2 S L f T ∧ kanPath2 S L f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (pathC m L a0 a1)) (Hom.id k) ∧
           pathE2 S (fun k' σ => (Comp2 S L (m + 1) k' ((Hom.lift f).comp σ.hom)).el) k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show pathC m L a0 a1 ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, pathC, dat_mkKV, pathDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, true_or,
     if_true, natZ_inj, Comp2_res hL, tPi, tSigma, tPath, if_false, show ¬ (4 = 2) by decide,
-    show ¬ (4 = 3) by decide, or_self, cohPath]
+    show ¬ (4 = 3) by decide, or_self, cohPath, kanPath2, Hom.comp_assoc]
 
 theorem Comp2_ipiC (L : V) (hL : L ≠ ∅) (f : Hom k m) :
     Comp2 S (ipiC m L) m k f =
@@ -171,13 +181,13 @@ theorem Comp2_ipiC (L : V) (hL : L ≠ ∅) (f : Hom k m) :
           (Comp2 S L (m + 1) (k' + 1) ((Hom.lift f).comp σ.up.hom)).ty L1 L1' ∧
           ∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
             (Comp2 S L (m + 1) k' ((Hom.lift f).comp (ISub.cons r hr σ).hom)).ty (L1.dinst r) (L1'.dinst r')) ∧
-          cohIPi S L f T ∧ cohIPi S L f T',
+          cohIPi S L f T ∧ cohIPi S L f T' ∧ kanIPi2 S L f T ∧ kanIPi2 S L f T',
         fun T t t' => EB S k T t t' ∧ semK S k t ∈ El (res f (ipiC m L)) (Hom.id k) ∧
           ipiE2 S (fun k' σ => (Comp2 S L (m + 1) k' ((Hom.lift f).comp σ.hom)).el) k (ISub.id k) T t t'⟩ := by
   rw [Comp2_unfold (show ipiC m L ≠ ∅ from mkKV_ne_empty _)]
   simp only [body2, core2, ipiC, dat_mkKV, ipiDatum, π1_quad, tagZ, π1_pair, π2_pair, Hom.comp_id, or_true,
     if_true, natZ_inj, Comp2_res hL, tPi, tSigma, tPath, tIPi, if_false, show ¬ (5 = 2) by decide,
-    show ¬ (5 = 3) by decide, show ¬ (5 = 4) by decide, or_self, cohIPi]
+    show ¬ (5 = 3) by decide, show ¬ (5 = 4) by decide, or_self, cohIPi, kanIPi2, Hom.comp_assoc]
 
 theorem Comp2_univC (l : ℕ) (f : Hom k m) :
     Comp2 S (univC m l) m k f =

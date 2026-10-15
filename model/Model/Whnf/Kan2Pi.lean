@@ -450,7 +450,7 @@ theorem PiStr_of {T T' A B : Tm} {l : ℕ} (h : RT2 S k T T') (hR : RedT S k T (
   have hT := h
   unfold RT2 at hT
   rw [hX, Comp2_piC _ _ hAne] at hT
-  obtain ⟨hbase, hall, hcoh, hcoh'⟩ := hT
+  obtain ⟨hbase, hall, hcoh, hcoh', -, -⟩ := hT
   -- the domain relation at a restriction, and its base
   refine ⟨hbase.2.2.2.2, fun k' ρ => ?_, fun k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2 => ?_, fun k' ρ A1 B1 f f' h1 hf => ?_,
     fun k1 ρ k2 ρ' A1 B1 A2 B2 h1 h2 => ?_⟩

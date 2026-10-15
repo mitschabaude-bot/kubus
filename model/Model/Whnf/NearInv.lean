@@ -144,14 +144,36 @@ theorem cohPi_near {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k
   exact NI2.ty2 (perB _ _ _ (fib_mem ha)) (niB _ _ _ (fib_mem ha)) c
     ((nB1.isub σ').symm.inst (TmNear.refl a)) (inst_tyK hW hpi1' hEa.1) (nB2.symm.inst (TmNear.refl a')) hB2
 
+omit perB niB in
+/-- Near normal forms preserve component Kan at their own domains. -/
+theorem kanPi2_near {f : Hom k m} {T T' T'' : Tm}
+    (h : (Comp2 S (piC m A B) m k f).ty T T') (hn : TmNear T' T'') (hT : IsTyK S k T'') :
+    kanPi2 S A B f T'' := by
+  rw [Comp2_piC A B hA] at h
+  obtain ⟨hb, hall, -, -, -, hk⟩ := h
+  intro k' σ Anew Bnew hR
+  obtain ⟨W, hRold, hw⟩ := RedT.near hW hR (hT.isub hW σ) (hn.symm.isub σ)
+    (good_of_isTyK hW (hb.2.1.isub hW σ))
+  cases hw with
+  | @pi _ Aold _ Bold nA nB =>
+    obtain ⟨Al, Bl, Ar, Br, -, hRr, hAr, -⟩ := hall k' σ
+    obtain ⟨rfl, rfl⟩ : Aold = Ar ∧ Bold = Br := by
+      have he := RedW.unique hRold.1 hRr.1; injection he; constructor <;> assumption
+    obtain ⟨l, hF⟩ := redT_ty hW (hT.isub hW σ) hR (fun l h => by cases h)
+    have P := perA k' (f.comp σ.hom)
+    have hd := NI2.tyR niA (P.reflTy' hAr) nA.symm (pi_dom hW hF)
+    have hh := hk k' σ _ _ hRr
+    exact ⟨hh.1, fun a a' ha => hh.2 a a' (P.conv (P.symTy hd) ha)⟩
+
 theorem niTy_piC {f : Hom k m} {T T' T'' : Tm} (h : (Comp2 S (piC m A B) m k f).ty T T') (hn : TmNear T' T'')
     (hT : IsTyK S k T'') : (Comp2 S (piC m A B) m k f).ty T T'' := by
+  have hkNew := kanPi2_near hW hA perA niA h hn hT
   rw [Comp2_piC A B hA] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, -⟩ := h
   have hT' := hb.2.1
   obtain ⟨e', -⟩ := tyEq_near hW hT' hn (good_of_isTyK hW hT)
   refine ⟨⟨hb.1, hT, hb.2.2.1, (semK_tyEq hW e').symm.trans hb.2.2.2.1, hb.2.2.2.2.trans hW e'⟩, fun k' σ => ?_, hc,
-    cohPi_near hW perA niA perB niB hT' hT hn hc'⟩
+    cohPi_near hW perA niA perB niB hT' hT hn hc', hk, hkNew⟩
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' σ
   obtain ⟨W, h2'', hw⟩ := RedT.near hW h2 (hT'.isub hW σ) (hn.isub σ) (good_of_isTyK hW (hT.isub hW σ))
   cases hw with | pi nA nB =>
@@ -226,14 +248,36 @@ theorem cohSigma_near {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK 
   exact NI2.ty2 (perB _ _ _ (fib_mem ha)) (niB _ _ _ (fib_mem ha)) c
     ((nB1.isub σ').symm.inst (TmNear.refl a)) (inst_tyKS hW hsg1' hEa.1) (nB2.symm.inst (TmNear.refl a')) hB2
 
+omit perB niB in
+/-- Near normal forms preserve component Kan at their own domains. -/
+theorem kanSigma2_near {f : Hom k m} {T T' T'' : Tm}
+    (h : (Comp2 S (sigmaC m A B) m k f).ty T T') (hn : TmNear T' T'') (hT : IsTyK S k T'') :
+    kanSigma2 S A B f T'' := by
+  rw [Comp2_sigmaC A B hA] at h
+  obtain ⟨hb, hall, -, -, -, hk⟩ := h
+  intro k' σ Anew Bnew hR
+  obtain ⟨W, hRold, hw⟩ := RedT.near hW hR (hT.isub hW σ) (hn.symm.isub σ)
+    (good_of_isTyK hW (hb.2.1.isub hW σ))
+  cases hw with
+  | @sigma _ Aold _ Bold nA nB =>
+    obtain ⟨Al, Bl, Ar, Br, -, hRr, hAr, -⟩ := hall k' σ
+    obtain ⟨rfl, rfl⟩ : Aold = Ar ∧ Bold = Br := by
+      have he := RedW.unique hRold.1 hRr.1; injection he; constructor <;> assumption
+    obtain ⟨l, hF⟩ := redT_ty hW (hT.isub hW σ) hR (fun l h => by cases h)
+    have P := perA k' (f.comp σ.hom)
+    have hd := NI2.tyR niA (P.reflTy' hAr) nA.symm (sigma_dom hW hF)
+    have hh := hk k' σ _ _ hRr
+    exact ⟨hh.1, fun a a' ha => hh.2 a a' (P.conv (P.symTy hd) ha)⟩
+
 theorem niTy_sigmaC {f : Hom k m} {T T' T'' : Tm} (h : (Comp2 S (sigmaC m A B) m k f).ty T T') (hn : TmNear T' T'')
     (hT : IsTyK S k T'') : (Comp2 S (sigmaC m A B) m k f).ty T T'' := by
+  have hkNew := kanSigma2_near hW hA perA niA h hn hT
   rw [Comp2_sigmaC A B hA] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, -⟩ := h
   have hT' := hb.2.1
   obtain ⟨e', -⟩ := tyEq_near hW hT' hn (good_of_isTyK hW hT)
   refine ⟨⟨hb.1, hT, hb.2.2.1, (semK_tyEq hW e').symm.trans hb.2.2.2.1, hb.2.2.2.2.trans hW e'⟩, fun k' σ => ?_, hc,
-    cohSigma_near hW perA niA perB niB hT' hT hn hc'⟩
+    cohSigma_near hW perA niA perB niB hT' hT hn hc', hk, hkNew⟩
   obtain ⟨A1, B1, A1', B1', h1, h2, h3, h4⟩ := hall k' σ
   obtain ⟨W, h2'', hw⟩ := RedT.near hW h2 (hT'.isub hW σ) (hn.isub σ) (good_of_isTyK hW (hT.isub hW σ))
   cases hw with | sigma nA nB =>
@@ -318,10 +362,25 @@ theorem cohPath_near {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S
       (HasTy.near' hW hx.1 (nb1.isub σ').symm (good_isub g1.2 σ')) nc1.symm
       (HasTy.near' hW hx.2.1 nc1.symm g2.2)
 
+omit perL niL in
+/-- Near line normal forms preserve the Kan evidence of their line code. -/
+theorem kanPath2_near {f : Hom k m} {T T' T'' : Tm}
+    (h : (Comp2 S (pathC m L a0 a1) m k f).ty T T') (hn : TmNear T' T'') (hT : IsTyK S k T'') :
+    kanPath2 S L f T'' := by
+  have hOld := (Comp2_ty_base h).2.2.1
+  rw [Comp2_pathC _ _ _ hLne] at h
+  have hk := h.2.2.2.2.2
+  intro k' σ L1 b0 b1 hR
+  obtain ⟨W, hRold, hw⟩ := RedT.near hW hR (hT.isub hW σ) (hn.symm.isub σ)
+    (good_of_isTyK hW (hOld.isub hW σ))
+  cases hw with
+  | path nL n0 n1 => exact hk k' σ _ _ _ hRold
+
 theorem niTy_pathC {f : Hom k m} {T T' T'' : Tm} (h : (Comp2 S (pathC m L a0 a1) m k f).ty T T')
     (hn : TmNear T' T'') (hT : IsTyK S k T'') : (Comp2 S (pathC m L a0 a1) m k f).ty T T'' := by
+  have hkNew := kanPath2_near hW hLne h hn hT
   rw [Comp2_pathC L a0 a1 hLne] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, -⟩ := h
   have hT' := hb.2.1
   obtain ⟨e', -⟩ := tyEq_near hW hT' hn (good_of_isTyK hW hT)
   have hrefl : ∀ k' (σ : ISub k' k) L2 c0 c1, RedT S k' (T'.isub σ) (.path L2 c0 c1) → ∀ (r : I) (hr : r.Scoped k'),
@@ -332,7 +391,7 @@ theorem niTy_pathC {f : Hom k m} {T T' T'' : Tm} (h : (Comp2 S (pathC m L a0 a1)
       have := RedW.unique h2.1 hR.1; injection this; exact ⟨by assumption, by assumption, by assumption⟩
     exact (perL _ _).reflTy' (h4 r r hr hr (I_eq_refl _))
   refine ⟨⟨hb.1, hT, hb.2.2.1, (semK_tyEq hW e').symm.trans hb.2.2.2.1, hb.2.2.2.2.trans hW e'⟩, fun k' σ => ?_, hc,
-    cohPath_near hW perL niL hT' hT hn hc' hrefl⟩
+    cohPath_near hW perL niL hT' hT hn hc' hrefl, hk, hkNew⟩
   obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, h4, h5, h6⟩ := hall k' σ
   obtain ⟨W, h2'', hw⟩ := RedT.near hW h2 (hT'.isub hW σ) (hn.isub σ) (good_of_isTyK hW (hT.isub hW σ))
   cases hw with | path nL n0 n1 =>
@@ -397,14 +456,29 @@ theorem cohIPi_near {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S 
   have hL2 := (tyEq_near hW bL.2.2.1 nL2.symm g2).2
   exact NI2.ty2 perL niL c1x (nL1.isub σ'.up).symm hL1 nL2.symm hL2
 
+omit perL niL in
+/-- Near line normal forms preserve the Kan evidence of their line code. -/
+theorem kanIPi2_near {f : Hom k m} {T T' T'' : Tm}
+    (h : (Comp2 S (ipiC m L) m k f).ty T T') (hn : TmNear T' T'') (hT : IsTyK S k T'') :
+    kanIPi2 S L f T'' := by
+  have hOld := (Comp2_ty_base h).2.2.1
+  rw [Comp2_ipiC _ hLne] at h
+  have hk := h.2.2.2.2.2
+  intro k' σ L1 hR
+  obtain ⟨W, hRold, hw⟩ := RedT.near hW hR (hT.isub hW σ) (hn.symm.isub σ)
+    (good_of_isTyK hW (hOld.isub hW σ))
+  cases hw with
+  | ipi nL => exact hk k' σ _ hRold
+
 theorem niTy_ipiC {f : Hom k m} {T T' T'' : Tm} (h : (Comp2 S (ipiC m L) m k f).ty T T')
     (hn : TmNear T' T'') (hT : IsTyK S k T'') : (Comp2 S (ipiC m L) m k f).ty T T'' := by
+  have hkNew := kanIPi2_near hW hLne h hn hT
   rw [Comp2_ipiC L hLne] at h ⊢
-  obtain ⟨hb, hall, hc, hc'⟩ := h
+  obtain ⟨hb, hall, hc, hc', hk, -⟩ := h
   have hT' := hb.2.1
   obtain ⟨e', -⟩ := tyEq_near hW hT' hn (good_of_isTyK hW hT)
   refine ⟨⟨hb.1, hT, hb.2.2.1, (semK_tyEq hW e').symm.trans hb.2.2.2.1, hb.2.2.2.2.trans hW e'⟩, fun k' σ => ?_, hc,
-    cohIPi_near hW perL niL hT' hT hn hc'⟩
+    cohIPi_near hW perL niL hT' hT hn hc', hk, hkNew⟩
   obtain ⟨L1, L1', h1, h2, h3, h4⟩ := hall k' σ
   obtain ⟨W, h2'', hw⟩ := RedT.near hW h2 (hT'.isub hW σ) (hn.isub σ) (good_of_isTyK hW (hT.isub hW σ))
   cases hw with | ipi nL =>

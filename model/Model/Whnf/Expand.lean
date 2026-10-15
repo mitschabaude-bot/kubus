@@ -522,7 +522,7 @@ omit hW in
 theorem pathC_coh {g : Hom k m} {U V : Tm} (h : (Comp2 S (pathC m L a0 a1) m k g).ty U V) :
     cohPath S L g U ∧ cohPath S L g V := by
   rw [Comp2_pathC L a0 a1 hLne] at h
-  exact h.2.2
+  exact ⟨h.2.2.1, h.2.2.2.1⟩
 
 theorem pathC_coh1 {g : Hom k m} {U V : Tm} (h : (Comp2 S (pathC m L a0 a1) m k g).ty U V)
     (σ' : ISub k'' k) {L1 b0 b1 L2 c0 c1 : Tm} (h1 : RedT S k U (.path L1 b0 b1))
@@ -601,6 +601,19 @@ theorem cohPath_expand {f : Hom k m} {T T' : Tm}
     ends .one (.inr rfl) hc1 hd1 hl1⟩
 
 omit krL in
+omit perL krL krX in
+/-- Expansion preserves Kan of a syntactic line component. -/
+theorem kanPath2_expand {f : Hom k m} {T T' : Tm}
+    (hall : ∀ k' (σ : ISub k' k), ∃ U, Red S (T.isub σ) U ∧ TyEq S k' (T.isub σ) U ∧
+      (Comp2 S (pathC m L a0 a1) m k' (f.comp σ.hom)).ty U (T'.isub σ)) : kanPath2 S L f T := by
+  intro k' σ L1 b0 b1 hR
+  obtain ⟨U, r, e, hU⟩ := hall k' σ
+  have hUc := closed_of_isTyK hW (Comp2_ty_base hU).2.1
+  have hR' := RedT.to_red hW r e hR
+  rw [Comp2_pathC _ _ _ hLne] at hU
+  have hh := hU.2.2.2.2.1 k' (ISub.id k') L1 b0 b1 (by rwa [isub_id_of_closed hUc])
+  simpa only [ISub.hom_up, ISub.hom_id, Hom.lift_id, Hom.comp_id, Hom.lift_comp, Hom.comp_assoc] using hh
+
 /-- Head expansion for path types. -/
 theorem heTy_pathC {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k T')
     (hall : ∀ k' (σ : ISub k' k), ∃ U, Red S (T.isub σ) U ∧ TyEq S k' (T.isub σ) U ∧
@@ -608,8 +621,11 @@ theorem heTy_pathC {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k
     (Comp2 S (pathC m L a0 a1) m k f).ty T T' := by
   obtain ⟨U0, -, e0, hU0⟩ := hypT_id hW hT hT' hall
   have hc' := (pathC_coh hLne hU0).2
+  have hk' := hU0
+  rw [Comp2_pathC _ _ _ hLne] at hk'
+  replace hk' := hk'.2.2.2.2.2
   rw [Comp2_pathC L a0 a1 hLne]
-  refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_, cohPath_expand hLne hW perL krX hall, hc'⟩
+  refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_, cohPath_expand hLne hW perL krX hall, hc', kanPath2_expand hLne hW hall, hk'⟩
   obtain ⟨U, r, e, hU⟩ := hall k' σ
   obtain ⟨L1, b0, b1, L1', b0', b1', h1, h2, h3, hrr, h4, h5⟩ := pathC_clause hLne hW hU
   rw [lift_hom_comp, ISub.comp_id] at h3
@@ -713,7 +729,7 @@ omit hW in
 theorem ipiC_coh {g : Hom k m} {U V : Tm} (h : (Comp2 S (ipiC m L) m k g).ty U V) :
     cohIPi S L g U ∧ cohIPi S L g V := by
   rw [Comp2_ipiC L hLne] at h
-  exact h.2.2
+  exact ⟨h.2.2.1, h.2.2.2.1⟩
 
 theorem ipiC_coh1 {g : Hom k m} {U V : Tm} (h : (Comp2 S (ipiC m L) m k g).ty U V)
     (σ' : ISub k'' k) {L1 L2 : Tm} (h1 : RedT S k U (.ipi L1)) (h2 : RedT S k'' (U.isub σ') (.ipi L2)) :
@@ -761,6 +777,19 @@ theorem cohIPi_expand {f : Hom k m} {T T' : Tm}
   exact P.transTy hc (P.transTy hME (P.symTy hLE))
 
 omit krL in
+omit perL krL krX in
+/-- Expansion preserves Kan of a syntactic line component. -/
+theorem kanIPi2_expand {f : Hom k m} {T T' : Tm}
+    (hall : ∀ k' (σ : ISub k' k), ∃ U, Red S (T.isub σ) U ∧ TyEq S k' (T.isub σ) U ∧
+      (Comp2 S (ipiC m L) m k' (f.comp σ.hom)).ty U (T'.isub σ)) : kanIPi2 S L f T := by
+  intro k' σ L1 hR
+  obtain ⟨U, r, e, hU⟩ := hall k' σ
+  have hUc := closed_of_isTyK hW (Comp2_ty_base hU).2.1
+  have hR' := RedT.to_red hW r e hR
+  rw [Comp2_ipiC _ hLne] at hU
+  have hh := hU.2.2.2.2.1 k' (ISub.id k') L1 (by rwa [isub_id_of_closed hUc])
+  simpa only [ISub.hom_up, ISub.hom_id, Hom.lift_id, Hom.comp_id, Hom.lift_comp, Hom.comp_assoc] using hh
+
 /-- Head expansion for types `(i : I) → L`. -/
 theorem heTy_ipiC {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k T')
     (hall : ∀ k' (σ : ISub k' k), ∃ U, Red S (T.isub σ) U ∧ TyEq S k' (T.isub σ) U ∧
@@ -768,8 +797,11 @@ theorem heTy_ipiC {f : Hom k m} {T T' : Tm} (hT : IsTyK S k T) (hT' : IsTyK S k 
     (Comp2 S (ipiC m L) m k f).ty T T' := by
   obtain ⟨U0, -, e0, hU0⟩ := hypT_id hW hT hT' hall
   have hc' := (ipiC_coh hLne hU0).2
+  have hk' := hU0
+  rw [Comp2_ipiC _ hLne] at hk'
+  replace hk' := hk'.2.2.2.2.2
   rw [Comp2_ipiC L hLne]
-  refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_, cohIPi_expand hLne hW perL krX hall, hc'⟩
+  refine ⟨base_expand hW hT e0 hU0, fun k' σ => ?_, cohIPi_expand hLne hW perL krX hall, hc', kanIPi2_expand hLne hW hall, hk'⟩
   obtain ⟨U, r, e, hU⟩ := hall k' σ
   obtain ⟨L1, L1', h1, h2, h3, hrr⟩ := ipiC_clause hLne hW hU
   rw [lift_hom_comp, ISub.comp_id] at h3

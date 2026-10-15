@@ -309,23 +309,29 @@ def core2 (k : ℕ) (Dt : (k' : ℕ) → Hom k' k → V) (self : V) (ρ : Ordina
         (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2 ∧
         (RL k'' (ISub.cons .zero trivial (σ.comp σ'))).el (L2.dinst .zero) (b0.isub σ') c0 ∧
         (RL k'' (ISub.cons .one trivial (σ.comp σ'))).el (L2.dinst .one) (b1.isub σ') c1
+      let kan : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) L1 b0 b1,
+        RedT S k' (A.isub σ) (.path L1 b0 b1) →
+        KanPG S (k' + 1) (fun n g => rec L h12 (k + 1) n (σ.up.hom.comp g))
       { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ L1 b0 b1 L1' b0' b1',
             RedT S k' (A.isub σ) (.path L1 b0 b1) ∧ RedT S k' (A'.isub σ) (.path L1' b0' b1') ∧
             (RL (k' + 1) σ.up).ty L1 L1' ∧
             (∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
               (RL k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r')) ∧
             (RL k' (ISub.cons .zero trivial σ)).el (L1.dinst .zero) b0 b0' ∧
-            (RL k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1') ∧ coh A ∧ coh A'
+            (RL k' (ISub.cons .one trivial σ)).el (L1.dinst .one) b1 b1') ∧ coh A ∧ coh A' ∧ kan A ∧ kan A'
         el := pathE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
     else
       let coh : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) k'' (σ' : ISub k'' k') L1 L2,
         RedT S k' (A.isub σ) (.ipi L1) → RedT S k'' (A.isub (σ.comp σ')) (.ipi L2) →
         (RL (k'' + 1) (σ.comp σ').up).ty (L1.isub σ'.up) L2
+      let kan : Tm → Prop := fun A => ∀ k' (σ : ISub k' k) L1,
+        RedT S k' (A.isub σ) (.ipi L1) →
+        KanPG S (k' + 1) (fun n g => rec L h12 (k + 1) n (σ.up.hom.comp g))
       { ty := fun A A' => (∀ k' (σ : ISub k' k), ∃ L1 L1',
             RedT S k' (A.isub σ) (.ipi L1) ∧ RedT S k' (A'.isub σ) (.ipi L1') ∧ (RL (k' + 1) σ.up).ty L1 L1' ∧
             ∀ (r r' : I) (hr : r.Scoped k') (hr' : r'.Scoped k'), I.Eq r r' →
               (RL k' (ISub.cons r hr σ)).ty (L1.dinst r) (L1'.dinst r')) ∧
-            coh A ∧ coh A'
+            coh A ∧ coh A' ∧ kan A ∧ kan A'
         el := ipiE2 S (fun k' σ => (RL k' σ).el) k (ISub.id k) }
   else if π1 sh = natZ tUniv then
     { ty := fun A A' => ∀ k' (σ : ISub k' k),
