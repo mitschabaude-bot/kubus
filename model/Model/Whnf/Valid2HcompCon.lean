@@ -119,12 +119,6 @@ theorem conArgs2 {k3 : ℕ} (ρ3 : ISub k3 K) {c : ℕ} {C : Ctor} (hC : D.ctors
   subst eZ'
   exact ⟨hYl, h⟩
 
-omit hD hH hP hPP in
-/-- Compositions over related lines of the oracle, at a related type. -/
-theorem HC2.of_kan {A L L' a a' : Tm} (hX : TyCode k (semK S k L)) (hLA : RT2 S k L A)
-    (hK : KanH2 S k L L') : HC2 S k A L L' a a' :=
-  HC2.conv hW hLA hX (KanH2.at hK a a')
-
 omit hW hD hH hP hPP in
 theorem getD_map_dinst (L : List Tm) (i : ℕ) (r : I) :
     (L.map (·.dinst r)).getD i .abort = (L.getD i .abort).dinst r := by
@@ -216,8 +210,8 @@ theorem hcgAt {k1 : ℕ} (ρ : ISub k1 K) {c : ℕ} {C : Ctor} (hC : D.ctors[c]?
       have a' := RT2.isub hW hXP h1' (ρ.comp σ)
       have hXQ := RT2.tyCode_r hW a (hXPσ σ)
       have hQQ' := RT2.trans hW hXQ (RT2.symm hW (hXPσ σ) a) a'
-      exact HC2.of_kan hW hXQ (RT2.symm hW (hXPσ σ) a)
-        (kanH2_data hW hD hH hQQ' ⟨redW_self (step_data d _), TyEq.refl _⟩),
+      exact HC2.conv hW (RT2.symm hW (hXPσ σ) a) hXQ
+        (KanH2.at (kanH2_data hW hD hH hQQ' ⟨redW_self (step_data d _), TyEq.refl _⟩) _ _),
     h12 := ent_refl _, h21 := ent_refl _, hqT := hpT, hq'T := hpT, hφs := hφs, hφs' := hφs, hXq := hXq,
     hXq' := hXq, G1 := G1, G1' := G1', G3 := ?_, G3' := G3', G4 := fun i hi => ?_, G4' := fun i hi => by
       rw [show ((List.range C.args.length).map fun j => proj d D (P.isub ρ).dshift c C j u).getD i .abort =

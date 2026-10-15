@@ -1,19 +1,9 @@
 import Model.Whnf.Kan2DataHCSound
 
 /-!
-# The hypotheses for transport at higher inductive types
+# Boundary relations at a signature prefix
 
-Transport of a constructor of a higher inductive type commutes with its boundaries only up to the
-relation of the argument types of the boundaries' nested constructors to those of the constructor:
-`Ctor.bndTyped` (checked by `DataDecl.Wf`) states them as judgmental equalities in the signature
-before the type, and their validity (the fundamental lemma at that prefix of the signature) is the
-closed statement `bndRel`. Besides, a constructor at a boundary that holds is related to the boundary
-element (the validity of the rule `conBnd`). From these, constructors with related arguments are related
-(`con_rel`, `Kan2DataHITConRel.lean`).
-
-`HITHyp2 S` collects these closed instances (stage `k`, context `.one`, `[]`); they are the instances
-at closed contexts of `DataHyp2.conBnd` (`Fund2Hyp.lean`), and of `Valid2` of the
-equations of `Ctor.bndTyped` (by `Fund2` for the prefix of the signature declaring the type).
+`HITHyp2 S n` contains constructor boundary expansion and boundary argument typing for declarations before `n`. The outer induction `hyps_take` derives argument typing from validity at the preceding prefix and then derives boundary expansion from the checked overlap agreement (`Boundary2.hitHyp_of_bndTyping`). These relations support constructor validity and transport at higher inductive types.
 -/
 
 set_option autoImplicit false
@@ -51,21 +41,6 @@ def bndRelArgs (S : Sig) (k d np n : ℕ) (C : Ctor) (ctors : List Ctor) (P1 Q1 
   | _ => True
 
 end
-
-/-- The hypotheses for transport at higher inductive types (closed instances of the validity of the
-rules of higher inductive types and of the equations `Ctor.bndTyped`). -/
-structure HITConHyp2 (S : Sig) : Prop where
-  /-- A constructor at a boundary that holds is related to the boundary element (`DataHyp2.conBnd`). -/
-  conBnd : ∀ {k d : ℕ} {D : DataDecl} {c : ℕ} {C : Ctor} {P1 : Tm} {Y : List Tm} {rs : List I} {kb : ℕ}
-    {ψ : I} {b : Tm},
-    S[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C → C.bnd[kb]? = some (ψ, b) →
-    I.Entails .one (Ctor.cofAt ψ rs) →
-    HasTy S k .one [] (.data d P1) (.univ D.level) → RT2 S k (.data d P1) (.data d P1) →
-    Y.length = C.args.length →
-    HasTy S k .one [] (.con d c P1 (Tm.ofList Y) rs) (.data d P1) →
-    (∀ i (hi : i < C.args.length), RE2 S k ((C.argTy d D.params.length i).substList
-      ((Y.take i).reverse ++ P1.toList.reverse)) (Y.getD i .abort) (Y.getD i .abort)) →
-    RE2 S k (.data d P1) (.con d c P1 (Tm.ofList Y) rs) (Ctor.bndAt b P1.toList Y rs)
 
 /-- Boundary type validity for the declarations before a signature prefix. -/
 structure HITHyp2 (S : Sig) (n : ℕ) : Prop where
