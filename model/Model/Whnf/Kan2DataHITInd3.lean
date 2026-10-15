@@ -481,9 +481,13 @@ theorem tm1_mainH {k1 : ℕ} {g : Hom k1 K} {A x x' : Tm}
           intro k6 σ' hh
           rw [← I_subst_comp] at hh
           have hs1 := hb0 k6 (κ'.comp σ') hh
-          rw [Tm.isub_isub, Tm.isub_isub, ← ISub.up_comp] at hs1
+          simp only [Tm.isub_isub, ← ISub.up_comp]
           rw [isub_dinst, show I.subst σ'.τ I.zero = I.zero from rfl, line_isub_up,
             lineP_dinst hW hD hp hP hRL _ _ _ .zero trivial]
+          change RE2 S k6 (.data d ((P.isub (ISub.cons
+            ((y.subst κ.up.τ).subst (ISub.cons .zero trivial (ISub.id k4)).τ)
+            (I.scoped_subst (I.scoped_subst hy κ.up.sc) (ISub.cons .zero trivial (ISub.id k4)).sc)
+            ((ρ.comp σ).comp κ))).isub (κ'.comp σ'))) _ _ at hs1
           rw [Tm.isub_isub, ISub.cons_comp] at hs1
           simp only [ISub.comp_assoc] at hs1 ⊢
           refine RE2.conv hW (hRL k6 _ _ _ _ _ ?_) hs1

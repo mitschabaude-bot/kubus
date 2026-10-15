@@ -529,6 +529,9 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
     have hb0 := hb3 k' σ hh
     have IH := ihb k' σ hh
     rw [← ISub.hom_comp] at IH
+    change RE2 S k' (.data d (((P.dinst .zero).isub ρ).isub σ)) _ _ at hb0
+    change TM1H S d D K P k' (ρ.comp σ).hom (.data d (((P.dinst .zero).isub ρ).isub σ)) _ _ at IH
+    rw [Tm.isub_isub] at hb0 IH
     have tp := hcomp_tube_typed' hW
       (u := (Tm.transp ((Tm.data d (P.isub (ISub.cons y hy ρ.up.tail))).dsubst skipI) ψ.shift u).isub σ.up)
       (HasTy.isubS hW htH σ) .zero trivial hh
@@ -549,7 +552,7 @@ theorem tm2_hcompH {k1 : ℕ} {g : Hom k1 K} {A t t' ps qs qs' u u' a a' : Tm} {
       (y.subst σ.up.τ) (y.subst σ.up.τ) hyσ hyσ (I_eq_refl _) (ieq_zero_up h0 σ)
       (ψ.subst σ.τ) (ψ.subst σ.τ) (ent_refl _) (ent_refl _) (by
         have := LineConst.isub LC σ; rwa [line_isub_up] at this)
-      (by simpa only [data_isub_comp] using hb0) (by simpa only [data_isub_comp] using IH) tp tb
+      hb0 IH tp tb
     rw [← eEnd] at R
     exact R
   have hbr : HcompBnd2 S k1 (.data d (P.isub (ISub.cons (y.subst (ISub.cons .one trivial (ISub.id k1)).τ) hy1 ρ))) χ'

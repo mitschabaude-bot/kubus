@@ -146,7 +146,7 @@ theorem hcompBndL_at_valid {A u a : Tm} {ψ : I} (hψ : ψ.Scoped Ψ)
     (hs : Valid2 S Ψ (cof Φ ψ) Γ (u.dinst .zero) a A) (c : CSub2 S Ψ Φ Γ k) :
     HcompBnd2 S k (c.L A) (ψ.subst c.σ.τ) ((c.up hW).L u) (c.L a) := by
   intro k' σ hh
-  have h := hs.left hW ((c.restr hW σ).cof (holds_restr hh hψ))
+  have h := (hs k' (((c.restr hW σ).diagL hW).cof (holds_restr hh hψ))).2
   change RE2 S k' ((c.restr hW σ).L A) ((c.restr hW σ).L (u.dinst .zero)) ((c.restr hW σ).L a) at h
   rw [CSub2.restr_L, CSub2.restr_L, CSub2.restr_L, CSub2.L_dinst hW, isub_dinst] at h
   exact h
@@ -162,18 +162,19 @@ theorem tube_bnd_rel {A u a : Tm} {φ ψ : I} {l : ℕ} (hφ : φ.Scoped Ψ) (h�
       ((c.up hW).L (.transp (A.dsubst skip1I) φ.shift u))
       (.transp ((c.up hW).L A) (φ.subst c.σ.τ) (c.L a)) := by
   intro k' σ hh
-  rw [show (c.up hW).L (.transp (A.dsubst skip1I) φ.shift u) = _ from
-    transp_skip_subst A φ u c.γ c.σ.τ, show skip1I = skipI from rfl,
-    tHc_tube_pt _ _ _ σ .zero trivial, isub_transp,
-    ← CSub2.up_restr_L, ← CSub2.up_restr_L, ← CSub2.restr_L hW c σ,
-    ← CSub2.restr_L hW c σ, ← I_subst_comp]
-  have hb := hs.left hW ((c.restr hW σ).cof (holds_restr hh hψ))
+  have hb := (hs k' (((c.restr hW σ).diagL hW).cof (holds_restr hh hψ))).2
   change RE2 S k' ((c.restr hW σ).L (A.dinst .zero))
     ((c.restr hW σ).L (u.dinst .zero)) ((c.restr hW σ).L a) at hb
   have R := transp_rel_at hW hφ hLV hCV hL hc ((c.restr hW σ).diagL hW) hb
-  rw [CSub2.L_dinst hW] at hb
-  rw [CSub2.L_dinst hW] at R
-  exact R
+  change RE2 S k' ((c.restr hW σ).L (A.dinst .one))
+    (.transp (((c.restr hW σ).up hW).L A) (φ.subst (c.restr hW σ).σ.τ) ((c.restr hW σ).L (u.dinst .zero)))
+    (.transp (((c.restr hW σ).up hW).L A) (φ.subst (c.restr hW σ).σ.τ) ((c.restr hW σ).L a)) at R
+  rw [CSub2.L_dinst hW, CSub2.up_restr_L, CSub2.restr_L, CSub2.restr_L,
+    show φ.subst (c.restr hW σ).σ.τ = (φ.subst c.σ.τ).subst σ.τ from I_subst_comp φ c.σ σ] at R
+  rw [show (c.up hW).L (.transp (A.dsubst skip1I) φ.shift u) = _ from
+    transp_skip_subst A φ u c.γ c.σ.τ, show skip1I = skipI from rfl,
+    tHc_tube_pt _ _ _ σ .zero trivial, isub_transp]
+  simpa only [CSub2.L_dinst hW, isub_dinst] using R
 
 variable {d : ℕ} {D : DataDecl} (hD : S[d]? = some (.data D)) (hp : D.params ≠ []) (hH : D.isHIT = true)
 include hD hp hH

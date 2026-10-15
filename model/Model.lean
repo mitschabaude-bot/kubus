@@ -96,4 +96,5 @@ import Model.Whnf.Valid2ElimH8
 import Model.Whnf.Valid2ElimH9
 import Model.Whnf.Valid2ElimH10
 import Model.Whnf.Valid2ElimH11
+import Model.Whnf.Valid2ElimH12
 import Model.Whnf.Boundary2ConBnd
