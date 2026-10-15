@@ -1,5 +1,6 @@
 import Model.Whnf.Kan2UnivCode
 import Model.Whnf.Kan2DataHITBndTy
+import Model.Whnf.Boundary2ConBnd
 import Model.Whnf.Valid2CompSigma
 import Model.Whnf.Valid2CompPi
 import Model.Whnf.Valid2CompPath
@@ -9,6 +10,9 @@ import Model.Whnf.Valid2TranspGlue
 import Model.Whnf.Valid2Data
 import Model.Whnf.Valid2Elim
 import Model.Whnf.Valid2TranspCon
+import Model.Whnf.Valid2TranspConH
+import Model.Whnf.Valid2TranspHcomp
+import Model.Whnf.Valid2ConH
 import Model.Whnf.Valid2HcompCon
 import Model.Whnf.NearAll
 import Model.Whnf.Valid2GlueBeta
@@ -127,7 +131,11 @@ theorem fund2_ty {Ψ Φ Γ t A} (hd : HasTy0 S' Ψ Φ Γ t A) :
         (.refl (sigwk_ty hpre (.con h0 h1 h2 h3 h4 h5 h6 h7))) (by simpa using Meta.tele_length h4) (tele_isList h5)
         (tele_isList h5) (by simpa [Ctor.argTys] using Meta.tele_length h5)
         (by simpa [Ctor.argTys] using Meta.tele_length h5) h6 h6 a3 a5
-    · exact hDa.con h0 hH h1 h2 (sigwk_ty hpre h3) (sigwk_tele hpre h4) (sigwk_tele hpre h5) h6 h7 a3 a4 a5
+    · have hd := (List.getElem?_eq_some_iff.1 h0).1
+      have hcon := sigwk_ty hpre (.con h0 h1 h2 h3 h4 h5 h6 h7)
+      exact valid_conH hW (hpre _ _ h0) hH (hHit.mono (by omega)) h1 h2 hcon hcon (by simpa using Meta.tele_length h4) (tele_isList h5)
+        (tele_isList h5) (by simpa [Ctor.argTys] using Meta.tele_length h5) rfl
+        (fun i r r' e e' => by rw [e] at e'; cases e'; exact I_eq_refl _) a3 a5
   | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => by
     rename_i D _ _ _ _ _
     cases hH : D.isHIT
@@ -270,6 +278,44 @@ theorem fund2_transpInv {Ψ Φ Γ s T} (hd : HasTy0 S' Ψ Φ Γ s T) :
   | .unglue _ _ _ _ => fun hs => by cases hs
   | .data _ _ _ => fun hs => by cases hs
   | .con _ _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .elim _ _ _ _ _ _ _ _ _ _ => fun hs => by cases hs
+termination_by structural hd
+
+
+theorem fund2_conInv {Ψ Φ Γ s T} (hd : HasTy0 S' Ψ Φ Γ s T) :
+    ∀ {d c ps args rs}, s = .con d c ps args rs → ConInv S Ψ Φ Γ d c ps args rs T :=
+  match hd with
+  | .con h0 h1 h2 h3 h4 h5 h6 h7 => fun hs => by
+    have a3 := fund2_ty h3; have a5 := fund2_tele h5
+    cases hs
+    exact ⟨_, _, hpre _ _ h0, h1, a3, a5, sigwk_ty hpre (.con h0 h1 h2 h3 h4 h5 h6 h7), ElTr2.refl _⟩
+  | .conv h0 h1 => fun hs => (fund2_conInv h0 hs).conv hW (fund2_eq h1)
+  | .restrict h0 h1 h2 => fun hs => (fund2_conInv h2 hs).restrict hW h0 h1
+  | .cumul h0 h1 => fun hs => (fund2_conInv h1 hs).cumul hW h0
+  | .var _ _ => fun hs => by cases hs
+  | .const _ _ => fun hs => by cases hs
+  | .univ _ _ => fun hs => by cases hs
+  | .pi _ _ => fun hs => by cases hs
+  | .lam _ _ => fun hs => by cases hs
+  | .app _ _ => fun hs => by cases hs
+  | .sigma _ _ => fun hs => by cases hs
+  | .pair _ _ _ => fun hs => by cases hs
+  | .fst _ => fun hs => by cases hs
+  | .snd _ => fun hs => by cases hs
+  | .path _ _ _ => fun hs => by cases hs
+  | .plam _ _ _ _ => fun hs => by cases hs
+  | .papp _ _ => fun hs => by cases hs
+  | .ipi _ _ => fun hs => by cases hs
+  | .ilam _ _ => fun hs => by cases hs
+  | .iapp _ _ => fun hs => by cases hs
+  | .split _ _ _ _ _ _ _ => fun hs => by cases hs
+  | .abort _ _ => fun hs => by cases hs
+  | .hcomp _ _ _ _ _ => fun hs => by cases hs
+  | .glue _ _ _ _ => fun hs => by cases hs
+  | .glueEl _ _ _ _ _ => fun hs => by cases hs
+  | .unglue _ _ _ _ => fun hs => by cases hs
+  | .data _ _ _ => fun hs => by cases hs
+  | .transp _ _ _ _ => fun hs => by cases hs
   | .elim _ _ _ _ _ _ _ _ _ _ => fun hs => by cases hs
 termination_by structural hd
 
@@ -637,29 +683,28 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
       (sigwk_eq hpre (.data h0 h1 h2 h3)) a3
   | .con h0 h1 h2 h3 h4 h5 h6 h7 => by
     rename_i d D _ _ ps _ _ _ _ _
+    have hD := hpre _ _ h0
+    have hd := (List.getElem?_eq_some_iff.1 h0).1
+    have hcon := sigwk_ty hpre h2
+    have hcon' := sigwk_ty hpre h3
+    obtain ⟨D1, C1, hD1, hC1, hpl, hpsl, -, hrs⟩ := gen_con hcon rfl
+    obtain ⟨D2, C2, hD2, hC2, -, -, -, hrs'⟩ := gen_con hcon' rfl
+    rw [hD] at hD1 hD2; cases hD1; cases hD2
+    rw [h1] at hC1 hC2; cases hC1; cases hC2
+    have va := fund2_eqtele h5
+    obtain ⟨hal, hal', hall, hall'⟩ := VTele2.shape va
+    simp only [Ctor.argTys, List.length_map, List.length_range] at hall hall'
+    have hvd : Valid2 S Ψ Φ Γ (.data d ps) (.data d ps) (.univ D.level) := by
+      rcases pre_ty (sigClosed_of_wfSig hW) (wf_typed _ S rfl hW).1 (wf_typed _ S rfl hW).2 hcon with
+        ⟨l, hl⟩ | ⟨l, he, -⟩
+      · obtain ⟨D3, hD3, htele⟩ := gen_data_tele hl rfl
+        rw [hD] at hD3; cases hD3
+        exact valid_data hW hD (hDe.mono (by omega)) (hHit.mono (by omega)) (hW.2 _ D hD).1 htele (VTele2.left hW (fund2_eqtele h4))
+      · cases he
     cases hH : D.isHIT
-    · have hD := hpre _ _ h0
-      have hd := (List.getElem?_eq_some_iff.1 h0).1
-      have hcon := sigwk_ty hpre h2
-      have hcon' := sigwk_ty hpre h3
-      obtain ⟨D1, C1, hD1, hC1, hpl, hpsl, -, hrs⟩ := gen_con hcon rfl
-      obtain ⟨D2, C2, hD2, hC2, -, -, -, hrs'⟩ := gen_con hcon' rfl
-      rw [hD] at hD1 hD2; cases hD1; cases hD2
-      rw [h1] at hC1 hC2; cases hC1; cases hC2
-      have va := fund2_eqtele h5
-      obtain ⟨hal, hal', hall, hall'⟩ := VTele2.shape va
-      simp only [Ctor.argTys, List.length_map, List.length_range] at hall hall'
-      have hvd : Valid2 S Ψ Φ Γ (.data d ps) (.data d ps) (.univ D.level) := by
-        rcases pre_ty (sigClosed_of_wfSig hW) (wf_typed _ S rfl hW).1 (wf_typed _ S rfl hW).2 hcon with
-          ⟨l, hl⟩ | ⟨l, he, -⟩
-        · obtain ⟨D3, hD3, htele⟩ := gen_data_tele hl rfl
-          rw [hD] at hD3; cases hD3
-          exact valid_data hW hD (hDe.mono (by omega)) (hHit.mono (by omega)) (hW.2 _ D hD).1 htele (VTele2.left hW (fund2_eqtele h4))
-        · cases he
-      exact valid_con_nonHIT hW hD (hDe.mono (by omega)) hH h1 hpl hcon (sigwk_eq hpre (.con h0 h1 h2 h3 h4 h5 h6 h7))
+    · exact valid_con_nonHIT hW hD (hDe.mono (by omega)) hH h1 hpl hcon (sigwk_eq hpre (.con h0 h1 h2 h3 h4 h5 h6 h7))
         hpsl hal hal' hall hall' hrs hrs' hvd va
-    exact hDa.conEq h0 hH h1 (sigwk_ty hpre h2) (sigwk_ty hpre h3) (sigwk_eqtele hpre h4) (sigwk_eqtele hpre h5) h6 h7
-      (fund2_ty h2) (fund2_ty h3) (fund2_eqtele h4) (fund2_eqtele h5)
+    exact valid_conH hW hD hH (hHit.mono (by omega)) h1 hpl hcon hcon' hpsl hal hal' hall h6 h7 hvd va
   | .elim h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 => by
     rename_i D _ _ _ _ _ _ _ _ _
     cases hH : D.isHIT
@@ -685,7 +730,8 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
       simp only [Bool.or_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true', List.isEmpty_eq_false_iff] at this
       have hb : C.bnd = [] := Classical.byContradiction fun hne => this (.inr hne)
       rw [hb] at h2; cases h2
-    exact hDa.conBnd h0 hH h1 h2 h3 h4 h5 (sigwk_ty hpre h6) (pre2 hW hpre (.conBnd h0 h1 h2 h3 h4 h5 h6)).2 (fund2_ty h6)
+    exact valid_conBnd hW (hpre _ _ h0) hH (hHit.mono (by
+      have := (List.getElem?_eq_some_iff.1 h0).1; omega)) h1 h2 h3 h4 h5 (fund2_ty h6) (fund2_conInv h6 rfl)
   | .elimCon h0 h1 h2 h3 h4 h5 h6 h7 => by
     rename_i D _ _ _ _ _ _ _ _ _
     cases hH : D.isHIT
@@ -709,11 +755,14 @@ theorem fund2_eq {Ψ Φ Γ t u A} (hd : EqTm0 S' Ψ Φ Γ t u A) :
     · exact valid_transpCon hW (hpre _ _ h0) hH h1 h2 h3 (sigwk_ty hpre h6)
         (pre2 hW hpre (.transpCon h0 h1 h2 h3 h4 h5 h6)).2 (sigwk_eq hpre (.transpCon h0 h1 h2 h3 h4 h5 h6))
         (fund2_tele h5) (fund2_ty h6) (fund2_transpInv h6 rfl)
-    exact hDa.transpCon h0 hH h1 h2 h3 h4 (sigwk_tele hpre h5) (sigwk_ty hpre h6)
-      (pre2 hW hpre (.transpCon h0 h1 h2 h3 h4 h5 h6)).2 (fund2_tele h5) (fund2_ty h6)
-  | .transpHcomp h0 h1 h2 h3 h4 =>
-    hDa.transpHcomp h0 h1 h2 (sigwk_ty hpre h3) (sigwk_ty hpre h4) (pre2 hW hpre (.transpHcomp h0 h1 h2 h3 h4)).2
-      (fund2_ty h3) (fund2_ty h4)
+    exact valid_transpConH hW (hpre _ _ h0) hH (hHit.mono (by
+      have := (List.getElem?_eq_some_iff.1 h0).1; omega)) h1
+      h2 h3 (fund2_tele h5) (fund2_ty h6) (fund2_transpInv h6 rfl)
+  | .transpHcomp h0 h1 h2 h3 h4 => by
+    have hti := fund2_transpInv h4 rfl
+    exact valid_transpHcomp hW (hpre _ _ h0) h1 h2
+      (sigwk_ty hpre h3) (sigwk_ty hpre h4) (pre2 hW hpre (.transpHcomp h0 h1 h2 h3 h4)).2 (fund2_ty h4) hti
+      (fund2_hcompInv h3 rfl)
 termination_by structural hd
 
 end
@@ -768,7 +817,7 @@ theorem nearEl2_of (hW : WfSig S) : NearEl2 S := by
 
 /-- The definitions of every prefix of the signature are related, and the declared types of its inductive
 types are valid, by induction on the prefix. -/
-theorem hyps_take (hW : WfSig S) (hCon : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S (S.take n))
+theorem hyps_take (hW : WfSig S) (hDa : ∀ n, DataHyp2 S (S.take n))
     : ∀ n, DefHyp2 S (S.take n) ∧ DeclHyp2 S n ∧ HITHyp2 S n := by
   intro n
   induction n with
@@ -815,7 +864,8 @@ theorem hyps_take (hW : WfSig S) (hCon : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S 
         have hv := hfund (spec_to_minimal (wfSig_take hW d) hty)
         exact RE2_univ_kan hW (hv k cs).2
     have hBoundary : HITHyp2 S (n + 1) := by
-      refine ⟨(fun hd => hCon.conBnd), fun {k d D c C P1 Y rs kb ψ b} hd hD hH hC hb hent hP hPP hYl hcon hY => ?_⟩
+      apply Boundary2.hitHyp_of_bndTyping hW
+      intro d hd k D c C P1 Y rs kb ψ b hD hH hC hb hent hP hPP hYl hcon hY
       by_cases hdn : d < n
       · exact ih.2.2.bndTy hdn hD hH hC hb hent hP hPP hYl hcon hY
       obtain rfl : d = n := by omega
@@ -824,9 +874,9 @@ theorem hyps_take (hW : WfSig S) (hCon : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S 
     exact ⟨hDef, hDecl, hBoundary⟩
 
 /-- **The binary fundamental lemma**, for derivations in the whole signature. -/
-theorem fund2 (hW : WfSig S) (hHit : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S (S.take n))
+theorem fund2 (hW : WfSig S) (hDa : ∀ n, DataHyp2 S (S.take n))
     {Ψ Φ Γ t u A} (h : EqTm0 S Ψ Φ Γ t u A) : Valid2 S Ψ Φ Γ t u A := by
-  have hH := hyps_take hW hHit hDa S.length
+  have hH := hyps_take hW hDa S.length
   have hD := hH.1
   rw [List.take_length] at hD
   have := hDa S.length
@@ -834,11 +884,11 @@ theorem fund2 (hW : WfSig S) (hHit : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S (S.t
   exact fund2_eq hW (fun _ _ h => h) hD hH.2.2 this (nearEl2_of hW) hH.2.1 h
 
 /-- The binary fundamental lemma for closed terms at stage `k`. -/
-theorem fund2_closed (hW : WfSig S) (hHit : HITConHyp2 S) (hDa : ∀ n, DataHyp2 S (S.take n))
+theorem fund2_closed (hW : WfSig S) (hDa : ∀ n, DataHyp2 S (S.take n))
     {t u A : Tm} (h : EqTm0 S k .one [] t u A) : RT2 S k A A ∧ RE2 S k A t u := by
   obtain ⟨ht, hu⟩ := presup hW h
-  have hA := RE2.typed ((fund2 hW hHit hDa (EqTm0.refl ht)) k (CSub2.idS S k)).2
-  refine valid_closed (fund2 hW hHit hDa h) (closed_ty ht) (closed_ty hu) ?_
+  have hA := RE2.typed ((fund2 hW hDa (EqTm0.refl ht)) k (CSub2.idS S k)).2
+  refine valid_closed (fund2 hW hDa h) (closed_ty ht) (closed_ty hu) ?_
   rcases pre_ty (sigClosed_of_wfSig hW) (wf_typed _ S rfl hW).1 (wf_typed _ S rfl hW).2 ht with ⟨l, hl⟩ | ⟨l, rfl, -⟩
   · exact closed_ty hl
   · rfl

@@ -51,6 +51,8 @@ Patches 1, 2 and 5 only add rules; the kernel never uses them.
 
 P12 replaces `DataDecl.Wf`'s overlap equation in the truncated signature with `Boundary.Agree`: endpoint substitution and boundary normalization on each consistent DNF face, followed by comparison up to `I.Eq`. The generated `DataDecl.Wf0` uses the same judgment-free predicate, so `Final.wfSig_of_wfSig0` carries it directly. Boundary typing and `Ctor.bndTyped` are unchanged, and the presupposition proof of `conBnd` continues to use them. In the set model, `Model.Boundary.raw_ovl` proves overlap agreement in the untyped constructor algebra by a joint induction with normalizer soundness; `DataOKProof.ovl_X` applies it without transporting equations out of a truncated signature. `Good.ovl` and `conV_eq_bnd_of` keep their semantic statements.
 
+The binary proof is in `model/Model/Whnf/Boundary2*.lean`. `Boundary2.overlap_rel` interprets the syntactic check using the relations of earlier constructors; `Boundary2.constructors_and_boundaries` proves constructor relatedness and boundary expansion together by induction on the constructor index. `Boundary2.hitHyp_of_bndTyping` constructs `HITHyp2 S` from `WfSig S` and its separate `bndTy` field (`Boundary2.BndTyping S`), with no assumed `conBnd` field. Validity of the prefix equations in `Ctor.bndTyped`, and the remaining `DataHyp2` obligations, are separate tasks.
+
 ## Results
 
 All results assume `SigClosed S` (implied by `WfSig S`).

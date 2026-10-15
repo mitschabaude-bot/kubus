@@ -9,8 +9,8 @@ derivations in a prefix `S'` of the signature `S`. It is parametrized by:
 
 - `DefHyp2 S S'`: the definitions of `S'` are related to themselves (outer induction on the
   signature);
-- indexed boundary type validity, derived by the outer prefix induction from validity at the preceding prefix;
-- `DataHyp2 S S'`: the validity of the rules of the inductive types of `S'` (formation, injectivity, `transpData0`, and the rules of types without path constructors are proven: `Valid2Data.lean`, `Valid2Elim.lean`, `Valid2TranspCon.lean`, `Valid2HcompCon.lean`);
+- `HITHyp2 S S'.length`: the constructor boundary relations and boundary argument typing for the prefix;
+- `DataHyp2 S S'`: the remaining HIT elimination rules (`elim`, `elimEq`, `elimCon`, `elimHcomp`).
 
 The `transpGlue` rule, whose reduct's `∀i. φ` commutes with substitution only up to equivalence, uses
 that element relations are invariant under near terms (`NearEl2`, from `RE2_near`).
@@ -44,14 +44,6 @@ def DefHyp2 (S S' : Sig) : Prop :=
 /-- The validity of the rules of the inductive types of `S'` (judgments in `S`), given the validity of
 their premises. -/
 structure DataHyp2 (S S' : Sig) : Prop where
-  con : ∀ {Ψ Φ Γ d D c C ps args rs}, S'[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C →
-    ps = Tm.ofList ps.toList → HasTy0 S Ψ Φ Γ (.data d ps) (.univ D.level) →
-    HasTele0 S Ψ Φ Γ ps D.params [] →
-    HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) ps.toList.reverse →
-    rs.length = C.dims → (∀ r ∈ rs, r.Scoped Ψ) →
-    Valid2 S Ψ Φ Γ (.data d ps) (.data d ps) (.univ D.level) → VTele2 S Ψ Φ Γ ps ps D.params [] →
-    VTele2 S Ψ Φ Γ args args (C.argTys d D.params.length) ps.toList.reverse →
-    Valid2 S Ψ Φ Γ (.con d c ps args rs) (.con d c ps args rs) (.data d ps)
   elim : ∀ {Ψ Φ Γ d D ps P bs t m}, S'[d]? = some (.data D) → D.isHIT = true →
     ps = Tm.ofList ps.toList →
     HasTy0 S Ψ Φ Γ (.data d ps) (.univ D.level) → HasTele0 S Ψ Φ Γ ps D.params [] →
@@ -74,17 +66,6 @@ structure DataHyp2 (S S' : Sig) : Prop where
         (DataDecl.branchApp C b) (D.bndElim C ps bs e) (DataDecl.branchBody d c C ps P)) →
     Valid2 S Ψ Φ Γ t t (.data d ps) →
     Valid2 S Ψ Φ Γ (.elim d ps P bs t) (.elim d ps P bs t) (P.inst t)
-  conEq : ∀ {Ψ Φ Γ d D c C ps ps' args args' rs rs'}, S'[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C →
-    HasTy0 S Ψ Φ Γ (.con d c ps args rs) (.data d ps) →
-    HasTy0 S Ψ Φ Γ (.con d c ps' args' rs') (.data d ps) →
-    EqTele0 S Ψ Φ Γ ps ps' D.params [] →
-    EqTele0 S Ψ Φ Γ args args' (C.argTys d D.params.length) ps.toList.reverse →
-    rs.length = rs'.length → (∀ (k : ℕ) (r r' : I), rs[k]? = some r → rs'[k]? = some r' → I.Eq r r') →
-    Valid2 S Ψ Φ Γ (.con d c ps args rs) (.con d c ps args rs) (.data d ps) →
-    Valid2 S Ψ Φ Γ (.con d c ps' args' rs') (.con d c ps' args' rs') (.data d ps) →
-    VTele2 S Ψ Φ Γ ps ps' D.params [] →
-    VTele2 S Ψ Φ Γ args args' (C.argTys d D.params.length) ps.toList.reverse →
-    Valid2 S Ψ Φ Γ (.con d c ps args rs) (.con d c ps' args' rs') (.data d ps)
   elimEq : ∀ {Ψ Φ Γ d D ps ps' P P' bs bs' t t' m}, S'[d]? = some (.data D) → D.isHIT = true →
     HasTy0 S Ψ Φ Γ (.elim d ps P bs t) (P.inst t) → HasTy0 S Ψ Φ Γ (.elim d ps' P' bs' t') (P.inst t) →
     EqTele0 S Ψ Φ Γ ps ps' D.params [] → EqTm0 S Ψ Φ (.data d ps :: Γ) P P' (.univ m) →
@@ -102,12 +83,6 @@ structure DataHyp2 (S S' : Sig) : Prop where
       Valid2 S Ψ Φ Γ b b' (D.branchTy d c C ps P)) →
     Valid2 S Ψ Φ Γ t t' (.data d ps) →
     Valid2 S Ψ Φ Γ (.elim d ps P bs t) (.elim d ps' P' bs' t') (P.inst t)
-  conBnd : ∀ {Ψ Φ Γ d D c C ps args rs} {k : ℕ} {ψ b T}, S'[d]? = some (.data D) → D.isHIT = true → D.ctors[c]? = some C →
-    C.bnd[k]? = some (ψ, b) → I.Entails Φ (Ctor.cofAt ψ rs) →
-    ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
-    HasTy0 S Ψ Φ Γ (.con d c ps args rs) T → HasTy0 S Ψ Φ Γ (Ctor.bndAt b ps.toList args.toList rs) T →
-    Valid2 S Ψ Φ Γ (.con d c ps args rs) (.con d c ps args rs) T →
-    Valid2 S Ψ Φ Γ (.con d c ps args rs) (Ctor.bndAt b ps.toList args.toList rs) T
   elimCon : ∀ {Ψ Φ Γ d D c C ps P bs b qs args rs T}, S'[d]? = some (.data D) → D.isHIT = true →
     D.ctors[c]? = some C → bs.toList[c]? = some b →
     ps = Tm.ofList ps.toList → args = Tm.ofList args.toList → bs = Tm.ofList bs.toList →
@@ -130,31 +105,6 @@ structure DataHyp2 (S S' : Sig) : Prop where
     Valid2 S Ψ Φ Γ (.elim d ps P bs (.hcomp (.data d qs) φ u a))
       (Tm.comp (P.subst (consSub (Tm.hfill (.data d ps) φ u a)) (fun i => .var (i + 1))) φ
         (.elim d ps.dshift P.dshift bs.dshift u) (.elim d ps P bs a)) T
-  transpCon : ∀ {Ψ Φ Γ d D c C ps φ qs args rs T}, S'[d]? = some (.data D) → D.isHIT = true → D.params ≠ [] →
-    D.ctors[c]? = some C → ps = Tm.ofList ps.toList → args = Tm.ofList args.toList →
-    HasTele0 S Ψ Φ Γ args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →
-    HasTy0 S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) T →
-    HasTy0 S Ψ Φ Γ (.con d c (ps.dinst .one)
-      (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T →
-    VTele2 S Ψ Φ Γ args args (C.argTys d D.params.length) (ps.dinst .zero).toList.reverse →
-    Valid2 S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs)) (.transp (.data d ps) φ (.con d c qs args rs)) T →
-    Valid2 S Ψ Φ Γ (.transp (.data d ps) φ (.con d c qs args rs))
-      (.con d c (ps.dinst .one)
-        (Tm.ofList (Tm.transpTele (C.argTy d D.params.length) ps.toList φ 0 [] args.toList)) rs) T
-  transpHcomp : ∀ {Ψ Φ Γ d D ps φ qs ψ u a T}, S'[d]? = some (.data D) → D.params ≠ [] → D.isHIT = true →
-    HasTy0 S Ψ Φ Γ (.hcomp (.data d (ps.dinst .zero)) ψ u a) (.data d (ps.dinst .zero)) →
-    HasTy0 S Ψ Φ Γ (.transp (.data d ps) φ (.hcomp (.data d qs) ψ u a)) T →
-    HasTy0 S Ψ Φ Γ (.hcomp (.data d (ps.dinst .one)) ψ
-        (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u)
-        (.transp (.data d ps) φ a)) T →
-    Valid2 S Ψ Φ Γ (.hcomp (.data d (ps.dinst .zero)) ψ u a) (.hcomp (.data d (ps.dinst .zero)) ψ u a)
-      (.data d (ps.dinst .zero)) →
-    Valid2 S Ψ Φ Γ (.transp (.data d ps) φ (.hcomp (.data d qs) ψ u a))
-      (.transp (.data d ps) φ (.hcomp (.data d qs) ψ u a)) T →
-    Valid2 S Ψ Φ Γ (.transp (.data d ps) φ (.hcomp (.data d qs) ψ u a))
-      (.hcomp (.data d (ps.dinst .one)) ψ
-        (.transp ((Tm.data d ps).dsubst skip1I) φ.shift u)
-        (.transp (.data d ps) φ a)) T
 
 end
 
